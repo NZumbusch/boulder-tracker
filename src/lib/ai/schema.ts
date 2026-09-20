@@ -1,4 +1,14 @@
 import type { DayOfWeek, ExerciseValues } from "../types";
+import { getWeekIdRange } from "../dateUtils";
+import {
+  EXERCISE_VALUE_SPEC,
+  EXERCISE_VALUE_FIELD_NAMES,
+  matchEnumValue,
+  renderValueFieldReference,
+  resolveValueFieldName,
+  splitCompoundValue,
+  type ValueFieldSpec,
+} from "./valueSpec";
 
 /**
  * Runtime validators for the two AI JSON contracts (Phase 5 - see PLAN.md).
@@ -25,48 +35,30 @@ const DAYS_OF_WEEK: DayOfWeek[] = [
   "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 ];
 
-type FieldType = "number" | "string" | "string[]";
-
-/** Every `ExerciseValues` field an AI import may set, and how to validate it. */
-const EXERCISE_VALUE_FIELDS: Record<keyof ExerciseValues, FieldType> = {
-  notes: "string",
-  duration: "number",
-  plannedLoad: "number",
-  minGrade: "string",
-  maxGrade: "string",
-  cadence: "number",
-  climbingStyle: "string[]",
-  boardType: "string",
-  boardAngle: "number",
-  leadStyle: "string[]",
-  sets: "number",
-  reps: "number",
-  movesPerRoute: "number",
-  holdType: "string",
-  timeOn: "number",
-  timeOff: "number",
-  timeBetweenSets: "number",
-  weight: "number",
-  holdSize: "number",
-  distance: "number",
-  campusType: "string",
-  difficulty: "number",
-  routeDifficulty: "string",
-  bodyweightPercent: "number",
-  maxWeightPercent: "number",
-  mobilityType: "string[]",
-};
-
 export interface ValidationIssue {
   /** Dotted/bracketed path into the input, e.g. "weeks[2].workouts[0].exercises[1].values.sets" */
   path: string;
   message: string;
+  /**
+   * "error" (the default when omitted) rejects the whole import, preserving
+   * the all-or-nothing rule above. "repair" is something that was
+   * automatically corrected and is reported for review rather than fatal -
+   * see `validateExerciseValues` for exactly which mistakes qualify.
+   */
+  severity?: "error" | "repair";
+}
+
+export function isError(issue: ValidationIssue): boolean {
+  return issue.severity !== "repair";
 }
 
 export interface ValidationResult<T> {
   valid: boolean;
   data: T | null;
+  /** Fatal problems only. Empty whenever `valid` is true. */
   issues: ValidationIssue[];
+  /** Auto-applied fixes, for the import UI to show before the user confirms. */
+  repairs: ValidationIssue[];
 }
 
 export interface AIExercise {
@@ -98,9 +90,31 @@ export interface AIPlanWeek {
   workouts: AIPlanWorkout[];
 }
 
-export interface AIPlanOutput {
-  weeks: AIPlanWeek[];
+/**
+ * One phase of the "phase format" contract: the phase, the week range it
+ * covers, and the distinct sessions that make it up - stated once, not
+ * repeated per week. See `expandPhasePlan`.
+ */
+export interface AIPlanPhase {
+  phaseName: string;
+  startWeekId: string;
+  endWeekId: string;
+  sessions: AIPlanWorkout[];
 }
+
+export interface AIPlanOutput {
+  /** Which shape the pasted document used. Always set by `validateAIPlanOutput`. */
+  format?: "weekly" | "phase";
+  /**
+   * Always populated: the per-week plan, expanded from `phases` when the
+   * document used the phase format. Downstream import code reads only this.
+   */
+  weeks: AIPlanWeek[];
+  /** Present only for `format: "phase"`, for the preview to show the block plan. */
+  phases?: AIPlanPhase[];
+}
+
+const WEEK_ID = /^\d{4}-W\d{2}$/;
 
 export interface AIWorkoutLogWorkout {
   /** ISO date string, if the AI could infer one from the pasted notes */
@@ -117,36 +131,139 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** Coerces a numeric-looking string ("60") to a number, per-field type check otherwise. */
-function checkField(
-  raw: unknown,
-  type: FieldType,
-  path: string,
-  issues: ValidationIssue[],
-): unknown {
-  if (type === "number") {
-    const n = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN;
-    if (typeof n !== "number" || Number.isNaN(n)) {
-      issues.push({ path, message: `Expected a number, got ${JSON.stringify(raw)}.` });
-      return undefined;
-    }
-    return n;
-  }
-  if (type === "string") {
-    if (typeof raw !== "string") {
-      issues.push({ path, message: `Expected a string, got ${JSON.stringify(raw)}.` });
-      return undefined;
-    }
-    return raw;
-  }
-  // string[]
-  if (!Array.isArray(raw) || raw.some((v) => typeof v !== "string")) {
-    issues.push({ path, message: `Expected an array of strings, got ${JSON.stringify(raw)}.` });
-    return undefined;
-  }
-  return raw;
+/** Records an auto-applied fix. Never fails the import - surfaced for review instead. */
+function pushRepair(issues: ValidationIssue[], path: string, message: string): void {
+  issues.push({ path, message, severity: "repair" });
 }
 
+interface CoerceResult {
+  /** The canonical value to store, or undefined if nothing usable survived. */
+  value?: unknown;
+  /** Text that could not be represented in this field and belongs in `notes`. */
+  rescued?: string;
+  /** Set only for input that is not repairable at all (wrong JSON type entirely). */
+  error?: string;
+  /** Human-readable description of what was changed, when anything was. */
+  repair?: string;
+}
+
+/** A bare "45", "45kg", "30 min" - but deliberately not prose that happens to contain a digit. */
+const LONE_NUMBER = /^\s*(-?\d+(?:[.,]\d+)?)\s*[a-z%\u00b0"']*\s*$/i;
+
+function coerceNumber(raw: unknown): CoerceResult {
+  if (typeof raw === "number") {
+    return Number.isFinite(raw) ? { value: raw } : { error: `Expected a number, got ${JSON.stringify(raw)}.` };
+  }
+  if (typeof raw === "string") {
+    const match = raw.match(LONE_NUMBER);
+    if (match) {
+      const n = Number(match[1].replace(",", "."));
+      if (Number.isFinite(n)) {
+        return { value: n, repair: `Read ${JSON.stringify(raw)} as the number ${n}.` };
+      }
+    }
+    // Prose in a numeric field (the model's most common mistake, e.g.
+    // "cadence": "Continuous, 1 problem every 3-4 min"). Pulling a digit out
+    // of that would invent a prescription nobody wrote, so the text is moved
+    // to `notes` verbatim instead - lossless, and visible in the UI.
+    return { rescued: raw.trim(), repair: `Not a number - moved to notes.` };
+  }
+  return { error: `Expected a number, got ${JSON.stringify(raw)}.` };
+}
+
+function coerceEnumScalar(raw: unknown, spec: ValueFieldSpec): CoerceResult {
+  let text: string;
+  if (typeof raw === "string") {
+    text = raw;
+  } else if (Array.isArray(raw) && raw.length === 1 && typeof raw[0] === "string") {
+    text = raw[0];
+  } else {
+    return { error: `Expected a string, got ${JSON.stringify(raw)}.` };
+  }
+
+  const allowed = spec.enum!;
+  const direct = matchEnumValue(text, allowed);
+  if (direct) {
+    return direct === text
+      ? { value: direct }
+      : { value: direct, repair: `Read ${JSON.stringify(text)} as "${direct}".` };
+  }
+
+  // "Steep and powerful" against a single-valued field: accept only when
+  // exactly one token is unambiguously legal, keep the original text in notes.
+  const matches = [...new Set(splitCompoundValue(text).map((t) => matchEnumValue(t, allowed)).filter(Boolean))] as string[];
+  if (matches.length === 1) {
+    return { value: matches[0], rescued: text.trim(), repair: `Read ${JSON.stringify(text)} as "${matches[0]}"; original kept in notes.` };
+  }
+  return { rescued: text.trim(), repair: `Not one of ${allowed.join(" / ")} - moved to notes.` };
+}
+
+function coerceEnumArray(raw: unknown, spec: ValueFieldSpec): CoerceResult {
+  const allowed = spec.enum!;
+  let items: string[];
+  let wrapped = false;
+
+  if (typeof raw === "string") {
+    // The single most common fatal error in the user's 15-week paste:
+    // "mobilityType": "Shoulders and Wrists" where the type is string[].
+    items = [raw];
+    wrapped = true;
+  } else if (Array.isArray(raw)) {
+    items = raw.map((v) => (typeof v === "string" ? v : String(v)));
+  } else {
+    return { error: `Expected an array of strings, got ${JSON.stringify(raw)}.` };
+  }
+
+  const matched: string[] = [];
+  const unmatched: string[] = [];
+  for (const item of items) {
+    for (const token of splitCompoundValue(item)) {
+      const hit = matchEnumValue(token, allowed);
+      if (hit) {
+        if (!matched.includes(hit)) matched.push(hit);
+      } else {
+        unmatched.push(token);
+      }
+    }
+  }
+
+  const notes: string[] = [];
+  if (wrapped) notes.push("wrapped a single string into an array");
+  if (unmatched.length) notes.push(`${unmatched.map((u) => JSON.stringify(u)).join(", ")} not in ${allowed.join(" / ")} - moved to notes`);
+
+  return {
+    value: matched.length ? matched : undefined,
+    rescued: unmatched.length ? unmatched.join(", ") : undefined,
+    repair: notes.length ? notes.join("; ") : undefined,
+  };
+}
+
+function coerceValue(raw: unknown, spec: ValueFieldSpec): CoerceResult {
+  if (spec.type === "number") return coerceNumber(raw);
+  if (spec.type === "string[]") return coerceEnumArray(raw, spec);
+  if (spec.enum) return coerceEnumScalar(raw, spec);
+  if (typeof raw === "string") return { value: raw };
+  if (typeof raw === "number" || typeof raw === "boolean") {
+    return { value: String(raw), repair: `Read ${JSON.stringify(raw)} as text.` };
+  }
+  return { error: `Expected a string, got ${JSON.stringify(raw)}.` };
+}
+
+/**
+ * Validates and repairs one `values` object.
+ *
+ * Repairs (recorded, never silent) cover the mistakes an LLM reliably makes
+ * against this contract, all of which are losslessly recoverable:
+ * misnamed-but-obvious keys (`restTime` -> `timeBetweenSets`), a bare string
+ * where an array is required, a spelled-out enum value ("Kilter" ->
+ * "Kilterboard"), and a number written as text ("45kg" -> 45).
+ *
+ * Anything that cannot be represented faithfully - prose in a numeric field,
+ * an enum value with no legal counterpart - is NOT guessed at. The text is
+ * appended to `notes` so the coach's intent survives and is visible in the
+ * workout, and the substitution is reported. Only a value whose JSON type is
+ * flatly wrong (an object where a scalar belongs) is still a hard error.
+ */
 function validateExerciseValues(
   raw: unknown,
   path: string,
@@ -158,10 +275,40 @@ function validateExerciseValues(
     issues.push({ path, message: `Expected an object, got ${JSON.stringify(raw)}.` });
     return values;
   }
-  for (const [key, fieldType] of Object.entries(EXERCISE_VALUE_FIELDS) as [keyof ExerciseValues, FieldType][]) {
-    if (!(key in raw)) continue;
-    const checked = checkField((raw as Record<string, unknown>)[key], fieldType, `${path}.${key}`, issues);
-    if (checked !== undefined) (values as Record<string, unknown>)[key] = checked;
+
+  // Canonical spellings win over aliases, so a payload carrying both
+  // `timeBetweenSets` and `restTime` keeps the one that is actually ours.
+  const byField = new Map<keyof ExerciseValues, { rawKey: string; rawValue: unknown }>();
+  for (const [rawKey, rawValue] of Object.entries(raw)) {
+    if (rawValue === undefined || rawValue === null) continue;
+    const field = resolveValueFieldName(rawKey);
+    if (!field) continue; // genuinely unknown key - ignored, as before
+    const existing = byField.get(field);
+    if (existing && existing.rawKey === field) continue;
+    byField.set(field, { rawKey, rawValue });
+  }
+
+  const rescuedText: string[] = [];
+  for (const field of EXERCISE_VALUE_FIELD_NAMES) {
+    const entry = byField.get(field);
+    if (!entry) continue;
+    const fieldPath = `${path}.${field}`;
+    if (entry.rawKey !== field) {
+      pushRepair(issues, `${path}.${entry.rawKey}`, `No such field - read as "${field}".`);
+    }
+    const result = coerceValue(entry.rawValue, EXERCISE_VALUE_SPEC[field]);
+    if (result.error) {
+      issues.push({ path: fieldPath, message: result.error });
+      continue;
+    }
+    if (result.repair) pushRepair(issues, fieldPath, result.repair);
+    if (result.rescued && field !== "notes") rescuedText.push(`${field}: ${result.rescued}`);
+    if (result.value !== undefined) (values as Record<string, unknown>)[field] = result.value;
+  }
+
+  if (rescuedText.length) {
+    const carried = rescuedText.map((t) => `[${t}]`).join(" ");
+    values.notes = values.notes ? `${values.notes} ${carried}` : carried;
   }
   return values;
 }
@@ -229,7 +376,7 @@ function validatePlanWeek(raw: unknown, path: string, issues: ValidationIssue[])
     return null;
   }
   const weekId = raw.weekId;
-  if (typeof weekId !== "string" || !/^\d{4}-W\d{2}$/.test(weekId)) {
+  if (typeof weekId !== "string" || !WEEK_ID.test(weekId)) {
     issues.push({ path: `${path}.weekId`, message: `Expected a week id like "2026-W25", got ${JSON.stringify(weekId)}.` });
   }
   const phaseName = raw.phaseName;
@@ -249,28 +396,136 @@ function validatePlanWeek(raw: unknown, path: string, issues: ValidationIssue[])
   return { weekId, phaseName: phaseName.trim(), workouts };
 }
 
+function validatePlanPhase(raw: unknown, path: string, issues: ValidationIssue[]): AIPlanPhase | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a phase object, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const phaseName = raw.phaseName;
+  if (typeof phaseName !== "string" || phaseName.trim() === "") {
+    issues.push({ path: `${path}.phaseName`, message: "Required non-empty string." });
+  }
+  const startWeekId = raw.startWeekId;
+  const endWeekId = raw.endWeekId;
+  for (const [key, value] of [["startWeekId", startWeekId], ["endWeekId", endWeekId]] as const) {
+    if (typeof value !== "string" || !WEEK_ID.test(value)) {
+      issues.push({ path: `${path}.${key}`, message: `Expected a week id like "2026-W25", got ${JSON.stringify(value)}.` });
+    }
+  }
+  if (typeof startWeekId === "string" && typeof endWeekId === "string" && WEEK_ID.test(startWeekId) && WEEK_ID.test(endWeekId) && startWeekId > endWeekId) {
+    issues.push({ path: `${path}.endWeekId`, message: `endWeekId ${JSON.stringify(endWeekId)} is before startWeekId ${JSON.stringify(startWeekId)}.` });
+  }
+
+  // "sessions" is the contract's name; accept "workouts" too, since the
+  // weekly format uses that word and the model mixes them up.
+  const rawSessions = raw.sessions ?? raw.workouts;
+  if (!Array.isArray(rawSessions)) {
+    issues.push({ path: `${path}.sessions`, message: `Expected an array, got ${JSON.stringify(rawSessions)}.` });
+    return null;
+  }
+  if (raw.sessions === undefined && Array.isArray(raw.workouts)) {
+    pushRepair(issues, `${path}.workouts`, 'Read as "sessions".');
+  }
+  const sessions: AIPlanWorkout[] = [];
+  rawSessions.forEach((w, i) => {
+    const validated = validatePlanWorkout(w, `${path}.sessions[${i}]`, issues);
+    if (validated) sessions.push(validated);
+  });
+
+  if (typeof phaseName !== "string" || typeof startWeekId !== "string" || typeof endWeekId !== "string") return null;
+  return { phaseName: phaseName.trim(), startWeekId, endWeekId, sessions };
+}
+
+/**
+ * Expands the phase format into the week format.
+ *
+ * This is the whole point of the phase contract: the model states each
+ * phase once, and the app instantiates its sessions across every week the
+ * phase covers - exactly what assigning a phase to a week already does
+ * natively via `generateWorkoutsFromTemplate`. Downstream
+ * (`buildPlanPreview`, `buildPlanCommit`) therefore needs no phase
+ * awareness at all; it keeps seeing weeks.
+ *
+ * Contiguous same-phase weeks are re-grouped into one `TrainingBlock` by
+ * `buildPlanCommit`, which reproduces the declared block exactly.
+ */
+export function expandPhasePlan(phases: AIPlanPhase[]): AIPlanWeek[] {
+  const weeks: AIPlanWeek[] = [];
+  for (const phase of phases) {
+    for (const weekId of getWeekIdRange(phase.startWeekId, phase.endWeekId)) {
+      weeks.push({
+        weekId,
+        phaseName: phase.phaseName,
+        // Fresh copies per week: ids are regenerated at commit time, but the
+        // exercise objects themselves must not be shared between weeks.
+        workouts: phase.sessions.map((session) => ({
+          ...session,
+          exercises: session.exercises.map((e): AIExercise => ({ ...e, values: { ...e.values } })),
+        })),
+      });
+    }
+  }
+  return weeks.sort((a, b) => (a.weekId < b.weekId ? -1 : a.weekId > b.weekId ? 1 : 0));
+}
+
 /**
  * Validates a parsed JSON value against the `AIPlanOutput` contract.
  * Does not parse JSON itself - see `parseAIPlanOutput` for the
  * JSON.parse-and-validate convenience used by the import UI.
+ *
+ * Accepts either supported shape and reports which one it found, so the
+ * import UI never needs a mode switch that has to agree with whatever the
+ * user actually pasted: a document with a top-level "phases" array is the
+ * phase format, one with "weeks" is the per-week format. `data.weeks` is
+ * always populated either way.
  */
 export function validateAIPlanOutput(raw: unknown): ValidationResult<AIPlanOutput> {
-  const issues: ValidationIssue[] = [];
+  const collected: ValidationIssue[] = [];
+  const fail = (): ValidationResult<AIPlanOutput> => split<AIPlanOutput>(null, collected);
+
   if (!isPlainObject(raw)) {
-    issues.push({ path: "", message: "Top-level JSON must be an object." });
-    return { valid: false, data: null, issues };
+    collected.push({ path: "", message: "Top-level JSON must be an object." });
+    return fail();
   }
-  if (!Array.isArray(raw.weeks)) {
-    issues.push({ path: "weeks", message: `Expected an array, got ${JSON.stringify(raw.weeks)}.` });
-    return { valid: false, data: null, issues };
+
+  const hasPhases = Array.isArray(raw.phases);
+  const hasWeeks = Array.isArray(raw.weeks);
+  if (!hasPhases && !hasWeeks) {
+    collected.push({
+      path: "",
+      message: `Expected a top-level "phases" array (phase format) or "weeks" array (per-week format), got ${JSON.stringify(raw.phases ?? raw.weeks)}.`,
+    });
+    return fail();
   }
+  if (hasPhases && hasWeeks) {
+    collected.push({ path: "", message: 'Contains both "phases" and "weeks" - include exactly one.' });
+    return fail();
+  }
+
+  if (hasPhases) {
+    const phases: AIPlanPhase[] = [];
+    (raw.phases as unknown[]).forEach((p, i) => {
+      const validated = validatePlanPhase(p, `phases[${i}]`, collected);
+      if (validated) phases.push(validated);
+    });
+    if (collected.some(isError)) return fail();
+    return split({ format: "phase", phases, weeks: expandPhasePlan(phases) }, collected);
+  }
+
   const weeks: AIPlanWeek[] = [];
-  raw.weeks.forEach((w, i) => {
-    const validated = validatePlanWeek(w, `weeks[${i}]`, issues);
+  (raw.weeks as unknown[]).forEach((w, i) => {
+    const validated = validatePlanWeek(w, `weeks[${i}]`, collected);
     if (validated) weeks.push(validated);
   });
-  if (issues.length > 0) return { valid: false, data: null, issues };
-  return { valid: true, data: { weeks }, issues: [] };
+  if (collected.some(isError)) return fail();
+  return split({ format: "weekly", weeks }, collected);
+}
+
+/** Partitions collected issues into fatal errors and reported repairs. */
+function split<T>(data: T | null, collected: ValidationIssue[]): ValidationResult<T> {
+  const issues = collected.filter(isError);
+  const repairs = collected.filter((i) => !isError(i));
+  return { valid: issues.length === 0 && data !== null, data: issues.length === 0 ? data : null, issues, repairs };
 }
 
 function validateWorkoutLogWorkout(raw: unknown, path: string, issues: ValidationIssue[]): AIWorkoutLogWorkout | null {
@@ -298,22 +553,22 @@ function validateWorkoutLogWorkout(raw: unknown, path: string, issues: Validatio
  * `AIExercise` shape, same name-resolution rule at import time).
  */
 export function validateAIWorkoutLogOutput(raw: unknown): ValidationResult<AIWorkoutLogOutput> {
-  const issues: ValidationIssue[] = [];
+  const collected: ValidationIssue[] = [];
   if (!isPlainObject(raw)) {
-    issues.push({ path: "", message: "Top-level JSON must be an object." });
-    return { valid: false, data: null, issues };
+    collected.push({ path: "", message: "Top-level JSON must be an object." });
+    return split<AIWorkoutLogOutput>(null, collected);
   }
   if (!Array.isArray(raw.workouts)) {
-    issues.push({ path: "workouts", message: `Expected an array, got ${JSON.stringify(raw.workouts)}.` });
-    return { valid: false, data: null, issues };
+    collected.push({ path: "workouts", message: `Expected an array, got ${JSON.stringify(raw.workouts)}.` });
+    return split<AIWorkoutLogOutput>(null, collected);
   }
   const workouts: AIWorkoutLogWorkout[] = [];
   raw.workouts.forEach((w, i) => {
-    const validated = validateWorkoutLogWorkout(w, `workouts[${i}]`, issues);
+    const validated = validateWorkoutLogWorkout(w, `workouts[${i}]`, collected);
     if (validated) workouts.push(validated);
   });
-  if (issues.length > 0) return { valid: false, data: null, issues };
-  return { valid: true, data: { workouts }, issues: [] };
+  if (collected.some(isError)) return split<AIWorkoutLogOutput>(null, collected);
+  return split({ workouts }, collected);
 }
 
 /**
@@ -326,7 +581,7 @@ export function parseAIPlanOutput(text: string): ValidationResult<AIPlanOutput> 
   try {
     raw = JSON.parse(text);
   } catch (err: any) {
-    return { valid: false, data: null, issues: [{ path: "", message: `Could not parse as JSON: ${err.message}` }] };
+    return { valid: false, data: null, issues: [{ path: "", message: `Could not parse as JSON: ${err.message}` }], repairs: [] };
   }
   return validateAIPlanOutput(raw);
 }
@@ -336,19 +591,49 @@ export function parseAIWorkoutLogOutput(text: string): ValidationResult<AIWorkou
   try {
     raw = JSON.parse(text);
   } catch (err: any) {
-    return { valid: false, data: null, issues: [{ path: "", message: `Could not parse as JSON: ${err.message}` }] };
+    return { valid: false, data: null, issues: [{ path: "", message: `Could not parse as JSON: ${err.message}` }], repairs: [] };
   }
   return validateAIWorkoutLogOutput(raw);
 }
 
 /** The set of `ExerciseValues` fields an AI import is allowed to set, for prompt text. */
-export const AI_EXERCISE_VALUE_FIELD_NAMES = Object.keys(EXERCISE_VALUE_FIELDS);
+export const AI_EXERCISE_VALUE_FIELD_NAMES: string[] = [...EXERCISE_VALUE_FIELD_NAMES];
 
 /**
  * Embedded verbatim in the "Generate Plan" AI prompt (`AIPromptModal.svelte`)
  * so the instructions and the validator can't silently drift apart -
  * PLAN.md requires the prompt to "include the AIPlanOutput JSON schema/shape
  * inline and explicitly instruct the AI to return only JSON matching it."
+ */
+/**
+ * The rules every AI prompt shares: what may go in `values`, and the
+ * mistakes that a real 15-week plan actually made. Generated from
+ * `EXERCISE_VALUE_SPEC` so the prompt can never describe a field the
+ * validator doesn't implement, or omit an allowed value it does.
+ */
+const AI_VALUES_CONTRACT = `EXERCISE "values" REFERENCE - these are the ONLY keys allowed inside "values". Any other key is discarded silently, so do not invent one:
+
+${renderValueFieldReference()}
+
+HARD RULES for "values" - each of these was a real failure, not a hypothetical:
+- Every numeric field must be a bare JSON number: 180, not "180", not "180s", not "3-4 min".
+- NEVER put prose in a numeric field. "cadence": "Continuous, 1 problem every 3-4 min" is wrong; write "cadence": 4 and put the sentence in "notes".
+- Fields marked "array of strings" must be JSON arrays, even for one value: "mobilityType": ["Shoulders"], never "mobilityType": "Shoulders". Split compound answers: "Shoulders and Wrists" is ["Shoulders", "Wrists"].
+- Fields with an allowed-value list accept ONLY those exact strings. "Kilter" is wrong, "Kilterboard" is right. If what you mean is not in the list (e.g. a "Mixed" or "Steep and powerful" session), omit the field and describe it in "notes" instead.
+- "routeDifficulty" is Easy/Moderate/Hard, NOT a climbing grade. Grades belong in "minGrade"/"maxGrade".
+- There is no "restTime" field. Rest between sets is "timeBetweenSets".
+- "notes" is the only field that takes free text. Put all coaching detail, pacing, intent and conditions there.
+- Omit any field you have no value for. Never write null.`;
+
+const AI_PLAN_SHARED_RULES = `- "phaseName" should be one of the Available Phases listed above where possible.
+- "exerciseTypeName" should be one of the Custom Exercise Modalities listed above where possible; invent a new, sensibly-named one only if nothing fits.
+- "categoryName" - only include this if "exerciseTypeName" is a new, invented one (not one of the Custom Exercise Modalities listed above): set it to the closest match from the Analytics Categories listed above. Omit it entirely when reusing an existing exercise type.
+- "dayOfWeek" (if given) must be exactly one of: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.`;
+
+/**
+ * Per-week format: every week spelled out in full. Maximum control, and
+ * the only way to express week-to-week progression explicitly - at the cost
+ * of a very long response, since sessions repeat across a phase's weeks.
  */
 export const AI_PLAN_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSON object matching exactly this shape - no markdown code fences, no commentary before or after it:
 
@@ -372,19 +657,51 @@ export const AI_PLAN_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSON obje
 
 Rules:
 - "weekId" must be one of the exact week ids from the Target Timeframe above (format "YYYY-Www").
-- "phaseName" should be one of the Available Phases listed above where possible.
-- "exerciseTypeName" should be one of the Custom Exercise Modalities listed above where possible; invent a new, sensibly-named one only if nothing fits.
-- "categoryName" - only include this if "exerciseTypeName" is a new, invented one (not one of the Custom Exercise Modalities listed above): set it to the closest match from the Analytics Categories listed above. Omit it entirely when reusing an existing exercise type.
-- "dayOfWeek" (if given) must be exactly one of: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.
-- "values" may include any of: ${AI_EXERCISE_VALUE_FIELD_NAMES.join(", ")}. Every numeric field must be a JSON number, not a quoted string.
-- Every week in the Target Timeframe must appear exactly once, even if it's a rest/deload week with an empty "workouts" array.`;
+${AI_PLAN_SHARED_RULES}
+- Every week in the Target Timeframe must appear exactly once, even if it's a rest/deload week with an empty "workouts" array.
+
+${AI_VALUES_CONTRACT}`;
 
 /**
- * Static instructions for the "paste free-text training notes, get
- * structured exercises" workout-log flow (`AIImportModal.svelte`,
- * "Workout Log" mode) - unlike the plan prompt, this has no per-user context
- * to embed, so it's a fixed template the user prepends to their own notes.
+ * Phase format: each phase stated once, with the distinct sessions that
+ * define it, and the app instantiates them across the phase's weeks (see
+ * `expandPhasePlan`). Roughly a quarter of the output for a long plan,
+ * which keeps the model's attention on periodisation rather than on
+ * retyping the same session.
  */
+export const AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSON object matching exactly this shape - no markdown code fences, no commentary before or after it:
+
+{
+  "phases": [
+    {
+      "phaseName": "Capacity",
+      "startWeekId": "2026-W25",
+      "endWeekId": "2026-W28",
+      "sessions": [
+        {
+          "name": "Session name",
+          "dayOfWeek": "Monday",
+          "exercises": [
+            { "exerciseTypeName": "Hangboard", "values": { "duration": 30, "sets": 5, "reps": 6, "timeOn": 10, "timeOff": 180, "notes": "optional" } }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+You are designing a PHASE PLAN, not a week-by-week calendar. For each phase, give the week range it covers and the set of DISTINCT sessions that define a typical week in it. The app repeats those sessions across every week of the phase automatically.
+
+Rules:
+- Do NOT repeat a session once per week, and do NOT emit a "weeks" array. One entry per phase, each listing that phase's distinct weekly sessions once.
+- "startWeekId"/"endWeekId" are inclusive, format "YYYY-Www", and must fall inside the Target Timeframe above.
+- Phases must not overlap, and together they should cover the whole Target Timeframe. Use a short deload/rest phase where one belongs rather than leaving a gap.
+- "sessions" is the typical week for that phase: one entry per training day, each with its own "dayOfWeek". A rest week is a phase with an empty "sessions" array.
+- Put any week-to-week progression inside the phase (e.g. "notes": "add 2kg each week, deload in the final week") rather than splitting the phase into one-week blocks to express it.
+${AI_PLAN_SHARED_RULES}
+
+${AI_VALUES_CONTRACT}`;
+
 export const AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS = `You are structuring free-text climbing/training notes into JSON. Respond with ONLY a single JSON object matching exactly this shape - no markdown code fences, no commentary before or after it:
 
 {
@@ -402,7 +719,8 @@ export const AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS = `You are structuring free-text
 Rules:
 - "date" (if you can infer one) must be an ISO date string ("YYYY-MM-DD").
 - "exerciseTypeName" is a free-text exercise name - use whatever name best matches what was described.
-- "values" may include any of: ${AI_EXERCISE_VALUE_FIELD_NAMES.join(", ")}. Every numeric field must be a JSON number, not a quoted string.
+
+${AI_VALUES_CONTRACT}
 
 Here are my training notes to structure:
 `;

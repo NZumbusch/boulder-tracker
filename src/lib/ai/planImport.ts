@@ -5,10 +5,11 @@ import type {
   PhaseDef,
   TrainingBlock,
   Workout,
+  WorkoutTemplate,
 } from "../types";
 import { calculatePlannedLoad } from "../types";
 import { generateId } from "../utils";
-import { incrementWeekId } from "../dateUtils";
+import { getWeekIdRange, incrementWeekId } from "../dateUtils";
 import type { AIExercise, AIPlanOutput } from "./schema";
 
 /**
@@ -96,8 +97,26 @@ export interface PlanPreviewWeek {
   exerciseCount: number;
 }
 
+/** One row of the block plan, shown only for a phase-format import. */
+export interface PlanPreviewPhase {
+  phaseName: string;
+  startWeekId: string;
+  endWeekId: string;
+  weekCount: number;
+  /** Distinct sessions the AI wrote for this phase, before expansion. */
+  sessionCount: number;
+}
+
 export interface PlanPreview {
+  /** Which contract the pasted document used. */
+  format: "weekly" | "phase";
   weeks: PlanPreviewWeek[];
+  /**
+   * The declared block plan, for the phase format only. Lets the preview
+   * state the expansion ("3 phases -> 18 weeks -> 68 workouts") so the user
+   * sees how much a short paste turns into before committing.
+   */
+  phases: PlanPreviewPhase[];
   /** Deduped (case-insensitive), in first-seen order. */
   unresolvedExerciseTypeNames: string[];
   unresolvedPhaseNames: string[];
@@ -148,7 +167,23 @@ export function buildPlanPreview(
     phaseNames.filter((name) => !findPhaseByName(name, ctx.phaseDefs)),
   );
 
-  return { weeks, unresolvedExerciseTypeNames, unresolvedPhaseNames, totalWorkouts, totalExercises };
+  const phases: PlanPreviewPhase[] = (plan.phases ?? []).map((phase) => ({
+    phaseName: phase.phaseName,
+    startWeekId: phase.startWeekId,
+    endWeekId: phase.endWeekId,
+    weekCount: getWeekIdRange(phase.startWeekId, phase.endWeekId).length,
+    sessionCount: phase.sessions.length,
+  }));
+
+  return {
+    format: plan.format ?? "weekly",
+    weeks,
+    phases,
+    unresolvedExerciseTypeNames,
+    unresolvedPhaseNames,
+    totalWorkouts,
+    totalExercises,
+  };
 }
 
 export interface PlanCommitResult {
@@ -156,6 +191,16 @@ export interface PlanCommitResult {
   newPhaseDefs: PhaseDef[];
   trainingBlocks: TrainingBlock[];
   workouts: Workout[];
+  /**
+   * `templates` entries to write, keyed by `PhaseDef.id` - populated only
+   * when the caller asks for it (`options.saveAsTemplates`).
+   *
+   * Without this an AI import is a one-shot dump: assigning the same phase
+   * to a week later still regenerates the *old* templates, not the plan just
+   * imported. Writing them makes the plan durable, but it overwrites that
+   * phase's existing templates, so it stays opt-in per import.
+   */
+  templates: Record<string, WorkoutTemplate[]>;
 }
 
 /** Shared with `workoutLogImport.ts` - building an `ExerciseSlot` from a validated AI exercise is identical either way. */
@@ -199,6 +244,7 @@ export function buildPlanCommit(
   /** Both records keyed by `normalizeName(name)`, not the raw display string. */
   mapping: { exerciseTypes: Record<string, NameMapping>; phases: Record<string, NameMapping> },
   ctx: { exerciseTypes: ExerciseTypeDef[]; phaseDefs: PhaseDef[]; analyticsCategories: AnalyticsCategory[] },
+  options: { saveAsTemplates?: boolean } = {},
 ): PlanCommitResult {
   const newExerciseTypes: ExerciseTypeDef[] = [];
   const newPhaseDefs: PhaseDef[] = [];
@@ -323,5 +369,20 @@ export function buildPlanCommit(
     }
   }
 
-  return { newExerciseTypes, newPhaseDefs, trainingBlocks, workouts };
+  // One template set per phase, taken from that phase's first week - which
+  // for a phase-format import is exactly the session list the AI wrote once.
+  const templates: Record<string, WorkoutTemplate[]> = {};
+  if (options.saveAsTemplates) {
+    for (const { week, phaseId } of weeksWithPhaseId) {
+      if (templates[phaseId] || week.workouts.length === 0) continue;
+      templates[phaseId] = week.workouts.map((w) => ({
+        id: generateId(),
+        name: w.name,
+        dayOfWeek: w.dayOfWeek,
+        exercises: w.exercises.map((e) => buildExerciseSlot(e, resolveExerciseTypeId(e), exerciseTypeById)),
+      }));
+    }
+  }
+
+  return { newExerciseTypes, newPhaseDefs, trainingBlocks, workouts, templates };
 }

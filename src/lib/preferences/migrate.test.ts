@@ -18,6 +18,7 @@ describe('defaultPreferences', () => {
       motion: 'system',
       theme: 'dark',
       notificationsEnabled: false,
+      planFormat: 'phase',
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
       homeLocation: null,
@@ -77,6 +78,7 @@ describe('migratePreferences', () => {
       timerKeepAwakeEnabled: true,
       homeSections: [...DEFAULT_HOME_SECTIONS.slice(1), DEFAULT_HOME_SECTIONS[0]],
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false },
+      planFormat: 'weekly' as const,
     };
     expect(migratePreferences(valid)).toEqual(valid);
   });

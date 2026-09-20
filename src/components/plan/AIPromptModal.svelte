@@ -14,7 +14,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekIdRange } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
-  import { AI_PLAN_OUTPUT_INSTRUCTIONS } from '../../lib/ai/schema';
+  import { AI_PLAN_OUTPUT_INSTRUCTIONS, AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS } from '../../lib/ai/schema';
   import { buildAIContextProfile, type AIContextProfile, type AIPromptMode } from '../../lib/ai/context';
   import Icon from '@iconify/svelte';
 
@@ -63,6 +63,23 @@
   let startWeek = $state(trainingState.currentWeekId);
   let endWeek = $state(trainingState.currentWeekId);
   let goal = $state('');
+
+  /**
+   * The two AI plan contracts. "Phase" is the default: the model states each
+   * phase and its typical week once, and `expandPhasePlan` instantiates
+   * those sessions across the phase's weeks - the same thing assigning a
+   * phase to a week already does locally. "Weekly" keeps the older
+   * every-week-in-full contract for when progression needs stating
+   * explicitly. The importer accepts either shape whatever is selected here;
+   * this only chooses what the copied prompt asks for.
+   */
+  /** The weeks the prompt will target - also shown in the Plan Detail hint. */
+  const selectedWeekIds = $derived(getWeekIdRange(startWeek, endWeek));
+
+  const planFormatOptions = [
+    { id: 'phase' as const, label: 'Phase plan', hint: 'Sessions per phase, expanded here' },
+    { id: 'weekly' as const, label: 'Every week', hint: 'Each week written out in full' },
+  ];
   let mode = $state<'generate' | 'analyze' | 'context'>('generate');
 
   const weekOptions = $derived.by(() => {
@@ -110,8 +127,12 @@
 
 ${profileText}`;
       } else if (mode === 'generate') {
+        const phaseMode = trainingState.planFormat === 'phase';
+        const brief = phaseMode
+          ? `I want a phase plan: decide which training phase belongs in which weeks, then design the distinct sessions that make up a typical week of each phase, using specific exercises from my exercise dictionary. Do not write out every week individually - my app expands each phase's sessions across the weeks that phase covers.`
+          : `I want an optimal week-by-week plan mapping phases to weeks, and giving detailed workouts with specific exercises from my exercise dictionary.`;
         prompt = `You are an elite climbing coach. Design a highly detailed training plan based on my historical data.
-I want an optimal week-by-week plan mapping phases to weeks, and giving detailed workouts with specific exercises from my exercise dictionary.
+${brief}
 
 Target Timeframe:
 Generate a plan spanning the following weeks: ${targetWeekIds.join(', ')}
@@ -122,7 +143,7 @@ ${goal || 'No specific goals provided. Optimize for general climbing performance
 Here is my condensed training profile:
 ${profileText}
 
-${AI_PLAN_OUTPUT_INSTRUCTIONS}`;
+${phaseMode ? AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS : AI_PLAN_OUTPUT_INSTRUCTIONS}`;
       } else {
         prompt = `You are an elite climbing coach. Please analyze my training data and performance from the specified timeframe and give me detailed feedback.
 
@@ -212,6 +233,35 @@ Based on this data, please evaluate:
           </div>
 
           {#if mode === 'generate'}
+            <div class="space-y-2">
+              <p class="text-label text-content-subtle ml-1">Plan Detail</p>
+              <div class="grid grid-cols-2 gap-2">
+                {#each planFormatOptions as option}
+                  <button
+                    type="button"
+                    onclick={() => trainingState.setPlanFormat(option.id)}
+                    aria-pressed={trainingState.planFormat === option.id}
+                    class="text-left p-3 rounded-control border transition-all {trainingState.planFormat === option.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border-strong bg-surface-elevated hover:border-border-strong'}"
+                  >
+                    <span class="block text-sm font-bold text-content">{option.label}</span>
+                    <span class="block text-caption text-content-subtle mt-0.5 leading-snug">{option.hint}</span>
+                  </button>
+                {/each}
+              </div>
+              <p class="text-caption text-content-subtle px-1 leading-snug">
+                {#if trainingState.planFormat === 'phase'}
+                  Each phase is written once with its typical week of sessions; the import expands it across
+                  {selectedWeekIds.length} week{selectedWeekIds.length === 1 ? '' : 's'}. Much shorter to generate, and the
+                  AI spends its effort on periodisation instead of retyping sessions.
+                {:else}
+                  All {selectedWeekIds.length} week{selectedWeekIds.length === 1 ? '' : 's'} written out individually. Full control
+                  over week-to-week progression, but a long reply that repeats each session once per week.
+                {/if}
+              </p>
+            </div>
+
             <p class="text-caption text-content-subtle px-1">
               The copied prompt asks the AI to reply with strict JSON - paste its reply into "Import AI Plan" on the Training Plan screen afterward.
             </p>

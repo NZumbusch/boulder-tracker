@@ -240,3 +240,56 @@ describe("buildPlanCommit", () => {
     expect(phaseDefs).toEqual(phaseDefsCopy);
   });
 });
+
+describe("buildPlanCommit - saveAsTemplates", () => {
+  const PLAN = {
+    weeks: [
+      {
+        weekId: "2026-W25",
+        phaseName: "Capacity",
+        workouts: [{ name: "Board", dayOfWeek: "Monday" as const, exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }] }],
+      },
+      {
+        weekId: "2026-W26",
+        phaseName: "Capacity",
+        workouts: [{ name: "Board", dayOfWeek: "Monday" as const, exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 6 } }] }],
+      },
+    ],
+  };
+  const CTX = {
+    exerciseTypes: [{ id: "t1", name: "Hangboard", category: "Strength", parameters: [] }],
+    phaseDefs: [{ id: "p1", name: "Capacity" }],
+    analyticsCategories: [{ id: "c1", name: "Strength", color: "#fff" }],
+  };
+  const MAPPING = { exerciseTypes: {}, phases: {} };
+
+  it("writes no templates unless asked", () => {
+    expect(buildPlanCommit(PLAN, MAPPING, CTX).templates).toEqual({});
+  });
+
+  it("stores one template set per phase, keyed by phase id", () => {
+    const result = buildPlanCommit(PLAN, MAPPING, CTX, { saveAsTemplates: true });
+    expect(Object.keys(result.templates)).toEqual(["p1"]);
+    expect(result.templates.p1).toHaveLength(1);
+    expect(result.templates.p1[0].name).toBe("Board");
+    expect(result.templates.p1[0].dayOfWeek).toBe("Monday");
+    expect(result.templates.p1[0].exercises[0].typeId).toBe("t1");
+  });
+
+  it("takes the phase's first week, not the last", () => {
+    const result = buildPlanCommit(PLAN, MAPPING, CTX, { saveAsTemplates: true });
+    expect(result.templates.p1[0].exercises[0].prescribed).toEqual({ sets: 5 });
+  });
+
+  it("gives templates their own ids, distinct from the generated workouts", () => {
+    const result = buildPlanCommit(PLAN, MAPPING, CTX, { saveAsTemplates: true });
+    const templateSlotId = result.templates.p1[0].exercises[0].id;
+    const workoutSlotIds = result.workouts.flatMap((w) => w.exercises.map((e) => e.id));
+    expect(workoutSlotIds).not.toContain(templateSlotId);
+  });
+
+  it("skips a phase whose weeks are all empty", () => {
+    const restOnly = { weeks: [{ weekId: "2026-W25", phaseName: "Capacity", workouts: [] }] };
+    expect(buildPlanCommit(restOnly, MAPPING, CTX, { saveAsTemplates: true }).templates).toEqual({});
+  });
+});

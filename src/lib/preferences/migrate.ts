@@ -79,7 +79,20 @@ export interface Preferences {
    * the generated prompt (`src/lib/ai/context.ts`), never sent-but-redacted.
    */
   aiSharing: AISharingPreferences;
+  /**
+   * Which AI plan contract "Generate Plan" asks for.
+   *
+   * "phase" (the default) asks for the phase map plus each phase's distinct
+   * sessions, which the importer expands across the phase's weeks. "weekly"
+   * asks for every week written out in full - more control over week-to-week
+   * progression, but a far longer response that duplicates each session once
+   * per week. The importer accepts either shape regardless of this setting;
+   * it only decides what the copied prompt requests.
+   */
+  planFormat: PlanFormat;
 }
+
+export type PlanFormat = 'phase' | 'weekly';
 
 /**
  * One toggle per data category `src/lib/ai/context.ts` can add to a prompt.
@@ -146,6 +159,7 @@ export function defaultPreferences(): Preferences {
     timerBeepEnabled: true,
     timerKeepAwakeEnabled: false,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
+    planFormat: 'phase',
     aiSharing: {
       trainingBlocks: true,
       competitions: true,
@@ -284,5 +298,6 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
       : defaults.timerKeepAwakeEnabled,
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
+    planFormat: candidate.planFormat === 'weekly' || candidate.planFormat === 'phase' ? candidate.planFormat : defaults.planFormat,
   };
 }

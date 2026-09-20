@@ -4,6 +4,10 @@
   import { trainingState } from '../../lib/state.svelte';
   import type { ExerciseSlot, ExerciseTypeDef, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { PARAMETER_LABELS, BODYWEIGHT_METRIC_ID } from '../../lib/constants';
+  import {
+    BOULDER_GRADES, ROUTE_GRADES, CLIMBING_STYLES, BOARD_TYPES, BOARD_ANGLES,
+    HOLD_TYPES, CAMPUS_TYPES, MOBILITY_TYPES, LEAD_STYLES,
+  } from '../../lib/ai/valueSpec';
   import TargetHint from './TargetHint.svelte';
   import Icon from '@iconify/svelte';
 
@@ -255,16 +259,20 @@
     });
   }
 
-  // Constants
-  const bGrades = ['5A', '5B', '5C', '6A', '6A+', '6B', '6B+', '6C', '6C+', '7A', '7A+', '7B', '7B+', '7C', '7C+', '8A', '8A+', '8B', '8B+', '8C'];
-  const rGrades = ['5a', '5b', '5c', '6a', '6a+', '6b', '6b+', '6c', '6c+', '7a', '7a+', '7b', '7b+', '7c', '7c+', '8a', '8a+', '8b', '8b+', '8c', '8c+', '9a', '9a+', '9b', '9b+', '9c'];
-  const climbingStyles: NonNullable<ExerciseValues['climbingStyle']>[number][] = ['Slab', 'Coordination', 'Power', 'Board'];
-  const boardTypes: ExerciseValues['boardType'][] = ['Kilterboard', 'Moonboard', 'Tension Board', 'Spraywall'];
-  const boardAngles = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70];
-  const holdTypes: ExerciseValues['holdType'][] = ['Crimp', 'Half Crimp', 'Full Crimp', 'Open Hand', 'Sloper', 'Pocket'];
-  const campusStyles: ExerciseValues['campusType'][] = ['Jumps', 'One Arm Ladders'];
-  const mobilityTypes: NonNullable<ExerciseValues['mobilityType']>[number][] = ['Hamstrings', 'Shoulders', 'Hips', 'Spine', 'Ankles', 'Wrists'];
-  const leadStyles: NonNullable<ExerciseValues['leadStyle']>[number][] = ['Onsight', 'Flash', 'Redpoint', 'Projecting'];
+  // Constants. Sourced from lib/ai/valueSpec.ts rather than written out
+  // here, so this form's dropdowns, the AI prompt's allowed-value lists and
+  // the AI importer's validation are provably the same set. They used to be
+  // three independent copies, which is how the importer came to accept
+  // board types like "Kilter" that no dropdown here can display.
+  const bGrades = [...BOULDER_GRADES];
+  const rGrades = [...ROUTE_GRADES];
+  const climbingStyles: NonNullable<ExerciseValues['climbingStyle']>[number][] = [...CLIMBING_STYLES];
+  const boardTypes: ExerciseValues['boardType'][] = [...BOARD_TYPES];
+  const boardAngles = [...BOARD_ANGLES];
+  const holdTypes: ExerciseValues['holdType'][] = [...HOLD_TYPES];
+  const campusStyles: ExerciseValues['campusType'][] = [...CAMPUS_TYPES];
+  const mobilityTypes: NonNullable<ExerciseValues['mobilityType']>[number][] = [...MOBILITY_TYPES];
+  const leadStyles: NonNullable<ExerciseValues['leadStyle']>[number][] = [...LEAD_STYLES];
 </script>
 
 <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm animate-in zoom-in-95 duration-300">

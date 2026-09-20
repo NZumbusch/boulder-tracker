@@ -4,7 +4,11 @@ import {
   validateAIWorkoutLogOutput,
   parseAIPlanOutput,
   parseAIWorkoutLogOutput,
+  AI_PLAN_OUTPUT_INSTRUCTIONS,
+  AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS,
+  AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS,
 } from "./schema";
+import { EXERCISE_VALUE_SPEC, EXERCISE_VALUE_FIELD_NAMES } from "./valueSpec";
 
 const VALID_PLAN = {
   weeks: [
@@ -80,10 +84,10 @@ describe("validateAIPlanOutput", () => {
     expect(validateAIPlanOutput(42).valid).toBe(false);
   });
 
-  it("rejects a document with no weeks array", () => {
+  it("rejects a document with neither a weeks nor a phases array", () => {
     const result = validateAIPlanOutput({ notWeeks: [] });
     expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.path === "weeks")).toBe(true);
+    expect(result.issues.some((i) => /phases.*weeks/.test(i.message))).toBe(true);
   });
 
   it("rejects when weeks is not an array", () => {
@@ -136,12 +140,19 @@ describe("validateAIPlanOutput", () => {
     expect(validateAIPlanOutput(bad).valid).toBe(false);
   });
 
-  it("rejects a non-numeric value for a numeric field", () => {
+  // Behaviour deliberately changed 2026-09-21: prose in a numeric field used
+  // to reject the whole import. A real 15-week plan produced ~170 of these,
+  // so it is now repaired - the field is dropped (never guessed at) and the
+  // text is preserved in `notes`, with the substitution reported.
+  it("repairs prose in a numeric field by moving it to notes", () => {
     const bad = JSON.parse(JSON.stringify(VALID_PLAN));
     bad.weeks[0].workouts[0].exercises[0].values.sets = "a lot";
     const result = validateAIPlanOutput(bad);
-    expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.path.endsWith("values.sets"))).toBe(true);
+    expect(result.valid).toBe(true);
+    const values = result.data!.weeks[0].workouts[0].exercises[0].values;
+    expect(values.sets).toBeUndefined();
+    expect(values.notes).toContain("a lot");
+    expect(result.repairs.some((i) => i.path.endsWith("values.sets"))).toBe(true);
   });
 
   it("rejects a boolean for a numeric field", () => {
@@ -150,18 +161,23 @@ describe("validateAIPlanOutput", () => {
     expect(validateAIPlanOutput(bad).valid).toBe(false);
   });
 
-  it("rejects a string where a string[] field is expected", () => {
+  it("repairs a bare string where a string[] field is expected", () => {
     const bad = JSON.parse(JSON.stringify(VALID_PLAN));
     bad.weeks[0].workouts[0].exercises[0].values.climbingStyle = "Power";
     const result = validateAIPlanOutput(bad);
-    expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.path.endsWith("values.climbingStyle"))).toBe(true);
+    expect(result.valid).toBe(true);
+    expect(result.data!.weeks[0].workouts[0].exercises[0].values.climbingStyle).toEqual(["Power"]);
+    expect(result.repairs.some((i) => i.path.endsWith("values.climbingStyle"))).toBe(true);
   });
 
-  it("rejects a mixed-type array for a string[] field", () => {
+  it("keeps the legal members of a mixed-type array and rescues the rest", () => {
     const bad = JSON.parse(JSON.stringify(VALID_PLAN));
     bad.weeks[0].workouts[0].exercises[0].values.climbingStyle = ["Power", 3];
-    expect(validateAIPlanOutput(bad).valid).toBe(false);
+    const result = validateAIPlanOutput(bad);
+    expect(result.valid).toBe(true);
+    const values = result.data!.weeks[0].workouts[0].exercises[0].values;
+    expect(values.climbingStyle).toEqual(["Power"]);
+    expect(values.notes).toContain("3");
   });
 
   it("rejects an invalid dayOfWeek value", () => {
@@ -280,5 +296,336 @@ describe("parseAIWorkoutLogOutput (JSON.parse + validate)", () => {
     const result = parseAIWorkoutLogOutput("not json at all");
     expect(result.valid).toBe(false);
     expect(result.data).toBeNull();
+  });
+});
+
+/**
+ * Regression suite built directly from the plan the user pasted on
+ * 2026-09-21: a real 15-week plan from a frontier model that the old
+ * validator rejected with ~170 errors, plus the mistakes it did NOT catch
+ * and silently stored. Every case below is taken verbatim from that paste.
+ */
+describe("repairs the mistakes real AI plans actually make", () => {
+  function planWithValues(values: Record<string, unknown>) {
+    const plan = JSON.parse(JSON.stringify(VALID_PLAN));
+    plan.weeks[0].workouts[0].exercises[0].values = values;
+    return validateAIPlanOutput(plan);
+  }
+  function valuesOf(result: ReturnType<typeof validateAIPlanOutput>) {
+    return result.data!.weeks[0].workouts[0].exercises[0].values;
+  }
+
+  it('splits a compound mobilityType ("Shoulders and Wrists")', () => {
+    const result = planWithValues({ mobilityType: "Shoulders and Wrists" });
+    expect(result.valid).toBe(true);
+    expect(valuesOf(result).mobilityType).toEqual(["Shoulders", "Wrists"]);
+  });
+
+  it("keeps the legal part of a compound climbingStyle and rescues the rest", () => {
+    const result = planWithValues({ climbingStyle: "Vertical and slab, footwork focus" });
+    expect(result.valid).toBe(true);
+    const values = valuesOf(result);
+    expect(values.climbingStyle).toEqual(["Slab"]);
+    expect(values.notes).toContain("Vertical");
+    expect(values.notes).toContain("footwork focus");
+  });
+
+  it("rescues a climbingStyle with no legal counterpart instead of inventing one", () => {
+    const result = planWithValues({ climbingStyle: "Steep and compression" });
+    expect(result.valid).toBe(true);
+    const values = valuesOf(result);
+    expect(values.climbingStyle).toBeUndefined();
+    expect(values.notes).toContain("Steep");
+  });
+
+  it('corrects "Kilter" to the real board type "Kilterboard"', () => {
+    const result = planWithValues({ boardType: "Kilter" });
+    expect(result.valid).toBe(true);
+    expect(valuesOf(result).boardType).toBe("Kilterboard");
+  });
+
+  // Previously silent corruption: the old validator type-checked these as
+  // "string" and stored them, leaving values nothing in the app can render.
+  it("does not store a campusType outside the two legal protocols", () => {
+    const result = planWithValues({ campusType: "Max Ladders" });
+    expect(result.valid).toBe(true);
+    const values = valuesOf(result);
+    expect(values.campusType).toBeUndefined();
+    expect(values.notes).toContain("Max Ladders");
+  });
+
+  it("does not map a generic campus ladder onto One Arm Ladders", () => {
+    expect(valuesOf(planWithValues({ campusType: "Ladders" })).campusType).toBeUndefined();
+  });
+
+  it("does not store a climbing grade in routeDifficulty", () => {
+    const result = planWithValues({ routeDifficulty: "6B+" });
+    expect(result.valid).toBe(true);
+    const values = valuesOf(result);
+    expect(values.routeDifficulty).toBeUndefined();
+    expect(values.notes).toContain("6B+");
+  });
+
+  // Previously silent data loss: every "restTime" the model emitted was
+  // dropped, because unknown keys are (deliberately) ignored.
+  it('reads "restTime" as the real field timeBetweenSets', () => {
+    const result = planWithValues({ restTime: 180 });
+    expect(result.valid).toBe(true);
+    expect(valuesOf(result).timeBetweenSets).toBe(180);
+    expect(result.repairs.some((i) => i.path.endsWith("restTime"))).toBe(true);
+  });
+
+  it("prefers the canonical field when both spellings are present", () => {
+    expect(valuesOf(planWithValues({ timeBetweenSets: 120, restTime: 180 })).timeBetweenSets).toBe(120);
+  });
+
+  it('reads a unit-suffixed number ("45kg") as a number', () => {
+    expect(valuesOf(planWithValues({ weight: "45kg" })).weight).toBe(45);
+  });
+
+  it("does not mine a number out of prose", () => {
+    const result = planWithValues({ cadence: "Continuous, 1 problem every 3-4 min" });
+    const values = valuesOf(result);
+    expect(values.cadence).toBeUndefined();
+    expect(values.notes).toContain("Continuous");
+  });
+
+  it("appends rescued text to an existing note rather than replacing it", () => {
+    const values = valuesOf(planWithValues({ notes: "Keep it strict.", cadence: "Moderate" }));
+    expect(values.notes).toContain("Keep it strict.");
+    expect(values.notes).toContain("Moderate");
+  });
+
+  it("still rejects input whose JSON type is flatly wrong", () => {
+    const result = planWithValues({ sets: { from: 3, to: 5 } });
+    expect(result.valid).toBe(false);
+    expect(result.issues.some((i) => i.path.endsWith("values.sets"))).toBe(true);
+  });
+});
+
+describe("validateAIPlanOutput - phase format", () => {
+  const PHASE_PLAN = {
+    phases: [
+      {
+        phaseName: "Capacity",
+        startWeekId: "2026-W25",
+        endWeekId: "2026-W27",
+        sessions: [
+          { name: "Board", dayOfWeek: "Monday", exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }] },
+          { name: "Volume", dayOfWeek: "Friday", exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 3 } }] },
+        ],
+      },
+      { phaseName: "Deload", startWeekId: "2026-W28", endWeekId: "2026-W28", sessions: [] },
+    ],
+  };
+
+  it("expands each phase's sessions across every week it covers", () => {
+    const result = validateAIPlanOutput(PHASE_PLAN);
+    expect(result.valid).toBe(true);
+    expect(result.data!.format).toBe("phase");
+    expect(result.data!.weeks.map((w) => w.weekId)).toEqual(["2026-W25", "2026-W26", "2026-W27", "2026-W28"]);
+    expect(result.data!.weeks[0].workouts).toHaveLength(2);
+    expect(result.data!.weeks[0].phaseName).toBe("Capacity");
+    expect(result.data!.weeks[3].workouts).toEqual([]);
+  });
+
+  it("gives each expanded week its own exercise objects", () => {
+    const weeks = validateAIPlanOutput(PHASE_PLAN).data!.weeks;
+    expect(weeks[0].workouts[0].exercises[0]).not.toBe(weeks[1].workouts[0].exercises[0]);
+    expect(weeks[0].workouts[0].exercises[0].values).not.toBe(weeks[1].workouts[0].exercises[0].values);
+  });
+
+  it("tags the weekly format too", () => {
+    expect(validateAIPlanOutput(VALID_PLAN).data!.format).toBe("weekly");
+  });
+
+  it("rejects a phase whose end week precedes its start week", () => {
+    const bad = JSON.parse(JSON.stringify(PHASE_PLAN));
+    bad.phases[0].endWeekId = "2026-W20";
+    const result = validateAIPlanOutput(bad);
+    expect(result.valid).toBe(false);
+    expect(result.issues.some((i) => i.path.endsWith("endWeekId"))).toBe(true);
+  });
+
+  it("rejects a malformed week id", () => {
+    const bad = JSON.parse(JSON.stringify(PHASE_PLAN));
+    bad.phases[0].startWeekId = "June";
+    expect(validateAIPlanOutput(bad).valid).toBe(false);
+  });
+
+  it("rejects a document carrying both phases and weeks", () => {
+    expect(validateAIPlanOutput({ ...PHASE_PLAN, weeks: [] }).valid).toBe(false);
+  });
+
+  it('accepts "workouts" as a synonym for "sessions"', () => {
+    const renamed = { phases: [{ ...PHASE_PLAN.phases[0], sessions: undefined, workouts: PHASE_PLAN.phases[0].sessions }] };
+    const result = validateAIPlanOutput(renamed);
+    expect(result.valid).toBe(true);
+    expect(result.data!.weeks[0].workouts).toHaveLength(2);
+  });
+});
+
+/**
+ * The complete corpus of malformed values from the user's pasted 15-week
+ * plan - every distinct one named in its ~170 validation errors, plus the
+ * four the old validator accepted and stored as unrenderable garbage. The
+ * whole plan must import, and nothing may be invented in the process.
+ */
+describe("the full corpus from the rejected 15-week plan", () => {
+  const CADENCE_PROSE = [
+    "Continuous, 1 problem every 3-4 min", "Warm-up pyramid", "Moderate", "4x4 blocks",
+    "Low volume, high quality", "Continuous", "Thorough warm-up", "Relaxed", "Flash mileage",
+    "Projecting", "Long warm-up, add some dynamic moves", "Long warm-up", "Limit projecting",
+    "Project focus", "Warm-up", "Relaxed, flash only", "Flash and quick sends",
+  ];
+  const CLIMBING_STYLE_PROSE = [
+    "Vertical and slab, footwork focus", "Mixed", "Steep and compression", "Performance",
+    "Slab and technical vertical", "Overhang and compression", "Technical, weakest styles",
+    "Steep", "Movement quality, no falls", "Onsight and flash", "Steep gym boulders",
+    "Slab, coordination, compression", "Weakest styles", "Movement quality",
+    "Mixed and technical", "Steep and powerful", "Performance outdoor",
+  ];
+  const MOBILITY_PROSE = [
+    "Shoulders and Wrists", "Hips and Hamstrings", "Full Body", "Shoulders", "Shoulders and Hips",
+  ];
+
+  const ALLOWED_CLIMBING_STYLES = ["Slab", "Coordination", "Power", "Board"];
+  const ALLOWED_MOBILITY = ["Hamstrings", "Shoulders", "Hips", "Spine", "Ankles", "Wrists"];
+
+  function exercisesFor(values: Record<string, unknown>[]) {
+    return values.map((v) => ({ exerciseTypeName: "Free Bouldering", values: v }));
+  }
+
+  it("imports every malformed value without a single fatal error", () => {
+    const plan = {
+      weeks: [
+        {
+          weekId: "2026-W39",
+          phaseName: "Capacity",
+          workouts: [
+            { name: "cadence", dayOfWeek: "Monday", exercises: exercisesFor(CADENCE_PROSE.map((c) => ({ cadence: c }))) },
+            { name: "style", dayOfWeek: "Tuesday", exercises: exercisesFor(CLIMBING_STYLE_PROSE.map((c) => ({ climbingStyle: c }))) },
+            { name: "mobility", dayOfWeek: "Wednesday", exercises: exercisesFor(MOBILITY_PROSE.map((m) => ({ mobilityType: m }))) },
+            {
+              name: "silently corrupted before",
+              dayOfWeek: "Friday",
+              exercises: exercisesFor([
+                { boardType: "Kilter", boardAngle: 40 },
+                { campusType: "Ladders" },
+                { campusType: "Ladders and Bumps" },
+                { campusType: "Max Ladders" },
+                { routeDifficulty: "6B" },
+                { routeDifficulty: "6B+" },
+                { sets: 5, reps: 6, timeOn: 7, timeOff: 3, restTime: 180, weight: 10 },
+              ]),
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = validateAIPlanOutput(plan);
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+    expect(result.repairs.length).toBeGreaterThan(0);
+  });
+
+  it("never stores a value outside the schema's allowed list", () => {
+    const result = validateAIPlanOutput({
+      weeks: [
+        {
+          weekId: "2026-W39",
+          phaseName: "Capacity",
+          workouts: [
+            { exercises: exercisesFor(CLIMBING_STYLE_PROSE.map((c) => ({ climbingStyle: c }))) },
+            { exercises: exercisesFor(MOBILITY_PROSE.map((m) => ({ mobilityType: m }))) },
+            { exercises: exercisesFor(CADENCE_PROSE.map((c) => ({ cadence: c }))) },
+          ],
+        },
+      ],
+    });
+
+    for (const workout of result.data!.weeks[0].workouts) {
+      for (const exercise of workout.exercises) {
+        const { climbingStyle, mobilityType, cadence } = exercise.values;
+        for (const style of climbingStyle ?? []) expect(ALLOWED_CLIMBING_STYLES).toContain(style);
+        for (const area of mobilityType ?? []) expect(ALLOWED_MOBILITY).toContain(area);
+        if (cadence !== undefined) expect(typeof cadence).toBe("number");
+      }
+    }
+  });
+
+  it("loses no coaching text - every rescued value survives in notes", () => {
+    const result = validateAIPlanOutput({
+      weeks: [
+        {
+          weekId: "2026-W39",
+          phaseName: "Capacity",
+          workouts: [{ exercises: exercisesFor(CADENCE_PROSE.map((c) => ({ cadence: c }))) }],
+        },
+      ],
+    });
+    result.data!.weeks[0].workouts[0].exercises.forEach((exercise, i) => {
+      expect(exercise.values.notes).toContain(CADENCE_PROSE[i]);
+    });
+  });
+});
+
+/**
+ * The prompt is the only thing standing between the model and a malformed
+ * document, so these assert it actually states every rule the validator
+ * enforces. Generated from EXERCISE_VALUE_SPEC, so a field added later
+ * without prompt text fails here rather than silently at import time.
+ */
+describe("AI prompt completeness", () => {
+  const PROMPTS = {
+    weekly: AI_PLAN_OUTPUT_INSTRUCTIONS,
+    phase: AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS,
+    workoutLog: AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS,
+  };
+
+  for (const [name, prompt] of Object.entries(PROMPTS)) {
+    describe(name, () => {
+      it("documents every field the validator accepts", () => {
+        for (const field of EXERCISE_VALUE_FIELD_NAMES) {
+          expect(prompt, `prompt never mentions "${field}"`).toContain(field);
+        }
+      });
+
+      it("lists every allowed value of every enum field", () => {
+        for (const field of EXERCISE_VALUE_FIELD_NAMES) {
+          const spec = EXERCISE_VALUE_SPEC[field];
+          if (!spec.enum) continue;
+          for (const value of spec.enum) {
+            expect(prompt, `prompt never lists "${value}" for ${field}`).toContain(`"${value}"`);
+          }
+        }
+      });
+
+      it("states the type of every array field", () => {
+        for (const field of EXERCISE_VALUE_FIELD_NAMES) {
+          if (EXERCISE_VALUE_SPEC[field].type !== "string[]") continue;
+          expect(prompt, `${field} not documented as an array`).toContain(`${field} (array of strings`);
+        }
+      });
+
+      it("warns against the mistakes that actually broke a real import", () => {
+        expect(prompt).toContain("restTime");
+        expect(prompt).toMatch(/never put prose in a numeric field/i);
+        expect(prompt).toMatch(/bare JSON number/i);
+        expect(prompt).toMatch(/Kilterboard/);
+      });
+    });
+  }
+
+  it("tells the phase prompt not to emit a week-by-week calendar", () => {
+    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toMatch(/do NOT repeat a session once per week/i);
+    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toContain('"phases"');
+    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toContain("startWeekId");
+  });
+
+  it("still tells the weekly prompt to cover every week", () => {
+    expect(AI_PLAN_OUTPUT_INSTRUCTIONS).toMatch(/every week in the target timeframe/i);
+    expect(AI_PLAN_OUTPUT_INSTRUCTIONS).toContain('"weeks"');
   });
 });

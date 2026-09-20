@@ -14,6 +14,7 @@
     type NameMapping,
   } from '../../lib/ai/planImport';
   import { buildWorkoutLogPreview, buildWorkoutLogCommit } from '../../lib/ai/workoutLogImport';
+  import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
   import Icon from '@iconify/svelte';
 
   // --- Props ---
@@ -42,6 +43,10 @@
   let phaseMapping = $state<Record<string, NameMapping>>({});
   let committing = $state(false);
   let showInstructions = $state(false);
+  let showRepairs = $state(false);
+  let expandedIssue = $state<string | null>(null);
+  let copiedErrors = $state(false);
+  let saveAsTemplates = $state(false);
 
   // --- Parsing (validate on every keystroke - cheap, and lets the preview/
   // error list update live rather than only on an explicit "Parse" click) ---
@@ -105,12 +110,17 @@
           planResult.data,
           { exerciseTypes: exerciseTypeMapping, phases: phaseMapping },
           { exerciseTypes: trainingState.exerciseTypes, phaseDefs: trainingState.phaseDefs, analyticsCategories: trainingState.analyticsCategories },
+          { saveAsTemplates },
         );
         if (commit.newExerciseTypes.length) {
           await trainingState.updateExerciseTypes([...trainingState.exerciseTypes, ...commit.newExerciseTypes]);
         }
         if (commit.newPhaseDefs.length) {
           await trainingState.updatePhaseDefs([...trainingState.phaseDefs, ...commit.newPhaseDefs]);
+        }
+        const templatePhaseCount = Object.keys(commit.templates).length;
+        if (templatePhaseCount > 0) {
+          await trainingState.updateTemplates({ ...trainingState.templates, ...commit.templates });
         }
         for (const block of commit.trainingBlocks) {
           await trainingState.saveTrainingBlock(block);
@@ -120,7 +130,7 @@
         }
         await showAlert(
           'Import Complete',
-          `Added ${commit.workouts.length} workout(s) across ${commit.trainingBlocks.length} training block(s)${commit.newExerciseTypes.length ? `, created ${commit.newExerciseTypes.length} new exercise type(s)` : ''}.`,
+          `Added ${commit.workouts.length} workout(s) across ${commit.trainingBlocks.length} training block(s)${commit.newExerciseTypes.length ? `, created ${commit.newExerciseTypes.length} new exercise type(s)` : ''}${templatePhaseCount ? `, saved templates for ${templatePhaseCount} phase(s)` : ''}.`,
         );
       } else {
         if (!logResult?.data) return;
@@ -144,6 +154,22 @@
   }
 
   const issues = $derived(planResult?.issues ?? logResult?.issues ?? []);
+  const repairs = $derived(planResult?.repairs ?? logResult?.repairs ?? []);
+
+  // ~170 raw issues from one real plan collapse to a handful of distinct
+  // problems - see issueSummary.ts.
+  const issueGroups = $derived(groupIssues(issues));
+  const repairGroups = $derived(groupIssues(repairs));
+
+  async function handleCopyErrors() {
+    await navigator.clipboard.writeText(formatIssuesForAI(issues));
+    copiedErrors = true;
+    setTimeout(() => (copiedErrors = false), 2000);
+  }
+
+  function toggleIssue(key: string) {
+    expandedIssue = expandedIssue === key ? null : key;
+  }
 </script>
 
 <div class="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-300 p-0 sm:p-4 pb-[80px]">
@@ -190,20 +216,122 @@
       </div>
 
       {#if pasteText.trim() && issues.length > 0}
-        <div class="p-3.5 bg-danger/10 border border-danger/30 rounded-control space-y-1.5">
-          <p class="text-label text-danger flex items-center gap-1.5">
-            <Icon icon="ic:baseline-error-outline" class="text-sm" /> Couldn't validate this JSON
-          </p>
-          <ul class="text-body text-content-muted space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
-            {#each issues as issue}
-              <li>{issue.path ? `${issue.path}: ` : ''}{issue.message}</li>
+        <div class="p-3.5 bg-danger/10 border border-danger/30 rounded-control space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <p class="text-label text-danger flex items-center gap-1.5">
+              <Icon icon="ic:baseline-error-outline" class="text-sm" />
+              {issueGroups.length} problem{issueGroups.length === 1 ? '' : 's'} to fix
+              {#if issues.length !== issueGroups.length}
+                <span class="text-content-subtle font-normal">({issues.length} occurrences)</span>
+              {/if}
+            </p>
+            <button
+              onclick={handleCopyErrors}
+              class="shrink-0 text-label text-primary flex items-center gap-1 hover:underline"
+            >
+              <Icon icon={copiedErrors ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-sm" />
+              {copiedErrors ? 'Copied' : 'Copy fix request'}
+            </button>
+          </div>
+
+          <ul class="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar">
+            {#each issueGroups as group (group.label + group.message)}
+              {@const key = group.label + group.message}
+              <li class="bg-surface/60 rounded-control overflow-hidden">
+                <button
+                  onclick={() => toggleIssue(key)}
+                  class="w-full text-left px-3 py-2 flex items-start justify-between gap-2"
+                >
+                  <span class="min-w-0">
+                    <span class="block text-body text-content font-medium truncate">
+                      {group.label.split('.').pop()}
+                    </span>
+                    <span class="block text-caption text-content-muted leading-snug">{group.message}</span>
+                  </span>
+                  <span class="shrink-0 flex items-center gap-1.5">
+                    {#if group.count > 1}
+                      <span class="text-caption text-content-subtle tabular-nums">x{group.count}</span>
+                    {/if}
+                    <Icon icon={expandedIssue === key ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-sm text-content-muted" />
+                  </span>
+                </button>
+                {#if expandedIssue === key}
+                  <ul class="px-3 pb-2 space-y-1">
+                    {#each group.examples as example}
+                      <li class="text-caption text-content-subtle font-mono break-all">
+                        {example.path}: {example.message}
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </li>
             {/each}
           </ul>
+
+          <p class="text-caption text-content-subtle leading-snug">
+            "Copy fix request" puts a correction note on your clipboard - paste it back into the same AI chat and it
+            will resend the corrected JSON.
+          </p>
+        </div>
+      {/if}
+
+      {#if pasteText.trim() && issues.length === 0 && repairs.length > 0}
+        <div class="p-3.5 bg-warning/10 border border-warning/30 rounded-control space-y-2">
+          <button onclick={() => showRepairs = !showRepairs} class="w-full flex items-center justify-between gap-2 text-left">
+            <span class="text-label text-warning flex items-center gap-1.5">
+              <Icon icon="ic:baseline-auto-fix-high" class="text-sm" />
+              Fixed {repairs.length} value{repairs.length === 1 ? '' : 's'} automatically
+            </span>
+            <Icon icon={showRepairs ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-sm text-content-muted" />
+          </button>
+          <p class="text-caption text-content-subtle leading-snug">
+            Values the AI wrote in the wrong shape were corrected where that was unambiguous. Anything that couldn't be
+            represented was moved into the exercise's notes rather than guessed at - review those sessions after importing.
+          </p>
+          {#if showRepairs}
+            <ul class="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar">
+              {#each repairGroups as group (group.label + group.message)}
+                <li class="bg-surface/60 rounded-control px-3 py-2">
+                  <span class="flex items-start justify-between gap-2">
+                    <span class="text-body text-content font-medium truncate">{group.label.split('.').pop()}</span>
+                    {#if group.count > 1}
+                      <span class="shrink-0 text-caption text-content-subtle tabular-nums">x{group.count}</span>
+                    {/if}
+                  </span>
+                  <span class="block text-caption text-content-muted leading-snug">{group.message}</span>
+                </li>
+              {/each}
+            </ul>
+          {/if}
         </div>
       {/if}
 
       {#if mode === 'plan' && planPreview}
         <div class="space-y-3">
+          {#if planPreview.format === 'phase'}
+            <div class="p-3.5 bg-primary/10 border border-primary/30 rounded-control space-y-2">
+              <p class="text-label text-primary flex items-center gap-1.5">
+                <Icon icon="ic:baseline-dashboard" class="text-sm" /> Phase plan
+              </p>
+              <p class="text-body text-content leading-snug">
+                {planPreview.phases.length} phase{planPreview.phases.length === 1 ? '' : 's'}
+                &rarr; {planPreview.weeks.length} week{planPreview.weeks.length === 1 ? '' : 's'}
+                &rarr; {planPreview.totalWorkouts} workout{planPreview.totalWorkouts === 1 ? '' : 's'}
+              </p>
+              <ul class="space-y-1">
+                {#each planPreview.phases as phase}
+                  <li class="flex items-center justify-between gap-2 text-body text-content-muted">
+                    <span class="truncate font-medium text-content">{phase.phaseName}</span>
+                    <span class="shrink-0 text-caption text-content-subtle">
+                      {phase.startWeekId} &ndash; {phase.endWeekId} &middot;
+                      {phase.sessionCount} session{phase.sessionCount === 1 ? '' : 's'} x {phase.weekCount} wk
+                    </span>
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
+
           <p class="text-label text-content-subtle">
             Preview - {planPreview.weeks.length} week(s), {planPreview.totalWorkouts} workout(s), {planPreview.totalExercises} exercise(s)
           </p>
@@ -276,6 +404,19 @@
             </div>
           {/each}
         </div>
+      {/if}
+
+      {#if mode === 'plan' && planPreview}
+        <label class="flex items-start gap-3 p-3.5 bg-surface-elevated/50 border border-border-strong rounded-control cursor-pointer">
+          <input type="checkbox" bind:checked={saveAsTemplates} class="mt-0.5 accent-primary w-4 h-4 shrink-0" />
+          <span class="min-w-0">
+            <span class="block text-body text-content font-medium">Save sessions as phase templates</span>
+            <span class="block text-caption text-content-subtle leading-snug mt-0.5">
+              Reuses these sessions whenever you assign the phase to a week later. Replaces the existing templates of
+              every phase in this plan.
+            </span>
+          </span>
+        </label>
       {/if}
 
       <button
