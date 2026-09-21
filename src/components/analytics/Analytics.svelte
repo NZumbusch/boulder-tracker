@@ -122,18 +122,11 @@
    * total actual load, total planned load, and counts of exercise categories.
    */
   const chartData = $derived.by(() => {
-    const data = trainingState.workouts;
     const types = trainingState.exerciseTypes;
 
     // Quick lookup for assigning categories to recorded exercises
     const typeToCategory = new Map<string, ExerciseCategory>();
     types.forEach((t: ExerciseTypeDef) => typeToCategory.set(t.id, t.category));
-
-    const completedWorkouts = data
-      .filter((w: Workout) => w.status === 'completed' && w.date)
-      .sort((a: Workout, b: Workout) => new Date(a.date!).getTime() - new Date(b.date!).getTime());
-
-    const allRelevantWorkouts = data.filter(w => w.weekId);
 
     const weeksMap = new Map<string, {
       load: number,
@@ -165,8 +158,12 @@
       });
     }
 
-    // Only process workouts that fall within our displayed weeks
-    const visibleWorkouts = allRelevantWorkouts.filter(w => weeksToDisplay.includes(w.weekId));
+    // Read each displayed week through the projection layer, so a week that
+    // is still provisional (phase assigned, nothing stored yet - see
+    // lib/planning/weekProjection.ts) still contributes its planned load and
+    // training mix. Reading `trainingState.workouts` directly here would
+    // make the target path drop to zero for every not-yet-materialised week.
+    const visibleWorkouts = weeksToDisplay.flatMap((id) => trainingState.getWorkoutsForWeek(id));
 
     visibleWorkouts.forEach((w: Workout) => {
       const week = weeksMap.get(w.weekId)!;

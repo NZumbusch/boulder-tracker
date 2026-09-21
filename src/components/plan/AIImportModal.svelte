@@ -125,12 +125,22 @@
         for (const block of commit.trainingBlocks) {
           await trainingState.saveTrainingBlock(block);
         }
-        for (const workout of commit.workouts) {
-          await trainingState.saveWorkout(workout);
-        }
+        await trainingState.importPlanWorkouts(commit.workouts);
+
+        // Weeks whose sessions are exactly their phase's templates get no
+        // stored rows - they follow the phase until something happens in
+        // them (see lib/planning/weekProjection.ts). Said explicitly here so
+        // a mostly-provisional import doesn't read as "added 0 workouts".
+        const provisionalCount = commit.provisionalWeekIds.length;
+        const written = commit.workouts.length
+          ? `Added ${commit.workouts.length} session(s)`
+          : 'Added no fixed sessions';
         await showAlert(
           'Import Complete',
-          `Added ${commit.workouts.length} workout(s) across ${commit.trainingBlocks.length} training block(s)${commit.newExerciseTypes.length ? `, created ${commit.newExerciseTypes.length} new exercise type(s)` : ''}${templatePhaseCount ? `, saved templates for ${templatePhaseCount} phase(s)` : ''}.`,
+          `${written} across ${commit.trainingBlocks.length} training block(s)`
+          + `${provisionalCount ? `. ${provisionalCount} week(s) will follow their phase until you log, change or lock them in` : ''}`
+          + `${commit.newExerciseTypes.length ? `. Created ${commit.newExerciseTypes.length} new exercise type(s)` : ''}`
+          + `${templatePhaseCount ? `. Saved templates for ${templatePhaseCount} phase(s)` : ''}.`,
         );
       } else {
         if (!logResult?.data) return;

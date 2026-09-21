@@ -380,6 +380,23 @@ export const storage = {
    * still wins for template generation/display (see `getDominantBlockForWeek`)
    * - assigning a phase here only ever affects this week's own single-week
    * block, never anyone else's block.
+   *
+   * Assigning a phase no longer hard-writes the phase's sessions into the
+   * week. A week with nothing stored is left *provisional* and projects its
+   * sessions from the phase's templates at read time
+   * (`lib/planning/weekProjection.ts`); it only gains real rows once
+   * something is logged or edited in it, it falls into the past, or the user
+   * commits it. Three cases, in order of how much there is to lose:
+   *
+   *  - nothing stored: clear any `customized` flag and let it project. This
+   *    is what makes "Clear Week, then assign a phase" work on a week a
+   *    multi-week block still covers.
+   *  - stored but not customized (a committed, untouched week): regenerate
+   *    its planned sessions from the new phase, exactly as before.
+   *  - stored and customized: left completely alone. Hand edits still win
+   *    over template regeneration, as they always have.
+   *
+   * Completed sessions are never touched in any of these cases.
    */
   async assignPhaseToWeek(weekId: string, phaseId: string): Promise<void> {
     const blocks = await this._getTrainingBlocks();
@@ -404,22 +421,51 @@ export const storage = {
     }
     await this._saveTrainingBlocks(blocks);
 
-    if (!isCustomized) {
-      const workouts = await this._getWorkouts();
-      const filteredWorkouts = workouts.filter(
-        (w) => !(w.weekId === weekId && w.status === "planned"),
-      );
-      const templates = await this.getTemplates();
-      const dominantBlock = getDominantBlockForWeek(blocks, weekId);
-      const effectivePhaseId = dominantBlock?.phaseId ?? phaseId;
-      const phaseTemplates = templates[effectivePhaseId];
+    const workouts = await this._getWorkouts();
+    const hasStored = workouts.some((w) => w.weekId === weekId);
 
-      const newWorkouts = generateWorkoutsFromTemplate(weekId, phaseTemplates || []).map(
-        (w) => ({ ...w, blockId: dominantBlock?.id }),
-      );
-
-      await this._saveWorkouts([...filteredWorkouts, ...newWorkouts]);
+    if (!hasStored) {
+      // Leave the week provisional - it will project from the new phase.
+      // Dropping any stale `customized` flag is what lets a cleared week
+      // follow a phase again.
+      if (isCustomized) {
+        await this._saveWeekOverrides(overrides.filter((o) => o.weekId !== weekId));
+      }
+      return;
     }
+
+    if (isCustomized) return; // hand-edited: never regenerated over
+
+    const filteredWorkouts = workouts.filter(
+      (w) => !(w.weekId === weekId && w.status === "planned"),
+    );
+    const templates = await this.getTemplates();
+    const dominantBlock = getDominantBlockForWeek(blocks, weekId);
+    const effectivePhaseId = dominantBlock?.phaseId ?? phaseId;
+    const phaseTemplates = templates[effectivePhaseId];
+
+    const newWorkouts = generateWorkoutsFromTemplate(weekId, phaseTemplates || []).map(
+      (w) => ({ ...w, blockId: dominantBlock?.id }),
+    );
+
+    await this._saveWorkouts([...filteredWorkouts, ...newWorkouts]);
+  },
+
+  /**
+   * Turns a provisional week's projected sessions into real stored rows -
+   * the "copy" of copy-on-write. Deliberately does NOT mark the week
+   * customized: materialising is not a hand edit, it only fixes the sessions
+   * in place so they stop tracking the templates.
+   *
+   * Idempotent and last-writer-safe: if anything is already stored for the
+   * week, this is a no-op, so a materialise racing with a save can never
+   * duplicate the week's sessions.
+   */
+  async materializeWeek(weekId: string, projected: Workout[]): Promise<void> {
+    if (projected.length === 0) return;
+    const workouts = await this._getWorkouts();
+    if (workouts.some((w) => w.weekId === weekId)) return;
+    await this._saveWorkouts([...workouts, ...projected]);
   },
 
   async clearWeekData(weekId: string): Promise<void> {
@@ -432,9 +478,20 @@ export const storage = {
     );
     await this._saveTrainingBlocks(filteredBlocks);
 
-    // 2. Remove the week override
+    // 2. Reset the week override. If a *multi-week* block still covers this
+    // week, the week would immediately re-project its sessions from that
+    // block's phase and "Clear Week" would appear to do nothing - so in that
+    // case the week is marked customized instead, which is exactly the
+    // "deliberately empty, don't regenerate" state. Assigning a phase to the
+    // week later clears that flag again (see `assignPhaseToWeek`).
     const overrides = await this._getWeekOverrides();
-    await this._saveWeekOverrides(overrides.filter((o) => o.weekId !== weekId));
+    const stillCovered = filteredBlocks.some(
+      (b) => b.startWeekId <= weekId && weekId <= b.endWeekId,
+    );
+    const withoutThisWeek = overrides.filter((o) => o.weekId !== weekId);
+    await this._saveWeekOverrides(
+      stillCovered ? [...withoutThisWeek, { weekId, customized: true }] : withoutThisWeek,
+    );
 
     // 3. Remove all workouts for this week
     const workouts = await this._getWorkouts();

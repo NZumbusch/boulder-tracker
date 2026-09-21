@@ -201,6 +201,44 @@ export interface PlanCommitResult {
    * phase's existing templates, so it stays opt-in per import.
    */
   templates: Record<string, WorkoutTemplate[]>;
+  /**
+   * Weeks deliberately left with no stored workouts because the sessions
+   * they would hold are exactly what their phase's newly-written templates
+   * project anyway - see `lib/planning/weekProjection.ts`. Reported so the
+   * import summary can say so rather than looking like it dropped them.
+   */
+  provisionalWeekIds: string[];
+}
+
+/**
+ * Whether a week's sessions are identical (ignoring ids) to the template set
+ * being saved for its phase - in which case storing them would duplicate,
+ * row for row, what the week already projects.
+ *
+ * A phase-format plan satisfies this by construction: `expandPhasePlan`
+ * copies one session list across every week of the phase, and the templates
+ * are taken from that same list. A weekly-format plan whose weeks genuinely
+ * differ does not, and those weeks are still written hard - which is the
+ * point of comparing rather than just checking the format.
+ */
+function weekMatchesTemplates(workouts: Workout[], templates: WorkoutTemplate[]): boolean {
+  if (workouts.length !== templates.length) return false;
+  return workouts.every((w, i) => {
+    const t = templates[i];
+    if ((w.notes || "") !== (t.name || "")) return false;
+    if (w.dayOfWeek !== t.dayOfWeek) return false;
+    if (w.startTime !== t.startTime) return false;
+    if (w.plannedDuration !== t.plannedDuration) return false;
+    const ts = t.exercises ?? [];
+    if (w.exercises.length !== ts.length) return false;
+    return w.exercises.every((e, j) => {
+      const te = ts[j];
+      return e.typeId === te.typeId
+        && e.categoryId === te.categoryId
+        && JSON.stringify(e.prescribed ?? {}) === JSON.stringify(te.prescribed ?? {})
+        && JSON.stringify(e.activeParameters ?? []) === JSON.stringify(te.activeParameters ?? []);
+    });
+  });
 }
 
 /** Shared with `workoutLogImport.ts` - building an `ExerciseSlot` from a validated AI exercise is identical either way. */
@@ -348,31 +386,11 @@ export function buildPlanCommit(
     blockIdByWeekId.set(week.weekId, trainingBlocks[trainingBlocks.length - 1].id);
   }
 
-  const workouts: Workout[] = [];
-  for (const { week } of weeksWithPhaseId) {
-    for (const w of week.workouts) {
-      const exercises = w.exercises.map((e) =>
-        buildExerciseSlot(e, resolveExerciseTypeId(e), exerciseTypeById),
-      );
-      workouts.push({
-        id: generateId(),
-        status: "planned",
-        date: null,
-        dayOfWeek: w.dayOfWeek,
-        startTime: w.startTime,
-        plannedDuration: w.plannedDuration,
-        weekId: week.weekId,
-        notes: w.name || "",
-        loadFactor: 0,
-        plannedLoad: exercises.reduce((acc, e) => acc + calculatePlannedLoad(e.prescribed ?? {}), 0),
-        exercises,
-        blockId: blockIdByWeekId.get(week.weekId),
-      });
-    }
-  }
-
-  // One template set per phase, taken from that phase's first week - which
-  // for a phase-format import is exactly the session list the AI wrote once.
+  // Templates are built first, because whether a week's sessions need to be
+  // stored at all depends on whether they match them (see
+  // `weekMatchesTemplates`). One set per phase, taken from that phase's
+  // first week - which for a phase-format import is exactly the session
+  // list the AI wrote once.
   const templates: Record<string, WorkoutTemplate[]> = {};
   if (options.saveAsTemplates) {
     for (const { week, phaseId } of weeksWithPhaseId) {
@@ -388,5 +406,41 @@ export function buildPlanCommit(
     }
   }
 
-  return { newExerciseTypes, newPhaseDefs, trainingBlocks, workouts, templates };
+  const workouts: Workout[] = [];
+  const provisionalWeekIds: string[] = [];
+  for (const { week, phaseId } of weeksWithPhaseId) {
+    const weekWorkouts: Workout[] = week.workouts.map((w) => {
+      const exercises = w.exercises.map((e) =>
+        buildExerciseSlot(e, resolveExerciseTypeId(e), exerciseTypeById),
+      );
+      return {
+        id: generateId(),
+        status: "planned",
+        date: null,
+        dayOfWeek: w.dayOfWeek,
+        startTime: w.startTime,
+        plannedDuration: w.plannedDuration,
+        weekId: week.weekId,
+        notes: w.name || "",
+        loadFactor: 0,
+        plannedLoad: exercises.reduce((acc, e) => acc + calculatePlannedLoad(e.prescribed ?? {}), 0),
+        exercises,
+        blockId: blockIdByWeekId.get(week.weekId),
+      } as Workout;
+    });
+
+    // Copy-on-write: a week whose sessions are exactly its phase's templates
+    // needs no stored rows - it projects them, and stays free to follow a
+    // later template edit until something actually happens in it. This is
+    // what keeps a year-long AI plan from writing hundreds of sessions
+    // nobody has looked at yet.
+    const phaseTemplates = templates[phaseId];
+    if (phaseTemplates && weekWorkouts.length > 0 && weekMatchesTemplates(weekWorkouts, phaseTemplates)) {
+      provisionalWeekIds.push(week.weekId);
+      continue;
+    }
+    workouts.push(...weekWorkouts);
+  }
+
+  return { newExerciseTypes, newPhaseDefs, trainingBlocks, workouts, templates, provisionalWeekIds };
 }

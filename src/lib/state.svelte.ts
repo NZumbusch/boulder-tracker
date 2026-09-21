@@ -1,6 +1,16 @@
 import { storage } from './storage';
 import type { Workout, WorkoutTemplate, PhaseDef, Benchmark, BenchmarkTypeDef, AnalyticsCategory, ExerciseTypeDef, ViewType, TrainingBlock, CompetitionEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
+import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
+import {
+  isWeekProvisional,
+  projectWeekWorkouts,
+  effectiveWorkoutsForWeek,
+  provisionalPastWeeks,
+  coveredWeekIds,
+  isProvisionalId,
+  type WeekProjectionContext,
+} from './planning/weekProjection';
 import { showAlert, showConfirm } from './utils';
 import { WorkoutStore } from './stores/workoutStore.svelte';
 import { PlanningStore } from './stores/planningStore.svelte';
@@ -193,6 +203,16 @@ class TrainingState {
         this.outdoorAscentStore.load(),
       ]);
 
+      // Any provisional week that has since finished is written out now, so
+      // history records what was planned at the time rather than whatever
+      // the templates say today. Must run after the stores have loaded and
+      // before anything reads the week, and is a no-op in the common case.
+      try {
+        await this.materializePastWeeks();
+      } catch (err) {
+        console.error('Failed to materialize past provisional weeks:', err);
+      }
+
       if (this.uiStore.notificationsEnabled) {
         try {
           await syncFatigueReminders(this.workoutStore.workouts);
@@ -222,8 +242,99 @@ class TrainingState {
     return this.workoutStore.completedWorkouts;
   }
 
+  /**
+   * Everything the projection layer needs to decide what a week shows.
+   * Reads the live stores, so any `$derived` that calls through here stays
+   * reactive to workouts, blocks, templates and overrides alike.
+   */
+  private get projectionContext(): WeekProjectionContext {
+    return {
+      workouts: this.workoutStore.workouts,
+      trainingBlocks: this.planningStore.trainingBlocks,
+      templates: this.planningStore.templates,
+      weekOverrides: this.planningStore.weekOverrides,
+    };
+  }
+
+  /** True while a week still shows projected sessions rather than stored ones (see `lib/planning/weekProjection.ts`). */
+  isWeekProvisional(weekId: string) {
+    return isWeekProvisional(this.projectionContext, weekId);
+  }
+
+  /**
+   * A week's sessions as the app should show them: its stored workouts, or
+   * its projected ones while it is still provisional. Every screen that
+   * lists a week's sessions reads through this, so a provisional week looks
+   * and behaves like a planned one everywhere.
+   */
+  getWorkoutsForWeek(weekId: string) {
+    return effectiveWorkoutsForWeek(this.projectionContext, weekId);
+  }
+
   getPlannedWorkoutsForWeek(weekId: string) {
-    return this.workoutStore.getPlannedWorkoutsForWeek(weekId);
+    return sortWorkoutsBySchedule(
+      this.getWorkoutsForWeek(weekId).filter((w) => w.status === 'planned'),
+    );
+  }
+
+  /**
+   * The copy-on-write gate. Every write path that touches a week calls this
+   * first: if the week is still provisional, its projected sessions are
+   * written out as real rows *before* the caller's own change is applied.
+   *
+   * Whole-week, not per-session, deliberately - editing one projected
+   * session must not make the week's other projected sessions vanish, which
+   * is exactly what would happen if the edit alone were saved (the week
+   * would stop being provisional the moment it had one stored row).
+   */
+  private async materializeWeekIfProvisional(weekId: string | undefined) {
+    if (!weekId) return;
+    const projected = projectWeekWorkouts(this.projectionContext, weekId);
+    if (projected.length === 0) return;
+    await this.workoutStore.materializeWeek(weekId, projected);
+    await this.workoutStore.load();
+  }
+
+  /**
+   * Bulk write path for an AI plan import. Deliberately bypasses the
+   * copy-on-write gate: the importer has already decided which weeks get
+   * stored rows and which stay provisional, so materialising a week here
+   * would write the phase's templates *and* the imported sessions into the
+   * same week. Refreshes once at the end rather than once per workout.
+   */
+  async importPlanWorkouts(workouts: Workout[]) {
+    for (const workout of workouts) {
+      await this.workoutStore.saveWorkout(workout);
+    }
+    await this.refresh();
+  }
+
+  /**
+   * Explicitly commits a provisional week - the Plan screen's "lock in"
+   * action. Same materialisation every write triggers, just with nothing
+   * else attached to it.
+   */
+  async materializeWeek(weekId: string) {
+    await this.materializeWeekIfProvisional(weekId);
+    await this.refresh();
+  }
+
+  /**
+   * Materialises every provisional week that has already finished. Run once
+   * per app load: a past week must keep what was planned at the time, and a
+   * projection would instead re-derive it from whatever the templates say
+   * today - so an edit to a template would silently rewrite history.
+   */
+  private async materializePastWeeks() {
+    const stale = provisionalPastWeeks(this.projectionContext, this.currentWeekId);
+    if (stale.length === 0) return;
+    for (const weekId of stale) {
+      const projected = projectWeekWorkouts(this.projectionContext, weekId);
+      if (projected.length > 0) {
+        await this.workoutStore.materializeWeek(weekId, projected);
+        await this.workoutStore.load();
+      }
+    }
   }
 
   getBlocksForWeek(weekId: string) {
@@ -347,6 +458,7 @@ class TrainingState {
    * Saves a workout to storage and refreshes local state.
    */
   async saveWorkout(workout: Workout) {
+    await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.saveWorkout(workout);
     await this.refresh();
   }
@@ -367,6 +479,7 @@ class TrainingState {
    * not silently drop.
    */
   async saveWorkoutQuiet(workout: Workout) {
+    await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.saveWorkout(workout);
     await this.workoutStore.load();
     if (this.uiStore.notificationsEnabled) {
@@ -396,14 +509,35 @@ class TrainingState {
   async deleteWorkout(id: string) {
     const confirmed = await showConfirm('Delete Workout', 'Are you sure you want to delete this workout?');
     if (!confirmed) return;
+    // Look the week up before deleting, and materialise it first: a
+    // projected session has no stored row to delete until the week is real.
+    const weekId = this.getWorkoutById(id)?.weekId;
+    await this.materializeWeekIfProvisional(weekId);
     await this.workoutStore.deleteWorkout(id);
     await this.refresh();
+  }
+
+  /**
+   * Finds a workout by id across stored rows and, failing that, across every
+   * provisional week's projections - a projected session is a real thing the
+   * user can act on, but has no stored row to look up.
+   */
+  getWorkoutById(id: string): Workout | undefined {
+    const stored = this.workoutStore.workouts.find((w) => w.id === id);
+    if (stored) return stored;
+    if (!isProvisionalId(id)) return undefined;
+    for (const weekId of coveredWeekIds(this.planningStore.trainingBlocks)) {
+      const hit = projectWeekWorkouts(this.projectionContext, weekId).find((w) => w.id === id);
+      if (hit) return hit;
+    }
+    return undefined;
   }
 
   /**
    * Duplicates an existing workout.
    */
   async duplicateWorkout(workout: Workout) {
+    await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.duplicateWorkout(workout);
     await this.refresh();
   }

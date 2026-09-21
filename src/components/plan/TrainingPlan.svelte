@@ -109,8 +109,17 @@
   // comparator rather than two copies that can drift.
   const weekWorkouts = $derived(
     sortWorkoutsBySchedule(
-      trainingState.workouts.filter((w: Workout) => w.weekId === trainingState.selectedWeekId),
+      trainingState.selectedWeekId ? trainingState.getWorkoutsForWeek(trainingState.selectedWeekId) : [],
     ),
+  );
+
+  // A provisional week shows sessions projected from its phase's templates
+  // rather than stored rows - see lib/planning/weekProjection.ts. Nothing
+  // here treats them differently; the copy-on-write gate in state.svelte.ts
+  // materialises the week behind any edit, so every handler below works
+  // unchanged on a projected session.
+  const isProvisionalWeek = $derived(
+    !!trainingState.selectedWeekId && trainingState.isWeekProvisional(trainingState.selectedWeekId),
   );
 
   const weekBenchmarks = $derived(trainingState.benchmarks.filter((b: Benchmark) => b.weekId === trainingState.selectedWeekId));
@@ -290,10 +299,21 @@
       <div class="flex justify-between items-start">
         <div class="flex-1 relative">
           <span class="text-section uppercase text-primary mb-0.5 block">{selectedWeekData.isCurrent ? 'Current Week' : selectedWeekData.id} <span class="text-content-subtle opacity-70 ml-2 lowercase tracking-normal">({getWeekDateRange(selectedWeekData.id)})</span></span>
-          <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-2">
-            <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(selectedWeekData.phaseId) ?? 'No Phase'}</h3>
-            <span class="text-content-subtle group-hover:text-primary-hover transition-colors"><Icon icon="ic:baseline-arrow-drop-down" class="text-xl" /></span>
-          </button>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-2">
+              <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(selectedWeekData.phaseId) ?? 'No Phase'}</h3>
+              <span class="text-content-subtle group-hover:text-primary-hover transition-colors"><Icon icon="ic:baseline-arrow-drop-down" class="text-xl" /></span>
+            </button>
+            {#if isProvisionalWeek}
+              <span
+                class="flex items-center gap-1 px-1.5 py-0.5 rounded-control border border-dashed border-primary/40 text-caption text-primary/80 leading-none"
+                title="These sessions come from the phase's templates and aren't saved into this week yet. They save themselves as soon as you log or change anything here, when the week ends, or when you tap Lock In Plan."
+              >
+                <Icon icon="ic:outline-cloud-queue" class="text-xs" />
+                Not saved yet
+              </span>
+            {/if}
+          </div>
 
           {#if showPhaseDropdown}
             <div class="absolute left-0 mt-2 w-44 bg-surface border border-border rounded-control shadow-card z-20 overflow-hidden animate-in zoom-in-95 duration-200">
@@ -318,9 +338,25 @@
           {/if}
         </div>
 
+      </div>
+
+      <!-- Week actions live on their own wrapping row rather than beside the
+           phase title: at phone width two labelled buttons next to a long
+           phase name had nowhere to go. -->
+      <div class="flex flex-wrap items-center gap-2">
+        {#if isProvisionalWeek}
+          <button
+            onclick={() => trainingState.materializeWeek(trainingState.selectedWeekId!)}
+            class="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-control border border-primary/20 transition-all text-label active:scale-95"
+            title="Save these sessions into this week so they stop following the phase templates"
+          >
+            <Icon icon="ic:baseline-push-pin" class="text-sm" />
+            Lock In Plan
+          </button>
+        {/if}
         <button
           onclick={() => trainingState.clearWeek(trainingState.selectedWeekId!)}
-          class="flex items-center gap-2 px-3 py-2 bg-surface-elevated/50 hover:bg-danger/10 text-content-subtle hover:text-danger rounded-control border border-border-strong/50 hover:border-danger/20 transition-all text-label active:scale-95"
+          class="flex items-center gap-1.5 px-3 py-2 bg-surface-elevated/50 hover:bg-danger/10 text-content-subtle hover:text-danger rounded-control border border-border-strong/50 hover:border-danger/20 transition-all text-label active:scale-95"
           title="Clear all data for this week"
         >
           <Icon icon="ic:baseline-delete-sweep" class="text-sm" />
@@ -351,7 +387,7 @@
               onfinalize={(e) => handleDndFinalize(dayKey, e)}
             >
               {#each dayGroups[dayKey] as workout (workout.id)}
-                <div class="flex items-center justify-between p-3.5 bg-surface-elevated/50 rounded-control border border-border-strong/50 hover:border-border-strong transition-colors group/item">
+                <div class="flex items-center justify-between p-3.5 rounded-control transition-colors group/item {workout.provisional ? 'bg-surface-elevated/20 border border-dashed border-border-strong/60' : 'bg-surface-elevated/50 border border-border-strong/50 hover:border-border-strong'}">
                   <div class="flex items-center gap-2 flex-1 min-w-0">
                     <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle hover:text-content shrink-0 touch-none p-1 -ml-1" aria-label="Drag to reassign day">
                       <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
@@ -377,8 +413,11 @@
                         </div>
                         <p class="text-body font-bold text-content leading-tight truncate">{workout.notes}</p>
                       </div>
-                      <p class="text-caption text-content-subtle mt-0.5">
-                        {workout.exercises.length} Exercises{workout.plannedDuration ? ` · ${workout.plannedDuration} min planned` : ''}
+                      <p class="text-caption text-content-subtle mt-0.5 flex items-center gap-1">
+                        {#if workout.provisional}
+                          <Icon icon="ic:outline-cloud-queue" class="text-xs text-primary/70 shrink-0" />
+                        {/if}
+                        <span class="truncate">{workout.exercises.length} Exercises{workout.plannedDuration ? ` · ${workout.plannedDuration} min planned` : ''}</span>
                       </p>
                     </div>
                   </div>

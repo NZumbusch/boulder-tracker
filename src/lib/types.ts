@@ -184,6 +184,13 @@ export interface Workout {
   exercises: ExerciseSlot[];
   /** -> TrainingBlock.id. Set at creation time from whichever block covers this workout's weekId (if any), so block-level analytics are a direct filter instead of a per-query date-range recompute. */
   blockId?: string;
+  /**
+   * **Transient, never persisted.** Marks a session that is only *projected*
+   * from its phase's templates because its week hasn't been materialised
+   * yet - see `lib/planning/weekProjection.ts`. Storage strips it
+   * (`toStoredWorkout`); a workout read back from storage never has it.
+   */
+  provisional?: true;
 
   // Fatigue Metrics (Perceived Exertion after completion)
   fingers?: number; // 1-10

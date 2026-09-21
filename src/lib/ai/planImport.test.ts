@@ -288,29 +288,79 @@ describe("buildPlanCommit - saveAsTemplates", () => {
     expect(workoutSlotIds).not.toContain(templateSlotId);
   });
 
-  it("carries startTime and plannedDuration onto both the workouts and the templates", () => {
-    const timed = {
-      weeks: [
-        {
-          weekId: "2026-W25",
-          phaseName: "Capacity",
-          workouts: [
-            {
-              name: "Board",
-              dayOfWeek: "Monday" as const,
-              startTime: "18:00",
-              plannedDuration: 90,
-              exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }],
-            },
-          ],
-        },
-      ],
-    };
-    const result = buildPlanCommit(timed, MAPPING, CTX, { saveAsTemplates: true });
-    expect(result.workouts[0].startTime).toBe("18:00");
-    expect(result.workouts[0].plannedDuration).toBe(90);
+  const TIMED_PLAN = {
+    weeks: [
+      {
+        weekId: "2026-W25",
+        phaseName: "Capacity",
+        workouts: [
+          {
+            name: "Board",
+            dayOfWeek: "Monday" as const,
+            startTime: "18:00",
+            plannedDuration: 90,
+            exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }],
+          },
+        ],
+      },
+    ],
+  };
+
+  it("carries startTime and plannedDuration onto the templates", () => {
+    const result = buildPlanCommit(TIMED_PLAN, MAPPING, CTX, { saveAsTemplates: true });
     expect(result.templates.p1[0].startTime).toBe("18:00");
     expect(result.templates.p1[0].plannedDuration).toBe(90);
+  });
+
+  it("carries startTime and plannedDuration onto the workouts when they are stored hard", () => {
+    const result = buildPlanCommit(TIMED_PLAN, MAPPING, CTX);
+    expect(result.workouts[0].startTime).toBe("18:00");
+    expect(result.workouts[0].plannedDuration).toBe(90);
+  });
+
+  /** Both weeks identical - the shape a phase-format plan always expands to. */
+  const REPEATED_PLAN = {
+    weeks: [
+      {
+        weekId: "2026-W25",
+        phaseName: "Capacity",
+        workouts: [{ name: "Board", dayOfWeek: "Monday" as const, exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }] }],
+      },
+      {
+        weekId: "2026-W26",
+        phaseName: "Capacity",
+        workouts: [{ name: "Board", dayOfWeek: "Monday" as const, exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }] }],
+      },
+    ],
+  };
+
+  it("leaves every week provisional when they all repeat the phase's templates", () => {
+    const result = buildPlanCommit(REPEATED_PLAN, MAPPING, CTX, { saveAsTemplates: true });
+    expect(result.provisionalWeekIds).toEqual(["2026-W25", "2026-W26"]);
+    expect(result.workouts).toEqual([]);
+  });
+
+  it("stores only the weeks that differ from the templates", () => {
+    // PLAN's second week prescribes 6 sets where the templates (taken from
+    // the first week) say 5 - real week-to-week progression must not be
+    // flattened into the template and silently lost.
+    const result = buildPlanCommit(PLAN, MAPPING, CTX, { saveAsTemplates: true });
+    expect(result.provisionalWeekIds).toEqual(["2026-W25"]);
+    expect(result.workouts.map((w) => w.weekId)).toEqual(["2026-W26"]);
+    expect(result.workouts[0].exercises[0].prescribed).toEqual({ sets: 6 });
+  });
+
+  it("stores every week hard when templates are not being saved", () => {
+    const result = buildPlanCommit(PLAN, MAPPING, CTX);
+    expect(result.provisionalWeekIds).toEqual([]);
+    expect(result.workouts).toHaveLength(2);
+  });
+
+  it("still writes the blocks for a fully provisional import", () => {
+    const result = buildPlanCommit(REPEATED_PLAN, MAPPING, CTX, { saveAsTemplates: true });
+    expect(result.trainingBlocks).toHaveLength(1);
+    expect(result.trainingBlocks[0].startWeekId).toBe("2026-W25");
+    expect(result.trainingBlocks[0].endWeekId).toBe("2026-W26");
   });
 
   it("skips a phase whose weeks are all empty", () => {

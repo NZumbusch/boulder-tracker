@@ -249,10 +249,15 @@
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
       {@render sectionHeader('ic:baseline-today', 'Today', todaysWorkouts.length > 0 ? `${todaysWorkouts.length} session${todaysWorkouts.length === 1 ? '' : 's'} planned` : undefined)}
       {#each todaysWorkouts as workout}
-        <div class="flex items-center justify-between p-3.5 bg-surface-elevated/50 rounded-control border border-border-strong/50">
+        <div class="flex items-center justify-between p-3.5 rounded-control {workout.provisional ? 'bg-surface-elevated/20 border border-dashed border-border-strong/60' : 'bg-surface-elevated/50 border border-border-strong/50'}">
           <div class="min-w-0 flex-1">
             <p class="text-body font-bold text-content truncate">{workout.notes}</p>
-            <p class="text-caption text-content-subtle">{workout.exercises.length} exercises</p>
+            <p class="text-caption text-content-subtle flex items-center gap-1">
+              {#if workout.provisional}
+                <Icon icon="ic:outline-cloud-queue" class="text-xs text-primary/70 shrink-0" />
+              {/if}
+              <span class="truncate">{workout.exercises.length} exercises</span>
+            </p>
           </div>
           <button
             onclick={() => trainingState.navigate('add', workout)}
