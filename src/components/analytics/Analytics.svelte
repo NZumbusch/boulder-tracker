@@ -652,7 +652,9 @@
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div class="fixed inset-0 z-40" onclick={() => showSettings = false}></div>
-              <div class="absolute top-full left-0 mt-2 w-56 bg-surface border border-border-strong rounded-card shadow-card z-50 p-3 space-y-4 animate-in fade-in zoom-in-95 origin-top-left">
+              <!-- Anchored right: the trigger now sits at the card's right
+                   edge, so a left-anchored panel would hang off-screen. -->
+              <div class="absolute top-full right-0 mt-2 w-56 bg-surface border border-border-strong rounded-card shadow-card z-50 p-3 space-y-4 animate-in fade-in zoom-in-95 origin-top-right">
 
                 <div class="space-y-2">
                   <h4 class="text-section uppercase text-content-subtle mb-2 px-1">Display Mode</h4>
