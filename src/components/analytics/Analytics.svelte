@@ -56,6 +56,35 @@
   const visibleWeeks = $derived(weeksToShow(chartWidth, trainingState.chartDensity));
   const axisStep = $derived(labelStep(visibleWeeks, chartWidth));
 
+  /**
+   * The visible window as actual dates - Monday of the first week shown to
+   * Sunday of the last. The charts' axes are week numbers, which say
+   * nothing about when that was; this is the one place the window is
+   * spelled out in months and days. The year is only shown when the window
+   * spans two of them (or isn't this year), so the common case stays short.
+   */
+  const windowDateRange = $derived.by(() => {
+    const weeks = chartData.weeks;
+    if (weeks.length === 0) return '';
+    const first = getWeekDates(weeks[0].id);
+    const last = getWeekDates(weeks[weeks.length - 1].id);
+    if (!first || !last) return '';
+
+    const thisYear = new Date().getFullYear();
+    const startYear = first.start.getFullYear();
+    const endYear = last.end.getFullYear();
+    const showYear = startYear !== endYear || endYear !== thisYear;
+
+    const startOpts: Intl.DateTimeFormatOptions = startYear === endYear
+      ? { day: 'numeric', month: 'short' }
+      : { day: 'numeric', month: 'short', year: 'numeric' };
+    const endOpts: Intl.DateTimeFormatOptions = showYear
+      ? { day: 'numeric', month: 'short', year: 'numeric' }
+      : { day: 'numeric', month: 'short' };
+
+    return `${first.start.toLocaleDateString(undefined, startOpts)} – ${last.end.toLocaleDateString(undefined, endOpts)}`;
+  });
+
   // --- Section-jump chips (§4.6: "...add section-jump chips"). ACWR is
   // merged into the Load panel below, so its chip scrolls to the same
   // anchor as Load - §4.6 still lists it as a separate chip alongside
@@ -477,6 +506,15 @@
         </button>
       {/each}
     </div>
+
+    <!-- What the week-numbered axes below actually cover, in dates. -->
+    {#if windowDateRange}
+      <div class="flex items-center gap-1.5 px-1 text-content-subtle/70">
+        <Icon icon="ic:baseline-date-range" class="text-sm shrink-0" />
+        <span class="text-caption leading-tight">{windowDateRange}</span>
+        <span class="text-caption leading-tight opacity-60">· {chartData.weeks.length} weeks</span>
+      </div>
+    {/if}
   </div>
 
   <div class="space-y-5">
@@ -599,11 +637,11 @@
              `axisStep`), counted back from the most recent week so it is
              always the one that keeps its label. -->
         <div class="border-t border-border-strong/60"></div>
-        <div class="flex justify-between gap-px h-3">
+        <div class="flex justify-between gap-px">
           {#each chartData.weeks as week, i}
-            <div class="flex-1 flex justify-center overflow-hidden">
+            <div class="flex-1 flex justify-center">
               {#if showsLabel(i, chartData.weeks.length, axisStep)}
-                <span class="text-caption tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
+                <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
               {/if}
             </div>
           {/each}
@@ -734,11 +772,11 @@
         </div>
 
         <div class="border-t border-border-strong/60"></div>
-        <div class="flex justify-between gap-px h-3">
+        <div class="flex justify-between gap-px">
           {#each chartData.weeks as week, i}
-            <div class="flex-1 flex justify-center overflow-hidden">
+            <div class="flex-1 flex justify-center">
               {#if showsLabel(i, chartData.weeks.length, axisStep)}
-                <span class="text-caption tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
+                <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
               {/if}
             </div>
           {/each}
@@ -813,12 +851,12 @@
              to stop them colliding, which is the tell of an axis with more
              labels than room. -->
         <div class="border-t border-border-strong/60"></div>
-        <div class="relative h-3">
+        <div class="relative h-4">
           {#each bodyweightTrend.history as entry, i}
             {#if showsLabel(i, bodyweightTrend.history.length, bodyweightLabelStep)}
               {@const xPos = (i / Math.max(bodyweightTrend.history.length - 1, 1)) * 100}
               <span
-                class="absolute text-caption text-content-subtle/70 whitespace-nowrap"
+                class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
                 style="left: {xPos}%; transform: translateX({i === 0 ? '0' : i === bodyweightTrend.history.length - 1 ? '-100%' : '-50%'});"
               >
                 {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -905,12 +943,12 @@
         </div>
         {#if benchmarkProgress.history.length > 0}
           <div class="border-t border-border-strong/60"></div>
-          <div class="relative h-3">
+          <div class="relative h-4">
             {#each benchmarkProgress.history as entry, i}
               {#if showsLabel(i, benchmarkProgress.history.length, benchmarkLabelStep)}
                 {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
                 <span
-                  class="absolute text-caption text-content-subtle/70 whitespace-nowrap"
+                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
                   style="left: {xPos}%; transform: translateX({i === 0 ? '0' : i === benchmarkProgress.history.length - 1 ? '-100%' : '-50%'});"
                 >
                   {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}

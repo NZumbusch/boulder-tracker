@@ -68,9 +68,9 @@
         {/each}
       {/each}
     </div>
-    <div class="flex justify-between gap-px h-3">
+    <div class="flex justify-between gap-px">
       {#each weeks as week, i}
-        <span class="flex-1 text-center text-caption text-content-subtle/70 tabular-nums overflow-hidden">
+        <span class="flex-1 text-center text-caption leading-tight text-content-subtle/70 tabular-nums">
           {showsLabel(i, weeks.length, labelStep) ? (weekLabels[week.weekId] ?? week.weekId) : ''}
         </span>
       {/each}
