@@ -135,6 +135,50 @@ describe("materializeWeek", () => {
   });
 });
 
+describe("resetWeekToPhaseDefaults", () => {
+  it("drops the week's planned sessions and its customized flag so it projects again", async () => {
+    seed({
+      workouts: [storedWorkout(WEEK, "locked1"), storedWorkout(WEEK, "locked2")],
+      weekOverrides: [{ weekId: WEEK, customized: true }],
+    });
+    await storage.resetWeekToPhaseDefaults(WEEK);
+
+    expect(await storage.getWorkouts()).toEqual([]);
+    expect(await storage.getWeekOverrides()).toEqual([]);
+  });
+
+  it("keeps completed sessions, and regenerates the plan around them", async () => {
+    // A week with completed sessions can't go back to projecting - stored
+    // rows are what make a week non-provisional - so the plan is rebuilt
+    // from the templates instead.
+    seed({
+      workouts: [storedWorkout(WEEK, "done", "completed"), storedWorkout(WEEK, "stale")],
+      trainingBlocks: [
+        { id: "b1", name: "Cap", phaseId: PHASE_ID, startWeekId: WEEK, endWeekId: WEEK },
+      ],
+    });
+    await storage.resetWeekToPhaseDefaults(WEEK);
+
+    const workouts = await storage.getWorkouts();
+    expect(workouts.map((w) => w.id)).toContain("done");
+    expect(workouts.map((w) => w.id)).not.toContain("stale");
+    expect(workouts.filter((w) => w.status === "planned").map((w) => w.notes).sort())
+      .toEqual(["Board", "Endurance"]);
+  });
+
+  it("leaves other weeks alone", async () => {
+    seed({ workouts: [storedWorkout(WEEK, "mine"), storedWorkout("2026-W30", "other")] });
+    await storage.resetWeekToPhaseDefaults(WEEK);
+
+    expect((await storage.getWorkouts()).map((w) => w.id)).toEqual(["other"]);
+  });
+
+  it("is a safe no-op on a week that has nothing stored", async () => {
+    await storage.resetWeekToPhaseDefaults(WEEK);
+    expect(await storage.getWorkouts()).toEqual([]);
+  });
+});
+
 describe("clearWeekData", () => {
   it("marks the week customized when a multi-week block still covers it", async () => {
     // Otherwise the week would immediately re-project from that block's

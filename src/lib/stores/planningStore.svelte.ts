@@ -75,6 +75,11 @@ export class PlanningStore {
     await storage.resetTemplates();
   }
 
+  /** Puts a week back under its phase's control (see `storage.resetWeekToPhaseDefaults`). */
+  async resetWeekToPhaseDefaults(weekId: string) {
+    await storage.resetWeekToPhaseDefaults(weekId);
+  }
+
   /**
    * Clears all data (this week's own block, workouts, benchmarks) for a week.
    */

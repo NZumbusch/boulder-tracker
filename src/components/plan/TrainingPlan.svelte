@@ -48,7 +48,7 @@
 
   const weeks = $derived.by(() => {
     const currentWeekId = trainingState.currentWeekId;
-    const tempWeeks: { id: string; label: string; phaseId?: string; isCurrent: boolean; year: number; hasOverlap: boolean }[] = [];
+    const tempWeeks: { id: string; label: string; phaseId?: string; isCurrent: boolean; year: number; hasOverlap: boolean; provisional: boolean }[] = [];
 
     const startOffset = -25 + (trainingState.weekOffset * 50);
     const endOffset = 24 + (trainingState.weekOffset * 50);
@@ -67,6 +67,7 @@
         isCurrent: id === currentWeekId,
         year: d.getUTCFullYear(),
         hasOverlap: covering.length > 1,
+        provisional: trainingState.isWeekProvisional(id),
       });
     }
     return tempWeeks;
@@ -87,8 +88,9 @@
       // lets that component's own fallback apply instead (found/fixed
       // 2026-09-18, see PROGRESS.md "Stage 6 fixup").
       color: w.phaseId ? phaseDefById.get(w.phaseId)?.color : undefined,
-      tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}`,
+      tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}${w.provisional ? ' - not saved yet' : ''}`,
       hasOverlap: w.hasOverlap,
+      provisional: w.provisional,
     })),
   );
 
@@ -120,6 +122,11 @@
   // unchanged on a projected session.
   const isProvisionalWeek = $derived(
     !!trainingState.selectedWeekId && trainingState.isWeekProvisional(trainingState.selectedWeekId),
+  );
+
+  /** A locked-in (or hand-edited) week that still has a phase to fall back to. */
+  const canResetWeek = $derived(
+    !!trainingState.selectedWeekId && trainingState.canResetWeekToDefaults(trainingState.selectedWeekId),
   );
 
   const weekBenchmarks = $derived(trainingState.benchmarks.filter((b: Benchmark) => b.weekId === trainingState.selectedWeekId));
@@ -296,8 +303,8 @@
 
   {#if trainingState.selectedWeekId && selectedWeekData}
     <div class="bg-surface/50 border border-border p-5 rounded-card backdrop-blur-sm space-y-4 shadow-card relative {showPhaseDropdown ? 'z-30' : ''}">
-      <div class="flex justify-between items-start">
-        <div class="flex-1 relative">
+      <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div class="flex-1 min-w-[11rem] relative">
           <span class="text-section uppercase text-primary mb-0.5 block">{selectedWeekData.isCurrent ? 'Current Week' : selectedWeekData.id} <span class="text-content-subtle opacity-70 ml-2 lowercase tracking-normal">({getWeekDateRange(selectedWeekData.id)})</span></span>
           <div class="flex items-center gap-2 flex-wrap">
             <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-2">
@@ -338,30 +345,38 @@
           {/if}
         </div>
 
-      </div>
-
-      <!-- Week actions live on their own wrapping row rather than beside the
-           phase title: at phone width two labelled buttons next to a long
-           phase name had nowhere to go. -->
-      <div class="flex flex-wrap items-center gap-2">
-        {#if isProvisionalWeek}
+        <!-- Sits top-right beside the phase title, and drops onto its own
+             line only when the title column can no longer hold its 11rem
+             minimum - i.e. on very narrow screens. -->
+        <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+          {#if isProvisionalWeek}
+            <button
+              onclick={() => trainingState.materializeWeek(trainingState.selectedWeekId!)}
+              class="flex items-center gap-1.5 px-2.5 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-control border border-primary/20 transition-all text-label active:scale-95"
+              title="Save these sessions into this week so they stop following the phase templates"
+            >
+              <Icon icon="ic:baseline-push-pin" class="text-sm" />
+              Lock In
+            </button>
+          {:else if canResetWeek}
+            <button
+              onclick={() => trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!)}
+              class="flex items-center gap-1.5 px-2.5 py-2 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content rounded-control border border-border-strong/50 transition-all text-label active:scale-95"
+              title="Discard this week's planned sessions and follow the phase templates again"
+            >
+              <Icon icon="ic:baseline-restore" class="text-sm" />
+              Reset
+            </button>
+          {/if}
           <button
-            onclick={() => trainingState.materializeWeek(trainingState.selectedWeekId!)}
-            class="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-control border border-primary/20 transition-all text-label active:scale-95"
-            title="Save these sessions into this week so they stop following the phase templates"
+            onclick={() => trainingState.clearWeek(trainingState.selectedWeekId!)}
+            class="flex items-center gap-1.5 px-2.5 py-2 bg-surface-elevated/50 hover:bg-danger/10 text-content-subtle hover:text-danger rounded-control border border-border-strong/50 hover:border-danger/20 transition-all text-label active:scale-95"
+            title="Clear all data for this week"
           >
-            <Icon icon="ic:baseline-push-pin" class="text-sm" />
-            Lock In Plan
+            <Icon icon="ic:baseline-delete-sweep" class="text-sm" />
+            Clear
           </button>
-        {/if}
-        <button
-          onclick={() => trainingState.clearWeek(trainingState.selectedWeekId!)}
-          class="flex items-center gap-1.5 px-3 py-2 bg-surface-elevated/50 hover:bg-danger/10 text-content-subtle hover:text-danger rounded-control border border-border-strong/50 hover:border-danger/20 transition-all text-label active:scale-95"
-          title="Clear all data for this week"
-        >
-          <Icon icon="ic:baseline-delete-sweep" class="text-sm" />
-          Clear Week
-        </button>
+        </div>
       </div>
 
       <div class="space-y-3">

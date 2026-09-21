@@ -9,6 +9,8 @@
    * the block list itself, keeping this component decoupled from block
    * resolution logic.
    */
+  import Icon from "@iconify/svelte";
+
   interface CalendarWeek {
     id: string;
     label: string;
@@ -17,6 +19,8 @@
     color?: string;
     tooltip: string;
     hasOverlap: boolean;
+    /** Week still projects its sessions from the phase rather than storing them (see lib/planning/weekProjection.ts). */
+    provisional?: boolean;
   }
 
   let {
@@ -46,6 +50,16 @@
         {#if showYear}<div class="absolute -top-1.5 -left-1.5 z-20 px-1 py-px rounded-control bg-surface-elevated text-content border border-border-strong shadow-sm text-caption font-bold whitespace-nowrap">{week.year}</div>{/if}
         {#if week.isCurrent}<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary-hover rounded-full border-2 border-app-bg z-20"></div>{/if}
         {#if week.hasOverlap}<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-white rounded-full border border-app-bg z-20" title="Multiple training blocks overlap this week"></div>{/if}
+        {#if week.provisional}
+          <!-- Deliberately tiny: this is an at-a-glance hint across ~50
+               cells, not a label. The Plan panel below spells it out. -->
+          <!-- Anchored by its own bottom-right corner at the cell's centre, so
+               it sits in the top-left quadrant with even padding rather than
+               hugging the rounded corner. -->
+          <div class="absolute left-1/2 top-1/2 -translate-x-full -translate-y-full leading-none z-20 text-app-bg" title="Not saved yet - follows the phase">
+            <Icon icon="ic:outline-cloud-queue" class="text-[9px]" />
+          </div>
+        {/if}
         <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-card border border-border-strong">{week.tooltip}</div>
       </button>
     {/each}

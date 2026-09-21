@@ -468,6 +468,41 @@ export const storage = {
     await this._saveWorkouts([...workouts, ...projected]);
   },
 
+  /**
+   * Puts a week back under its phase's control - the inverse of
+   * materialising it. Drops the week's planned sessions and its
+   * `customized` flag so it projects from the phase's templates again.
+   *
+   * Completed sessions are always kept, which means a week that has any
+   * cannot go back to projecting (stored rows are what make a week
+   * non-provisional). In that case its planned sessions are regenerated
+   * from the templates instead, so "reset" means the same thing either way:
+   * this week's plan matches the phase again.
+   */
+  async resetWeekToPhaseDefaults(weekId: string): Promise<void> {
+    const workouts = await this._getWorkouts();
+    const kept = workouts.filter((w) => !(w.weekId === weekId && w.status === "planned"));
+
+    const overrides = await this._getWeekOverrides();
+    await this._saveWeekOverrides(overrides.filter((o) => o.weekId !== weekId));
+
+    const remaining = kept.filter((w) => w.weekId === weekId);
+    if (remaining.length === 0) {
+      // Nothing pins the week to storage any more - let it project.
+      await this._saveWorkouts(kept);
+      return;
+    }
+
+    const blocks = await this._getTrainingBlocks();
+    const dominantBlock = getDominantBlockForWeek(blocks, weekId);
+    const templates = await this.getTemplates();
+    const phaseTemplates = dominantBlock ? templates[dominantBlock.phaseId] : undefined;
+    const regenerated = generateWorkoutsFromTemplate(weekId, phaseTemplates || []).map(
+      (w) => ({ ...w, blockId: dominantBlock?.id }),
+    );
+    await this._saveWorkouts([...kept, ...regenerated]);
+  },
+
   async clearWeekData(weekId: string): Promise<void> {
     // 1. Remove this week's own single-week block (a multi-week block that
     // merely spans this week among others is left alone - clearing one

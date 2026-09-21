@@ -4,6 +4,7 @@ import { getWeekId } from './dateUtils';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import {
   isWeekProvisional,
+  templatesForWeek,
   projectWeekWorkouts,
   effectiveWorkoutsForWeek,
   provisionalPastWeeks,
@@ -262,6 +263,17 @@ class TrainingState {
   }
 
   /**
+   * Whether a materialised week could go back to following its phase -
+   * i.e. there is a phase with templates behind it to fall back to. False
+   * for a week that is already provisional (nothing to reset) or one no
+   * phase covers.
+   */
+  canResetWeekToDefaults(weekId: string) {
+    if (isWeekProvisional(this.projectionContext, weekId)) return false;
+    return templatesForWeek(this.projectionContext, weekId).length > 0;
+  }
+
+  /**
    * A week's sessions as the app should show them: its stored workouts, or
    * its projected ones while it is still provisional. Every screen that
    * lists a week's sessions reads through this, so a provisional week looks
@@ -307,6 +319,26 @@ class TrainingState {
       await this.workoutStore.saveWorkout(workout);
     }
     await this.refresh();
+  }
+
+  /**
+   * Puts a week back under its phase's control, undoing a lock-in (or any
+   * hand edits). Destructive to this week's planned sessions, so it
+   * confirms first; completed sessions are always kept.
+   */
+  async resetWeekToPhaseDefaults(weekId: string) {
+    const confirmed = await showConfirm(
+      'Reset Week',
+      `Discard this week's planned sessions and follow the phase again? Completed sessions are kept.`,
+    );
+    if (!confirmed) return;
+    try {
+      await this.planningStore.resetWeekToPhaseDefaults(weekId);
+      await this.refresh();
+    } catch (err) {
+      console.error('Failed to reset week:', err);
+      await showAlert('Error', 'Failed to reset this week.');
+    }
   }
 
   /**
