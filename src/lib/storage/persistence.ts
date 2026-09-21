@@ -50,6 +50,36 @@ localforage.config({
 
 export let _dbState: any = null;
 
+/**
+ * Deep-copies a value into plain, structured-cloneable data.
+ *
+ * Everything written into `_dbState` goes through this, because `flushDB`
+ * hands the blob to `localforage.setItem`, which structured-clones it - and
+ * a structured clone of a **Svelte `$state` proxy throws**
+ * ("Proxy object could not be cloned"). Callers reach storage from
+ * components and stores holding reactive state, and a shallow spread at the
+ * call site is not enough: the top level comes out plain while nested
+ * values (an exercise's `prescribed`, a type's `parameters`) stay proxies.
+ *
+ * Worse, the failure is delayed and misattributed. The bad value lands in
+ * the in-memory `_dbState` fine; the throw only happens on the *next* flush,
+ * blamed on whichever unrelated write triggered it, and every write after
+ * that keeps failing while the UI still shows the in-memory state as if it
+ * had saved. So this is enforced at the boundary rather than trusted to
+ * each caller (found 2026-09-21 via `materializeWeek` writing projected
+ * sessions built from reactive templates).
+ *
+ * JSON round-trip rather than `structuredClone`: it is the one deep copy
+ * that reads *through* a proxy instead of rejecting it. Every persisted
+ * shape is plain JSON data (no Date/Map/Set), so nothing is lost; keys
+ * explicitly set to `undefined` are dropped, which is what storage means by
+ * absent anyway.
+ */
+export function toPlain<T>(value: T): T {
+  if (value === null || typeof value !== "object") return value;
+  return JSON.parse(JSON.stringify(value));
+}
+
 export async function initDB() {
   if (_dbState) return;
 
