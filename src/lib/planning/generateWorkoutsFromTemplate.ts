@@ -24,6 +24,8 @@ export function generateWorkoutsFromTemplate(
     status: "planned",
     date: null,
     dayOfWeek: t.dayOfWeek,
+    startTime: t.startTime,
+    plannedDuration: t.plannedDuration,
     weekId,
     notes: t.name || "",
     loadFactor: 0,

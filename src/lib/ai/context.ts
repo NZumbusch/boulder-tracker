@@ -100,6 +100,10 @@ export interface RecentWorkoutSummary {
   weekId: string;
   /** The session name (`Workout.notes` - see its own doc comment: "Used as the session name"). */
   name?: string;
+  /** Planned/actual start time of day, "HH:mm" - omitted when the session isn't pinned to one. */
+  startTime?: string;
+  /** Planned wall-clock length of the session in minutes, where one was prescribed. */
+  plannedDuration?: number;
   /** Actual calculated stress score - only meaningful once `status` is "completed". */
   loadFactor?: number;
   fingers?: number;
@@ -115,6 +119,8 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
     status: w.status,
     weekId: w.weekId,
     name: w.notes || undefined,
+    startTime: w.startTime,
+    plannedDuration: w.plannedDuration,
     loadFactor: w.status === "completed" ? w.loadFactor : undefined,
     fingers: w.fingers,
     arms: w.arms,

@@ -359,6 +359,8 @@ export function buildPlanCommit(
         status: "planned",
         date: null,
         dayOfWeek: w.dayOfWeek,
+        startTime: w.startTime,
+        plannedDuration: w.plannedDuration,
         weekId: week.weekId,
         notes: w.name || "",
         loadFactor: 0,
@@ -379,6 +381,8 @@ export function buildPlanCommit(
         id: generateId(),
         name: w.name,
         dayOfWeek: w.dayOfWeek,
+        startTime: w.startTime,
+        plannedDuration: w.plannedDuration,
         exercises: w.exercises.map((e) => buildExerciseSlot(e, resolveExerciseTypeId(e), exerciseTypeById)),
       }));
     }

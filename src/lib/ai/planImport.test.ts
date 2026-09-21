@@ -288,6 +288,31 @@ describe("buildPlanCommit - saveAsTemplates", () => {
     expect(workoutSlotIds).not.toContain(templateSlotId);
   });
 
+  it("carries startTime and plannedDuration onto both the workouts and the templates", () => {
+    const timed = {
+      weeks: [
+        {
+          weekId: "2026-W25",
+          phaseName: "Capacity",
+          workouts: [
+            {
+              name: "Board",
+              dayOfWeek: "Monday" as const,
+              startTime: "18:00",
+              plannedDuration: 90,
+              exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }],
+            },
+          ],
+        },
+      ],
+    };
+    const result = buildPlanCommit(timed, MAPPING, CTX, { saveAsTemplates: true });
+    expect(result.workouts[0].startTime).toBe("18:00");
+    expect(result.workouts[0].plannedDuration).toBe(90);
+    expect(result.templates.p1[0].startTime).toBe("18:00");
+    expect(result.templates.p1[0].plannedDuration).toBe(90);
+  });
+
   it("skips a phase whose weeks are all empty", () => {
     const restOnly = { weeks: [{ weekId: "2026-W25", phaseName: "Capacity", workouts: [] }] };
     expect(buildPlanCommit(restOnly, MAPPING, CTX, { saveAsTemplates: true }).templates).toEqual({});

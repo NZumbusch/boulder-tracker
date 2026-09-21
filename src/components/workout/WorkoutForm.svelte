@@ -297,15 +297,34 @@
       </div>
 
       <div class="space-y-3.5">
-        <div class="flex items-center gap-4 px-1">
-          <div class="space-y-1.5">
+        <!-- Planned time of day + planned session length. `plannedDuration`
+             is the wall-clock length of the whole session, deliberately
+             separate from the per-exercise `duration` values that feed
+             `plannedLoad` - see Workout.plannedDuration. -->
+        <div class="flex items-end gap-2 px-1">
+          <label class="flex-1 min-w-0 space-y-1.5">
             <span class="text-label text-content-subtle ml-1 block">Start Time</span>
             <input
               type="time"
               bind:value={workout.startTime}
-              class="px-3 py-1.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none w-full"
+              class="w-full px-3 py-1.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors"
             />
-          </div>
+          </label>
+          <label class="flex-1 min-w-0 space-y-1.5">
+            <span class="text-label text-content-subtle ml-1 block">Planned (min)</span>
+            <input
+              type="number"
+              min="1"
+              step="5"
+              placeholder="—"
+              value={workout.plannedDuration ?? ''}
+              onchange={(e) => {
+                const n = Number(e.currentTarget.value);
+                workout!.plannedDuration = e.currentTarget.value === '' || !Number.isFinite(n) || n <= 0 ? undefined : n;
+              }}
+              class="w-full px-3 py-1.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors"
+            />
+          </label>
         </div>
 
         <div class="space-y-1.5 px-1">

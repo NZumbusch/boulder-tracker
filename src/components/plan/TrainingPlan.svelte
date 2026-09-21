@@ -377,7 +377,9 @@
                         </div>
                         <p class="text-body font-bold text-content leading-tight truncate">{workout.notes}</p>
                       </div>
-                      <p class="text-caption text-content-subtle mt-0.5">{workout.exercises.length} Exercises</p>
+                      <p class="text-caption text-content-subtle mt-0.5">
+                        {workout.exercises.length} Exercises{workout.plannedDuration ? ` · ${workout.plannedDuration} min planned` : ''}
+                      </p>
                     </div>
                   </div>
 

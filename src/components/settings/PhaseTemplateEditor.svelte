@@ -150,6 +150,36 @@
           None
         </button>
       </div>
+      <!-- Planned time of day + planned session length. Both optional and
+           both carried onto every workout this template generates (see
+           generateWorkoutsFromTemplate) - a template with neither is just an
+           open-ended session, not a zero-length one. -->
+      <div class="flex gap-2">
+        <label class="flex-1 space-y-1">
+          <span class="text-label text-content-subtle ml-1 block">Start Time</span>
+          <input
+            type="time"
+            value={workout.startTime ?? ''}
+            onchange={(e) => workout.startTime = e.currentTarget.value || undefined}
+            class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content rounded-control border border-border-strong text-label outline-none focus:border-primary/50 transition-colors"
+          />
+        </label>
+        <label class="flex-1 space-y-1">
+          <span class="text-label text-content-subtle ml-1 block">Planned (min)</span>
+          <input
+            type="number"
+            min="1"
+            step="5"
+            placeholder="—"
+            value={workout.plannedDuration ?? ''}
+            onchange={(e) => {
+              const n = Number(e.currentTarget.value);
+              workout.plannedDuration = e.currentTarget.value === '' || !Number.isFinite(n) || n <= 0 ? undefined : n;
+            }}
+            class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content rounded-control border border-border-strong text-label outline-none focus:border-primary/50 transition-colors"
+          />
+        </label>
+      </div>
       <div class="space-y-2">
         <section
           class="space-y-2 min-h-[40px] outline-none"

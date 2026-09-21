@@ -81,6 +81,10 @@ export interface AIExercise {
 export interface AIPlanWorkout {
   name?: string;
   dayOfWeek?: DayOfWeek;
+  /** Planned time of day, normalised to "HH:mm" (24-hour). */
+  startTime?: string;
+  /** Planned session length in minutes. */
+  plannedDuration?: number;
   exercises: AIExercise[];
 }
 
@@ -359,6 +363,75 @@ function validateDayOfWeek(raw: unknown, path: string, issues: ValidationIssue[]
   return raw as DayOfWeek;
 }
 
+/**
+ * Normalises a planned time of day to "HH:mm". Accepts what a model
+ * actually writes for a clock time - "9:30", "09:30:00", "6pm", "6:30 PM" -
+ * and records each normalisation as a repair. Anything that isn't a clock
+ * time at all is a hard error rather than a guess: silently dropping it
+ * would schedule the session at no particular time without saying so.
+ */
+function validateTimeOfDay(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== "string") {
+    issues.push({ path, message: `Expected a time like "18:00", got ${JSON.stringify(raw)}.` });
+    return undefined;
+  }
+  const text = raw.trim();
+  if (text === "") return undefined;
+
+  const match = text.match(/^(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*(am|pm)?$/i);
+  if (!match) {
+    issues.push({ path, message: `Expected a time like "18:00", got ${JSON.stringify(raw)}.` });
+    return undefined;
+  }
+
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2] === undefined ? 0 : parseInt(match[2], 10);
+  const meridiem = match[3]?.toLowerCase();
+
+  if (meridiem) {
+    if (hours < 1 || hours > 12) {
+      issues.push({ path, message: `Expected a 12-hour clock time with "${meridiem}", got ${JSON.stringify(raw)}.` });
+      return undefined;
+    }
+    if (meridiem === "pm" && hours !== 12) hours += 12;
+    if (meridiem === "am" && hours === 12) hours = 0;
+  }
+
+  if (hours > 23 || minutes > 59) {
+    issues.push({ path, message: `Expected a time like "18:00", got ${JSON.stringify(raw)}.` });
+    return undefined;
+  }
+
+  const normalised = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  if (normalised !== text) {
+    pushRepair(issues, path, `Read ${JSON.stringify(raw)} as "${normalised}".`);
+  }
+  return normalised;
+}
+
+/**
+ * A planned session length in minutes. Reuses `coerceNumber`, so "90 min"
+ * normalises to 90 the same way every numeric `values` field does; prose
+ * ("about an hour and a half") is rejected rather than guessed at, since
+ * unlike a `values` field there is no `notes` here to rescue it into.
+ */
+function validateDurationMinutes(raw: unknown, path: string, issues: ValidationIssue[]): number | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const result = coerceNumber(raw);
+  if (result.error !== undefined || result.value === undefined) {
+    issues.push({ path, message: `Expected a number of minutes, got ${JSON.stringify(raw)}.` });
+    return undefined;
+  }
+  const minutes = result.value as number;
+  if (minutes <= 0) {
+    issues.push({ path, message: `Expected a positive number of minutes, got ${JSON.stringify(raw)}.` });
+    return undefined;
+  }
+  if (result.repair) pushRepair(issues, path, result.repair);
+  return minutes;
+}
+
 function validatePlanWorkout(raw: unknown, path: string, issues: ValidationIssue[]): AIPlanWorkout | null {
   if (!isPlainObject(raw)) {
     issues.push({ path, message: `Expected a workout object, got ${JSON.stringify(raw)}.` });
@@ -366,8 +439,10 @@ function validatePlanWorkout(raw: unknown, path: string, issues: ValidationIssue
   }
   const name = validateOptionalString(raw.name, `${path}.name`, issues);
   const dayOfWeek = validateDayOfWeek(raw.dayOfWeek, `${path}.dayOfWeek`, issues);
+  const startTime = validateTimeOfDay(raw.startTime, `${path}.startTime`, issues);
+  const plannedDuration = validateDurationMinutes(raw.plannedDuration, `${path}.plannedDuration`, issues);
   const exercises = validateExercises(raw.exercises, `${path}.exercises`, issues);
-  return { name, dayOfWeek, exercises };
+  return { name, dayOfWeek, startTime, plannedDuration, exercises };
 }
 
 function validatePlanWeek(raw: unknown, path: string, issues: ValidationIssue[]): AIPlanWeek | null {
@@ -628,7 +703,9 @@ HARD RULES for "values" - each of these was a real failure, not a hypothetical:
 const AI_PLAN_SHARED_RULES = `- "phaseName" should be one of the Available Phases listed above where possible.
 - "exerciseTypeName" should be one of the Custom Exercise Modalities listed above where possible; invent a new, sensibly-named one only if nothing fits.
 - "categoryName" - only include this if "exerciseTypeName" is a new, invented one (not one of the Custom Exercise Modalities listed above): set it to the closest match from the Analytics Categories listed above. Omit it entirely when reusing an existing exercise type.
-- "dayOfWeek" (if given) must be exactly one of: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.`;
+- "dayOfWeek" (if given) must be exactly one of: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.
+- "startTime" (optional) is the planned time of day the session starts, 24-hour "HH:mm" - e.g. "18:00", never "6pm" or "evening". Give one when the time of day is part of the prescription (a morning fingerboard vs an evening session); omit it when any time of day would do.
+- "plannedDuration" (optional) is how long the whole session is planned to take, in whole minutes as a bare number: 90, never "90 min" or "1.5h". This is the wall-clock length of the session including rest and warm-up - it is NOT the sum of the exercises' own "duration" values, and setting one does not replace them.`;
 
 /**
  * Per-week format: every week spelled out in full. Maximum control, and
@@ -646,6 +723,8 @@ export const AI_PLAN_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSON obje
         {
           "name": "Session name",
           "dayOfWeek": "Monday",
+          "startTime": "18:00",
+          "plannedDuration": 90,
           "exercises": [
             { "exerciseTypeName": "Hangboard", "values": { "duration": 30, "sets": 5, "reps": 6, "timeOn": 10, "timeOff": 180, "notes": "optional" } }
           ]
@@ -681,6 +760,8 @@ export const AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSO
         {
           "name": "Session name",
           "dayOfWeek": "Monday",
+          "startTime": "18:00",
+          "plannedDuration": 90,
           "exercises": [
             { "exerciseTypeName": "Hangboard", "values": { "duration": 30, "sets": 5, "reps": 6, "timeOn": 10, "timeOff": 180, "notes": "optional" } }
           ]
@@ -696,7 +777,7 @@ Rules:
 - Do NOT repeat a session once per week, and do NOT emit a "weeks" array. One entry per phase, each listing that phase's distinct weekly sessions once.
 - "startWeekId"/"endWeekId" are inclusive, format "YYYY-Www", and must fall inside the Target Timeframe above.
 - Phases must not overlap, and together they should cover the whole Target Timeframe. Use a short deload/rest phase where one belongs rather than leaving a gap.
-- "sessions" is the typical week for that phase: one entry per training day, each with its own "dayOfWeek". A rest week is a phase with an empty "sessions" array.
+- "sessions" is the typical week for that phase: one entry per training day, each with its own "dayOfWeek" (and "startTime"/"plannedDuration" where they matter). A rest week is a phase with an empty "sessions" array.
 - Put any week-to-week progression inside the phase (e.g. "notes": "add 2kg each week, deload in the final week") rather than splitting the phase into one-week blocks to express it.
 ${AI_PLAN_SHARED_RULES}
 

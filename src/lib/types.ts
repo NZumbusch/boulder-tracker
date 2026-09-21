@@ -164,7 +164,14 @@ export interface Workout {
   status: "planned" | "completed";
   /** ISO date string of completion, or null if planned */
   date: string | null;
-  startTime?: string; // HH:mm format
+  startTime?: string; // HH:mm format - the planned/actual start time of day
+  /**
+   * Planned wall-clock length of the session in minutes - what the session
+   * is *scheduled* to take, independent of the per-exercise `duration`
+   * values that drive `plannedLoad`. Optional: a session with no planned
+   * duration is simply open-ended, not zero-length.
+   */
+  plannedDuration?: number;
   dayOfWeek?: DayOfWeek;
   notes?: string; // Used as the session name
   description?: string; // Extended notes/description for the session
@@ -298,6 +305,10 @@ export interface WorkoutTemplate {
   id: string;
   name?: string;
   dayOfWeek?: DayOfWeek;
+  /** Planned time of day, "HH:mm" - carried onto every workout this template generates. */
+  startTime?: string;
+  /** Planned session length in minutes - carried onto every workout this template generates. */
+  plannedDuration?: number;
   /** `logged` is always undefined on a template's slots - templates are pure plans. */
   exercises: ExerciseSlot[];
 }

@@ -180,6 +180,94 @@ describe("validateAIPlanOutput", () => {
     expect(values.notes).toContain("3");
   });
 
+  it("accepts an optional startTime and plannedDuration on a session", () => {
+    const timed = JSON.parse(JSON.stringify(VALID_PLAN));
+    timed.weeks[0].workouts[0].startTime = "18:00";
+    timed.weeks[0].workouts[0].plannedDuration = 90;
+    const result = validateAIPlanOutput(timed);
+    expect(result.valid).toBe(true);
+    expect(result.issues).toEqual([]);
+    expect(result.data?.weeks[0].workouts[0].startTime).toBe("18:00");
+    expect(result.data?.weeks[0].workouts[0].plannedDuration).toBe(90);
+  });
+
+  it("leaves startTime and plannedDuration undefined when the session omits them", () => {
+    const result = validateAIPlanOutput(VALID_PLAN);
+    expect(result.data?.weeks[0].workouts[0].startTime).toBeUndefined();
+    expect(result.data?.weeks[0].workouts[0].plannedDuration).toBeUndefined();
+  });
+
+  it.each([
+    ["9:30", "09:30"],
+    ["09:30:00", "09:30"],
+    ["6pm", "18:00"],
+    ["6:30 PM", "18:30"],
+    ["12am", "00:00"],
+    ["12pm", "12:00"],
+  ])("repairs the startTime %s to %s", (written, normalised) => {
+    const plan = JSON.parse(JSON.stringify(VALID_PLAN));
+    plan.weeks[0].workouts[0].startTime = written;
+    const result = validateAIPlanOutput(plan);
+    expect(result.valid).toBe(true);
+    expect(result.data?.weeks[0].workouts[0].startTime).toBe(normalised);
+    expect(result.repairs.some((r) => r.path.endsWith(".startTime"))).toBe(true);
+  });
+
+  it("rejects a startTime that is not a clock time", () => {
+    const bad = JSON.parse(JSON.stringify(VALID_PLAN));
+    bad.weeks[0].workouts[0].startTime = "evening";
+    expect(validateAIPlanOutput(bad).valid).toBe(false);
+  });
+
+  it("rejects an out-of-range startTime", () => {
+    const bad = JSON.parse(JSON.stringify(VALID_PLAN));
+    bad.weeks[0].workouts[0].startTime = "25:00";
+    expect(validateAIPlanOutput(bad).valid).toBe(false);
+  });
+
+  it("repairs a plannedDuration written as text", () => {
+    const plan = JSON.parse(JSON.stringify(VALID_PLAN));
+    plan.weeks[0].workouts[0].plannedDuration = "90 min";
+    const result = validateAIPlanOutput(plan);
+    expect(result.valid).toBe(true);
+    expect(result.data?.weeks[0].workouts[0].plannedDuration).toBe(90);
+    expect(result.repairs.some((r) => r.path.endsWith(".plannedDuration"))).toBe(true);
+  });
+
+  it("rejects a non-positive or prose plannedDuration rather than guessing", () => {
+    for (const bogus of [0, -30, "about an hour and a half"]) {
+      const bad = JSON.parse(JSON.stringify(VALID_PLAN));
+      bad.weeks[0].workouts[0].plannedDuration = bogus;
+      expect(validateAIPlanOutput(bad).valid).toBe(false);
+    }
+  });
+
+  it("carries startTime and plannedDuration through the phase format", () => {
+    const result = validateAIPlanOutput({
+      phases: [
+        {
+          phaseName: "Capacity",
+          startWeekId: "2026-W25",
+          endWeekId: "2026-W26",
+          sessions: [
+            {
+              name: "Board",
+              dayOfWeek: "Monday",
+              startTime: "18:00",
+              plannedDuration: 90,
+              exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }],
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.valid).toBe(true);
+    for (const week of result.data!.weeks) {
+      expect(week.workouts[0].startTime).toBe("18:00");
+      expect(week.workouts[0].plannedDuration).toBe(90);
+    }
+  });
+
   it("rejects an invalid dayOfWeek value", () => {
     const bad = JSON.parse(JSON.stringify(VALID_PLAN));
     bad.weeks[0].workouts[0].dayOfWeek = "Funday";
