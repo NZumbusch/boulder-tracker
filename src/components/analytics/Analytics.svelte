@@ -14,6 +14,7 @@
     type AcwrResult,
   } from '../../lib/analytics/loadAnalytics';
   import { computeFatigueDecay } from '../../lib/analytics/readiness';
+  import { weeksToShow, weekWindowOffsets, labelStep, showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import { parseFontGrade } from '../../lib/analytics/grades';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import AdherencePanel from './AdherencePanel.svelte';
@@ -41,6 +42,19 @@
   const categories = $derived(trainingState.analyticsCategories);
   let selectedBenchmarkType = $state<string>('');
   let viewOffset = $state<number>(0);
+
+  // --- Responsive week window. The charts used to draw a fixed 12 weeks at
+  // any width, which on a phone left each week narrower than the "W34"
+  // label under it. `chartWidth` is the measured inner width of the plot
+  // area (bound below on the Rolling Load chart, which shares its padding
+  // with every other chart on this screen); how many weeks that fits, and
+  // how much the axis has to be thinned, is decided by
+  // `lib/analytics/chartWindow.ts` - see its tests. Changing the week count
+  // does not change the measured width (bars are flex-sized), so there's no
+  // measure/layout feedback loop here.
+  let chartWidth = $state(0);
+  const visibleWeeks = $derived(weeksToShow(chartWidth, trainingState.chartDensity));
+  const axisStep = $derived(labelStep(visibleWeeks, chartWidth));
 
   // --- Section-jump chips (§4.6: "...add section-jump chips"). ACWR is
   // merged into the Load panel below, so its chip scrolls to the same
@@ -74,9 +88,9 @@
   // --- Logic: Data Processing ---
 
   /**
-   * Derives chart data for the "Rolling Load" and "Exercise Volume" graphs.
-   * Processes the last 12 weeks of data, aggregating total actual load, total
-   * planned load, and counts of exercise categories.
+   * Derives chart data for the "Rolling Load" and "Exercise Volume" graphs
+   * over the currently visible week window (see `visibleWeeks`), aggregating
+   * total actual load, total planned load, and counts of exercise categories.
    */
   const chartData = $derived.by(() => {
     const data = trainingState.workouts;
@@ -102,9 +116,9 @@
     }>();
 
     const weeksToDisplay: string[] = [];
-    // Display 12 weeks at a time. If viewOffset is 0, show 9 weeks back to 2 weeks ahead.
-    const startOffset = -9 + (viewOffset * 12);
-    const endOffset = 2 + (viewOffset * 12);
+    // As many weeks as the screen fits at the chosen density, paged a whole
+    // window at a time - see `weekWindowOffsets`.
+    const { startOffset, endOffset } = weekWindowOffsets(visibleWeeks, viewOffset);
 
     for (let i = startOffset; i <= endOffset; i++) {
       const d = new Date();
@@ -396,6 +410,11 @@
     };
   });
 
+  // Date axes carry far wider labels than the week charts' "W34", so they
+  // are capped at a few evenly spaced labels instead of thinned by width.
+  const bodyweightLabelStep = $derived(sparseLabelStep(bodyweightTrend.history.length));
+  const benchmarkLabelStep = $derived(sparseLabelStep(benchmarkProgress.history.length));
+
   $effect(() => {
     const benchmarkTypes = trainingState.benchmarkTypes;
     if (benchmarkTypes.length > 0) {
@@ -406,17 +425,43 @@
   });
 </script>
 
-<div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
-  <div class="flex flex-col gap-3">
+<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+  <div class="flex flex-col gap-2.5">
     <div class="flex items-center justify-between px-1">
       <h2 class="text-title text-content">Analytics</h2>
-      <button
-        onclick={() => trainingState.exportToCSV()}
-        class="flex items-center gap-2 px-3 py-2 bg-surface-elevated hover:bg-surface-elevated-hover text-content-muted hover:text-content rounded-control border border-border-strong/50 transition-all text-label active:scale-95"
-      >
-        <Icon icon="ic:baseline-download" class="text-sm" />
-        CSV Export
-      </button>
+      <!-- Window paging and CSV export share one quiet row of controls,
+           rather than a heavy button beside the title and a second nav row
+           below the chips. -->
+      <div class="flex items-center gap-1">
+        <button
+          onclick={() => navigate('prev')}
+          class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+          aria-label="Earlier weeks"
+        >
+          <Icon icon="ic:baseline-chevron-left" class="text-lg" />
+        </button>
+        <button
+          onclick={() => navigate('today')}
+          class="px-2 py-1 text-caption text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+        >
+          Today
+        </button>
+        <button
+          onclick={() => navigate('next')}
+          class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+          aria-label="Later weeks"
+        >
+          <Icon icon="ic:baseline-chevron-right" class="text-lg" />
+        </button>
+        <button
+          onclick={() => trainingState.exportToCSV()}
+          class="p-1.5 ml-1 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+          aria-label="Export CSV"
+          title="Export CSV"
+        >
+          <Icon icon="ic:baseline-download" class="text-base" />
+        </button>
+      </div>
     </div>
 
     <!-- Chips get their own full-width row so they always have room to
@@ -426,44 +471,38 @@
       {#each SECTIONS as s}
         <button
           onclick={() => scrollToSection(s.id)}
-          class="shrink-0 px-3 py-1.5 bg-surface-elevated/50 hover:bg-surface-elevated text-label text-content-muted hover:text-content rounded-control border border-border-strong/50 transition-colors"
+          class="shrink-0 px-2.5 py-1 text-caption text-content-subtle hover:text-content rounded-control border border-border transition-colors"
         >
           {s.label}
         </button>
       {/each}
     </div>
-
-    <div class="flex items-center justify-end gap-2 px-1">
-      <button onclick={() => navigate('today')} class="px-2 py-1 bg-surface-elevated/50 hover:bg-surface-elevated text-label text-content-muted hover:text-content rounded-control transition-all active:scale-95 border border-border-strong/50">Today</button>
-      <div class="flex bg-surface/50 rounded-control border border-border p-1">
-        <button onclick={() => navigate('prev')} class="p-1.5 hover:bg-surface-elevated text-content-subtle hover:text-content rounded-control transition-colors"><Icon icon="ic:baseline-chevron-left" class="text-lg" /></button>
-        <button onclick={() => navigate('next')} class="p-1.5 hover:bg-surface-elevated text-content-subtle hover:text-content rounded-control transition-colors"><Icon icon="ic:baseline-chevron-right" class="text-lg" /></button>
-      </div>
-    </div>
   </div>
 
   <div class="space-y-5">
-    <div id="section-load" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-5 space-y-4 shadow-card overflow-hidden relative">
-      <div class="px-1 relative z-10">
+    <div id="section-load" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative">
+      <div class="relative z-10">
         <h3 class="text-section uppercase text-content-muted">Rolling Load</h3>
-        <p class="text-caption text-content-subtle mt-0.5">Weekly targets vs actual output, with acute:chronic load ratio overlay</p>
+        <p class="text-caption text-content-subtle mt-0.5">Target vs actual, with acute:chronic ratio</p>
       </div>
 
-      <div class="h-56 flex flex-col gap-2 relative z-10 px-1">
-        <!-- Chart Area -->
-        <div class="flex-1 relative flex items-end justify-between gap-2">
-          <!-- Grid Lines -->
-          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 py-2">
-            <div class="border-t border-border-strong w-full"></div>
-            <div class="border-t border-border-strong w-full"></div>
-            <div class="border-t border-border-strong w-full"></div>
+      <!-- The plot area's measured width drives the week count for every
+           chart on this screen - see `chartWidth`. -->
+      <div class="h-48 flex flex-col gap-2 relative z-10">
+        <div class="flex-1 relative flex items-end justify-between gap-px" bind:clientWidth={chartWidth}>
+          <!-- Hairline gridlines: three, at 10% opacity. Enough to read a
+               height against, quiet enough to disappear behind the data. -->
+          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
+            <div class="border-t border-content-subtle w-full"></div>
+            <div class="border-t border-content-subtle w-full"></div>
+            <div class="border-t border-content-subtle w-full"></div>
           </div>
 
-          <!-- ACWR sweet-spot / caution / risk bands (UI_PLAN.md §3.3/§4.6) -->
-          <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <rect x="0" y={ratioToY(acwrMaxRatio)} width="100" height={Math.max(ratioToY(ACWR_HIGH_RISK_RATIO) - ratioToY(acwrMaxRatio), 0)} fill="var(--color-status-risk)" opacity="0.08" />
-            <rect x="0" y={ratioToY(ACWR_HIGH_RISK_RATIO)} width="100" height={Math.max(ratioToY(ACWR_CAUTION_RATIO) - ratioToY(ACWR_HIGH_RISK_RATIO), 0)} fill="var(--color-status-caution)" opacity="0.08" />
-            <rect x="0" y={ratioToY(ACWR_CAUTION_RATIO)} width="100" height={Math.max(ratioToY(ACWR_SWEET_SPOT_MIN) - ratioToY(ACWR_CAUTION_RATIO), 0)} fill="var(--color-status-good)" opacity="0.08" />
+          <!-- ACWR sweet-spot / caution / risk bands, barely tinted -->
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <rect x="0" y={ratioToY(acwrMaxRatio)} width="100" height={Math.max(ratioToY(ACWR_HIGH_RISK_RATIO) - ratioToY(acwrMaxRatio), 0)} fill="var(--color-status-risk)" opacity="0.06" />
+            <rect x="0" y={ratioToY(ACWR_HIGH_RISK_RATIO)} width="100" height={Math.max(ratioToY(ACWR_CAUTION_RATIO) - ratioToY(ACWR_HIGH_RISK_RATIO), 0)} fill="var(--color-status-caution)" opacity="0.06" />
+            <rect x="0" y={ratioToY(ACWR_CAUTION_RATIO)} width="100" height={Math.max(ratioToY(ACWR_SWEET_SPOT_MIN) - ratioToY(ACWR_CAUTION_RATIO), 0)} fill="var(--color-status-good)" opacity="0.06" />
           </svg>
 
           <!-- Planned Load Line (SVG) -->
@@ -486,41 +525,29 @@
                   d="M {connectedPoints.map(p => `${p.x} ${p.y}`).join(' L ')}"
                   fill="none"
                   stroke="var(--color-success)"
-                  stroke-width="2"
-                  stroke-dasharray="4 3"
+                  stroke-width="1.5"
+                  stroke-dasharray="3 3"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   vector-effect="non-scaling-stroke"
-                  class="transition-all duration-1000"
+                  opacity="0.85"
                 />
               {/if}
-
-              <!-- Target Dots -->
-              {#each planPoints as p}
-                {#if p.val > 0}
-                  <circle cx={p.x} cy={p.y} r="1.5" fill="var(--color-success)" class="transition-all duration-1000" />
-                {/if}
-              {/each}
             {/if}
           </svg>
 
           {#each chartData.weeks as week}
             <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
+              <!-- Flat fill, no gradient or glow; the current week is the
+                   only one at full strength, which is the whole emphasis
+                   budget this chart spends. -->
               <div
-                class="w-full bg-gradient-to-t from-primary/60 to-primary-hover rounded-t-lg transition-all duration-700 group-hover:from-primary group-hover:to-primary-hover relative shadow-[0_-4px_12px_color-mix(in_srgb,var(--color-primary)_20%,transparent)]"
+                class="w-[62%] max-w-[16px] rounded-[2px] transition-[height] duration-500 relative {week.isCurrent ? 'bg-primary' : 'bg-primary/45 group-hover:bg-primary/70'}"
                 style="height: {(week.totalLoad / chartData.maxLoad) * 100}%"
               >
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 whitespace-nowrap z-20 border border-border-strong shadow-card pointer-events-none">
-                  <div class="flex flex-col gap-1">
-                    <div class="flex items-center gap-2">
-                      <div class="w-1.5 h-1.5 rounded-full bg-primary-hover"></div>
-                      <span>Actual: {Math.round(week.totalLoad)}</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-success-hover">
-                      <div class="w-1.5 h-1.5 rounded-full bg-success-hover"></div>
-                      <span>Target: {Math.round(week.totalPlannedLoad)}</span>
-                    </div>
-                  </div>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
+                  <span class="block">W{week.label} · {Math.round(week.totalLoad)} actual</span>
+                  <span class="block text-content-subtle">{Math.round(week.totalPlannedLoad)} target</span>
                 </div>
               </div>
             </div>
@@ -532,11 +559,12 @@
               <path
                 d="M {seg.map((p) => `${p.x} ${p.y}`).join(' L ')}"
                 fill="none"
-                stroke="var(--theme-border-strong)"
-                stroke-width="1.5"
+                stroke="var(--color-content-subtle)"
+                stroke-width="1"
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 vector-effect="non-scaling-stroke"
+                opacity="0.6"
               />
             {/each}
           </svg>
@@ -547,18 +575,18 @@
               {#if p.ratioY !== null}
                 <div class="absolute pointer-events-auto group" style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);">
                   <div
-                    class="w-2.5 h-2.5 rounded-full border-2 transition-transform group-hover:scale-150"
+                    class="w-1.5 h-1.5 rounded-full border transition-transform group-hover:scale-150"
                     style="background: {p.sufficient ? RATIO_STATUS_VAR[p.status] : 'transparent'}; border-color: {RATIO_STATUS_VAR[p.status]};"
                   ></div>
-                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-30 border border-border-strong shadow-card pointer-events-none">
-                    ACWR: {p.ratio?.toFixed(2)}{!p.sufficient ? ' · building history' : ''}
+                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
+                    ACWR {p.ratio?.toFixed(2)}{!p.sufficient ? ' · building history' : ''}
                   </div>
                 </div>
               {/if}
               {#if p.spike}
                 <div class="absolute pointer-events-auto group" style="left: {p.x}%; top: {Math.max(p.barTopY - 8, 2)}%; transform: translate(-50%, -50%);">
-                  <Icon icon="ic:baseline-warning" class="text-status-risk text-sm drop-shadow" />
-                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-30 border border-border-strong shadow-card pointer-events-none">
+                  <Icon icon="ic:baseline-warning" class="text-status-risk text-xs" />
+                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
                     Ramp-rate spike: +{Math.round(p.rampRate * 100)}%
                   </div>
                 </div>
@@ -567,28 +595,33 @@
           </div>
         </div>
 
-        <!-- X-Axis Labels -->
-        <div class="flex justify-between gap-2 h-4">
-          {#each chartData.weeks as week}
-            <div class="flex-1 flex justify-center">
-              <span class="text-caption text-content-subtle {week.isCurrent ? 'text-primary' : ''}">W{week.label}</span>
+        <!-- Baseline + x-axis. Labels are thinned to whatever fits (see
+             `axisStep`), counted back from the most recent week so it is
+             always the one that keeps its label. -->
+        <div class="border-t border-border-strong/60"></div>
+        <div class="flex justify-between gap-px h-3">
+          {#each chartData.weeks as week, i}
+            <div class="flex-1 flex justify-center overflow-hidden">
+              {#if showsLabel(i, chartData.weeks.length, axisStep)}
+                <span class="text-caption tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
+              {/if}
             </div>
           {/each}
         </div>
       </div>
 
-      <div class="flex items-center gap-4 px-1 pt-2 relative z-10 flex-wrap">
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-control bg-gradient-to-t from-primary/80 to-primary-hover"></div>
-          <span class="text-label text-content-muted">Actual Output</span>
+      <div class="flex items-center gap-x-4 gap-y-1.5 pt-1 relative z-10 flex-wrap">
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-[2px] bg-primary"></div>
+          <span class="text-caption text-content-subtle">Actual</span>
         </div>
-        <div class="flex items-center gap-2">
-          <div class="w-4 h-0 border-t-2 border-dashed border-success"></div>
-          <span class="text-label text-content-muted">Target Path</span>
+        <div class="flex items-center gap-1.5">
+          <div class="w-3.5 h-0 border-t border-dashed border-success"></div>
+          <span class="text-caption text-content-subtle">Target</span>
         </div>
-        <div class="flex items-center gap-2">
-          <div class="w-2.5 h-2.5 rounded-full border-2" style="border-color: var(--color-status-good);"></div>
-          <span class="text-label text-content-muted">ACWR (sweet spot / caution / risk)</span>
+        <div class="flex items-center gap-1.5">
+          <div class="w-1.5 h-1.5 rounded-full border" style="border-color: var(--color-status-good);"></div>
+          <span class="text-caption text-content-subtle">ACWR</span>
         </div>
       </div>
 
@@ -597,21 +630,22 @@
       {/if}
     </div>
 
-    <div id="section-mix" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card relative z-30">
-      <div class="flex flex-col gap-4 px-1 relative z-50">
-        <div>
+    <div id="section-mix" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative z-30">
+      <div class="flex items-start justify-between gap-3 relative z-50">
+        <div class="min-w-0">
           <h3 class="text-section uppercase text-content-muted">Training Mix</h3>
-          <p class="text-caption text-content-subtle mt-0.5">Activity breakdown by category</p>
+          <p class="text-caption text-content-subtle mt-0.5">Breakdown by category</p>
         </div>
 
-        <div class="flex items-center justify-between gap-4 border-t border-border/50 pt-4">
+        <div class="shrink-0">
           <div class="relative z-50">
             <button
               onclick={() => showSettings = !showSettings}
-              class="flex items-center gap-2 px-3 py-1.5 bg-surface-elevated/50 hover:bg-surface-elevated border border-border-strong/50 rounded-control transition-colors text-label text-content-muted hover:text-content"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-elevated/50 hover:bg-surface-elevated border border-border-strong/50 rounded-control transition-colors text-caption text-content-muted hover:text-content"
+              aria-label="Graph settings"
             >
-              <Icon icon="ic:baseline-settings" />
-              Graph Settings
+              <Icon icon="ic:baseline-tune" class="text-sm" />
+              Options
             </button>
 
             {#if showSettings}
@@ -668,37 +702,52 @@
         </div>
       </div>
 
-      <div class="h-48 flex items-end justify-between gap-2 px-1 relative">
-        {#each chartData.weeks as week}
-          {@const visibleTotalDuration = visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0), 0)}
-          {@const weekHeightPercent = showRelative ? (visibleTotalDuration > 0 ? 100 : 0) : (visibleTotalDuration / maxVisibleDuration) * 100}
-          <div class="flex-1 flex flex-col items-center gap-2 group relative h-full justify-end">
-            <div class="w-full flex flex-col-reverse rounded-t-lg overflow-hidden justify-end shadow-lg transition-all duration-500"
-                 style="height: {weekHeightPercent}%">
-              {#each visibleCategories as cat}
-                {@const catDuration = (includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0}
-                {#if catDuration > 0 && visibleTotalDuration > 0}
-                  <div
-                    class="{cat.color} w-full border-t border-border/20 first:border-0 opacity-90 hover:opacity-100 transition-opacity relative group/bar"
-                    style="height: {(catDuration / visibleTotalDuration) * 100}%"
-                  >
-                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover/bar:opacity-100 transition-all pointer-events-none z-30 whitespace-nowrap shadow-card border border-border-strong">
-                      {cat.name}: {Math.round(catDuration)} min
+      <div class="space-y-2">
+        <div class="h-40 flex items-end justify-between gap-px relative">
+          {#each chartData.weeks as week}
+            {@const visibleTotalDuration = visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0), 0)}
+            {@const weekHeightPercent = showRelative ? (visibleTotalDuration > 0 ? 100 : 0) : (visibleTotalDuration / maxVisibleDuration) * 100}
+            <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
+              <!-- Segments carry the category colours, so the bar itself
+                   stays flat: no shadow, no per-segment borders, hairline
+                   1px separators only. -->
+              <div class="w-[62%] max-w-[16px] flex flex-col-reverse rounded-[2px] overflow-hidden justify-end transition-[height] duration-500"
+                   style="height: {weekHeightPercent}%">
+                {#each visibleCategories as cat}
+                  {@const catDuration = (includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0}
+                  {#if catDuration > 0 && visibleTotalDuration > 0}
+                    <div
+                      class="{cat.color} w-full relative group/bar"
+                      style="height: {(catDuration / visibleTotalDuration) * 100}%"
+                    >
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-30 whitespace-nowrap shadow-card border border-border">
+                        {cat.name}: {Math.round(catDuration)} min
+                      </div>
                     </div>
-                  </div>
-                {/if}
-              {/each}
+                  {/if}
+                {/each}
+              </div>
             </div>
-            <span class="text-caption text-content-subtle group-hover:text-content-muted">W{week.label}</span>
-          </div>
-        {/each}
+          {/each}
+        </div>
+
+        <div class="border-t border-border-strong/60"></div>
+        <div class="flex justify-between gap-px h-3">
+          {#each chartData.weeks as week, i}
+            <div class="flex-1 flex justify-center overflow-hidden">
+              {#if showsLabel(i, chartData.weeks.length, axisStep)}
+                <span class="text-caption tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
+              {/if}
+            </div>
+          {/each}
+        </div>
       </div>
 
-      <div class="flex flex-wrap gap-x-4 gap-y-2 px-1 pt-2 relative z-10">
+      <div class="flex flex-wrap gap-x-3 gap-y-1.5 pt-1 relative z-10">
         {#each visibleCategories as cat}
-          <div class="flex items-center gap-2">
-            <div class="w-2.5 h-2.5 rounded-full {cat.color} shadow-[0_0_8px_rgba(0,0,0,0.3)]"></div>
-            <span class="text-label text-content-subtle">{cat.name}</span>
+          <div class="flex items-center gap-1.5">
+            <div class="w-2 h-2 rounded-[2px] {cat.color}"></div>
+            <span class="text-caption text-content-subtle">{cat.name}</span>
           </div>
         {/each}
       </div>
@@ -714,64 +763,75 @@
 
     <RecoveryWarningsPanel warnings={recoveryWarnings} {painCorrelations} />
 
-    <OutdoorAscentsPanel weeks={outdoorAscentData.weeks} {weekLabels} unparsedCount={outdoorAscentData.unparsedCount} />
+    <OutdoorAscentsPanel weeks={outdoorAscentData.weeks} {weekLabels} unparsedCount={outdoorAscentData.unparsedCount} labelStep={axisStep} />
 
-    <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
-      <div class="flex items-center justify-between px-1">
+    <div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+      <div class="flex items-center justify-between">
         <div>
           <h3 class="text-section uppercase text-content-muted">Bodyweight Trend</h3>
           <p class="text-caption text-content-subtle mt-0.5">Last {bodyweightTrend.history.length || 10} entries</p>
         </div>
-        <div class="p-2 bg-primary-hover/10 rounded-control text-primary">
-          <Icon icon="ic:baseline-monitor-weight" class="text-lg" />
-        </div>
+        <Icon icon="ic:baseline-monitor-weight" class="text-base text-content-subtle" />
       </div>
 
       {#if bodyweightTrend.history.length > 0}
-        <div class="h-40 relative px-1">
-          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 py-2">
-            <div class="border-t border-border-strong w-full"></div>
-            <div class="border-t border-border-strong w-full"></div>
-            <div class="border-t border-border-strong w-full"></div>
+        <div class="h-36 relative">
+          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
+            <div class="border-t border-content-subtle w-full"></div>
+            <div class="border-t border-content-subtle w-full"></div>
+            <div class="border-t border-content-subtle w-full"></div>
           </div>
 
           <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
             <defs>
               <linearGradient id="bodyweight-gradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.3" />
+                <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.16" />
                 <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
               </linearGradient>
             </defs>
             {#if bodyweightTrend.history.length > 1}
-              <path d={bodyweightTrend.areaPath} fill="url(#bodyweight-gradient)" class="transition-all duration-700" />
-              <path d={bodyweightTrend.linePath} fill="none" stroke="var(--color-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="transition-all duration-700" />
+              <path d={bodyweightTrend.areaPath} fill="url(#bodyweight-gradient)" />
+              <path d={bodyweightTrend.linePath} fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
             {/if}
           </svg>
 
-          <div class="absolute inset-0 flex justify-between items-end h-full">
+          <div class="absolute inset-0">
             {#each bodyweightTrend.history as entry, i}
               {@const xPos = (i / Math.max(bodyweightTrend.history.length - 1, 1)) * 100}
-              <div class="absolute flex flex-col items-center group" style="left: {xPos}%; height: 100%;">
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border-strong shadow-card pointer-events-none">
+              <div class="absolute group" style="left: {xPos}%; height: 100%;">
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
                   {entry.value} kg
                 </div>
-                <div class="w-3 h-3 bg-primary-hover rounded-full border-4 border-surface shadow-lg group-hover:scale-150 transition-transform z-10 absolute -translate-x-1/2" style="bottom: {entry.height}%; left: 0;"></div>
-                <span class="text-caption text-content-subtle group-hover:text-content-muted absolute top-full mt-2 rotate-[-45deg] origin-top-left whitespace-nowrap">
-                  {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
+                <div class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2" style="bottom: {entry.height}%; left: 0;"></div>
               </div>
             {/each}
           </div>
         </div>
-        <div class="h-6"></div>
+        <!-- Horizontal, thinned date axis - the old labels were rotated 45°
+             to stop them colliding, which is the tell of an axis with more
+             labels than room. -->
+        <div class="border-t border-border-strong/60"></div>
+        <div class="relative h-3">
+          {#each bodyweightTrend.history as entry, i}
+            {#if showsLabel(i, bodyweightTrend.history.length, bodyweightLabelStep)}
+              {@const xPos = (i / Math.max(bodyweightTrend.history.length - 1, 1)) * 100}
+              <span
+                class="absolute text-caption text-content-subtle/70 whitespace-nowrap"
+                style="left: {xPos}%; transform: translateX({i === 0 ? '0' : i === bodyweightTrend.history.length - 1 ? '-100%' : '-50%'});"
+              >
+                {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </span>
+            {/if}
+          {/each}
+        </div>
       {:else}
         <p class="text-caption text-content-subtle italic text-center py-4 px-4 leading-relaxed">Log your bodyweight in Settings › Health to see your trend</p>
       {/if}
     </div>
 
     {#if benchmarkProgress.types.length > 0}
-      <div id="section-benchmarks" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
-        <div class="flex items-center justify-between px-1">
+      <div id="section-benchmarks" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+        <div class="flex items-center justify-between">
           <div>
             <h3 class="text-section uppercase text-content-muted">Benchmark Progress</h3>
             <div class="relative mt-1">
@@ -786,69 +846,49 @@
               <Icon icon="ic:baseline-arrow-drop-down" class="absolute right-0 top-1/2 -translate-y-1/2 text-primary pointer-events-none" />
             </div>
           </div>
-          <div class="p-2 bg-primary-hover/10 rounded-control text-primary">
-            <Icon icon="ic:baseline-insights" class="text-lg" />
-          </div>
+          <Icon icon="ic:baseline-insights" class="text-base text-content-subtle" />
         </div>
 
-        <div class="h-48 relative px-1">
-          <!-- Grid Lines -->
-          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 py-2">
-            <div class="border-t border-border-strong w-full"></div>
-            <div class="border-t border-border-strong w-full"></div>
-            <div class="border-t border-border-strong w-full"></div>
+        <div class="h-36 relative">
+          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
+            <div class="border-t border-content-subtle w-full"></div>
+            <div class="border-t border-content-subtle w-full"></div>
+            <div class="border-t border-content-subtle w-full"></div>
           </div>
 
-          <!-- SVG Line Graph -->
           <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
             <defs>
               <linearGradient id="line-gradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.3" />
+                <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.16" />
                 <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
               </linearGradient>
             </defs>
 
             {#if benchmarkProgress.history.length > 1}
-              <!-- Area under line -->
-              <path
-                d={benchmarkProgress.areaPath}
-                fill="url(#line-gradient)"
-                class="transition-all duration-700"
-              />
-
-              <!-- The Line -->
+              <path d={benchmarkProgress.areaPath} fill="url(#line-gradient)" />
               <path
                 d={benchmarkProgress.linePath}
                 fill="none"
                 stroke="var(--color-primary)"
-                stroke-width="3"
+                stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                class="transition-all duration-700"
+                vector-effect="non-scaling-stroke"
               />
             {/if}
           </svg>
 
-          <!-- Data Points & Labels -->
-          <div class="absolute inset-0 flex justify-between items-end h-full">
+          <div class="absolute inset-0">
             {#each benchmarkProgress.history as entry, i}
               {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
-              <div class="absolute flex flex-col items-center group" style="left: {xPos}%; height: 100%;">
-                <!-- Tooltip -->
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border-strong shadow-card pointer-events-none">
+              <div class="absolute group" style="left: {xPos}%; height: 100%;">
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
                   {entry.value} {entry.unit}
                 </div>
-
-                <!-- Dot -->
                 <div
-                  class="w-3 h-3 bg-primary-hover rounded-full border-4 border-surface shadow-lg group-hover:scale-150 transition-transform z-10 absolute -translate-x-1/2"
+                  class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2"
                   style="bottom: {entry.height}%; left: 0;"
                 ></div>
-
-                <!-- Date Label -->
-                <span class="text-caption text-content-subtle group-hover:text-content-muted absolute top-full mt-2 rotate-[-45deg] origin-top-left whitespace-nowrap">
-                  {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
               </div>
             {/each}
           </div>
@@ -861,7 +901,22 @@
             </div>
           {/if}
         </div>
-        <div class="h-6"></div> <!-- Spacer for rotated labels -->
+        {#if benchmarkProgress.history.length > 0}
+          <div class="border-t border-border-strong/60"></div>
+          <div class="relative h-3">
+            {#each benchmarkProgress.history as entry, i}
+              {#if showsLabel(i, benchmarkProgress.history.length, benchmarkLabelStep)}
+                {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
+                <span
+                  class="absolute text-caption text-content-subtle/70 whitespace-nowrap"
+                  style="left: {xPos}%; transform: translateX({i === 0 ? '0' : i === benchmarkProgress.history.length - 1 ? '-100%' : '-50%'});"
+                >
+                  {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
+              {/if}
+            {/each}
+          </div>
+        {/if}
       </div>
     {/if}
 

@@ -9,6 +9,7 @@
    * directly rather than collapsed into a single per-week number.
    */
   import { formatDate } from '../../lib/dateUtils';
+  import { showsLabel } from '../../lib/analytics/chartWindow';
   import Icon from "@iconify/svelte";
 
   export interface WeekAscentPoint {
@@ -24,10 +25,12 @@
     ascents: WeekAscentPoint[];
   }
 
-  let { weeks, weekLabels, unparsedCount }: {
+  let { weeks, weekLabels, unparsedCount, labelStep = 1 }: {
     weeks: WeekAscentGroup[];
     weekLabels: Record<string, string>;
     unparsedCount: number;
+    /** Axis thinning step, shared with the other week charts so all their x-axes agree - see `lib/analytics/chartWindow.ts`. */
+    labelStep?: number;
   } = $props();
 
   const allRanks = $derived(weeks.flatMap((w) => w.ascents.map((a) => a.rank)));
@@ -42,34 +45,34 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
-  <div class="flex items-center justify-between px-1">
+<div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+  <div class="flex items-center justify-between">
     <div>
       <h3 class="text-section uppercase text-content-muted">Outdoor Ascents</h3>
       <p class="text-caption text-content-subtle mt-0.5">Grade distribution, by week</p>
     </div>
-    <div class="p-2 bg-tertiary-hover/10 rounded-control text-tertiary">
-      <Icon icon="ic:baseline-terrain" class="text-lg" />
-    </div>
+    <Icon icon="ic:baseline-terrain" class="text-base text-content-subtle" />
   </div>
 
   {#if hasAscents}
-    <div class="h-40 relative px-1">
+    <div class="h-36 relative border-b border-border-strong/60">
       {#each weeks as week, i}
         {@const xPercent = ((i + 0.5) / weeks.length) * 100}
         {#each week.ascents as ascent}
           <div class="absolute -translate-x-1/2 group" style="left: {xPercent}%; bottom: {yPercent(ascent.rank)}%;">
-            <div class="w-2.5 h-2.5 bg-tertiary rounded-full border-2 border-surface shadow-card group-hover:scale-150 transition-transform"></div>
-            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-20 border border-border-strong shadow-card pointer-events-none">
+            <div class="w-1.5 h-1.5 bg-tertiary rounded-full group-hover:scale-[2] transition-transform"></div>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
               {ascent.grade}{ascent.name ? ` · ${ascent.name}` : ''}{ascent.style ? ` · ${ascent.style}` : ''} · {formatDate(ascent.date)}
             </div>
           </div>
         {/each}
       {/each}
     </div>
-    <div class="flex justify-between gap-2 px-1">
-      {#each weeks as week}
-        <span class="flex-1 text-center text-caption text-content-subtle">{weekLabels[week.weekId] ?? week.weekId}</span>
+    <div class="flex justify-between gap-px h-3">
+      {#each weeks as week, i}
+        <span class="flex-1 text-center text-caption text-content-subtle/70 tabular-nums overflow-hidden">
+          {showsLabel(i, weeks.length, labelStep) ? (weekLabels[week.weekId] ?? week.weekId) : ''}
+        </span>
       {/each}
     </div>
   {:else}

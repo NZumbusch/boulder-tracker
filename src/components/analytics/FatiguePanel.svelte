@@ -70,18 +70,16 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
-  <div class="flex items-center justify-between px-1">
+<div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+  <div class="flex items-center justify-between">
     <div>
       <h3 class="text-section uppercase text-content-muted">Fatigue</h3>
-      <p class="text-caption text-content-subtle mt-0.5">Decayed load per axis, across the displayed weeks</p>
+      <p class="text-caption text-content-subtle mt-0.5">Decayed load per axis, across the window</p>
     </div>
-    <div class="p-2 bg-primary-hover/10 rounded-control text-primary">
-      <Icon icon="ic:baseline-bolt" class="text-lg" />
-    </div>
+    <Icon icon="ic:baseline-bolt" class="text-base text-content-subtle" />
   </div>
 
-  <div class="space-y-4">
+  <div class="space-y-3">
     {#each AXES as axis}
       {@const values = samples.map((s) => s[axis.key])}
       {@const points = toPoints(values)}
@@ -89,17 +87,20 @@
       {@const current = latestValue(values)}
       <div class="space-y-1">
         <div class="flex items-center justify-between">
-          <span class="text-label text-content-subtle">{axis.label}</span>
+          <span class="text-caption text-content-subtle">{axis.label}</span>
           <span class="text-caption text-content tabular-nums">{current !== undefined ? current.toFixed(1) : '—'}</span>
         </div>
-        <div class="h-8 relative">
+        <!-- One sparkline per axis on a shared fixed 0-10 scale, with a
+             hairline baseline so the four rows read as one small-multiple
+             set rather than four unrelated squiggles. -->
+        <div class="h-7 relative border-b border-border/60">
           <svg class="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             {#each segments as seg}
               <path
                 d="M {seg.map((p) => `${p.x} ${p.y}`).join(' L ')}"
                 fill="none"
                 stroke="var(--color-primary)"
-                stroke-width="2.5"
+                stroke-width="1.5"
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 vector-effect="non-scaling-stroke"
@@ -111,7 +112,7 @@
     {/each}
 
     {#if coverage.total > 0}
-      <p class="text-caption text-content-subtle pt-1">Arms: {coverage.arms} of {coverage.total} sessions in window</p>
+      <p class="text-caption text-content-subtle/70 pt-0.5">Arms rated on {coverage.arms} of {coverage.total} sessions in this window</p>
     {:else}
       <p class="text-caption text-content-subtle italic text-center py-2">No completed sessions in this window</p>
     {/if}

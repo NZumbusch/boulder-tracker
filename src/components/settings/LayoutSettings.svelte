@@ -80,6 +80,31 @@
   </div>
 
   <div class="space-y-2">
+    <p class="text-label text-content-subtle px-1">Chart density</p>
+    <p class="text-caption text-content-subtle px-1">How much room each week gets in the Analytics charts - which decides how many weeks your screen shows. All three fit the screen.</p>
+    <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+      <button
+        onclick={() => trainingState.setChartDensity('auto')}
+        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.chartDensity === 'auto' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+      >
+        Auto-fit
+      </button>
+      <button
+        onclick={() => trainingState.setChartDensity('compact')}
+        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.chartDensity === 'compact' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+      >
+        Compact
+      </button>
+      <button
+        onclick={() => trainingState.setChartDensity('comfortable')}
+        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.chartDensity === 'comfortable' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+      >
+        Comfortable
+      </button>
+    </div>
+  </div>
+
+  <div class="space-y-2">
     <p class="text-label text-content-subtle px-1">Home sections</p>
     <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide.</p>
     <div

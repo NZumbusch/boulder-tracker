@@ -12,7 +12,7 @@ import { UiStore } from './stores/uiStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, HomeSectionPreference, AISharingPreferences, PlanFormat } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, ChartDensity, HomeSectionPreference, AISharingPreferences, PlanFormat } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
@@ -143,6 +143,9 @@ class TrainingState {
 
   get fatigueChartStyle() { return this.preferencesStore.fatigueChartStyle; }
   setFatigueChartStyle(style: FatigueChartStyle) { this.preferencesStore.setFatigueChartStyle(style); }
+
+  get chartDensity() { return this.preferencesStore.chartDensity; }
+  setChartDensity(density: ChartDensity) { this.preferencesStore.setChartDensity(density); }
 
   get timerVibrateEnabled() { return this.preferencesStore.timerVibrateEnabled; }
   get timerBeepEnabled() { return this.preferencesStore.timerBeepEnabled; }

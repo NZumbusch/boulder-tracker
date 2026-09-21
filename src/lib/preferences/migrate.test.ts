@@ -24,6 +24,7 @@ describe('defaultPreferences', () => {
       homeLocation: null,
       tripLocation: null,
       fatigueChartStyle: 'bars',
+      chartDensity: 'auto',
       timerVibrateEnabled: true,
       timerBeepEnabled: true,
       timerKeepAwakeEnabled: false,
@@ -73,6 +74,7 @@ describe('migratePreferences', () => {
       homeLocation: { name: 'Munich, DE', latitude: 48.1374, longitude: 11.5755 },
       tripLocation: null,
       fatigueChartStyle: 'radar' as const,
+      chartDensity: 'compact' as const,
       timerVibrateEnabled: false,
       timerBeepEnabled: false,
       timerKeepAwakeEnabled: true,
@@ -81,6 +83,23 @@ describe('migratePreferences', () => {
       planFormat: 'weekly' as const,
     };
     expect(migratePreferences(valid)).toEqual(valid);
+  });
+
+  it('defaults chartDensity for a blob written before the setting existed, keeping every other field', () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      textScale: 'lg',
+      motion: 'reduced',
+      fatigueChartStyle: 'radar',
+    });
+    expect(result.chartDensity).toBe('auto');
+    expect(result.textScale).toBe('lg');
+    expect(result.fatigueChartStyle).toBe('radar');
+  });
+
+  it('rejects an unknown chartDensity rather than storing it', () => {
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, chartDensity: 'enormous' });
+    expect(result.chartDensity).toBe('auto');
   });
 
   it('drops unknown extra keys', () => {
@@ -122,6 +141,7 @@ describe('migratePreferences', () => {
     expect(result.dailyMetricsReminderEnabled).toBe(true);
     expect(result.dailyMetricsReminderTime).toBe('20:00');
     expect(result.fatigueChartStyle).toBe('bars');
+    expect(result.chartDensity).toBe('auto');
     expect(result.timerVibrateEnabled).toBe(true);
     expect(result.timerBeepEnabled).toBe(true);
     expect(result.timerKeepAwakeEnabled).toBe(false);
@@ -146,6 +166,7 @@ describe('migratePreferences', () => {
     expect(result.dailyMetricsReminderEnabled).toBe(true);
     expect(result.dailyMetricsReminderTime).toBe('20:00');
     expect(result.fatigueChartStyle).toBe('bars');
+    expect(result.chartDensity).toBe('auto');
     expect(result.timerVibrateEnabled).toBe(true);
     expect(result.timerBeepEnabled).toBe(true);
     expect(result.timerKeepAwakeEnabled).toBe(false);

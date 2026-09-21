@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type HomeSectionPreference, type AISharingPreferences, type PlanFormat } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat } from '../preferences/migrate';
 
 const PREFERENCES_KEY = 'boulder_tracker_preferences';
 const LEGACY_THEME_KEY = 'boulder_tracker_theme';
@@ -18,6 +18,7 @@ export class PreferencesStore {
   homeLocation = $state<WeatherLocation | null>(null);
   tripLocation = $state<WeatherLocation | null>(null);
   fatigueChartStyle = $state<FatigueChartStyle>('bars');
+  chartDensity = $state<ChartDensity>('auto');
   timerVibrateEnabled = $state(true);
   timerBeepEnabled = $state(true);
   timerKeepAwakeEnabled = $state(false);
@@ -49,6 +50,7 @@ export class PreferencesStore {
     this.homeLocation = prefs.homeLocation;
     this.tripLocation = prefs.tripLocation;
     this.fatigueChartStyle = prefs.fatigueChartStyle;
+    this.chartDensity = prefs.chartDensity;
     this.timerVibrateEnabled = prefs.timerVibrateEnabled;
     this.timerBeepEnabled = prefs.timerBeepEnabled;
     this.timerKeepAwakeEnabled = prefs.timerKeepAwakeEnabled;
@@ -96,6 +98,11 @@ export class PreferencesStore {
 
   setFatigueChartStyle(style: FatigueChartStyle) {
     this.fatigueChartStyle = style;
+    this.persist();
+  }
+
+  setChartDensity(density: ChartDensity) {
+    this.chartDensity = density;
     this.persist();
   }
 
@@ -155,6 +162,7 @@ export class PreferencesStore {
       homeLocation: this.homeLocation,
       tripLocation: this.tripLocation,
       fatigueChartStyle: this.fatigueChartStyle,
+      chartDensity: this.chartDensity,
       timerVibrateEnabled: this.timerVibrateEnabled,
       timerBeepEnabled: this.timerBeepEnabled,
       timerKeepAwakeEnabled: this.timerKeepAwakeEnabled,

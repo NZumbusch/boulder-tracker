@@ -17,6 +17,8 @@
  * overwrites those two fields - `UiStore` remains their sole writer.
  */
 
+import type { ChartDensity } from '../analytics/chartWindow';
+
 export const CURRENT_PREFERENCES_VERSION = 1;
 
 export type TextScale = 'sm' | 'md' | 'lg';
@@ -52,6 +54,15 @@ export interface Preferences {
   tripLocation: WeatherLocation | null;
   /** Bars is the default (UI_PLAN.md §2/§3.3) - radar is the user-requested alternate, both real. */
   fatigueChartStyle: FatigueChartStyle;
+  /**
+   * How much horizontal room each week gets in the Analytics charts, which
+   * is what decides how many weeks a given screen shows (see
+   * `src/lib/analytics/chartWindow.ts`). "auto" sizes a week so its axis
+   * label fits; "compact" packs in more history and thins the axis;
+   * "comfortable" shows fewer, wider weeks. Every option fits the screen -
+   * this is density, not overflow.
+   */
+  chartDensity: ChartDensity;
   /**
    * Timer behaviour toggles (UI_PLAN.md §5.7) - defaults match §4.7's own
    * mockup (vibrate/beep on, keep-awake off). Independently togglable, not
@@ -133,6 +144,9 @@ export interface HomeSectionPreference {
 
 export type FatigueChartStyle = 'bars' | 'radar';
 
+/** Re-exported from the analytics helper that owns the per-density widths, so there is one definition of the set. */
+export type { ChartDensity } from '../analytics/chartWindow';
+
 export const DEFAULT_DAILY_METRICS_REMINDER_TIME = '20:00';
 
 /** A resolved lat/lon plus a display label - either geocoded from a city name or entered directly (UI_PLAN.md §10 open question 3: raw lat/lon must work with no geocoding call). */
@@ -155,6 +169,7 @@ export function defaultPreferences(): Preferences {
     homeLocation: null,
     tripLocation: null,
     fatigueChartStyle: 'bars',
+    chartDensity: 'auto',
     timerVibrateEnabled: true,
     timerBeepEnabled: true,
     timerKeepAwakeEnabled: false,
@@ -174,6 +189,7 @@ const TEXT_SCALES: TextScale[] = ['sm', 'md', 'lg'];
 const MOTION_PREFS: MotionPreference[] = ['system', 'full', 'reduced'];
 const THEMES: ThemePreference[] = ['dark', 'light', 'contrast'];
 const FATIGUE_CHART_STYLES: FatigueChartStyle[] = ['bars', 'radar'];
+const CHART_DENSITIES: ChartDensity[] = ['auto', 'compact', 'comfortable'];
 
 /** Validates an unknown value as a `WeatherLocation`, or `null` if it isn't one - never throws, mirrors every other field's independent-defaulting discipline. */
 function validateLocation(raw: unknown): WeatherLocation | null {
@@ -287,6 +303,9 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     fatigueChartStyle: FATIGUE_CHART_STYLES.includes(candidate.fatigueChartStyle as FatigueChartStyle)
       ? (candidate.fatigueChartStyle as FatigueChartStyle)
       : defaults.fatigueChartStyle,
+    chartDensity: CHART_DENSITIES.includes(candidate.chartDensity as ChartDensity)
+      ? (candidate.chartDensity as ChartDensity)
+      : defaults.chartDensity,
     timerVibrateEnabled: typeof candidate.timerVibrateEnabled === 'boolean'
       ? candidate.timerVibrateEnabled
       : defaults.timerVibrateEnabled,

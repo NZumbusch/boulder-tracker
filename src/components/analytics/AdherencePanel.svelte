@@ -9,23 +9,21 @@
   let { results, weekLabels }: { results: WeeklyAdherence[]; weekLabels: Record<string, string> } = $props();
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
-  <div class="flex items-center justify-between px-1">
+<div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+  <div class="flex items-center justify-between">
     <div>
       <h3 class="text-section uppercase text-content-muted">Plan Adherence</h3>
       <p class="text-caption text-content-subtle mt-0.5">Logged vs prescribed, per week</p>
     </div>
-    <div class="p-2 bg-primary-hover/10 rounded-control text-primary">
-      <Icon icon="ic:baseline-fact-check" class="text-lg" />
-    </div>
+    <Icon icon="ic:baseline-fact-check" class="text-base text-content-subtle" />
   </div>
 
-  <div class="space-y-2">
+  <div class="space-y-1.5">
     {#each results as r}
-      <div class="flex items-center gap-3 p-2.5 bg-surface-elevated/40 rounded-control border border-border-strong/40">
-        <span class="text-caption text-content-subtle w-14 flex-shrink-0">{weekLabels[r.weekId] ?? r.weekId}</span>
-        <div class="flex-1 h-2 bg-surface-elevated rounded-full overflow-hidden">
-          <div class="h-full bg-gradient-to-r from-success-hover to-success rounded-full transition-all duration-500" style="width: {Math.round(r.completionRate * 100)}%"></div>
+      <div class="flex items-center gap-2.5 py-1">
+        <span class="text-caption text-content-subtle/70 w-10 flex-shrink-0 tabular-nums">{weekLabels[r.weekId] ?? r.weekId}</span>
+        <div class="flex-1 h-1 bg-surface-elevated rounded-full overflow-hidden">
+          <div class="h-full bg-success rounded-full transition-[width] duration-500" style="width: {Math.round(r.completionRate * 100)}%"></div>
         </div>
         <span class="text-caption text-content w-9 text-right flex-shrink-0 tabular-nums">{Math.round(r.completionRate * 100)}%</span>
         <span class="text-caption w-16 text-right flex-shrink-0 tabular-nums {r.loadVariance < 0 ? 'text-danger' : 'text-content-subtle'}">{r.loadVariance >= 0 ? '+' : ''}{Math.round(r.loadVariance)}</span>
