@@ -186,69 +186,77 @@
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
   {#if !workout}
-    <div class="space-y-5">
+    <div class="space-y-4">
       <div class="flex items-center justify-between px-1">
         <h2 class="text-title text-content">Start Session</h2>
-        <div class="h-1 w-10 bg-primary-hover rounded-full"></div>
+        <div class="h-1 w-8 bg-primary-hover rounded-full"></div>
       </div>
 
-      <div class="grid gap-3.5">
+      <!-- Two compact tiles side by side rather than two full-width slabs:
+           at phone width a 100%-wide button for "New Session" was mostly
+           empty space, and the pair reads as one row of choices now. They
+           stay side by side at every width the app renders at (the page is
+           capped at max-w-lg), so no breakpoint switch is needed. -->
+      <div class="grid grid-cols-2 gap-2.5">
         <button
           onclick={handleStartNew}
-          class="p-5 bg-primary hover:bg-primary-hover text-white rounded-card shadow-xl shadow-primary/20 transition-all active:scale-[0.98] text-left group"
+          class="p-3.5 bg-primary hover:bg-primary-hover text-white rounded-card transition-all active:scale-[0.98] text-left flex flex-col gap-2"
         >
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="text-body font-bold">New Session</p>
-              <p class="text-caption text-white/80 mt-0.5">Start fresh from scratch</p>
-            </div>
-            <Icon icon="ic:baseline-plus" class="text-xl group-hover:translate-x-1 transition-transform" />
-          </div>
+          <Icon icon="ic:baseline-plus" class="text-lg" />
+          <span class="min-w-0">
+            <span class="text-label font-bold block truncate">New Session</span>
+            <span class="text-caption text-white/75 block truncate">From scratch</span>
+          </span>
         </button>
 
         <button
           onclick={handleAddBenchmark}
-          class="p-5 bg-success hover:bg-success-hover text-white rounded-card shadow-xl shadow-success/20 transition-all active:scale-[0.98] text-left group"
+          class="p-3.5 bg-success hover:bg-success-hover text-white rounded-card transition-all active:scale-[0.98] text-left flex flex-col gap-2"
         >
-          <div class="flex justify-between items-center">
-            <div>
-              <p class="text-body font-bold">Log Benchmark</p>
-              <p class="text-caption text-white/80 mt-0.5">Record a test result</p>
-            </div>
-            <Icon icon="ic:baseline-insights" class="text-xl group-hover:translate-x-1 transition-transform" />
-          </div>
+          <Icon icon="ic:baseline-insights" class="text-lg" />
+          <span class="min-w-0">
+            <span class="text-label font-bold block truncate">Log Benchmark</span>
+            <span class="text-caption text-white/75 block truncate">Record a test</span>
+          </span>
         </button>
-
-        {#if isAddingBenchmark}
-          <div class="pt-2">
-            <BenchmarkForm
-              weekId={trainingState.currentWeekId}
-              onSave={() => isAddingBenchmark = false}
-              onCancel={() => isAddingBenchmark = false}
-            />
-          </div>
-        {/if}
-
-        {#if plannedWorkouts.length > 0}
-          <div class="pt-2 space-y-2.5">
-            <h3 class="text-section uppercase text-content-subtle ml-3">Planned for this week</h3>
-            {#each plannedWorkouts as p}
-              <button
-                onclick={() => handleSelectPlanned(p)}
-                class="w-full p-5 bg-surface/50 border border-border hover:bg-surface-elevated rounded-card text-left transition-all group"
-              >
-                <div class="flex justify-between items-center">
-                  <div class="min-w-0 flex-1">
-                    <p class="text-body font-bold text-content truncate">{p.notes}</p>
-                    <p class="text-caption text-content-subtle mt-0.5">{p.exercises.length} Exercises</p>
-                  </div>
-                  <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle group-hover:text-primary transition-colors ml-4" />
-                </div>
-              </button>
-            {/each}
-          </div>
-        {/if}
       </div>
+
+      {#if isAddingBenchmark}
+        <BenchmarkForm
+          weekId={trainingState.currentWeekId}
+          onSave={() => isAddingBenchmark = false}
+          onCancel={() => isAddingBenchmark = false}
+        />
+      {/if}
+
+      {#if plannedWorkouts.length > 0}
+        <div class="space-y-2">
+          <h3 class="text-section uppercase text-content-subtle px-1">Planned for this week</h3>
+          <!-- Ordered by day, then start time - see sortWorkoutsBySchedule,
+               which WorkoutStore.getPlannedWorkoutsForWeek applies. -->
+          {#each plannedWorkouts as p}
+            <button
+              onclick={() => handleSelectPlanned(p)}
+              class="w-full px-3 py-2.5 bg-surface/50 border border-border hover:bg-surface-elevated hover:border-border-strong rounded-control text-left transition-all group flex items-center gap-2.5"
+            >
+              <span class="w-9 shrink-0 text-center text-caption font-bold text-primary-hover bg-primary-hover/10 py-1 rounded-control leading-none">
+                {p.dayOfWeek ? p.dayOfWeek.slice(0, 3) : '—'}
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="text-label font-bold text-content block truncate">{p.notes}</span>
+                <span class="text-caption text-content-subtle block truncate">
+                  {[
+                    p.startTime,
+                    p.plannedDuration ? `${p.plannedDuration} min` : null,
+                    `${p.exercises.length} ${p.exercises.length === 1 ? 'exercise' : 'exercises'}`,
+                  ].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+              <Icon icon="ic:baseline-chevron-right" class="text-base text-content-subtle group-hover:text-primary transition-colors shrink-0" />
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
 
   {:else if isAddingExercise}
@@ -441,23 +449,25 @@
         </section>
       </div>
 
-      <div class="grid grid-cols-1 gap-3 pt-4">
-        <button
-          onclick={handleComplete}
-          disabled={workout.exercises.length === 0}
-          class="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold py-4 rounded-control shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
-        >
-          {workout.status === 'completed' ? 'Save Changes' : 'Finish & Rate Session'}
-        </button>
-
+      <!-- The secondary action sits beside the primary one rather than
+           under it: two stacked full-width slabs made the commit step the
+           visually heaviest thing on the screen. -->
+      <div class="flex gap-2 pt-3">
         {#if workout.status === 'planned'}
           <button
             onclick={handleSaveToPlan}
-            class="w-full bg-surface-elevated/50 hover:bg-surface-elevated text-content-muted hover:text-content text-sm font-bold py-3.5 rounded-control border border-border-strong/50 transition-all"
+            class="shrink-0 px-4 bg-surface-elevated/50 hover:bg-surface-elevated text-content-muted hover:text-content text-label font-bold py-3 rounded-control border border-border-strong/50 transition-all active:scale-[0.98]"
           >
             Update Plan
           </button>
         {/if}
+        <button
+          onclick={handleComplete}
+          disabled={workout.exercises.length === 0}
+          class="flex-1 min-w-0 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold py-3 rounded-control transition-all active:scale-[0.98]"
+        >
+          {workout.status === 'completed' ? 'Save Changes' : 'Finish & Rate'}
+        </button>
       </div>
     </div>
 
