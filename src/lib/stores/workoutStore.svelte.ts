@@ -1,6 +1,7 @@
 import { storage } from '../storage';
 import { calculatePlannedLoad, type Workout } from '../types';
 import { generateId } from '../utils';
+import { sortWorkoutsBySchedule } from '../planning/sortWorkouts';
 
 /**
  * Workout CRUD and the load calc calls that go with it.
@@ -34,8 +35,17 @@ export class WorkoutStore {
     return this.workouts.filter(w => w.status === 'completed');
   }
 
+  /**
+   * A week's still-planned sessions in schedule order (day, then start
+   * time) rather than storage order - this feeds the "+" screen's
+   * "Planned for this week" list, which read as arbitrarily ordered
+   * because storage returns insertion order. Shares one comparator with
+   * the Training Plan week view so the two can't disagree.
+   */
   getPlannedWorkoutsForWeek(weekId: string) {
-    return this.workouts.filter(w => w.weekId === weekId && w.status === 'planned');
+    return sortWorkoutsBySchedule(
+      this.workouts.filter(w => w.weekId === weekId && w.status === 'planned'),
+    );
   }
 
   /**

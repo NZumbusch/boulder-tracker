@@ -3,6 +3,7 @@
   import { getWeekId, getWeekDateRange } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
   import { getBlocksForWeek, getDominantBlockForWeek } from '../../lib/planning/trainingBlocks';
+  import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
   import type { Workout, Benchmark, DayOfWeek } from '../../lib/types';
   import { dragHandleZone, dragHandle, type DndEvent } from 'svelte-dnd-action';
   import Icon from "@iconify/svelte";
@@ -103,22 +104,14 @@
   // --- Helpers ---
   const selectedWeekData = $derived(weeks.find(w => w.id === trainingState.selectedWeekId));
   
-  const dayOrder: Record<string, number> = {
-    'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6
-  };
-
-  const weekWorkouts = $derived.by(() => {
-    const workouts = trainingState.workouts.filter((w: Workout) => w.weekId === trainingState.selectedWeekId);
-    return [...workouts].sort((a, b) => {
-      const orderA = a.dayOfWeek ? dayOrder[a.dayOfWeek] : 99;
-      const orderB = b.dayOfWeek ? dayOrder[b.dayOfWeek] : 99;
-      if (orderA !== orderB) return orderA - orderB;
-      const timeA = a.startTime || "24:00";
-      const timeB = b.startTime || "24:00";
-      if (timeA !== timeB) return timeA.localeCompare(timeB);
-      return a.id.localeCompare(b.id);
-    });
-  });
+  // Ordering lives in `sortWorkoutsBySchedule` (day, then start time, then
+  // id) so this view and the "+" screen's planned list share exactly one
+  // comparator rather than two copies that can drift.
+  const weekWorkouts = $derived(
+    sortWorkoutsBySchedule(
+      trainingState.workouts.filter((w: Workout) => w.weekId === trainingState.selectedWeekId),
+    ),
+  );
 
   const weekBenchmarks = $derived(trainingState.benchmarks.filter((b: Benchmark) => b.weekId === trainingState.selectedWeekId));
 
