@@ -9,16 +9,27 @@
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
   import type { TrainingBlock } from '../../lib/types';
+  import { sortBlocks, upcomingWindow } from '../../lib/planning/blockPaging';
+  import BlockBrowser from './BlockBrowser.svelte';
   import Icon from "@iconify/svelte";
 
   let { onClose } = $props<{ onClose: () => void }>();
 
-  const blocks = $derived(
-    [...trainingState.trainingBlocks].sort((a, b) => a.startWeekId.localeCompare(b.startWeekId)),
-  );
+  /**
+   * The panel lists the current block and what's next, capped - a long
+   * plan's full history scrolled for screens here and buried the blocks
+   * that actually matter. Everything else is one tap away in
+   * `BlockBrowser`, which pages the whole timeline from today outwards.
+   */
+  const VISIBLE_LIMIT = 10;
+
+  const blocks = $derived(sortBlocks(trainingState.trainingBlocks));
+  const visibleBlocks = $derived(upcomingWindow(blocks, trainingState.currentWeekId, VISIBLE_LIMIT));
+  const hiddenCount = $derived(blocks.length - visibleBlocks.length);
   const phaseDefs = $derived([...trainingState.phaseDefs].filter((p) => !p.archived));
 
   let editingBlock = $state<TrainingBlock | null>(null);
+  let showBrowser = $state(false);
 
   function phaseName(phaseId: string): string {
     return trainingState.phaseDefs.find((p) => p.id === phaseId)?.name ?? 'Unknown Phase';
@@ -53,6 +64,12 @@
   async function handleDelete(id: string) {
     await trainingState.deleteTrainingBlock(id);
   }
+
+  /** Editing from the full browser reuses this panel's one editor form rather than duplicating it there. */
+  function handleEditFromBrowser(block: TrainingBlock) {
+    showBrowser = false;
+    startEdit(block);
+  }
 </script>
 
 <div class="fixed inset-0 bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
@@ -60,7 +77,9 @@
     <div class="flex items-center justify-between">
       <div>
         <h3 class="text-title text-content">Training Blocks</h3>
-        <p class="text-caption text-content-subtle mt-0.5">Concurrent, multi-week emphases</p>
+        <p class="text-caption text-content-subtle mt-0.5">
+          {hiddenCount > 0 ? 'Current and upcoming emphases' : 'Concurrent, multi-week emphases'}
+        </p>
       </div>
       <button onclick={onClose} class="text-content-subtle hover:text-content transition-colors">
         <Icon icon="ic:baseline-close" class="text-xl" />
@@ -106,7 +125,7 @@
       </button>
 
       <div class="space-y-2">
-        {#each blocks as block}
+        {#each visibleBlocks as block}
           <div class="flex items-center justify-between p-3.5 bg-surface-elevated/50 rounded-control border border-border-strong/50">
             <div class="flex items-center gap-2.5 flex-1 min-w-0">
               <div class="w-2.5 h-2.5 rounded-control flex-shrink-0 {block.color || phaseDefs.find(p => p.id === block.phaseId)?.color || 'bg-status-neutral'}"></div>
@@ -123,7 +142,34 @@
         {:else}
           <div class="p-4 bg-surface-elevated/20 rounded-control border border-dashed border-border text-center"><p class="text-caption text-content-subtle italic">No training blocks yet</p></div>
         {/each}
+
+        {#if hiddenCount > 0}
+          <button
+            onclick={() => showBrowser = true}
+            class="w-full pt-1 text-caption text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1"
+          >
+            Show all {blocks.length} blocks
+            <span class="opacity-70">({hiddenCount} more)</span>
+            <Icon icon="ic:baseline-expand-more" class="text-sm" />
+          </button>
+        {:else if blocks.length > 0}
+          <button
+            onclick={() => showBrowser = true}
+            class="w-full pt-1 text-caption text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1"
+          >
+            Browse full timeline
+            <Icon icon="ic:baseline-expand-more" class="text-sm" />
+          </button>
+        {/if}
       </div>
     {/if}
   </div>
 </div>
+
+{#if showBrowser}
+  <BlockBrowser
+    onClose={() => showBrowser = false}
+    onEdit={handleEditFromBrowser}
+    onDelete={handleDelete}
+  />
+{/if}
