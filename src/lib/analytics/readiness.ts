@@ -122,6 +122,12 @@ export interface ReadinessResult {
   inputsUsed: { fatigue: boolean; acwr: boolean; sleep: boolean; hrv: boolean };
   /** Names which inputs actually fed the score, e.g. "Fatigue only - no HRV baseline yet" (UI_PLAN.md §4.2 hero spec / §5.2). */
   confidence: string;
+  /**
+   * Points each input took off `READINESS_BASE_SCORE`, before clamping -
+   * the breakdown Home shows when the ring is tapped. 0 for an input that
+   * was missing or cost nothing.
+   */
+  penalties: { fatigue: number; acwr: number; sleep: number; hrv: number };
 }
 
 // Tunable weights/thresholds - named rules of thumb documented at their
@@ -273,6 +279,7 @@ export function computeReadiness(inputs: ReadinessInputs): ReadinessResult {
       : 0;
 
   const inputsUsed = { fatigue: fatigueUsed, acwr: acwrUsed, sleep: sleepUsed, hrv: hrvUsed };
+  const penalties = { fatigue: fatiguePenalty, acwr: acwrPenalty, sleep: sleepPenalty, hrv: hrvPenalty };
   const anyInputUsed = fatigueUsed || acwrUsed || sleepUsed || hrvUsed;
 
   if (!anyInputUsed) {
@@ -282,6 +289,7 @@ export function computeReadiness(inputs: ReadinessInputs): ReadinessResult {
       advice: "No data yet - log a session or today's metrics to see your readiness.",
       inputsUsed,
       confidence: "No inputs available yet.",
+      penalties,
     };
   }
 
@@ -293,5 +301,6 @@ export function computeReadiness(inputs: ReadinessInputs): ReadinessResult {
     advice: buildAdvice({ fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, hrvUsed, hrvDipPct }),
     inputsUsed,
     confidence: buildConfidence(inputsUsed, acwr),
+    penalties,
   };
 }

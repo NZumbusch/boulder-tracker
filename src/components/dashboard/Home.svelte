@@ -4,7 +4,7 @@
   import { formatDate, getWeekIdRange, toUtcDayIndex } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
   import { DEFAULT_METRIC_DEFS } from '../../lib/constants';
-  import { computeFatigueDecay, computeHrvBaseline, computeReadiness, type ReadinessStatus } from '../../lib/analytics/readiness';
+  import { computeFatigueDecay, computeHrvBaseline, computeReadiness, MAX_FATIGUE_PENALTY, MAX_ACWR_PENALTY, MAX_SLEEP_PENALTY, MAX_HRV_PENALTY, type ReadinessStatus } from '../../lib/analytics/readiness';
   import { calculateRollingAcwr } from '../../lib/analytics/loadAnalytics';
   import { calculateWeeklyAdherence } from '../../lib/analytics/loadAnalytics';
   import { isLoggedMetricValue, loggedMetrics } from '../../lib/analytics/metricValues';
@@ -85,6 +85,12 @@
     risk: 'text-status-risk',
     neutral: 'text-status-neutral',
   };
+  const STATUS_BAR: Record<ReadinessStatus, string> = {
+    good: 'bg-status-good',
+    caution: 'bg-status-caution',
+    risk: 'bg-status-risk',
+    neutral: 'bg-status-neutral',
+  };
   // Bold hero treatment (user-directed, 2026-09-18 - see PROGRESS.md
   // "Home card redesign") - a status-tinted gradient + border, translated
   // through this app's existing status tokens rather than the stash's
@@ -114,6 +120,15 @@
     risk: 'ic:baseline-warning-amber',
     neutral: 'ic:baseline-help-outline',
   };
+  // Tap-to-open breakdown: one row per input, its bar scaled to that
+  // input's own maximum so "half of what sleep can cost" reads as half.
+  let showBreakdown = $state(false);
+  const BREAKDOWN_ROWS = $derived([
+    { label: 'Fatigue', penalty: readiness.penalties.fatigue, max: MAX_FATIGUE_PENALTY, used: readiness.inputsUsed.fatigue },
+    { label: 'Load', penalty: readiness.penalties.acwr, max: MAX_ACWR_PENALTY, used: readiness.inputsUsed.acwr },
+    { label: 'Sleep', penalty: readiness.penalties.sleep, max: MAX_SLEEP_PENALTY, used: readiness.inputsUsed.sleep },
+    { label: 'HRV', penalty: readiness.penalties.hrv, max: MAX_HRV_PENALTY, used: readiness.inputsUsed.hrv },
+  ]);
   const RING_RADIUS = 44;
   const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
   const ringOffset = $derived(RING_CIRCUMFERENCE * (1 - (readiness.score ?? 0) / 100));
@@ -216,11 +231,19 @@
        above is not part of this list - it's always shown, always first. -->
 
   {#snippet readinessSection()}
+    {@const canBreakDown = trainingState.homeDetails['readiness.breakdown'] && readiness.score !== undefined}
     <div
-      class="relative overflow-hidden rounded-card border p-5 flex items-center gap-5 transition-colors {STATUS_HERO_BG[readiness.status]}"
+      class="relative overflow-hidden rounded-card border p-5 transition-colors {STATUS_HERO_BG[readiness.status]}"
       style="box-shadow: 0 14px 40px -18px color-mix(in srgb, {STATUS_VAR[readiness.status]} 45%, transparent), var(--shadow-card);"
     >
-      <div class="relative w-28 h-28 shrink-0">
+     <div class="flex items-center gap-5">
+      <button
+        class="relative w-28 h-28 shrink-0 rounded-full {canBreakDown ? 'cursor-pointer' : 'cursor-default'}"
+        onclick={() => { if (canBreakDown) showBreakdown = !showBreakdown; }}
+        disabled={!canBreakDown}
+        aria-expanded={canBreakDown ? showBreakdown : undefined}
+        aria-label={canBreakDown ? (showBreakdown ? 'Hide score breakdown' : 'Show score breakdown') : `Readiness ${readiness.score !== undefined ? Math.round(readiness.score) : 'unavailable'}`}
+      >
         <svg viewBox="0 0 100 100" class="w-28 h-28 -rotate-90">
           <circle cx="50" cy="50" r={RING_RADIUS} fill="none" stroke="var(--theme-border)" stroke-width="7" />
           {#if readiness.score !== undefined}
@@ -240,17 +263,34 @@
         <div class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-surface border-2 border-app-bg shadow-card flex items-center justify-center {STATUS_COLOR[readiness.status]}">
           <Icon icon={STATUS_ICON[readiness.status]} class="text-base" />
         </div>
-      </div>
+      </button>
       <div class="min-w-0 space-y-1.5">
         <span class="text-section uppercase {STATUS_COLOR[readiness.status]}">{readiness.status}</span>
         <p class="text-body text-content leading-snug">{readiness.advice}</p>
-        {#if trainingState.homeDetails['readiness.confidence']}
+        {#if trainingState.homeDetails['readiness.confidence'] && !(canBreakDown && showBreakdown)}
           <p class="text-caption text-content-subtle flex items-start gap-1">
             <Icon icon="ic:baseline-insights" class="text-content-subtle text-sm mt-0.5 shrink-0" />
             <span>{readiness.confidence}</span>
           </p>
         {/if}
       </div>
+     </div>
+      {#if canBreakDown && showBreakdown}
+        <div class="mt-4 pt-3 border-t border-border/60 space-y-2">
+          {#each BREAKDOWN_ROWS as row}
+            <div class="flex items-center gap-3">
+              <span class="w-14 text-label text-content-subtle shrink-0">{row.label}</span>
+              <div class="flex-1 h-1.5 bg-surface-elevated rounded-control overflow-hidden border border-border-strong/30">
+                <div class="h-full rounded-control {STATUS_BAR[readiness.status]}" style="width: {Math.min(100, (row.penalty / row.max) * 100)}%"></div>
+              </div>
+              <span class="w-12 text-right text-label tabular-nums shrink-0 {row.used ? 'text-content' : 'text-content-subtle'}">
+                {row.used ? (Math.round(row.penalty) > 0 ? `−${Math.round(row.penalty)}` : '0') : 'no data'}
+              </span>
+            </div>
+          {/each}
+          <p class="text-caption text-content-subtle">Points taken off 100. {readiness.confidence}</p>
+        </div>
+      {/if}
     </div>
   {/snippet}
 

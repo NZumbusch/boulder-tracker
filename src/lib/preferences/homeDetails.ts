@@ -26,6 +26,7 @@ export interface HomeDetailDef {
 export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
   readiness: [
     { id: 'readiness.confidence', label: 'Inputs used', hint: 'Which of fatigue, load, sleep and HRV fed the score', defaultOn: true },
+    { id: 'readiness.breakdown', label: 'Score breakdown', hint: 'Tap the ring to see what each input took off', defaultOn: true },
   ],
   today: [],
   metrics: [

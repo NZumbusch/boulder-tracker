@@ -276,3 +276,28 @@ describe("computeReadiness", () => {
     expect(r.advice.length).toBeGreaterThan(0);
   });
 });
+
+describe("computeReadiness penalties (the breakdown behind the score)", () => {
+  const acwr = (ratio: number): RollingAcwrResult => ({ acuteLoad: 0, chronicLoad: 0, ratio, daysCovered: 28, sufficient: true });
+
+  it("reports what each input took off, and they add up to 100 - score", () => {
+    const r = computeReadiness({
+      fatigue: { fingers: 7, core: 3, systemic: 6 },
+      acwr: acwr(1.25),
+      sleep: 45,
+      hrv: 45,
+      hrvBaseline: 60,
+    });
+    const { fatigue, acwr: load, sleep, hrv } = r.penalties;
+    expect(fatigue).toBeGreaterThan(0);
+    expect(load).toBeGreaterThan(0);
+    expect(sleep).toBeGreaterThan(0);
+    expect(hrv).toBeGreaterThan(0);
+    expect(100 - (fatigue + load + sleep + hrv)).toBeCloseTo(r.score!, 10);
+  });
+
+  it("is zero for inputs that were missing or cost nothing", () => {
+    const r = computeReadiness({ fatigue: {}, acwr: acwr(0.9), sleep: 85 });
+    expect(r.penalties).toEqual({ fatigue: 0, acwr: 0, sleep: 0, hrv: 0 });
+  });
+});
