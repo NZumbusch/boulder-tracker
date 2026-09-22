@@ -150,7 +150,7 @@
   }
 </script>
 
-<div class="w-full max-w-lg space-y-5 animate-in fade-in duration-700 pb-12">
+<div class="w-full max-w-lg space-y-5 animate-in fade-in duration-200 pb-12">
   <div class="flex items-center justify-between px-1">
     <div class="flex items-center gap-3">
       <h3 class="text-title text-content">Timeline</h3>

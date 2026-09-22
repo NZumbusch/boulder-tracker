@@ -65,7 +65,7 @@
   }
 </script>
 
-<div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+<div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <div class="flex items-center justify-between px-1">
     <div class="flex items-center gap-4">
       {#if currentTab === 'overview'}

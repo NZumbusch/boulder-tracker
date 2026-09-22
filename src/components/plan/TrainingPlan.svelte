@@ -243,7 +243,7 @@
   }
 </script>
 
-<div class="w-full max-w-lg space-y-4 animate-in fade-in duration-700 pb-12">
+<div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-12">
   <div class="flex flex-col gap-4">
     <div class="flex flex-wrap items-center justify-between gap-y-2 px-1">
       <h2 class="text-title text-content">Training Plan</h2>

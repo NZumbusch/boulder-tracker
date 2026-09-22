@@ -1,4 +1,19 @@
 @import "tailwindcss";
+/* Enter/exit animation utilities (`animate-in`, `fade-in`, `slide-in-from-*`,
+   `zoom-in-*`). The app has used these class names throughout since the
+   first UI stage, but nothing ever provided them, so every one of them was
+   inert - modals appeared instantly, dropdowns popped.
+
+   `tw-animate-css` rather than `tailwindcss-animate`: the latter is the
+   v3-era JS plugin these class names were written for, is unmaintained, and
+   needs v4's legacy `@plugin` path. This is the v4-native CSS-only
+   successor with the same API. Costs ~450 bytes gzipped.
+
+   Durations come from `--tw-duration`, which is what Tailwind's own
+   `duration-*` utilities set - so `duration-200` shortens the animation and
+   the transition together, and the reduced-motion rule further down
+   overrides both. */
+@import "tw-animate-css";
 
 @theme {
   --color-app-bg: var(--theme-app-bg);

@@ -203,7 +203,7 @@
   }
 </script>
 
-<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-12">
   {#if !workout}
     <div class="space-y-4">
       <div class="flex items-center justify-between px-1">

@@ -498,7 +498,7 @@
   });
 </script>
 
-<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <div class="flex flex-col gap-2.5">
     <div class="flex items-center justify-between px-1">
       <h2 class="text-title text-content">Analytics</h2>
