@@ -212,16 +212,10 @@ export function buildTrainingBlockContext(
 export interface CompetitionSummary {
   name: string;
   date: string;
-  priority: CompetitionEvent["priority"];
   daysAway: number;
 }
 
-/**
- * Upcoming events (date >= `asOf`'s calendar day), soonest first, capped at
- * `limit` - except an A-priority event that would otherwise fall outside the
- * cap is kept anyway ("A-priority especially - a coaching prompt should know
- * what the athlete is peaking for", UI_PLAN.md §5.8 item 1).
- */
+/** Upcoming events (date >= `asOf`'s calendar day), soonest first, capped at `limit`. */
 export function buildCompetitionContext(
   events: CompetitionEvent[],
   asOf: Date,
@@ -230,12 +224,9 @@ export function buildCompetitionContext(
   const asOfDay = toUtcDayIndex(asOf.toISOString());
   const upcoming = events
     .filter((e) => toUtcDayIndex(e.date) >= asOfDay)
-    .map((e) => ({ name: e.name, date: e.date, priority: e.priority, daysAway: toUtcDayIndex(e.date) - asOfDay }))
+    .map((e) => ({ name: e.name, date: e.date, daysAway: toUtcDayIndex(e.date) - asOfDay }))
     .sort((a, b) => a.daysAway - b.daysAway);
-  if (upcoming.length <= limit) return upcoming;
-  const kept = upcoming.slice(0, limit);
-  const droppedAPriority = upcoming.slice(limit).filter((e) => e.priority === "A");
-  return [...kept, ...droppedAPriority].sort((a, b) => a.daysAway - b.daysAway);
+  return upcoming.slice(0, limit);
 }
 
 // --- Readiness / daily metrics --------------------------------------------

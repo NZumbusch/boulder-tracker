@@ -352,7 +352,6 @@ export interface CompetitionEvent {
   name: string;
   /** ISO date string */
   date: string;
-  priority: "A" | "B" | "C";
 }
 
 /**

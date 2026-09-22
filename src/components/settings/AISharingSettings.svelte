@@ -19,7 +19,7 @@
 
   const CATEGORIES: { id: keyof AISharingPreferences; label: string; description: string }[] = [
     { id: 'trainingBlocks', label: 'Training Blocks', description: 'Active/upcoming phase blocks covering or near the prompt\'s target weeks.' },
-    { id: 'competitions', label: 'Competitions', description: 'Upcoming events and their priority - what you\'re peaking for.' },
+    { id: 'competitions', label: 'Competitions', description: 'Upcoming events - what you\'re peaking for.' },
     { id: 'readinessMetrics', label: 'Readiness & Daily Metrics', description: 'Current readiness score plus sleep/HRV/RHR/bodyweight trends. Health data - off by default.' },
     { id: 'painLogs', label: 'Pain Logs', description: 'Recent pain/discomfort entries. Health data - off by default.' },
     { id: 'outdoorAscents', label: 'Outdoor Ascents', description: 'Recent outdoor grade history.' },

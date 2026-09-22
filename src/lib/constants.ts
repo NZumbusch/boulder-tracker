@@ -4,7 +4,7 @@ import defaults from "../data/defaults.json";
 /**
  * Current data model version for exports and migrations.
  */
-export const DATA_EXPORT_VERSION = "3.26";
+export const DATA_EXPORT_VERSION = "3.27";
 
 /**
  * Well-known `MetricDef.id` for bodyweight (Phase 6) - fixed/stable, same

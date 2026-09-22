@@ -14,6 +14,7 @@ import { calculateWorkoutAdherence } from "./analytics/loadAnalytics";
 import { computeFatigueReminderTime } from "./notifications/fatigueReminder";
 import { generateICS } from "./ics";
 import { runDataMigrations, assertMigrationInvariants } from "./storage/migrations";
+import { DATA_EXPORT_VERSION } from "./constants";
 import {
   specFromExercise,
   buildTimeline,
@@ -61,8 +62,10 @@ suite("a real export", () => {
     expect(slots.length).toBeGreaterThan(0);
   });
 
-  it("is already at the current schema version, so no migration runs", () => {
-    expect(data.exportVersion).toBe("3.26");
+  it("lands on the current schema version after migration", () => {
+    const migrated = JSON.parse(JSON.stringify(data));
+    runDataMigrations(migrated);
+    expect(migrated.exportVersion).toBe(DATA_EXPORT_VERSION);
   });
 
   it("survives the migration chain and its invariant check", () => {

@@ -167,7 +167,7 @@
   // --- Next competition countdown ---
   const nextCompetition = $derived.by(() => {
     const upcoming = trainingState.competitionEvents
-      .filter((e) => e.priority === 'A' && e.date >= todayIso)
+      .filter((e) => e.date >= todayIso)
       .sort((a, b) => a.date.localeCompare(b.date));
     return upcoming[0];
   });
@@ -414,7 +414,7 @@
           </div>
         </div>
       {:else}
-        <p class="text-caption text-content-subtle italic">No upcoming A-priority event.</p>
+        <p class="text-caption text-content-subtle italic">No upcoming event.</p>
       {/if}
     </div>
   {/snippet}

@@ -155,25 +155,24 @@ describe("buildTrainingBlockContext", () => {
 describe("buildCompetitionContext", () => {
   it("excludes past events and sorts soonest-first", () => {
     const events: CompetitionEvent[] = [
-      { id: "e1", name: "Past Comp", date: "2026-01-01", priority: "B" },
-      { id: "e2", name: "Later Comp", date: "2026-12-01", priority: "B" },
-      { id: "e3", name: "Sooner Comp", date: "2026-10-01", priority: "C" },
+      { id: "e1", name: "Past Comp", date: "2026-01-01" },
+      { id: "e2", name: "Later Comp", date: "2026-12-01" },
+      { id: "e3", name: "Sooner Comp", date: "2026-10-01" },
     ];
     const result = buildCompetitionContext(events, asOf);
     expect(result.map((e) => e.name)).toEqual(["Sooner Comp", "Later Comp"]);
     expect(result[0].daysAway).toBeGreaterThan(0);
   });
 
-  it("keeps an A-priority event even beyond the cap", () => {
-    const events: CompetitionEvent[] = Array.from({ length: 5 }, (_, i) => ({
-      id: `filler${i}`,
-      name: `Filler ${i}`,
+  it("keeps only the soonest events up to the cap, without a priority field", () => {
+    const events: CompetitionEvent[] = Array.from({ length: 6 }, (_, i) => ({
+      id: `e${i}`,
+      name: `Event ${i}`,
       date: `2026-10-0${i + 1}`,
-      priority: "C" as const,
     }));
-    events.push({ id: "important", name: "Nationals", date: "2027-01-01", priority: "A" });
     const result = buildCompetitionContext(events, asOf, 5);
-    expect(result.map((e) => e.name)).toContain("Nationals");
+    expect(result.map((e) => e.name)).toEqual(["Event 0", "Event 1", "Event 2", "Event 3", "Event 4"]);
+    expect("priority" in result[0]).toBe(false);
   });
 });
 
@@ -256,7 +255,7 @@ describe("buildAIContextProfile", () => {
     workouts: [makeWorkout({ status: "completed", date: "2026-09-01", weekId: "2026-W25" })],
     benchmarks: [{ id: "b1", typeId: "t1", type: "Max Hang", value: 10, unit: "kg", date: "2026-06-20", weekId: "2026-W25" }],
     trainingBlocks: [{ id: "tb1", name: "Block", phaseId: "phase-1", startWeekId: "2026-W25", endWeekId: "2026-W25" }],
-    competitionEvents: [{ id: "e1", name: "Comp", date: "2026-12-01", priority: "A" }],
+    competitionEvents: [{ id: "e1", name: "Comp", date: "2026-12-01" }],
     dailyMetrics: [{ id: "m1", metricId: "hrv", date: "2026-09-17", value: 60 }],
     painLogs: [{ id: "p1", date: "2026-09-01", weekId: "2026-W25", bodyPart: "Finger", severity: 4 }],
     outdoorAscents: [{ id: "a1", date: "2026-09-01", grade: "7a" }],

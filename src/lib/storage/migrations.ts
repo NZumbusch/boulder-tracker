@@ -1080,6 +1080,17 @@ const MIGRATIONS: MigrationStep[] = [
       data.outdoorAscents = data.outdoorAscents || [];
     },
   },
+  {
+    from: "3.26",
+    to: "3.27",
+    describe: "Drop CompetitionEvent.priority - events are no longer tiered A/B/C",
+    migrate: (data: any) => {
+      data.competitionEvents = (data.competitionEvents || []).map((e: any) => {
+        const { priority: _priority, ...rest } = e;
+        return rest;
+      });
+    },
+  },
 ];
 
 /**
