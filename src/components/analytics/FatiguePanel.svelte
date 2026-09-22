@@ -74,7 +74,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h3 class="text-section uppercase text-content-muted">Fatigue</h3>
-      <p class="text-caption text-content-subtle mt-0.5">Decayed load per axis, across the window</p>
+      <p class="text-caption text-content-subtle mt-0.5">Decayed load per axis (0&ndash;10), across the window</p>
     </div>
     <Icon icon="ic:baseline-bolt" class="text-base text-content-subtle" />
   </div>
@@ -92,8 +92,13 @@
         </div>
         <!-- One sparkline per axis on a shared fixed 0-10 scale, with a
              hairline baseline so the four rows read as one small-multiple
-             set rather than four unrelated squiggles. -->
-        <div class="h-7 relative border-b border-border/60">
+             set rather than four unrelated squiggles.
+             Tall enough to read: at 28px a 0-10 range gave each RPE point
+             under 3px, so every line looked like the same flat squiggle.
+             64px plus a midline at 5 makes the shape and the half-scale
+             crossing legible without turning four rows into a full page. -->
+        <div class="h-16 relative border-b border-border/60">
+          <div class="absolute inset-x-0 top-1/2 border-t border-dashed border-border/50 pointer-events-none"></div>
           <svg class="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             {#each segments as seg}
               <path

@@ -10,6 +10,7 @@
    */
   import { formatDate } from '../../lib/dateUtils';
   import { showsLabel, pickAxisTicks } from '../../lib/analytics/chartWindow';
+  import { ChartTips } from '../../lib/analytics/chartTips.svelte';
   import Icon from "@iconify/svelte";
 
   export interface WeekAscentPoint {
@@ -32,6 +33,10 @@
     /** Axis thinning step, shared with the other week charts so all their x-axes agree - see `lib/analytics/chartWindow.ts`. */
     labelStep?: number;
   } = $props();
+
+  // Hover doesn't exist on a phone, so each ascent also opens on tap.
+  const tips = new ChartTips();
+  $effect(() => tips.listen());
 
   const allRanks = $derived(weeks.flatMap((w) => w.ascents.map((a) => a.rank)));
   const hasAscents = $derived(allRanks.length > 0);
@@ -66,7 +71,11 @@
     }
 
     const ranks = [...byRank.keys()].sort((a, b) => a - b);
-    return pickAxisTicks(ranks).map((rank) => ({ rank, grade: byRank.get(rank)! }));
+    // Spaced by where each label actually lands, not by its index: grade
+    // ranks are unevenly spaced (7A and 7B are ten apart, 6C and 7A
+    // eighty), so even sampling of the list printed adjacent grades on top
+    // of one another.
+    return pickAxisTicks(ranks, yPercent).map((rank) => ({ rank, grade: byRank.get(rank)! }));
   });
 </script>
 
@@ -99,12 +108,20 @@
           {#each weeks as week, i}
             {@const xPercent = ((i + 0.5) / weeks.length) * 100}
             {#each week.ascents as ascent}
-              <div class="absolute -translate-x-1/2 group" style="left: {xPercent}%; bottom: {yPercent(ascent.rank)}%;">
+              <button
+                type="button"
+                data-tip-trigger
+                data-tip-open={tips.isOpen(ascent.id)}
+                onclick={() => tips.toggle(ascent.id)}
+                aria-label="{ascent.grade}{ascent.name ? `, ${ascent.name}` : ''}"
+                class="absolute -translate-x-1/2 group"
+                style="left: {xPercent}%; bottom: {yPercent(ascent.rank)}%;"
+              >
                 <div class="w-1.5 h-1.5 bg-tertiary rounded-full group-hover:scale-[2] transition-transform"></div>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
+                <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
                   {ascent.grade}{ascent.name ? ` · ${ascent.name}` : ''}{ascent.style ? ` · ${ascent.style}` : ''} · {formatDate(ascent.date)}
                 </div>
-              </div>
+              </button>
             {/each}
           {/each}
         </div>

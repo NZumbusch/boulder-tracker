@@ -274,3 +274,24 @@ body {
   background: var(--theme-surface-elevated);
   border-radius: 10px;
 }
+
+/* Chart tooltips: hover where hovering exists, tap where it doesn't.
+   The `hover: hover` guard is the important part - without it a tapped
+   element keeps `:hover` on a touchscreen until something else is tapped,
+   so a tooltip opened by a tap stays stuck open and a second tap can't
+   close it. Touch devices therefore get no hover rule at all and are
+   driven entirely by `data-tip-open`, which the chart toggles on tap. */
+.chart-tip {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+@media (hover: hover) {
+  [data-tip-trigger]:hover .chart-tip {
+    opacity: 1;
+  }
+}
+
+[data-tip-trigger][data-tip-open="true"] .chart-tip {
+  opacity: 1;
+}

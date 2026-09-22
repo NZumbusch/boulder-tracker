@@ -125,36 +125,73 @@ describe("sparseLabelStep", () => {
 });
 
 describe("pickAxisTicks", () => {
-  it("keeps every value when they already fit", () => {
-    expect(pickAxisTicks([1, 2, 3], 4)).toEqual([1, 2, 3]);
-    expect(pickAxisTicks([1, 2, 3, 4], 4)).toEqual([1, 2, 3, 4]);
+  /** The ascents panel's own mapping: 8% padding top and bottom. */
+  const positionFor = (values: number[]) => {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    return (v: number) => (max === min ? 50 : 8 + ((v - min) / (max - min)) * 84);
+  };
+
+  it("keeps values that are already well spread", () => {
+    const values = [0, 100, 200, 300];
+    expect(pickAxisTicks(values, positionFor(values))).toEqual([0, 100, 200, 300]);
   });
 
-  it("always keeps both ends, which is what a y-axis is read by", () => {
-    const ticks = pickAxisTicks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 4);
-    expect(ticks[0]).toBe(1);
-    expect(ticks.at(-1)).toBe(10);
+  it("always labels the highest value", () => {
+    const values = [0, 10, 20, 30, 100];
+    expect(pickAxisTicks(values, positionFor(values)).at(-1)).toBe(100);
   });
 
-  it("spreads the rest evenly between them", () => {
-    expect(pickAxisTicks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 4)).toEqual([0, 3, 6, 9]);
-  });
+  it("never places two labels closer than the minimum gap", () => {
+    // The real Font ranks from an export: 5C, 6A, 6B, 6C, 7A, 7A+, 7B.
+    const ranks = [520, 600, 610, 620, 700, 705, 710];
+    const position = positionFor(ranks);
+    const ticks = pickAxisTicks(ranks, position);
 
-  it("never returns more than asked for", () => {
-    for (const max of [1, 2, 3, 5]) {
-      expect(pickAxisTicks([1, 2, 3, 4, 5, 6, 7, 8], max).length).toBeLessThanOrEqual(max);
+    for (let i = 1; i < ticks.length; i++) {
+      expect(
+        position(ticks[i]) - position(ticks[i - 1]),
+        `${ticks[i - 1]} and ${ticks[i]} overlap`,
+      ).toBeGreaterThanOrEqual(12);
     }
   });
 
-  it("de-duplicates when rounding lands twice on the same entry", () => {
-    const ticks = pickAxisTicks([1, 2, 3, 4, 5], 4);
-    expect(new Set(ticks).size).toBe(ticks.length);
+  it("does not print 7A and 7B on top of each other", () => {
+    // Regression: picking evenly by *index* chose ranks 700 and 710, which
+    // land at 87.6% and 92% - six pixels apart on a 144px chart.
+    const ranks = [520, 600, 610, 620, 700, 705, 710];
+    const ticks = pickAxisTicks(ranks, positionFor(ranks));
+    expect(ticks).not.toEqual(expect.arrayContaining([700, 710]));
+    expect(ticks).toContain(710);
+  });
+
+  it("promotes the top value over a neighbour it would collide with", () => {
+    const values = [0, 50, 98, 100];
+    const ticks = pickAxisTicks(values, positionFor(values));
+    expect(ticks).toContain(100);
+    expect(ticks).not.toContain(98);
+  });
+
+  it("respects maxTicks, keeping both ends", () => {
+    const values = [0, 25, 50, 75, 100];
+    const ticks = pickAxisTicks(values, positionFor(values), { maxTicks: 3 });
+    expect(ticks.length).toBeLessThanOrEqual(3);
+    expect(ticks[0]).toBe(0);
+    expect(ticks.at(-1)).toBe(100);
+  });
+
+  it("collapses a single-value axis to one label", () => {
+    expect(pickAxisTicks([700], () => 50)).toEqual([700]);
   });
 
   it("handles the degenerate cases without throwing", () => {
-    expect(pickAxisTicks([], 4)).toEqual([]);
-    expect(pickAxisTicks([7], 4)).toEqual([7]);
-    expect(pickAxisTicks([1, 2, 3], 0)).toEqual([]);
-    expect(pickAxisTicks([1, 2, 3, 4], 1)).toEqual([4]);
+    expect(pickAxisTicks([], () => 0)).toEqual([]);
+    expect(pickAxisTicks([1, 2, 3], positionFor([1, 2, 3]), { maxTicks: 0 })).toEqual([]);
+  });
+
+  it("returns no duplicates", () => {
+    const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 100];
+    const ticks = pickAxisTicks(values, positionFor(values));
+    expect(new Set(ticks).size).toBe(ticks.length);
   });
 });

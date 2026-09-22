@@ -97,25 +97,55 @@ export function sparseLabelStep(count: number, maxLabels = 4): number {
 }
 
 /**
- * Picks up to `maxTicks` values to label a *vertical* axis with, always
- * keeping the first and last.
+ * Picks values to label a *vertical* axis with, spaced by where they will
+ * actually be drawn rather than by their position in the list.
  *
  * The counterpart to `sparseLabelStep`, which thins an x-axis by taking
- * every nth entry. That rule is wrong here: the ends of a y-axis are the
- * two labels that matter most (the highest and lowest grade climbed, say),
- * and a fixed step can drop the top one entirely. This spreads the labels
- * evenly across the range instead, anchored at both ends.
+ * every nth entry. That rule breaks on a y-axis whose scale is uneven.
+ * Font grade ranks are the case that exposed it: `[520, 600, 610, 620,
+ * 700, 705, 710]` has gaps of 80, 10, 10, 80, 5, 5, so taking every other
+ * entry picked 7A and 7B - six pixels apart on a 144px chart, printed on
+ * top of each other.
  *
- * `values` must be sorted. Duplicates are removed, since rounding onto an
- * evenly spaced position can land on the same entry twice in a short list.
+ * So candidates are walked in draw order and kept only when they clear the
+ * last kept label by `minGapPercent`. The highest value is always
+ * labelled: it is the one a reader looks for first (the hardest grade
+ * climbed), so if it collides with the label below it, it replaces it
+ * rather than being dropped.
+ *
+ * `values` must be sorted ascending. `positionOf` returns a percentage.
  */
-export function pickAxisTicks(values: number[], maxTicks = 4): number[] {
+export function pickAxisTicks(
+  values: number[],
+  positionOf: (value: number) => number,
+  { maxTicks = 4, minGapPercent = 12 }: { maxTicks?: number; minGapPercent?: number } = {},
+): number[] {
   if (values.length === 0 || maxTicks <= 0) return [];
-  if (values.length <= maxTicks) return [...values];
-  if (maxTicks === 1) return [values[values.length - 1]];
+  if (values.length === 1) return [values[0]];
 
-  const picked = Array.from({ length: maxTicks }, (_, i) =>
-    values[Math.round((i / (maxTicks - 1)) * (values.length - 1))],
-  );
-  return [...new Set(picked)];
+  const kept: number[] = [];
+  for (const value of values) {
+    if (kept.length === 0) {
+      kept.push(value);
+      continue;
+    }
+    if (positionOf(value) - positionOf(kept[kept.length - 1]) >= minGapPercent) {
+      kept.push(value);
+    }
+  }
+
+  // The top value drops out whenever it sits just above whatever was kept
+  // before it. Promote it over that neighbour instead of losing it.
+  const top = values[values.length - 1];
+  if (kept[kept.length - 1] !== top) {
+    if (positionOf(top) - positionOf(kept[kept.length - 1]) >= minGapPercent) kept.push(top);
+    else kept[kept.length - 1] = top;
+  }
+
+  if (kept.length <= maxTicks) return kept;
+
+  // Still too many: thin the middle, keeping both ends.
+  const step = (kept.length - 1) / (maxTicks - 1);
+  const thinned = Array.from({ length: maxTicks }, (_, i) => kept[Math.round(i * step)]);
+  return [...new Set(thinned)];
 }

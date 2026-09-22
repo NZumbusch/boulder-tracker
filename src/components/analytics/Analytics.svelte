@@ -3,6 +3,7 @@
   import { getWeekId, getWeekDates } from '../../lib/dateUtils';
   import type { Workout, ExerciseTypeDef, Benchmark, ExerciseCategory } from '../../lib/types';
   import { estimateSlotDuration, DEFAULT_EXERCISE_MINUTES } from '../../lib/planning/sessionDuration';
+  import { ChartTips } from '../../lib/analytics/chartTips.svelte';
   import {
     calculateAcwrForWeeks,
     calculateWeeklyAdherence,
@@ -459,6 +460,18 @@
    * the same `maxValue` the plot is drawn against rather than from the
    * raw data, or they would disagree with the line.
    */
+  // Tooltips are hover-only in CSS, which leaves them unreachable on a
+  // phone; this drives the tap path. See `lib/analytics/chartTips.svelte.ts`.
+  const tips = new ChartTips();
+  $effect(() => tips.listen());
+
+  /** The visible label for the overlaid benchmark picker - resolved, since `selectedBenchmarkType` is an id and may not be set yet. */
+  const selectedBenchmarkName = $derived(
+    benchmarkProgress.types.find((t) => t.id === selectedBenchmarkType)?.name
+      ?? benchmarkProgress.types[0]?.name
+      ?? 'Benchmark',
+  );
+
   const benchmarkTicks = $derived.by(() => {
     if (benchmarkProgress.history.length === 0) return [];
     const max = benchmarkProgress.maxValue;
@@ -605,8 +618,15 @@
             {/if}
           </svg>
 
-          {#each chartData.weeks as week}
-            <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
+          {#each chartData.weeks as week, wi}
+            <button
+              type="button"
+              data-tip-trigger
+              data-tip-open={tips.isOpen(`load-${wi}`)}
+              onclick={() => tips.toggle(`load-${wi}`)}
+              aria-label="Week {week.label} load"
+              class="flex-1 flex flex-col items-center group relative h-full justify-end"
+            >
               <!-- Flat fill, no gradient or glow; the current week is the
                    only one at full strength, which is the whole emphasis
                    budget this chart spends. -->
@@ -614,12 +634,12 @@
                 class="w-[62%] max-w-[16px] rounded-[2px] transition-[height] duration-500 relative {week.isCurrent ? 'bg-primary' : 'bg-primary/45 group-hover:bg-primary/70'}"
                 style="height: {(week.totalLoad / chartData.maxLoad) * 100}%"
               >
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
+                <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
                   <span class="block">W{week.label} · {Math.round(week.totalLoad)} actual</span>
                   <span class="block text-content-subtle">{Math.round(week.totalPlannedLoad)} target</span>
                 </div>
               </div>
-            </div>
+            </button>
           {/each}
 
           <!-- ACWR ratio line (SVG, on top of the bars) -->
@@ -640,25 +660,41 @@
 
           <!-- ACWR ratio dots + ramp-rate spike flags (HTML, so they get the same hover-tooltip treatment as the bars/dashed line above) -->
           <div class="absolute inset-0 pointer-events-none">
-            {#each acwrOverlayPoints as p}
+            {#each acwrOverlayPoints as p, pi}
               {#if p.ratioY !== null}
-                <div class="absolute pointer-events-auto group" style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);">
+                <button
+                  type="button"
+                  data-tip-trigger
+                  data-tip-open={tips.isOpen(`acwr-${pi}`)}
+                  onclick={() => tips.toggle(`acwr-${pi}`)}
+                  aria-label="ACWR {p.ratio?.toFixed(2) ?? 'unavailable'}"
+                  class="absolute pointer-events-auto group"
+                  style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);"
+                >
                   <div
                     class="w-1.5 h-1.5 rounded-full border transition-transform group-hover:scale-150"
                     style="background: {p.sufficient ? RATIO_STATUS_VAR[p.status] : 'transparent'}; border-color: {RATIO_STATUS_VAR[p.status]};"
                   ></div>
-                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
+                  <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
                     ACWR {p.ratio?.toFixed(2)}{!p.sufficient ? ' · building history' : ''}
                   </div>
-                </div>
+                </button>
               {/if}
               {#if p.spike}
-                <div class="absolute pointer-events-auto group" style="left: {p.x}%; top: {Math.max(p.barTopY - 8, 2)}%; transform: translate(-50%, -50%);">
+                <button
+                  type="button"
+                  data-tip-trigger
+                  data-tip-open={tips.isOpen(`spike-${pi}`)}
+                  onclick={() => tips.toggle(`spike-${pi}`)}
+                  aria-label="Ramp-rate spike"
+                  class="absolute pointer-events-auto group"
+                  style="left: {p.x}%; top: {Math.max(p.barTopY - 8, 2)}%; transform: translate(-50%, -50%);"
+                >
                   <Icon icon="ic:baseline-warning" class="text-status-risk text-xs" />
-                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
+                  <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
                     Ramp-rate spike: +{Math.round(p.rampRate * 100)}%
                   </div>
-                </div>
+                </button>
               {/if}
             {/each}
           </div>
@@ -775,7 +811,7 @@
 
       <div class="space-y-2">
         <div class="h-40 flex items-end justify-between gap-px relative">
-          {#each chartData.weeks as week}
+          {#each chartData.weeks as week, wi}
             {@const visibleTotalDuration = visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0), 0)}
             {@const weekHeightPercent = showRelative ? (visibleTotalDuration > 0 ? 100 : 0) : (visibleTotalDuration / maxVisibleDuration) * 100}
             <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
@@ -787,14 +823,19 @@
                 {#each visibleCategories as cat}
                   {@const catDuration = (includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0}
                   {#if catDuration > 0 && visibleTotalDuration > 0}
-                    <div
-                      class="{cat.color} w-full relative group/bar"
+                    <button
+                      type="button"
+                      data-tip-trigger
+                      data-tip-open={tips.isOpen(`mix-${wi}-${cat.id}`)}
+                      onclick={() => tips.toggle(`mix-${wi}-${cat.id}`)}
+                      aria-label="{cat.name}, {Math.round(catDuration)} minutes in week {week.label}"
+                      class="{cat.color} w-full relative block"
                       style="height: {(catDuration / visibleTotalDuration) * 100}%"
                     >
-                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-30 whitespace-nowrap shadow-card border border-border">
+                      <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none z-30 whitespace-nowrap shadow-card border border-border">
                         {cat.name}: {Math.round(catDuration)} min
                       </div>
-                    </div>
+                    </button>
                   {/if}
                 {/each}
               </div>
@@ -882,12 +923,20 @@
             <div class="absolute inset-0">
               {#each bodyweightTrend.history as entry, i}
                 {@const xPos = (i / Math.max(bodyweightTrend.history.length - 1, 1)) * 100}
-                <div class="absolute group" style="left: {xPos}%; height: 100%;">
-                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
+                <button
+                  type="button"
+                  data-tip-trigger
+                  data-tip-open={tips.isOpen(`bw-${i}`)}
+                  onclick={() => tips.toggle(`bw-${i}`)}
+                  aria-label="{entry.value} kg"
+                  class="absolute group"
+                  style="left: {xPos}%; height: 100%;"
+                >
+                  <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
                     {entry.value} kg
                   </div>
                   <div class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2" style="bottom: {entry.height}%; left: 0;"></div>
-                </div>
+                </button>
               {/each}
             </div>
           </div>
@@ -920,16 +969,25 @@
         <div class="flex items-center justify-between">
           <div>
             <h3 class="text-section uppercase text-content-muted">Benchmark Progress</h3>
-            <div class="relative mt-1">
+            <!-- A native <select> sizes itself to its *longest* option, so
+                 an arrow pinned to its right edge floated far past a short
+                 name like "Pull-ups". The visible control is therefore the
+                 text and the arrow as an inline pair that shrinks to the
+                 selected name, with the real select laid transparently over
+                 it so the native picker (and keyboard, and a11y) still do
+                 the work. -->
+            <div class="relative inline-flex items-center gap-0.5 mt-1">
+              <span class="text-label text-primary">{selectedBenchmarkName}</span>
+              <Icon icon="ic:baseline-arrow-drop-down" class="text-primary shrink-0" />
               <select
                 bind:value={selectedBenchmarkType}
-                class="bg-transparent text-label text-primary outline-none appearance-none pr-4 cursor-pointer"
+                aria-label="Benchmark type"
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               >
                 {#each benchmarkProgress.types as type}
                   <option value={type.id}>{type.name}</option>
                 {/each}
               </select>
-              <Icon icon="ic:baseline-arrow-drop-down" class="absolute right-0 top-1/2 -translate-y-1/2 text-primary pointer-events-none" />
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -982,15 +1040,23 @@
               <div class="absolute inset-0">
                 {#each benchmarkProgress.history as entry, i}
                   {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
-                  <div class="absolute group" style="left: {xPos}%; height: 100%;">
-                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
+                  <button
+                    type="button"
+                    data-tip-trigger
+                    data-tip-open={tips.isOpen(`bench-${i}`)}
+                    onclick={() => tips.toggle(`bench-${i}`)}
+                    aria-label="{entry.value} {entry.unit}"
+                    class="absolute group"
+                    style="left: {xPos}%; height: 100%;"
+                  >
+                    <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
                       {entry.value} {entry.unit}
                     </div>
                     <div
                       class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2"
                       style="bottom: {entry.height}%; left: 0;"
                     ></div>
-                  </div>
+                  </button>
                 {/each}
               </div>
 
