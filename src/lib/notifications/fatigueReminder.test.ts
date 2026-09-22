@@ -90,7 +90,7 @@ describe("computeFatigueReminderTime", () => {
   it("defaults to noon when startTime is missing", () => {
     const workout = makeWorkout({ weekId: "2026-W01", dayOfWeek: "Monday", startTime: undefined, exercises: [] });
     const result = computeFatigueReminderTime(workout);
-    // No exercises -> ics.ts's calculateWorkoutDuration default of 60 min + 20 min buffer = 13:20
+    // No exercises -> estimateSessionDuration's 60 min default + 20 min buffer = 13:20
     expect(result!.getHours()).toBe(13);
     expect(result!.getMinutes()).toBe(20);
   });

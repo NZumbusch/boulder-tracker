@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import { calculatePlannedLoad, type Workout } from '../types';
+import { workoutPlannedLoad, type Workout } from '../types';
 import { generateId } from '../utils';
 import { sortWorkoutsBySchedule } from '../planning/sortWorkouts';
 import { toStoredWorkout } from '../planning/weekProjection';
@@ -16,12 +16,19 @@ export class WorkoutStore {
   async load() {
     const workouts = await storage.getWorkouts();
 
-    // Data Cleanup: Fix workouts with 0 plannedLoad that have exercises (Legacy bug)
+    // Data Cleanup: Fix workouts with 0 plannedLoad that have exercises (Legacy bug).
+    // Only counts as a change when the recomputed value actually differs -
+    // a session whose slots carry no `prescribed` (a spontaneous one, say)
+    // legitimately *has* zero planned load, and re-"fixing" it to zero on
+    // every load would rewrite the whole workout table on every app start.
     let changed = false;
     workouts.forEach(workout => {
       if ((!workout.plannedLoad || workout.plannedLoad === 0) && workout.exercises.length > 0) {
-        workout.plannedLoad = workout.exercises.reduce((acc, ex) => acc + calculatePlannedLoad(ex.prescribed ?? {}), 0);
-        changed = true;
+        const recomputed = workoutPlannedLoad(workout.exercises);
+        if (recomputed !== (workout.plannedLoad ?? 0)) {
+          workout.plannedLoad = recomputed;
+          changed = true;
+        }
       }
     });
     if (changed) {
@@ -64,7 +71,7 @@ export class WorkoutStore {
     // storage (see `lib/planning/weekProjection.ts`).
     const data = toStoredWorkout($state.snapshot(workout));
 
-    data.plannedLoad = data.exercises.reduce((acc, e) => acc + calculatePlannedLoad(e.prescribed ?? {}), 0);
+    data.plannedLoad = workoutPlannedLoad(data.exercises);
 
     await storage.saveWorkout(data);
   }

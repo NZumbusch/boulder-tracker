@@ -7,7 +7,7 @@ import type {
   Workout,
   WorkoutTemplate,
 } from "../types";
-import { calculatePlannedLoad } from "../types";
+import { workoutPlannedLoad } from "../types";
 import { generateId } from "../utils";
 import { getWeekIdRange, incrementWeekId } from "../dateUtils";
 import type { AIExercise, AIPlanOutput } from "./schema";
@@ -423,7 +423,7 @@ export function buildPlanCommit(
         weekId: week.weekId,
         notes: w.name || "",
         loadFactor: 0,
-        plannedLoad: exercises.reduce((acc, e) => acc + calculatePlannedLoad(e.prescribed ?? {}), 0),
+        plannedLoad: workoutPlannedLoad(exercises),
         exercises,
         blockId: blockIdByWeekId.get(week.weekId),
       } as Workout;

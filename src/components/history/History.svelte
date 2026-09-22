@@ -3,6 +3,7 @@
   import type { Workout } from '../../lib/types';
   import { formatDate } from '../../lib/dateUtils';
   import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
+  import { sessionDuration } from '../../lib/planning/sessionDuration';
   import WorkoutShareImage from './WorkoutShareImage.svelte';
   import Icon from "@iconify/svelte";
 
@@ -26,8 +27,13 @@
   let openMenuId = $state<string | null>(null);
   let expandedId = $state<string | null>(null);
 
+  // A live session's recorded running time when it has one, otherwise the
+  // logged exercises (falling back to the estimate) - see `sessionDuration`,
+  // which replaced this component's own sum so History, the duration filter,
+  // load factor and the calendar export can't disagree about a session's
+  // length. Sessions logged before live sessions existed are unaffected.
   function workoutDuration(w: Workout): number {
-    return w.exercises?.reduce((acc, e) => acc + (slotValues(e).duration || 0), 0) || 0;
+    return sessionDuration(w);
   }
 
   function blockForWorkout(w: Workout) {

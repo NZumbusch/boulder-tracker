@@ -145,6 +145,14 @@ export interface ExerciseSlot {
   prescribed?: ExerciseValues;
   /** What happened, edited during/after the session */
   logged?: ExerciseValues;
+  /**
+   * Deliberately not done. Set when a live session skips past this slot
+   * (`lib/session/`), and distinct from both "not reached yet" (`logged`
+   * undefined, no flag) and "done" (`logged` set): the plan is kept for
+   * comparison, but the slot contributes nothing to actual duration or
+   * load. Skipping a slot never clears its `prescribed`.
+   */
+  skipped?: true;
 }
 
 export type DayOfWeek =
@@ -172,6 +180,18 @@ export interface Workout {
    * duration is simply open-ended, not zero-length.
    */
   plannedDuration?: number;
+  /**
+   * How long the session actually ran, in minutes - recorded by a live
+   * session (`lib/session/`) as accumulated *unpaused* time, and editable
+   * at the finish step before it is committed.
+   *
+   * The counterpart to `plannedDuration`, never derived from it: absent
+   * means "never run live, and not corrected by hand", in which case
+   * `sessionDuration()` falls back to summing the logged exercises. Every
+   * workout completed before live sessions existed has it absent, so
+   * nothing about their reported length changes.
+   */
+  actualDuration?: number;
   dayOfWeek?: DayOfWeek;
   notes?: string; // Used as the session name
   description?: string; // Extended notes/description for the session
@@ -238,6 +258,40 @@ export function calculatePlannedLoad(exercise: {
   const i = exercise.plannedLoad !== undefined ? Number(exercise.plannedLoad) : 5;
   const intensityScale = Math.pow(i, 1.2);
   return Math.round(d * intensityScale);
+}
+
+/**
+ * A slot's contribution to its workout's *planned* load.
+ *
+ * A slot with no `prescribed` block contributes **nothing**: it was never
+ * planned. This is the distinction `calculatePlannedLoad(e.prescribed ?? {})`
+ * silently destroyed at every aggregation site - `{}` falls through to that
+ * function's own 60-minute/intensity-5 defaults, so an unplanned slot
+ * contributed ~414 phantom planned load, and a spontaneous session (every
+ * slot unplanned) reported a large plan it never had. Exercises added
+ * mid-session are the common case for this now: unless the "added exercises
+ * inherit what you did" preference is on, they carry no `prescribed` at all
+ * and must land as extra load on top of the plan, not as plan.
+ */
+export function slotPlannedLoad(slot: ExerciseSlot): number {
+  return slot.prescribed ? calculatePlannedLoad(slot.prescribed) : 0;
+}
+
+/**
+ * A slot's contribution to its workout's *actual* load - what was logged,
+ * falling back to the plan for a slot that was reached but never explicitly
+ * logged. A skipped slot contributes nothing, and neither does one that is
+ * neither planned nor logged.
+ */
+export function slotActualLoad(slot: ExerciseSlot): number {
+  if (slot.skipped) return 0;
+  const values = slot.logged ?? slot.prescribed;
+  return values ? calculatePlannedLoad(values) : 0;
+}
+
+/** Sums `slotPlannedLoad` across a workout's slots - the one definition of a workout's planned load. */
+export function workoutPlannedLoad(exercises: ExerciseSlot[]): number {
+  return (exercises ?? []).reduce((sum, slot) => sum + slotPlannedLoad(slot), 0);
 }
 
 /**

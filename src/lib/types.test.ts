@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { calculateLoadFactor, calculatePlannedLoad } from "./types";
+import {
+  calculateLoadFactor,
+  calculatePlannedLoad,
+  slotPlannedLoad,
+  slotActualLoad,
+  workoutPlannedLoad,
+} from "./types";
+import type { ExerciseSlot } from "./types";
 
 describe("calculatePlannedLoad", () => {
   it("does not return NaN when called the way every real call site calls it (a single exercise-like object)", () => {
@@ -53,5 +60,61 @@ describe("calculateLoadFactor", () => {
       const result = calculateLoadFactor(60, v, v, v);
       expect(result).not.toBeNaN();
     }
+  });
+});
+
+describe("slotPlannedLoad / workoutPlannedLoad", () => {
+  const planned: ExerciseSlot = { id: "a", typeId: "t", prescribed: { duration: 30, plannedLoad: 7 } };
+  const unplanned: ExerciseSlot = { id: "b", typeId: "t", logged: { duration: 30, plannedLoad: 7 } };
+
+  it("scores a planned slot from its prescribed values", () => {
+    expect(slotPlannedLoad(planned)).toBe(calculatePlannedLoad({ duration: 30, plannedLoad: 7 }));
+  });
+
+  it("scores a slot with no prescribed block as zero planned load", () => {
+    // Regression test: the old `calculatePlannedLoad(e.prescribed ?? {})`
+    // fell through to that function's 60-minute/intensity-5 defaults, so an
+    // exercise that was never planned contributed ~414 phantom planned load.
+    expect(slotPlannedLoad(unplanned)).toBe(0);
+    expect(slotPlannedLoad({ id: "c", typeId: "t" })).toBe(0);
+  });
+
+  it("reports no planned load at all for a wholly spontaneous session", () => {
+    expect(workoutPlannedLoad([unplanned, { id: "c", typeId: "t", logged: { duration: 45 } }])).toBe(0);
+  });
+
+  it("counts only the planned slots when a session mixes planned and added exercises", () => {
+    expect(workoutPlannedLoad([planned, unplanned])).toBe(slotPlannedLoad(planned));
+  });
+
+  it("treats an empty or missing exercise list as zero", () => {
+    expect(workoutPlannedLoad([])).toBe(0);
+    expect(workoutPlannedLoad(undefined as unknown as ExerciseSlot[])).toBe(0);
+  });
+});
+
+describe("slotActualLoad", () => {
+  it("prefers the logged values over the prescribed ones", () => {
+    const slot: ExerciseSlot = {
+      id: "a",
+      typeId: "t",
+      prescribed: { duration: 30, plannedLoad: 5 },
+      logged: { duration: 45, plannedLoad: 8 },
+    };
+    expect(slotActualLoad(slot)).toBe(calculatePlannedLoad({ duration: 45, plannedLoad: 8 }));
+  });
+
+  it("falls back to the plan for a slot that was reached but never logged", () => {
+    const slot: ExerciseSlot = { id: "a", typeId: "t", prescribed: { duration: 30, plannedLoad: 5 } };
+    expect(slotActualLoad(slot)).toBe(calculatePlannedLoad({ duration: 30, plannedLoad: 5 }));
+  });
+
+  it("scores a skipped slot as zero however well it was planned", () => {
+    const slot: ExerciseSlot = { id: "a", typeId: "t", prescribed: { duration: 90, plannedLoad: 9 }, skipped: true };
+    expect(slotActualLoad(slot)).toBe(0);
+  });
+
+  it("scores a slot with neither plan nor log as zero", () => {
+    expect(slotActualLoad({ id: "a", typeId: "t" })).toBe(0);
   });
 });

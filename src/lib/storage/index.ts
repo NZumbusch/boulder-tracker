@@ -17,7 +17,6 @@ import type {
   PainLog,
   OutdoorAscent,
 } from "../types";
-import { calculatePlannedLoad } from "../types";
 import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
 import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";

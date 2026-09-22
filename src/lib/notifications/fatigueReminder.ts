@@ -1,7 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import type { Workout } from '../types';
-import { getDateFromWeekId, calculateWorkoutDuration } from '../ics';
+import { getDateFromWeekId } from '../ics';
+import { estimateSessionDuration } from '../planning/sessionDuration';
 import { reminderId, checkNotificationPermission, cancelRemindersOfType } from './shared';
 
 /**
@@ -32,7 +33,7 @@ export function computeFatigueReminderTime(workout: Workout): Date | null {
     startDate.setHours(12, 0, 0, 0);
   }
 
-  const durationMinutes = calculateWorkoutDuration(workout);
+  const durationMinutes = estimateSessionDuration(workout);
   return new Date(startDate.getTime() + (durationMinutes + FATIGUE_REMINDER_BUFFER_MINUTES) * 60 * 1000);
 }
 

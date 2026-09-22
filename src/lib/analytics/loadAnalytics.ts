@@ -1,5 +1,5 @@
 import type { Workout, DailyMetricEntry, PainLog } from "../types";
-import { calculatePlannedLoad } from "../types";
+import { workoutPlannedLoad, slotActualLoad } from "../types";
 import { getWeekId, getWeekDates, toUtcDayIndex } from "../dateUtils";
 
 /**
@@ -191,11 +191,8 @@ export interface AdherenceResult {
 export function calculateWorkoutAdherence(workout: Workout): AdherenceResult {
   const totalSlots = workout.exercises.length;
   const loggedSlots = workout.exercises.filter((e) => e.logged !== undefined).length;
-  const plannedLoad = workout.exercises.reduce((sum, e) => sum + calculatePlannedLoad(e.prescribed ?? {}), 0);
-  const actualLoad = workout.exercises.reduce(
-    (sum, e) => sum + calculatePlannedLoad(e.logged ?? e.prescribed ?? {}),
-    0,
-  );
+  const plannedLoad = workoutPlannedLoad(workout.exercises);
+  const actualLoad = workout.exercises.reduce((sum, e) => sum + slotActualLoad(e), 0);
 
   return {
     workoutId: workout.id,

@@ -2,7 +2,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekDates } from '../../lib/dateUtils';
   import type { Workout, ExerciseTypeDef, Benchmark, ExerciseCategory } from '../../lib/types';
-  import { slotValues } from '../../lib/exerciseSlot';
+  import { estimateSlotDuration, DEFAULT_EXERCISE_MINUTES } from '../../lib/planning/sessionDuration';
   import {
     calculateAcwrForWeeks,
     calculateWeeklyAdherence,
@@ -193,9 +193,11 @@
            categoryName = categories.length > 0 ? categories[0].name : 'Other';
         }
 
-        // Weight the ratio by duration (default to 30 mins if not specified)
-        const exValues = slotValues(slot);
-        const durationWeight = exValues.duration ? exValues.duration : 30;
+        // Weight the ratio by duration. An exercise with no explicit
+        // duration is derived from its set/rep/rest structure before
+        // falling back to the flat default, so a hangboard block stops
+        // being weighted the same as a two-hour bouldering session.
+        const durationWeight = estimateSlotDuration(slot) ?? DEFAULT_EXERCISE_MINUTES;
 
         if (week.categories[categoryName] !== undefined) {
           week.categories[categoryName] += durationWeight;

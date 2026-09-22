@@ -1,5 +1,5 @@
 import type { Workout, WorkoutTemplate, ExerciseSlot } from "../types";
-import { calculatePlannedLoad } from "../types";
+import { workoutPlannedLoad } from "../types";
 import { generateId } from "../utils";
 
 /**
@@ -46,7 +46,7 @@ export function generateWorkoutsFromTemplate(
     weekId,
     notes: t.name || "",
     loadFactor: 0,
-    plannedLoad: t.exercises?.reduce((acc, e) => acc + calculatePlannedLoad(e.prescribed ?? {}), 0) || 0,
+    plannedLoad: workoutPlannedLoad(t.exercises ?? []),
     exercises: (t.exercises || []).map((e, slotIndex) => ({ ...e, id: ids.slotId(t, e, slotIndex) })),
   })) as Workout[];
 }
