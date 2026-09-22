@@ -405,6 +405,12 @@ class TrainingState {
   /**
    * Navigates to a specific view and optionally sets an active workout.
    */
+  /** Opens History with `workoutId` expanded and scrolled into view. */
+  openInHistory(workoutId: string) {
+    this.uiStore.historyFocusId = workoutId;
+    this.uiStore.navigate('history');
+  }
+
   navigate(view: ViewType, workout: Workout | null = null) {
     this.uiStore.navigate(view, workout);
   }

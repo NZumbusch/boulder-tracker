@@ -32,19 +32,32 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'today.time', label: 'Start time & length', defaultOn: true },
     { id: 'today.exercises', label: 'Exercise names', hint: 'The first three, then "+N more"', defaultOn: true },
     { id: 'today.load', label: 'Planned load', defaultOn: true },
+    { id: 'today.missed', label: 'Missed this week', hint: 'Earlier sessions this week you haven\'t logged or skipped', defaultOn: true },
   ],
   metrics: [
     { id: 'metrics.sparklines', label: '7-day sparklines', defaultOn: true },
+    { id: 'metrics.hrvBaseline', label: 'HRV vs 14-day baseline', defaultOn: true },
+    { id: 'metrics.bodyweight', label: 'Bodyweight', hint: 'With its 7-day average and trend', defaultOn: true },
   ],
   fatigue: [],
   thisWeek: [
     { id: 'thisWeek.note', label: 'Week note button', hint: 'Opens this week\'s note; filled when there is one', defaultOn: true },
+    { id: 'thisWeek.strip', label: 'Day strip', hint: 'Monday to Sunday: done, missed, today, rest', defaultOn: true },
+    { id: 'thisWeek.acwr', label: 'ACWR', hint: 'Acute:chronic load ratio and its zone', defaultOn: true },
   ],
   trainingBlock: [
     { id: 'trainingBlock.note', label: 'Block note button', hint: 'Opens the current block\'s note', defaultOn: true },
+    { id: 'trainingBlock.next', label: 'What\'s next', hint: 'The next block and when it starts', defaultOn: true },
+    { id: 'trainingBlock.loadTrend', label: 'Weekly load', hint: 'Planned vs logged load for each week of the block', defaultOn: true },
   ],
-  competition: [],
-  recentActivity: [],
+  competition: [
+    { id: 'competition.taper', label: 'Taper hint', hint: 'Within 14 days of an event, when the phase isn\'t a taper', defaultOn: true },
+  ],
+  recentActivity: [
+    { id: 'recentActivity.details', label: 'Duration & load', defaultOn: true },
+    { id: 'recentActivity.fatigue', label: 'Fatigue ratings', defaultOn: true },
+    { id: 'recentActivity.ascents', label: 'Outdoor sends', defaultOn: true },
+  ],
   weather: [
     { id: 'weather.details', label: 'Feels like, humidity, wind, rain', defaultOn: true },
     { id: 'weather.forecast', label: 'Week ahead', defaultOn: true },

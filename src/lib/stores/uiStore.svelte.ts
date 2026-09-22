@@ -16,6 +16,8 @@ export class UiStore {
   selectedWeekId = $state<string | null>(null);
   weekOffset = $state(0);
   showFatigue = $state(false);
+  /** A completed workout History should open expanded and scroll to - set by Home's Recent Activity, consumed (cleared) by History. */
+  historyFocusId = $state<string | null>(null);
   theme = $state<'dark' | 'light' | 'contrast'>('dark');
   notificationsEnabled = $state(false);
   notificationPermission = $state<PermissionState>('prompt');

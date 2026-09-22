@@ -6,6 +6,7 @@
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import WorkoutShareImage from './WorkoutShareImage.svelte';
   import Icon from "@iconify/svelte";
+  import { onMount, tick } from 'svelte';
 
   // Stage 4 (UI_PLAN.md §6/§4.5): History overhaul - overflow menu, month
   // grouping, richer row content (duration/fatigue/block), and the new
@@ -26,6 +27,21 @@
   let workoutToShare = $state<Workout | null>(null);
   let openMenuId = $state<string | null>(null);
   let expandedId = $state<string | null>(null);
+
+  // Arriving from Home's Recent Activity: open that session and bring it
+  // into view. One-shot - the focus is cleared so coming back later starts
+  // from the top as usual.
+  onMount(async () => {
+    const focusId = trainingState.uiStore.historyFocusId;
+    if (!focusId) return;
+    trainingState.uiStore.historyFocusId = null;
+    const index = filteredWorkouts.findIndex((w) => w.id === focusId);
+    if (index === -1) return;
+    if (index >= limit) limit = index + 1;
+    expandedId = focusId;
+    await tick();
+    document.getElementById(`workout-${focusId}`)?.scrollIntoView({ block: 'center' });
+  });
 
   // A live session's recorded running time when it has one, otherwise the
   // logged exercises (falling back to the estimate) - see `sessionDuration`,
@@ -242,7 +258,7 @@
           {@const block = blockForWorkout(workout)}
           {@const phaseName = phaseNameForBlock(block?.phaseId)}
           {@const duration = workoutDuration(workout)}
-          <div class="group p-5 bg-surface/30 hover:bg-surface/50 rounded-card border border-border/50 transition-all duration-300">
+          <div id="workout-{workout.id}" class="group p-5 bg-surface/30 hover:bg-surface/50 rounded-card border border-border/50 transition-all duration-300">
             <div class="flex justify-between items-start gap-4">
               <button onclick={() => toggleExpanded(workout.id)} class="space-y-2.5 flex-1 min-w-0 text-left">
                 <div class="flex items-center gap-2 flex-wrap">

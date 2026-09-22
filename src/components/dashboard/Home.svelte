@@ -12,6 +12,15 @@
   import FatigueRadarChart from '../common/FatigueRadarChart.svelte';
   import NoteSheet from '../common/NoteSheet.svelte';
   import { summarizeSession } from '../../lib/planning/sessionSummary';
+  import { missedWorkouts, weekDayStrip, WEEK_DAYS, type DayStatus } from '../../lib/planning/weekStatus';
+  import { nextBlock, daysUntilWeek, taperHint, blockLoadTrend } from '../../lib/planning/blockOutlook';
+  import { recentActivity as buildRecentActivity } from '../../lib/activity/recentActivity';
+  import { averageReading } from '../../lib/analytics/metricValues';
+  import { sessionDuration } from '../../lib/planning/sessionDuration';
+  import { HRV_DIP_THRESHOLD_PCT } from '../../lib/analytics/readiness';
+  import { ACWR_SWEET_SPOT_MIN, ACWR_CAUTION_RATIO, ACWR_HIGH_RISK_RATIO } from '../../lib/analytics/loadAnalytics';
+  import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
+  import type { Workout } from '../../lib/types';
   import type { DailyMetricEntry, DayOfWeek } from '../../lib/types';
   import Icon from "@iconify/svelte";
 
@@ -139,8 +148,32 @@
     trainingState.getPlannedWorkoutsForWeek(currentWeekId).filter((w) => w.dayOfWeek === todayName),
   );
 
+  // Earlier sessions this week that were neither logged nor skipped.
+  const weekWorkouts = $derived(trainingState.getWorkoutsForWeek(currentWeekId));
+  const missed = $derived(missedWorkouts(weekWorkouts, todayName));
+  let showMissed = $state(false);
+  /** "Skip": keeps the session in the plan (and its planned load) but marks every slot skipped, so it stops counting as missed. */
+  async function skipWorkout(workout: Workout) {
+    await trainingState.saveWorkout({
+      ...$state.snapshot(workout) as Workout,
+      exercises: workout.exercises.map((slot) => ({ ...slot, skipped: true })),
+    });
+  }
+
   // --- Daily metrics quick-entry (UI_PLAN.md §4.2 item 4 - well-known ids only) ---
-  const QUICK_METRICS = DEFAULT_METRIC_DEFS.filter((d) => ['sleep-score', 'hrv', 'rhr'].includes(d.id));
+  const QUICK_METRICS = $derived(
+    DEFAULT_METRIC_DEFS.filter((d) =>
+      ['sleep-score', 'hrv', 'rhr'].includes(d.id) || (d.id === BODYWEIGHT_METRIC_ID && trainingState.homeDetails['metrics.bodyweight']),
+    ),
+  );
+  /** Today's HRV against its 14-day baseline, as a signed fraction (−0.1 = 10% below). */
+  const hrvDelta = $derived.by(() => {
+    const today = todaysMetric('hrv')?.value;
+    if (today === undefined || hrvBaseline === undefined || hrvBaseline <= 0) return undefined;
+    return (today - hrvBaseline) / hrvBaseline;
+  });
+  const bodyweightAvg = $derived(averageReading(trainingState.dailyMetrics, BODYWEIGHT_METRIC_ID, asOf));
+  const bodyweightPrevAvg = $derived(averageReading(trainingState.dailyMetrics, BODYWEIGHT_METRIC_ID, asOf, 7, 7));
   let editingMetricId = $state<string | null>(null);
   let draftValue = $state('');
 
@@ -169,7 +202,7 @@
       editingMetricId = null;
       return;
     }
-    const def = QUICK_METRICS.find((d) => d.id === metricId)!;
+    const def = DEFAULT_METRIC_DEFS.find((d) => d.id === metricId)!;
     await trainingState.saveDailyMetric({ id: existing?.id ?? generateId(), metricId, date: todayIso, value }, def);
     editingMetricId = null;
   }
@@ -184,6 +217,34 @@
 
   // --- Weekly load progress ---
   const weeklyAdherence = $derived(calculateWeeklyAdherence(trainingState.workouts, currentWeekId));
+  const dayStrip = $derived(weekDayStrip(weekWorkouts, todayName));
+  let peekDay = $state<number | null>(null);
+  const DAY_MARK: Record<DayStatus, { icon: string; class: string; label: string }> = {
+    done: { icon: 'ic:baseline-check', class: 'bg-success/15 text-success border-success/30', label: 'done' },
+    missed: { icon: 'ic:baseline-close', class: 'bg-danger/10 text-danger border-danger/30', label: 'missed' },
+    skipped: { icon: 'ic:baseline-remove', class: 'bg-surface-elevated text-content-subtle border-border-strong/50', label: 'skipped' },
+    planned: { icon: 'ic:baseline-circle', class: 'bg-primary/10 text-primary border-primary/30', label: 'planned' },
+    rest: { icon: '', class: 'bg-transparent text-content-subtle border-border/60', label: 'rest' },
+  };
+  // ACWR zones, from loadAnalytics' own thresholds.
+  const acwrZone = $derived.by((): { label: string; class: string } | undefined => {
+    if (!acwr.sufficient || acwr.ratio === undefined) return undefined;
+    const r = acwr.ratio;
+    if (r > ACWR_HIGH_RISK_RATIO) return { label: 'high risk', class: 'bg-status-risk/15 text-status-risk border-status-risk/30' };
+    if (r > ACWR_CAUTION_RATIO) return { label: 'caution', class: 'bg-status-caution/15 text-status-caution border-status-caution/30' };
+    if (r >= ACWR_SWEET_SPOT_MIN) return { label: 'sweet spot', class: 'bg-status-good/15 text-status-good border-status-good/30' };
+    return { label: 'low', class: 'bg-surface-elevated text-content-muted border-border-strong/50' };
+  });
+
+  // --- Training block outlook ---
+  const upcomingBlock = $derived(nextBlock(trainingState.trainingBlocks, currentWeekId));
+  const daysToNextBlock = $derived(upcomingBlock ? daysUntilWeek(upcomingBlock.startWeekId, todayIso) : undefined);
+  const blockTrend = $derived(
+    dominantBlock
+      ? blockLoadTrend(getWeekIdRange(dominantBlock.startWeekId, dominantBlock.endWeekId), (id) => trainingState.getWorkoutsForWeek(id))
+      : [],
+  );
+  const blockTrendMax = $derived(Math.max(1, ...blockTrend.map((b) => Math.max(b.planned, b.actual))));
 
   // --- Next competition countdown ---
   const nextCompetition = $derived.by(() => {
@@ -196,12 +257,11 @@
     nextCompetition ? toUtcDayIndex(nextCompetition.date) - toUtcDayIndex(todayIso) : undefined,
   );
 
+  const competitionTaperHint = $derived(taperHint(daysUntilCompetition, currentPhaseName));
+
   // --- Recent activity ---
   const recentActivity = $derived(
-    trainingState.completedWorkouts
-      .slice()
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-      .slice(0, 3),
+    buildRecentActivity(trainingState.completedWorkouts, trainingState.outdoorAscents, 3, trainingState.homeDetails['recentActivity.ascents']),
   );
 </script>
 
@@ -365,12 +425,34 @@
           <button onclick={() => trainingState.navigate('add')} class="text-label text-primary shrink-0">Start a session</button>
         </div>
       {/each}
+      {#if trainingState.homeDetails['today.missed'] && missed.length > 0}
+        <div class="pt-1 border-t border-border/60">
+          <button onclick={() => showMissed = !showMissed} class="w-full flex items-center gap-1 pt-2 text-label text-content-muted hover:text-content" aria-expanded={showMissed}>
+            <Icon icon="ic:baseline-chevron-right" class="text-base transition-transform {showMissed ? 'rotate-90' : ''}" />
+            Missed this week ({missed.length})
+          </button>
+          {#if showMissed}
+            <div class="space-y-1.5 mt-2">
+              {#each missed as workout (workout.id)}
+                <div class="flex items-center gap-2 p-2.5 rounded-control bg-surface-elevated/30 border border-border-strong/40">
+                  <div class="min-w-0 flex-1">
+                    <p class="text-label text-content truncate">{workout.notes || 'Session'}</p>
+                    <p class="text-caption text-content-subtle">{workout.dayOfWeek}</p>
+                  </div>
+                  <button onclick={() => trainingState.navigate('add', workout)} class="px-2.5 py-1 text-label text-primary bg-primary/10 hover:bg-primary/20 rounded-control shrink-0">Log</button>
+                  <button onclick={() => skipWorkout(workout)} class="px-2.5 py-1 text-label text-content-subtle hover:text-content bg-surface-elevated rounded-control shrink-0">Skip</button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
   {/snippet}
 
   {#snippet metricsSection()}
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
-      {@render sectionHeader('ic:baseline-favorite', 'Metrics', 'Sleep, HRV, resting heart rate')}
+      {@render sectionHeader('ic:baseline-favorite', 'Metrics', `Sleep, HRV, resting heart rate${trainingState.homeDetails['metrics.bodyweight'] ? ', bodyweight' : ''}`)}
       {#each QUICK_METRICS as def}
         {@const entry = todaysMetric(def.id)}
         {@const spark = entriesFor(def.id).slice(-7)}
@@ -387,6 +469,20 @@
               <button onclick={() => startEdit(def.id)} class="text-body text-content tabular-nums hover:text-primary transition-colors">
                 {entry ? `${entry.value} ${def.unit}` : 'Log'}
               </button>
+            {/if}
+            {#if def.id === 'hrv' && hrvDelta !== undefined && hrvBaseline !== undefined && trainingState.homeDetails['metrics.hrvBaseline']}
+              <p class="text-caption tabular-nums {hrvDelta < -HRV_DIP_THRESHOLD_PCT ? 'text-status-caution' : 'text-content-subtle'}">
+                {hrvDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(hrvDelta * 100))}% vs 14-day baseline ({Math.round(hrvBaseline)})
+              </p>
+            {:else if def.id === BODYWEIGHT_METRIC_ID && bodyweightAvg !== undefined}
+              {@const diff = bodyweightPrevAvg !== undefined ? bodyweightAvg - bodyweightPrevAvg : undefined}
+              <p class="text-caption text-content-subtle tabular-nums flex items-center gap-1">
+                7-day avg {bodyweightAvg.toFixed(1)}
+                {#if diff !== undefined && Math.abs(diff) >= 0.1}
+                  <Icon icon={diff > 0 ? 'ic:baseline-arrow-upward' : 'ic:baseline-arrow-downward'} class="text-xs" />
+                  <span>{Math.abs(diff).toFixed(1)}</span>
+                {/if}
+              </p>
             {/if}
           </div>
           {#if spark.length > 1 && trainingState.homeDetails['metrics.sparklines']}
@@ -432,17 +528,50 @@
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
       {@render sectionHeader('ic:baseline-trending-up', 'This Week', 'Actual vs planned load',
         trainingState.homeDetails['thisWeek.note'] ? { has: !!weekNote, open: () => openNote = 'week', what: 'week' } : undefined)}
+      {#if trainingState.homeDetails['thisWeek.strip']}
+        <div class="grid grid-cols-7 gap-1">
+          {#each dayStrip as cell, i}
+            {@const mark = DAY_MARK[cell.status]}
+            <button
+              onclick={() => peekDay = peekDay === i ? null : i}
+              class="flex flex-col items-center gap-1 py-1 rounded-control {peekDay === i ? 'bg-surface-elevated/60' : ''}"
+              aria-label="{cell.day}: {mark.label}{cell.sessions.length ? `, ${cell.sessions.join(', ')}` : ''}"
+            >
+              <span class="text-caption {cell.isToday ? 'text-primary font-bold' : 'text-content-subtle'}">{WEEK_DAYS[i].slice(0, 1)}</span>
+              <span class="w-6 h-6 rounded-full border flex items-center justify-center {mark.class} {cell.isToday ? 'ring-2 ring-primary/50' : ''}">
+                {#if mark.icon}<Icon icon={mark.icon} class={cell.status === 'planned' ? 'text-[8px]' : 'text-xs'} />{/if}
+              </span>
+            </button>
+          {/each}
+        </div>
+        {#if peekDay !== null}
+          {@const cell = dayStrip[peekDay]}
+          <p class="text-caption text-content-subtle">
+            <span class="text-content-muted">{cell.day}:</span> {cell.sessions.length ? cell.sessions.join(' · ') : 'rest day'}{cell.status === 'missed' ? ' (missed)' : cell.status === 'skipped' ? ' (skipped)' : ''}
+          </p>
+        {/if}
+      {/if}
       {#if weeklyAdherence.plannedLoad > 0 || weeklyAdherence.actualLoad > 0}
         {@const percent = weeklyAdherence.plannedLoad > 0 ? Math.min(100, (weeklyAdherence.actualLoad / weeklyAdherence.plannedLoad) * 100) : 100}
-        <div class="flex items-baseline justify-between">
+        <div class="flex items-baseline justify-between gap-2">
           <p class="text-metric text-content tabular-nums">{Math.round(weeklyAdherence.actualLoad)} <span class="text-caption text-content-subtle font-normal">of {Math.round(weeklyAdherence.plannedLoad)}</span></p>
-          <span class="text-label text-success">{Math.round(weeklyAdherence.completionRate * 100)}% logged</span>
+          <div class="flex items-center gap-2 shrink-0">
+            {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
+              <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums {acwrZone.class}" title="Acute:chronic workload ratio - last 7 days vs the 28-day average">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>
+            {/if}
+            <span class="text-label text-success">{Math.round(weeklyAdherence.completionRate * 100)}% logged</span>
+          </div>
         </div>
         <div class="h-2.5 bg-surface-elevated rounded-control overflow-hidden border border-border-strong/30">
           <div class="h-full bg-success rounded-control transition-all duration-700" style="width: {percent}%"></div>
         </div>
       {:else}
-        <p class="text-caption text-content-subtle italic">No load logged yet this week.</p>
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-caption text-content-subtle italic">No load logged yet this week.</p>
+          {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
+            <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums shrink-0 {acwrZone.class}">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>
+          {/if}
+        </div>
       {/if}
     </div>
   {/snippet}
@@ -463,8 +592,27 @@
             </div>
           </div>
         {/if}
+        {#if trainingState.homeDetails['trainingBlock.loadTrend'] && blockTrend.some((b) => b.planned > 0 || b.actual > 0)}
+          <div class="flex items-end gap-1 h-10 pt-1" aria-label="Planned vs logged load per week of this block">
+            {#each blockTrend as bar}
+              {@const isCurrent = bar.weekId === currentWeekId}
+              <div class="flex-1 h-full flex items-end relative" title="{bar.weekId}: {bar.actual} of {bar.planned}">
+                <div class="absolute inset-x-0 bottom-0 rounded-t-control border border-dashed {isCurrent ? 'border-primary/60' : 'border-border-strong/60'}" style="height: {(bar.planned / blockTrendMax) * 100}%"></div>
+                <div class="relative w-full rounded-t-control {isCurrent ? 'bg-primary' : 'bg-primary/50'}" style="height: {(bar.actual / blockTrendMax) * 100}%"></div>
+              </div>
+            {/each}
+          </div>
+          <p class="text-caption text-content-subtle">Weekly load: logged (filled) vs planned (outline)</p>
+        {/if}
       {:else}
         <p class="text-caption text-content-subtle italic">No training block covers this week.</p>
+      {/if}
+      {#if upcomingBlock && daysToNextBlock !== undefined && trainingState.homeDetails['trainingBlock.next']}
+        {@const nextPhase = trainingState.phaseDefs.find((p) => p.id === upcomingBlock.phaseId)?.name}
+        <p class="text-caption text-content-subtle flex items-center gap-1 pt-1">
+          <Icon icon="ic:baseline-arrow-forward" class="text-xs shrink-0" />
+          <span class="truncate">Next: <span class="text-content-muted">{upcomingBlock.name}{nextPhase && nextPhase !== upcomingBlock.name ? ` · ${nextPhase}` : ''}</span> · {daysToNextBlock === 0 ? 'this week' : `in ${daysToNextBlock} day${daysToNextBlock === 1 ? '' : 's'}`} ({upcomingBlock.startWeekId})</span>
+        </p>
       {/if}
     </div>
   {/snippet}
@@ -483,6 +631,12 @@
             <p class="text-caption text-content-subtle">{daysUntilCompetition === 0 ? 'Today' : formatDate(nextCompetition.date)}</p>
           </div>
         </div>
+        {#if competitionTaperHint && trainingState.homeDetails['competition.taper']}
+          <p class="text-caption text-status-caution flex items-start gap-1">
+            <Icon icon="ic:baseline-info" class="text-sm mt-px shrink-0" />
+            <span>{competitionTaperHint}</span>
+          </p>
+        {/if}
       {:else}
         <p class="text-caption text-content-subtle italic">No upcoming event.</p>
       {/if}
@@ -492,17 +646,34 @@
   {#snippet recentActivitySection()}
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
       {@render sectionHeader('ic:baseline-history', 'Recent Activity')}
-      {#each recentActivity as workout}
-        <button onclick={() => trainingState.navigate('history')} class="w-full flex items-center gap-3 p-2.5 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-left hover:border-border-strong transition-colors">
-          <div class="w-8 h-8 rounded-control bg-success/10 text-success flex items-center justify-center shrink-0">
-            <Icon icon="ic:baseline-check" class="text-base" />
+      {#each recentActivity as item}
+        {#if item.kind === 'workout'}
+          {@const workout = item.workout}
+          {@const fatigue = [['F', workout.fingers], ['A', workout.arms], ['C', workout.core], ['S', workout.systemic]].filter(([, v]) => v !== undefined)}
+          <button onclick={() => trainingState.openInHistory(workout.id)} class="w-full flex items-center gap-3 p-2.5 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-left hover:border-border-strong transition-colors">
+            <div class="w-8 h-8 rounded-control bg-success/10 text-success flex items-center justify-center shrink-0">
+              <Icon icon="ic:baseline-check" class="text-base" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-label text-content truncate">{workout.notes || 'Session'}</p>
+              <p class="text-caption text-content-subtle truncate tabular-nums">
+                {formatDate(workout.date)}{#if trainingState.homeDetails['recentActivity.details']} · {Math.round(sessionDuration(workout))} min · load {Math.round(workout.loadFactor || 0)}{/if}{#if trainingState.homeDetails['recentActivity.fatigue'] && fatigue.length > 0} · {fatigue.map(([k, v]) => `${k}${v}`).join(' ')}{/if}
+              </p>
+            </div>
+            <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0" />
+          </button>
+        {:else}
+          {@const ascent = item.ascent}
+          <div class="w-full flex items-center gap-3 p-2.5 bg-surface-elevated/30 rounded-control border border-border-strong/40">
+            <div class="w-8 h-8 rounded-control bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Icon icon="ic:baseline-terrain" class="text-base" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-label text-content truncate">{ascent.name || 'Outdoor send'} <span class="text-primary tabular-nums">{ascent.grade}</span></p>
+              <p class="text-caption text-content-subtle truncate">{formatDate(ascent.date)}{ascent.style ? ` · ${ascent.style}` : ''}{ascent.crag ? ` · ${ascent.crag}` : ''}</p>
+            </div>
           </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-label text-content truncate">{workout.notes}</p>
-            <p class="text-caption text-content-subtle">{formatDate(workout.date)}</p>
-          </div>
-          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0" />
-        </button>
+        {/if}
       {:else}
         <p class="text-caption text-content-subtle italic">No completed sessions yet.</p>
       {/each}
