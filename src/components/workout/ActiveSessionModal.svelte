@@ -418,15 +418,38 @@
         Back to session
       </button>
       {#if isAddingExercise}
-        <p class="text-caption text-content-subtle px-1">
-          Logged as done, with what you enter below.
-          {#if trainingState.addedExerciseTarget === 'none'}
-            It counts as extra work, not part of the plan.
-          {:else}
-            It also becomes part of the plan, so the session still reports full adherence.
-          {/if}
-          <button onclick={() => trainingState.navigate('settings')} class="text-primary hover:underline">Change</button>
-        </p>
+        <!-- The setting is changed here rather than linked to. This screen
+             is a `fixed inset-0` overlay above the session modal, so the
+             old "Change" link navigated to Settings *behind* it - the view
+             really did change, you just couldn't see it. Bouncing someone
+             out to Settings mid-session would be the wrong answer even if
+             it had worked; this writes the same preference in place. -->
+        <div class="px-1 space-y-2">
+          <p class="text-caption text-content-subtle">
+            Logged as done, with what you enter below. This one counts as:
+          </p>
+          <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+            <button
+              onclick={() => trainingState.setAddedExerciseTarget('none')}
+              class="flex-1 py-2 text-label rounded-control transition-all {trainingState.addedExerciseTarget === 'none' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+            >
+              Extra work
+            </button>
+            <button
+              onclick={() => trainingState.setAddedExerciseTarget('mirror')}
+              class="flex-1 py-2 text-label rounded-control transition-all {trainingState.addedExerciseTarget === 'mirror' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+            >
+              Part of the plan
+            </button>
+          </div>
+          <p class="text-caption text-content-subtle/80">
+            {#if trainingState.addedExerciseTarget === 'none'}
+              No target is recorded, so it adds nothing to planned load and adherence still measures the original plan.
+            {:else}
+              What you did is copied in as the target too, so it counts toward planned load and the session reports full adherence.
+            {/if}
+          </p>
+        </div>
       {/if}
       <ExerciseForm initialSlot={editingSlot} mode="logged" onSave={handleFormSave} />
     </div>
