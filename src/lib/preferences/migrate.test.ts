@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { migratePreferences, defaultPreferences, CURRENT_PREFERENCES_VERSION, HOME_SECTION_IDS } from './migrate';
+import { defaultHomeDetails } from './homeDetails';
 
 const DEFAULT_HOME_SECTIONS = HOME_SECTION_IDS.map((id) => ({ id, visible: true }));
 const DEFAULT_AI_SHARING = {
@@ -30,6 +31,7 @@ describe('defaultPreferences', () => {
       timerBeepEnabled: true,
       timerKeepAwakeEnabled: false,
       homeSections: DEFAULT_HOME_SECTIONS,
+      homeDetails: defaultHomeDetails(),
       aiSharing: DEFAULT_AI_SHARING,
     });
   });
@@ -80,6 +82,7 @@ describe('migratePreferences', () => {
       timerBeepEnabled: false,
       timerKeepAwakeEnabled: true,
       homeSections: [...DEFAULT_HOME_SECTIONS.slice(1), DEFAULT_HOME_SECTIONS[0]],
+      homeDetails: { ...defaultHomeDetails(), 'weather.forecast': false },
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false },
       planFormat: 'weekly' as const,
       addedExerciseTarget: 'mirror' as const,

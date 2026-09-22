@@ -12,10 +12,15 @@
    * `dragHandle` - the same handle-only pattern (not whole-row-draggable)
    * Stage 6 used for the Plan screen's day reassignment, so normal page
    * scrolling isn't interrupted by an accidental drag start.
+   *
+   * A section with optional parts (`HOME_SECTION_DETAILS`) gets a chevron
+   * that expands its row into those parts' toggles. Which rows are open is
+   * view state only - it resets when the screen is left.
    */
   import { trainingState } from '../../lib/state.svelte';
   import { dragHandleZone, dragHandle, type DndEvent } from 'svelte-dnd-action';
   import type { HomeSectionPreference } from '../../lib/preferences/migrate';
+  import { HOME_SECTION_DETAILS } from '../../lib/preferences/homeDetails';
   import Icon from "@iconify/svelte";
 
   const SECTION_LABELS: Record<HomeSectionPreference['id'], string> = {
@@ -38,6 +43,14 @@
   $effect(() => {
     items = trainingState.homeSections;
   });
+
+  let expanded = $state<Set<HomeSectionPreference['id']>>(new Set());
+  function toggleExpanded(id: HomeSectionPreference['id']) {
+    const next = new Set(expanded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    expanded = next;
+  }
 
   function handleConsider(e: CustomEvent<DndEvent<HomeSectionPreference>>) {
     items = e.detail.items;
@@ -106,7 +119,7 @@
 
   <div class="space-y-2">
     <p class="text-label text-content-subtle px-1">Home sections</p>
-    <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide.</p>
+    <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide. Open a section to choose what it shows.</p>
     <div
       class="space-y-1.5"
       use:dragHandleZone={{ items, flipDurationMs: 150, dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
@@ -114,17 +127,52 @@
       onfinalize={handleFinalize}
     >
       {#each items as section (section.id)}
-        <div class="flex items-center gap-2 p-2.5 rounded-control border border-border-strong/50 bg-surface-elevated/30">
-          <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle touch-none p-1" aria-label="Drag to reorder {SECTION_LABELS[section.id]}">
-            <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
+        {@const details = HOME_SECTION_DETAILS[section.id]}
+        {@const isOpen = expanded.has(section.id)}
+        <div class="rounded-control border border-border-strong/50 bg-surface-elevated/30">
+          <div class="flex items-center gap-2 p-2.5">
+            <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle touch-none p-1" aria-label="Drag to reorder {SECTION_LABELS[section.id]}">
+              <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
+            </div>
+            {#if details.length > 0}
+              <button
+                onclick={() => toggleExpanded(section.id)}
+                class="flex-1 flex items-center gap-1 text-left text-body text-content"
+                aria-expanded={isOpen}
+                aria-label="{isOpen ? 'Hide' : 'Show'} {SECTION_LABELS[section.id]} options"
+              >
+                <span>{SECTION_LABELS[section.id]}</span>
+                <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle transition-transform {isOpen ? 'rotate-90' : ''}" />
+              </button>
+            {:else}
+              <span class="text-body text-content flex-1">{SECTION_LABELS[section.id]}</span>
+            {/if}
+            <input
+              type="checkbox"
+              checked={section.visible}
+              onchange={(e) => trainingState.setHomeSectionVisible(section.id, e.currentTarget.checked)}
+              class="w-5 h-5 rounded accent-primary"
+              aria-label="Show {SECTION_LABELS[section.id]} on Home"
+            />
           </div>
-          <span class="text-body text-content flex-1">{SECTION_LABELS[section.id]}</span>
-          <input
-            type="checkbox"
-            checked={section.visible}
-            onchange={(e) => trainingState.setHomeSectionVisible(section.id, e.currentTarget.checked)}
-            class="w-5 h-5 rounded accent-primary"
-          />
+          {#if isOpen}
+            <div class="pl-11 pr-2.5 pb-2.5 space-y-2 {section.visible ? '' : 'opacity-50'}">
+              {#each details as detail (detail.id)}
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-label text-content">{detail.label}</p>
+                    {#if detail.hint}<p class="text-caption text-content-subtle">{detail.hint}</p>{/if}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={trainingState.homeDetails[detail.id]}
+                    onchange={(e) => trainingState.setHomeDetail(detail.id, e.currentTarget.checked)}
+                    class="w-4 h-4 rounded accent-primary shrink-0"
+                  />
+                </label>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/each}
     </div>

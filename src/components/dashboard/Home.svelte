@@ -239,10 +239,12 @@
       <div class="min-w-0 space-y-1.5">
         <span class="text-section uppercase {STATUS_COLOR[readiness.status]}">{readiness.status}</span>
         <p class="text-body text-content leading-snug">{readiness.advice}</p>
-        <p class="text-caption text-content-subtle flex items-start gap-1">
-          <Icon icon="ic:baseline-insights" class="text-content-subtle text-sm mt-0.5 shrink-0" />
-          <span>{readiness.confidence}</span>
-        </p>
+        {#if trainingState.homeDetails['readiness.confidence']}
+          <p class="text-caption text-content-subtle flex items-start gap-1">
+            <Icon icon="ic:baseline-insights" class="text-content-subtle text-sm mt-0.5 shrink-0" />
+            <span>{readiness.confidence}</span>
+          </p>
+        {/if}
       </div>
     </div>
   {/snippet}
@@ -319,7 +321,7 @@
               </button>
             {/if}
           </div>
-          {#if spark.length > 1}
+          {#if spark.length > 1 && trainingState.homeDetails['metrics.sparklines']}
             <div class="h-8 flex items-end gap-0.5 shrink-0">
               {#each spark as s}
                 <div class="w-1.5 rounded-t-control bg-primary/50" style="height: {sparkHeightPercent(s.value, spark.map((v) => v.value))}%"></div>
@@ -461,7 +463,7 @@
              the snapshot carries it: a cached snapshot from before these
              were fetched still shows the temperature rather than a row of
              blanks. -->
-        {#if w.feelsLikeC !== undefined || w.humidityPercent !== undefined || w.windSpeedKmh !== undefined || (w.precipitationMm ?? 0) > 0}
+        {#if trainingState.homeDetails['weather.details'] && (w.feelsLikeC !== undefined || w.humidityPercent !== undefined || w.windSpeedKmh !== undefined || (w.precipitationMm ?? 0) > 0)}
           <div class="flex flex-wrap gap-x-4 gap-y-1">
             {#if w.feelsLikeC !== undefined}
               <span class="text-caption text-content-subtle tabular-nums">Feels {Math.round(w.feelsLikeC)}°</span>
@@ -482,7 +484,7 @@
              has rendered it since Stage 8 - the home card just never showed
              it. Today is labelled rather than given its weekday name, since
              "Mon" beside a live temperature reads as a different day. -->
-        {#if w.daily.length > 0}
+        {#if w.daily.length > 0 && trainingState.homeDetails['weather.forecast']}
           <div class="flex gap-3 overflow-x-auto no-scrollbar pt-1 border-t border-border/60">
             {#each w.daily as day, i}
               {@const dayCode = describeWeatherCode(day.weatherCode)}
@@ -509,7 +511,7 @@
       {/if}
     </div>
 
-    {#if trainingState.tripLocation}
+    {#if trainingState.tripLocation && trainingState.homeDetails['weather.trip']}
       <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
         {@render sectionHeader('ic:baseline-luggage', 'Trip Forecast')}
         {#if trainingState.tripWeather.unavailable}

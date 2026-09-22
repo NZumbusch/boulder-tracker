@@ -1,4 +1,5 @@
 import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat, type AddedExerciseTarget } from '../preferences/migrate';
+import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 
 const PREFERENCES_KEY = 'boulder_tracker_preferences';
 const LEGACY_THEME_KEY = 'boulder_tracker_theme';
@@ -23,6 +24,7 @@ export class PreferencesStore {
   timerBeepEnabled = $state(true);
   timerKeepAwakeEnabled = $state(false);
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
+  homeDetails = $state<HomeDetails>(defaultHomeDetails());
   aiSharing = $state<AISharingPreferences>(defaultPreferences().aiSharing);
   planFormat = $state<PlanFormat>(defaultPreferences().planFormat);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
@@ -56,6 +58,7 @@ export class PreferencesStore {
     this.timerBeepEnabled = prefs.timerBeepEnabled;
     this.timerKeepAwakeEnabled = prefs.timerKeepAwakeEnabled;
     this.homeSections = prefs.homeSections;
+    this.homeDetails = prefs.homeDetails;
     this.aiSharing = prefs.aiSharing;
     this.planFormat = prefs.planFormat;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
@@ -135,6 +138,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setHomeDetail(id: string, enabled: boolean) {
+    this.homeDetails = { ...this.homeDetails, [id]: enabled };
+    this.persist();
+  }
+
   setAiSharing(category: keyof AISharingPreferences, enabled: boolean) {
     this.aiSharing = { ...this.aiSharing, [category]: enabled };
     this.persist();
@@ -174,6 +182,7 @@ export class PreferencesStore {
       timerBeepEnabled: this.timerBeepEnabled,
       timerKeepAwakeEnabled: this.timerKeepAwakeEnabled,
       homeSections: this.homeSections,
+      homeDetails: this.homeDetails,
       aiSharing: this.aiSharing,
       planFormat: this.planFormat,
       addedExerciseTarget: this.addedExerciseTarget,

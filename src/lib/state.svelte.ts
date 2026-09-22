@@ -174,6 +174,11 @@ class TrainingState {
   setHomeSectionOrder(order: HomeSectionPreference['id'][]) {
     this.preferencesStore.setHomeSectionOrder(order);
   }
+  /** Per-part Home toggles, keyed by `homeDetails.ts` ids - see `Preferences.homeDetails`. */
+  get homeDetails() { return this.preferencesStore.homeDetails; }
+  setHomeDetail(id: string, enabled: boolean) {
+    this.preferencesStore.setHomeDetail(id, enabled);
+  }
 
   // --- AI sharing (UI_PLAN.md §5.8, Stage 10) ---
 

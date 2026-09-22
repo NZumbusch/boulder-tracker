@@ -18,6 +18,7 @@
  */
 
 import type { ChartDensity } from '../analytics/chartWindow';
+import { defaultHomeDetails, validateHomeDetails, type HomeDetails } from './homeDetails';
 
 export const CURRENT_PREFERENCES_VERSION = 1;
 
@@ -81,6 +82,12 @@ export interface Preferences {
    * section silently disappear or duplicate.
    */
   homeSections: HomeSectionPreference[];
+  /**
+   * Per-part toggles inside each Home card (Appearance -> Home sections,
+   * expanded row). Keyed by the ids in `homeDetails.ts`'s registry, which
+   * owns the defaults; always holds every registered id after migration.
+   */
+  homeDetails: HomeDetails;
   /**
    * What gets included in an AI prompt's condensed training profile
    * (UI_PLAN.md §5.8, Stage 10) - independent of whether the AI *has*
@@ -192,6 +199,7 @@ export function defaultPreferences(): Preferences {
     timerBeepEnabled: true,
     timerKeepAwakeEnabled: false,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
+    homeDetails: defaultHomeDetails(),
     planFormat: 'phase',
     addedExerciseTarget: 'none',
     aiSharing: {
@@ -335,6 +343,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
       ? candidate.timerKeepAwakeEnabled
       : defaults.timerKeepAwakeEnabled,
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
+    homeDetails: validateHomeDetails(candidate.homeDetails),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
     planFormat: candidate.planFormat === 'weekly' || candidate.planFormat === 'phase' ? candidate.planFormat : defaults.planFormat,
     addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'
