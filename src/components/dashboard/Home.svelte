@@ -249,6 +249,7 @@
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
       {@render sectionHeader('ic:baseline-today', 'Today', todaysWorkouts.length > 0 ? `${todaysWorkouts.length} session${todaysWorkouts.length === 1 ? '' : 's'} planned` : undefined)}
       {#each todaysWorkouts as workout}
+        {@const isThisRunning = trainingState.sessionStore.isRunning(workout.id)}
         <div class="flex items-center justify-between p-3.5 rounded-control {workout.provisional ? 'bg-surface-elevated/20 border border-dashed border-border-strong/60' : 'bg-surface-elevated/50 border border-border-strong/50'}">
           <div class="min-w-0 flex-1">
             <p class="text-body font-bold text-content truncate">{workout.notes}</p>
@@ -259,17 +260,25 @@
               <span class="truncate">{workout.exercises.length} exercises</span>
             </p>
           </div>
+          <!-- Start goes live: it begins the session and opens the session
+               modal, rather than opening the workout in the planning form.
+               While a session is running, the only session that can be
+               opened from here is that one. -->
           <button
-            onclick={() => trainingState.navigate('add', workout)}
-            class="flex items-center gap-1 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control shrink-0 ml-3 transition-all active:scale-95 shadow-[0_4px_14px_-4px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]"
+            onclick={() => trainingState.startSession(workout)}
+            disabled={trainingState.isSessionActive && !isThisRunning}
+            title={trainingState.isSessionActive && !isThisRunning ? 'Finish or discard the running session first' : undefined}
+            class="flex items-center gap-1 px-3 py-1.5 text-white text-label font-bold rounded-control shrink-0 ml-3 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed {isThisRunning
+              ? 'bg-success hover:bg-success-hover'
+              : 'bg-primary hover:bg-primary-hover shadow-[0_4px_14px_-4px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]'}"
           >
-            <Icon icon="ic:baseline-play-arrow" class="text-sm" /> Start
+            <Icon icon="ic:baseline-play-arrow" class="text-sm" /> {isThisRunning ? 'Resume' : 'Start'}
           </button>
         </div>
       {:else}
         <div class="flex items-center justify-between gap-3">
           <p class="text-caption text-content-subtle italic">Nothing planned for today.</p>
-          <button onclick={() => trainingState.navigate('add')} class="text-label text-primary shrink-0">Log a spontaneous session</button>
+          <button onclick={() => trainingState.navigate('add')} class="text-label text-primary shrink-0">Start a session</button>
         </div>
       {/each}
     </div>

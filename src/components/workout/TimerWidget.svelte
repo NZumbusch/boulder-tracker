@@ -6,7 +6,9 @@
    * - `bottom-[91px]` instead of the stash's `bottom-24`, recomputed
    *   against this app's actual nav bar height (`h-[75px]`, App.svelte) +
    *   16px clearance, rather than an inherited guess (UI_PLAN.md §1 flagged
-   *   `bottom-24` as the one stale detail in an otherwise clean port).
+   *   `bottom-24` as the one stale detail in an otherwise clean port). Now
+   *   the default rather than a constant - the session modal covers that
+   *   nav with a shorter footer of its own and overrides it.
    * - `currentSlot`: when set (WorkoutForm passes its `editingSlot`), shows
    *   preset chips for whichever of that exercise's timeOn/timeOff/
    *   timeBetweenSets are actually defined, so switching to timer mode
@@ -22,7 +24,15 @@
   import { trainingState } from "../../lib/state.svelte";
   import type { ExerciseSlot } from "../../lib/types";
 
-  let { currentSlot = null }: { currentSlot?: ExerciseSlot | null } = $props();
+  let { currentSlot = null, bottomClass = 'bottom-[91px]' }: {
+    currentSlot?: ExerciseSlot | null;
+    /**
+     * Vertical placement, so the widget can clear whatever is beneath it.
+     * The default clears App.svelte's nav bar; the session modal covers
+     * that nav with its own shorter footer and passes its height instead.
+     */
+    bottomClass?: string;
+  } = $props();
 
   let mode = $state<'stopwatch' | 'timer'>('stopwatch');
   let time = $state(0);
@@ -151,7 +161,7 @@
   }
 </script>
 
-<div class="fixed bottom-[91px] left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
+<div class="fixed {bottomClass} left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
   {#if presets.length > 0}
     <div class="flex items-center gap-1.5 bg-surface/90 backdrop-blur-md border border-border rounded-control px-2 py-1 shadow-card animate-in fade-in">
       {#each presets as preset}

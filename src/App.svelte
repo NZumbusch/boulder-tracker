@@ -3,7 +3,9 @@
   import { trainingState } from './lib/state.svelte';
   
   import FatigueModal from './components/common/FatigueModal.svelte';
-  import { slotValues } from './lib/exerciseSlot';
+  import ActiveSessionModal from './components/workout/ActiveSessionModal.svelte';
+  import SessionBubble from './components/workout/SessionBubble.svelte';
+  import { sessionDuration } from './lib/planning/sessionDuration';
   import Icon from "@iconify/svelte";
 
   // --- Derived State ---
@@ -134,10 +136,18 @@
     </button>
   </nav>
 
+  <!-- The live session and its minimised bubble are mounted here, outside
+       the view switch, so a running session survives navigating between
+       screens. They are mutually exclusive (the bubble only shows while
+       the modal is closed), so the modal's stopwatch never competes with
+       the bubble's own elapsed readout. -->
+  <ActiveSessionModal />
+  <SessionBubble />
+
   {#if trainingState.activeWorkout && trainingState.showFatigue}
     <FatigueModal 
       initialData={trainingState.activeWorkout}
-      duration={trainingState.activeWorkout.exercises.reduce((acc, e) => acc + (slotValues(e).duration || 0), 0)}
+      duration={sessionDuration(trainingState.activeWorkout)}
       onConfirm={(data) => trainingState.confirmFatigue(data)} 
     />
   {/if}

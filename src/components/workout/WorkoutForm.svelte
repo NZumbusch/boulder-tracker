@@ -9,7 +9,6 @@
   import ExerciseForm from './ExerciseForm.svelte';
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
   import AIImportModal from '../plan/AIImportModal.svelte';
-  import TimerWidget from './TimerWidget.svelte';
   import Icon from "@iconify/svelte";
 
   // --- Props ---
@@ -55,24 +54,44 @@
 
   // --- Session Handlers ---
 
-  function handleStartNew() {
+  /** A blank session for right now - the shape both "Start Now" and "Plan a Session" begin from. */
+  function blankWorkout(): Workout {
     const d = new Date();
-    workout = {
+    return {
       id: generateId(),
       status: 'planned',
       date: d.toISOString(),
-      weekId: trainingState.currentWeekId, 
+      weekId: trainingState.currentWeekId,
       notes: 'New Session',
       startTime: d.toTimeString().slice(0, 5),
       loadFactor: 0,
-      exercises: []
+      exercises: [],
     };
   }
 
-  function handleSelectPlanned(p: Workout) {
-    const d = new Date();
-    workout = { ...$state.snapshot(p), date: d.toISOString(), startTime: p.startTime || d.toTimeString().slice(0, 5), status: 'completed' };
-    ensureLoggedInitialized(workout);
+  /**
+   * Goes live immediately with an empty session - you add exercises as you
+   * do them, from inside the session modal. This is the spontaneous path;
+   * it never touches the plan.
+   */
+  function handleStartNow() {
+    trainingState.startSession(blankWorkout());
+  }
+
+  /** The planning path: build a session and save it for later, without starting it. */
+  function handlePlanNew() {
+    workout = blankWorkout();
+  }
+
+  /**
+   * Starting a planned session goes live rather than opening it in this
+   * form. This was the original bug: it used to load the workout here with
+   * `status: 'planned'`, so "Start" dropped you into *Planning* mode and
+   * the only way to reach the target-vs-actual view was to finish and rate
+   * the session first, then reopen it.
+   */
+  function handleStartPlanned(p: Workout) {
+    trainingState.startSession($state.snapshot(p) as Workout);
   }
 
   // --- Benchmark Handlers ---
@@ -192,31 +211,57 @@
         <div class="h-1 w-8 bg-primary-hover rounded-full"></div>
       </div>
 
-      <!-- Two compact tiles side by side rather than two full-width slabs:
-           at phone width a 100%-wide button for "New Session" was mostly
-           empty space, and the pair reads as one row of choices now. They
-           stay side by side at every width the app renders at (the page is
-           capped at max-w-lg), so no breakpoint switch is needed. -->
+      <!-- Start Now is the primary, full-width action: going straight into
+           a live session is the thing this screen is for, and it used to
+           be indistinguishable from the planning path. Planning and
+           benchmarks are the quieter pair beneath it. -->
+      {#if trainingState.isSessionActive}
+        <button
+          onclick={() => trainingState.sessionStore.openModal()}
+          class="w-full p-4 bg-success hover:bg-success-hover text-white rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3"
+        >
+          <Icon icon="ic:baseline-play-circle" class="text-2xl shrink-0" />
+          <span class="min-w-0 flex-1">
+            <span class="text-label font-bold block truncate">Back to your session</span>
+            <span class="text-caption text-white/75 block truncate">
+              {trainingState.sessionStore.progress.settled}/{trainingState.sessionStore.progress.total} done &middot; already running
+            </span>
+          </span>
+          <Icon icon="ic:baseline-chevron-right" class="text-lg shrink-0" />
+        </button>
+      {:else}
+        <button
+          onclick={handleStartNow}
+          class="w-full p-4 bg-primary hover:bg-primary-hover text-white rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3 shadow-[0_4px_18px_-6px_color-mix(in_srgb,var(--color-primary)_70%,transparent)]"
+        >
+          <Icon icon="ic:baseline-play-circle" class="text-2xl shrink-0" />
+          <span class="min-w-0 flex-1">
+            <span class="text-label font-bold block truncate">Start Now</span>
+            <span class="text-caption text-white/75 block truncate">Empty session &mdash; add exercises as you go</span>
+          </span>
+        </button>
+      {/if}
+
       <div class="grid grid-cols-2 gap-2.5">
         <button
-          onclick={handleStartNew}
-          class="p-3.5 bg-primary hover:bg-primary-hover text-white rounded-card transition-all active:scale-[0.98] text-left flex flex-col gap-2"
+          onclick={handlePlanNew}
+          class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card border border-border-strong/50 transition-all active:scale-[0.98] text-left flex flex-col gap-2"
         >
-          <Icon icon="ic:baseline-plus" class="text-lg" />
+          <Icon icon="ic:baseline-edit-calendar" class="text-lg text-content-muted" />
           <span class="min-w-0">
-            <span class="text-label font-bold block truncate">New Session</span>
-            <span class="text-caption text-white/75 block truncate">From scratch</span>
+            <span class="text-label font-bold block truncate">Plan a Session</span>
+            <span class="text-caption text-content-subtle block truncate">Save it for later</span>
           </span>
         </button>
 
         <button
           onclick={handleAddBenchmark}
-          class="p-3.5 bg-success hover:bg-success-hover text-white rounded-card transition-all active:scale-[0.98] text-left flex flex-col gap-2"
+          class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card border border-border-strong/50 transition-all active:scale-[0.98] text-left flex flex-col gap-2"
         >
-          <Icon icon="ic:baseline-insights" class="text-lg" />
+          <Icon icon="ic:baseline-insights" class="text-lg text-content-muted" />
           <span class="min-w-0">
             <span class="text-label font-bold block truncate">Log Benchmark</span>
-            <span class="text-caption text-white/75 block truncate">Record a test</span>
+            <span class="text-caption text-content-subtle block truncate">Record a test</span>
           </span>
         </button>
       </div>
@@ -235,9 +280,13 @@
           <!-- Ordered by day, then start time - see sortWorkoutsBySchedule,
                which WorkoutStore.getPlannedWorkoutsForWeek applies. -->
           {#each plannedWorkouts as p}
+            {@const isThisRunning = trainingState.sessionStore.isRunning(p.id)}
+            {@const blocked = trainingState.isSessionActive && !isThisRunning}
             <button
-              onclick={() => handleSelectPlanned(p)}
-              class="w-full px-3 py-2.5 rounded-control text-left transition-all group flex items-center gap-2.5 {p.provisional ? 'bg-surface/30 border border-dashed border-border hover:border-border-strong' : 'bg-surface/50 border border-border hover:bg-surface-elevated hover:border-border-strong'}"
+              onclick={() => handleStartPlanned(p)}
+              disabled={blocked}
+              title={blocked ? 'Finish or discard the running session first' : undefined}
+              class="w-full px-3 py-2.5 rounded-control text-left transition-all group flex items-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed {p.provisional ? 'bg-surface/30 border border-dashed border-border hover:border-border-strong' : 'bg-surface/50 border border-border hover:bg-surface-elevated hover:border-border-strong'}"
             >
               <span class="w-9 shrink-0 text-center text-caption font-bold text-primary-hover bg-primary-hover/10 py-1 rounded-control leading-none">
                 {p.dayOfWeek ? p.dayOfWeek.slice(0, 3) : '—'}
@@ -258,7 +307,11 @@
                   </span>
                 </span>
               </span>
-              <Icon icon="ic:baseline-chevron-right" class="text-base text-content-subtle group-hover:text-primary transition-colors shrink-0" />
+              {#if isThisRunning}
+                <span class="shrink-0 text-caption font-bold text-success px-2 py-1 bg-success/10 rounded-control">Running</span>
+              {:else}
+                <Icon icon="ic:baseline-play-arrow" class="text-lg text-content-subtle group-hover:text-primary transition-colors shrink-0" />
+              {/if}
             </button>
           {/each}
         </div>
@@ -472,12 +525,11 @@
           disabled={workout.exercises.length === 0}
           class="flex-1 min-w-0 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold py-3 rounded-control transition-all active:scale-[0.98]"
         >
-          {workout.status === 'completed' ? 'Save Changes' : 'Finish & Rate'}
+          {workout.status === 'completed' ? 'Save Changes' : 'Log as Completed'}
         </button>
       </div>
     </div>
 
-    <TimerWidget currentSlot={editingSlot} />
   {/if}
 </div>
 

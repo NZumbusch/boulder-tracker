@@ -3,6 +3,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { type Workout, calculateLoadFactor } from '../../lib/types';
   import { generateId } from '../../lib/utils';
+  import { formatMinutes } from '../../lib/session/formatSession';
 
   // --- Props ---
   let { 
@@ -31,6 +32,27 @@
   let painSeverity = $state(5);
   let painNotes = $state('');
 
+  /**
+   * The session's length, editable here before it is committed.
+   *
+   * Seeded from `duration` (a live session's measured running time, or the
+   * estimate for a session logged by hand) and written back as
+   * `actualDuration`. Editable because a measured time can be wrong in the
+   * one way that matters - a session left running while you drove home -
+   * and this number feeds `loadFactor`, so a bad one distorts every load
+   * chart downstream rather than just reading oddly in History.
+   */
+  let durationMinutes = $state(0);
+  /** What the clock said, kept to show when the number has been corrected. */
+  let measuredMinutes = $state(0);
+
+  $effect(() => {
+    if (trainingState.showFatigue) {
+      durationMinutes = Math.max(0, Math.round(duration));
+      measuredMinutes = Math.max(0, Math.round(duration));
+    }
+  });
+
   $effect(() => {
     if (trainingState.showFatigue && initialData) {
       fingers = initialData.fingers ?? 5;
@@ -48,7 +70,7 @@
   // load-formula input. Collecting it and using it in the load calculation
   // are separate decisions; only the first is in scope here, so don't "fix"
   // this apparent inconsistency without re-reading §5.4/§8.
-  const loadFactor = $derived(calculateLoadFactor(duration, fingers, core, systemic));
+  const loadFactor = $derived(calculateLoadFactor(durationMinutes, fingers, core, systemic));
 
   async function handleSave() {
     if (showPainLog && painBodyPart.trim()) {
@@ -61,7 +83,18 @@
         notes: painNotes || undefined,
       });
     }
-    onConfirm({ fingers, arms, core, systemic, notes, loadFactor });
+    onConfirm({
+      fingers,
+      arms,
+      core,
+      systemic,
+      notes,
+      loadFactor,
+      // Zero means "no meaningful length recorded" - left unset so
+      // `sessionDuration` falls back to summing the logged exercises
+      // rather than reporting a zero-minute session.
+      actualDuration: durationMinutes > 0 ? durationMinutes : undefined,
+    });
   }
 </script>
 
@@ -83,6 +116,35 @@
       </div>
 
       <div class="space-y-4">
+        <div class="space-y-2">
+          <label for="session-duration" class="flex justify-between items-baseline text-label text-content-subtle ml-1">
+            <span>Session length</span>
+            {#if measuredMinutes > 0 && durationMinutes !== measuredMinutes}
+              <button
+                type="button"
+                onclick={() => durationMinutes = measuredMinutes}
+                class="text-caption text-content-subtle hover:text-primary transition-colors tabular-nums"
+              >
+                clock said {formatMinutes(measuredMinutes)} &mdash; reset
+              </button>
+            {:else if measuredMinutes > 0}
+              <span class="text-caption text-content-subtle tabular-nums">{formatMinutes(measuredMinutes)} on the clock</span>
+            {/if}
+          </label>
+          <div class="flex items-center gap-2">
+            <input
+              id="session-duration"
+              type="number"
+              min="0"
+              step="5"
+              inputmode="numeric"
+              bind:value={durationMinutes}
+              class="flex-1 min-w-0 bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-sm tabular-nums"
+            />
+            <span class="text-label text-content-subtle shrink-0">min</span>
+          </div>
+        </div>
+
         <div class="space-y-3">
           <label for="fingers-range" class="flex justify-between text-label text-content-subtle ml-1">
             <span>Fingers</span>

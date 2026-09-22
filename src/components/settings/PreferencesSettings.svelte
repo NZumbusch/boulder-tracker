@@ -8,6 +8,7 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import LayoutSettings from './LayoutSettings.svelte';
+  import SessionSettings from './SessionSettings.svelte';
   import TimerSettings from './TimerSettings.svelte';
   import WeatherSettings from './WeatherSettings.svelte';
   import NotificationSettings from './NotificationSettings.svelte';
@@ -93,6 +94,7 @@
   </div>
 
   <LayoutSettings />
+  <SessionSettings />
   <TimerSettings />
   <WeatherSettings />
   <NotificationSettings />

@@ -444,7 +444,13 @@
                     {#if workout.status === 'completed'}
                       <span class="text-label text-success">Done</span>
                     {:else}
-                      <button onclick={() => trainingState.navigate('add', workout)} class="text-label text-primary hover:scale-105 transition-transform">Start</button>
+                      {@const isThisRunning = trainingState.sessionStore.isRunning(workout.id)}
+                      <button
+                        onclick={() => trainingState.startSession(workout)}
+                        disabled={trainingState.isSessionActive && !isThisRunning}
+                        title={trainingState.isSessionActive && !isThisRunning ? 'Finish or discard the running session first' : undefined}
+                        class="text-label hover:scale-105 transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 {isThisRunning ? 'text-success font-bold' : 'text-primary'}"
+                      >{isThisRunning ? 'Resume' : 'Start'}</button>
                     {/if}
                   </div>
                 </div>
