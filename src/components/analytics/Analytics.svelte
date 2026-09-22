@@ -3,7 +3,7 @@
   import { getWeekId, getWeekDates } from '../../lib/dateUtils';
   import type { Workout, ExerciseTypeDef, Benchmark, ExerciseCategory } from '../../lib/types';
   import { estimateSlotDuration, DEFAULT_EXERCISE_MINUTES } from '../../lib/planning/sessionDuration';
-  import { ChartTips } from '../../lib/analytics/chartTips.svelte';
+  import { ChartTips, isTapPointer, isKeyboardActivation } from '../../lib/analytics/chartTips.svelte';
   import {
     calculateAcwrForWeeks,
     calculateWeeklyAdherence,
@@ -834,9 +834,10 @@
                     <button
                       type="button"
                       data-tip-trigger
-                      onclick={() => tips.toggle(`mix-${wi}-${cat.id}`)}
-                      onpointerenter={(e) => { if (e.pointerType === 'mouse') tips.open(`mix-${wi}-${cat.id}`); }}
-                      onpointerleave={(e) => { if (e.pointerType === 'mouse') tips.closeIf(`mix-${wi}-${cat.id}`); }}
+                      onpointerup={(e) => { if (isTapPointer(e)) tips.toggle(`mix-${wi}-${cat.id}`); }}
+                      onclick={(e) => { if (isKeyboardActivation(e)) tips.toggle(`mix-${wi}-${cat.id}`); }}
+                      onpointerenter={(e) => { if (!isTapPointer(e)) tips.open(`mix-${wi}-${cat.id}`); }}
+                      onpointerleave={(e) => { if (!isTapPointer(e)) tips.closeIf(`mix-${wi}-${cat.id}`); }}
                       aria-label="{cat.name}, {Math.round(catDuration)} minutes in week {week.label}"
                       class="{cat.color} w-full relative block"
                       style="height: {(catDuration / visibleTotalDuration) * 100}%"

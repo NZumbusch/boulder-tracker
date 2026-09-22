@@ -64,3 +64,29 @@ export class ChartTips {
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }
 }
+
+/**
+ * Whether a pointer event should *toggle* a tooltip.
+ *
+ * Only where hover isn't already doing the job. On a mouse, a chart that
+ * opens its tooltip on `pointerenter` and also toggles on click closes it
+ * the instant you click the thing you are hovering - which reads exactly
+ * like clicking being broken. Touch and pen have no hover, so there the
+ * tap is the only way in.
+ */
+export function isTapPointer(event: PointerEvent): boolean {
+  return event.pointerType !== "mouse";
+}
+
+/**
+ * Whether a click came from the keyboard rather than a pointer.
+ *
+ * Enter/Space on a focused button fires `click` with `detail === 0`; a
+ * real pointer click reports at least 1. Keyboard users get no hover and
+ * no pointer events, so this is their way in - and checking it keeps the
+ * handler from firing a second time for a tap that `pointerup` already
+ * handled.
+ */
+export function isKeyboardActivation(event: MouseEvent): boolean {
+  return event.detail === 0;
+}
