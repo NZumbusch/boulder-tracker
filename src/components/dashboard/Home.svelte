@@ -11,6 +11,7 @@
   import { describeWeatherCode } from '../../lib/weather/codes';
   import FatigueRadarChart from '../common/FatigueRadarChart.svelte';
   import NoteSheet from '../common/NoteSheet.svelte';
+  import { summarizeSession } from '../../lib/planning/sessionSummary';
   import type { DailyMetricEntry, DayOfWeek } from '../../lib/types';
   import Icon from "@iconify/svelte";
 
@@ -323,6 +324,9 @@
       {@render sectionHeader('ic:baseline-today', 'Today', todaysWorkouts.length > 0 ? `${todaysWorkouts.length} session${todaysWorkouts.length === 1 ? '' : 's'} planned` : undefined)}
       {#each todaysWorkouts as workout}
         {@const isThisRunning = trainingState.sessionStore.isRunning(workout.id)}
+        {@const summary = summarizeSession(workout, trainingState.exerciseTypes)}
+        {@const showTime = trainingState.homeDetails['today.time']}
+        {@const showLoad = trainingState.homeDetails['today.load'] && summary.plannedLoad > 0}
         <div class="flex items-center justify-between p-3.5 rounded-control {workout.provisional ? 'bg-surface-elevated/20 border border-dashed border-border-strong/60' : 'bg-surface-elevated/50 border border-border-strong/50'}">
           <div class="min-w-0 flex-1">
             <p class="text-body font-bold text-content truncate">{workout.notes}</p>
@@ -330,8 +334,15 @@
               {#if workout.provisional}
                 <Icon icon="ic:outline-cloud-queue" class="text-xs text-primary/70 shrink-0" />
               {/if}
-              <span class="truncate">{workout.exercises.length} exercises</span>
+              <span class="truncate">
+                {#if showTime}{summary.startTime ? `${summary.startTime} · ` : ''}{summary.estimated ? '~' : ''}{summary.minutes} min · {/if}{workout.exercises.length} exercise{workout.exercises.length === 1 ? '' : 's'}{#if showLoad} · load {summary.plannedLoad}{/if}
+              </span>
             </p>
+            {#if trainingState.homeDetails['today.exercises'] && summary.exerciseNames.length > 0}
+              <p class="text-caption text-content-subtle truncate mt-0.5">
+                {summary.exerciseNames.join(' · ')}{summary.moreExercises > 0 ? ` +${summary.moreExercises} more` : ''}
+              </p>
+            {/if}
           </div>
           <!-- Start goes live: it begins the session and opens the session
                modal, rather than opening the workout in the planning form.

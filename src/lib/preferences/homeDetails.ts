@@ -28,7 +28,11 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'readiness.confidence', label: 'Inputs used', hint: 'Which of fatigue, load, sleep and HRV fed the score', defaultOn: true },
     { id: 'readiness.breakdown', label: 'Score breakdown', hint: 'Tap the ring to see what each input took off', defaultOn: true },
   ],
-  today: [],
+  today: [
+    { id: 'today.time', label: 'Start time & length', defaultOn: true },
+    { id: 'today.exercises', label: 'Exercise names', hint: 'The first three, then "+N more"', defaultOn: true },
+    { id: 'today.load', label: 'Planned load', defaultOn: true },
+  ],
   metrics: [
     { id: 'metrics.sparklines', label: '7-day sparklines', defaultOn: true },
   ],
