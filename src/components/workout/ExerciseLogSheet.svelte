@@ -21,8 +21,14 @@
   import TargetHint from './TargetHint.svelte';
   import Icon from '@iconify/svelte';
 
-  let { slot, onSave, onCancel, onEditFull }: {
+  let { slot, seed: seedOverride = null, onSave, onCancel, onEditFull }: {
     slot: ExerciseSlot;
+    /**
+     * Values to prefill instead of the slot's own - the interval timer
+     * hands over the sets/reps it actually counted. Null for the normal
+     * path, where the target is the right starting point.
+     */
+    seed?: ExerciseValues | null;
     onSave: (values: ExerciseValues) => void;
     onCancel: () => void;
     onEditFull: () => void;
@@ -52,8 +58,12 @@
   ];
 
   const target = $derived(slot.prescribed ?? {});
-  /** Seeded from the target so "I did what it said" needs no typing at all. */
-  const seed = $derived(slot.logged ?? slot.prescribed ?? {});
+  /**
+   * Seeded from the target so "I did what it said" needs no typing at all,
+   * unless a caller hands over something better - a finished interval run
+   * knows the sets and reps that were actually counted.
+   */
+  const seed = $derived(seedOverride ?? slot.logged ?? slot.prescribed ?? {});
 
   const activeParams = $derived<ParameterBlock[]>(
     slot.activeParameters
@@ -75,12 +85,15 @@
   let difficulty = $state<number | undefined>(undefined);
   let seededFor = $state<string | null>(null);
 
-  // Re-seed when the sheet opens for a different exercise. Keyed on the
-  // slot id rather than running on every change, so typing into a field
-  // never re-reads the seed out from under the draft.
+  // Re-seed when the sheet opens for a different exercise, or when a
+  // caller hands over a different set of values. Keyed rather than run on
+  // every change, so typing into a field never re-reads the seed out from
+  // under the draft.
+  const seedKey = $derived(`${slot.id}:${seedOverride ? JSON.stringify(seedOverride) : ''}`);
+
   $effect(() => {
-    if (seededFor === slot.id) return;
-    seededFor = slot.id;
+    if (seededFor === seedKey) return;
+    seededFor = seedKey;
     const values = seed;
     const next: Record<string, string> = {};
     for (const field of NUMERIC_FIELDS) {

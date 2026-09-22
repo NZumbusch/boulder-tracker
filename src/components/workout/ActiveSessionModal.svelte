@@ -39,6 +39,8 @@
   let isExiting = $state(false);
   /** The tucked-away "change the session" mode - reorder handles, remove, add. */
   let isEditingPlan = $state(false);
+  /** Values handed over by a finished interval run, seeding the finish sheet once. */
+  let intervalSeed = $state<ExerciseValues | null>(null);
 
   const session = $derived(store.session);
   const exercises = $derived(store.exercises);
@@ -118,6 +120,7 @@
   function handleLogged(values: ExerciseValues) {
     if (loggingSlotId) store.logExercise(loggingSlotId, values);
     loggingSlotId = null;
+    intervalSeed = null;
   }
 
   function openFullEditor() {
@@ -146,6 +149,25 @@
 
   function handleDnd(e: CustomEvent<DndEvent<ExerciseSlot>>) {
     store.reorderExercises(e.detail.items);
+  }
+
+  // Edit mode has nothing to show once the list is empty (the empty-state
+  // branch takes over), so leave it rather than stranding the toggle on.
+  $effect(() => {
+    if (exercises.length === 0 && isEditingPlan) isEditingPlan = false;
+  });
+
+  /**
+   * A finished interval run, logged against the exercise it was run for.
+   * Opens the normal finish sheet with the protocol's real numbers seeded,
+   * rather than logging silently - what the timer counted and what you did
+   * are usually but not always the same thing.
+   */
+  function handleIntervalLogged(values: Partial<ExerciseValues>) {
+    const slot = store.currentSlot;
+    if (!slot) return;
+    intervalSeed = { ...slotValues(slot), ...values };
+    loggingSlotId = slot.id;
   }
 
   function handleSaveAndFinish() {
@@ -365,10 +387,11 @@
       <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center gap-2">
         <button
           onclick={() => isEditingPlan = !isEditingPlan}
-          class="px-3 py-2.5 rounded-control text-label font-bold transition-colors flex items-center gap-1.5 {isEditingPlan
+          disabled={exercises.length === 0}
+          class="px-3 py-2.5 rounded-control text-label font-bold transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isEditingPlan
             ? 'bg-primary/15 text-primary'
             : 'text-content-subtle hover:text-content'}"
-          title="Reorder or remove exercises"
+          title={exercises.length === 0 ? 'Nothing to reorder yet' : 'Reorder or remove exercises'}
         >
           <Icon icon={isEditingPlan ? 'ic:baseline-check' : 'ic:baseline-tune'} class="text-base" />
           {isEditingPlan ? 'Done' : 'Edit'}
@@ -394,15 +417,29 @@
       </div>
     </footer>
 
-    <TimerWidget currentSlot={current ?? null} bottomClass="bottom-[80px]" />
   </div>
+{/if}
+
+{#if session}
+  <!-- Outside the modal block on purpose. Mounted for as long as the
+       session runs, hidden (not unmounted) while the modal is minimised -
+       unmounting here would throw away a running interval mid-protocol,
+       and `visible` still keeps it off screen exactly when the session
+       modal is, so it never competes with the session bubble. -->
+  <TimerWidget
+    currentSlot={current ?? null}
+    bottomClass="bottom-[80px]"
+    visible={store.isModalOpen}
+    onLogInterval={current ? handleIntervalLogged : null}
+  />
 {/if}
 
 {#if loggingSlot}
   <ExerciseLogSheet
     slot={loggingSlot}
+    seed={intervalSeed}
     onSave={handleLogged}
-    onCancel={() => loggingSlotId = null}
+    onCancel={() => { loggingSlotId = null; intervalSeed = null; }}
     onEditFull={openFullEditor}
   />
 {/if}
