@@ -9,6 +9,9 @@
   import { calculateWeeklyAdherence } from '../../lib/analytics/loadAnalytics';
   import { isLoggedMetricValue, loggedMetrics } from '../../lib/analytics/metricValues';
   import { describeWeatherCode } from '../../lib/weather/codes';
+  import { rateFriction, type Friction, type FrictionLabel } from '../../lib/weather/friction';
+  import { bestWindow } from '../../lib/weather/conditions';
+  import type { DailyForecastDay, WeatherSnapshot } from '../../lib/weather/api';
   import FatigueRadarChart from '../common/FatigueRadarChart.svelte';
   import NoteSheet from '../common/NoteSheet.svelte';
   import { summarizeSession } from '../../lib/planning/sessionSummary';
@@ -42,6 +45,36 @@
   onMount(() => {
     trainingState.refreshWeather();
   });
+
+  // --- Friction / conditions (see lib/weather/friction.ts for the model) ---
+  const FRICTION_STYLE: Record<FrictionLabel, { badge: string; dot: string; text: string }> = {
+    Prime: { badge: 'bg-status-good/15 text-status-good border-status-good/30', dot: 'bg-status-good', text: 'text-status-good' },
+    Good: { badge: 'bg-status-good/10 text-status-good border-status-good/20', dot: 'bg-status-good/60', text: 'text-status-good' },
+    OK: { badge: 'bg-status-caution/15 text-status-caution border-status-caution/30', dot: 'bg-status-caution', text: 'text-status-caution' },
+    Greasy: { badge: 'bg-status-risk/15 text-status-risk border-status-risk/30', dot: 'bg-status-risk', text: 'text-status-risk' },
+    Wet: { badge: 'bg-primary/15 text-primary border-primary/30', dot: 'bg-primary', text: 'text-primary' },
+  };
+  function currentFriction(w: WeatherSnapshot): Friction {
+    return rateFriction({
+      tempC: w.currentTempC,
+      humidityPercent: w.humidityPercent,
+      dewPointC: w.dewPointC,
+      windKmh: w.windSpeedKmh,
+      precipitationMm: w.precipitationMm,
+      recentRainMm: w.recentRain?.last24hMm,
+    });
+  }
+  /** A forecast day rated from its daytime high, mean humidity/dew point and the day's own rain. */
+  function dayFriction(day: DailyForecastDay): Friction {
+    return rateFriction({
+      tempC: day.tempMaxC,
+      humidityPercent: day.humidityMeanPercent,
+      dewPointC: day.dewPointMeanC,
+      windKmh: day.windMaxKmh,
+      recentRainMm: day.precipitationSumMm,
+    });
+  }
+  let showFrictionReason = $state(false);
 
   function formatRelativeAge(iso: string): string {
     const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -690,13 +723,32 @@
       {:else if trainingState.homeWeather.snapshot}
         {@const w = trainingState.homeWeather.snapshot}
         {@const code = describeWeatherCode(w.currentWeatherCode)}
+        {@const friction = currentFriction(w)}
+        {@const showWord = trainingState.homeDetails['weather.frictionWord']}
+        {@const showNumber = trainingState.homeDetails['weather.frictionNumber']}
         <div class="flex items-center gap-3">
           <Icon icon={code.icon} class="text-3xl text-primary shrink-0" />
           <div class="min-w-0 flex-1">
             <p class="text-metric text-content tabular-nums">{Math.round(w.currentTempC)}°C</p>
             <p class="text-caption text-content-subtle truncate">{code.label} · {trainingState.homeLocation.name}</p>
           </div>
+          {#if showWord || showNumber}
+            <button
+              onclick={() => showFrictionReason = !showFrictionReason}
+              class="px-2.5 py-1 rounded-full border text-label tabular-nums shrink-0 {FRICTION_STYLE[friction.label].badge}"
+              aria-expanded={showFrictionReason}
+              title="Climbing conditions - tap for why"
+            >
+              {#if showWord}{friction.label}{/if}{#if showWord && showNumber} · {/if}{#if showNumber}{friction.score.toFixed(1)}{/if}
+            </button>
+          {/if}
         </div>
+        {#if showFrictionReason && (showWord || showNumber)}
+          <p class="text-caption text-content-subtle">
+            {friction.reason ?? 'Nothing holding conditions back.'}
+            {#if w.dewPointC !== undefined} Air is {Math.max(0, Math.round(w.currentTempC - w.dewPointC))}° above its dew point.{/if}
+          </p>
+        {/if}
 
         <!-- Humidity and wind sit beside the temperature because they are
              what decide whether rock has any friction - a dry 8°C day and a
@@ -704,7 +756,7 @@
              the snapshot carries it: a cached snapshot from before these
              were fetched still shows the temperature rather than a row of
              blanks. -->
-        {#if trainingState.homeDetails['weather.details'] && (w.feelsLikeC !== undefined || w.humidityPercent !== undefined || w.windSpeedKmh !== undefined || (w.precipitationMm ?? 0) > 0)}
+        {#if trainingState.homeDetails['weather.details'] && (w.feelsLikeC !== undefined || w.dewPointC !== undefined || w.humidityPercent !== undefined || w.windSpeedKmh !== undefined || (w.precipitationMm ?? 0) > 0)}
           <div class="flex flex-wrap gap-x-4 gap-y-1">
             {#if w.feelsLikeC !== undefined}
               <span class="text-caption text-content-subtle tabular-nums">Feels {Math.round(w.feelsLikeC)}°</span>
@@ -712,13 +764,44 @@
             {#if w.humidityPercent !== undefined}
               <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.humidityPercent)}% humidity</span>
             {/if}
+            {#if w.dewPointC !== undefined}
+              <span class="text-caption text-content-subtle tabular-nums">Dew {Math.round(w.dewPointC)}°</span>
+            {/if}
             {#if w.windSpeedKmh !== undefined}
-              <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.windSpeedKmh)} km/h wind</span>
+              <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.windSpeedKmh)}{w.windGustsKmh !== undefined && w.windGustsKmh > w.windSpeedKmh + 5 ? `–${Math.round(w.windGustsKmh)}` : ''} km/h wind</span>
+            {/if}
+            {#if w.uvIndex !== undefined && w.uvIndex >= 3}
+              <span class="text-caption text-content-subtle tabular-nums">UV {Math.round(w.uvIndex)}</span>
             {/if}
             {#if (w.precipitationMm ?? 0) > 0}
               <span class="text-caption text-primary tabular-nums">{w.precipitationMm} mm rain</span>
             {/if}
           </div>
+        {/if}
+
+        {#if trainingState.homeDetails['weather.rain'] && w.recentRain}
+          {@const rain = w.recentRain}
+          <p class="text-caption text-content-subtle flex items-center gap-1.5 tabular-nums">
+            <Icon icon="ic:baseline-water-drop" class="text-sm shrink-0 {rain.last72hMm > 0 ? 'text-primary' : ''}" />
+            {#if rain.last72hMm === 0}
+              No rain in the last 3 days
+            {:else}
+              {rain.last72hMm} mm in the last 3 days{rain.last24hMm > 0 ? ` (${rain.last24hMm} in 24 h)` : ''}{rain.hoursSinceRain !== undefined ? ` · last rain ${rain.hoursSinceRain} h ago` : ''}
+            {/if}
+          </p>
+        {/if}
+
+        {#if trainingState.homeDetails['weather.window'] && w.localTime}
+          {@const today = w.localTime.slice(0, 10)}
+          {@const sunset = w.daily.find((d) => d.date === today)?.sunset}
+          {@const best = w.hours ? bestWindow(w.hours, today, sunset, w.recentRain?.last24hMm) : undefined}
+          {@const sunsetAhead = sunset !== undefined && sunset > w.localTime}
+          {#if best || sunsetAhead}
+            <p class="text-caption text-content-subtle flex items-center gap-1.5 tabular-nums">
+              <Icon icon="ic:baseline-schedule" class="text-sm shrink-0" />
+              {#if best}Best {best.start}–{best.end} · {Math.round(best.avgTempC)}° dry{/if}{#if best && sunsetAhead} · {/if}{#if sunsetAhead}sunset {sunset!.slice(11, 16)}{/if}
+            </p>
+          {/if}
         {/if}
 
         <!-- The week ahead. This was always in the snapshot - the trip card
@@ -738,6 +821,14 @@
                 <span class="text-caption text-content-subtle tabular-nums">{Math.round(day.tempMinC)}°</span>
                 {#if day.precipitationChance !== undefined && day.precipitationChance >= 20}
                   <span class="text-caption text-primary/80 tabular-nums leading-none">{Math.round(day.precipitationChance)}%</span>
+                {/if}
+                {#if trainingState.homeDetails['weather.dayFriction']}
+                  {@const df = dayFriction(day)}
+                  {#if trainingState.homeDetails['weather.frictionNumber']}
+                    <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
+                  {:else}
+                    <span class="w-2 h-2 rounded-full {FRICTION_STYLE[df.label].dot}" title={df.label}></span>
+                  {/if}
                 {/if}
               </div>
             {/each}

@@ -16,6 +16,8 @@ export interface GeocodeResult {
   longitude: number;
 }
 
+import { summarizeRecentRain, type HourlyPoint, type RecentRain } from './conditions';
+
 export interface DailyForecastDay {
   /** ISO date "YYYY-MM-DD". */
   date: string;
@@ -24,6 +26,13 @@ export interface DailyForecastDay {
   tempMinC: number;
   /** Peak chance of rain that day, 0-100. Optional - see `WeatherSnapshot`. */
   precipitationChance?: number;
+  /** Total rain that day, mm. */
+  precipitationSumMm?: number;
+  humidityMeanPercent?: number;
+  dewPointMeanC?: number;
+  windMaxKmh?: number;
+  /** Local "YYYY-MM-DDTHH:MM". */
+  sunset?: string;
 }
 
 /**
@@ -47,6 +56,16 @@ export interface WeatherSnapshot {
   precipitationMm?: number;
   /** Daylight flag, for showing whether "now" is day or night. */
   isDay?: boolean;
+  /** Dew point, °C - the gap between it and the temperature is what decides friction (see `weather/friction.ts`). */
+  dewPointC?: number;
+  windGustsKmh?: number;
+  uvIndex?: number;
+  /** The location's local time of this reading, "YYYY-MM-DDTHH:MM" - what "today" and "upcoming hours" are measured from. */
+  localTime?: string;
+  /** Rain over the 72 hours before now. */
+  recentRain?: RecentRain;
+  /** The next 24 hours, oldest first, local time. */
+  hours?: HourlyPoint[];
   /** Today first, six days after - Open-Meteo's own default forecast window. */
   daily: DailyForecastDay[];
 }
@@ -112,13 +131,23 @@ export async function fetchWeatherSnapshot(latitude: number, longitude: number):
     const current = [
       'temperature_2m', 'apparent_temperature', 'relative_humidity_2m',
       'precipitation', 'weather_code', 'wind_speed_10m', 'is_day',
+      'dew_point_2m', 'wind_gusts_10m', 'uv_index',
     ].join(',');
     const daily = [
       'weather_code', 'temperature_2m_max', 'temperature_2m_min',
-      'precipitation_probability_max',
+      'precipitation_probability_max', 'precipitation_sum',
+      'relative_humidity_2m_mean', 'dew_point_2m_mean', 'wind_speed_10m_max', 'sunset',
+    ].join(',');
+    // Hourly: the 72 h before now (rain history - whether rock is still
+    // drying) and the 24 h ahead (today's best window). Checked against a
+    // live response 2026-09-23: past_hours/forecast_hours bound the hourly
+    // series without touching the daily one.
+    const hourly = [
+      'temperature_2m', 'dew_point_2m', 'relative_humidity_2m',
+      'precipitation', 'precipitation_probability', 'wind_speed_10m',
     ].join(',');
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=${current}&daily=${daily}&temperature_unit=celsius&timezone=auto&forecast_days=7`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=${current}&daily=${daily}&hourly=${hourly}&past_hours=72&forecast_hours=24&temperature_unit=celsius&timezone=auto&forecast_days=7`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
@@ -142,7 +171,15 @@ export async function fetchWeatherSnapshot(latitude: number, longitude: number):
       tempMaxC: days.temperature_2m_max[i],
       tempMinC: days.temperature_2m_min[i],
       precipitationChance: optionalNumber(days.precipitation_probability_max?.[i]),
+      precipitationSumMm: optionalNumber(days.precipitation_sum?.[i]),
+      humidityMeanPercent: optionalNumber(days.relative_humidity_2m_mean?.[i]),
+      dewPointMeanC: optionalNumber(days.dew_point_2m_mean?.[i]),
+      windMaxKmh: optionalNumber(days.wind_speed_10m_max?.[i]),
+      sunset: typeof days.sunset?.[i] === 'string' ? days.sunset[i] : undefined,
     }));
+
+    const localTime = typeof now.time === 'string' ? now.time : undefined;
+    const { recentRain, hours } = splitHourly(data?.hourly, localTime);
 
     return {
       currentTempC: now.temperature_2m,
@@ -152,9 +189,46 @@ export async function fetchWeatherSnapshot(latitude: number, longitude: number):
       windSpeedKmh: optionalNumber(now.wind_speed_10m),
       precipitationMm: optionalNumber(now.precipitation),
       isDay: now.is_day === undefined ? undefined : now.is_day === 1,
+      dewPointC: optionalNumber(now.dew_point_2m),
+      windGustsKmh: optionalNumber(now.wind_gusts_10m),
+      uvIndex: optionalNumber(now.uv_index),
+      localTime,
+      recentRain,
+      hours,
       daily: forecast,
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * Splits Open-Meteo's hourly series at the current hour: the hours before
+ * become the recent-rain summary, the hours from now on the upcoming
+ * forecast. Both absent when the series (or the current time) is missing
+ * or malformed - a partial response still yields a snapshot.
+ */
+function splitHourly(raw: any, localTime: string | undefined): { recentRain?: RecentRain; hours?: HourlyPoint[] } {
+  if (!localTime || !Array.isArray(raw?.time) || !Array.isArray(raw?.temperature_2m)) return {};
+  const currentHour = `${localTime.slice(0, 13)}:00`;
+  const points: HourlyPoint[] = [];
+  raw.time.forEach((time: unknown, i: number) => {
+    const tempC = optionalNumber(raw.temperature_2m[i]);
+    if (typeof time !== 'string' || tempC === undefined) return;
+    points.push({
+      time,
+      tempC,
+      dewPointC: optionalNumber(raw.dew_point_2m?.[i]),
+      humidityPercent: optionalNumber(raw.relative_humidity_2m?.[i]),
+      precipitationMm: optionalNumber(raw.precipitation?.[i]),
+      precipitationChance: optionalNumber(raw.precipitation_probability?.[i]),
+      windKmh: optionalNumber(raw.wind_speed_10m?.[i]),
+    });
+  });
+  const past = points.filter((p) => p.time < currentHour);
+  const upcoming = points.filter((p) => p.time >= currentHour);
+  return {
+    recentRain: past.length > 0 ? summarizeRecentRain(past) : undefined,
+    hours: upcoming.length > 0 ? upcoming : undefined,
+  };
 }

@@ -172,3 +172,53 @@ describe("fetchWeatherSnapshot", () => {
     await expect(fetchWeatherSnapshot(0, 0)).resolves.toBeNull();
   });
 });
+
+describe("fetchWeatherSnapshot - friction inputs", () => {
+  // Shaped like the live response checked 2026-09-23 (Munich, trimmed).
+  const body = {
+    current: { time: "2026-09-23T15:15", temperature_2m: 12, weather_code: 0, dew_point_2m: 3.5, wind_gusts_10m: 22, uv_index: 2.1 },
+    hourly: {
+      time: ["2026-09-23T13:00", "2026-09-23T14:00", "2026-09-23T15:00", "2026-09-23T16:00"],
+      temperature_2m: [13, 12.5, 12, 11],
+      dew_point_2m: [4, 4, 3.5, 3],
+      relative_humidity_2m: [55, 56, 58, 60],
+      precipitation: [1.2, 0, 0, 0],
+      precipitation_probability: [60, 10, 0, 0],
+      wind_speed_10m: [10, 9, 8, 8],
+    },
+    daily: {
+      time: ["2026-09-23"],
+      weather_code: [0],
+      temperature_2m_max: [15],
+      temperature_2m_min: [5],
+      precipitation_sum: [1.2],
+      relative_humidity_2m_mean: [61],
+      dew_point_2m_mean: [4.3],
+      wind_speed_10m_max: [15.6],
+      sunset: ["2026-09-23T19:09"],
+    },
+  };
+
+  it("maps the new current and daily fields", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(body));
+    const s = await fetchWeatherSnapshot(48.14, 11.58);
+    expect(s).toMatchObject({ dewPointC: 3.5, windGustsKmh: 22, uvIndex: 2.1, localTime: "2026-09-23T15:15" });
+    expect(s!.daily[0]).toMatchObject({ precipitationSumMm: 1.2, humidityMeanPercent: 61, dewPointMeanC: 4.3, windMaxKmh: 15.6, sunset: "2026-09-23T19:09" });
+  });
+
+  it("splits the hourly series at the current hour into rain history and upcoming hours", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(body));
+    const s = await fetchWeatherSnapshot(48.14, 11.58);
+    expect(s!.recentRain).toEqual({ last24hMm: 1.2, last72hMm: 1.2, hoursSinceRain: 2 });
+    expect(s!.hours!.map((h) => h.time)).toEqual(["2026-09-23T15:00", "2026-09-23T16:00"]);
+  });
+
+  it("requests hourly data bounded to 72 h back and 24 h ahead", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(body));
+    await fetchWeatherSnapshot(1, 2);
+    const url = String(fetchMock.mock.calls[0][0]);
+    for (const part of ["dew_point_2m", "hourly=", "past_hours=72", "forecast_hours=24", "sunset", "precipitation_sum"]) {
+      expect(url).toContain(part);
+    }
+  });
+});

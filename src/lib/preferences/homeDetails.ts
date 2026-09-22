@@ -59,8 +59,13 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'recentActivity.ascents', label: 'Outdoor sends', defaultOn: true },
   ],
   weather: [
-    { id: 'weather.details', label: 'Feels like, humidity, wind, rain', defaultOn: true },
+    { id: 'weather.frictionWord', label: 'Conditions as a word', hint: 'Prime / Good / OK / Greasy / Wet - tap it for the reason', defaultOn: true },
+    { id: 'weather.frictionNumber', label: 'Conditions as a score', hint: '0-10; on together with the word, both show', defaultOn: false },
+    { id: 'weather.details', label: 'Feels like, humidity, dew point, wind, UV', defaultOn: true },
+    { id: 'weather.rain', label: 'Rain in the last 3 days', hint: 'Whether the rock is likely still drying', defaultOn: true },
+    { id: 'weather.window', label: 'Best window & sunset', hint: 'The best dry 3 hours left today', defaultOn: true },
     { id: 'weather.forecast', label: 'Week ahead', defaultOn: true },
+    { id: 'weather.dayFriction', label: 'Conditions per forecast day', defaultOn: true },
     { id: 'weather.trip', label: 'Trip forecast', hint: 'Only when a trip location is set', defaultOn: true },
   ],
 };
