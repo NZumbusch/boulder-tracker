@@ -49,7 +49,15 @@
 </script>
 
 <main class="flex flex-col h-screen overflow-hidden bg-app-bg text-content font-sans">
-  <div class="flex-1 overflow-y-auto no-scrollbar bg-surface flex flex-col items-center w-full p-4">
+  <!-- `overflow-x-hidden` is a guard, not a layout tool: several charts
+       hang absolutely-positioned nowrap tooltips off their data points,
+       and one on a right-edge point reaches past the viewport, which made
+       the whole page scroll sideways into empty space on a phone. The
+       tooltips are decoration, so clipping them at the edge is right;
+       anything that genuinely needs horizontal room (the Analytics chip
+       row, Home's weather strip) is its own `overflow-x-auto` scroller and
+       is unaffected. -->
+  <div class="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4">
     {#if trainingState.isLoading}
       <div class="flex flex-col items-center justify-center h-full space-y-4">
         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>

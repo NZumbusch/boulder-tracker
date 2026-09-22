@@ -34,10 +34,32 @@
   } = $props();
 
   const FALLBACK_COLOR = 'bg-surface-elevated/50 hover:bg-surface-elevated';
+
+  /** Columns in the grid below - the tooltip anchoring needs to know which one a cell is in. */
+  const COLUMNS = 10;
+
+  /**
+   * Where a cell's tooltip hangs from.
+   *
+   * A tooltip is `whitespace-nowrap` and can be ~250 characters wide
+   * ("2026-W39 - Capacity (overlapping blocks) - not saved yet"), so one
+   * centred on an edge cell reaches far outside the card. Cells near
+   * either edge anchor to that edge instead of their own centre, which
+   * keeps every tooltip inside the grid.
+   */
+  function tooltipAnchor(index: number): string {
+    const column = index % COLUMNS;
+    if (column <= 2) return 'left-0';
+    if (column >= COLUMNS - 3) return 'right-0';
+    return 'left-1/2 -translate-x-1/2';
+  }
 </script>
 
 <div class="bg-surface/50 border border-border p-5 rounded-card backdrop-blur-sm relative">
-  <div class="grid grid-cols-10 gap-2 min-w-[280px]">
+  <!-- No min-width: a floor wider than the card's inner width made the
+       whole page scroll sideways on a narrow phone. The cells are
+       aspect-square and simply get smaller instead. -->
+  <div class="grid grid-cols-10 gap-2">
     {#each weeks as week, i}
       {@const showYear = i === 0 || weeks[i].year !== weeks[i - 1].year}
       <button
@@ -60,7 +82,11 @@
             <Icon icon="ic:outline-cloud-queue" class="text-[9px]" />
           </div>
         {/if}
-        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-card border border-border-strong">{week.tooltip}</div>
+        <!-- `hidden` rather than `opacity-0`: an invisible element is still
+             laid out, so 50 nowrap tooltips were adding scrollable empty
+             space to the right of the page. Hiding it outright costs only
+             the fade, and a hover tooltip never shows on touch anyway. -->
+        <div class="hidden group-hover:block absolute bottom-full {tooltipAnchor(i)} mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none whitespace-nowrap z-30 shadow-card border border-border-strong">{week.tooltip}</div>
       </button>
     {/each}
   </div>
