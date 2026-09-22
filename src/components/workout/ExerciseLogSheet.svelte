@@ -65,6 +65,11 @@
   // Local, string-keyed draft: an <input type="number"> bound to a number
   // can't represent "cleared", and blanking a field mid-edit would
   // otherwise snap it back to 0 under the cursor.
+  //
+  // Written through `oninput` rather than `bind:value` on purpose: Svelte
+  // coerces a `bind:value` on a number input *to a number*, which would
+  // put numbers in here and make the `.trim()` reads below throw. Reading
+  // `currentTarget.value` always yields the raw string.
   let draft = $state<Record<string, string>>({});
   let notes = $state('');
   let difficulty = $state<number | undefined>(undefined);
@@ -89,12 +94,18 @@
 
   const tracksDifficulty = $derived(activeParams.includes('difficulty'));
 
+  /** The draft's raw text for a field, normalised - never assumes a string is there. */
+  function rawValue(key: string): string {
+    const value = draft[key];
+    return value === undefined || value === null ? '' : String(value).trim();
+  }
+
   /** Merges the draft over the seed, so parameters this sheet doesn't show survive untouched. */
   function collect(): ExerciseValues {
     const values: ExerciseValues = { ...seed };
     for (const field of fields) {
-      const raw = draft[field.key]?.trim();
-      if (raw === '' || raw === undefined) {
+      const raw = rawValue(field.key);
+      if (raw === '') {
         delete values[field.key];
       } else {
         const n = Number(raw);
@@ -116,8 +127,8 @@
   }
 
   function numberOrUndefined(key: string): number | undefined {
-    const raw = draft[key]?.trim();
-    if (!raw) return undefined;
+    const raw = rawValue(key);
+    if (raw === '') return undefined;
     const n = Number(raw);
     return Number.isFinite(n) ? n : undefined;
   }
@@ -160,7 +171,8 @@
                 type="number"
                 inputmode="decimal"
                 step={field.step ?? 1}
-                bind:value={draft[field.key]}
+                value={draft[field.key] ?? ''}
+                oninput={(e) => draft[field.key] = e.currentTarget.value}
                 placeholder="—"
                 class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums"
               />

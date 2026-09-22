@@ -25,7 +25,11 @@
   const overrun = $derived(expected > 0 && elapsed > expected);
 </script>
 
-{#if store.isActive && !store.isModalOpen}
+<!-- Hidden during the post-session rating too: finishing minimises the
+     modal (the session is only cleared once the save goes through), and
+     without this the bubble would sit behind the fatigue modal inviting
+     you back into a session you have just ended. -->
+{#if store.isActive && !store.isModalOpen && !trainingState.showFatigue}
   <button
     onclick={() => store.openModal()}
     class="fixed bottom-[91px] right-4 z-[90] flex items-center gap-3 pl-3 pr-4 py-2.5 rounded-full bg-surface/95 backdrop-blur-md border border-border-strong shadow-card hover:border-primary/50 transition-all active:scale-95 animate-in slide-in-from-bottom-4 duration-200 max-w-[calc(100vw-2rem)]"
