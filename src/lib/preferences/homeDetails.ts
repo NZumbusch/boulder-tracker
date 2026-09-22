@@ -32,8 +32,12 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'metrics.sparklines', label: '7-day sparklines', defaultOn: true },
   ],
   fatigue: [],
-  thisWeek: [],
-  trainingBlock: [],
+  thisWeek: [
+    { id: 'thisWeek.note', label: 'Week note button', hint: 'Opens this week\'s note; filled when there is one', defaultOn: true },
+  ],
+  trainingBlock: [
+    { id: 'trainingBlock.note', label: 'Block note button', hint: 'Opens the current block\'s note', defaultOn: true },
+  ],
   competition: [],
   recentActivity: [],
   weather: [

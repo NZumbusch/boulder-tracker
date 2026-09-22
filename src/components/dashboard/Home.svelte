@@ -10,6 +10,7 @@
   import { isLoggedMetricValue, loggedMetrics } from '../../lib/analytics/metricValues';
   import { describeWeatherCode } from '../../lib/weather/codes';
   import FatigueRadarChart from '../common/FatigueRadarChart.svelte';
+  import NoteSheet from '../common/NoteSheet.svelte';
   import type { DailyMetricEntry, DayOfWeek } from '../../lib/types';
   import Icon from "@iconify/svelte";
 
@@ -52,6 +53,10 @@
     const index = weeks.indexOf(currentWeekId);
     return index >= 0 ? { week: index + 1, of: weeks.length } : undefined;
   });
+
+  // --- Notes (week + current block) - opened from their cards' headers ---
+  const weekNote = $derived(trainingState.getWeekNote(currentWeekId));
+  let openNote = $state<'week' | 'block' | null>(null);
 
   // --- Readiness hero (UI_PLAN.md §5.2) ---
   const fatigueDecay = $derived(computeFatigueDecay(trainingState.completedWorkouts, asOf));
@@ -249,10 +254,22 @@
     </div>
   {/snippet}
 
-  {#snippet sectionHeader(icon: string, label: string, subtitle?: string)}
+  {#snippet sectionHeader(icon: string, label: string, subtitle?: string, note?: { has: boolean; open: () => void; what: string })}
     <div class="flex items-center justify-between">
       <div class="min-w-0">
-        <span class="text-section uppercase text-content-muted">{label}</span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-section uppercase text-content-muted">{label}</span>
+          {#if note}
+            <button
+              onclick={note.open}
+              class="p-1 -m-1 rounded-control transition-colors {note.has ? 'text-primary hover:text-primary-hover' : 'text-content-subtle hover:text-content'}"
+              aria-label={note.has ? `Open ${note.what} note` : `Add a ${note.what} note`}
+              title={note.has ? `${note.what[0].toUpperCase()}${note.what.slice(1)} note` : `Add a ${note.what} note`}
+            >
+              <Icon icon={note.has ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-sm" />
+            </button>
+          {/if}
+        </div>
         {#if subtitle}<p class="text-caption text-content-subtle mt-0.5">{subtitle}</p>{/if}
       </div>
       <div class="p-2 bg-primary-hover/10 rounded-control text-primary shrink-0 ml-3">
@@ -362,7 +379,8 @@
 
   {#snippet thisWeekSection()}
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
-      {@render sectionHeader('ic:baseline-trending-up', 'This Week', 'Actual vs planned load')}
+      {@render sectionHeader('ic:baseline-trending-up', 'This Week', 'Actual vs planned load',
+        trainingState.homeDetails['thisWeek.note'] ? { has: !!weekNote, open: () => openNote = 'week', what: 'week' } : undefined)}
       {#if weeklyAdherence.plannedLoad > 0 || weeklyAdherence.actualLoad > 0}
         {@const percent = weeklyAdherence.plannedLoad > 0 ? Math.min(100, (weeklyAdherence.actualLoad / weeklyAdherence.plannedLoad) * 100) : 100}
         <div class="flex items-baseline justify-between">
@@ -380,7 +398,8 @@
 
   {#snippet trainingBlockSection()}
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
-      {@render sectionHeader('ic:baseline-view-week', 'Training Block')}
+      {@render sectionHeader('ic:baseline-view-week', 'Training Block', undefined,
+        dominantBlock && trainingState.homeDetails['trainingBlock.note'] ? { has: !!dominantBlock.notes, open: () => openNote = 'block', what: 'block' } : undefined)}
       {#if dominantBlock}
         <p class="text-body text-content font-bold">{dominantBlock.name}{currentPhaseName ? ` · ${currentPhaseName}` : ''}</p>
         {#if blockWeekPosition}
@@ -558,3 +577,24 @@
     {/if}
   {/each}
 </div>
+
+{#if openNote === 'week'}
+  <NoteSheet
+    title="Week note"
+    subtitle="This week · {currentWeekId}"
+    text={weekNote}
+    placeholder="Circumstances, ideas, anything that explains this week…"
+    onSave={(text) => trainingState.saveWeekNote(currentWeekId, text)}
+    onClose={() => openNote = null}
+  />
+{:else if openNote === 'block' && dominantBlock}
+  {@const block = dominantBlock}
+  <NoteSheet
+    title="{block.name} note"
+    subtitle="{currentPhaseName ?? 'Training block'} · {block.startWeekId} – {block.endWeekId}"
+    text={block.notes ?? ''}
+    placeholder="What this block is for, how to progress it…"
+    onSave={(text) => trainingState.saveBlockNotes(block.id, text)}
+    onClose={() => openNote = null}
+  />
+{/if}

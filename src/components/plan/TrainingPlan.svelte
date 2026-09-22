@@ -13,6 +13,7 @@
   import WeekCalendar from './WeekCalendar.svelte';
   import BlockManager from './BlockManager.svelte';
   import CompetitionCalendar from './CompetitionCalendar.svelte';
+  import NoteSheet from '../common/NoteSheet.svelte';
 
   // --- Theme ---
   const FALLBACK_PHASE_COLOR = 'bg-status-neutral';
@@ -36,6 +37,8 @@
   let showAIPrompt = $state(false);
   let showAIImport = $state(false);
   let showBlockManager = $state(false);
+  let showWeekNote = $state(false);
+  const selectedWeekNote = $derived(trainingState.selectedWeekId ? trainingState.getWeekNote(trainingState.selectedWeekId) : '');
 
   // --- Logic: Calendar Generation ---
   // Reverted to the pre-Stage-6 50-week grid + hover-tooltip design
@@ -349,6 +352,18 @@
              line only when the title column can no longer hold its 11rem
              minimum - i.e. on very narrow screens. -->
         <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+          <!-- Filled when the week has a note, outline when not. Opening it
+               never materialises the week - see WeekNote. -->
+          <button
+            onclick={() => showWeekNote = true}
+            class="flex items-center px-2.5 py-2 rounded-control border transition-all active:scale-95 {selectedWeekNote
+              ? 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20'
+              : 'bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border-border-strong/50'}"
+            title={selectedWeekNote ? 'Week note' : 'Add a week note'}
+            aria-label={selectedWeekNote ? 'Open week note' : 'Add a week note'}
+          >
+            <Icon icon={selectedWeekNote ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-sm" />
+          </button>
           {#if isProvisionalWeek}
             <button
               onclick={() => trainingState.materializeWeek(trainingState.selectedWeekId!)}
@@ -513,5 +528,17 @@
 
 {#if showBlockManager}
   <BlockManager onClose={() => showBlockManager = false} />
+{/if}
+
+{#if showWeekNote && trainingState.selectedWeekId}
+  {@const weekId = trainingState.selectedWeekId}
+  <NoteSheet
+    title="Week note"
+    subtitle="{weekId} · {getWeekDateRange(weekId)}"
+    text={selectedWeekNote}
+    placeholder="Circumstances, ideas, anything that explains this week…"
+    onSave={(text) => trainingState.saveWeekNote(weekId, text)}
+    onClose={() => showWeekNote = false}
+  />
 {/if}
 

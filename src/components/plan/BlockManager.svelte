@@ -57,7 +57,8 @@
     if (editingBlock.endWeekId < editingBlock.startWeekId) {
       [editingBlock.startWeekId, editingBlock.endWeekId] = [editingBlock.endWeekId, editingBlock.startWeekId];
     }
-    await trainingState.saveTrainingBlock($state.snapshot(editingBlock));
+    const { notes, ...block } = $state.snapshot(editingBlock);
+    await trainingState.saveTrainingBlock(notes?.trim() ? { ...block, notes: notes.trim() } : block);
     editingBlock = null;
   }
 
@@ -111,6 +112,10 @@
           </div>
         </div>
         <div class="space-y-1">
+          <label for="block-notes" class="text-label text-content-subtle ml-1">Notes</label>
+          <textarea id="block-notes" bind:value={editingBlock.notes} rows="3" class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm leading-relaxed resize-y" placeholder="What this block is for, how to progress it…"></textarea>
+        </div>
+        <div class="space-y-1">
           <label for="block-priority" class="text-label text-content-subtle ml-1">Priority (higher wins on overlap)</label>
           <input id="block-priority" type="number" bind:value={editingBlock.priority} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
         </div>
@@ -130,7 +135,10 @@
             <div class="flex items-center gap-2.5 flex-1 min-w-0">
               <div class="w-2.5 h-2.5 rounded-control flex-shrink-0 {block.color || phaseDefs.find(p => p.id === block.phaseId)?.color || 'bg-status-neutral'}"></div>
               <div class="min-w-0 flex-1">
-                <p class="text-body font-bold text-content truncate">{block.name}</p>
+                <p class="text-body font-bold text-content truncate flex items-center gap-1.5">
+                  <span class="truncate">{block.name}</span>
+                  {#if block.notes}<Icon icon="ic:baseline-sticky-note-2" class="text-xs text-primary/70 shrink-0" />{/if}
+                </p>
                 <p class="text-caption text-content-subtle mt-0.5">{phaseName(block.phaseId)} · {block.startWeekId} - {block.endWeekId}{block.priority ? ` · priority ${block.priority}` : ''}</p>
               </div>
             </div>
