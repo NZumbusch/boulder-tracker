@@ -9,6 +9,7 @@ import {
   MIN_WEEKS,
   MAX_WEEKS,
   DEFAULT_WEEKS,
+  pickAxisTicks,
 } from "./chartWindow";
 
 describe("weeksToShow", () => {
@@ -120,5 +121,40 @@ describe("sparseLabelStep", () => {
   it("keeps the most recent point labelled", () => {
     const count = 17;
     expect(showsLabel(count - 1, count, sparseLabelStep(count))).toBe(true);
+  });
+});
+
+describe("pickAxisTicks", () => {
+  it("keeps every value when they already fit", () => {
+    expect(pickAxisTicks([1, 2, 3], 4)).toEqual([1, 2, 3]);
+    expect(pickAxisTicks([1, 2, 3, 4], 4)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("always keeps both ends, which is what a y-axis is read by", () => {
+    const ticks = pickAxisTicks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 4);
+    expect(ticks[0]).toBe(1);
+    expect(ticks.at(-1)).toBe(10);
+  });
+
+  it("spreads the rest evenly between them", () => {
+    expect(pickAxisTicks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 4)).toEqual([0, 3, 6, 9]);
+  });
+
+  it("never returns more than asked for", () => {
+    for (const max of [1, 2, 3, 5]) {
+      expect(pickAxisTicks([1, 2, 3, 4, 5, 6, 7, 8], max).length).toBeLessThanOrEqual(max);
+    }
+  });
+
+  it("de-duplicates when rounding lands twice on the same entry", () => {
+    const ticks = pickAxisTicks([1, 2, 3, 4, 5], 4);
+    expect(new Set(ticks).size).toBe(ticks.length);
+  });
+
+  it("handles the degenerate cases without throwing", () => {
+    expect(pickAxisTicks([], 4)).toEqual([]);
+    expect(pickAxisTicks([7], 4)).toEqual([7]);
+    expect(pickAxisTicks([1, 2, 3], 0)).toEqual([]);
+    expect(pickAxisTicks([1, 2, 3, 4], 1)).toEqual([4]);
   });
 });

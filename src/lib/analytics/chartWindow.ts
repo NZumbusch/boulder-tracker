@@ -95,3 +95,27 @@ export function sparseLabelStep(count: number, maxLabels = 4): number {
   if (count <= maxLabels || maxLabels <= 0) return 1;
   return Math.ceil(count / maxLabels);
 }
+
+/**
+ * Picks up to `maxTicks` values to label a *vertical* axis with, always
+ * keeping the first and last.
+ *
+ * The counterpart to `sparseLabelStep`, which thins an x-axis by taking
+ * every nth entry. That rule is wrong here: the ends of a y-axis are the
+ * two labels that matter most (the highest and lowest grade climbed, say),
+ * and a fixed step can drop the top one entirely. This spreads the labels
+ * evenly across the range instead, anchored at both ends.
+ *
+ * `values` must be sorted. Duplicates are removed, since rounding onto an
+ * evenly spaced position can land on the same entry twice in a short list.
+ */
+export function pickAxisTicks(values: number[], maxTicks = 4): number[] {
+  if (values.length === 0 || maxTicks <= 0) return [];
+  if (values.length <= maxTicks) return [...values];
+  if (maxTicks === 1) return [values[values.length - 1]];
+
+  const picked = Array.from({ length: maxTicks }, (_, i) =>
+    values[Math.round((i / (maxTicks - 1)) * (values.length - 1))],
+  );
+  return [...new Set(picked)];
+}

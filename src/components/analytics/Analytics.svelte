@@ -451,6 +451,25 @@
     };
   });
 
+  /**
+   * The three Benchmark Progress gridlines, top to bottom.
+   *
+   * This scale is 0-based and padded to `max * 1.25`, so unlike the
+   * bodyweight axis the bottom line really is zero - the labels come from
+   * the same `maxValue` the plot is drawn against rather than from the
+   * raw data, or they would disagree with the line.
+   */
+  const benchmarkTicks = $derived.by(() => {
+    if (benchmarkProgress.history.length === 0) return [];
+    const max = benchmarkProgress.maxValue;
+    return [max, max / 2, 0].map((v) => {
+      // Trims a pointless ".0" while keeping a real fraction: the padded
+      // top of the scale is rarely a round number.
+      const rounded = Number(v.toFixed(1));
+      return String(rounded);
+    });
+  });
+
   // Date axes carry far wider labels than the week charts' "W34", so they
   // are capped at a few evenly spaced labels instead of thinned by width.
   const bodyweightLabelStep = $derived(sparseLabelStep(bodyweightTrend.history.length));
@@ -913,77 +932,94 @@
               <Icon icon="ic:baseline-arrow-drop-down" class="absolute right-0 top-1/2 -translate-y-1/2 text-primary pointer-events-none" />
             </div>
           </div>
-          <Icon icon="ic:baseline-insights" class="text-base text-content-subtle" />
-        </div>
-
-        <div class="h-36 relative">
-          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
-            <div class="border-t border-content-subtle w-full"></div>
-            <div class="border-t border-content-subtle w-full"></div>
-            <div class="border-t border-content-subtle w-full"></div>
-          </div>
-
-          <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-            <defs>
-              <linearGradient id="line-gradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.16" />
-                <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
-              </linearGradient>
-            </defs>
-
-            {#if benchmarkProgress.history.length > 1}
-              <path d={benchmarkProgress.areaPath} fill="url(#line-gradient)" />
-              <path
-                d={benchmarkProgress.linePath}
-                fill="none"
-                stroke="var(--color-primary)"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                vector-effect="non-scaling-stroke"
-              />
+          <div class="flex items-center gap-2 shrink-0">
+            {#if benchmarkProgress.unit}
+              <span class="text-caption text-content-subtle">{benchmarkProgress.unit}</span>
             {/if}
-          </svg>
-
-          <div class="absolute inset-0">
-            {#each benchmarkProgress.history as entry, i}
-              {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
-              <div class="absolute group" style="left: {xPos}%; height: 100%;">
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-                  {entry.value} {entry.unit}
-                </div>
-                <div
-                  class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2"
-                  style="bottom: {entry.height}%; left: 0;"
-                ></div>
-              </div>
-            {/each}
+            <Icon icon="ic:baseline-insights" class="text-base text-content-subtle" />
           </div>
-
-          {#if benchmarkProgress.history.length === 0}
-            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <p class="text-caption text-content-subtle italic text-center px-4 leading-relaxed">
-                Log a {benchmarkProgress.types.find(t => t.id === selectedBenchmarkType)?.name || 'benchmark'} to see your progress
-              </p>
-            </div>
-          {/if}
         </div>
-        {#if benchmarkProgress.history.length > 0}
-          <div class="border-t border-border-strong/60"></div>
-          <div class="relative h-4">
-            {#each benchmarkProgress.history as entry, i}
-              {#if showsLabel(i, benchmarkProgress.history.length, benchmarkLabelStep)}
-                {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
-                <span
-                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
-                  style="left: {xPos}%; transform: translateX({i === 0 ? '0' : i === benchmarkProgress.history.length - 1 ? '-100%' : '-50%'});"
-                >
-                  {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
-              {/if}
+
+        <!-- Value gutter beside the plot, same treatment as Bodyweight
+             Trend - an unlabelled axis makes the shape of the line readable
+             but its magnitude guesswork. -->
+        <div class="flex gap-2">
+          <div class="w-9 shrink-0 h-36 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
+            {#each benchmarkTicks as tick}
+              <span>{tick}</span>
             {/each}
           </div>
-        {/if}
+          <div class="flex-1 min-w-0 space-y-3">
+            <div class="h-36 relative">
+              <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
+                <div class="border-t border-content-subtle w-full"></div>
+                <div class="border-t border-content-subtle w-full"></div>
+                <div class="border-t border-content-subtle w-full"></div>
+              </div>
+
+              <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                <defs>
+                  <linearGradient id="line-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.16" />
+                    <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
+                  </linearGradient>
+                </defs>
+
+                {#if benchmarkProgress.history.length > 1}
+                  <path d={benchmarkProgress.areaPath} fill="url(#line-gradient)" />
+                  <path
+                    d={benchmarkProgress.linePath}
+                    fill="none"
+                    stroke="var(--color-primary)"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    vector-effect="non-scaling-stroke"
+                  />
+                {/if}
+              </svg>
+
+              <div class="absolute inset-0">
+                {#each benchmarkProgress.history as entry, i}
+                  {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
+                  <div class="absolute group" style="left: {xPos}%; height: 100%;">
+                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
+                      {entry.value} {entry.unit}
+                    </div>
+                    <div
+                      class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2"
+                      style="bottom: {entry.height}%; left: 0;"
+                    ></div>
+                  </div>
+                {/each}
+              </div>
+
+              {#if benchmarkProgress.history.length === 0}
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <p class="text-caption text-content-subtle italic text-center px-4 leading-relaxed">
+                    Log a {benchmarkProgress.types.find(t => t.id === selectedBenchmarkType)?.name || 'benchmark'} to see your progress
+                  </p>
+                </div>
+              {/if}
+            </div>
+            {#if benchmarkProgress.history.length > 0}
+              <div class="border-t border-border-strong/60"></div>
+              <div class="relative h-4">
+                {#each benchmarkProgress.history as entry, i}
+                  {#if showsLabel(i, benchmarkProgress.history.length, benchmarkLabelStep)}
+                    {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
+                    <span
+                      class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
+                      style="left: {xPos}%; transform: translateX({i === 0 ? '0' : i === benchmarkProgress.history.length - 1 ? '-100%' : '-50%'});"
+                    >
+                      {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                  {/if}
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
       </div>
     {/if}
 
