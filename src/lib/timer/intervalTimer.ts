@@ -1,4 +1,5 @@
 import type { ExerciseValues, ParameterBlock } from "../types";
+import { repsPerSet } from "../planning/sessionDuration";
 
 /**
  * The protocol behind the timer's interval mode.
@@ -77,12 +78,33 @@ export function specFromExercise(
   fallback: IntervalSpec = DEFAULT_SPEC,
 ): IntervalSpec {
   const v = values ?? {};
+
+  // Per-set reps (`[6, 6, 5, 5, 4]`) appear in real exports. The array's
+  // length is the true set count; the protocol itself is uniform, so the
+  // reps average out into one editable number.
+  const perSet = repsPerSet(v);
+  const arrayReps = Array.isArray((v as { reps?: unknown }).reps) && perSet.length > 0;
+  const averageReps = Math.round(perSet.reduce((a, b) => a + b, 0) / perSet.length);
+
+  // Same rest-field ambiguity `sessionDuration` untangles: an exercise
+  // whose type offers `timeOff` but not `restTime` records its *set* rest
+  // there, and reading it as a between-reps rest would put three minutes
+  // between every pull-up.
+  // Only reassigns a rest that is actually recorded: with no `timeOff` at
+  // all there is nothing to reinterpret, and the per-field fallbacks below
+  // should supply the defaults as usual.
+  const timeOn = firstNumber(v.timeOn, 0);
+  const timeOff = firstNumber(v.timeOff, 0);
+  const restIsBetweenSets = timeOff > 0 && timeOn <= 0 && firstNumber(v.timeBetweenSets, 0) <= 0;
+
   return clampSpec({
-    sets: firstNumber(v.sets, fallback.sets),
-    reps: firstNumber(v.reps, fallback.reps),
+    sets: arrayReps ? perSet.length : firstNumber(v.sets, fallback.sets),
+    reps: arrayReps ? averageReps : firstNumber(v.reps, fallback.reps),
     workSeconds: firstNumber(v.timeOn, fallback.workSeconds),
-    restSeconds: firstNumber(v.timeOff, fallback.restSeconds),
-    setRestSeconds: firstNumber(v.timeBetweenSets, fallback.setRestSeconds),
+    restSeconds: restIsBetweenSets ? 0 : firstNumber(v.timeOff, fallback.restSeconds),
+    setRestSeconds: restIsBetweenSets
+      ? firstNumber(v.timeOff, fallback.setRestSeconds)
+      : firstNumber(v.timeBetweenSets, fallback.setRestSeconds),
     leadInSeconds: fallback.leadInSeconds,
   });
 }

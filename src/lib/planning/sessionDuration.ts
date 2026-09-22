@@ -41,15 +41,72 @@ export const DEFAULT_EXERCISE_MINUTES = 30;
 export const DEFAULT_SESSION_MINUTES = 60;
 
 /**
+ * How an exercise's reps are laid out across its sets.
+ *
+ * `ExerciseValues.reps` is typed as a number, but real exports carry
+ * per-set arrays - `[6, 6, 5, 5, 4]` is five sets of weighted pull-ups
+ * with the reps that were actually managed in each. Where that happens the
+ * array is authoritative about the set count too: the same slot's `sets`
+ * said 4 while the array held 5, because `sets` was the plan and the array
+ * is what happened.
+ */
+export function repsPerSet(values: ExerciseValues): number[] {
+  const raw = (values as { reps?: unknown }).reps;
+
+  if (Array.isArray(raw)) {
+    const perSet = raw
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (perSet.length > 0) return perSet;
+  }
+
+  const sets = Math.max(1, Math.floor(positive(values.sets) ?? 1));
+  const reps = positive(typeof raw === "number" ? raw : undefined) ?? 1;
+  return Array(sets).fill(reps);
+}
+
+/**
+ * Which rest is which.
+ *
+ * `timeOff` is documented as rest *between reps* and `timeBetweenSets` as
+ * rest between sets, but an exercise type only offers the fields it lists
+ * in `parameters` - and `weighted-pullups` offers `timeOff` without
+ * `restTime`, so a 180-second rest between *sets* gets recorded in
+ * `timeOff` because there is nowhere else to put it.
+ *
+ * Taken literally that turned 4x6 pull-ups into a 60-minute exercise (five
+ * three-minute rests inside every set). The rule that sorts it out: a rest
+ * between reps only means anything if a rep has a duration. With no
+ * `timeOn`, whatever rest is recorded is separating sets.
+ */
+function restSeconds(values: ExerciseValues): { betweenReps: number; betweenSets: number } {
+  const timeOn = nonNegative(values.timeOn) ?? 0;
+  const timeOff = nonNegative(values.timeOff) ?? 0;
+  const explicitSetRest = nonNegative(values.timeBetweenSets) ?? 0;
+
+  // An explicit set rest settles it: `timeOff` is not doing double duty,
+  // so it means what it says even if the reps carry no duration.
+  if (explicitSetRest > 0) {
+    return { betweenReps: timeOff, betweenSets: explicitSetRest };
+  }
+  // Reps have a duration, so a rest between them is meaningful.
+  if (timeOn > 0) {
+    return { betweenReps: timeOff, betweenSets: 0 };
+  }
+  // Nothing distinguishes the two and the reps have no duration - the one
+  // rest that was recorded is separating sets.
+  return { betweenReps: 0, betweenSets: timeOff };
+}
+
+/**
  * Derives an exercise's length in minutes.
  *
  * An explicit `duration` always wins - it is the user's own answer and
  * nothing here should second-guess it. Failing that, the work is
  * reconstructed from the set/rep structure, all in seconds:
  *
- *     per rep  = timeOn + timeOff        (the rest after a rep)
- *     per set  = reps * timeOn + (reps - 1) * timeOff
- *     total    = sets * perSet + (sets - 1) * timeBetweenSets
+ *     per set  = reps * timeOn + (reps - 1) * restBetweenReps
+ *     total    = sum(per set) + (sets - 1) * restBetweenSets
  *
  * The trailing rest is dropped at both levels on purpose: the session isn't
  * still running during the rest that follows its last set, and counting it
@@ -63,14 +120,15 @@ export function estimateExerciseDuration(values: ExerciseValues): number | undef
   const explicit = positive(values.duration);
   if (explicit !== undefined) return explicit;
 
-  const sets = positive(values.sets) ?? 1;
-  const reps = positive(values.reps) ?? 1;
   const timeOn = nonNegative(values.timeOn) ?? 0;
-  const timeOff = nonNegative(values.timeOff) ?? 0;
-  const betweenSets = nonNegative(values.timeBetweenSets) ?? 0;
+  const { betweenReps, betweenSets } = restSeconds(values);
+  const perSet = repsPerSet(values);
 
-  const perSetSeconds = reps * timeOn + Math.max(0, reps - 1) * timeOff;
-  const totalSeconds = sets * perSetSeconds + Math.max(0, sets - 1) * betweenSets;
+  const workSeconds = perSet.reduce(
+    (total, reps) => total + reps * timeOn + Math.max(0, reps - 1) * betweenReps,
+    0,
+  );
+  const totalSeconds = workSeconds + Math.max(0, perSet.length - 1) * betweenSets;
   if (totalSeconds <= 0) return undefined;
 
   // Round up: a 30-second exercise is a minute of session time, not zero.

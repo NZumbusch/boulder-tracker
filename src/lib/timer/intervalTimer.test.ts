@@ -339,3 +339,35 @@ describe("labels", () => {
     expect(phaseLabel("setRest")).toBe("Set rest");
   });
 });
+
+describe("seeding from real exported exercises", () => {
+  it("puts a pull-up rest between sets, not between reps", () => {
+    // `weighted-pullups` offers `timeOff` but not `restTime`, so its 180s
+    // set rest is recorded there. Read literally the timer would rest three
+    // minutes after every single pull-up.
+    const spec = specFromExercise({ sets: 4, reps: 6, timeOff: 180 });
+    expect(spec.restSeconds).toBe(0);
+    expect(spec.setRestSeconds).toBe(180);
+    expect(spec.sets).toBe(4);
+    expect(spec.reps).toBe(6);
+  });
+
+  it("keeps hangboard rests where they belong", () => {
+    const spec = specFromExercise({ sets: 5, reps: 6, timeOn: 7, timeOff: 3, timeBetweenSets: 180 });
+    expect(spec.restSeconds).toBe(3);
+    expect(spec.setRestSeconds).toBe(180);
+  });
+
+  it("takes the set count from a per-set reps array, and averages the reps", () => {
+    // [6, 6, 5, 5, 4] - five sets averaging 5.2 reps, while `sets` says 4.
+    const spec = specFromExercise({ sets: 4, reps: [6, 6, 5, 5, 4] } as never);
+    expect(spec.sets).toBe(5);
+    expect(spec.reps).toBe(5);
+  });
+
+  it("still falls back cleanly when the exercise records no rest at all", () => {
+    expect(specFromExercise({ sets: 3 })).toMatchObject({
+      sets: 3, restSeconds: DEFAULT_SPEC.restSeconds, setRestSeconds: DEFAULT_SPEC.setRestSeconds,
+    });
+  });
+});

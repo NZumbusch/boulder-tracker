@@ -7,6 +7,7 @@ import {
   DEFAULT_EXERCISE_MINUTES,
   DEFAULT_SESSION_MINUTES,
 } from "./sessionDuration";
+import { repsPerSet } from "./sessionDuration";
 import type { ExerciseSlot, ExerciseValues, Workout } from "../types";
 
 function slot(id: string, prescribed?: ExerciseValues, logged?: ExerciseValues): ExerciseSlot {
@@ -137,5 +138,58 @@ describe("sessionDuration", () => {
   it("never reports zero for a session whose only exercise was skipped", () => {
     const skipped: ExerciseSlot = { ...slot("a", { duration: 30 }), skipped: true };
     expect(sessionDuration(workout([skipped], { plannedDuration: 45 }))).toBe(45);
+  });
+});
+
+describe("rest fields as real data uses them", () => {
+  // An exercise type only offers the parameters it lists, and
+  // `weighted-pullups` lists `timeOff` without `restTime` - so a rest
+  // between *sets* lands in `timeOff` because there is nowhere else for it.
+  const pullups: ExerciseValues = { sets: 4, reps: 6, timeOff: 180 };
+
+  it("reads a rest as between-sets when reps have no duration", () => {
+    // 3 rests of 180s between 4 sets = 540s -> 9 min. Read literally as a
+    // between-reps rest it was 5 x 180s inside every set = 60 min.
+    expect(estimateExerciseDuration(pullups)).toBe(9);
+  });
+
+  it("still reads it as between-reps when reps do have a duration", () => {
+    // Max hangs: 7s on, 3s off between reps, 180s between sets.
+    const maxHangs: ExerciseValues = { sets: 5, reps: 6, timeOn: 7, timeOff: 3, timeBetweenSets: 180 };
+    expect(estimateExerciseDuration(maxHangs)).toBe(17);
+  });
+
+  it("prefers an explicit timeBetweenSets over reinterpreting timeOff", () => {
+    const both: ExerciseValues = { sets: 3, reps: 4, timeOff: 10, timeBetweenSets: 60 };
+    // No timeOn, so timeOff stays a between-reps rest only because an
+    // explicit set rest already exists: 3 x (3 x 10) + 2 x 60 = 210s -> 4 min.
+    expect(estimateExerciseDuration(both)).toBe(4);
+  });
+});
+
+describe("per-set reps, as real exports record them", () => {
+  it("treats an array as the set count and the reps in each", () => {
+    // [6, 6, 5, 5, 4] is five sets, not the four that `sets` still claims.
+    expect(repsPerSet({ sets: 4, reps: [6, 6, 5, 5, 4] } as unknown as ExerciseValues)).toEqual([6, 6, 5, 5, 4]);
+  });
+
+  it("spreads a plain number across the sets", () => {
+    expect(repsPerSet({ sets: 3, reps: 5 })).toEqual([5, 5, 5]);
+  });
+
+  it("defaults to one set of one rep when nothing is given", () => {
+    expect(repsPerSet({})).toEqual([1]);
+  });
+
+  it("drops junk entries and falls back if the array is unusable", () => {
+    expect(repsPerSet({ sets: 2, reps: [5, null, "x", 3] } as unknown as ExerciseValues)).toEqual([5, 3]);
+    expect(repsPerSet({ sets: 2, reps: [] } as unknown as ExerciseValues)).toEqual([1, 1]);
+  });
+
+  it("sums per-set reps rather than counting one rep per set", () => {
+    // 5 sets totalling 28 reps at 3s each, 240s between sets:
+    // 28 x 3 = 84s work + 4 x 240 = 960s rest -> 1044s -> 18 min
+    const values = { reps: [7, 6, 6, 5, 4], timeOn: 3, timeBetweenSets: 240 } as unknown as ExerciseValues;
+    expect(estimateExerciseDuration(values)).toBe(18);
   });
 });
