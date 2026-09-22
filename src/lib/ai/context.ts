@@ -12,6 +12,7 @@ import type {
   Workout,
 } from "../types";
 import { slotTypeName, slotValues } from "../exerciseSlot";
+import { repsRepresentative } from "../exercise/reps";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
 import {
@@ -132,7 +133,10 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
         name: slotTypeName(e, exerciseTypes),
         duration: v.duration,
         sets: v.sets,
-        reps: v.reps,
+        // Reps per set, as before - `sets` is sent beside it, so the total
+        // would double-count. Routed through the helper only because the
+        // field may now hold one number or one per set.
+        reps: repsRepresentative(v.reps),
         plannedLoad: v.plannedLoad,
       };
     }),

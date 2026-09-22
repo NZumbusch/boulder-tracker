@@ -40,6 +40,21 @@
     clampSpec,
   } from "../../lib/timer/intervalTimer";
   import IntervalTimerView from "./IntervalTimerView.svelte";
+  import SetRunView from "./SetRunView.svelte";
+  import {
+    type SetRunState,
+    type SetTimingMode,
+    isSelfPaced,
+    startSetRun,
+    tickSetRun,
+    finishSet,
+    undoLastSet,
+    skipLeadIn,
+    setRunPhase,
+    isResting,
+    restRemainingSeconds,
+    setRunLoggedValues,
+  } from "../../lib/timer/setRun";
 
   let {
     currentSlot = null,
@@ -89,6 +104,16 @@
   let lastStepIndex = $state(-1);
   let lastTickSecond = $state(-1);
 
+  // --- Self-paced sets (strength work: you set the pace, the rest is timed) ---
+  let timingMode = $state<SetTimingMode>('auto');
+  let setRun = $state<SetRunState>(startSetRun(DEFAULT_SPEC));
+  /** Reps staged for the set about to be finished, prefilled from the target. */
+  let stagedReps = $state(DEFAULT_SPEC.reps);
+  let lastTickAt = $state(0);
+  /** Fires the "rest is over" cue once per rest rather than every tick. */
+  let restCuedForSet = $state(0);
+  let lastLeadInSecond = $state(-1);
+
   const timeline = $derived(buildTimeline(spec));
   const totalSeconds = $derived(timelineSeconds(timeline));
   const elapsedMs = $derived(bankedMs + (runningSince === null ? 0 : Math.max(0, now - runningSince)));
@@ -99,6 +124,11 @@
   const intervalFinished = $derived(position.done && elapsedSeconds > 0);
   const intervalStarted = $derived(elapsedMs > 0 || intervalRunning);
   const workLabel = $derived(workPhaseLabel(currentSlot?.activeParameters));
+  const selfPaced = $derived(isSelfPaced(currentSlot ? slotValues(currentSlot) : undefined, timingMode));
+  const setRunDone = $derived(setRun.done);
+  const setRunStarted = $derived(setRun.completed.length > 0 || setRun.sinceLastSetMs > 0 || runningSince !== null);
+  /** One "has a run in progress" answer, whichever engine is in play. */
+  const runInProgress = $derived(selfPaced ? (setRunStarted && !setRunDone) : (intervalStarted && !intervalFinished));
 
   /**
    * Re-seeds the protocol from whichever exercise is current.
@@ -111,13 +141,15 @@
   $effect(() => {
     const slotId = currentSlot?.id ?? null;
     if (slotId === seededForSlotId) return;
-    if (intervalStarted && !intervalFinished) return;
+    if (runInProgress) return;
 
     seededForSlotId = slotId;
     const seeded = specFromExercise(currentSlot ? slotValues(currentSlot) : undefined);
     baseSpec = seeded;
     spec = seeded;
+    timingMode = 'auto';
     resetInterval();
+    resetSetRun();
   });
 
   // --- Audio cues -------------------------------------------------------
@@ -237,6 +269,46 @@
     }
   });
 
+  // Self-paced cues: the lead-in counts you in, and the rest announces
+  // itself when the target passes. Kept separate from the timed engine's
+  // effect because the two never run at the same time and sharing one
+  // would mean guarding every branch on which engine is live.
+  $effect(() => {
+    if (mode !== 'interval' || !selfPaced || runningSince === null) return;
+
+    const phase = setRunPhase(setRun);
+
+    if (phase === 'leadIn') {
+      const second = Math.ceil(setRun.leadInRemainingMs / 1000);
+      if (second > 0 && second <= 3 && second !== lastLeadInSecond) {
+        lastLeadInSecond = second;
+        cue('tick');
+      }
+      return;
+    }
+
+    if (lastLeadInSecond !== -1) {
+      lastLeadInSecond = -1;
+      if (setRun.completed.length === 0) cue('work');
+    }
+
+    if (phase === 'done') return;
+
+    if (isResting(setRun)) {
+      const left = restRemainingSeconds(setRun, spec);
+      const second = Math.ceil(left);
+      if (left > 0 && second <= 3 && second !== lastTickSecond) {
+        lastTickSecond = second;
+        cue('tick');
+      }
+      if (left <= 0 && restCuedForSet !== setRun.currentSet) {
+        restCuedForSet = setRun.currentSet;
+        lastTickSecond = -1;
+        cue('work');
+      }
+    }
+  });
+
   // --- Keep screen awake ------------------------------------------------
   // The standard Web Wake Lock API rather than a native plugin: Capacitor
   // renders in a system WebView, and modern Android/iOS WebViews support
@@ -273,10 +345,21 @@
     const shouldTick = mode === 'interval' && runningSince !== null;
     if (shouldTick && ticker === null) {
       now = Date.now();
-      ticker = setInterval(() => { now = Date.now(); }, 100);
+      lastTickAt = now;
+      ticker = setInterval(() => {
+        const at = Date.now();
+        const delta = lastTickAt > 0 ? at - lastTickAt : 0;
+        lastTickAt = at;
+        now = at;
+        // The self-paced run advances by elapsed delta rather than being
+        // derived from a start time, because only its rests are on a
+        // clock - the sets themselves end when you say so.
+        if (selfPaced && !setRun.done) setRun = tickSetRun(setRun, delta);
+      }, 100);
     } else if (!shouldTick && ticker !== null) {
       clearInterval(ticker);
       ticker = null;
+      lastTickAt = 0;
     }
   }
 
@@ -309,6 +392,61 @@
   /** Stops the clock at the end - the run stays on screen so it can be logged. */
   function finishRun() {
     bankedMs = totalSeconds * 1000;
+    runningSince = null;
+    syncTicker();
+    releaseWakeLock();
+  }
+
+  function resetSetRun() {
+    setRun = startSetRun(spec);
+    stagedReps = clampSpec(spec).reps;
+    restCuedForSet = 0;
+    lastLeadInSecond = -1;
+  }
+
+  function handleFinishSet() {
+    unlockAudio();
+    const next = finishSet(setRun, spec, stagedReps);
+    setRun = next;
+    stagedReps = clampSpec(spec).reps;
+    restCuedForSet = 0;
+    lastTickSecond = -1;
+    if (next.done) {
+      cue('done');
+      runningSince = null;
+      syncTicker();
+      releaseWakeLock();
+    } else {
+      cue('setRest');
+      if (runningSince === null) startSetRunClock();
+    }
+  }
+
+  /** The self-paced run shares the interval clock's running flag, so pause works the same. */
+  function startSetRunClock() {
+    unlockAudio();
+    if (runningSince !== null) return;
+    runningSince = Date.now();
+    now = runningSince;
+    lastTickAt = runningSince;
+    syncTicker();
+    acquireWakeLock();
+  }
+
+  function handleUndoSet() {
+    setRun = undoLastSet(setRun);
+    stagedReps = clampSpec(spec).reps;
+    restCuedForSet = 0;
+  }
+
+  function handleLogSetRun() {
+    onLogInterval?.(setRunLoggedValues(spec, setRun));
+    expanded = false;
+    resetSetRun();
+    stopClock();
+  }
+
+  function stopClock() {
     runningSince = null;
     syncTicker();
     releaseWakeLock();
@@ -365,6 +503,9 @@
     if (next === 'interval') {
       resetStopwatch();
       expanded = true;
+      // The self-paced run's clock has to be going for its rests to count;
+      // the timed engine waits for an explicit play instead.
+      if (selfPaced) { resetSetRun(); startSetRunClock(); }
     } else {
       resetInterval();
       expanded = false;
@@ -444,7 +585,29 @@
   }
 </script>
 
-{#if mode === 'interval' && expanded && visible}
+{#if mode === 'interval' && expanded && visible && selfPaced}
+  <SetRunView
+    {spec}
+    {baseSpec}
+    run={setRun}
+    bind:reps={stagedReps}
+    {timingMode}
+    {workLabel}
+    isRunning={intervalRunning}
+    canLog={onLogInterval !== null}
+    onFinishSet={handleFinishSet}
+    onUndo={handleUndoSet}
+    onSkipLeadIn={() => { startSetRunClock(); setRun = skipLeadIn(setRun); }}
+    onToggle={() => intervalRunning ? stopClock() : startSetRunClock()}
+    onRestart={() => { resetSetRun(); startSetRunClock(); }}
+    onMinimize={() => expanded = false}
+    onClose={() => { expanded = false; resetSetRun(); stopClock(); }}
+    onSpecChange={applySpecPatch}
+    onResetToExercise={resetSpecToExercise}
+    onTimingModeChange={(next) => { timingMode = next; resetSetRun(); resetInterval(); }}
+    onLog={handleLogSetRun}
+  />
+{:else if mode === 'interval' && expanded && visible}
   <IntervalTimerView
     {spec}
     {baseSpec}
@@ -508,7 +671,39 @@
       </button>
     </div>
 
-    {#if mode === 'interval'}
+    {#if mode === 'interval' && selfPaced}
+      <!-- Minimised self-paced run: which set, and how long you have
+           rested. Tapping goes back to the big view, where the only
+           action - finishing a set - actually lives. -->
+      <button onclick={() => expanded = true} class="flex items-center gap-3 pr-1 text-left">
+        <div class="min-w-0">
+          <p class="text-label font-bold text-content leading-tight tabular-nums">
+            {#if setRun.done}
+              Done
+            {:else if setRunPhase(setRun) === 'leadIn'}
+              Ready {Math.ceil(setRun.leadInRemainingMs / 1000)}s
+            {:else if isResting(setRun)}
+              {restRemainingSeconds(setRun, spec) <= 0 ? 'Rest over' : 'Rest'}
+              <span class="text-content-subtle">{formatTime(Math.abs(Math.round(restRemainingSeconds(setRun, spec))))}</span>
+            {:else}
+              Set {setRun.currentSet}
+            {/if}
+          </p>
+          <p class="text-caption text-content-subtle tabular-nums leading-tight">
+            {setRun.completed.length}/{spec.sets} sets done
+          </p>
+        </div>
+        <Icon icon="ic:baseline-open-in-full" class="text-sm text-content-subtle shrink-0" />
+      </button>
+
+      <button
+        onclick={() => expanded = true}
+        class="w-10 h-10 rounded-full flex items-center justify-center bg-success text-app-bg hover:opacity-90 transition-all shadow-lg active:scale-90"
+        aria-label="Open the set timer"
+      >
+        <Icon icon="ic:baseline-check-circle" class="text-2xl" />
+      </button>
+    {:else if mode === 'interval'}
       <!-- Minimised interval: enough to know where you are, and a tap to
            get the big view back. -->
       <button onclick={() => expanded = true} class="flex items-center gap-3 pr-1 text-left">

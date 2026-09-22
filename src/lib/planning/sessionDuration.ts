@@ -1,5 +1,9 @@
 import type { ExerciseSlot, ExerciseValues, Workout } from "../types";
 import { slotValues } from "../exerciseSlot";
+import { repsPerSet } from "../exercise/reps";
+
+/** Re-exported: reps live in `lib/exercise/reps.ts`, the duration maths just uses them. */
+export { repsPerSet };
 
 /**
  * The one place that answers "how long is/was this session?".
@@ -39,31 +43,6 @@ export const DEFAULT_EXERCISE_MINUTES = 30;
  * a length), and asserted by `fatigueReminder.test.ts`.
  */
 export const DEFAULT_SESSION_MINUTES = 60;
-
-/**
- * How an exercise's reps are laid out across its sets.
- *
- * `ExerciseValues.reps` is typed as a number, but real exports carry
- * per-set arrays - `[6, 6, 5, 5, 4]` is five sets of weighted pull-ups
- * with the reps that were actually managed in each. Where that happens the
- * array is authoritative about the set count too: the same slot's `sets`
- * said 4 while the array held 5, because `sets` was the plan and the array
- * is what happened.
- */
-export function repsPerSet(values: ExerciseValues): number[] {
-  const raw = (values as { reps?: unknown }).reps;
-
-  if (Array.isArray(raw)) {
-    const perSet = raw
-      .map((n) => Number(n))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    if (perSet.length > 0) return perSet;
-  }
-
-  const sets = Math.max(1, Math.floor(positive(values.sets) ?? 1));
-  const reps = positive(typeof raw === "number" ? raw : undefined) ?? 1;
-  return Array(sets).fill(reps);
-}
 
 /**
  * Which rest is which.

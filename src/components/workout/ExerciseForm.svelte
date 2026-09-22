@@ -9,6 +9,7 @@
     HOLD_TYPES, CAMPUS_TYPES, MOBILITY_TYPES, LEAD_STYLES,
   } from '../../lib/ai/valueSpec';
   import TargetHint from './TargetHint.svelte';
+  import { repsRepresentative } from '../../lib/exercise/reps';
   import Icon from '@iconify/svelte';
 
   // --- Props ---
@@ -38,6 +39,8 @@
   let boardAngle = $state(40);
   let sets = $state<number | undefined>(4);
   let reps = $state<number | undefined>(1);
+  let originalReps = $state<number | number[] | undefined>(undefined);
+  let repsEdited = $state(false);
   let movesPerRoute = $state<number | undefined>();
   let holdType = $state<ExerciseValues['holdType']>('Half Crimp');
   let timeOn = $state(7);
@@ -158,7 +161,13 @@
     boardType = v.boardType || 'Kilterboard';
     boardAngle = v.boardAngle ?? 40;
     sets = v.sets ?? 4;
-    reps = v.reps ?? 1;
+    // Per-set reps can't be shown in one field, so the mean stands in.
+    // `originalReps` keeps the real value: saving without touching this
+    // field writes the array back untouched rather than flattening months
+    // of per-set detail into its average.
+    originalReps = v.reps;
+    repsEdited = false;
+    reps = repsRepresentative(v.reps) ?? 1;
     movesPerRoute = v.movesPerRoute;
     holdType = v.holdType || 'Half Crimp';
     timeOn = v.timeOn ?? 7;
@@ -233,7 +242,9 @@
     if (params.includes('boardType')) values.boardType = boardType;
     if (params.includes('boardAngle')) values.boardAngle = boardAngle;
     if (params.includes('sets')) values.sets = sets;
-    if (params.includes('reps')) values.reps = reps;
+    if (params.includes('reps')) {
+      values.reps = !repsEdited && Array.isArray(originalReps) ? originalReps : reps;
+    }
     if (params.includes('movesPerRoute')) values.movesPerRoute = movesPerRoute;
 
     if (params.includes('holdType')) values.holdType = holdType;
@@ -343,7 +354,7 @@
 
     <div class="grid grid-cols-2 gap-3">
       {#if activeParams.includes('sets')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-sets" class="text-label text-content-subtle">Sets</label><TargetHint prescribed={targetValues.sets} current={sets} /></div><input id="ex-sets" type="number" bind:value={sets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.sets ? 'border-danger/50' : ''}" />{#if validationErrors.sets}<p class="text-label text-danger ml-1">{validationErrors.sets}</p>{/if}</div>{/if}
-      {#if activeParams.includes('reps')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={targetValues.reps} current={reps} /></div><input id="ex-reps" type="number" bind:value={reps} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
+      {#if activeParams.includes('reps')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={repsRepresentative(targetValues.reps)} current={reps} /></div><input id="ex-reps" type="number" bind:value={reps} oninput={() => repsEdited = true} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" />{#if !repsEdited && Array.isArray(originalReps)}<p class="text-caption text-content-subtle ml-1">Per set: {originalReps.join(', ')} &mdash; editing replaces all sets</p>{/if}</div>{/if}
       {#if activeParams.includes('movesPerRoute')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-moves" class="text-label text-content-subtle">Moves per route</label><TargetHint prescribed={targetValues.movesPerRoute} current={movesPerRoute} /></div><input id="ex-moves" type="number" bind:value={movesPerRoute} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     </div>
     {#if activeParams.includes('holdType')}<div class="space-y-1.5"><label for="ex-hold" class="text-label text-content-subtle ml-1">Hold Type</label><select id="ex-hold" bind:value={holdType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each holdTypes as h} <option value={h}>{h}</option> {/each}</select></div>{/if}

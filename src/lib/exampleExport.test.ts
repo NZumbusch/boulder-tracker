@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import type { ExerciseSlot, TrainingData, Workout } from "./types";
 import { workoutPlannedLoad, slotActualLoad, calculateLoadFactor } from "./types";
 import { slotValues } from "./exerciseSlot";
+import { repsRepresentative } from "./exercise/reps";
 import {
   estimateExerciseDuration,
   estimateSessionDuration,
@@ -168,9 +169,9 @@ suite("a real export", () => {
         const timeline = buildTimeline(spec);
         const values = loggedValuesFor(spec, progressAt(timeline, spec, timelineSeconds(timeline)));
         expectSaneNumber(values.sets!, `logged sets for ${slot.typeId}`);
-        expectSaneNumber(values.reps!, `logged reps for ${slot.typeId}`);
+        expectSaneNumber(repsRepresentative(values.reps)!, `logged reps for ${slot.typeId}`);
         expect(values.sets).toBeGreaterThan(0);
-        expect(values.reps).toBeGreaterThan(0);
+        expect(repsRepresentative(values.reps)).toBeGreaterThan(0);
       }
     });
   });

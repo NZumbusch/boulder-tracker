@@ -1,5 +1,5 @@
 import type { ExerciseValues, ParameterBlock } from "../types";
-import { repsPerSet } from "../planning/sessionDuration";
+import { repsPerSet, setsFromReps, repsRepresentative } from "../exercise/reps";
 
 /**
  * The protocol behind the timer's interval mode.
@@ -82,9 +82,8 @@ export function specFromExercise(
   // Per-set reps (`[6, 6, 5, 5, 4]`) appear in real exports. The array's
   // length is the true set count; the protocol itself is uniform, so the
   // reps average out into one editable number.
-  const perSet = repsPerSet(v);
-  const arrayReps = Array.isArray((v as { reps?: unknown }).reps) && perSet.length > 0;
-  const averageReps = Math.round(perSet.reduce((a, b) => a + b, 0) / perSet.length);
+  const perSetCount = setsFromReps(v.reps);
+  const averageReps = repsRepresentative(v.reps);
 
   // Same rest-field ambiguity `sessionDuration` untangles: an exercise
   // whose type offers `timeOff` but not `restTime` records its *set* rest
@@ -98,8 +97,8 @@ export function specFromExercise(
   const restIsBetweenSets = timeOff > 0 && timeOn <= 0 && firstNumber(v.timeBetweenSets, 0) <= 0;
 
   return clampSpec({
-    sets: arrayReps ? perSet.length : firstNumber(v.sets, fallback.sets),
-    reps: arrayReps ? averageReps : firstNumber(v.reps, fallback.reps),
+    sets: perSetCount ?? firstNumber(v.sets, fallback.sets),
+    reps: perSetCount ? (averageReps ?? fallback.reps) : firstNumber(repsRepresentative(v.reps), fallback.reps),
     workSeconds: firstNumber(v.timeOn, fallback.workSeconds),
     restSeconds: restIsBetweenSets ? 0 : firstNumber(v.timeOff, fallback.restSeconds),
     setRestSeconds: restIsBetweenSets
@@ -112,7 +111,7 @@ export function specFromExercise(
 /** True when an exercise carries enough of its own timing to be worth running as an interval. */
 export function hasIntervalTiming(values: ExerciseValues | undefined): boolean {
   const v = values ?? {};
-  return [v.timeOn, v.timeOff, v.timeBetweenSets, v.sets, v.reps].some(
+  return [v.timeOn, v.timeOff, v.timeBetweenSets, v.sets, repsRepresentative(v.reps)].some(
     (n) => typeof n === "number" && Number.isFinite(n) && n > 0,
   );
 }

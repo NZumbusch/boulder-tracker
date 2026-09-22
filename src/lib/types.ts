@@ -92,7 +92,21 @@ export interface ExerciseValues {
 
   // Non-Free / General
   sets?: number;
-  reps?: number;
+  /**
+   * Reps per set - one number when every set is the same, or an array when
+   * they aren't (`[10, 7, 8, 8]` is four sets of weighted pull-ups with
+   * what was actually managed in each).
+   *
+   * The array form is not new: real exports have carried it for months,
+   * written by the AI log importer and by hand, against a `number`-only
+   * type that quietly tolerated it. The self-paced set timer now produces
+   * it deliberately, so the type says what the data has always held.
+   *
+   * Where the two disagree, an array is authoritative about the set count
+   * as well: `sets` is the plan, the array is what happened. Read it
+   * through `repsPerSet()` rather than touching it directly.
+   */
+  reps?: number | number[];
   movesPerRoute?: number;
 
   // Specific / Hangboard / Weights / Cardio
