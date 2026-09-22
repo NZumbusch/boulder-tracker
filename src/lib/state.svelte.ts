@@ -20,10 +20,11 @@ import { BenchmarkStore } from './stores/benchmarkStore.svelte';
 import { MetricsStore } from './stores/metricsStore.svelte';
 import { OutdoorAscentStore } from './stores/outdoorAscentStore.svelte';
 import { UiStore } from './stores/uiStore.svelte';
+import { SessionStore } from './stores/sessionStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, ChartDensity, HomeSectionPreference, AISharingPreferences, PlanFormat } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, ChartDensity, HomeSectionPreference, AISharingPreferences, PlanFormat, AddedExerciseTarget } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
@@ -46,6 +47,7 @@ class TrainingState {
   metricsStore = new MetricsStore();
   outdoorAscentStore = new OutdoorAscentStore();
   uiStore = new UiStore();
+  sessionStore = new SessionStore();
   backupStore = new BackupStore();
   preferencesStore = new PreferencesStore();
   weatherStore = new WeatherStore();
@@ -184,6 +186,12 @@ class TrainingState {
   get planFormat() { return this.preferencesStore.planFormat; }
   setPlanFormat(format: PlanFormat) {
     this.preferencesStore.setPlanFormat(format);
+  }
+
+  /** What `prescribed` an exercise added mid-session gets - see `AddedExerciseTarget`. */
+  get addedExerciseTarget() { return this.preferencesStore.addedExerciseTarget; }
+  setAddedExerciseTarget(target: AddedExerciseTarget) {
+    this.preferencesStore.setAddedExerciseTarget(target);
   }
 
   /**
@@ -422,7 +430,63 @@ class TrainingState {
     };
 
     await this.saveWorkout(completedWorkout);
+
+    // If this rating is what closed out the live session, the session's
+    // job is done. Cleared only now, after the save succeeded, so a failed
+    // write leaves the session intact to retry rather than losing it.
+    if (this.sessionStore.isRunning(completedWorkout.id)) {
+      this.sessionStore.discard();
+    }
+
     this.navigate('history');
+  }
+
+  // --- Live sessions (lib/session/) ---
+
+  /** The running session, or `null`. At most one exists - see `SessionStore`. */
+  get activeSession() { return this.sessionStore.session; }
+  get isSessionActive() { return this.sessionStore.isActive; }
+
+  /**
+   * Starts a session from a planned workout, or from a freshly built one
+   * for a spontaneous session, and opens the session modal.
+   *
+   * Refuses while another session is running rather than replacing it -
+   * that would throw away logged work irrecoverably. The caller gets
+   * `false`; the UI shows "Resume" instead of "Start" while a session is
+   * live, so this is a backstop rather than the normal path.
+   */
+  startSession(workout: Workout): boolean {
+    if (this.sessionStore.isActive) {
+      // Tapping Start on the session that is already running just reopens it.
+      if (this.sessionStore.isRunning(workout.id)) {
+        this.sessionStore.openModal();
+        return true;
+      }
+      return false;
+    }
+    const started = this.sessionStore.start(workout, { sourceWorkoutId: workout.id });
+    if (started) this.uiStore.showFatigue = false;
+    return started;
+  }
+
+  /**
+   * Ends the session and hands what was done to the fatigue/rating step,
+   * which is also where the measured duration can be corrected before it
+   * is committed. The session itself is only cleared once the save has
+   * actually gone through (`confirmFatigue`), so a failed save can't lose
+   * an hour of logged work.
+   */
+  finishSession() {
+    const completed = this.sessionStore.buildCompletedWorkout();
+    if (!completed) return;
+    this.sessionStore.minimize();
+    this.openFatigueModal(completed);
+  }
+
+  /** Abandons the session without saving anything. The plan it came from is untouched. */
+  discardSession() {
+    this.sessionStore.discard();
   }
 
   // --- Backup Actions ---

@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat, type AddedExerciseTarget } from '../preferences/migrate';
 
 const PREFERENCES_KEY = 'boulder_tracker_preferences';
 const LEGACY_THEME_KEY = 'boulder_tracker_theme';
@@ -25,6 +25,7 @@ export class PreferencesStore {
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
   aiSharing = $state<AISharingPreferences>(defaultPreferences().aiSharing);
   planFormat = $state<PlanFormat>(defaultPreferences().planFormat);
+  addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
 
   constructor() {
     if (typeof localStorage === 'undefined') return;
@@ -57,6 +58,7 @@ export class PreferencesStore {
     this.homeSections = prefs.homeSections;
     this.aiSharing = prefs.aiSharing;
     this.planFormat = prefs.planFormat;
+    this.addedExerciseTarget = prefs.addedExerciseTarget;
 
     // Persist immediately so the fold (or a version migration) only ever
     // has to happen once, and so a fresh install's defaults are recorded
@@ -143,6 +145,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setAddedExerciseTarget(target: AddedExerciseTarget) {
+    this.addedExerciseTarget = target;
+    this.persist();
+  }
+
   /**
    * Re-reads the legacy theme/notification keys at persist time (rather
    * than trusting a value captured at construction) so this blob's copies
@@ -169,6 +176,7 @@ export class PreferencesStore {
       homeSections: this.homeSections,
       aiSharing: this.aiSharing,
       planFormat: this.planFormat,
+      addedExerciseTarget: this.addedExerciseTarget,
       theme: (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'contrast')
         ? legacyTheme
         : defaultPreferences().theme,

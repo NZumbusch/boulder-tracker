@@ -19,6 +19,7 @@ describe('defaultPreferences', () => {
       theme: 'dark',
       notificationsEnabled: false,
       planFormat: 'phase',
+      addedExerciseTarget: 'none',
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
       homeLocation: null,
@@ -81,6 +82,7 @@ describe('migratePreferences', () => {
       homeSections: [...DEFAULT_HOME_SECTIONS.slice(1), DEFAULT_HOME_SECTIONS[0]],
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false },
       planFormat: 'weekly' as const,
+      addedExerciseTarget: 'mirror' as const,
     };
     expect(migratePreferences(valid)).toEqual(valid);
   });
@@ -358,5 +360,34 @@ describe('aiSharing (UI_PLAN.md §5.8, Stage 10)', () => {
       const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiSharing: bad });
       expect(result.aiSharing).toEqual(DEFAULT_AI_SHARING);
     }
+  });
+});
+
+describe('addedExerciseTarget', () => {
+  it("defaults to 'none' for a blob written before the setting existed, keeping every other field", () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      textScale: 'lg',
+      planFormat: 'weekly',
+    });
+    expect(result.addedExerciseTarget).toBe('none');
+    expect(result.textScale).toBe('lg');
+    expect(result.planFormat).toBe('weekly');
+  });
+
+  it("keeps an explicit 'mirror'", () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      addedExerciseTarget: 'mirror',
+    });
+    expect(result.addedExerciseTarget).toBe('mirror');
+  });
+
+  it('rejects an unknown value rather than storing it', () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      addedExerciseTarget: 'zeroes',
+    });
+    expect(result.addedExerciseTarget).toBe('none');
   });
 });

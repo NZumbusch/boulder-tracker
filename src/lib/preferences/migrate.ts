@@ -101,9 +101,27 @@ export interface Preferences {
    * it only decides what the copied prompt requests.
    */
   planFormat: PlanFormat;
+  /**
+   * What `prescribed` an exercise added *during* a live session gets.
+   *
+   * "none" (the default) leaves it unset, so the exercise reads as an
+   * unplanned extra: it is excluded from the session's planned load
+   * (`workoutPlannedLoad`) and its work lands on top of the plan rather
+   * than inside it, which is the honest account of something that was
+   * never in the plan. "mirror" copies what you logged into `prescribed`
+   * as well, so the addition counts as planned and the session still
+   * reports full adherence.
+   *
+   * Only ever consulted for exercises added mid-session - an exercise
+   * added while *planning* is prescribed by definition.
+   */
+  addedExerciseTarget: AddedExerciseTarget;
 }
 
 export type PlanFormat = 'phase' | 'weekly';
+
+/** See `Preferences.addedExerciseTarget`. */
+export type AddedExerciseTarget = 'none' | 'mirror';
 
 /**
  * One toggle per data category `src/lib/ai/context.ts` can add to a prompt.
@@ -175,6 +193,7 @@ export function defaultPreferences(): Preferences {
     timerKeepAwakeEnabled: false,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
     planFormat: 'phase',
+    addedExerciseTarget: 'none',
     aiSharing: {
       trainingBlocks: true,
       competitions: true,
@@ -318,5 +337,8 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
     planFormat: candidate.planFormat === 'weekly' || candidate.planFormat === 'phase' ? candidate.planFormat : defaults.planFormat,
+    addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'
+      ? candidate.addedExerciseTarget
+      : defaults.addedExerciseTarget,
   };
 }
