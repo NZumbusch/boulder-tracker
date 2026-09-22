@@ -10,6 +10,7 @@
   } from '../../lib/ai/valueSpec';
   import TargetHint from './TargetHint.svelte';
   import { repsRepresentative } from '../../lib/exercise/reps';
+  import { loggedMetrics } from '../../lib/analytics/metricValues';
   import Icon from '@iconify/svelte';
 
   // --- Props ---
@@ -65,7 +66,7 @@
   // bodyweight entry - doesn't change what's stored (still a %, same as
   // before), just a display hint.
   const latestBodyweightKg = $derived.by(() => {
-    const entries = trainingState.dailyMetrics
+    const entries = loggedMetrics(trainingState.dailyMetrics)
       .filter((m) => m.metricId === BODYWEIGHT_METRIC_ID)
       .slice()
       .sort((a, b) => b.date.localeCompare(a.date));

@@ -194,6 +194,23 @@ describe("buildReadinessSnapshot", () => {
   });
 });
 
+describe("buildReadinessSnapshot with zero entries", () => {
+  it("leaves zero readings out of trends and treats today's zero as not logged", () => {
+    const today = asOf.toISOString().split("T")[0];
+    const dailyMetrics: DailyMetricEntry[] = [
+      { id: "m1", metricId: "hrv", date: "2026-09-15", value: 60 },
+      { id: "m2", metricId: "hrv", date: "2026-09-16", value: 0 },
+      { id: "m3", metricId: "hrv", date: today, value: 0 },
+      { id: "m4", metricId: "sleep-score", date: today, value: 0 },
+    ];
+    const result = buildReadinessSnapshot([], dailyMetrics, asOf);
+    expect(result.hrvTrend).toEqual([{ date: "2026-09-15", value: 60 }]);
+    expect(result.sleepTrend).toEqual([]);
+    // Neither today's HRV nor sleep counts as an input, so there is nothing to score.
+    expect(result.score).toBeUndefined();
+  });
+});
+
 describe("buildPainLogContext", () => {
   it("sorts newest first and caps at the limit", () => {
     const logs: PainLog[] = [

@@ -1,6 +1,7 @@
 import type { Workout, DailyMetricEntry, PainLog } from "../types";
 import { workoutPlannedLoad, slotActualLoad } from "../types";
 import { getWeekId, getWeekDates, toUtcDayIndex } from "../dateUtils";
+import { loggedMetrics } from "./metricValues";
 
 /**
  * Pure, independently-testable load-management analytics (PLAN.md Phase 4).
@@ -277,7 +278,9 @@ export function findConsecutiveTrainingDayWarnings(
 
 function averageMetricByWeek(entries: DailyMetricEntry[], metricId: string): Map<string, number> {
   const valuesByWeek = new Map<string, number[]>();
-  entries
+  // Zero entries are "not measured" (`isLoggedMetricValue`) - averaging them
+  // in would make a week without a tracker look like a collapse in sleep/HRV.
+  loggedMetrics(entries)
     .filter((e) => e.metricId === metricId)
     .forEach((e) => {
       const weekId = getWeekId(new Date(e.date));

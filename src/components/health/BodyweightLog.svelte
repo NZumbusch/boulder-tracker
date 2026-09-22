@@ -8,6 +8,7 @@
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import { generateId } from '../../lib/utils';
   import { formatDate } from '../../lib/dateUtils';
+  import { loggedMetrics } from '../../lib/analytics/metricValues';
   import type { DailyMetricEntry } from '../../lib/types';
   import Icon from '@iconify/svelte';
 
@@ -25,9 +26,12 @@
       .sort((a, b) => b.date.localeCompare(a.date)),
   );
 
-  const latest = $derived(entries[0]);
+  // The list below keeps every stored entry, zeros included, so one can be
+  // found and deleted; "latest" and the chart only use real readings.
+  const readings = $derived(loggedMetrics(entries));
+  const latest = $derived(readings[0]);
 
-  const chartEntries = $derived(entries.slice(0, 12).slice().reverse());
+  const chartEntries = $derived(readings.slice(0, 12).slice().reverse());
   const chartRange = $derived.by(() => {
     if (chartEntries.length === 0) return { min: 0, max: 0 };
     const values = chartEntries.map((e) => e.value);

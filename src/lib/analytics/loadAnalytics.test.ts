@@ -330,6 +330,34 @@ describe("findRecoveryWarnings", () => {
     expect(findRecoveryWarnings(workouts, dailyMetrics, [week1, week2])).toEqual([]);
   });
 
+  it("does not read a week of zero sleep entries as sleep declining", () => {
+    const workouts = [
+      makeWorkout({ status: "completed", weekId: week1, loadFactor: 10, date: "2026-03-02" }),
+      makeWorkout({ status: "completed", weekId: week2, loadFactor: 20, date: "2026-03-09" }),
+    ];
+    const dailyMetrics: DailyMetricEntry[] = [
+      { id: "m1", metricId: "sleep-score", date: "2026-03-02", value: 80 },
+      { id: "m2", metricId: "sleep-score", date: "2026-03-09", value: 0 },
+      { id: "m3", metricId: "sleep-score", date: "2026-03-10", value: 0 },
+    ];
+
+    expect(findRecoveryWarnings(workouts, dailyMetrics, [week1, week2])).toEqual([]);
+  });
+
+  it("averages only the real readings in a week that also has zeros", () => {
+    const workouts = [
+      makeWorkout({ status: "completed", weekId: week1, loadFactor: 10, date: "2026-03-02" }),
+      makeWorkout({ status: "completed", weekId: week2, loadFactor: 20, date: "2026-03-09" }),
+    ];
+    const dailyMetrics: DailyMetricEntry[] = [
+      { id: "m1", metricId: "sleep-score", date: "2026-03-02", value: 70 },
+      { id: "m2", metricId: "sleep-score", date: "2026-03-09", value: 75 },
+      { id: "m3", metricId: "sleep-score", date: "2026-03-10", value: 0 },
+    ];
+
+    expect(findRecoveryWarnings(workouts, dailyMetrics, [week1, week2])).toEqual([]);
+  });
+
   it("includes consecutive-training-day warnings alongside readiness warnings", () => {
     const trainingDays = ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05", "2026-01-06"];
     const workouts = trainingDays.map((date) => makeWorkout({ status: "completed", weekId: "W1", loadFactor: 1, date }));

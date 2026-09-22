@@ -1,5 +1,6 @@
 import type { Workout, DailyMetricEntry } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
+import { loggedMetrics } from "./metricValues";
 import { ACWR_HIGH_RISK_RATIO, type RollingAcwrResult } from "./loadAnalytics";
 
 /**
@@ -83,11 +84,12 @@ export function computeFatigueDecay(workouts: Workout[], asOf: Date, halfLifeDay
  * Average of the `hrv` `DailyMetricEntry` values over the trailing `days`
  * window ending at `asOf` (inclusive of both ends), or `undefined` if none
  * were logged in that window - readiness treats "no baseline yet" as a
- * missing input, not a 0.
+ * missing input, not a 0. Zero entries are not readings (`isLoggedMetricValue`)
+ * and are skipped, so a week without a tracker leaves the baseline alone.
  */
 export function computeHrvBaseline(dailyMetrics: DailyMetricEntry[], asOf: Date, days = 14): number | undefined {
   const asOfDay = toUtcDayIndex(asOf.toISOString());
-  const values = dailyMetrics
+  const values = loggedMetrics(dailyMetrics)
     .filter((m) => m.metricId === "hrv")
     .filter((m) => {
       const day = toUtcDayIndex(m.date);

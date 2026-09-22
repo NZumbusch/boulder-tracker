@@ -7,6 +7,7 @@
   import { computeFatigueDecay, computeHrvBaseline, computeReadiness, type ReadinessStatus } from '../../lib/analytics/readiness';
   import { calculateRollingAcwr } from '../../lib/analytics/loadAnalytics';
   import { calculateWeeklyAdherence } from '../../lib/analytics/loadAnalytics';
+  import { isLoggedMetricValue, loggedMetrics } from '../../lib/analytics/metricValues';
   import { describeWeatherCode } from '../../lib/weather/codes';
   import FatigueRadarChart from '../common/FatigueRadarChart.svelte';
   import type { DailyMetricEntry, DayOfWeek } from '../../lib/types';
@@ -56,8 +57,14 @@
   const fatigueDecay = $derived(computeFatigueDecay(trainingState.completedWorkouts, asOf));
   const acwr = $derived(calculateRollingAcwr(trainingState.workouts, asOf));
   const hrvBaseline = $derived(computeHrvBaseline(trainingState.dailyMetrics, asOf));
-  const todaysMetric = (metricId: string): DailyMetricEntry | undefined =>
+  /** Today's stored entry for `metricId`, zero or not - what a save/clear acts on. */
+  const todaysEntry = (metricId: string): DailyMetricEntry | undefined =>
     trainingState.dailyMetrics.find((m) => m.metricId === metricId && m.date === todayIso);
+  /** Today's reading for `metricId` - a stored 0 is "not logged" (`isLoggedMetricValue`), not a reading. */
+  const todaysMetric = (metricId: string): DailyMetricEntry | undefined => {
+    const entry = todaysEntry(metricId);
+    return entry && isLoggedMetricValue(entry.value) ? entry : undefined;
+  };
   const readiness = $derived(
     computeReadiness({
       fatigue: { fingers: fatigueDecay.fingers, core: fatigueDecay.core, systemic: fatigueDecay.systemic },
@@ -117,7 +124,7 @@
   let draftValue = $state('');
 
   function entriesFor(metricId: string): DailyMetricEntry[] {
-    return trainingState.dailyMetrics.filter((m) => m.metricId === metricId).slice().sort((a, b) => a.date.localeCompare(b.date));
+    return loggedMetrics(trainingState.dailyMetrics).filter((m) => m.metricId === metricId).slice().sort((a, b) => a.date.localeCompare(b.date));
   }
   function sparkHeightPercent(value: number, values: number[]): number {
     if (values.length === 0) return 0;
@@ -133,8 +140,15 @@
   async function saveMetric(metricId: string) {
     const value = parseFloat(draftValue);
     if (Number.isNaN(value)) return;
+    const existing = todaysEntry(metricId);
+    // 0 (or less) means "I have no reading today" - it clears the day rather
+    // than storing a value every baseline and chart would have to skip.
+    if (!isLoggedMetricValue(value)) {
+      if (existing) await trainingState.deleteDailyMetric(existing.id);
+      editingMetricId = null;
+      return;
+    }
     const def = QUICK_METRICS.find((d) => d.id === metricId)!;
-    const existing = todaysMetric(metricId);
     await trainingState.saveDailyMetric({ id: existing?.id ?? generateId(), metricId, date: todayIso, value }, def);
     editingMetricId = null;
   }

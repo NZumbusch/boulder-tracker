@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import type { DailyMetricEntry } from '../types';
 import { reminderId, checkNotificationPermission, cancelRemindersOfType } from './shared';
+import { isLoggedMetricValue } from '../analytics/metricValues';
 
 /**
  * Evening reminder for missing daily metrics (UI_PLAN.md §2/§5.8, Stage 8
@@ -21,10 +22,10 @@ export function dailyMetricsReminderId(): number {
   return reminderId('dailyMetrics', 'daily-metrics-reminder');
 }
 
-/** True if at least one of the quick-entry metrics has no entry for `todayIso` (`YYYY-MM-DD`). */
+/** True if at least one of the quick-entry metrics has no real entry (a zero doesn't count) for `todayIso` (`YYYY-MM-DD`). */
 export function isDailyMetricsEntryMissing(dailyMetrics: DailyMetricEntry[], todayIso: string): boolean {
   return QUICK_ENTRY_METRIC_IDS.some(
-    (metricId) => !dailyMetrics.some((m) => m.metricId === metricId && m.date === todayIso),
+    (metricId) => !dailyMetrics.some((m) => m.metricId === metricId && m.date === todayIso && isLoggedMetricValue(m.value)),
   );
 }
 

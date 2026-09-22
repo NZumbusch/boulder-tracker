@@ -22,6 +22,7 @@ import {
   type ReadinessStatus,
 } from "../analytics/readiness";
 import { calculateRollingAcwr } from "../analytics/loadAnalytics";
+import { loggedMetrics } from "../analytics/metricValues";
 import type { AISharingPreferences } from "../preferences/migrate";
 
 /**
@@ -262,7 +263,7 @@ function trendFor(
   days = METRIC_TREND_DAYS,
 ): MetricTrendPoint[] {
   const asOfDay = toUtcDayIndex(asOf.toISOString());
-  return dailyMetrics
+  return loggedMetrics(dailyMetrics)
     .filter((m) => m.metricId === metricId)
     .filter((m) => {
       const day = toUtcDayIndex(m.date);
@@ -278,7 +279,8 @@ function trendFor(
  * 14-day sleep/HRV/RHR/bodyweight trends so the AI can see direction, not
  * just a single snapshot value.
  */
-export function buildReadinessSnapshot(workouts: Workout[], dailyMetrics: DailyMetricEntry[], asOf: Date): ReadinessSnapshot {
+export function buildReadinessSnapshot(workouts: Workout[], allDailyMetrics: DailyMetricEntry[], asOf: Date): ReadinessSnapshot {
+  const dailyMetrics = loggedMetrics(allDailyMetrics);
   const todayIso = asOf.toISOString().split("T")[0];
   const fatigueDecay = computeFatigueDecay(workouts, asOf);
   const acwr = calculateRollingAcwr(workouts, asOf);

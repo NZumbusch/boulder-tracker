@@ -22,6 +22,7 @@
   import RecoveryWarningsPanel from './RecoveryWarningsPanel.svelte';
   import FatiguePanel from './FatiguePanel.svelte';
   import OutdoorAscentsPanel from './OutdoorAscentsPanel.svelte';
+  import { loggedMetrics } from '../../lib/analytics/metricValues';
   import Icon from "@iconify/svelte";
 
   // Stage 5 (UI_PLAN.md §6/§4.6): shared header + section-jump chips,
@@ -364,7 +365,7 @@
   // floor, and a 0-based scale would flatten a normal few-kg fluctuation
   // into an almost-flat line.
   const bodyweightTrend = $derived.by(() => {
-    const entries = trainingState.dailyMetrics
+    const entries = loggedMetrics(trainingState.dailyMetrics)
       .filter((m) => m.metricId === BODYWEIGHT_METRIC_ID)
       .slice()
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())

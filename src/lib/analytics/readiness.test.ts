@@ -120,6 +120,20 @@ describe("computeHrvBaseline", () => {
     expect(computeHrvBaseline(entries, asOf)).toBeCloseTo(60, 10);
   });
 
+  it("ignores zero entries (a dead tracker, not an HRV of 0)", () => {
+    const entries: DailyMetricEntry[] = [
+      { id: "1", metricId: "hrv", date: "2026-03-28", value: 0 },
+      { id: "2", metricId: "hrv", date: "2026-03-27", value: 0 },
+      { id: "3", metricId: "hrv", date: "2026-03-20", value: 60 },
+    ];
+    expect(computeHrvBaseline(entries, asOf)).toBeCloseTo(60, 10);
+  });
+
+  it("is undefined when every entry in the window is zero", () => {
+    const entries: DailyMetricEntry[] = [{ id: "1", metricId: "hrv", date: "2026-03-28", value: 0 }];
+    expect(computeHrvBaseline(entries, asOf)).toBeUndefined();
+  });
+
   it("respects a custom window", () => {
     const entries: DailyMetricEntry[] = [
       { id: "1", metricId: "hrv", date: "2026-03-28", value: 60 }, // today (offset 0)
