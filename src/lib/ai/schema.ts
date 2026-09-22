@@ -92,6 +92,14 @@ export interface AIPlanWeek {
   weekId: string;
   phaseName: string;
   workouts: AIPlanWorkout[];
+  /** The AI's note for this week - becomes (part of) the week's `WeekNote`. */
+  notes?: string;
+  /**
+   * The note of the phase this week was expanded from (phase format only).
+   * Carried per week because downstream only sees weeks - `buildPlanCommit`
+   * puts it on the block it regroups those weeks into.
+   */
+  blockNotes?: string;
 }
 
 /**
@@ -104,6 +112,10 @@ export interface AIPlanPhase {
   startWeekId: string;
   endWeekId: string;
   sessions: AIPlanWorkout[];
+  /** What the phase is for - becomes the imported block's note. */
+  notes?: string;
+  /** Per-week notes inside the phase, keyed by week id. Entries outside the phase's range are dropped at validation. */
+  weekNotes?: Record<string, string>;
 }
 
 export interface AIPlanOutput {
@@ -345,6 +357,45 @@ function validateExercises(raw: unknown, path: string, issues: ValidationIssue[]
   return result;
 }
 
+/**
+ * A free-text note: trimmed, and absent when blank. Anything that isn't a
+ * string is dropped as a repair rather than failing the import - a note is
+ * never worth rejecting a whole plan over.
+ */
+function validateNote(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== "string") {
+    pushRepair(issues, path, `Not text (${JSON.stringify(raw)}) - dropped.`);
+    return undefined;
+  }
+  return raw.trim() || undefined;
+}
+
+/** A phase's `weekNotes` map, keeping only entries for weeks the phase actually covers. */
+function validateWeekNotes(
+  raw: unknown,
+  path: string,
+  phaseWeekIds: string[],
+  issues: ValidationIssue[],
+): Record<string, string> | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!isPlainObject(raw)) {
+    pushRepair(issues, path, `Expected an object of week id -> note, got ${JSON.stringify(raw)} - dropped.`);
+    return undefined;
+  }
+  const result: Record<string, string> = {};
+  for (const [weekId, value] of Object.entries(raw)) {
+    const entryPath = `${path}.${weekId}`;
+    if (!phaseWeekIds.includes(weekId)) {
+      pushRepair(issues, entryPath, `"${weekId}" is not one of this phase's weeks - note dropped.`);
+      continue;
+    }
+    const note = validateNote(value, entryPath, issues);
+    if (note) result[weekId] = note;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function validateOptionalString(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "string") {
@@ -468,7 +519,8 @@ function validatePlanWeek(raw: unknown, path: string, issues: ValidationIssue[])
     if (validated) workouts.push(validated);
   });
   if (typeof weekId !== "string" || typeof phaseName !== "string") return null;
-  return { weekId, phaseName: phaseName.trim(), workouts };
+  const notes = validateNote(raw.notes, `${path}.notes`, issues);
+  return { weekId, phaseName: phaseName.trim(), workouts, ...(notes ? { notes } : {}) };
 }
 
 function validatePlanPhase(raw: unknown, path: string, issues: ValidationIssue[]): AIPlanPhase | null {
@@ -508,7 +560,17 @@ function validatePlanPhase(raw: unknown, path: string, issues: ValidationIssue[]
   });
 
   if (typeof phaseName !== "string" || typeof startWeekId !== "string" || typeof endWeekId !== "string") return null;
-  return { phaseName: phaseName.trim(), startWeekId, endWeekId, sessions };
+  const notes = validateNote(raw.notes, `${path}.notes`, issues);
+  const phaseWeekIds = WEEK_ID.test(startWeekId) && WEEK_ID.test(endWeekId) ? getWeekIdRange(startWeekId, endWeekId) : [];
+  const weekNotes = validateWeekNotes(raw.weekNotes, `${path}.weekNotes`, phaseWeekIds, issues);
+  return {
+    phaseName: phaseName.trim(),
+    startWeekId,
+    endWeekId,
+    sessions,
+    ...(notes ? { notes } : {}),
+    ...(weekNotes ? { weekNotes } : {}),
+  };
 }
 
 /**
@@ -528,9 +590,12 @@ export function expandPhasePlan(phases: AIPlanPhase[]): AIPlanWeek[] {
   const weeks: AIPlanWeek[] = [];
   for (const phase of phases) {
     for (const weekId of getWeekIdRange(phase.startWeekId, phase.endWeekId)) {
+      const weekNote = phase.weekNotes?.[weekId];
       weeks.push({
         weekId,
         phaseName: phase.phaseName,
+        ...(weekNote ? { notes: weekNote } : {}),
+        ...(phase.notes ? { blockNotes: phase.notes } : {}),
         // Fresh copies per week: ids are regenerated at commit time, but the
         // exercise objects themselves must not be shared between weeks.
         workouts: phase.sessions.map((session) => ({
@@ -719,6 +784,7 @@ export const AI_PLAN_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSON obje
     {
       "weekId": "2026-W25",
       "phaseName": "Capacity",
+      "notes": "optional - anything specific to this week",
       "workouts": [
         {
           "name": "Session name",
@@ -738,6 +804,7 @@ Rules:
 - "weekId" must be one of the exact week ids from the Target Timeframe above (format "YYYY-Www").
 ${AI_PLAN_SHARED_RULES}
 - Every week in the Target Timeframe must appear exactly once, even if it's a rest/deload week with an empty "workouts" array.
+- A week's "notes" (optional) is a short note about the week as a whole - its intent, a test to run, what to do if something goes wrong. It is shown to me separately from the sessions; per-exercise detail still goes in that exercise's "notes".
 
 ${AI_VALUES_CONTRACT}`;
 
@@ -756,6 +823,8 @@ export const AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSO
       "phaseName": "Capacity",
       "startWeekId": "2026-W25",
       "endWeekId": "2026-W28",
+      "notes": "optional - what this phase is for",
+      "weekNotes": { "2026-W28": "optional - a note for one specific week" },
       "sessions": [
         {
           "name": "Session name",
@@ -779,6 +848,7 @@ Rules:
 - Phases must not overlap, and together they should cover the whole Target Timeframe. Use a short deload/rest phase where one belongs rather than leaving a gap.
 - "sessions" is the typical week for that phase: one entry per training day, each with its own "dayOfWeek" (and "startTime"/"plannedDuration" where they matter). A rest week is a phase with an empty "sessions" array.
 - Put any week-to-week progression inside the phase (e.g. "notes": "add 2kg each week, deload in the final week") rather than splitting the phase into one-week blocks to express it.
+- A phase's "notes" (optional) says what the phase is for and how to progress through it. "weekNotes" (optional) maps a week id inside that phase to a note for that one week - a test to run, a lighter week, what to change if something flares up. Both are shown to me as notes; don't use them for exercise prescriptions.
 ${AI_PLAN_SHARED_RULES}
 
 ${AI_VALUES_CONTRACT}`;

@@ -717,3 +717,62 @@ describe("AI prompt completeness", () => {
     expect(AI_PLAN_OUTPUT_INSTRUCTIONS).toContain('"weeks"');
   });
 });
+
+describe("notes in the plan contract", () => {
+  const phasePlan = (extra: Record<string, unknown>) => ({
+    phases: [
+      {
+        phaseName: "Capacity",
+        startWeekId: "2026-W25",
+        endWeekId: "2026-W27",
+        sessions: [{ name: "Board", dayOfWeek: "Monday", exercises: [{ exerciseTypeName: "Hangboard", values: { sets: 5 } }] }],
+        ...extra,
+      },
+    ],
+  });
+
+  it("carries a phase's notes onto every week it expands into, as the block note", () => {
+    const result = validateAIPlanOutput(phasePlan({ notes: "Build volume, keep intensity moderate" }));
+    expect(result.valid).toBe(true);
+    expect(result.data!.phases![0].notes).toBe("Build volume, keep intensity moderate");
+    expect(result.data!.weeks.map((w) => w.blockNotes)).toEqual([
+      "Build volume, keep intensity moderate",
+      "Build volume, keep intensity moderate",
+      "Build volume, keep intensity moderate",
+    ]);
+  });
+
+  it("puts weekNotes on the matching expanded week only", () => {
+    const result = validateAIPlanOutput(phasePlan({ weekNotes: { "2026-W27": "Test max hang at the end of the week" } }));
+    expect(result.valid).toBe(true);
+    expect(result.data!.weeks.map((w) => w.notes)).toEqual([undefined, undefined, "Test max hang at the end of the week"]);
+  });
+
+  it("drops a weekNotes entry outside the phase's weeks as a repair, not an error", () => {
+    const result = validateAIPlanOutput(phasePlan({ weekNotes: { "2026-W30": "Outside", "June": "Bad id", "2026-W26": "Inside" } }));
+    expect(result.valid).toBe(true);
+    expect(result.data!.weeks.map((w) => w.notes)).toEqual([undefined, "Inside", undefined]);
+    expect(result.repairs.filter((r) => r.path.includes("weekNotes"))).toHaveLength(2);
+  });
+
+  it("ignores blank notes and rejects nothing over a non-string note", () => {
+    const result = validateAIPlanOutput(phasePlan({ notes: "  ", weekNotes: { "2026-W25": 42 } }));
+    expect(result.valid).toBe(true);
+    expect(result.data!.phases![0].notes).toBeUndefined();
+    expect(result.data!.weeks[0].notes).toBeUndefined();
+  });
+
+  it("reads a week's notes in the weekly format", () => {
+    const result = validateAIPlanOutput({
+      weeks: [{ weekId: "2026-W25", phaseName: "Capacity", notes: "Travel week - hotel gym only", workouts: [] }],
+    });
+    expect(result.valid).toBe(true);
+    expect(result.data!.weeks[0].notes).toBe("Travel week - hotel gym only");
+  });
+
+  it("documents both note fields in the phase prompt and week notes in the weekly prompt", () => {
+    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toContain('"weekNotes"');
+    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toContain('"notes": "');
+    expect(AI_PLAN_OUTPUT_INSTRUCTIONS).toMatch(/"weekId": "2026-W25",\s*"phaseName": "Capacity",\s*"notes"/);
+  });
+});

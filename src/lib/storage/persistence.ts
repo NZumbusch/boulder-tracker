@@ -104,6 +104,7 @@ export async function initDB() {
       workouts: await localforage.getItem("workouts"),
       trainingBlocks: await localforage.getItem("trainingBlocks"),
       weekOverrides: await localforage.getItem("weekOverrides"),
+      weekNotes: await localforage.getItem("weekNotes"),
       competitionEvents: await localforage.getItem("competitionEvents"),
       templates: await localforage.getItem("templates"),
       phaseDefs: await localforage.getItem("phaseDefs"),
@@ -123,6 +124,7 @@ export async function initDB() {
     workouts: rawData.workouts || [],
     trainingBlocks: rawData.trainingBlocks || [],
     weekOverrides: rawData.weekOverrides || [],
+    weekNotes: rawData.weekNotes || [],
     competitionEvents: rawData.competitionEvents || [],
     templates: rawData.templates || DEFAULT_TEMPLATES,
     phaseDefs: rawData.phaseDefs || DEFAULT_PHASE_DEFS,
@@ -162,6 +164,7 @@ export async function flushDB() {
     await localforage.setItem("workouts", _dbState.workouts);
     await localforage.setItem("trainingBlocks", _dbState.trainingBlocks);
     await localforage.setItem("weekOverrides", _dbState.weekOverrides);
+    await localforage.setItem("weekNotes", _dbState.weekNotes);
     await localforage.setItem("competitionEvents", _dbState.competitionEvents);
     await localforage.setItem("templates", _dbState.templates);
     await localforage.setItem("phaseDefs", _dbState.phaseDefs);

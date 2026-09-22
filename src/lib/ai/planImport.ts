@@ -4,12 +4,14 @@ import type {
   ExerciseTypeDef,
   PhaseDef,
   TrainingBlock,
+  WeekNote,
   Workout,
   WorkoutTemplate,
 } from "../types";
 import { workoutPlannedLoad } from "../types";
 import { generateId } from "../utils";
 import { getWeekIdRange, incrementWeekId } from "../dateUtils";
+import { appendAINote } from "../planning/notes";
 import type { AIExercise, AIPlanOutput } from "./schema";
 
 /**
@@ -208,6 +210,12 @@ export interface PlanCommitResult {
    * import summary can say so rather than looking like it dropped them.
    */
   provisionalWeekIds: string[];
+  /**
+   * The AI's per-week notes, as it wrote them. Not merged here: merging
+   * needs the user's current note for each week, so the caller appends
+   * them with `appendAINote` and never overwrites what's already there.
+   */
+  weekNotes: WeekNote[];
 }
 
 /**
@@ -373,6 +381,8 @@ export function buildPlanCommit(
     const isContiguous = last && last.phaseId === phaseId && incrementWeekId(last.endWeekId) === week.weekId;
     if (isContiguous) {
       last.endWeekId = week.weekId;
+      // Two same-phase phases back to back become one block; keep both notes.
+      if (week.blockNotes) last.notes = appendAINote(last.notes, week.blockNotes);
     } else {
       const phase = ctx.phaseDefs.find((p) => p.id === phaseId) ?? newPhaseDefs.find((p) => p.id === phaseId);
       trainingBlocks.push({
@@ -381,6 +391,7 @@ export function buildPlanCommit(
         phaseId,
         startWeekId: week.weekId,
         endWeekId: week.weekId,
+        ...(week.blockNotes ? { notes: appendAINote(undefined, week.blockNotes) } : {}),
       });
     }
     blockIdByWeekId.set(week.weekId, trainingBlocks[trainingBlocks.length - 1].id);
@@ -442,5 +453,9 @@ export function buildPlanCommit(
     workouts.push(...weekWorkouts);
   }
 
-  return { newExerciseTypes, newPhaseDefs, trainingBlocks, workouts, templates, provisionalWeekIds };
+  const weekNotes: WeekNote[] = weeksWithPhaseId
+    .filter(({ week }) => week.notes)
+    .map(({ week }) => ({ weekId: week.weekId, text: week.notes! }));
+
+  return { newExerciseTypes, newPhaseDefs, trainingBlocks, workouts, templates, provisionalWeekIds, weekNotes };
 }

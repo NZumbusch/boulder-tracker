@@ -9,6 +9,7 @@ import type {
   ParameterBlock,
   PhaseDef,
   TrainingBlock,
+  WeekNote,
   Workout,
 } from "../types";
 import { slotTypeName, slotValues } from "../exerciseSlot";
@@ -178,6 +179,20 @@ export interface TrainingBlockSummary {
   phaseName: string;
   startWeekId: string;
   endWeekId: string;
+  /** Only when note sharing is on and the block has one. */
+  notes?: string;
+}
+
+/** `weekIds`' first and last week, each pushed `BLOCK_WINDOW_MARGIN_WEEKS` further out - the "near the target weeks" window. */
+function widenedWindow(weekIds: string[]): { start: string; end: string } {
+  const sorted = [...weekIds].sort();
+  let start = sorted[0];
+  let end = sorted[sorted.length - 1];
+  for (let i = 0; i < BLOCK_WINDOW_MARGIN_WEEKS; i++) {
+    start = decrementWeekId(start);
+    end = incrementWeekId(end);
+  }
+  return { start, end };
 }
 
 /**
@@ -191,20 +206,36 @@ export function buildTrainingBlockContext(
   blocks: TrainingBlock[],
   phaseDefs: PhaseDef[],
   weekIds: string[],
+  includeNotes = false,
 ): TrainingBlockSummary[] {
   if (weekIds.length === 0) return [];
-  const sorted = [...weekIds].sort();
-  let windowStart = sorted[0];
-  let windowEnd = sorted[sorted.length - 1];
-  for (let i = 0; i < BLOCK_WINDOW_MARGIN_WEEKS; i++) {
-    windowStart = decrementWeekId(windowStart);
-    windowEnd = incrementWeekId(windowEnd);
-  }
+  const { start: windowStart, end: windowEnd } = widenedWindow(weekIds);
   const phaseName = (phaseId: string) => phaseDefs.find((p) => p.id === phaseId)?.name ?? "Unknown";
   return blocks
     .filter((b) => b.startWeekId <= windowEnd && windowStart <= b.endWeekId)
-    .map((b) => ({ name: b.name, phaseName: phaseName(b.phaseId), startWeekId: b.startWeekId, endWeekId: b.endWeekId }))
+    .map((b) => ({
+      name: b.name,
+      phaseName: phaseName(b.phaseId),
+      startWeekId: b.startWeekId,
+      endWeekId: b.endWeekId,
+      ...(includeNotes && b.notes ? { notes: b.notes } : {}),
+    }))
     .sort((a, b) => (a.startWeekId < b.startWeekId ? -1 : a.startWeekId > b.startWeekId ? 1 : 0));
+}
+
+/**
+ * Week notes for the target weeks and the `BLOCK_WINDOW_MARGIN_WEEKS` either
+ * side - the same "near the timeframe" window as blocks, so a note about
+ * last week's tweaked elbow or next month's trip reaches the plan. Sorted
+ * by week.
+ */
+export function buildWeekNoteContext(weekNotes: WeekNote[], weekIds: string[]): WeekNote[] {
+  if (weekIds.length === 0) return [];
+  const { start, end } = widenedWindow(weekIds);
+  return weekNotes
+    .filter((n) => n.weekId >= start && n.weekId <= end && n.text.trim())
+    .map((n) => ({ weekId: n.weekId, text: n.text }))
+    .sort((a, b) => (a.weekId < b.weekId ? -1 : a.weekId > b.weekId ? 1 : 0));
 }
 
 // --- Competitions --------------------------------------------------------
@@ -342,6 +373,7 @@ export interface AIContextSource {
   dailyMetrics: DailyMetricEntry[];
   painLogs: PainLog[];
   outdoorAscents: OutdoorAscent[];
+  weekNotes: WeekNote[];
 }
 
 export interface AIContextProfile {
@@ -355,6 +387,7 @@ export interface AIContextProfile {
   readiness?: ReadinessSnapshot;
   painLogs?: PainLogSummary[];
   outdoorAscents?: OutdoorAscentSummary[];
+  weekNotes?: WeekNote[];
 }
 
 /**
@@ -399,7 +432,7 @@ export function buildAIContextProfile(
     profile.phases = source.phaseDefs.filter((p) => !p.archived).map((p) => p.name);
   }
   if (sharing.trainingBlocks) {
-    profile.trainingBlocks = buildTrainingBlockContext(source.trainingBlocks, source.phaseDefs, windowWeekIds);
+    profile.trainingBlocks = buildTrainingBlockContext(source.trainingBlocks, source.phaseDefs, windowWeekIds, sharing.notes);
   }
   if (sharing.competitions) {
     profile.competitions = buildCompetitionContext(source.competitionEvents, asOf);
@@ -412,6 +445,9 @@ export function buildAIContextProfile(
   }
   if (sharing.outdoorAscents) {
     profile.outdoorAscents = buildOutdoorAscentContext(source.outdoorAscents);
+  }
+  if (sharing.notes) {
+    profile.weekNotes = buildWeekNoteContext(source.weekNotes, windowWeekIds);
   }
   return profile;
 }

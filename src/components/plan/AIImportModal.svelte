@@ -15,6 +15,7 @@
   } from '../../lib/ai/planImport';
   import { buildWorkoutLogPreview, buildWorkoutLogCommit } from '../../lib/ai/workoutLogImport';
   import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
+  import { appendAINote } from '../../lib/planning/notes';
   import Icon from '@iconify/svelte';
 
   // --- Props ---
@@ -125,6 +126,12 @@
         for (const block of commit.trainingBlocks) {
           await trainingState.saveTrainingBlock(block);
         }
+        // Added below whatever the user already wrote for that week, never over it.
+        for (const note of commit.weekNotes) {
+          await trainingState.saveWeekNote(note.weekId, appendAINote(trainingState.getWeekNote(note.weekId), note.text));
+        }
+        const blockNoteCount = commit.trainingBlocks.filter((b) => b.notes).length;
+        const noteCount = blockNoteCount + commit.weekNotes.length;
         await trainingState.importPlanWorkouts(commit.workouts);
 
         // Weeks whose sessions are exactly their phase's templates get no
@@ -140,7 +147,8 @@
           `${written} across ${commit.trainingBlocks.length} training block(s)`
           + `${provisionalCount ? `. ${provisionalCount} week(s) will follow their phase until you log, change or lock them in` : ''}`
           + `${commit.newExerciseTypes.length ? `. Created ${commit.newExerciseTypes.length} new exercise type(s)` : ''}`
-          + `${templatePhaseCount ? `. Saved templates for ${templatePhaseCount} phase(s)` : ''}.`,
+          + `${templatePhaseCount ? `. Saved templates for ${templatePhaseCount} phase(s)` : ''}`
+          + `${noteCount ? `. Added ${noteCount} note(s) from the AI` : ''}.`,
         );
       } else {
         if (!logResult?.data) return;

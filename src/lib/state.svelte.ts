@@ -2,6 +2,7 @@ import { storage } from './storage';
 import type { Workout, WorkoutTemplate, PhaseDef, Benchmark, BenchmarkTypeDef, AnalyticsCategory, ExerciseTypeDef, ViewType, TrainingBlock, CompetitionEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
+import { weekNoteText } from './planning/notes';
 import {
   isWeekProvisional,
   templatesForWeek,
@@ -63,6 +64,7 @@ class TrainingState {
   get workouts() { return this.workoutStore.workouts; }
   get trainingBlocks() { return this.planningStore.trainingBlocks; }
   get weekOverrides() { return this.planningStore.weekOverrides; }
+  get weekNotes() { return this.planningStore.weekNotes; }
   get competitionEvents() { return this.planningStore.competitionEvents; }
   get templates() { return this.planningStore.templates; }
   get exerciseTypes() { return this.catalogStore.exerciseTypes; }
@@ -707,6 +709,30 @@ class TrainingState {
   async saveTrainingBlock(block: TrainingBlock) {
     await this.planningStore.saveTrainingBlock(block);
     await this.refresh();
+  }
+
+  /** `weekId`'s note, or "" - see `WeekNote`. */
+  getWeekNote(weekId: string): string {
+    return weekNoteText(this.planningStore.weekNotes, weekId);
+  }
+
+  /**
+   * Sets `weekId`'s note (blank deletes it). Deliberately not routed
+   * through the materialise gate: a note belongs to the week, not to its
+   * sessions, so writing one leaves a provisional week provisional.
+   */
+  async saveWeekNote(weekId: string, text: string) {
+    await this.planningStore.saveWeekNote(weekId, text);
+    await this.refresh();
+  }
+
+  /** Sets a block's note (blank clears it). */
+  async saveBlockNotes(blockId: string, notes: string) {
+    const block = this.planningStore.trainingBlocks.find((b) => b.id === blockId);
+    if (!block) return;
+    const trimmed = notes.trim();
+    const { notes: _old, ...rest } = block;
+    await this.saveTrainingBlock(trimmed ? { ...rest, notes: trimmed } : rest);
   }
 
   /**

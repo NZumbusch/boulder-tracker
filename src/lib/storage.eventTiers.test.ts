@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { runDataMigrations } from "./storage";
+import { DATA_EXPORT_VERSION } from "./constants";
 
 // Competition events used to carry an A/B/C `priority`. Only the next event
 // matters for how the app is used now, so 3.26->3.27 drops the field from
@@ -16,7 +17,7 @@ describe("3.26 -> 3.27: drop CompetitionEvent.priority", () => {
       ],
     };
     runDataMigrations(data);
-    expect(data.exportVersion).toBe("3.27");
+    expect(data.exportVersion).toBe(DATA_EXPORT_VERSION);
     expect(data.competitionEvents).toEqual([
       { id: "e1", name: "Nationals", date: "2026-11-01" },
       { id: "e2", name: "League", date: "2026-10-01" },

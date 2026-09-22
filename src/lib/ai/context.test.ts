@@ -239,6 +239,7 @@ describe("buildAIContextProfile", () => {
     readinessMetrics: true,
     painLogs: true,
     outdoorAscents: true,
+    notes: true,
   };
   const allSharingOff: AISharingPreferences = {
     trainingBlocks: false,
@@ -246,6 +247,7 @@ describe("buildAIContextProfile", () => {
     readinessMetrics: false,
     painLogs: false,
     outdoorAscents: false,
+    notes: false,
   };
 
   const source: AIContextSource = {
@@ -259,6 +261,7 @@ describe("buildAIContextProfile", () => {
     dailyMetrics: [{ id: "m1", metricId: "hrv", date: "2026-09-17", value: 60 }],
     painLogs: [{ id: "p1", date: "2026-09-01", weekId: "2026-W25", bodyPart: "Finger", severity: 4 }],
     outdoorAscents: [{ id: "a1", date: "2026-09-01", grade: "7a" }],
+    weekNotes: [],
   };
 
   it("includes the exercise/phase catalog for generate and context modes", () => {
@@ -306,5 +309,47 @@ describe("buildAIContextProfile", () => {
     const outOfRangeProfile = buildAIContextProfile("analyze", source, allSharingOff, asOf, ["2026-W01"]);
     expect(outOfRangeProfile.recentWorkouts).toHaveLength(0);
     expect(outOfRangeProfile.benchmarks).toHaveLength(0);
+  });
+});
+
+describe("notes in the AI profile", () => {
+  const source = (overrides: Partial<Parameters<typeof buildAIContextProfile>[1]> = {}) => ({
+    exerciseTypes: [],
+    analyticsCategories: [],
+    phaseDefs: [{ id: "phase-capacity", name: "Capacity" }],
+    workouts: [],
+    benchmarks: [],
+    trainingBlocks: [
+      { id: "b1", name: "Base", phaseId: "phase-capacity", startWeekId: "2026-W38", endWeekId: "2026-W41", notes: "Rebuild after the trip" },
+    ],
+    competitionEvents: [],
+    dailyMetrics: [],
+    painLogs: [],
+    outdoorAscents: [],
+    weekNotes: [
+      { weekId: "2026-W30", text: "Too far back" },
+      { weekId: "2026-W36", text: "Four weeks before" },
+      { weekId: "2026-W40", text: "Travelling Thu-Sun" },
+      { weekId: "2026-W45", text: "Four weeks after" },
+      { weekId: "2026-W50", text: "Too far ahead" },
+    ],
+    ...overrides,
+  });
+  const sharing = { trainingBlocks: true, competitions: true, readinessMetrics: false, painLogs: false, outdoorAscents: true, notes: true };
+
+  it("includes block notes and the week notes within four weeks of the target range", () => {
+    const profile = buildAIContextProfile("generate", source(), sharing, asOf, ["2026-W40", "2026-W41"]);
+    expect(profile.trainingBlocks![0].notes).toBe("Rebuild after the trip");
+    expect(profile.weekNotes).toEqual([
+      { weekId: "2026-W36", text: "Four weeks before" },
+      { weekId: "2026-W40", text: "Travelling Thu-Sun" },
+      { weekId: "2026-W45", text: "Four weeks after" },
+    ]);
+  });
+
+  it("leaves every note out when note sharing is off", () => {
+    const profile = buildAIContextProfile("generate", source(), { ...sharing, notes: false }, asOf, ["2026-W40"]);
+    expect(profile.trainingBlocks![0].notes).toBeUndefined();
+    expect(profile.weekNotes).toBeUndefined();
   });
 });

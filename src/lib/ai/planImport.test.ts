@@ -368,3 +368,46 @@ describe("buildPlanCommit - saveAsTemplates", () => {
     expect(buildPlanCommit(restOnly, MAPPING, CTX, { saveAsTemplates: true }).templates).toEqual({});
   });
 });
+
+describe("buildPlanCommit - notes", () => {
+  const ctx = { exerciseTypes, phaseDefs, analyticsCategories };
+
+  it("gives a block its phase's notes, marked as the AI's", () => {
+    const plan = makePlan({
+      weeks: [
+        { weekId: "2026-W25", phaseName: "Capacity", blockNotes: "Build volume", workouts: [] },
+        { weekId: "2026-W26", phaseName: "Capacity", blockNotes: "Build volume", workouts: [] },
+      ],
+    });
+    const result = buildPlanCommit(plan, { exerciseTypes: {}, phases: {} }, ctx);
+    expect(result.trainingBlocks).toHaveLength(1);
+    expect(result.trainingBlocks[0].notes).toBe("AI: Build volume");
+  });
+
+  it("keeps both notes when two same-phase phases merge into one block", () => {
+    const plan = makePlan({
+      weeks: [
+        { weekId: "2026-W25", phaseName: "Capacity", blockNotes: "First half", workouts: [] },
+        { weekId: "2026-W26", phaseName: "Capacity", blockNotes: "Second half", workouts: [] },
+      ],
+    });
+    const result = buildPlanCommit(plan, { exerciseTypes: {}, phases: {} }, ctx);
+    expect(result.trainingBlocks[0].notes).toBe("AI: First half\n\nAI: Second half");
+  });
+
+  it("leaves a block without notes when the plan gave none", () => {
+    const result = buildPlanCommit(makePlan(), { exerciseTypes: {}, phases: {} }, ctx);
+    expect(result.trainingBlocks[0].notes).toBeUndefined();
+  });
+
+  it("returns week notes separately, unprefixed, for the caller to merge with the user's", () => {
+    const plan = makePlan({
+      weeks: [
+        { weekId: "2026-W25", phaseName: "Capacity", notes: "Deload if the elbow flares", workouts: [] },
+        { weekId: "2026-W26", phaseName: "Capacity", workouts: [] },
+      ],
+    });
+    const result = buildPlanCommit(plan, { exerciseTypes: {}, phases: {} }, ctx);
+    expect(result.weekNotes).toEqual([{ weekId: "2026-W25", text: "Deload if the elbow flares" }]);
+  });
+});

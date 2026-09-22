@@ -9,6 +9,7 @@ const DEFAULT_AI_SHARING = {
   readinessMetrics: false,
   painLogs: false,
   outdoorAscents: true,
+  notes: true,
 };
 
 describe('defaultPreferences', () => {
@@ -83,7 +84,7 @@ describe('migratePreferences', () => {
       timerKeepAwakeEnabled: true,
       homeSections: [...DEFAULT_HOME_SECTIONS.slice(1), DEFAULT_HOME_SECTIONS[0]],
       homeDetails: { ...defaultHomeDetails(), 'weather.forecast': false },
-      aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false },
+      aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
       planFormat: 'weekly' as const,
       addedExerciseTarget: 'mirror' as const,
     };
@@ -340,7 +341,7 @@ describe('aiSharing (UI_PLAN.md §5.8, Stage 10)', () => {
   });
 
   it('round-trips a fully-set current-version value', () => {
-    const custom = { trainingBlocks: false, competitions: false, readinessMetrics: true, painLogs: true, outdoorAscents: false };
+    const custom = { trainingBlocks: false, competitions: false, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false };
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiSharing: custom }).aiSharing).toEqual(custom);
   });
 
@@ -355,6 +356,7 @@ describe('aiSharing (UI_PLAN.md §5.8, Stage 10)', () => {
       readinessMetrics: true, // valid, preserved
       painLogs: false, // missing, defaulted
       outdoorAscents: true, // missing, defaulted
+      notes: true, // missing (a blob from before notes existed), defaulted
     });
   });
 

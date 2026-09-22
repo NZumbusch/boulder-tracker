@@ -57,6 +57,9 @@
     if (profile.outdoorAscents) {
       sections.push(`- Recent Outdoor Ascents:\n${JSON.stringify(profile.outdoorAscents, null, 2)}`);
     }
+    if (profile.weekNotes && profile.weekNotes.length > 0) {
+      sections.push(`- My Week Notes (circumstances and ideas I wrote down for specific weeks - take them into account):\n${JSON.stringify(profile.weekNotes, null, 2)}`);
+    }
     return sections.join('\n\n');
   }
 
@@ -113,6 +116,7 @@
           dailyMetrics: trainingState.dailyMetrics,
           painLogs: trainingState.painLogs,
           outdoorAscents: trainingState.outdoorAscents,
+          weekNotes: trainingState.weekNotes,
         },
         trainingState.aiSharing,
         new Date(),

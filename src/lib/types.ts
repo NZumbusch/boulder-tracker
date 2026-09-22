@@ -342,6 +342,8 @@ export interface TrainingBlock {
   /** Higher wins when multiple blocks cover the same week. Default 0. */
   priority?: number;
   color?: string;
+  /** Free text: why this block exists, what it's for. An AI import's contribution is appended with an "AI:" prefix. */
+  notes?: string;
 }
 
 /**
@@ -367,6 +369,20 @@ export interface CompetitionEvent {
 export interface WeekOverride {
   weekId: string;
   customized: boolean;
+}
+
+/**
+ * A free-text note about one week - circumstances, ideas, anything that
+ * explains the week ("travelling Thu-Sun", "elbow niggly, keep pulling
+ * light"). Its own table keyed by `weekId`, like `WeekOverride`, rather
+ * than a field on a block or a workout: a note belongs to the week itself,
+ * so writing one never materialises a provisional week, and it survives the
+ * week being reset, cleared or re-planned under a different block.
+ * At most one per week; an empty note is deleted, not stored.
+ */
+export interface WeekNote {
+  weekId: string;
+  text: string;
 }
 
 /**
@@ -482,6 +498,7 @@ export interface TrainingData {
   workouts: Workout[];
   trainingBlocks: TrainingBlock[];
   weekOverrides: WeekOverride[];
+  weekNotes: WeekNote[];
   competitionEvents: CompetitionEvent[];
   exerciseTypes: ExerciseTypeDef[];
   templates: Record<string, WorkoutTemplate[]>;

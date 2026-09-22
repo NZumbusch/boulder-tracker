@@ -23,6 +23,7 @@
     { id: 'readinessMetrics', label: 'Readiness & Daily Metrics', description: 'Current readiness score plus sleep/HRV/RHR/bodyweight trends. Health data - off by default.' },
     { id: 'painLogs', label: 'Pain Logs', description: 'Recent pain/discomfort entries. Health data - off by default.' },
     { id: 'outdoorAscents', label: 'Outdoor Ascents', description: 'Recent outdoor grade history.' },
+    { id: 'notes', label: 'Block & Week Notes', description: 'Your notes on training blocks, and week notes within four weeks of the prompt\'s weeks.' },
   ];
 </script>
 

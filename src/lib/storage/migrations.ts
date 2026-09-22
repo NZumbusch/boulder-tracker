@@ -1091,6 +1091,14 @@ const MIGRATIONS: MigrationStep[] = [
       });
     },
   },
+  {
+    from: "3.27",
+    to: "3.28",
+    describe: "Add weekNotes (empty by default, purely additive)",
+    migrate: (data: any) => {
+      data.weekNotes = data.weekNotes || [];
+    },
+  },
 ];
 
 /**

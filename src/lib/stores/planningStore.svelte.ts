@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import type { TrainingBlock, WeekOverride, CompetitionEvent, WorkoutTemplate } from '../types';
+import type { TrainingBlock, WeekOverride, WeekNote, CompetitionEvent, WorkoutTemplate } from '../types';
 import { getBlocksForWeek, getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
@@ -11,18 +11,21 @@ import { getBlocksForWeek, getDominantBlockForWeek } from '../planning/trainingB
 export class PlanningStore {
   trainingBlocks = $state<TrainingBlock[]>([]);
   weekOverrides = $state<WeekOverride[]>([]);
+  weekNotes = $state<WeekNote[]>([]);
   competitionEvents = $state<CompetitionEvent[]>([]);
   templates = $state<Record<string, WorkoutTemplate[]>>({});
 
   async load() {
-    const [trainingBlocks, weekOverrides, competitionEvents, templates] = await Promise.all([
+    const [trainingBlocks, weekOverrides, weekNotes, competitionEvents, templates] = await Promise.all([
       storage.getTrainingBlocks(),
       storage.getWeekOverrides(),
+      storage.getWeekNotes(),
       storage.getCompetitionEvents(),
       storage.getTemplates(),
     ]);
     this.trainingBlocks = trainingBlocks;
     this.weekOverrides = weekOverrides;
+    this.weekNotes = weekNotes;
     this.competitionEvents = competitionEvents;
     this.templates = templates;
   }
@@ -57,6 +60,10 @@ export class PlanningStore {
 
   async deleteTrainingBlock(id: string) {
     await storage.deleteTrainingBlock(id);
+  }
+
+  async saveWeekNote(weekId: string, text: string) {
+    await storage.saveWeekNote(weekId, text);
   }
 
   async saveCompetitionEvent(event: CompetitionEvent) {

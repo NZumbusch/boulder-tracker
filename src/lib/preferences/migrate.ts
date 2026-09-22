@@ -146,6 +146,13 @@ export interface AISharingPreferences {
   readinessMetrics: boolean;
   painLogs: boolean;
   outdoorAscents: boolean;
+  /**
+   * Block and week notes. Default **on**, unlike the health categories: they
+   * are the user's own words written partly *for* the coach ("travelling
+   * Thu-Sun"), and a plan that ignores them is the worse outcome. Still a
+   * toggle, since a note can mention an injury.
+   */
+  notes: boolean;
 }
 
 /** Every togglable/reorderable Home section below the always-shown header (UI_PLAN.md §4.2), in the plan's own fixed default order. */
@@ -208,6 +215,7 @@ export function defaultPreferences(): Preferences {
       readinessMetrics: false,
       painLogs: false,
       outdoorAscents: true,
+      notes: true,
     },
   };
 }
@@ -273,6 +281,7 @@ function validateAISharing(raw: unknown): AISharingPreferences {
     readinessMetrics: typeof c.readinessMetrics === 'boolean' ? c.readinessMetrics : defaults.readinessMetrics,
     painLogs: typeof c.painLogs === 'boolean' ? c.painLogs : defaults.painLogs,
     outdoorAscents: typeof c.outdoorAscents === 'boolean' ? c.outdoorAscents : defaults.outdoorAscents,
+    notes: typeof c.notes === 'boolean' ? c.notes : defaults.notes,
   };
 }
 

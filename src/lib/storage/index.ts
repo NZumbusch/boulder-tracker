@@ -6,6 +6,7 @@ import type {
   WorkoutTemplate,
   TrainingBlock,
   WeekOverride,
+  WeekNote,
   CompetitionEvent,
   ExerciseTypeDef,
   PhaseDef,
@@ -21,6 +22,7 @@ import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
 import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
+import { upsertWeekNote } from "../planning/notes";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState } from "./persistence";
 import { runDataMigrations, assertMigrationInvariants } from "./migrations";
 
@@ -35,6 +37,7 @@ export const storage = {
   async _getWorkouts(): Promise<Workout[]> { await initDB(); return _dbState.workouts; },
   async _getTrainingBlocks(): Promise<TrainingBlock[]> { await initDB(); return _dbState.trainingBlocks; },
   async _getWeekOverrides(): Promise<WeekOverride[]> { await initDB(); return _dbState.weekOverrides; },
+  async _getWeekNotes(): Promise<WeekNote[]> { await initDB(); return _dbState.weekNotes; },
   async _getCompetitionEvents(): Promise<CompetitionEvent[]> { await initDB(); return _dbState.competitionEvents; },
   async _getBenchmarks(): Promise<Benchmark[]> { await initDB(); return _dbState.benchmarks; },
   async _getBenchmarkTypes(): Promise<BenchmarkTypeDef[]> { await initDB(); return _dbState.benchmarkTypes; },
@@ -50,6 +53,7 @@ export const storage = {
   async _saveWorkouts(workouts: Workout[]): Promise<void> { await initDB(); _dbState.workouts = toPlain(workouts); await flushDB(); },
   async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(); },
   async _saveWeekOverrides(overrides: WeekOverride[]): Promise<void> { await initDB(); _dbState.weekOverrides = toPlain(overrides); await flushDB(); },
+  async _saveWeekNotes(notes: WeekNote[]): Promise<void> { await initDB(); _dbState.weekNotes = toPlain(notes); await flushDB(); },
   async _saveCompetitionEvents(events: CompetitionEvent[]): Promise<void> { await initDB(); _dbState.competitionEvents = toPlain(events); await flushDB(); },
   async _saveBenchmarks(benchmarks: Benchmark[]): Promise<void> { await initDB(); _dbState.benchmarks = toPlain(benchmarks); await flushDB(); },
   async _saveBenchmarkTypes(types: BenchmarkTypeDef[]): Promise<void> { await initDB(); _dbState.benchmarkTypes = toPlain(types); await flushDB(); },
@@ -206,6 +210,16 @@ export const storage = {
       overrides.push({ weekId, customized: true });
       await this._saveWeekOverrides(overrides);
     }
+  },
+
+  async getWeekNotes(): Promise<WeekNote[]> {
+    return this._getWeekNotes();
+  },
+
+  /** Sets `weekId`'s note; blank text deletes it (see `upsertWeekNote`). */
+  async saveWeekNote(weekId: string, text: string): Promise<void> {
+    const notes = await this._getWeekNotes();
+    await this._saveWeekNotes(upsertWeekNote(notes, weekId, text));
   },
 
   async getCompetitionEvents(): Promise<CompetitionEvent[]> {
@@ -595,6 +609,7 @@ export const storage = {
           if (data.workouts) _dbState.workouts = data.workouts;
           if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
           if (data.weekOverrides) _dbState.weekOverrides = data.weekOverrides;
+          if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
           if (data.competitionEvents) _dbState.competitionEvents = data.competitionEvents;
           if (data.templates) _dbState.templates = data.templates;
           if (data.phaseDefs) _dbState.phaseDefs = data.phaseDefs;
