@@ -434,12 +434,59 @@
         {@const w = trainingState.homeWeather.snapshot}
         {@const code = describeWeatherCode(w.currentWeatherCode)}
         <div class="flex items-center gap-3">
-          <Icon icon={code.icon} class="text-3xl text-primary" />
-          <div class="min-w-0">
+          <Icon icon={code.icon} class="text-3xl text-primary shrink-0" />
+          <div class="min-w-0 flex-1">
             <p class="text-metric text-content tabular-nums">{Math.round(w.currentTempC)}°C</p>
             <p class="text-caption text-content-subtle truncate">{code.label} · {trainingState.homeLocation.name}</p>
           </div>
         </div>
+
+        <!-- Humidity and wind sit beside the temperature because they are
+             what decide whether rock has any friction - a dry 8°C day and a
+             humid one are not the same session. Each is rendered only if
+             the snapshot carries it: a cached snapshot from before these
+             were fetched still shows the temperature rather than a row of
+             blanks. -->
+        {#if w.feelsLikeC !== undefined || w.humidityPercent !== undefined || w.windSpeedKmh !== undefined || (w.precipitationMm ?? 0) > 0}
+          <div class="flex flex-wrap gap-x-4 gap-y-1">
+            {#if w.feelsLikeC !== undefined}
+              <span class="text-caption text-content-subtle tabular-nums">Feels {Math.round(w.feelsLikeC)}°</span>
+            {/if}
+            {#if w.humidityPercent !== undefined}
+              <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.humidityPercent)}% humidity</span>
+            {/if}
+            {#if w.windSpeedKmh !== undefined}
+              <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.windSpeedKmh)} km/h wind</span>
+            {/if}
+            {#if (w.precipitationMm ?? 0) > 0}
+              <span class="text-caption text-primary tabular-nums">{w.precipitationMm} mm rain</span>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- The week ahead. This was always in the snapshot - the trip card
+             has rendered it since Stage 8 - the home card just never showed
+             it. Today is labelled rather than given its weekday name, since
+             "Mon" beside a live temperature reads as a different day. -->
+        {#if w.daily.length > 0}
+          <div class="flex gap-3 overflow-x-auto no-scrollbar pt-1 border-t border-border/60">
+            {#each w.daily as day, i}
+              {@const dayCode = describeWeatherCode(day.weatherCode)}
+              <div class="flex flex-col items-center gap-1 shrink-0 w-12 pt-2">
+                <span class="text-caption {i === 0 ? 'text-content-muted' : 'text-content-subtle'}">
+                  {i === 0 ? 'Today' : new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}
+                </span>
+                <Icon icon={dayCode.icon} class="text-lg text-primary" />
+                <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
+                <span class="text-caption text-content-subtle tabular-nums">{Math.round(day.tempMinC)}°</span>
+                {#if day.precipitationChance !== undefined && day.precipitationChance >= 20}
+                  <span class="text-caption text-primary/80 tabular-nums leading-none">{Math.round(day.precipitationChance)}%</span>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+
         {#if trainingState.homeWeather.stale && trainingState.homeWeather.fetchedAt}
           <p class="text-caption text-warning">Stale - last updated {formatRelativeAge(trainingState.homeWeather.fetchedAt)}</p>
         {/if}
@@ -464,6 +511,9 @@
                 <Icon icon={code.icon} class="text-lg text-primary" />
                 <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
                 <span class="text-caption text-content-subtle tabular-nums">{Math.round(day.tempMinC)}°</span>
+                {#if day.precipitationChance !== undefined && day.precipitationChance >= 20}
+                  <span class="text-caption text-primary/80 tabular-nums leading-none">{Math.round(day.precipitationChance)}%</span>
+                {/if}
               </div>
             {/each}
           </div>

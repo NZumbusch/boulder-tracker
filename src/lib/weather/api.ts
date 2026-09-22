@@ -22,11 +22,31 @@ export interface DailyForecastDay {
   weatherCode: number;
   tempMaxC: number;
   tempMinC: number;
+  /** Peak chance of rain that day, 0-100. Optional - see `WeatherSnapshot`. */
+  precipitationChance?: number;
 }
 
+/**
+ * Everything the app knows about one location's weather.
+ *
+ * The fields beyond temperature and code are all optional, and must stay
+ * that way: snapshots are cached in `localStorage` (`weatherStore`), so a
+ * cache written by an older build is read back by a newer one. Optional
+ * means such a snapshot still renders, just with less detail, instead of
+ * failing validation and throwing away the last known conditions.
+ */
 export interface WeatherSnapshot {
   currentTempC: number;
   currentWeatherCode: number;
+  /** "Feels like" - wind chill and humidity applied. */
+  feelsLikeC?: number;
+  /** Relative humidity, 0-100. The number that decides whether rock has any friction. */
+  humidityPercent?: number;
+  windSpeedKmh?: number;
+  /** Rain in the last hour, mm. */
+  precipitationMm?: number;
+  /** Daylight flag, for showing whether "now" is day or night. */
+  isDay?: boolean;
   /** Today first, six days after - Open-Meteo's own default forecast window. */
   daily: DailyForecastDay[];
 }
@@ -62,48 +82,77 @@ export async function geocodeCity(query: string): Promise<GeocodeResult[]> {
   }
 }
 
+/** Reads a number only if it really is one - an absent or malformed extra must not become `NaN` downstream. */
+function optionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 /**
  * Current conditions + a 7-day daily forecast for one lat/lon, via Open-
- * Meteo's forecast endpoint. Uses the simple `current_weather=true` flag
- * (still fully supported, and its exact response shape is unambiguous)
- * rather than the newer unified `current=`/`hourly=` parameters, whose
- * field names are less certain without a live call to verify against.
- * Returns `null` (never throws) on any network failure or unexpected
- * response shape - the caller is responsible for falling back to a cached
- * snapshot or an "absent" state, per §5.5's "must degrade to absent, never
- * broken."
+ * Meteo's forecast endpoint.
+ *
+ * Uses the unified `current=` parameter rather than the older
+ * `current_weather=true` flag. That choice was previously the other way
+ * round, on the grounds that the newer parameter's field names were
+ * "less certain without a live call to verify against" - so the call was
+ * made (2026-09-22) and every field below was read off a real response.
+ * `current_weather=true` only ever returned temperature, wind and a code;
+ * humidity and apparent temperature, which are the two things that
+ * actually decide whether rock has friction, are only available this way.
+ *
+ * Only temperature, weather code and the daily arrays are required. Every
+ * other field is optional, so a partial response still produces a usable
+ * snapshot rather than none at all. Returns `null` (never throws) on any
+ * network failure or unusable response shape - the caller falls back to a
+ * cached snapshot or an "absent" state, per §5.5's "must degrade to
+ * absent, never broken."
  */
 export async function fetchWeatherSnapshot(latitude: number, longitude: number): Promise<WeatherSnapshot | null> {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=auto&forecast_days=7`;
+    const current = [
+      'temperature_2m', 'apparent_temperature', 'relative_humidity_2m',
+      'precipitation', 'weather_code', 'wind_speed_10m', 'is_day',
+    ].join(',');
+    const daily = [
+      'weather_code', 'temperature_2m_max', 'temperature_2m_min',
+      'precipitation_probability_max',
+    ].join(',');
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=${current}&daily=${daily}&temperature_unit=celsius&timezone=auto&forecast_days=7`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
 
-    const current = data?.current_weather;
-    const daily = data?.daily;
+    const now = data?.current;
+    const days = data?.daily;
     if (
-      typeof current?.temperature !== 'number' ||
-      typeof current?.weathercode !== 'number' ||
-      !Array.isArray(daily?.time) ||
-      !Array.isArray(daily?.weathercode) ||
-      !Array.isArray(daily?.temperature_2m_max) ||
-      !Array.isArray(daily?.temperature_2m_min)
+      typeof now?.temperature_2m !== 'number' ||
+      typeof now?.weather_code !== 'number' ||
+      !Array.isArray(days?.time) ||
+      !Array.isArray(days?.weather_code) ||
+      !Array.isArray(days?.temperature_2m_max) ||
+      !Array.isArray(days?.temperature_2m_min)
     ) {
       return null;
     }
 
-    const days: DailyForecastDay[] = daily.time.map((date: string, i: number) => ({
+    const forecast: DailyForecastDay[] = days.time.map((date: string, i: number) => ({
       date,
-      weatherCode: daily.weathercode[i],
-      tempMaxC: daily.temperature_2m_max[i],
-      tempMinC: daily.temperature_2m_min[i],
+      weatherCode: days.weather_code[i],
+      tempMaxC: days.temperature_2m_max[i],
+      tempMinC: days.temperature_2m_min[i],
+      precipitationChance: optionalNumber(days.precipitation_probability_max?.[i]),
     }));
 
     return {
-      currentTempC: current.temperature,
-      currentWeatherCode: current.weathercode,
-      daily: days,
+      currentTempC: now.temperature_2m,
+      currentWeatherCode: now.weather_code,
+      feelsLikeC: optionalNumber(now.apparent_temperature),
+      humidityPercent: optionalNumber(now.relative_humidity_2m),
+      windSpeedKmh: optionalNumber(now.wind_speed_10m),
+      precipitationMm: optionalNumber(now.precipitation),
+      isDay: now.is_day === undefined ? undefined : now.is_day === 1,
+      daily: forecast,
     };
   } catch {
     return null;
