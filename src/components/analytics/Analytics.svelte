@@ -736,7 +736,14 @@
     </div>
 
     <div id="section-mix" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative z-30">
-      <div class="flex items-start justify-between gap-3 relative z-50">
+      <!-- No z-index here. The card is `relative z-30`, which makes it a
+           stacking context, so everything inside it is ranked against
+           everything else inside it - and a z-50 on this row put the title
+           and the Options button *above* the chart's tooltips, which is
+           what made them look transparent. The Options dropdown does not
+           need it: its own wrapper below is `relative z-50` and lifts the
+           panel on its own. -->
+      <div class="flex items-start justify-between gap-3 relative">
         <div class="min-w-0">
           <h3 class="text-section uppercase text-content-muted">Training Mix</h3>
           <p class="text-caption text-content-subtle mt-0.5">Breakdown by category</p>
@@ -851,7 +858,7 @@
               {#if activeCat}
                 {@const activeDuration = (includePlanned ? week.categories[activeCat.name] : week.completedCategories[activeCat.name]) || 0}
                 <div
-                  class="absolute px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none z-40 whitespace-nowrap shadow-card border border-border animate-in fade-in duration-150
+                  class="absolute px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none z-40 whitespace-nowrap shadow-card border border-border
                     {wi <= 1 ? 'left-0' : wi >= chartData.weeks.length - 2 ? 'right-0' : 'left-1/2 -translate-x-1/2'}"
                   style="bottom: calc({weekHeightPercent}% + 0.5rem);"
                 >
