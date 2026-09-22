@@ -625,7 +625,7 @@
               data-tip-open={tips.isOpen(`load-${wi}`)}
               onclick={() => tips.toggle(`load-${wi}`)}
               aria-label="Week {week.label} load"
-              class="flex-1 flex flex-col items-center group relative h-full justify-end"
+              class="flex-1 flex flex-col items-center group relative h-full justify-end hover:z-30 {tips.isOpen(`load-${wi}`) ? 'z-30' : ''}"
             >
               <!-- Flat fill, no gradient or glow; the current week is the
                    only one at full strength, which is the whole emphasis
@@ -668,7 +668,7 @@
                   data-tip-open={tips.isOpen(`acwr-${pi}`)}
                   onclick={() => tips.toggle(`acwr-${pi}`)}
                   aria-label="ACWR {p.ratio?.toFixed(2) ?? 'unavailable'}"
-                  class="absolute pointer-events-auto group"
+                  class="absolute pointer-events-auto group hover:z-40 {tips.isOpen(`acwr-${pi}`) ? 'z-40' : 'z-20'}"
                   style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);"
                 >
                   <div
@@ -687,7 +687,7 @@
                   data-tip-open={tips.isOpen(`spike-${pi}`)}
                   onclick={() => tips.toggle(`spike-${pi}`)}
                   aria-label="Ramp-rate spike"
-                  class="absolute pointer-events-auto group"
+                  class="absolute pointer-events-auto group hover:z-40 {tips.isOpen(`spike-${pi}`) ? 'z-40' : 'z-20'}"
                   style="left: {p.x}%; top: {Math.max(p.barTopY - 8, 2)}%; transform: translate(-50%, -50%);"
                 >
                   <Icon icon="ic:baseline-warning" class="text-status-risk text-xs" />
@@ -814,6 +814,7 @@
           {#each chartData.weeks as week, wi}
             {@const visibleTotalDuration = visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0), 0)}
             {@const weekHeightPercent = showRelative ? (visibleTotalDuration > 0 ? 100 : 0) : (visibleTotalDuration / maxVisibleDuration) * 100}
+            {@const activeCat = visibleCategories.find((c) => tips.isOpen(`mix-${wi}-${c.id}`))}
             <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
               <!-- Segments carry the category colours, so the bar itself
                    stays flat: no shadow, no per-segment borders, hairline
@@ -826,19 +827,37 @@
                     <button
                       type="button"
                       data-tip-trigger
-                      data-tip-open={tips.isOpen(`mix-${wi}-${cat.id}`)}
                       onclick={() => tips.toggle(`mix-${wi}-${cat.id}`)}
+                      onpointerenter={(e) => { if (e.pointerType === 'mouse') tips.open(`mix-${wi}-${cat.id}`); }}
+                      onpointerleave={(e) => { if (e.pointerType === 'mouse') tips.closeIf(`mix-${wi}-${cat.id}`); }}
                       aria-label="{cat.name}, {Math.round(catDuration)} minutes in week {week.label}"
                       class="{cat.color} w-full relative block"
                       style="height: {(catDuration / visibleTotalDuration) * 100}%"
-                    >
-                      <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none z-30 whitespace-nowrap shadow-card border border-border">
-                        {cat.name}: {Math.round(catDuration)} min
-                      </div>
-                    </button>
+                    ></button>
                   {/if}
                 {/each}
               </div>
+
+              <!-- The tooltip lives out here, not inside the segment that
+                   triggers it: the bar clips its children (`overflow-hidden`,
+                   which is what rounds the stack's corners), so a tooltip
+                   rendered inside a segment was cut off the moment it grew
+                   past it - which is always. Sitting in the week column
+                   instead, it is anchored just above the bar's top and is
+                   clipped by nothing. Hover therefore has to be driven in
+                   JS too, since `:hover` on the segment can no longer reach
+                   it. Edge columns anchor to their side so a wide label
+                   doesn't run off the chart. -->
+              {#if activeCat}
+                {@const activeDuration = (includePlanned ? week.categories[activeCat.name] : week.completedCategories[activeCat.name]) || 0}
+                <div
+                  class="absolute px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none z-40 whitespace-nowrap shadow-card border border-border animate-in fade-in duration-150
+                    {wi <= 1 ? 'left-0' : wi >= chartData.weeks.length - 2 ? 'right-0' : 'left-1/2 -translate-x-1/2'}"
+                  style="bottom: calc({weekHeightPercent}% + 0.5rem);"
+                >
+                  {activeCat.name}: {Math.round(activeDuration)} min
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -929,7 +948,7 @@
                   data-tip-open={tips.isOpen(`bw-${i}`)}
                   onclick={() => tips.toggle(`bw-${i}`)}
                   aria-label="{entry.value} kg"
-                  class="absolute group"
+                  class="absolute group hover:z-30 {tips.isOpen(`bw-${i}`) ? 'z-30' : ''}"
                   style="left: {xPos}%; height: 100%;"
                 >
                   <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
@@ -1046,7 +1065,7 @@
                     data-tip-open={tips.isOpen(`bench-${i}`)}
                     onclick={() => tips.toggle(`bench-${i}`)}
                     aria-label="{entry.value} {entry.unit}"
-                    class="absolute group"
+                    class="absolute group hover:z-30 {tips.isOpen(`bench-${i}`) ? 'z-30' : ''}"
                     style="left: {xPos}%; height: 100%;"
                   >
                     <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">

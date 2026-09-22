@@ -21,8 +21,26 @@ export class ChartTips {
     this.openId = this.openId === id ? null : id;
   }
 
+  /**
+   * Opens without toggling - for hover, where re-entering the same point
+   * must not close it.
+   *
+   * Most charts leave hover to CSS, but a tooltip that has to be rendered
+   * outside its trigger (to escape an `overflow-hidden` ancestor) can't be
+   * reached by `:hover` on that trigger, so those charts drive hover
+   * through here instead.
+   */
+  open(id: string) {
+    this.openId = id;
+  }
+
   close() {
     this.openId = null;
+  }
+
+  /** Closes only if this exact point is the open one, so leaving one point can't dismiss another. */
+  closeIf(id: string) {
+    if (this.openId === id) this.openId = null;
   }
 
   /**
