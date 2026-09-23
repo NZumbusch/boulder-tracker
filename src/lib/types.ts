@@ -437,6 +437,8 @@ export interface WorkoutTemplate {
   startTime?: string;
   /** Planned session length in minutes - carried onto every workout this template generates. */
   plannedDuration?: number;
+  /** A note about the session as a whole - carried onto every workout this template generates as its `description`. */
+  description?: string;
   /** `logged` is always undefined on a template's slots - templates are pure plans. */
   exercises: ExerciseSlot[];
 }

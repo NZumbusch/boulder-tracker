@@ -31,7 +31,7 @@ import {
  * key can't corrupt stored data - it's simply never read).
  */
 
-const DAYS_OF_WEEK: DayOfWeek[] = [
+export const DAYS_OF_WEEK: DayOfWeek[] = [
   "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 ];
 
@@ -130,7 +130,7 @@ export interface AIPlanOutput {
   phases?: AIPlanPhase[];
 }
 
-const WEEK_ID = /^\d{4}-W\d{2}$/;
+export const WEEK_ID = /^\d{4}-W\d{2}$/;
 
 export interface AIWorkoutLogWorkout {
   /** ISO date string, if the AI could infer one from the pasted notes */
@@ -143,12 +143,12 @@ export interface AIWorkoutLogOutput {
   workouts: AIWorkoutLogWorkout[];
 }
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
+export function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 /** Records an auto-applied fix. Never fails the import - surfaced for review instead. */
-function pushRepair(issues: ValidationIssue[], path: string, message: string): void {
+export function pushRepair(issues: ValidationIssue[], path: string, message: string): void {
   issues.push({ path, message, severity: "repair" });
 }
 
@@ -280,7 +280,7 @@ function coerceValue(raw: unknown, spec: ValueFieldSpec): CoerceResult {
  * workout, and the substitution is reported. Only a value whose JSON type is
  * flatly wrong (an object where a scalar belongs) is still a hard error.
  */
-function validateExerciseValues(
+export function validateExerciseValues(
   raw: unknown,
   path: string,
   issues: ValidationIssue[],
@@ -329,7 +329,7 @@ function validateExerciseValues(
   return values;
 }
 
-function validateExercise(raw: unknown, path: string, issues: ValidationIssue[]): AIExercise | null {
+export function validateExercise(raw: unknown, path: string, issues: ValidationIssue[]): AIExercise | null {
   if (!isPlainObject(raw)) {
     issues.push({ path, message: `Expected an exercise object, got ${JSON.stringify(raw)}.` });
     return null;
@@ -344,7 +344,7 @@ function validateExercise(raw: unknown, path: string, issues: ValidationIssue[])
   return { exerciseTypeName: name.trim(), categoryName, values };
 }
 
-function validateExercises(raw: unknown, path: string, issues: ValidationIssue[]): AIExercise[] {
+export function validateExercises(raw: unknown, path: string, issues: ValidationIssue[]): AIExercise[] {
   if (!Array.isArray(raw)) {
     issues.push({ path, message: `Expected an array, got ${JSON.stringify(raw)}.` });
     return [];
@@ -362,7 +362,7 @@ function validateExercises(raw: unknown, path: string, issues: ValidationIssue[]
  * string is dropped as a repair rather than failing the import - a note is
  * never worth rejecting a whole plan over.
  */
-function validateNote(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
+export function validateNote(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (typeof raw !== "string") {
     pushRepair(issues, path, `Not text (${JSON.stringify(raw)}) - dropped.`);
@@ -396,7 +396,7 @@ function validateWeekNotes(
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
-function validateOptionalString(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
+export function validateOptionalString(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "string") {
     issues.push({ path, message: `Expected a string, got ${JSON.stringify(raw)}.` });
@@ -405,7 +405,7 @@ function validateOptionalString(raw: unknown, path: string, issues: ValidationIs
   return raw;
 }
 
-function validateDayOfWeek(raw: unknown, path: string, issues: ValidationIssue[]): DayOfWeek | undefined {
+export function validateDayOfWeek(raw: unknown, path: string, issues: ValidationIssue[]): DayOfWeek | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "string" || !DAYS_OF_WEEK.includes(raw as DayOfWeek)) {
     issues.push({ path, message: `Expected one of ${DAYS_OF_WEEK.join(", ")}, got ${JSON.stringify(raw)}.` });
@@ -421,7 +421,7 @@ function validateDayOfWeek(raw: unknown, path: string, issues: ValidationIssue[]
  * time at all is a hard error rather than a guess: silently dropping it
  * would schedule the session at no particular time without saying so.
  */
-function validateTimeOfDay(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
+export function validateTimeOfDay(raw: unknown, path: string, issues: ValidationIssue[]): string | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (typeof raw !== "string") {
     issues.push({ path, message: `Expected a time like "18:00", got ${JSON.stringify(raw)}.` });
@@ -467,7 +467,7 @@ function validateTimeOfDay(raw: unknown, path: string, issues: ValidationIssue[]
  * ("about an hour and a half") is rejected rather than guessed at, since
  * unlike a `values` field there is no `notes` here to rescue it into.
  */
-function validateDurationMinutes(raw: unknown, path: string, issues: ValidationIssue[]): number | undefined {
+export function validateDurationMinutes(raw: unknown, path: string, issues: ValidationIssue[]): number | undefined {
   if (raw === undefined || raw === null) return undefined;
   const result = coerceNumber(raw);
   if (result.error !== undefined || result.value === undefined) {
@@ -662,7 +662,7 @@ export function validateAIPlanOutput(raw: unknown): ValidationResult<AIPlanOutpu
 }
 
 /** Partitions collected issues into fatal errors and reported repairs. */
-function split<T>(data: T | null, collected: ValidationIssue[]): ValidationResult<T> {
+export function split<T>(data: T | null, collected: ValidationIssue[]): ValidationResult<T> {
   const issues = collected.filter(isError);
   const repairs = collected.filter((i) => !isError(i));
   return { valid: issues.length === 0 && data !== null, data: issues.length === 0 ? data : null, issues, repairs };
@@ -751,7 +751,7 @@ export const AI_EXERCISE_VALUE_FIELD_NAMES: string[] = [...EXERCISE_VALUE_FIELD_
  * `EXERCISE_VALUE_SPEC` so the prompt can never describe a field the
  * validator doesn't implement, or omit an allowed value it does.
  */
-const AI_VALUES_CONTRACT = `EXERCISE "values" REFERENCE - these are the ONLY keys allowed inside "values". Any other key is discarded silently, so do not invent one:
+export const AI_VALUES_CONTRACT = `EXERCISE "values" REFERENCE - these are the ONLY keys allowed inside "values". Any other key is discarded silently, so do not invent one:
 
 ${renderValueFieldReference()}
 

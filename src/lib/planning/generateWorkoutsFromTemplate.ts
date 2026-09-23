@@ -45,6 +45,7 @@ export function generateWorkoutsFromTemplate(
     plannedDuration: t.plannedDuration,
     weekId,
     notes: t.name || "",
+    ...(t.description ? { description: t.description } : {}),
     loadFactor: 0,
     plannedLoad: workoutPlannedLoad(t.exercises ?? []),
     exercises: (t.exercises || []).map((e, slotIndex) => ({ ...e, id: ids.slotId(t, e, slotIndex) })),

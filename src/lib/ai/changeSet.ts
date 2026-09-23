@@ -1,0 +1,497 @@
+/**
+ * The AI change-set contract: one JSON document that can create a whole
+ * plan or adjust any single part of one. Three sections, applied in order:
+ *
+ *   exerciseTypes - add / edit / archive entries in the exercise list
+ *   phases        - add / edit / delete phases and their typical week
+ *   weeks         - per week (or range): follow a phase, spell the week
+ *                   out, or edit what's already there; plus notes
+ *
+ * This module is structure only: shapes, types, repairs. Whether a named
+ * phase, session or exercise actually exists is the planner's job
+ * (`changePlanner.ts`), because the answer depends on the user's data and
+ * on the other changes in the same document.
+ */
+import type { DayOfWeek, ExerciseValues, ParameterBlock } from "../types";
+import { PARAMETER_LABELS } from "../constants";
+import { getWeekIdRange } from "../dateUtils";
+import { resolveValueFieldName } from "./valueSpec";
+import {
+  isPlainObject,
+  pushRepair,
+  isError,
+  split,
+  validateExercise,
+  validateExercises,
+  validateExerciseValues,
+  validateNote,
+  validateOptionalString,
+  validateDayOfWeek,
+  validateTimeOfDay,
+  validateDurationMinutes,
+  WEEK_ID,
+  type AIExercise,
+  type ValidationIssue,
+  type ValidationResult,
+} from "./schema";
+
+export const PARAMETER_BLOCKS = Object.keys(PARAMETER_LABELS) as ParameterBlock[];
+
+// --- Shapes ---------------------------------------------------------------
+
+export interface CSSession {
+  name: string;
+  dayOfWeek?: DayOfWeek;
+  startTime?: string;
+  plannedDuration?: number;
+  /** A note about the session as a whole (shown with the session, not on an exercise). */
+  notes?: string;
+  exercises: AIExercise[];
+}
+
+/** Picks one existing session: by name, by day, or both. */
+export interface CSSessionMatch {
+  name?: string;
+  dayOfWeek?: DayOfWeek;
+}
+
+/** Picks one exercise in a session: by type name, and which occurrence if it appears more than once (1-based). */
+export interface CSExerciseMatch {
+  exerciseTypeName: string;
+  occurrence?: number;
+}
+
+export type CSExerciseChange =
+  | { action: "add"; exercise: AIExercise; /** 1-based; appended when absent. */ position?: number }
+  | {
+      action: "edit";
+      match: CSExerciseMatch;
+      /** Merged into the exercise's planned values. */
+      values: ExerciseValues;
+      /** Fields to remove from the planned values (a null in the AI's "values"). */
+      clear: (keyof ExerciseValues)[];
+      /** Swap the exercise for a different type, keeping its values. */
+      exerciseTypeName?: string;
+    }
+  | { action: "remove"; match: CSExerciseMatch };
+
+export interface CSSessionFields {
+  name?: string;
+  dayOfWeek?: DayOfWeek;
+  startTime?: string;
+  plannedDuration?: number;
+  notes?: string;
+}
+
+export type CSSessionChange =
+  | { action: "add"; session: CSSession }
+  | {
+      action: "edit";
+      match: CSSessionMatch;
+      set: CSSessionFields;
+      /** Replace every exercise. Exclusive with `exerciseChanges`. */
+      exercises?: AIExercise[];
+      exerciseChanges?: CSExerciseChange[];
+    }
+  | { action: "remove"; match: CSSessionMatch };
+
+export type CSExerciseTypeChange =
+  | { action: "add"; name: string; categoryName?: string; parameters?: ParameterBlock[] }
+  | { action: "edit"; name: string; rename?: string; categoryName?: string; parameters?: ParameterBlock[] }
+  | { action: "archive"; name: string };
+
+export type CSPhaseChange =
+  | { action: "add"; name: string; sessions: CSSession[] }
+  | { action: "edit"; name: string; rename?: string; sessions?: CSSession[]; sessionChanges?: CSSessionChange[] }
+  | { action: "delete"; name: string };
+
+export interface CSWeekChange {
+  /** Every week this entry applies to, in order (one for "week", the range for "from"/"to"). */
+  weekIds: string[];
+  /** Assign this phase to the weeks. */
+  phase?: string;
+  /** Spell the week out: these replace its planned sessions. */
+  sessions?: CSSession[];
+  /** Edit the week's current sessions. */
+  sessionChanges?: CSSessionChange[];
+  /** Note for each of the weeks. */
+  notes?: string;
+  /** Note for the training block this entry creates (needs `phase`). */
+  blockNotes?: string;
+}
+
+export interface AIChangeSet {
+  /** The AI's one-paragraph summary of what it changed and why. */
+  summary?: string;
+  exerciseTypes: CSExerciseTypeChange[];
+  phases: CSPhaseChange[];
+  weeks: CSWeekChange[];
+}
+
+// --- Validation -----------------------------------------------------------
+
+type Issues = ValidationIssue[];
+
+function requireString(raw: unknown, path: string, issues: Issues): string | undefined {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    issues.push({ path, message: "Required non-empty string." });
+    return undefined;
+  }
+  return raw.trim();
+}
+
+function validateParameters(raw: unknown, path: string, issues: Issues): ParameterBlock[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw)) {
+    issues.push({ path, message: `Expected an array of field names, got ${JSON.stringify(raw)}.` });
+    return undefined;
+  }
+  const result: ParameterBlock[] = [];
+  raw.forEach((p, i) => {
+    if (typeof p === "string" && (PARAMETER_BLOCKS as string[]).includes(p)) {
+      if (!result.includes(p as ParameterBlock)) result.push(p as ParameterBlock);
+    } else {
+      pushRepair(issues, `${path}[${i}]`, `${JSON.stringify(p)} is not a trackable field - dropped.`);
+    }
+  });
+  return result;
+}
+
+function validateSession(raw: unknown, path: string, issues: Issues): CSSession | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a session object, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  const session: CSSession = {
+    name: name ?? "",
+    dayOfWeek: validateDayOfWeek(raw.dayOfWeek, `${path}.dayOfWeek`, issues),
+    startTime: validateTimeOfDay(raw.startTime, `${path}.startTime`, issues),
+    plannedDuration: validateDurationMinutes(raw.plannedDuration, `${path}.plannedDuration`, issues),
+    notes: validateNote(raw.notes, `${path}.notes`, issues),
+    exercises: raw.exercises === undefined ? [] : validateExercises(raw.exercises, `${path}.exercises`, issues),
+  };
+  return name ? session : null;
+}
+
+function validateSessions(raw: unknown, path: string, issues: Issues): CSSession[] {
+  if (!Array.isArray(raw)) {
+    issues.push({ path, message: `Expected an array of sessions, got ${JSON.stringify(raw)}.` });
+    return [];
+  }
+  return raw.map((s, i) => validateSession(s, `${path}[${i}]`, issues)).filter((s): s is CSSession => !!s);
+}
+
+function validateSessionMatch(raw: unknown, path: string, issues: Issues): CSSessionMatch | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected {"name": ..., "dayOfWeek": ...} to pick a session, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const match: CSSessionMatch = {
+    name: validateOptionalString(raw.name, `${path}.name`, issues)?.trim() || undefined,
+    dayOfWeek: validateDayOfWeek(raw.dayOfWeek, `${path}.dayOfWeek`, issues),
+  };
+  if (!match.name && !match.dayOfWeek) {
+    issues.push({ path, message: 'Needs "name" or "dayOfWeek" (or both) to pick a session.' });
+    return null;
+  }
+  return match;
+}
+
+function validateExerciseMatch(raw: unknown, path: string, issues: Issues): CSExerciseMatch | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected {"exerciseTypeName": ...} to pick an exercise, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const exerciseTypeName = requireString(raw.exerciseTypeName, `${path}.exerciseTypeName`, issues);
+  let occurrence: number | undefined;
+  if (raw.occurrence !== undefined) {
+    if (typeof raw.occurrence === "number" && Number.isInteger(raw.occurrence) && raw.occurrence >= 1) occurrence = raw.occurrence;
+    else issues.push({ path: `${path}.occurrence`, message: `Expected a whole number from 1, got ${JSON.stringify(raw.occurrence)}.` });
+  }
+  return exerciseTypeName ? { exerciseTypeName, occurrence } : null;
+}
+
+/** Partial values for an edit: known fields validated as usual, and a null marks a field to clear. */
+function validatePartialValues(raw: unknown, path: string, issues: Issues): { values: ExerciseValues; clear: (keyof ExerciseValues)[] } {
+  if (raw === undefined) return { values: {}, clear: [] };
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected an object, got ${JSON.stringify(raw)}.` });
+    return { values: {}, clear: [] };
+  }
+  const clear: (keyof ExerciseValues)[] = [];
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === null) {
+      const field = resolveValueFieldName(key);
+      if (field) clear.push(field);
+      else pushRepair(issues, `${path}.${key}`, "No such field - ignored.");
+    } else {
+      rest[key] = value;
+    }
+  }
+  return { values: validateExerciseValues(rest, path, issues), clear };
+}
+
+function validateExerciseChange(raw: unknown, path: string, issues: Issues): CSExerciseChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected an exercise change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  switch (raw.action) {
+    case "add": {
+      const exercise = validateExercise(raw.exercise, `${path}.exercise`, issues);
+      let position: number | undefined;
+      if (raw.position !== undefined) {
+        if (typeof raw.position === "number" && Number.isInteger(raw.position) && raw.position >= 1) position = raw.position;
+        else pushRepair(issues, `${path}.position`, "Not a whole number from 1 - the exercise is added at the end.");
+      }
+      return exercise ? { action: "add", exercise, position } : null;
+    }
+    case "edit": {
+      const match = validateExerciseMatch(raw.match, `${path}.match`, issues);
+      const { values, clear } = validatePartialValues(raw.values, `${path}.values`, issues);
+      const exerciseTypeName = validateOptionalString(raw.exerciseTypeName, `${path}.exerciseTypeName`, issues)?.trim() || undefined;
+      if (match && Object.keys(values).length === 0 && clear.length === 0 && !exerciseTypeName) {
+        issues.push({ path, message: 'An exercise "edit" needs "values" (null clears a field) or a new "exerciseTypeName".' });
+        return null;
+      }
+      return match ? { action: "edit", match, values, clear, exerciseTypeName } : null;
+    }
+    case "remove": {
+      const match = validateExerciseMatch(raw.match, `${path}.match`, issues);
+      return match ? { action: "remove", match } : null;
+    }
+    default:
+      issues.push({ path: `${path}.action`, message: `Expected "add", "edit" or "remove", got ${JSON.stringify(raw.action)}.` });
+      return null;
+  }
+}
+
+function validateSessionFields(raw: unknown, path: string, issues: Issues): CSSessionFields {
+  if (raw === undefined) return {};
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected an object of session fields, got ${JSON.stringify(raw)}.` });
+    return {};
+  }
+  const fields: CSSessionFields = {};
+  if (raw.name !== undefined) fields.name = requireString(raw.name, `${path}.name`, issues);
+  if (raw.dayOfWeek !== undefined) fields.dayOfWeek = validateDayOfWeek(raw.dayOfWeek, `${path}.dayOfWeek`, issues);
+  if (raw.startTime !== undefined) fields.startTime = validateTimeOfDay(raw.startTime, `${path}.startTime`, issues);
+  if (raw.plannedDuration !== undefined) fields.plannedDuration = validateDurationMinutes(raw.plannedDuration, `${path}.plannedDuration`, issues);
+  if (raw.notes !== undefined) fields.notes = typeof raw.notes === "string" ? raw.notes.trim() : validateNote(raw.notes, `${path}.notes`, issues);
+  return fields;
+}
+
+function validateSessionChange(raw: unknown, path: string, issues: Issues): CSSessionChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a session change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  switch (raw.action) {
+    case "add": {
+      const session = validateSession(raw.session, `${path}.session`, issues);
+      return session ? { action: "add", session } : null;
+    }
+    case "edit": {
+      const match = validateSessionMatch(raw.match, `${path}.match`, issues);
+      const set = validateSessionFields(raw.set, `${path}.set`, issues);
+      if (raw.exercises !== undefined && raw.exerciseChanges !== undefined) {
+        issues.push({ path, message: 'Use either "exercises" (replace all) or "exerciseChanges" (individual edits), not both.' });
+        return null;
+      }
+      const exercises = raw.exercises === undefined ? undefined : validateExercises(raw.exercises, `${path}.exercises`, issues);
+      let exerciseChanges: CSExerciseChange[] | undefined;
+      if (raw.exerciseChanges !== undefined) {
+        if (!Array.isArray(raw.exerciseChanges)) {
+          issues.push({ path: `${path}.exerciseChanges`, message: "Expected an array." });
+        } else {
+          exerciseChanges = raw.exerciseChanges
+            .map((c, i) => validateExerciseChange(c, `${path}.exerciseChanges[${i}]`, issues))
+            .filter((c): c is CSExerciseChange => !!c);
+        }
+      }
+      if (match && Object.keys(set).length === 0 && !exercises && !exerciseChanges?.length) {
+        issues.push({ path, message: 'A session "edit" needs "set", "exercises" or "exerciseChanges".' });
+        return null;
+      }
+      return match ? { action: "edit", match, set, exercises, exerciseChanges } : null;
+    }
+    case "remove": {
+      const match = validateSessionMatch(raw.match, `${path}.match`, issues);
+      return match ? { action: "remove", match } : null;
+    }
+    default:
+      issues.push({ path: `${path}.action`, message: `Expected "add", "edit" or "remove", got ${JSON.stringify(raw.action)}.` });
+      return null;
+  }
+}
+
+function validateSessionChanges(raw: unknown, path: string, issues: Issues): CSSessionChange[] {
+  if (!Array.isArray(raw)) {
+    issues.push({ path, message: "Expected an array of session changes." });
+    return [];
+  }
+  return raw.map((c, i) => validateSessionChange(c, `${path}[${i}]`, issues)).filter((c): c is CSSessionChange => !!c);
+}
+
+function validateExerciseTypeChange(raw: unknown, path: string, issues: Issues): CSExerciseTypeChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected an exercise type change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  if (!name) return null;
+  switch (raw.action) {
+    case "add":
+      return {
+        action: "add",
+        name,
+        categoryName: validateOptionalString(raw.categoryName, `${path}.categoryName`, issues)?.trim() || undefined,
+        parameters: validateParameters(raw.parameters, `${path}.parameters`, issues),
+      };
+    case "edit": {
+      const change: CSExerciseTypeChange = {
+        action: "edit",
+        name,
+        rename: validateOptionalString(raw.rename, `${path}.rename`, issues)?.trim() || undefined,
+        categoryName: validateOptionalString(raw.categoryName, `${path}.categoryName`, issues)?.trim() || undefined,
+        parameters: validateParameters(raw.parameters, `${path}.parameters`, issues),
+      };
+      if (!change.rename && !change.categoryName && !change.parameters) {
+        issues.push({ path, message: 'An exercise type "edit" needs "rename", "categoryName" or "parameters".' });
+        return null;
+      }
+      return change;
+    }
+    case "archive":
+      return { action: "archive", name };
+    default:
+      issues.push({ path: `${path}.action`, message: `Expected "add", "edit" or "archive", got ${JSON.stringify(raw.action)}.` });
+      return null;
+  }
+}
+
+function validatePhaseChange(raw: unknown, path: string, issues: Issues): CSPhaseChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a phase change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  if (!name) return null;
+  switch (raw.action) {
+    case "add":
+      return { action: "add", name, sessions: raw.sessions === undefined ? [] : validateSessions(raw.sessions, `${path}.sessions`, issues) };
+    case "edit": {
+      if (raw.sessions !== undefined && raw.sessionChanges !== undefined) {
+        issues.push({ path, message: 'Use either "sessions" (replace the typical week) or "sessionChanges" (individual edits), not both.' });
+        return null;
+      }
+      const change: CSPhaseChange = {
+        action: "edit",
+        name,
+        rename: validateOptionalString(raw.rename, `${path}.rename`, issues)?.trim() || undefined,
+        sessions: raw.sessions === undefined ? undefined : validateSessions(raw.sessions, `${path}.sessions`, issues),
+        sessionChanges: raw.sessionChanges === undefined ? undefined : validateSessionChanges(raw.sessionChanges, `${path}.sessionChanges`, issues),
+      };
+      if (!change.rename && !change.sessions && !change.sessionChanges?.length) {
+        issues.push({ path, message: 'A phase "edit" needs "rename", "sessions" or "sessionChanges".' });
+        return null;
+      }
+      return change;
+    }
+    case "delete":
+      return { action: "delete", name };
+    default:
+      issues.push({ path: `${path}.action`, message: `Expected "add", "edit" or "delete", got ${JSON.stringify(raw.action)}.` });
+      return null;
+  }
+}
+
+function validateWeekChange(raw: unknown, path: string, issues: Issues): CSWeekChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a week entry, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  let weekIds: string[] = [];
+  if (raw.week !== undefined) {
+    if (typeof raw.week === "string" && WEEK_ID.test(raw.week)) weekIds = [raw.week];
+    else issues.push({ path: `${path}.week`, message: `Expected a week id like "2026-W25", got ${JSON.stringify(raw.week)}.` });
+    if (raw.from !== undefined || raw.to !== undefined) issues.push({ path, message: 'Use "week" for one week or "from"/"to" for a range, not both.' });
+  } else {
+    const ok = (v: unknown) => typeof v === "string" && WEEK_ID.test(v);
+    if (!ok(raw.from) || !ok(raw.to)) {
+      issues.push({ path, message: 'Needs "week" (one week) or both "from" and "to" (a range), as week ids like "2026-W25".' });
+    } else if ((raw.from as string) > (raw.to as string)) {
+      issues.push({ path: `${path}.to`, message: `"to" (${raw.to}) is before "from" (${raw.from}).` });
+    } else {
+      weekIds = getWeekIdRange(raw.from as string, raw.to as string);
+    }
+  }
+  if (raw.sessions !== undefined && raw.sessionChanges !== undefined) {
+    issues.push({ path, message: 'Use either "sessions" (spell the week out) or "sessionChanges" (edit it), not both.' });
+    return null;
+  }
+  const change: CSWeekChange = {
+    weekIds,
+    phase: validateOptionalString(raw.phase, `${path}.phase`, issues)?.trim() || undefined,
+    sessions: raw.sessions === undefined ? undefined : validateSessions(raw.sessions, `${path}.sessions`, issues),
+    sessionChanges: raw.sessionChanges === undefined ? undefined : validateSessionChanges(raw.sessionChanges, `${path}.sessionChanges`, issues),
+    notes: validateNote(raw.notes, `${path}.notes`, issues),
+    blockNotes: validateNote(raw.blockNotes, `${path}.blockNotes`, issues),
+  };
+  if (change.blockNotes && !change.phase) {
+    pushRepair(issues, `${path}.blockNotes`, '"blockNotes" belongs to a phase assignment ("phase") - dropped.');
+    delete change.blockNotes;
+  }
+  if (weekIds.length === 0) return null;
+  if (!change.phase && !change.sessions && !change.sessionChanges?.length && !change.notes) {
+    issues.push({ path, message: 'A week entry needs at least one of "phase", "sessions", "sessionChanges" or "notes".' });
+    return null;
+  }
+  return change;
+}
+
+function validateList<T>(raw: unknown, path: string, issues: Issues, one: (r: unknown, p: string, i: Issues) => T | null): T[] {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) {
+    issues.push({ path, message: `Expected an array, got ${JSON.stringify(raw)}.` });
+    return [];
+  }
+  return raw.map((r, i) => one(r, `${path}[${i}]`, issues)).filter((r): r is T => r !== null);
+}
+
+/**
+ * Validates the change-set's structure. Fatal problems (wrong JSON types,
+ * missing required fields) make the whole document invalid so the AI can
+ * be asked to fix them; tidy-ups (unknown fields, a blockNotes without a
+ * phase) are repairs the preview reports.
+ */
+export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
+  const issues: Issues = [];
+  if (!isPlainObject(raw)) {
+    issues.push({ path: "", message: "Top-level JSON must be an object." });
+    return split<AIChangeSet>(null, issues);
+  }
+  const set: AIChangeSet = {
+    summary: validateNote(raw.summary, "summary", issues),
+    exerciseTypes: validateList(raw.exerciseTypes, "exerciseTypes", issues, validateExerciseTypeChange),
+    phases: validateList(raw.phases, "phases", issues, validatePhaseChange),
+    weeks: validateList(raw.weeks, "weeks", issues, validateWeekChange),
+  };
+  if (!issues.some(isError) && set.exerciseTypes.length + set.phases.length + set.weeks.length === 0) {
+    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "exerciseTypes", "phases" or "weeks".' });
+  }
+  return split(issues.some(isError) ? null : set, issues);
+}
+
+/** True if a parsed document looks like a change set rather than the older weekly/phase plan formats. */
+export function isChangeSetShape(raw: unknown): boolean {
+  if (!isPlainObject(raw)) return false;
+  if (raw.exerciseTypes !== undefined) return true;
+  const phases = Array.isArray(raw.phases) ? raw.phases : [];
+  const weeks = Array.isArray(raw.weeks) ? raw.weeks : [];
+  if (phases.some((p) => isPlainObject(p) && "action" in p)) return true;
+  if (weeks.some((w) => isPlainObject(w) && ("week" in w || "from" in w))) return true;
+  return false;
+}
