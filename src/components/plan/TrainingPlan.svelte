@@ -395,17 +395,6 @@
           >
             <Icon icon={selectedWeekNote ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-sm" />
           </button>
-          <button
-            onclick={() => showCopy = !showCopy}
-            class="flex items-center px-2.5 py-2 rounded-control border transition-all active:scale-95 {showCopy
-              ? 'bg-primary/10 text-primary border-primary/20'
-              : 'bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border-border-strong/50'}"
-            title="Copy, repeat or share this week"
-            aria-label="Copy, repeat or share this week"
-            aria-expanded={showCopy}
-          >
-            <Icon icon="ic:baseline-more-horiz" class="text-sm" />
-          </button>
           {#if isProvisionalWeek}
             <button
               onclick={() => trainingState.materializeWeek(trainingState.selectedWeekId!)}
@@ -420,18 +409,29 @@
               onclick={() => trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!)}
               class="flex items-center gap-1.5 px-2.5 py-2 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content rounded-control border border-border-strong/50 transition-all text-label active:scale-95"
               title="Discard this week's planned sessions and follow the phase templates again"
+              aria-label="Reset week to its phase"
             >
               <Icon icon="ic:baseline-restore" class="text-sm" />
-              Reset
             </button>
           {/if}
           <button
             onclick={() => trainingState.clearWeek(trainingState.selectedWeekId!)}
             class="flex items-center gap-1.5 px-2.5 py-2 bg-surface-elevated/50 hover:bg-danger/10 text-content-subtle hover:text-danger rounded-control border border-border-strong/50 hover:border-danger/20 transition-all text-label active:scale-95"
             title="Clear all data for this week"
+            aria-label="Clear week"
           >
             <Icon icon="ic:baseline-delete-sweep" class="text-sm" />
-            Clear
+          </button>
+          <button
+            onclick={() => showCopy = !showCopy}
+            class="flex items-center px-2.5 py-2 rounded-control border transition-all active:scale-95 {showCopy
+              ? 'bg-primary/10 text-primary border-primary/20'
+              : 'bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border-border-strong/50'}"
+            title="Copy, repeat or share this week"
+            aria-label="Copy, repeat or share this week"
+            aria-expanded={showCopy}
+          >
+            <Icon icon="ic:baseline-more-horiz" class="text-sm" />
           </button>
         </div>
       </div>
