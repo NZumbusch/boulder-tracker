@@ -4,7 +4,7 @@ import { generateId } from "../utils";
 /**
  * Parses an 8a.nu ascent-log CSV export into `OutdoorAscent[]` (PLAN.md
  * Phase 6). Column format confirmed against a real sample export
- * (`data.csv`, repo root, gitignored/untracked - see PROGRESS.md
+ * (`stuff/data.csv`, gitignored - see PROGRESS.md
  * 2026-09-17), not guessed:
  *
  *   route_boulder,name,location_name,sector_name,area_name,country_code,

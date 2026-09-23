@@ -3,7 +3,7 @@
  * (UI_PLAN.md §4.6, Stage 5). `OutdoorAscent.grade` (`types.ts`) is a free
  * string with no grade-system field - it's populated only by the 8a.nu CSV
  * importer today (`outdoorAscentCsvImport.ts`), and the real confirmed
- * sample export (`data.csv`, repo root) uses the Fontainebleau bouldering
+ * sample export (`stuff/data.csv`) uses the Fontainebleau bouldering
  * scale exclusively ("5C", "6A", "6A+", "7B", ...). There's no existing
  * grade table anywhere in this codebase to build on, so this is a
  * best-effort ordering for a chart's y-axis, not a certified multi-system

@@ -36,9 +36,9 @@ import { startSession, logSlot, toCompletedWorkout } from "./session/activeSessi
  *
  * The export is the user's own training data and is deliberately not
  * committed, so this skips when it isn't there rather than failing a
- * clean checkout. Drop a `example.json` backup at the repo root to run it.
+ * clean checkout. Drop a `example.json` backup into `stuff/` (gitignored) to run it.
  */
-const EXPORT_PATH = resolve(__dirname, "../../example.json");
+const EXPORT_PATH = resolve(__dirname, "../../stuff/example.json");
 const present = existsSync(EXPORT_PATH);
 
 const data: TrainingData & { exportVersion?: string } = present
