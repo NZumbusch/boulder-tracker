@@ -19,7 +19,9 @@
   import { latestBenchmarks, retestDue, sendsSummary, consistency, PROGRESS_BENCHMARKS } from '../../lib/analytics/progress';
   import { outdoorSuggestion } from '../../lib/weather/suggestion';
   import { getWeekId } from '../../lib/dateUtils';
-  import { upcomingGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates } from '../../lib/goals/goals';
+  import { upcomingGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates, coversDate } from '../../lib/goals/goals';
+  import { tripSummary, resolveCandidate } from '../../lib/goals/projects';
+  import type { GoalEvent, TripProject } from '../../lib/types';
   import { summarizeSession } from '../../lib/planning/sessionSummary';
   import { missedWorkouts, weekDayStrip, WEEK_DAYS, type DayStatus } from '../../lib/planning/weekStatus';
   import { nextBlock, daysUntilWeek, taperHint, blockLoadTrend } from '../../lib/planning/blockOutlook';
@@ -280,6 +282,21 @@
   const nextGoal = $derived(upcomingGoals(trainingState.goals, todayIso)[0]);
   const nextGoalOngoing = $derived(nextGoal ? isOngoing(nextGoal, todayIso) : false);
   const daysUntilCompetition = $derived(nextGoal ? daysUntilGoal(nextGoal, todayIso) : undefined);
+  const nextTripSummary = $derived(nextGoal?.kind === 'trip' ? tripSummary(nextGoal, trainingState.outdoorAscents) : undefined);
+  /** The trip's forecast days - only when the fetched snapshot is for this trip's place. */
+  const tripForecastDays = $derived.by(() => {
+    const snap = trainingState.goalWeather.snapshot;
+    if (!nextGoal || nextGoal.kind !== 'trip' || !snap || trainingState.goalWeather.locationName !== nextGoal.location?.name) return [];
+    return snap.daily.filter((d) => coversDate(nextGoal, d.date));
+  });
+  let goalNoteOpen = $state(false);
+  async function answerCandidate(goal: GoalEvent, project: TripProject, sendId: string, counts: boolean) {
+    const updated = resolveCandidate(project, sendId, counts);
+    await trainingState.saveGoal({
+      ...$state.snapshot(goal) as GoalEvent,
+      projects: (goal.projects ?? []).map((p) => (p.id === project.id ? updated : $state.snapshot(p) as TripProject)),
+    });
+  }
 
   const competitionTaperHint = $derived(taperHint(daysUntilCompetition, currentPhaseName));
 
@@ -703,7 +720,8 @@
 
   {#snippet competitionSection()}
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
-      {@render sectionHeader(nextGoal?.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-flag', 'Next Goal')}
+      {@render sectionHeader(nextGoal?.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-flag', 'Next Goal', undefined,
+        nextGoal && trainingState.homeDetails['competition.note'] ? { has: !!nextGoal.notes, open: () => goalNoteOpen = true, what: nextGoal.kind === 'trip' ? 'trip' : 'competition' } : undefined)}
       {#if nextGoal && daysUntilCompetition !== undefined}
         {@const length = goalLength(nextGoal)}
         <div class="flex items-center gap-4">
@@ -723,6 +741,63 @@
             </p>
           </div>
         </div>
+        {#if nextGoal.kind === 'trip' && nextTripSummary}
+          {#if nextGoalOngoing && nextTripSummary.sends.length > 0}
+            <p class="text-caption text-content-muted flex items-center gap-1.5">
+              <Icon icon="ic:baseline-check-circle" class="text-sm text-status-good shrink-0" />
+              {nextTripSummary.sends.length} send{nextTripSummary.sends.length === 1 ? '' : 's'} so far{nextTripSummary.hardest ? ` · hardest ${nextTripSummary.hardest.grade}` : ''}
+            </p>
+          {/if}
+          {#if trainingState.homeDetails['competition.conditions'] && tripForecastDays.length > 0}
+            {@const rain = trainingState.goalWeather.snapshot?.recentRain}
+            <div class="flex gap-3 overflow-x-auto no-scrollbar pt-1 border-t border-border/60">
+              {#each tripForecastDays as day}
+                {@const df = dayFriction(day)}
+                {@const code = describeWeatherCode(day.weatherCode)}
+                <div class="flex flex-col items-center gap-1 shrink-0 w-11 pt-2">
+                  <span class="text-caption text-content-subtle">{day.date === todayIso ? 'Today' : new Date(`${day.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                  <Icon icon={code.icon} class="text-lg text-primary" />
+                  <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
+                  {#if trainingState.homeDetails['weather.frictionNumber']}
+                    <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
+                  {:else}
+                    <span class="w-2 h-2 rounded-full {FRICTION_STYLE[df.label].dot}" title={df.label}></span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            {#if rain && rain.last72hMm > 0 && daysUntilCompetition <= 3}
+              <p class="text-caption text-content-subtle tabular-nums flex items-center gap-1.5">
+                <Icon icon="ic:baseline-water-drop" class="text-sm text-primary shrink-0" />
+                Rock drying: {rain.last72hMm} mm there in the last 3 days{rain.hoursSinceRain !== undefined ? `, last ${rain.hoursSinceRain} h ago` : ''}
+              </p>
+            {/if}
+          {/if}
+          {#if trainingState.homeDetails['competition.projects'] && nextTripSummary.projects.length > 0}
+            <div class="pt-1 space-y-1">
+              <p class="text-label text-content-muted">Projects {nextTripSummary.projectsDone}/{nextTripSummary.projects.length}</p>
+              {#each nextTripSummary.projects as status (status.project.id)}
+                {@const p = status.project}
+                <div class="flex items-center gap-2 text-caption">
+                  <Icon
+                    icon={status.state === 'done' ? 'ic:baseline-check-circle' : status.state === 'maybe' ? 'ic:baseline-help-outline' : 'ic:baseline-radio-button-unchecked'}
+                    class="text-sm shrink-0 {status.state === 'done' ? 'text-status-good' : status.state === 'maybe' ? 'text-status-caution' : 'text-content-subtle'}"
+                  />
+                  <span class="truncate {status.state === 'done' ? 'text-content' : 'text-content-muted'}">
+                    {p.name ?? `Any ${p.grade}`}{p.name && p.grade ? ` ${p.grade}` : ''}{p.flash ? ' · flash' : ''}{status.send && status.send.name && status.send.name !== p.name ? ` (${status.send.name} ${status.send.grade})` : ''}
+                  </span>
+                </div>
+                {#each status.candidates as candidate (candidate.id)}
+                  <div class="flex items-center gap-2 pl-5 text-caption text-content-subtle">
+                    <span class="flex-1 truncate">"{candidate.name} {candidate.grade}" - counts for {p.name}?</span>
+                    <button onclick={() => answerCandidate(nextGoal, p, candidate.id, true)} class="px-2 py-0.5 rounded-control bg-primary/10 text-primary">Yes</button>
+                    <button onclick={() => answerCandidate(nextGoal, p, candidate.id, false)} class="px-2 py-0.5 rounded-control bg-surface-elevated text-content-muted">No</button>
+                  </div>
+                {/each}
+              {/each}
+            </div>
+          {/if}
+        {/if}
         {#if competitionTaperHint && trainingState.homeDetails['competition.taper'] && !nextGoalOngoing}
           <p class="text-caption text-status-caution flex items-start gap-1">
             <Icon icon="ic:baseline-info" class="text-sm mt-px shrink-0" />
@@ -1086,4 +1161,16 @@
 
 {#if showQuickLog}
   <QuickLogSheet onClose={() => showQuickLog = false} />
+{/if}
+
+{#if goalNoteOpen && nextGoal}
+  {@const goal = nextGoal}
+  <NoteSheet
+    title="{goal.name} note"
+    subtitle={formatGoalDates(goal)}
+    text={goal.notes ?? ''}
+    placeholder={goal.kind === 'trip' ? 'Logistics, beta, who\'s coming…' : 'Format, rounds, what to prepare…'}
+    onSave={(text) => trainingState.saveGoal({ ...$state.snapshot(goal) as GoalEvent, notes: text.trim() || undefined })}
+    onClose={() => goalNoteOpen = false}
+  />
 {/if}

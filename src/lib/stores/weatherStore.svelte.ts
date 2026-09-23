@@ -13,6 +13,8 @@ interface CacheShape {
   home?: CachedEntry;
   /** Keyed by crag name. (An older build also wrote `trip`; it is simply ignored now.) */
   crags?: Record<string, CachedEntry>;
+  /** The next trip's location, when it's close enough to have a forecast. */
+  goal?: CachedEntry;
 }
 
 export interface WeatherState {
@@ -46,6 +48,8 @@ export class WeatherStore {
   /** One entry per crag, in the same order as `Preferences.crags`. */
   crags = $state<WeatherState[]>([]);
   private cachedCrags: Record<string, CachedEntry> = {};
+  /** Conditions at the next trip's location - see `loadGoal`. */
+  goal = $state<WeatherState>(emptyState());
 
   constructor() {
     this.loadCache();
@@ -58,6 +62,7 @@ export class WeatherStore {
     try {
       const cache: CacheShape = JSON.parse(raw);
       if (cache.home) this.home = cachedEntryToState(cache.home);
+      if (cache.goal) this.goal = cachedEntryToState(cache.goal);
       if (cache.crags && typeof cache.crags === 'object') this.cachedCrags = cache.crags;
       // The old single trip location became the first crag (see migratePreferences);
       // its cached forecast carries over so that crag isn't blank offline.
@@ -106,7 +111,17 @@ export class WeatherStore {
     this.persistCache((cache) => { cache.crags = kept; delete (cache as any).trip; });
   }
 
-  private async load(key: 'home', location: WeatherLocation | null) {
+  /**
+   * Fetches the next trip's location (or clears it with `null`). A cached
+   * snapshot for a different place is dropped rather than shown under the
+   * wrong name.
+   */
+  async loadGoal(location: WeatherLocation | null) {
+    if (this.goal.locationName && this.goal.locationName !== location?.name) this.goal = emptyState();
+    await this.load('goal', location);
+  }
+
+  private async load(key: 'home' | 'goal', location: WeatherLocation | null) {
     if (!location) {
       this[key] = emptyState();
       return;

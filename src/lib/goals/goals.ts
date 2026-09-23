@@ -53,3 +53,17 @@ export function formatGoalDates(goal: GoalEvent): string {
   const sameMonth = start.getUTCMonth() === endDate.getUTCMonth() && start.getUTCFullYear() === endDate.getUTCFullYear();
   return `${start.toLocaleDateString(undefined, opts)} – ${sameMonth ? endDate.getUTCDate() : endDate.toLocaleDateString(undefined, opts)}`;
 }
+
+/** Days of daily forecast the weather API returns (today included). */
+export const FORECAST_DAYS = 7;
+
+/**
+ * The next trip with a location whose days reach into the forecast window
+ * (starting within `FORECAST_DAYS`, or under way) - the one trip worth
+ * fetching weather for. Undefined when there's none.
+ */
+export function tripInForecast(goals: GoalEvent[], todayIso: string): GoalEvent | undefined {
+  return upcomingGoals(goals, todayIso).find(
+    (g) => g.kind === "trip" && !!g.location && daysUntilGoal(g, todayIso) < FORECAST_DAYS,
+  );
+}

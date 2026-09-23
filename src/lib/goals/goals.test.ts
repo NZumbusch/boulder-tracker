@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { GoalEvent } from "../types";
-import { coversDate, daysUntilGoal, goalEnd, goalLength, isOngoing, pastGoals, upcomingGoals } from "./goals";
+import { coversDate, daysUntilGoal, goalEnd, goalLength, isOngoing, pastGoals, tripInForecast, upcomingGoals } from "./goals";
 
 const comp: GoalEvent = { id: "c", kind: "competition", name: "League", date: "2026-11-02" };
 const trip: GoalEvent = { id: "t", kind: "trip", name: "Font", date: "2026-10-05", endDate: "2026-10-12" };
@@ -41,5 +41,16 @@ describe("upcomingGoals / pastGoals", () => {
     expect(upcomingGoals([comp, trip, dayTrip], "2026-10-06").map((g) => g.id)).toEqual(["t", "c"]);
     expect(upcomingGoals([comp, trip, dayTrip], "2026-09-23").map((g) => g.id)).toEqual(["d", "t", "c"]);
     expect(pastGoals([comp, trip, dayTrip], "2026-10-20").map((g) => g.id)).toEqual(["t", "d"]);
+  });
+});
+
+describe("tripInForecast", () => {
+  const loc = { name: "Font", latitude: 48.4, longitude: 2.7 };
+  it("is the next located trip starting within the week, or under way", () => {
+    const located = { ...trip, location: loc };
+    expect(tripInForecast([located, comp], "2026-09-28")).toBeUndefined(); // starts in 7 days - not yet
+    expect(tripInForecast([located, comp], "2026-09-29")?.id).toBe("t");
+    expect(tripInForecast([located], "2026-10-10")?.id).toBe("t");
+    expect(tripInForecast([trip], "2026-10-01")).toBeUndefined(); // no location
   });
 });

@@ -3,6 +3,7 @@ import type { Workout, WorkoutTemplate, PhaseDef, Benchmark, BenchmarkTypeDef, A
 import { getWeekId } from './dateUtils';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
+import { tripInForecast } from './goals/goals';
 import {
   isWeekProvisional,
   templatesForWeek,
@@ -145,11 +146,16 @@ class TrainingState {
 
   /** Re-fetches whichever locations are currently set - called from Home on mount, not on every `refresh()` (a network call on every save would be excessive for data that changes over hours, not seconds). */
   async refreshWeather() {
+    const todayIso = new Date().toISOString().split('T')[0];
     await Promise.all([
       this.weatherStore.loadHome(this.homeLocation),
       this.weatherStore.loadCrags(this.crags),
+      this.weatherStore.loadGoal(tripInForecast(this.planningStore.goals, todayIso)?.location ?? null),
     ]);
   }
+
+  /** Conditions at the next trip's place, once it's within the forecast - see `tripInForecast`. */
+  get goalWeather() { return this.weatherStore.goal; }
 
   /** City name -> candidate locations, for the Settings location picker (UI_PLAN.md §10 open question 3 - raw lat/lon entry bypasses this entirely). */
   async geocodeCity(query: string) {
