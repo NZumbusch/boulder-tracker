@@ -75,7 +75,21 @@ describe("undoing an AI plan change from its toast", () => {
     expect(toast.current?.text).toMatch(/AI changes applied/);
     await toast.current!.action!.run();
     expect(trainingState.trainingBlocks.map((b) => b.id)).toEqual(blocksBefore);
-    expect(await trainingState.getAiUndo()).toBeNull();
+    expect(await trainingState.getPlanUndo()).toBeNull();
+  });
+});
+
+describe("copying a week", () => {
+  it("adds the sessions as a plan in the target weeks, and Undo removes them", async () => {
+    await trainingState.copyWeek("2026-W36", ["2026-W37", "2026-W38"]);
+    for (const weekId of ["2026-W37", "2026-W38"]) {
+      const week = trainingState.getWorkoutsForWeek(weekId);
+      expect(week.map((w) => [w.notes, w.status])).toEqual([["Board", "planned"]]);
+    }
+    expect(toast.current?.text).toMatch(/1 session copied to 2026-W37 – 2026-W38/);
+    await toast.current!.action!.run();
+    expect(trainingState.getWorkoutsForWeek("2026-W37")).toEqual([]);
+    expect(trainingState.workouts.map((w) => w.id)).toEqual(["w1"]);
   });
 });
 

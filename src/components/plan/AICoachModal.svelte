@@ -99,10 +99,10 @@
   }
 
   // --- Undo the last applied AI change ---
-  let lastAiChange = $state<{ appliedAt: string; changedSince: boolean } | null>(null);
+  let lastAiChange = $state<{ source: 'ai' | 'copy'; appliedAt: string; changedSince: boolean } | null>(null);
   $effect(() => {
-    trainingState.aiUndoVersion;
-    trainingState.getAiUndo().then((u) => (lastAiChange = u));
+    trainingState.planUndoVersion;
+    trainingState.getPlanUndo().then((u) => (lastAiChange = u));
   });
 
   // --- Paste & review (Change plan) ---
@@ -326,7 +326,7 @@
           {/if}
         </div>
 
-        {#if mode === 'generate' && lastAiChange}
+        {#if mode === 'generate' && lastAiChange?.source === 'ai'}
           <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-center gap-3">
             <Icon icon="ic:baseline-history" class="text-xl text-content-subtle shrink-0" />
             <div class="min-w-0 flex-1">
@@ -335,7 +335,7 @@
                 Applied {new Date(lastAiChange.appliedAt).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lastAiChange.changedSince ? ' · edited since' : ''}
               </p>
             </div>
-            <button onclick={() => trainingState.undoAiChange()} class="shrink-0 px-3 py-1.5 text-label font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-control transition-colors">
+            <button onclick={() => trainingState.undoPlanChange()} class="shrink-0 px-3 py-1.5 text-label font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-control transition-colors">
               Undo
             </button>
           </div>

@@ -2,7 +2,7 @@
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekDateRange, getWeekDates } from '../../lib/dateUtils';
+  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
   import { getBlocksForWeek, getDominantBlockForWeek } from '../../lib/planning/trainingBlocks';
   import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
@@ -40,6 +40,27 @@
   let showAICoach = $state(false);
   let showBlockManager = $state(false);
   let showWeekNote = $state(false);
+
+  // --- Copy / repeat a week ---
+  let showCopy = $state(false);
+  let repeatCount = $state(1);
+  const previousWeekId = $derived(trainingState.selectedWeekId ? decrementWeekId(trainingState.selectedWeekId) : '');
+  const previousWeekCount = $derived(previousWeekId ? trainingState.getWorkoutsForWeek(previousWeekId).length : 0);
+  function nextWeekIds(from: string, count: number): string[] {
+    const ids: string[] = [];
+    let id = from;
+    for (let i = 0; i < count; i++) ids.push((id = incrementWeekId(id)));
+    return ids;
+  }
+  async function copyLastWeekHere() {
+    showCopy = false;
+    await trainingState.copyWeek(previousWeekId, [trainingState.selectedWeekId!]);
+  }
+  async function repeatThisWeek() {
+    showCopy = false;
+    const from = trainingState.selectedWeekId!;
+    await trainingState.copyWeek(from, nextWeekIds(from, repeatCount));
+  }
 
   // Trips overlapping the selected week, with the sessions still planned on their days.
   const selectedWeekTrips = $derived.by(() => {
@@ -372,6 +393,17 @@
           >
             <Icon icon={selectedWeekNote ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-sm" />
           </button>
+          <button
+            onclick={() => showCopy = !showCopy}
+            class="flex items-center px-2.5 py-2 rounded-control border transition-all active:scale-95 {showCopy
+              ? 'bg-primary/10 text-primary border-primary/20'
+              : 'bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border-border-strong/50'}"
+            title="Copy last week here, or repeat this week"
+            aria-label="Copy or repeat a week"
+            aria-expanded={showCopy}
+          >
+            <Icon icon="ic:baseline-content-copy" class="text-sm" />
+          </button>
           {#if isProvisionalWeek}
             <button
               onclick={() => trainingState.materializeWeek(trainingState.selectedWeekId!)}
@@ -401,6 +433,36 @@
           </button>
         </div>
       </div>
+
+      {#if showCopy}
+        <div class="p-3.5 rounded-card border border-border bg-surface/40 space-y-3 animate-in fade-in duration-150">
+          <button
+            onclick={copyLastWeekHere}
+            disabled={previousWeekCount === 0}
+            class="w-full flex items-center gap-2 text-left disabled:opacity-40 disabled:cursor-not-allowed group"
+          >
+            <Icon icon="ic:baseline-south" class="text-base text-primary shrink-0" />
+            <span class="min-w-0 flex-1">
+              <span class="block text-label text-content group-hover:text-primary transition-colors">Copy last week here</span>
+              <span class="block text-caption text-content-subtle">{previousWeekId} · {previousWeekCount} session{previousWeekCount === 1 ? '' : 's'}</span>
+            </span>
+          </button>
+          <div class="pt-3 border-t border-border/60 flex items-center gap-2 flex-wrap">
+            <Icon icon="ic:baseline-repeat" class="text-base text-primary shrink-0" />
+            <span class="text-label text-content">Repeat this week into the next</span>
+            <select bind:value={repeatCount} class="bg-surface-elevated text-content px-2 py-1 rounded-control border border-border-strong outline-none text-label" aria-label="Number of weeks">
+              {#each [1, 2, 3, 4, 5, 6, 7, 8] as n}<option value={n}>{n}</option>{/each}
+            </select>
+            <span class="text-label text-content">week{repeatCount === 1 ? '' : 's'}</span>
+            <button
+              onclick={repeatThisWeek}
+              disabled={weekWorkouts.length === 0}
+              class="ml-auto px-3 py-1.5 text-label font-bold text-white bg-primary hover:bg-primary-hover rounded-control transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >Repeat</button>
+          </div>
+          <p class="text-caption text-content-subtle">Replaces the planned sessions there; completed ones stay. You can undo it.</p>
+        </div>
+      {/if}
 
       {#each selectedWeekTrips as { trip, planned } (trip.id)}
         <div class="flex items-center gap-2 p-2.5 rounded-control bg-primary/10 border border-primary/20">

@@ -1,5 +1,6 @@
 import { openWorkout } from './workoutModal.svelte';
 import { toast, showUndo } from './toast.svelte';
+import { copySessionsToWeek } from './planning/copyWeek';
 import { storage } from './storage';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
@@ -64,8 +65,8 @@ class TrainingState {
   isLoading = $state(true);
   /** Set while a backup import runs - drives the progress overlay in App.svelte. */
   importProgress = $state<{ label: string; fraction: number } | null>(null);
-  /** Bumped whenever the AI undo snapshot changes, so views re-read `getAiUndo`. */
-  aiUndoVersion = $state(0);
+  /** Bumped whenever the AI undo snapshot changes, so views re-read `getPlanUndo`. */
+  planUndoVersion = $state(0);
   private hasLoaded = false;
 
   constructor() {
@@ -750,35 +751,67 @@ class TrainingState {
   async applyPlanWrites(writes: PlanWrites) {
     await storage.applyPlanWrites(writes);
     await this.refresh();
-    this.aiUndoVersion++;
-    showUndo('AI changes applied', async () => { await this.undoAiChange(); });
+    this.planUndoVersion++;
+    showUndo('AI changes applied', async () => { await this.undoPlanChange(); });
   }
 
-  /** When the last AI plan change was applied, and whether the plan was edited since - or null if there's nothing to undo. */
-  getAiUndo() {
-    return storage.getAiUndo();
+  /** The last bulk plan change (AI or copied week): what, when, and whether the plan was edited since - or null if there's nothing to undo. */
+  getPlanUndo() {
+    return storage.getPlanUndo();
   }
 
   /**
-   * Undoes the last AI plan change. If the plan was edited since, those
+   * Undoes the last bulk plan change. If the plan was edited since, those
    * edits would be reverted too, so that asks first. Sessions logged since
    * are always kept.
    */
-  async undoAiChange(): Promise<boolean> {
-    const undo = await storage.getAiUndo();
+  async undoPlanChange(): Promise<boolean> {
+    const undo = await storage.getPlanUndo();
     if (!undo) return false;
     if (undo.changedSince) {
+      const what = undo.source === 'copy' ? 'copying that week' : 'these AI changes';
       const ok = await showConfirm(
-        'Undo AI changes',
-        'You have edited the plan since these AI changes. Undoing also reverts those edits (sessions you logged stay). Undo anyway?',
+        'Undo',
+        `You have edited the plan since ${what}. Undoing also reverts those edits (sessions you logged stay). Undo anyway?`,
       );
       if (!ok) return false;
     }
-    await storage.undoAiChange();
+    await storage.undoPlanChange();
     await this.refresh();
-    this.aiUndoVersion++;
-    toast.show('AI changes undone');
+    this.planUndoVersion++;
+    toast.show(undo.source === 'copy' ? 'Copy undone' : 'AI changes undone');
     return true;
+  }
+
+  /**
+   * Copies `fromWeekId`'s sessions into each of `toWeekIds` as a fresh plan
+   * (`copySessionsToWeek`), replacing those weeks' planned sessions -
+   * completed ones stay. Asks first when that replaces anything, and offers
+   * Undo afterwards (the same one-step undo as an AI change).
+   */
+  async copyWeek(fromWeekId: string, toWeekIds: string[]) {
+    const sessions = this.getWorkoutsForWeek(fromWeekId);
+    if (sessions.length === 0 || toWeekIds.length === 0) return;
+    const replaced = toWeekIds.reduce((n, id) => n + this.getWorkoutsForWeek(id).filter((w) => w.status === 'planned').length, 0);
+    const range = toWeekIds.length === 1 ? toWeekIds[0] : `${toWeekIds[0]} – ${toWeekIds[toWeekIds.length - 1]}`;
+    if (replaced > 0) {
+      const ok = await showConfirm(
+        'Copy week',
+        `This replaces ${replaced} planned session${replaced === 1 ? '' : 's'} in ${range}. Completed sessions are kept.`,
+      );
+      if (!ok) return;
+    }
+    await storage.applyPlanWrites({
+      weeks: toWeekIds.map((weekId) => ({
+        weekId,
+        planned: copySessionsToWeek(sessions, weekId, this.getDominantBlockForWeek(weekId)?.id),
+        customized: true,
+      })),
+      weekNotes: [],
+    }, 'copy');
+    await this.refresh();
+    this.planUndoVersion++;
+    showUndo(`${sessions.length} session${sessions.length === 1 ? '' : 's'} copied to ${range}`, async () => { await this.undoPlanChange(); });
   }
 
   /** Everything the AI change-set planner needs to know about the current plan. */

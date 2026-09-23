@@ -39,26 +39,26 @@ beforeEach(() => {
 
 describe("undoing the last AI plan change", () => {
   it("puts the plan back exactly as it was, and is then gone", async () => {
-    expect(await storage.getAiUndo()).toBeNull();
+    expect(await storage.getPlanUndo()).toBeNull();
     await storage.applyPlanWrites(plan);
-    expect(await storage.getAiUndo()).toMatchObject({ changedSince: false });
+    expect(await storage.getPlanUndo()).toMatchObject({ changedSince: false });
 
-    await storage.undoAiChange();
+    await storage.undoPlanChange();
     expect((await storage.getWorkouts()).map((x) => x.id).sort()).toEqual(["a", "done"]);
     expect((await storage.getTrainingBlocks()).map((b) => b.id)).toEqual(["old"]);
     expect(await storage.getWeekNotes()).toEqual([]);
     expect(await storage.getWeekOverrides()).toEqual([]);
-    expect(await storage.getAiUndo()).toBeNull();
+    expect(await storage.getPlanUndo()).toBeNull();
   });
 
   it("keeps sessions logged since, and says the plan changed since", async () => {
     await storage.applyPlanWrites(plan);
     await storage.saveWorkout({ ...w("ai1", "2026-W40", "completed") }); // did the AI's session
-    expect(await storage.getAiUndo()).toMatchObject({ changedSince: false }); // logging isn't editing the plan
+    expect(await storage.getPlanUndo()).toMatchObject({ changedSince: false }); // logging isn't editing the plan
     await storage.saveWorkout(w("mine", "2026-W41")); // but planning one of my own is
-    expect(await storage.getAiUndo()).toMatchObject({ changedSince: true });
+    expect(await storage.getPlanUndo()).toMatchObject({ changedSince: true });
 
-    await storage.undoAiChange();
+    await storage.undoPlanChange();
     const ids = (await storage.getWorkouts()).map((x) => `${x.id}:${x.status}`).sort();
     // The logged session stays; the plan (including my later edit) goes back.
     expect(ids).toEqual(["a:planned", "ai1:completed", "done:completed"]);
@@ -66,7 +66,7 @@ describe("undoing the last AI plan change", () => {
 
   it("is cleared by a backup import, which replaces everything", async () => {
     await storage.applyPlanWrites(plan);
-    await storage.clearAiUndo();
-    expect(await storage.getAiUndo()).toBeNull();
+    await storage.clearPlanUndo();
+    expect(await storage.getPlanUndo()).toBeNull();
   });
 });
