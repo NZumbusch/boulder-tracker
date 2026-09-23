@@ -15,6 +15,7 @@
    * prescribed/logged split in `types.ts`.
    */
   import { trainingState } from '../../lib/state.svelte';
+  import { displayWeight, toKg } from '../../lib/units';
   import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { PARAMETER_LABELS } from '../../lib/constants';
@@ -58,6 +59,8 @@
   ];
 
   const target = $derived(slot.prescribed ?? {});
+  /** A stored kg weight in the chosen unit, one decimal. */
+  const shownWeight = (kg: number) => Math.round(displayWeight(kg, trainingState.units.weight) * 10) / 10;
   /**
    * Seeded from the target so "I did what it said" needs no typing at all,
    * unless a caller hands over something better - a finished interval run
@@ -98,7 +101,7 @@
     const next: Record<string, string> = {};
     for (const field of NUMERIC_FIELDS) {
       const value = values[field.key];
-      next[field.key] = typeof value === 'number' ? String(value) : '';
+      next[field.key] = typeof value === 'number' ? String(field.key === 'weight' ? shownWeight(value) : value) : '';
     }
     draft = next;
     notes = values.notes ?? '';
@@ -122,7 +125,8 @@
         delete values[field.key];
       } else {
         const n = Number(raw);
-        if (Number.isFinite(n)) (values[field.key] as number) = n;
+        // Weight is typed in the chosen unit and stored in kg.
+        if (Number.isFinite(n)) (values[field.key] as number) = field.key === 'weight' ? Math.round(toKg(n, trainingState.units.weight) * 100) / 100 : n;
       }
     }
     values.notes = notes.trim() || undefined;
@@ -175,9 +179,9 @@
               <span class="flex items-baseline justify-between gap-2">
                 <span class="text-label text-content-subtle truncate">{PARAMETER_LABELS[field.param]}</span>
                 <TargetHint
-                  prescribed={target[field.key] as number | undefined}
+                  prescribed={field.key === 'weight' && typeof target.weight === 'number' ? shownWeight(target.weight) : target[field.key] as number | undefined}
                   current={numberOrUndefined(field.key)}
-                  unit={field.unit}
+                  unit={field.key === 'weight' ? trainingState.units.weight : field.unit}
                 />
               </span>
               <input

@@ -1,6 +1,8 @@
 import type { OutdoorAscent } from "../types";
 import { parseFontGrade } from "../analytics/grades";
 import { normalizeGrade } from "./matching";
+import { V_SCALE, fontToV, vRank } from "./gradeScale";
+import type { GradeScale } from "../units";
 
 export interface GradeBar {
   grade: string;
@@ -31,7 +33,8 @@ function stepsFor(n: number, lettered: boolean): string[] {
  * included - so the gaps in a pyramid show. Grades are matched case- and
  * space-insensitively ("6a+" counts as "6A+").
  */
-export function gradeHistogram(ascents: OutdoorAscent[], padding = 1): GradeHistogram {
+export function gradeHistogram(ascents: OutdoorAscent[], padding = 1, scale: GradeScale = "font"): GradeHistogram {
+  if (scale === "v") return vHistogram(ascents, padding);
   const counts = new Map<string, GradeBar>();
   const letteredNumbers = new Set<number>();
   let unplotted = 0;
@@ -70,4 +73,32 @@ export function gradeHistogram(ascents: OutdoorAscent[], padding = 1): GradeHist
   const last = ladder.length - 1 - [...ladder].reverse().findIndex((g) => rank(g) <= hi);
   const window = ladder.slice(Math.max(0, first - padding), Math.min(ladder.length, last + padding + 1));
   return { bars: window.map((grade) => counts.get(grade) ?? { grade, count: 0, flashed: 0 }), unplotted };
+}
+
+/** The V grade a send falls in: its Font grade's band, or its own grade if it was written in V. */
+export function sendVGrade(grade: string): string | undefined {
+  const g = normalizeGrade(grade);
+  return fontToV(g) ?? (vRank(g) !== undefined ? g : undefined);
+}
+
+/** As `gradeHistogram`, but one bar per V grade (VB-V17). */
+function vHistogram(ascents: OutdoorAscent[], padding: number): GradeHistogram {
+  const counts = new Map<string, GradeBar>();
+  let unplotted = 0;
+  for (const a of ascents) {
+    const v = sendVGrade(a.grade);
+    if (!v) {
+      unplotted++;
+      continue;
+    }
+    const bar = counts.get(v) ?? { grade: v, count: 0, flashed: 0 };
+    bar.count++;
+    if (/^(flash|onsight)$/i.test(a.style ?? "")) bar.flashed++;
+    counts.set(v, bar);
+  }
+  if (counts.size === 0) return { bars: [], unplotted };
+  const ranks = [...counts.keys()].map((v) => vRank(v)!);
+  const lo = Math.max(0, Math.min(...ranks) - padding);
+  const hi = Math.min(V_SCALE.length - 1, Math.max(...ranks) + padding);
+  return { bars: V_SCALE.slice(lo, hi + 1).map((grade) => counts.get(grade) ?? { grade, count: 0, flashed: 0 }), unplotted };
 }

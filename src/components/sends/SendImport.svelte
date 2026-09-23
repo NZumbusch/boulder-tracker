@@ -5,6 +5,7 @@
    * duplicates - a similar name, or a day apart - come unticked with what
    * they look like, so you decide. See `lib/sends/matching.ts`.
    */
+  import { displayGrade, gradeFromInput } from '../../lib/sends/gradeScale';
   import { trainingState } from '../../lib/state.svelte';
   import { parseOutdoorAscentCsv } from '../../lib/importers/outdoorAscentCsvImport';
   import { classifyImport, type ImportRow } from '../../lib/sends/matching';
@@ -62,6 +63,9 @@
   }
 
   const cellInput = 'bg-surface text-content p-2 rounded-control border border-border-strong outline-none text-sm min-w-0';
+
+  /** A stored (Font) grade in the chosen display scale. */
+  const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
 </script>
 
 {#if !rows}
@@ -94,7 +98,7 @@
           <div class="flex items-center gap-2.5">
             <input type="checkbox" bind:checked={row.include} class="w-4 h-4 accent-primary shrink-0" aria-label="Import {a.name ?? a.grade}" />
             <div class="min-w-0 flex-1">
-              <p class="text-label text-content truncate">{a.name || 'Unnamed'} <span class="text-primary tabular-nums">{a.grade}</span>{a.style ? ` · ${a.style}` : ''}</p>
+              <p class="text-label text-content truncate">{a.name || 'Unnamed'} <span class="text-primary tabular-nums">{G(a.grade)}</span>{a.style ? ` · ${a.style}` : ''}</p>
               <p class="text-caption text-content-subtle truncate">{formatDate(a.date)}{a.crag ? ` · ${a.crag}` : ''}</p>
             </div>
             <button onclick={() => editingId = editingId === a.id ? null : a.id} class="p-1.5 text-content-subtle hover:text-content" aria-label="Edit before importing">
@@ -104,13 +108,13 @@
           {#if row.status === 'maybe' && row.match}
             <p class="text-caption text-warning mt-1.5 pl-6 flex items-start gap-1">
               <Icon icon="ic:baseline-warning-amber" class="text-sm shrink-0 mt-px" />
-              <span>Looks like "{row.match.name || 'Unnamed'} {row.match.grade}" ({formatDate(row.match.date)}) - tick it only if it's a different send.</span>
+              <span>Looks like "{row.match.name || 'Unnamed'} {G(row.match.grade)}" ({formatDate(row.match.date)}) - tick it only if it's a different send.</span>
             </p>
           {/if}
           {#if editingId === a.id}
             <div class="grid grid-cols-2 gap-1.5 mt-2">
               <input value={a.name ?? ''} oninput={(e) => update(a.id, 'name', e.currentTarget.value)} placeholder="Name" class="{cellInput} col-span-2" />
-              <input value={a.grade} oninput={(e) => update(a.id, 'grade', e.currentTarget.value)} placeholder="Grade" class={cellInput} />
+              <input value={G(a.grade)} oninput={(e) => update(a.id, 'grade', gradeFromInput(e.currentTarget.value))} placeholder="Grade" class={cellInput} />
               <input value={a.style ?? ''} oninput={(e) => update(a.id, 'style', e.currentTarget.value)} placeholder="Style" class={cellInput} />
               <input value={a.crag ?? ''} oninput={(e) => update(a.id, 'crag', e.currentTarget.value)} placeholder="Crag" class={cellInput} />
               <input type="date" value={a.date.slice(0, 10)} oninput={(e) => update(a.id, 'date', e.currentTarget.value)} class={cellInput} />
@@ -130,7 +134,7 @@
         </button>
         {#if showDiscarded}
           <ul class="mt-1.5 space-y-0.5 pl-5 text-caption text-content-subtle">
-            {#each discarded as row}<li class="line-through">{row.ascent.name || 'Unnamed'} {row.ascent.grade} · {formatDate(row.ascent.date)}</li>{/each}
+            {#each discarded as row}<li class="line-through">{row.ascent.name || 'Unnamed'} {G(row.ascent.grade)} · {formatDate(row.ascent.date)}</li>{/each}
           </ul>
         {/if}
       </div>

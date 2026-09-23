@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatWeight } from '../../lib/units';
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekDateRange, formatDate } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
@@ -302,7 +303,7 @@
                             {#if ex.minGrade || ex.maxGrade}<span>Grades: {ex.minGrade}{ex.minGrade && ex.maxGrade ? '-' : ''}{ex.maxGrade}</span>{/if}
                             {#if ex.timeOn && ex.timeOff}<span>{ex.timeOn}s ON / {ex.timeOff}s OFF</span>{/if}
                             {#if ex.routeDifficulty}<span>Route Diff: {ex.routeDifficulty}</span>{/if}
-                            {#if ex.weight}<span>Weight: +{ex.weight}kg</span>{/if}
+                            {#if ex.weight}<span>Weight: +{formatWeight(ex.weight, trainingState.units.weight)}</span>{/if}
                             {#if ex.bodyweightPercent}<span>BW %: {ex.bodyweightPercent}%</span>{/if}
                             {#if ex.maxWeightPercent}<span>Max Weight %: {ex.maxWeightPercent}%</span>{/if}
                           </div>

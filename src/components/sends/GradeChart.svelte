@@ -22,7 +22,7 @@
     selectedGrade?: string | null;
   } = $props();
 
-  const histogram = $derived(gradeHistogram(ascents));
+  const histogram = $derived(gradeHistogram(ascents, 1, trainingState.units.grades));
   const maxCount = $derived(Math.max(1, ...histogram.bars.map((b) => b.count)));
   const total = $derived(histogram.bars.reduce((s, b) => s + b.count, 0));
 

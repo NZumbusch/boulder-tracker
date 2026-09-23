@@ -14,6 +14,7 @@
   import { computeFatigueDecay } from '../../lib/analytics/readiness';
   import { weeksToShow, weekWindowOffsets, labelStep, showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import { parseFontGrade } from '../../lib/analytics/grades';
+  import { formatWeight } from '../../lib/units';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import AdherencePanel from './AdherencePanel.svelte';
   import RecoveryWarningsPanel from './RecoveryWarningsPanel.svelte';
@@ -909,7 +910,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-section uppercase text-content-muted">Bodyweight Trend</h3>
-          <p class="text-caption text-content-subtle mt-0.5">Last {bodyweightTrend.history.length || 10} entries &middot; kg</p>
+          <p class="text-caption text-content-subtle mt-0.5">Last {bodyweightTrend.history.length || 10} entries &middot; {trainingState.units.weight}</p>
         </div>
         <Icon icon="ic:baseline-monitor-weight" class="text-base text-content-subtle" />
       </div>
@@ -956,12 +957,12 @@
                   data-tip-trigger
                   data-tip-open={tips.isOpen(`bw-${i}`)}
                   onclick={() => tips.toggle(`bw-${i}`)}
-                  aria-label="{entry.value} kg"
+                  aria-label={formatWeight(entry.value, trainingState.units.weight)}
                   class="absolute group hover:z-30 {tips.isOpen(`bw-${i}`) ? 'z-30' : ''}"
                   style="left: {xPos}%; height: 100%;"
                 >
                   <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-                    {entry.value} kg
+                    {formatWeight(entry.value, trainingState.units.weight)}
                   </div>
                   <div class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2" style="bottom: {entry.height}%; left: 0;"></div>
                 </button>

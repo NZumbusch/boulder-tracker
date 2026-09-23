@@ -7,6 +7,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
   import type { OutdoorAscent } from '../../lib/types';
+  import { displayGrade, gradeFromInput } from '../../lib/sends/gradeScale';
 
   let { ascent, defaults = {}, onDone }: {
     ascent?: OutdoorAscent;
@@ -19,7 +20,12 @@
   // svelte-ignore state_referenced_locally
   let name = $state(ascent?.name ?? '');
   // svelte-ignore state_referenced_locally
-  let grade = $state(ascent?.grade ?? '');
+  // Shown in the chosen scale. Saved unchanged, the stored grade is kept as
+  // is - V bands cover several Font grades, so converting back would turn
+  // a 7B+ into a 7B just by opening and saving the send.
+  // svelte-ignore state_referenced_locally
+  const shownGrade = ascent ? displayGrade(ascent.grade, trainingState.units.grades) : '';
+  let grade = $state(shownGrade);
   // svelte-ignore state_referenced_locally
   let style = $state(ascent?.style ?? '');
   // svelte-ignore state_referenced_locally
@@ -46,7 +52,7 @@
     const saved: OutdoorAscent = {
       id: ascent?.id ?? generateId(),
       date: keepDate,
-      grade: grade.trim(),
+      grade: ascent && grade.trim() === shownGrade ? ascent.grade : gradeFromInput(grade),
       ...(name.trim() ? { name: name.trim() } : {}),
       ...(style ? { style } : {}),
       ...(crag.trim() ? { crag: crag.trim() } : {}),
@@ -68,7 +74,7 @@
 <div class="space-y-3">
   <input bind:value={name} placeholder="Problem name (optional)" class={inputClass} />
   <div class="flex gap-2">
-    <input bind:value={grade} placeholder="Grade, e.g. 7A" class="{inputClass} flex-1" />
+    <input bind:value={grade} placeholder={trainingState.units.grades === 'v' ? 'Grade, e.g. V6' : 'Grade, e.g. 7A'} class="{inputClass} flex-1" />
     <select bind:value={style} class="{inputClass} flex-1 appearance-none">
       <option value="">Style</option>
       {#each STYLES as s}<option value={s}>{s}</option>{/each}

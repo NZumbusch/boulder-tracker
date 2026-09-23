@@ -5,6 +5,7 @@
    * any location, or tap a saved crag) and projects to go for. Notes are
    * edited through the shared note sheet from the goals list, not here.
    */
+  import { displayGrade, gradeFromInput } from '../../lib/sends/gradeScale';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
   import type { GoalEvent, GoalKind, TripProject } from '../../lib/types';
@@ -40,7 +41,7 @@
   let projectFlash = $state(false);
   function addProject() {
     const name = projectName.trim();
-    const grade = projectGrade.trim();
+    const grade = gradeFromInput(projectGrade);
     if (!name && !grade) return;
     const project: TripProject = {
       id: generateId(),
@@ -73,6 +74,9 @@
   }
 
   const inputClass = 'w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm';
+
+  /** A stored (Font) grade in the chosen display scale. */
+  const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
 </script>
 
 <div class="p-4 bg-surface-elevated/50 border border-primary/30 rounded-card space-y-3">
@@ -119,7 +123,7 @@
         <div class="flex items-center gap-2 p-2 rounded-control bg-surface border border-border-strong/40">
           <Icon icon={project.name ? 'ic:baseline-star-outline' : 'ic:baseline-trending-up'} class="text-primary text-sm shrink-0" />
           <span class="text-label text-content flex-1 truncate">
-            {project.name ?? `Any ${project.grade}`}{project.name && project.grade ? ` ${project.grade}` : ''}{project.flash ? ' · flash' : ''}
+            {project.name ?? `Any ${G(project.grade)}`}{project.name && project.grade ? ` ${G(project.grade)}` : ''}{project.flash ? ' · flash' : ''}
           </span>
           <button onclick={() => removeProject(project.id)} class="text-content-subtle hover:text-danger" aria-label="Remove project">
             <Icon icon="ic:baseline-close" class="text-sm" />
@@ -128,7 +132,7 @@
       {/each}
       <div class="flex gap-2">
         <input bind:value={projectName} placeholder="Problem (optional)" class="{inputClass} flex-[2]" onkeydown={(e) => e.key === 'Enter' && addProject()} />
-        <input bind:value={projectGrade} placeholder="Grade" class="{inputClass} flex-1" onkeydown={(e) => e.key === 'Enter' && addProject()} />
+        <input bind:value={projectGrade} placeholder={trainingState.units.grades === 'v' ? 'Grade, e.g. V6' : 'Grade, e.g. 7A'} class="{inputClass} flex-1" onkeydown={(e) => e.key === 'Enter' && addProject()} />
         <button onclick={addProject} class="px-3 bg-surface text-primary rounded-control border border-border-strong" aria-label="Add project"><Icon icon="ic:baseline-plus" /></button>
       </div>
       {#if !projectName.trim() && projectGrade.trim()}

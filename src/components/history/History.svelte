@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatWeight } from '../../lib/units';
   import { trainingState } from '../../lib/state.svelte';
   import type { Workout } from '../../lib/types';
   import { formatDate } from '../../lib/dateUtils';
@@ -374,7 +375,7 @@
                         Done
                       {/if}
                       {#if v.weight || v.maxWeightPercent}
-                        @ {v.weight ? `${v.weight}kg` : `${v.maxWeightPercent}%`}
+                        @ {v.weight ? formatWeight(v.weight, trainingState.units.weight) : `${v.maxWeightPercent}%`}
                       {/if}
                     </span>
                   </div>

@@ -9,6 +9,7 @@
   import { generateId } from '../../lib/utils';
   import { formatDate } from '../../lib/dateUtils';
   import { loggedMetrics } from '../../lib/analytics/metricValues';
+  import { toKg, formatWeight } from '../../lib/units';
   import type { DailyMetricEntry } from '../../lib/types';
   import Icon from '@iconify/svelte';
 
@@ -57,7 +58,8 @@
       id: existing?.id ?? generateId(),
       metricId: BODYWEIGHT_METRIC_ID,
       date,
-      value: weight,
+      // Typed in the chosen unit, stored in kg.
+      value: Math.round(toKg(weight, trainingState.units.weight) * 100) / 100,
     };
 
     await trainingState.saveDailyMetric(entry, { id: BODYWEIGHT_METRIC_ID, name: 'Bodyweight', unit: 'kg' });
@@ -74,7 +76,7 @@
     <div>
       <h3 class="text-section uppercase text-content-muted">Bodyweight</h3>
       <p class="text-caption text-content-subtle mt-0.5">
-        {#if latest}Latest: {latest.value} kg ({formatDate(latest.date)}){:else}No entries yet{/if}
+        {#if latest}Latest: {formatWeight(latest.value, trainingState.units.weight)} ({formatDate(latest.date)}){:else}No entries yet{/if}
       </p>
     </div>
     <div class="p-2 bg-primary-hover/10 rounded-control text-primary">
@@ -88,7 +90,7 @@
       <input id="bw-date" type="date" bind:value={date} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
     </div>
     <div class="space-y-1">
-      <label for="bw-weight" class="text-label text-content-subtle ml-1">Weight (kg)</label>
+      <label for="bw-weight" class="text-label text-content-subtle ml-1">Weight ({trainingState.units.weight})</label>
       <input id="bw-weight" type="number" step="0.1" min="0" bind:value={weight} placeholder="70.5" class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
     </div>
     <button type="submit" disabled={!weight} class="p-3 bg-primary hover:bg-primary-hover text-white rounded-control shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
@@ -105,7 +107,7 @@
             style="height: {barHeightPercent(e.value)}%"
           >
             <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-20 border border-border-strong shadow-card pointer-events-none">
-              {e.value} kg
+              {formatWeight(e.value, trainingState.units.weight)}
             </div>
           </div>
         </div>
@@ -119,7 +121,7 @@
         <div class="flex items-center justify-between p-2.5 bg-surface-elevated/50 rounded-control border border-border-strong/50">
           <span class="text-label text-content">{formatDate(e.date)}</span>
           <div class="flex items-center gap-3">
-            <span class="text-label font-mono text-content-muted tabular-nums">{e.value} kg</span>
+            <span class="text-label font-mono text-content-muted tabular-nums">{formatWeight(e.value, trainingState.units.weight)}</span>
             <button onclick={() => handleDelete(e.id)} class="text-content-subtle hover:text-danger transition-colors" aria-label="Delete entry">
               <Icon icon="ic:baseline-close" class="text-sm" />
             </button>

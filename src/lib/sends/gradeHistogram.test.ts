@@ -29,3 +29,14 @@ describe("gradeHistogram", () => {
     expect(gradeHistogram([s("V5")])).toEqual({ bars: [], unplotted: 1 });
   });
 });
+
+describe("gradeHistogram in V-scale", () => {
+  it("groups Font grades into V bands, padded by one band", () => {
+    const h = gradeHistogram([s("6A"), s("6A+", "Flash"), s("7A"), s("V5")], 1, "v");
+    expect(h.bars.map((b) => b.grade)).toEqual(["V2", "V3", "V4", "V5", "V6", "V7"]);
+    expect(h.bars.find((b) => b.grade === "V3")).toEqual({ grade: "V3", count: 2, flashed: 1 });
+    // A send already written as a V grade counts in its band.
+    expect(h.bars.find((b) => b.grade === "V5")?.count).toBe(1);
+    expect(h.unplotted).toBe(0);
+  });
+});

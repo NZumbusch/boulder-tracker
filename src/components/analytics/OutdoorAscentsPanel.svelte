@@ -8,6 +8,8 @@
    * spread of grades climbed each week ("distribution") is visible
    * directly rather than collapsed into a single per-week number.
    */
+  import { trainingState } from '../../lib/state.svelte';
+  import { displayGrade } from '../../lib/sends/gradeScale';
   import { formatDate } from '../../lib/dateUtils';
   import { showsLabel, pickAxisTicks } from '../../lib/analytics/chartWindow';
   import { ChartTips } from '../../lib/analytics/chartTips.svelte';
@@ -77,6 +79,9 @@
     // of one another.
     return pickAxisTicks(ranks, yPercent).map((rank) => ({ rank, grade: byRank.get(rank)! }));
   });
+
+  /** A stored (Font) grade in the chosen display scale. */
+  const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
 </script>
 
 <div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
@@ -99,7 +104,7 @@
             class="absolute right-0 -translate-y-1/2 text-caption leading-none text-content-subtle/70 tabular-nums whitespace-nowrap"
             style="bottom: {yPercent(tick.rank)}%;"
           >
-            {tick.grade}
+            {G(tick.grade)}
           </span>
         {/each}
       </div>
@@ -113,13 +118,13 @@
                 data-tip-trigger
                 data-tip-open={tips.isOpen(ascent.id)}
                 onclick={() => tips.toggle(ascent.id)}
-                aria-label="{ascent.grade}{ascent.name ? `, ${ascent.name}` : ''}"
+                aria-label="{G(ascent.grade)}{ascent.name ? `, ${ascent.name}` : ''}"
                 class="absolute -translate-x-1/2 group"
                 style="left: {xPercent}%; bottom: {yPercent(ascent.rank)}%;"
               >
                 <div class="w-1.5 h-1.5 bg-tertiary rounded-full group-hover:scale-[2] transition-transform"></div>
                 <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-                  {ascent.grade}{ascent.name ? ` · ${ascent.name}` : ''}{ascent.style ? ` · ${ascent.style}` : ''} · {formatDate(ascent.date)}
+                  {G(ascent.grade)}{ascent.name ? ` · ${ascent.name}` : ''}{ascent.style ? ` · ${ascent.style}` : ''} · {formatDate(ascent.date)}
                 </div>
               </button>
             {/each}

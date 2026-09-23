@@ -9,6 +9,8 @@
   import { calculateWeeklyAdherence } from '../../lib/analytics/loadAnalytics';
   import { isLoggedMetricValue, loggedMetrics } from '../../lib/analytics/metricValues';
   import { describeWeatherCode } from '../../lib/weather/codes';
+  import { formatTemp, formatTempDelta, temperatureUnit, displayWind, windUnit, displayWeight, toKg } from '../../lib/units';
+  import { displayGrade } from '../../lib/sends/gradeScale';
   import { rateFriction, rateForecastDay, type Friction, type FrictionLabel } from '../../lib/weather/friction';
   import { bestWindow } from '../../lib/weather/conditions';
   import type { DailyForecastDay, WeatherSnapshot } from '../../lib/weather/api';
@@ -91,6 +93,9 @@
       trainingState.homeDetails['weather.frictionNumber'] && f.score.toFixed(1),
     );
   }
+
+  /** A °C value in the chosen temperature unit, as "12°". */
+  const T = (celsius: number) => formatTemp(celsius, trainingState.units.temperature);
 
   function formatRelativeAge(iso: string): string {
     const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -236,13 +241,21 @@
     if (max === min) return 50;
     return 10 + ((value - min) / (max - min)) * 80;
   }
+  // Bodyweight is stored in kg and shown/typed in the chosen weight unit.
+  const isWeight = (metricId: string) => metricId === BODYWEIGHT_METRIC_ID;
+  const W = (kg: number) => Math.round(displayWeight(kg, trainingState.units.weight) * 10) / 10;
+  function metricText(metricId: string, value: number, unit: string): string {
+    return isWeight(metricId) ? `${W(value)} ${trainingState.units.weight}` : `${value} ${unit}`;
+  }
   function startEdit(metricId: string) {
     editingMetricId = metricId;
-    draftValue = String(todaysMetric(metricId)?.value ?? '');
+    const current = todaysMetric(metricId)?.value;
+    draftValue = current === undefined ? '' : String(isWeight(metricId) ? W(current) : current);
   }
   async function saveMetric(metricId: string) {
-    const value = parseFloat(draftValue);
-    if (Number.isNaN(value)) return;
+    const typed = parseFloat(draftValue);
+    if (Number.isNaN(typed)) return;
+    const value = isWeight(metricId) && typed > 0 ? Math.round(toKg(typed, trainingState.units.weight) * 100) / 100 : typed;
     const existing = todaysEntry(metricId);
     // 0 (or less) means "I have no reading today" - it clears the day rather
     // than storing a value every baseline and chart would have to skip.
@@ -406,6 +419,9 @@
   const recentActivity = $derived(
     buildRecentActivity(trainingState.completedWorkouts, trainingState.outdoorAscents, trainingState.tunable('home.recentActivityCount'), trainingState.homeDetails['recentActivity.ascents']),
   );
+
+  /** A stored (Font) grade in the chosen display scale. */
+  const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
 </script>
 
 <div class="w-full max-w-lg space-y-5 animate-in fade-in duration-200 pb-24">
@@ -625,7 +641,7 @@
               </form>
             {:else}
               <button onclick={() => startEdit(def.id)} class="text-body text-content tabular-nums hover:text-primary transition-colors">
-                {entry ? `${entry.value} ${def.unit}` : 'Log'}
+                {entry ? metricText(def.id, entry.value, def.unit) : 'Log'}
               </button>
             {/if}
             {#if def.id === 'hrv' && hrvDelta !== undefined && hrvBaseline !== undefined && trainingState.homeDetails['metrics.hrvBaseline']}
@@ -635,10 +651,10 @@
             {:else if def.id === BODYWEIGHT_METRIC_ID && bodyweightAvg !== undefined}
               {@const diff = bodyweightPrevAvg !== undefined ? bodyweightAvg - bodyweightPrevAvg : undefined}
               <p class="text-caption text-content-subtle tabular-nums flex items-center gap-1">
-                7-day avg {bodyweightAvg.toFixed(1)}
+                7-day avg {W(bodyweightAvg).toFixed(1)}
                 {#if diff !== undefined && Math.abs(diff) >= 0.1}
                   <Icon icon={diff > 0 ? 'ic:baseline-arrow-upward' : 'ic:baseline-arrow-downward'} class="text-xs" />
-                  <span>{Math.abs(diff).toFixed(1)}</span>
+                  <span>{Math.abs(W(Math.abs(diff))).toFixed(1)}</span>
                 {/if}
               </p>
             {/if}
@@ -805,7 +821,7 @@
           {#if nextGoalOngoing && nextTripSummary.sends.length > 0}
             <p class="text-caption text-content-muted flex items-center gap-1.5">
               <Icon icon="ic:baseline-check-circle" class="text-sm text-status-good shrink-0" />
-              {nextTripSummary.sends.length} send{nextTripSummary.sends.length === 1 ? '' : 's'} so far{nextTripSummary.hardest ? ` · hardest ${nextTripSummary.hardest.grade}` : ''}
+              {nextTripSummary.sends.length} send{nextTripSummary.sends.length === 1 ? '' : 's'} so far{nextTripSummary.hardest ? ` · hardest ${G(nextTripSummary.hardest.grade)}` : ''}
             </p>
           {/if}
           {#if trainingState.homeDetails['competition.conditions'] && tripForecastDays.length > 0}
@@ -817,7 +833,7 @@
                 <div class="flex flex-col items-center gap-1 shrink-0 w-11 pt-2">
                   <span class="text-caption text-content-subtle">{day.date === todayIso ? 'Today' : new Date(`${day.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short' })}</span>
                   <span title={code.label} class="flex"><Icon icon={code.icon} class="text-lg text-primary" aria-label={code.label} /></span>
-                  <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
+                  <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
                   {#if trainingState.homeDetails['weather.frictionNumber']}
                     <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
                   {:else}
@@ -844,12 +860,12 @@
                     class="text-sm shrink-0 {status.state === 'done' ? 'text-status-good' : status.state === 'maybe' ? 'text-status-caution' : 'text-content-subtle'}"
                   />
                   <span class="truncate {status.state === 'done' ? 'text-content' : 'text-content-muted'}">
-                    {p.name ?? `Any ${p.grade}`}{p.name && p.grade ? ` ${p.grade}` : ''}{p.flash ? ' · flash' : ''}{status.send && status.send.name && status.send.name !== p.name ? ` (${status.send.name} ${status.send.grade})` : ''}
+                    {p.name ?? `Any ${G(p.grade)}`}{p.name && p.grade ? ` ${G(p.grade)}` : ''}{p.flash ? ' · flash' : ''}{status.send && status.send.name && status.send.name !== p.name ? ` (${status.send.name} ${G(status.send.grade)})` : ''}
                   </span>
                 </div>
                 {#each status.candidates as candidate (candidate.id)}
                   <div class="flex items-center gap-2 pl-5 text-caption text-content-subtle">
-                    <span class="flex-1 truncate">"{candidate.name} {candidate.grade}" - counts for {p.name}?</span>
+                    <span class="flex-1 truncate">"{candidate.name} {G(candidate.grade)}" - counts for {p.name}?</span>
                     <button onclick={() => answerCandidate(nextGoal, p, candidate.id, true)} class="px-2 py-0.5 rounded-control bg-primary/10 text-primary">Yes</button>
                     <button onclick={() => answerCandidate(nextGoal, p, candidate.id, false)} class="px-2 py-0.5 rounded-control bg-surface-elevated text-content-muted">No</button>
                   </div>
@@ -901,7 +917,7 @@
               <Icon icon="ic:baseline-terrain" class="text-base" />
             </div>
             <div class="min-w-0 flex-1">
-              <p class="text-label text-content truncate">{ascent.name || 'Outdoor send'} <span class="text-primary tabular-nums">{ascent.grade}</span></p>
+              <p class="text-label text-content truncate">{ascent.name || 'Outdoor send'} <span class="text-primary tabular-nums">{G(ascent.grade)}</span></p>
               <p class="text-caption text-content-subtle truncate">{formatDate(ascent.date)}{ascent.style ? ` · ${ascent.style}` : ''}{ascent.crag ? ` · ${ascent.crag}` : ''}</p>
             </div>
           </div>
@@ -977,10 +993,10 @@
         <div class="pt-2 border-t border-border/60 space-y-1">
           <p class="text-label text-content-muted flex items-center gap-1.5">
             <Icon icon="ic:baseline-terrain" class="text-sm text-primary shrink-0" />
-            <span class="truncate">Last send: <span class="text-content">{sends.last.name || 'Outdoor send'} {sends.last.grade}</span> · {formatDate(sends.last.date)}</span>
+            <span class="truncate">Last send: <span class="text-content">{sends.last.name || 'Outdoor send'} {G(sends.last.grade)}</span> · {formatDate(sends.last.date)}</span>
           </p>
           {#if sends.hardest}
-            <p class="text-caption text-content-subtle">Hardest this season: <span class="text-content">{sends.hardest.grade}</span>{sends.hardest.name ? ` (${sends.hardest.name})` : ''} · {sends.countThisSeason} send{sends.countThisSeason === 1 ? '' : 's'}</p>
+            <p class="text-caption text-content-subtle">Hardest this season: <span class="text-content">{G(sends.hardest.grade)}</span>{sends.hardest.name ? ` (${sends.hardest.name})` : ''} · {sends.countThisSeason} send{sends.countThisSeason === 1 ? '' : 's'}</p>
           {/if}
         </div>
       {/if}
@@ -989,7 +1005,7 @@
         <button onclick={() => trainingState.openSends()} class="w-full pt-2 border-t border-border/60 flex items-center gap-1.5 text-left">
           <Icon icon="ic:baseline-terrain" class="text-sm text-primary shrink-0" />
           <span class="text-caption text-content-subtle truncate flex-1">
-            Last trip: <span class="text-content">{lastTrip.trip.name}</span> · {s.sends.length} send{s.sends.length === 1 ? '' : 's'}{s.hardest ? ` · hardest ${s.hardest.grade}` : ''}{s.projects.length ? ` · projects ${s.projectsDone}/${s.projects.length}` : ''}
+            Last trip: <span class="text-content">{lastTrip.trip.name}</span> · {s.sends.length} send{s.sends.length === 1 ? '' : 's'}{s.hardest ? ` · hardest ${G(s.hardest.grade)}` : ''}{s.projects.length ? ` · projects ${s.projectsDone}/${s.projects.length}` : ''}
           </span>
           <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0" />
         </button>
@@ -1012,7 +1028,7 @@
               <span class="text-label text-content flex-1 truncate">{crag.name}</span>
               {#if snap}
                 {@const f = currentFriction(snap)}
-                <span class="text-label text-content tabular-nums">{Math.round(snap.currentTempC)}°</span>
+                <span class="text-label text-content tabular-nums">{T(snap.currentTempC)}</span>
                 {#if trainingState.homeDetails['weather.frictionWord'] || trainingState.homeDetails['weather.frictionNumber']}
                   <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums {FRICTION_STYLE[f.label].badge}">
                     {frictionText(f)}
@@ -1037,7 +1053,7 @@
                     <div class="flex flex-col items-center gap-1 shrink-0 w-11">
                       <span class="text-caption text-content-subtle">{d === 0 ? 'Today' : new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}</span>
                       <span title={code.label} class="flex"><Icon icon={code.icon} class="text-lg text-primary" aria-label={code.label} /></span>
-                      <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
+                      <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
                       {#if trainingState.homeDetails['weather.frictionNumber']}
                         <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
                       {:else}
@@ -1080,7 +1096,7 @@
         <div class="flex items-center gap-3">
           <Icon icon={code.icon} class="text-3xl text-primary shrink-0" />
           <div class="min-w-0 flex-1">
-            <p class="text-metric text-content tabular-nums">{Math.round(w.currentTempC)}°C</p>
+            <p class="text-metric text-content tabular-nums">{T(w.currentTempC)}{temperatureUnit(trainingState.units.temperature).slice(1)}</p>
             <p class="text-caption text-content-subtle truncate">{code.label} · {trainingState.homeLocation.name}</p>
           </div>
           {#if showWord || showNumber}
@@ -1098,7 +1114,7 @@
           <p class="text-caption text-content-subtle">
             {[
               friction.reason ? `${friction.reason}.` : 'Nothing holding conditions back.',
-              w.dewPointC !== undefined && `Air is ${Math.max(0, Math.round(w.currentTempC - w.dewPointC))}° above its dew point.`,
+              w.dewPointC !== undefined && `Air is ${formatTempDelta(Math.max(0, w.currentTempC - w.dewPointC), trainingState.units.temperature)} above its dew point.`,
             ].filter(Boolean).join(' ')}
           </p>
         {/if}
@@ -1112,16 +1128,16 @@
         {#if trainingState.homeDetails['weather.details'] && (w.feelsLikeC !== undefined || w.dewPointC !== undefined || w.humidityPercent !== undefined || w.windSpeedKmh !== undefined || (w.precipitationMm ?? 0) > 0)}
           <div class="flex flex-wrap gap-x-4 gap-y-1">
             {#if w.feelsLikeC !== undefined}
-              <span class="text-caption text-content-subtle tabular-nums">Feels {Math.round(w.feelsLikeC)}°</span>
+              <span class="text-caption text-content-subtle tabular-nums">Feels {T(w.feelsLikeC)}</span>
             {/if}
             {#if w.humidityPercent !== undefined}
               <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.humidityPercent)}% humidity</span>
             {/if}
             {#if w.dewPointC !== undefined}
-              <span class="text-caption text-content-subtle tabular-nums">Dew {Math.round(w.dewPointC)}°</span>
+              <span class="text-caption text-content-subtle tabular-nums">Dew {T(w.dewPointC)}</span>
             {/if}
             {#if w.windSpeedKmh !== undefined}
-              <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.windSpeedKmh)}{w.windGustsKmh !== undefined && w.windGustsKmh > w.windSpeedKmh + 5 ? `–${Math.round(w.windGustsKmh)}` : ''} km/h wind</span>
+              <span class="text-caption text-content-subtle tabular-nums">{Math.round(displayWind(w.windSpeedKmh, trainingState.units.wind))}{w.windGustsKmh !== undefined && w.windGustsKmh > w.windSpeedKmh + 5 ? `–${Math.round(displayWind(w.windGustsKmh, trainingState.units.wind))}` : ''} {windUnit(trainingState.units.wind)} wind</span>
             {/if}
             {#if w.uvIndex !== undefined && w.uvIndex >= 3}
               <span class="text-caption text-content-subtle tabular-nums">UV {Math.round(w.uvIndex)}</span>
@@ -1154,7 +1170,7 @@
               <Icon icon="ic:baseline-schedule" class="text-sm shrink-0" />
               {joinParts(
                 best && `Best ${best.start}–${best.end}`,
-                best && `${Math.round(best.avgTempC)}° dry`,
+                best && `${T(best.avgTempC)} dry`,
                 sunsetAhead && `sunset ${sunset!.slice(11, 16)}`,
               )}
             </p>
@@ -1174,8 +1190,8 @@
                   {i === 0 ? 'Today' : new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}
                 </span>
                 <span title={dayCode.label} class="flex"><Icon icon={dayCode.icon} class="text-lg text-primary" aria-label={dayCode.label} /></span>
-                <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
-                <span class="text-caption text-content-subtle tabular-nums">{Math.round(day.tempMinC)}°</span>
+                <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
+                <span class="text-caption text-content-subtle tabular-nums">{T(day.tempMinC)}</span>
                 {#if day.precipitationChance !== undefined && day.precipitationChance >= 20}
                   <span class="text-caption text-primary/80 tabular-nums leading-none">{Math.round(day.precipitationChance)}%</span>
                 {/if}

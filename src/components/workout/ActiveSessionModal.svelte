@@ -12,6 +12,7 @@
    * save-or-discard fork. The stopwatch lives here and nowhere else, so it
    * can't compete with the bubble's own elapsed readout.
    */
+  import { formatWeight, displayWeight } from '../../lib/units';
   import { trainingState } from '../../lib/state.svelte';
   import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
@@ -60,7 +61,7 @@
     const parts: string[] = [];
     if (v.sets) parts.push(`${v.sets}${v.reps ? `×${v.reps}` : ' sets'}`);
     else if (v.reps) parts.push(`${v.reps} reps`);
-    if (v.weight) parts.push(`${v.weight}kg`);
+    if (v.weight) parts.push(formatWeight(v.weight, trainingState.units.weight));
     if (v.minGrade) parts.push(v.maxGrade && v.maxGrade !== v.minGrade ? `${v.minGrade}–${v.maxGrade}` : v.minGrade);
     const mins = estimateSlotDuration(slot);
     if (mins) parts.push(`${mins}m`);
@@ -86,7 +87,7 @@
     push('duration', v.duration, ' min');
     push('sets', v.sets);
     push('reps', v.reps);
-    push('weight', v.weight, ' kg');
+    push('weight', typeof v.weight === 'number' ? Math.round(displayWeight(v.weight, trainingState.units.weight) * 10) / 10 : v.weight, ` ${trainingState.units.weight}`);
     push('holdSize', v.holdSize, ' mm');
     push('holdType', v.holdType);
     push('timeOn', v.timeOn, ' s');

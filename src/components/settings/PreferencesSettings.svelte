@@ -3,7 +3,7 @@
 
   /** The topic list - also what Settings' header uses to title an open topic. */
   export const APPEARANCE_TOPICS: { id: AppearanceTopic; label: string; hint: string; icon: string }[] = [
-    { id: 'general', label: 'General', hint: 'Theme, text size, motion', icon: 'ic:baseline-palette' },
+    { id: 'general', label: 'General', hint: 'Theme, text size, motion, units', icon: 'ic:baseline-palette' },
     { id: 'home', label: 'Home', hint: 'Cards, their order and details, list lengths, reminders', icon: 'ic:baseline-home' },
     { id: 'plan', label: 'Plan', hint: 'Week view', icon: 'ic:baseline-calendar-month' },
     { id: 'sessions', label: 'Sessions & Timer', hint: 'Live sessions, timer sounds and screen', icon: 'ic:baseline-timer' },
@@ -30,6 +30,7 @@
   import WeatherSettings from './WeatherSettings.svelte';
   import NotificationSettings from './NotificationSettings.svelte';
   import TunablesSettings from './TunablesSettings.svelte';
+  import UnitsSettings from './UnitsSettings.svelte';
   import Icon from "@iconify/svelte";
   import { Capacitor } from '@capacitor/core';
 
@@ -134,6 +135,7 @@
     </div>
   </div>
 
+    <UnitsSettings />
   {:else if topic === 'home'}
     <HomeLayoutSettings />
     <TunablesSettings topic="layout" title="Lists & reminders" />

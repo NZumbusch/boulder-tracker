@@ -20,3 +20,10 @@ describe("filterSends", () => {
     expect(filterSends(sends, "year", null, asOf).map((x) => x.id)).toEqual(["a", "c"]);
   });
 });
+
+describe("filterSends in V-scale", () => {
+  it("matches a V band against the Font grades in it", () => {
+    const band = [s("x", "6B", "2026-09-01"), s("y", "6B+", "2026-09-02"), s("z", "6C", "2026-09-03")];
+    expect(filterSends(band, "all", "V4", asOf, "v").map((x) => x.id)).toEqual(["x", "y"]);
+  });
+});

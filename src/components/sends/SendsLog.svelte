@@ -4,6 +4,7 @@
    * covers it (with that trip's projects ticked) or by month. Add and edit
    * here, or import from 8a.nu.
    */
+  import { displayGrade } from '../../lib/sends/gradeScale';
   import { trainingState } from '../../lib/state.svelte';
   import { groupSends } from '../../lib/sends/grouping';
   import { tripSummary } from '../../lib/goals/projects';
@@ -22,14 +23,22 @@
   // The chart's period and tapped grade filter the list too, so the two always agree.
   let period = $state<SendPeriod>('all');
   let selectedGrade = $state<string | null>(null);
+  // A grade picked in one scale means nothing in the other.
+  $effect(() => {
+    trainingState.units.grades;
+    selectedGrade = null;
+  });
   const inPeriod = $derived(filterSends(trainingState.outdoorAscents, period, null, new Date()));
-  const shown = $derived(filterSends(inPeriod, 'all', selectedGrade, new Date()));
+  const shown = $derived(filterSends(inPeriod, 'all', selectedGrade, new Date(), trainingState.units.grades));
   const groups = $derived(groupSends(shown, trainingState.goals));
 
   function monthLabel(month: string): string {
     const d = new Date(`${month}-01T00:00:00Z`);
     return Number.isNaN(d.getTime()) ? 'Undated' : d.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
   }
+
+  /** A stored (Font) grade in the chosen display scale. */
+  const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
 </script>
 
 {#snippet sendRow(send: OutdoorAscent, project: boolean)}
@@ -41,7 +50,7 @@
     <button onclick={() => editingId = send.id} class="w-full flex items-center gap-3 p-2.5 rounded-control bg-surface-elevated/40 border border-border-strong/40 text-left hover:border-border-strong transition-colors">
       <div class="min-w-0 flex-1">
         <p class="text-label text-content truncate">
-          {send.name || 'Unnamed'} <span class="text-primary tabular-nums">{send.grade}</span>{send.style ? ` · ${send.style}` : ''}
+          {send.name || 'Unnamed'} <span class="text-primary tabular-nums">{G(send.grade)}</span>{send.style ? ` · ${send.style}` : ''}
         </p>
         <p class="text-caption text-content-subtle truncate">{formatDate(send.date)}{send.crag ? ` · ${send.crag}` : ''}</p>
       </div>

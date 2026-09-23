@@ -22,6 +22,7 @@
    * render the same regardless of the user's theme - a light-theme user
    * sharing a washed-out card was not the intent.
    */
+  import { formatWeight } from '../../lib/units';
   import type { ExerciseSlot, Workout } from '../../lib/types';
   import { formatDate } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
@@ -79,7 +80,7 @@
         : v.distance
           ? `${v.distance}km`
           : 'Done';
-    const load = v.weight ? ` @ ${v.weight}kg` : v.maxWeightPercent ? ` @ ${v.maxWeightPercent}%` : '';
+    const load = v.weight ? ` @ ${formatWeight(v.weight, trainingState.units.weight)}` : v.maxWeightPercent ? ` @ ${v.maxWeightPercent}%` : '';
     return base + load;
   }
 
