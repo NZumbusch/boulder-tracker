@@ -99,12 +99,16 @@
       {/if}
     </p>
 
-    <table class="sr-only">
-      <caption>Sends by grade</caption>
-      <thead><tr><th>Grade</th><th>Sends</th><th>Flashed</th></tr></thead>
-      <tbody>
-        {#each histogram.bars as bar}<tr><td>{bar.grade}</td><td>{bar.count}</td><td>{bar.flashed}</td></tr>{/each}
-      </tbody>
-    </table>
+    <!-- sr-only goes on a wrapper: a <table> ignores the 1px box it relies
+         on, so a table carrying the class itself renders in full. -->
+    <div class="sr-only">
+      <table>
+        <caption>Sends by grade</caption>
+        <thead><tr><th>Grade</th><th>Sends</th><th>Flashed</th></tr></thead>
+        <tbody>
+          {#each histogram.bars as bar}<tr><td>{bar.grade}</td><td>{bar.count}</td><td>{bar.flashed}</td></tr>{/each}
+        </tbody>
+      </table>
+    </div>
   {/if}
 </div>
