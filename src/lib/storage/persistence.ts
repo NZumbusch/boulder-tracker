@@ -151,6 +151,42 @@ export function setDbState(next: any) {
 
 let legacyEventsKeyCleared = false;
 
+let nativeWriting: Promise<void> | null = null;
+let nativeFollowUp: Promise<void> | null = null;
+
+/**
+ * On Android the whole database is one JSON file. Two writes must never
+ * run at once - they could finish in either order and leave the older data
+ * on disk. So a write that's asked for while one is running waits for it,
+ * and every request made in the meantime shares that one follow-up write,
+ * which serialises the database as it is when it starts (so it includes
+ * all of them). Each caller resolves once its data is on disk.
+ */
+function writeNativeFile(): Promise<void> {
+  if (nativeFollowUp) return nativeFollowUp;
+  if (!nativeWriting) return (nativeWriting = startNativeWrite());
+  nativeFollowUp = nativeWriting.then(() => {
+    nativeFollowUp = null;
+    return (nativeWriting = startNativeWrite());
+  });
+  return nativeFollowUp;
+}
+
+async function startNativeWrite(): Promise<void> {
+  try {
+    await Filesystem.writeFile({
+      path: "boulder_tracker_db.json",
+      data: JSON.stringify(_dbState),
+      directory: Directory.Data,
+      encoding: Encoding.UTF8,
+    });
+  } catch (err) {
+    console.error("Failed to write to native Filesystem", err);
+  } finally {
+    nativeWriting = null;
+  }
+}
+
 /** Every table stored under its own localforage key on the web. */
 const TABLES = [
   "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "goals", "templates", "phaseDefs",
@@ -161,7 +197,7 @@ export type TableName = (typeof TABLES)[number];
 
 /**
  * Persists the in-memory database. On native it's one JSON file, so the
- * whole thing is written. On the web each table is its own IndexedDB key:
+ * whole thing is written (see `writeNativeFile`). On the web each table is its own IndexedDB key:
  * pass `tables` to write only what changed - a workout save then writes
  * one key instead of all sixteen, each a structured clone of the table.
  * Without `tables` (migrations, imports, bulk plan writes) everything is.
@@ -170,16 +206,7 @@ export async function flushDB(tables?: TableName[]) {
   if (!_dbState) return;
 
   if (Capacitor.isNativePlatform()) {
-    try {
-      await Filesystem.writeFile({
-        path: "boulder_tracker_db.json",
-        data: JSON.stringify(_dbState),
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
-      });
-    } catch (err) {
-      console.error("Failed to write to native Filesystem", err);
-    }
+    await writeNativeFile();
     return;
   }
 
