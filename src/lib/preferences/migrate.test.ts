@@ -21,7 +21,6 @@ describe('defaultPreferences', () => {
       motion: 'system',
       theme: 'dark',
       notificationsEnabled: false,
-      planFormat: 'phase',
       addedExerciseTarget: 'none',
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
@@ -96,7 +95,6 @@ describe('migratePreferences', () => {
       analyticsSections: [...ANALYTICS_SECTION_IDS].reverse().map((id, i) => ({ id, visible: i % 2 === 0 })),
       quickLogActions: [{ id: 'send' as const, visible: true }, { id: 'pain' as const, visible: true }, { id: 'bodyweight' as const, visible: false }, { id: 'benchmark' as const, visible: true }],
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
-      planFormat: 'weekly' as const,
       addedExerciseTarget: 'mirror' as const,
     };
     expect(migratePreferences(valid)).toEqual(valid);
@@ -408,7 +406,8 @@ describe('addedExerciseTarget', () => {
     });
     expect(result.addedExerciseTarget).toBe('none');
     expect(result.textScale).toBe('lg');
-    expect(result.planFormat).toBe('weekly');
+    // planFormat was retired with the AI change-set contract - dropped, not kept.
+    expect('planFormat' in result).toBe(false);
   });
 
   it("keeps an explicit 'mirror'", () => {

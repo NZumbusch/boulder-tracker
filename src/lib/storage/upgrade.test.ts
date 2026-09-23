@@ -132,7 +132,7 @@ describe("upgrading an existing install", () => {
     expect(migrated.motion).toBe("reduced");
     expect(migrated.theme).toBe("light");
     expect(migrated.fatigueChartStyle).toBe("radar");
-    expect(migrated.planFormat).toBe("weekly");
+    expect("planFormat" in migrated).toBe(false); // retired setting, dropped on load
     expect(migrated.chartDensity).toBe("auto");
   });
 });

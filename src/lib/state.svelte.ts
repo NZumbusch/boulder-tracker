@@ -30,7 +30,7 @@ import { SessionStore } from './stores/sessionStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, ChartDensity, HomeSectionPreference, AISharingPreferences, PlanFormat, AddedExerciseTarget } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, ChartDensity, HomeSectionPreference, AISharingPreferences, AddedExerciseTarget } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
@@ -238,11 +238,6 @@ class TrainingState {
     this.preferencesStore.setAiSharing(category, enabled);
   }
 
-  /** Which plan contract "Generate Plan" asks the AI for - see `PlanFormat`. */
-  get planFormat() { return this.preferencesStore.planFormat; }
-  setPlanFormat(format: PlanFormat) {
-    this.preferencesStore.setPlanFormat(format);
-  }
 
   /** What `prescribed` an exercise added mid-session gets - see `AddedExerciseTarget`. */
   get addedExerciseTarget() { return this.preferencesStore.addedExerciseTarget; }

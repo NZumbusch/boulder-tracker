@@ -112,17 +112,6 @@ export interface Preferences {
    */
   aiSharing: AISharingPreferences;
   /**
-   * Which AI plan contract "Generate Plan" asks for.
-   *
-   * "phase" (the default) asks for the phase map plus each phase's distinct
-   * sessions, which the importer expands across the phase's weeks. "weekly"
-   * asks for every week written out in full - more control over week-to-week
-   * progression, but a far longer response that duplicates each session once
-   * per week. The importer accepts either shape regardless of this setting;
-   * it only decides what the copied prompt requests.
-   */
-  planFormat: PlanFormat;
-  /**
    * What `prescribed` an exercise added *during* a live session gets.
    *
    * "none" (the default) leaves it unset, so the exercise reads as an
@@ -138,8 +127,6 @@ export interface Preferences {
    */
   addedExerciseTarget: AddedExerciseTarget;
 }
-
-export type PlanFormat = 'phase' | 'weekly';
 
 /** See `Preferences.addedExerciseTarget`. */
 export type AddedExerciseTarget = 'none' | 'mirror';
@@ -244,7 +231,6 @@ export function defaultPreferences(): Preferences {
     sendsChartCounts: true,
     tunables: defaultTunables(),
     units: { ...DEFAULT_UNITS },
-    planFormat: 'phase',
     addedExerciseTarget: 'none',
     aiSharing: {
       trainingBlocks: true,
@@ -430,7 +416,6 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     tunables: validateTunables(candidate.tunables),
     units: validateUnits(candidate.units),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
-    planFormat: candidate.planFormat === 'weekly' || candidate.planFormat === 'phase' ? candidate.planFormat : defaults.planFormat,
     addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'
       ? candidate.addedExerciseTarget
       : defaults.addedExerciseTarget,
