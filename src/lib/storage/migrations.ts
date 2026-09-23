@@ -214,7 +214,7 @@ const MIGRATIONS: MigrationStep[] = [
         // is a shared module-level constant - assigning it by reference
         // would corrupt it for any later migration run in this process that
         // hits this same fallback (confirmed via a test that runs this path
-        // twice in one process - see storage.phase1.test.ts).
+        // twice in one process - see migrations.prescribedLogged.test.ts).
         data.templates["Deload"] = JSON.parse(JSON.stringify(LEGACY_DEFAULT_DELOAD_TEMPLATE));
       }
     },

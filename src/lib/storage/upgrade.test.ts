@@ -31,7 +31,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** A real pre-existing install's export (v2.1: 16 workouts, 4 phase assignments). */
 function legacyBackup(): any {
   return JSON.parse(
-    readFileSync(path.join(__dirname, "..", "__fixtures__", "backup-2.1.json"), "utf-8"),
+    readFileSync(path.join(__dirname, "__fixtures__", "backup-2.1.json"), "utf-8"),
   );
 }
 

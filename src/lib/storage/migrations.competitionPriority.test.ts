@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { runDataMigrations } from "./storage";
-import { DATA_EXPORT_VERSION } from "./constants";
+import { runDataMigrations } from "./index";
+import { DATA_EXPORT_VERSION } from "../constants";
 
 // Competition events used to carry an A/B/C `priority`. Only the next event
 // matters for how the app is used now, so 3.26->3.27 drops the field from

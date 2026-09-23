@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { runDataMigrations } from "./storage";
-import { DATA_EXPORT_VERSION } from "./constants";
+import { runDataMigrations } from "./index";
+import { DATA_EXPORT_VERSION } from "../constants";
 
 // Competitions and outdoor trips are one list of goals now: 3.28->3.29
 // moves every existing event over as a competition.

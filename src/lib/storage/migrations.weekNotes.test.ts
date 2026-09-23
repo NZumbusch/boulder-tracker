@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { runDataMigrations } from "./storage";
-import { DATA_EXPORT_VERSION } from "./constants";
+import { runDataMigrations } from "./index";
+import { DATA_EXPORT_VERSION } from "../constants";
 
 // Week notes are their own table - like weekOverrides, keyed by weekId -
 // so writing one never materialises a week or depends on which block

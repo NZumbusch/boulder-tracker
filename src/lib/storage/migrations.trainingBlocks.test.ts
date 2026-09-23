@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
-import { runDataMigrations, assertMigrationInvariants } from "./storage";
+import { runDataMigrations, assertMigrationInvariants } from "./index";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

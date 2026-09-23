@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
-import { runDataMigrations, assertMigrationInvariants } from "./storage";
-import { DEFAULT_TEMPLATES, DEFAULT_EXERCISE_TYPES } from "./constants";
+import { runDataMigrations, assertMigrationInvariants } from "./index";
+import { DEFAULT_TEMPLATES, DEFAULT_EXERCISE_TYPES } from "../constants";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -225,7 +225,7 @@ describe("Phase 1: (g) frozen 2.3->2.4 Deload fallback stays old-shape safe", ()
   function assertValidDeloadSlot(data: any) {
     // Phase 3 rekeys templates from phase name to phaseId, so by the end of
     // the full chain the frozen "Deload" fallback content ends up under
-    // "phase-deload", not "Deload" - see storage.migrations.test.ts's
+    // "phase-deload", not "Deload" - see migrations.realBackups.test.ts's
     // "New: 3.13 -> 3.14 phase rename" tests for the equivalent rename
     // coverage on periodization.
     const deloadWorkouts = data.templates["phase-deload"];

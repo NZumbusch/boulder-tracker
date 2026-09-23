@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { runDataMigrations } from "./storage";
-import { resolveInitialExportVersion } from "./storage/persistence";
-import { DATA_EXPORT_VERSION, DEFAULT_TEMPLATES, DEFAULT_EXERCISE_TYPES, DEFAULT_PHASE_DEFS, DEFAULT_BENCHMARK_TYPES, DEFAULT_ANALYTICS_CATEGORIES } from "./constants";
+import { runDataMigrations } from "./index";
+import { resolveInitialExportVersion } from "./persistence";
+import { DATA_EXPORT_VERSION, DEFAULT_TEMPLATES, DEFAULT_EXERCISE_TYPES, DEFAULT_PHASE_DEFS, DEFAULT_BENCHMARK_TYPES, DEFAULT_ANALYTICS_CATEGORIES } from "../constants";
 
 // Bug fix (found 2026-09-16, via a user report of duplicate/gray
 // "phase-..." entries in Settings surviving a storage wipe): a true fresh

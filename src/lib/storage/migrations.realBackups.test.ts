@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
-import { runDataMigrations } from "./storage";
-import { DATA_EXPORT_VERSION } from "./constants";
+import { runDataMigrations } from "./index";
+import { DATA_EXPORT_VERSION } from "../constants";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
