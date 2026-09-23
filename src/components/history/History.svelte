@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { formatWeight } from '../../lib/units';
+  import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import type { Workout } from '../../lib/types';
   import { formatDate } from '../../lib/dateUtils';
-  import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
+  import { slotTypeName } from '../../lib/exerciseSlot';
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import WorkoutShareImage from './WorkoutShareImage.svelte';
   import SendsLog from '../sends/SendsLog.svelte';
@@ -28,11 +28,10 @@
   let filterMaxDuration = $state<number | ''>('');
   let workoutToShare = $state<Workout | null>(null);
   let openMenuId = $state<string | null>(null);
-  let expandedId = $state<string | null>(null);
   const onSends = $derived(trainingState.uiStore.historyTab === 'sends');
 
-  // Arriving from Home's Recent Activity: open that session and bring it
-  // into view. One-shot - the focus is cleared so coming back later starts
+  // Arriving from Home's Recent Activity: open that session in the workout
+  // modal and bring its card into view. One-shot - the focus is cleared so coming back later starts
   // from the top as usual.
   onMount(async () => {
     const focusId = trainingState.uiStore.historyFocusId;
@@ -41,7 +40,7 @@
     const index = filteredWorkouts.findIndex((w) => w.id === focusId);
     if (index === -1) return;
     if (index >= limit) limit = index + 1;
-    expandedId = focusId;
+    openWorkout(filteredWorkouts[index]);
     await tick();
     document.getElementById(`workout-${focusId}`)?.scrollIntoView({ block: 'center' });
   });
@@ -150,9 +149,6 @@
 
   function toggleMenu(id: string) {
     openMenuId = openMenuId === id ? null : id;
-  }
-  function toggleExpanded(id: string) {
-    expandedId = expandedId === id ? null : id;
   }
 
   function shareWorkout(w: Workout) {
@@ -281,7 +277,7 @@
           {@const duration = workoutDuration(workout)}
           <div id="workout-{workout.id}" class="group p-5 bg-surface/30 hover:bg-surface/50 rounded-card border border-border/50 transition-all duration-300">
             <div class="flex justify-between items-start gap-4">
-              <button onclick={() => toggleExpanded(workout.id)} class="space-y-2.5 flex-1 min-w-0 text-left">
+              <button onclick={() => openWorkout(workout)} class="space-y-2.5 flex-1 min-w-0 text-left">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-label text-primary truncate">
                     {formatDate(workout.date)}
@@ -314,7 +310,6 @@
                   {#each FATIGUE_AXES as axis}
                     <span class="text-caption text-content-subtle tabular-nums">{axis.label[0]}:{workout[axis.key] ?? '—'}</span>
                   {/each}
-                  <Icon icon="ic:baseline-expand-more" class="text-content-subtle text-base transition-transform {expandedId === workout.id ? 'rotate-180' : ''}" />
                 </div>
               </button>
 
@@ -340,7 +335,7 @@
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div class="fixed inset-0 z-40" onclick={() => openMenuId = null}></div>
                     <div class="absolute right-0 top-full mt-1 z-50 w-36 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
-                      <button onclick={() => { trainingState.navigate('add', workout); openMenuId = null; }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+                      <button onclick={() => { openWorkout(workout, 'edit'); openMenuId = null; }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
                         <Icon icon="ic:baseline-edit" class="text-sm" /> Edit
                       </button>
                       <button onclick={() => shareWorkout(workout)} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
@@ -357,36 +352,6 @@
                 </div>
               </div>
             </div>
-
-            {#if expandedId === workout.id}
-              <div class="mt-4 pt-4 border-t border-border-strong/50 space-y-2 animate-in fade-in">
-                {#each workout.exercises as exercise}
-                  {@const v = slotValues(exercise)}
-                  <div class="flex justify-between items-center gap-2">
-                    <span class="text-label text-content truncate">{slotTypeName(exercise, trainingState.exerciseTypes)}</span>
-                    <span class="text-caption text-content-subtle tabular-nums flex-shrink-0">
-                      {#if v.sets && v.reps}
-                        {v.sets}x{v.reps}
-                      {:else if v.duration}
-                        {v.duration}m
-                      {:else if v.distance}
-                        {v.distance}km
-                      {:else}
-                        Done
-                      {/if}
-                      {#if v.weight || v.maxWeightPercent}
-                        @ {v.weight ? formatWeight(v.weight, trainingState.units.weight) : `${v.maxWeightPercent}%`}
-                      {/if}
-                    </span>
-                  </div>
-                {:else}
-                  <p class="text-caption text-content-subtle italic">No exercises logged.</p>
-                {/each}
-                {#if workout.description}
-                  <p class="text-caption text-content-subtle pt-1">{workout.description}</p>
-                {/if}
-              </div>
-            {/if}
           </div>
         {/each}
       </div>

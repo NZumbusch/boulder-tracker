@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekDateRange, getWeekDates } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
@@ -211,7 +212,7 @@
       exercises: [],
       blockId: dominantBlock?.id,
     };
-    trainingState.navigate('add', newWorkout);
+    openWorkout(newWorkout, 'edit', true);
   }
 
   /**
@@ -449,10 +450,17 @@
                       <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
                     </div>
                     <div class="w-1.5 h-1.5 rounded-full {workout.status === 'completed' ? 'bg-success' : 'bg-primary-hover'} shrink-0"></div>
-                    <div class="min-w-0 flex-1">
+                    <div
+                      class="min-w-0 flex-1 cursor-pointer"
+                      role="button"
+                      tabindex="0"
+                      onclick={() => openWorkout(workout)}
+                      onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openWorkout(workout); } }}
+                    >
                       <div class="flex items-center gap-2">
                         <div class="flex items-center gap-1.5">
                           <select
+                            onclick={(e) => e.stopPropagation()}
                             value={workout.dayOfWeek ?? ''}
                             onchange={(e) => handleDayReassign(workout, (e.currentTarget.value || undefined) as DayOfWeek | undefined)}
                             class="w-11 text-center text-caption font-bold text-primary-hover bg-primary-hover/10 px-0 py-0.5 rounded-control leading-none shrink-0 border-none outline-none appearance-none"
@@ -483,7 +491,7 @@
 
                   <div class="flex items-center gap-2 ml-4">
                     <button onclick={() => trainingState.duplicateWorkout(workout)} class="p-1.5 text-content-subtle hover:text-content transition-colors" title="Duplicate"><Icon icon="ic:baseline-content-copy" class="text-sm" /></button>
-                    <button onclick={() => trainingState.navigate('add', workout)} class="p-1.5 text-content-subtle hover:text-content transition-colors"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
+                    <button onclick={() => openWorkout(workout, 'edit')} class="p-1.5 text-content-subtle hover:text-content transition-colors"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
                     <button onclick={() => trainingState.deleteWorkout(workout.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
                     {#if workout.status === 'completed'}
                       <span class="text-label text-success">Done</span>

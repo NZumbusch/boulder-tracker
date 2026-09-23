@@ -1,3 +1,4 @@
+import { openWorkout } from './workoutModal.svelte';
 import { storage } from './storage';
 import type { Workout, WorkoutTemplate, PhaseDef, Benchmark, BenchmarkTypeDef, AnalyticsCategory, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
@@ -454,10 +455,7 @@ class TrainingState {
 
   // --- Actions ---
 
-  /**
-   * Navigates to a specific view and optionally sets an active workout.
-   */
-  /** Opens History with `workoutId` expanded and scrolled into view. */
+  /** Opens History scrolled to `workoutId`, with it open in the workout modal. */
   openInHistory(workoutId: string) {
     this.uiStore.historyFocusId = workoutId;
     this.uiStore.historyTab = 'sessions';
@@ -470,8 +468,8 @@ class TrainingState {
     this.uiStore.navigate('history');
   }
 
-  navigate(view: ViewType, workout: Workout | null = null) {
-    this.uiStore.navigate(view, workout);
+  navigate(view: ViewType) {
+    this.uiStore.navigate(view);
   }
 
   /**
@@ -510,7 +508,10 @@ class TrainingState {
       this.sessionStore.discard();
     }
 
-    this.navigate('history');
+    // Land on the finished session in the workout modal, wherever you
+    // were - from a live session, "Log as planned", or a re-rate.
+    this.uiStore.closeFatigueModal();
+    openWorkout(completedWorkout, 'view');
   }
 
   // --- Live sessions (lib/session/) ---
@@ -648,7 +649,7 @@ class TrainingState {
    * swaps its entire view tree while `isLoading` is true, so a full
    * `saveWorkout` briefly unmounts/remounts whatever screen is showing,
    * which reads as the page jumping back to its top. Fine for a save that
-   * navigates away anyway (`processWorkoutSave`), but wrong for an in-place
+   * navigates away anyway, but wrong for an in-place
    * edit where the user stays put (e.g. the Plan screen's day-of-week
    * reassignment, `UI_PLAN.md §4.3`) - found and fixed 2026-09-18 after the
    * new day-picker made this pre-existing behaviour newly visible.
@@ -668,18 +669,6 @@ class TrainingState {
       } catch (err) {
         console.error('Failed to sync fatigue-reminder notifications:', err);
       }
-    }
-  }
-
-  /**
-   * Handles the high-level logic of saving a workout, including modal triggers.
-   */
-  async processWorkoutSave(workout: Workout) {
-    if (workout.status === 'completed') {
-      this.openFatigueModal(workout);
-    } else {
-      await this.saveWorkout(workout);
-      this.navigate('plan');
     }
   }
 

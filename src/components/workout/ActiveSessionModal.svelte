@@ -12,18 +12,17 @@
    * save-or-discard fork. The stopwatch lives here and nowhere else, so it
    * can't compete with the bubble's own elapsed readout.
    */
-  import { formatWeight, displayWeight } from '../../lib/units';
   import { trainingState } from '../../lib/state.svelte';
   import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
   import { slotStatus } from '../../lib/session/activeSession';
   import { formatClock, formatMinutes } from '../../lib/session/formatSession';
-  import { estimateSlotDuration } from '../../lib/planning/sessionDuration';
+  import { slotSummary } from '../../lib/session/slotDetails';
   import { generateId } from '../../lib/utils';
-  import { PARAMETER_LABELS } from '../../lib/constants';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
   import ExerciseForm from './ExerciseForm.svelte';
+  import ExerciseDetails from './ExerciseDetails.svelte';
   import ExerciseLogSheet from './ExerciseLogSheet.svelte';
   import SessionExitModal from './SessionExitModal.svelte';
   import TimerWidget from './TimerWidget.svelte';
@@ -54,67 +53,6 @@
   const editingSlot = $derived(exercises.find((e) => e.id === editingSlotId) ?? null);
 
   const overrun = $derived(expected > 0 && elapsed > expected);
-
-  /** A one-line summary of what a slot asks for, for the collapsed rows. */
-  function slotSummary(slot: ExerciseSlot): string {
-    const v = slotValues(slot);
-    const parts: string[] = [];
-    if (v.sets) parts.push(`${v.sets}${v.reps ? `×${v.reps}` : ' sets'}`);
-    else if (v.reps) parts.push(`${v.reps} reps`);
-    if (v.weight) parts.push(formatWeight(v.weight, trainingState.units.weight));
-    if (v.minGrade) parts.push(v.maxGrade && v.maxGrade !== v.minGrade ? `${v.minGrade}–${v.maxGrade}` : v.minGrade);
-    const mins = estimateSlotDuration(slot);
-    if (mins) parts.push(`${mins}m`);
-    return parts.join(' · ');
-  }
-
-  /** Everything the current exercise prescribes, as label/value pairs. */
-  function detailPairs(slot: ExerciseSlot): { label: string; value: string }[] {
-    const v = slot.prescribed ?? slotValues(slot);
-    const params = slot.activeParameters
-      ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters
-      ?? [];
-    const pairs: { label: string; value: string }[] = [];
-    const push = (param: ParameterBlock, value: unknown, suffix = '') => {
-      if (!params.includes(param)) return;
-      if (value === undefined || value === null || value === '') return;
-      if (Array.isArray(value) && value.length === 0) return;
-      pairs.push({
-        label: PARAMETER_LABELS[param],
-        value: `${Array.isArray(value) ? value.join(', ') : value}${suffix}`,
-      });
-    };
-    push('duration', v.duration, ' min');
-    push('sets', v.sets);
-    push('reps', v.reps);
-    push('weight', typeof v.weight === 'number' ? Math.round(displayWeight(v.weight, trainingState.units.weight) * 10) / 10 : v.weight, ` ${trainingState.units.weight}`);
-    push('holdSize', v.holdSize, ' mm');
-    push('holdType', v.holdType);
-    push('timeOn', v.timeOn, ' s');
-    push('timeOff', v.timeOff, ' s');
-    push('restTime', v.timeBetweenSets, ' s');
-    push('cadence', v.cadence);
-    push('distance', v.distance, ' km');
-    push('boardType', v.boardType);
-    push('boardAngle', v.boardAngle, '°');
-    push('climbingStyle', v.climbingStyle);
-    push('leadStyle', v.leadStyle);
-    push('mobilityType', v.mobilityType);
-    push('movesPerRoute', v.movesPerRoute);
-    push('bodyweightPercent', v.bodyweightPercent, '%');
-    push('maxWeightPercent', v.maxWeightPercent, '%');
-    push('routeDifficulty', v.routeDifficulty);
-    push('difficulty', v.difficulty);
-    if (params.includes('grades') || params.includes('boulderingGrades') || params.includes('routeGrades')) {
-      if (v.minGrade) {
-        pairs.push({
-          label: 'Grades',
-          value: v.maxGrade && v.maxGrade !== v.minGrade ? `${v.minGrade}–${v.maxGrade}` : v.minGrade,
-        });
-      }
-    }
-    return pairs;
-  }
 
   // --- Handlers ---
 
@@ -348,20 +286,7 @@
               <!-- The current exercise opens up: what to do, then the actions -->
               {#if isCurrent && status === 'pending'}
                 <div class="px-3.5 pb-3.5 space-y-3 animate-in fade-in duration-200">
-                  {#if detailPairs(slot).length > 0}
-                    <div class="grid grid-cols-2 gap-x-3 gap-y-2 p-3 bg-surface-elevated/40 rounded-control border border-border-strong/30">
-                      {#each detailPairs(slot) as pair}
-                        <div class="min-w-0">
-                          <p class="text-caption text-content-subtle truncate">{pair.label}</p>
-                          <p class="text-label font-bold text-content truncate tabular-nums">{pair.value}</p>
-                        </div>
-                      {/each}
-                    </div>
-                  {/if}
-
-                  {#if slotValues(slot).notes}
-                    <p class="text-caption text-content-muted italic px-1">{slotValues(slot).notes}</p>
-                  {/if}
+                  <ExerciseDetails {slot} />
 
                   <div class="flex gap-2">
                     <button

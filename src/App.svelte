@@ -4,12 +4,13 @@
   
   import FatigueModal from './components/common/FatigueModal.svelte';
   import ActiveSessionModal from './components/workout/ActiveSessionModal.svelte';
+  import WorkoutModal from './components/workout/WorkoutModal.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import Icon from "@iconify/svelte";
 
   // --- Derived State ---
-  const plannedThisWeek = $derived(trainingState.getPlannedWorkoutsForWeek(trainingState.activeWorkout?.weekId || trainingState.currentWeekId));
+  const plannedThisWeek = $derived(trainingState.getPlannedWorkoutsForWeek(trainingState.currentWeekId));
 
   $effect(() => {
     if (typeof document !== 'undefined') {
@@ -72,11 +73,8 @@
         <TrainingPlan />
       {/await}
     {:else if trainingState.view === 'add'}
-      {#await import('./components/workout/WorkoutForm.svelte') then { default: WorkoutForm }}
-        <WorkoutForm 
-          plannedWorkouts={plannedThisWeek} 
-          workout={trainingState.activeWorkout}
-        />
+      {#await import('./components/workout/StartScreen.svelte') then { default: StartScreen }}
+        <StartScreen plannedWorkouts={plannedThisWeek} />
       {/await}
     {:else if trainingState.view === 'history'}
       {#await import('./components/history/History.svelte') then { default: History }}
@@ -151,6 +149,7 @@
        the bubble's own elapsed readout. -->
   <ActiveSessionModal />
   <SessionBubble />
+  <WorkoutModal />
 
   {#if trainingState.importProgress}
     {@const p = trainingState.importProgress}

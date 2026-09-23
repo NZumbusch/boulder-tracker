@@ -14,7 +14,7 @@ export type NameMapping = { action: "map"; id: string } | { action: "create" };
 
 /**
  * Case-insensitive key used both to dedupe unresolved-name lists and to key
- * `NameMapping` records - callers (AIImportModal, tests) must key their
+ * `NameMapping` records - callers (SessionAIModal, tests) must key their
  * mapping objects by `normalizeName(name)`, never by the raw display string,
  * so a name that appears with different casing in different parts of the
  * same pasted plan still resolves to one mapping choice.

@@ -20,7 +20,7 @@ import {
  * document, the whole parse is rejected (`valid: false`, no `data`) rather
  * than silently importing the well-formed parts. This is what makes "never
  * silently commit anything on invalid input" trivially true at the
- * validation layer - the caller (AIImportModal) only ever sees a `data`
+ * validation layer - the caller (SessionAIModal) only ever sees a `data`
  * object once every check below has passed.
  *
  * Deliberately permissive in one direction: unrecognized object keys
@@ -729,7 +729,8 @@ export function parseAIPlanOutput(text: string): ValidationResult<AIPlanOutput> 
 export function parseAIWorkoutLogOutput(text: string): ValidationResult<AIWorkoutLogOutput> {
   let raw: unknown;
   try {
-    raw = JSON.parse(text);
+    // Chat apps often wrap the reply in a code fence despite being told not to.
+    raw = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, ""));
   } catch (err: any) {
     return { valid: false, data: null, issues: [{ path: "", message: `Could not parse as JSON: ${err.message}` }], repairs: [] };
   }
@@ -739,12 +740,6 @@ export function parseAIWorkoutLogOutput(text: string): ValidationResult<AIWorkou
 /** The set of `ExerciseValues` fields an AI import is allowed to set, for prompt text. */
 export const AI_EXERCISE_VALUE_FIELD_NAMES: string[] = [...EXERCISE_VALUE_FIELD_NAMES];
 
-/**
- * Embedded verbatim in the "Generate Plan" AI prompt (`AIPromptModal.svelte`)
- * so the instructions and the validator can't silently drift apart -
- * PLAN.md requires the prompt to "include the AIPlanOutput JSON schema/shape
- * inline and explicitly instruct the AI to return only JSON matching it."
- */
 /**
  * The rules every AI prompt shares: what may go in `values`, and the
  * mistakes that a real 15-week plan actually made. Generated from
@@ -764,26 +759,3 @@ HARD RULES for "values" - each of these was a real failure, not a hypothetical:
 - There is no "restTime" field. Rest between sets is "timeBetweenSets".
 - "notes" is the only field that takes free text. Put all coaching detail, pacing, intent and conditions there.
 - Omit any field you have no value for. Never write null.`;
-
-export const AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS = `You are structuring free-text climbing/training notes into JSON. Respond with ONLY a single JSON object matching exactly this shape - no markdown code fences, no commentary before or after it:
-
-{
-  "workouts": [
-    {
-      "date": "2026-09-16",
-      "name": "Session name",
-      "exercises": [
-        { "exerciseTypeName": "Hangboard", "values": { "duration": 30, "sets": 5, "reps": 6, "timeOn": 10, "timeOff": 180, "notes": "optional" } }
-      ]
-    }
-  ]
-}
-
-Rules:
-- "date" (if you can infer one) must be an ISO date string ("YYYY-MM-DD").
-- "exerciseTypeName" is a free-text exercise name - use whatever name best matches what was described.
-
-${AI_VALUES_CONTRACT}
-
-Here are my training notes to structure:
-`;

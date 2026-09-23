@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openWorkout } from '../../lib/workoutModal.svelte';
   import { onMount } from 'svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { formatDate, getWeekIdRange } from '../../lib/dateUtils';
@@ -559,7 +560,13 @@
         {@const showTime = trainingState.homeDetails['today.time']}
         {@const showLoad = trainingState.homeDetails['today.load'] && summary.plannedLoad > 0}
         <div class="flex items-center justify-between p-3.5 rounded-control {workout.provisional ? 'bg-surface-elevated/20 border border-dashed border-border-strong/60' : 'bg-surface-elevated/50 border border-border-strong/50'}">
-          <div class="min-w-0 flex-1">
+          <div
+            class="min-w-0 flex-1 cursor-pointer"
+            role="button"
+            tabindex="0"
+            onclick={() => openWorkout(workout)}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openWorkout(workout); } }}
+          >
             <p class="text-body font-bold text-content truncate">{workout.notes}</p>
             <p class="text-caption text-content-subtle flex items-center gap-1">
               {#if workout.provisional}
@@ -618,7 +625,7 @@
                     <p class="text-label text-content truncate">{workout.notes || 'Session'}</p>
                     <p class="text-caption text-content-subtle">{workout.dayOfWeek}</p>
                   </div>
-                  <button onclick={() => trainingState.navigate('add', workout)} class="px-2.5 py-1 text-label text-primary bg-primary/10 hover:bg-primary/20 rounded-control shrink-0">Log</button>
+                  <button onclick={() => openWorkout(workout)} class="px-2.5 py-1 text-label text-primary bg-primary/10 hover:bg-primary/20 rounded-control shrink-0">Log</button>
                   <button onclick={() => skipWorkout(workout)} class="px-2.5 py-1 text-label text-content-subtle hover:text-content bg-surface-elevated rounded-control shrink-0">Skip</button>
                 </div>
               {/each}

@@ -1,10 +1,10 @@
+import { buildSessionPrompt } from "./sessionPrompt";
 import { describe, it, expect } from "vitest";
 import {
   validateAIPlanOutput,
   validateAIWorkoutLogOutput,
   parseAIPlanOutput,
   parseAIWorkoutLogOutput,
-  AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS,
 } from "./schema";
 import { AI_CHANGESET_INSTRUCTIONS } from "./changeSetPrompt";
 import { EXERCISE_VALUE_SPEC, EXERCISE_VALUE_FIELD_NAMES } from "./valueSpec";
@@ -667,7 +667,10 @@ describe("the full corpus from the rejected 15-week plan", () => {
 describe("AI prompt completeness", () => {
   const PROMPTS = {
     changeSet: AI_CHANGESET_INSTRUCTIONS,
-    workoutLog: AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS,
+    workoutLog: buildSessionPrompt({
+      workout: { id: "w", status: "planned", date: null, weekId: "2026-W39", loadFactor: 0, exercises: [] },
+      request: "", mode: "add", exerciseTypes: [], analyticsCategories: [],
+    }),
   };
 
   for (const [name, prompt] of Object.entries(PROMPTS)) {

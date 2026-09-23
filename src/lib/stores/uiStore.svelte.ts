@@ -12,6 +12,7 @@ const NOTIFICATIONS_PROMPTED_KEY = 'boulder_tracker_notifications_prompted';
  */
 export class UiStore {
   view = $state<ViewType>('home');
+  /** The workout the fatigue-rating modal is rating. */
   activeWorkout = $state<Workout | null>(null);
   selectedWeekId = $state<string | null>(null);
   weekOffset = $state(0);
@@ -34,13 +35,11 @@ export class UiStore {
     }
   }
 
-  /**
-   * Navigates to a specific view and optionally sets an active workout.
-   */
-  navigate(view: ViewType, workout: Workout | null = null) {
+  /** Switches the main view. Workouts open in the workout modal (`lib/workoutModal.svelte.ts`), not through here. */
+  navigate(view: ViewType) {
     this.view = view;
-    this.activeWorkout = workout ? $state.snapshot(workout) as Workout : null;
     this.showFatigue = false;
+    this.activeWorkout = null;
   }
 
   /**
