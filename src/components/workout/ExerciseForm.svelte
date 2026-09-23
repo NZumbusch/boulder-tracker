@@ -4,7 +4,14 @@
   import { trainingState } from '../../lib/state.svelte';
   import type { ExerciseSlot, ExerciseTypeDef, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { PARAMETER_LABELS, BODYWEIGHT_METRIC_ID } from '../../lib/constants';
+  import {
+    BOULDER_GRADES, ROUTE_GRADES, CLIMBING_STYLES, BOARD_TYPES, BOARD_ANGLES,
+    HOLD_TYPES, CAMPUS_TYPES, MOBILITY_TYPES, LEAD_STYLES,
+  } from '../../lib/ai/valueSpec';
   import TargetHint from './TargetHint.svelte';
+  import { repsRepresentative } from '../../lib/exercise/reps';
+  import { displayWeight, toKg, formatWeight } from '../../lib/units';
+  import { loggedMetrics } from '../../lib/analytics/metricValues';
   import Icon from '@iconify/svelte';
 
   // --- Props ---
@@ -34,6 +41,8 @@
   let boardAngle = $state(40);
   let sets = $state<number | undefined>(4);
   let reps = $state<number | undefined>(1);
+  let originalReps = $state<number | number[] | undefined>(undefined);
+  let repsEdited = $state(false);
   let movesPerRoute = $state<number | undefined>();
   let holdType = $state<ExerciseValues['holdType']>('Half Crimp');
   let timeOn = $state(7);
@@ -53,17 +62,20 @@
   let notes = $state('');
   let categoryOverride = $state<string>('');
 
-  // Optional convenience (PLAN.md Phase 6): shows the absolute added weight
+  // Optional convenience: shows the absolute added weight
   // implied by the bodyweightPercent slider, using the most recently logged
   // bodyweight entry - doesn't change what's stored (still a %, same as
   // before), just a display hint.
   const latestBodyweightKg = $derived.by(() => {
-    const entries = trainingState.dailyMetrics
+    const entries = loggedMetrics(trainingState.dailyMetrics)
       .filter((m) => m.metricId === BODYWEIGHT_METRIC_ID)
       .slice()
       .sort((a, b) => b.date.localeCompare(a.date));
     return entries[0]?.value;
   });
+
+  /** A stored kg value in the chosen weight unit, one decimal. */
+  const toDisplayWeight = (kg: number) => Math.round(displayWeight(kg, trainingState.units.weight) * 10) / 10;
 
   // --- Lifecycle ---
   onMount(async () => {
@@ -81,7 +93,7 @@
   const activeTypeDef = $derived(exerciseTypes.find(t => t.id === selectedTypeId));
 
   // Exercise picker grouped by analytics category, recent/frequent first
-  // within each group (UI_PLAN.md §4.4 - was a flat `<select>` over every
+  // within each group (was a flat `<select>` over every
   // modality). Usage is read straight from `trainingState.workouts`
   // (already loaded/reactive) rather than a new derived-data module, since
   // this is presentational ordering for one `<select>`, not a reusable
@@ -127,7 +139,7 @@
     (initialSlot?.[mode as 'prescribed' | 'logged']) ?? initialSlot?.prescribed ?? {},
   );
 
-  // Inline prescribed-target hints (UI_PLAN.md §4.4) - only meaningful in
+  // Inline prescribed-target hints - only meaningful in
   // `logged` mode, and only once there's a real `prescribed` bucket to
   // compare against (a brand-new slot added directly while logging has
   // none). Read-only - `handleSubmit` below never writes to `prescribed`.
@@ -154,13 +166,19 @@
     boardType = v.boardType || 'Kilterboard';
     boardAngle = v.boardAngle ?? 40;
     sets = v.sets ?? 4;
-    reps = v.reps ?? 1;
+    // Per-set reps can't be shown in one field, so the mean stands in.
+    // `originalReps` keeps the real value: saving without touching this
+    // field writes the array back untouched rather than flattening months
+    // of per-set detail into its average.
+    originalReps = v.reps;
+    repsEdited = false;
+    reps = repsRepresentative(v.reps) ?? 1;
     movesPerRoute = v.movesPerRoute;
     holdType = v.holdType || 'Half Crimp';
     timeOn = v.timeOn ?? 7;
     timeOff = v.timeOff ?? 3;
     timeBetweenSets = v.timeBetweenSets ?? 180;
-    weight = v.weight ?? 0;
+    weight = v.weight !== undefined ? toDisplayWeight(v.weight) : 0;
     holdSize = v.holdSize ?? 20;
     distance = v.distance ?? 0;
     campusType = v.campusType || 'Jumps';
@@ -205,7 +223,8 @@
     if (!isValid) return;
 
     const cleanDuration = Math.max(0, duration);
-    const cleanWeight = weight; // Weight can be negative (assisted)
+    // Typed in the chosen unit, stored in kg. Can be negative (assisted).
+    const cleanWeight = Math.round(toKg(weight, trainingState.units.weight) * 100) / 100;
     const cleanSize = Math.max(0, holdSize);
 
     const values: ExerciseValues = {
@@ -229,7 +248,9 @@
     if (params.includes('boardType')) values.boardType = boardType;
     if (params.includes('boardAngle')) values.boardAngle = boardAngle;
     if (params.includes('sets')) values.sets = sets;
-    if (params.includes('reps')) values.reps = reps;
+    if (params.includes('reps')) {
+      values.reps = !repsEdited && Array.isArray(originalReps) ? originalReps : reps;
+    }
     if (params.includes('movesPerRoute')) values.movesPerRoute = movesPerRoute;
 
     if (params.includes('holdType')) values.holdType = holdType;
@@ -255,16 +276,20 @@
     });
   }
 
-  // Constants
-  const bGrades = ['5A', '5B', '5C', '6A', '6A+', '6B', '6B+', '6C', '6C+', '7A', '7A+', '7B', '7B+', '7C', '7C+', '8A', '8A+', '8B', '8B+', '8C'];
-  const rGrades = ['5a', '5b', '5c', '6a', '6a+', '6b', '6b+', '6c', '6c+', '7a', '7a+', '7b', '7b+', '7c', '7c+', '8a', '8a+', '8b', '8b+', '8c', '8c+', '9a', '9a+', '9b', '9b+', '9c'];
-  const climbingStyles: NonNullable<ExerciseValues['climbingStyle']>[number][] = ['Slab', 'Coordination', 'Power', 'Board'];
-  const boardTypes: ExerciseValues['boardType'][] = ['Kilterboard', 'Moonboard', 'Tension Board', 'Spraywall'];
-  const boardAngles = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70];
-  const holdTypes: ExerciseValues['holdType'][] = ['Crimp', 'Half Crimp', 'Full Crimp', 'Open Hand', 'Sloper', 'Pocket'];
-  const campusStyles: ExerciseValues['campusType'][] = ['Jumps', 'One Arm Ladders'];
-  const mobilityTypes: NonNullable<ExerciseValues['mobilityType']>[number][] = ['Hamstrings', 'Shoulders', 'Hips', 'Spine', 'Ankles', 'Wrists'];
-  const leadStyles: NonNullable<ExerciseValues['leadStyle']>[number][] = ['Onsight', 'Flash', 'Redpoint', 'Projecting'];
+  // Constants. Sourced from lib/ai/valueSpec.ts rather than written out
+  // here, so this form's dropdowns, the AI prompt's allowed-value lists and
+  // the AI importer's validation are provably the same set. They used to be
+  // three independent copies, which is how the importer came to accept
+  // board types like "Kilter" that no dropdown here can display.
+  const bGrades = [...BOULDER_GRADES];
+  const rGrades = [...ROUTE_GRADES];
+  const climbingStyles: NonNullable<ExerciseValues['climbingStyle']>[number][] = [...CLIMBING_STYLES];
+  const boardTypes: ExerciseValues['boardType'][] = [...BOARD_TYPES];
+  const boardAngles = [...BOARD_ANGLES];
+  const holdTypes: ExerciseValues['holdType'][] = [...HOLD_TYPES];
+  const campusStyles: ExerciseValues['campusType'][] = [...CAMPUS_TYPES];
+  const mobilityTypes: NonNullable<ExerciseValues['mobilityType']>[number][] = [...MOBILITY_TYPES];
+  const leadStyles: NonNullable<ExerciseValues['leadStyle']>[number][] = [...LEAD_STYLES];
 </script>
 
 <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm animate-in zoom-in-95 duration-300">
@@ -335,7 +360,7 @@
 
     <div class="grid grid-cols-2 gap-3">
       {#if activeParams.includes('sets')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-sets" class="text-label text-content-subtle">Sets</label><TargetHint prescribed={targetValues.sets} current={sets} /></div><input id="ex-sets" type="number" bind:value={sets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.sets ? 'border-danger/50' : ''}" />{#if validationErrors.sets}<p class="text-label text-danger ml-1">{validationErrors.sets}</p>{/if}</div>{/if}
-      {#if activeParams.includes('reps')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={targetValues.reps} current={reps} /></div><input id="ex-reps" type="number" bind:value={reps} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
+      {#if activeParams.includes('reps')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={repsRepresentative(targetValues.reps)} current={reps} /></div><input id="ex-reps" type="number" bind:value={reps} oninput={() => repsEdited = true} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" />{#if !repsEdited && Array.isArray(originalReps)}<p class="text-caption text-content-subtle ml-1">Per set: {originalReps.join(', ')} &mdash; editing replaces all sets</p>{/if}</div>{/if}
       {#if activeParams.includes('movesPerRoute')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-moves" class="text-label text-content-subtle">Moves per route</label><TargetHint prescribed={targetValues.movesPerRoute} current={movesPerRoute} /></div><input id="ex-moves" type="number" bind:value={movesPerRoute} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     </div>
     {#if activeParams.includes('holdType')}<div class="space-y-1.5"><label for="ex-hold" class="text-label text-content-subtle ml-1">Hold Type</label><select id="ex-hold" bind:value={holdType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each holdTypes as h} <option value={h}>{h}</option> {/each}</select></div>{/if}
@@ -343,8 +368,8 @@
     {#if activeParams.includes('timeOff')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-off" class="text-label text-content-subtle">Time Off (s)</label><TargetHint prescribed={targetValues.timeOff} current={timeOff} unit="s" /></div><input id="ex-off" type="number" bind:value={timeOff} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('restTime')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-rest" class="text-label text-content-subtle">Between Sets (s)</label><TargetHint prescribed={targetValues.timeBetweenSets} current={timeBetweenSets} unit="s" /></div><input id="ex-rest" type="number" bind:value={timeBetweenSets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('holdSize')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-size" class="text-label text-content-subtle">Hold Size (mm)</label><TargetHint prescribed={targetValues.holdSize} current={holdSize} unit="mm" /></div><input id="ex-size" type="number" bind:value={holdSize} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.holdSize ? 'border-danger/50' : ''}" />{#if validationErrors.holdSize}<p class="text-label text-danger ml-1">{validationErrors.holdSize}</p>{/if}</div>{/if}
-    {#if activeParams.includes('weight')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-weight" class="text-label text-content-subtle">Weight (kg)</label><TargetHint prescribed={targetValues.weight} current={weight} unit="kg" /></div><input id="ex-weight" type="number" bind:value={weight} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" placeholder="e.g. 10" /></div>{/if}
-    {#if activeParams.includes('bodyweightPercent')}<div class="space-y-4 pt-1"><label for="ex-bw" class="flex justify-between text-label text-content-subtle ml-1"><span>Added Weight (% of BW)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.bodyweightPercent} current={bodyweightPercent} unit="%" /><span class="text-primary font-mono text-caption tabular-nums">{bodyweightPercent}%{#if latestBodyweightKg} <span class="text-content-subtle">(≈ {(latestBodyweightKg * bodyweightPercent / 100).toFixed(1)} kg)</span>{/if}</span></span></label><input id="ex-bw" type="range" min="50" max="220" bind:value={bodyweightPercent} class="w-full h-1.5 bg-surface-elevated rounded-control appearance-none cursor-pointer accent-primary" /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>50%</span><span>100% (BW)</span><span>220%</span></div></div>{/if}
+    {#if activeParams.includes('weight')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-weight" class="text-label text-content-subtle">Weight ({trainingState.units.weight})</label><TargetHint prescribed={targetValues.weight !== undefined ? toDisplayWeight(targetValues.weight) : undefined} current={weight} unit={trainingState.units.weight} /></div><input id="ex-weight" type="number" bind:value={weight} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" placeholder="e.g. 10" /></div>{/if}
+    {#if activeParams.includes('bodyweightPercent')}<div class="space-y-4 pt-1"><label for="ex-bw" class="flex justify-between text-label text-content-subtle ml-1"><span>Added Weight (% of BW)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.bodyweightPercent} current={bodyweightPercent} unit="%" /><span class="text-primary font-mono text-caption tabular-nums">{bodyweightPercent}%{#if latestBodyweightKg} <span class="text-content-subtle">(≈ {formatWeight(latestBodyweightKg * bodyweightPercent / 100, trainingState.units.weight)})</span>{/if}</span></span></label><input id="ex-bw" type="range" min="50" max="220" bind:value={bodyweightPercent} class="w-full h-1.5 bg-surface-elevated rounded-control appearance-none cursor-pointer accent-primary" /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>50%</span><span>100% (BW)</span><span>220%</span></div></div>{/if}
     {#if activeParams.includes('maxWeightPercent')}<div class="space-y-4 pt-1"><label for="ex-mw" class="flex justify-between text-label text-content-subtle ml-1"><span>Load (% of Max)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.maxWeightPercent} current={maxWeightPercent} unit="%" /><span class="text-success font-mono text-caption tabular-nums">{maxWeightPercent}%</span></span></label><input id="ex-mw" type="range" min="10" max="150" bind:value={maxWeightPercent} class="w-full h-1.5 bg-surface-elevated rounded-control appearance-none cursor-pointer accent-success" /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>10%</span><span>100% (Max)</span><span>150%</span></div></div>{/if}
     {#if activeParams.includes('distance')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-distance" class="text-label text-content-subtle">Distance (km)</label><TargetHint prescribed={targetValues.distance} current={distance} unit="km" /></div><input id="ex-distance" type="number" step="0.1" bind:value={distance} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('campusStyle')}<div class="space-y-1.5"><label for="ex-campus" class="text-label text-content-subtle ml-1">Campus Style</label><select id="ex-campus" bind:value={campusType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each campusStyles as c} <option value={c}>{c}</option> {/each}</select></div>{/if}

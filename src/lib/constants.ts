@@ -1,16 +1,26 @@
-import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, ParameterBlock, AnalyticsCategory, BenchmarkTypeDef, MetricDef } from "./types";
+import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, ParameterBlock, AnalyticsCategory, BenchmarkTypeDef, MetricDef, DayOfWeek } from "./types";
 import defaults from "../data/defaults.json";
+
+/** The week, Monday first - the order the planner, schedule and AI all use. */
+export const WEEK_DAYS: DayOfWeek[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+/** The four post-session ratings (1-10), in display order. */
+export const RATING_AXES = [
+  { key: "fingers", label: "Fingers" },
+  { key: "arms", label: "Arms" },
+  { key: "core", label: "Core" },
+  { key: "systemic", label: "Systemic" },
+] as const;
 
 /**
  * Current data model version for exports and migrations.
  */
-export const DATA_EXPORT_VERSION = "3.26";
+export const DATA_EXPORT_VERSION = "3.29";
 
 /**
- * Well-known `MetricDef.id` for bodyweight (Phase 6) - fixed/stable, same
- * treatment PLAN.md's Phase 1 asked for on `sleep-score`/`hrv`/`rhr` ("later
- * phases should treat these ids as fixed/well-known rather than
- * re-inventing them").
+ * Well-known `MetricDef.id` for bodyweight - fixed/stable, same
+ * treatment as `sleep-score`/`hrv`/`rhr`: fixed, well-known ids that
+ * nothing should re-invent.
  */
 export const BODYWEIGHT_METRIC_ID = "bodyweight";
 
@@ -26,8 +36,8 @@ export const BODYWEIGHT_METRIC_ID = "bodyweight";
  * fix (a true fresh install now skips the whole migration chain), a fresh
  * install got zero built-in `MetricDef`s. This constant is used only as
  * `persistence.ts`'s default for a fresh install - the historical
- * `3.17->3.18` migration step is left untouched (frozen, per Phase 0
- * discipline) for existing installs that go through it.
+ * `3.17->3.18` migration step is left untouched (migration steps are
+ * frozen once shipped) for existing installs that go through it.
  */
 export const DEFAULT_METRIC_DEFS: MetricDef[] = [
   { id: "sleep-score", name: "Sleep Score", unit: "pts" },
@@ -81,7 +91,7 @@ export const PARAMETER_LABELS: Record<ParameterBlock, string> = {
 export const DEFAULT_TEMPLATES: Record<string, WorkoutTemplate[]> = defaults.templates as unknown as Record<string, WorkoutTemplate[]>;
 
 /**
- * The 7 built-in macrocycle phases (Phase 3 - see PhaseDef).
+ * The 7 built-in macrocycle phases (see PhaseDef).
  */
 export const DEFAULT_PHASE_DEFS: PhaseDef[] = defaults.phaseDefs as PhaseDef[];
 
@@ -92,9 +102,9 @@ export const DEFAULT_BENCHMARK_TYPES: BenchmarkTypeDef[] = defaults.benchmarkTyp
 
 /**
  * A small library of selectable starter template sets, distinct from the
- * user's own customized `templates` (PLAN.md Phase 3). **Placeholder
+ * user's own customized `templates`. **Placeholder
  * content only** - seeded with one obviously-fake set (decided with the
- * user 2026-09-16) pending real training-science content; see PROGRESS.md.
+ * user 2026-09-16) pending real training-science content.
  */
 export interface TemplateLibrarySet {
   id: string;

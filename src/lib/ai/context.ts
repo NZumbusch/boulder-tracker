@@ -1,7 +1,7 @@
 import type {
   AnalyticsCategory,
   Benchmark,
-  CompetitionEvent,
+  GoalEvent,
   DailyMetricEntry,
   ExerciseTypeDef,
   OutdoorAscent,
@@ -9,29 +9,36 @@ import type {
   ParameterBlock,
   PhaseDef,
   TrainingBlock,
+  WeekNote,
   Workout,
 } from "../types";
 import { slotTypeName, slotValues } from "../exerciseSlot";
+import { repsRepresentative } from "../exercise/reps";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
+import { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
+export { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
 import {
   computeFatigueDecay,
   computeHrvBaseline,
   computeReadiness,
+  type ReadinessConfig,
   type ReadinessStatus,
 } from "../analytics/readiness";
 import { calculateRollingAcwr } from "../analytics/loadAnalytics";
-import type { AISharingPreferences } from "../preferences/migrate";
+import { loggedMetrics } from "../analytics/metricValues";
+import { DEFAULT_AI_HISTORY, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
+import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 
 /**
  * Builds the condensed training-profile data embedded in every AI prompt
- * (`AIPromptModal.svelte`, "Generate Plan"/"Analyze Past"/"Context Only").
- * Extracted out of the component per UI_PLAN.md §5.8/Stage 10 - pure and
- * independently testable, matching this project's standing "pure
- * data-shaping logic gets tests" convention (PLAN.md's own `loadAnalytics.ts`
- * precedent).
+ * (`AICoachModal.svelte`: "Change plan" / "Analyze" / "Context").
+ * Extracted out of the component - pure and independently testable,
+ * matching this project's standing "pure data-shaping logic gets tests"
+ * convention (`loadAnalytics.ts` is the precedent).
  *
- * Before this stage, the prompts predated Phase 4/6/7 entirely: they sent
+ * Before this module, the prompts predated blocks, goals, metrics and
+ * ascents entirely: they sent
  * exercise type names + default parameters, the last 20 workouts reduced to
  * `{date, status, exercise names}` (no duration/sets/reps/load/fatigue), and
  * phase names + benchmarks. Nothing from `TrainingBlock`s, competitions,
@@ -51,7 +58,6 @@ import type { AISharingPreferences } from "../preferences/migrate";
  *   is simply omitted from the built profile - never sent-but-redacted.
  */
 
-const RECENT_WORKOUTS_LIMIT = 20;
 const BLOCK_WINDOW_MARGIN_WEEKS = 4;
 const COMPETITION_LOOKAHEAD_LIMIT = 5;
 const PAIN_LOG_LIMIT = 10;
@@ -100,6 +106,10 @@ export interface RecentWorkoutSummary {
   weekId: string;
   /** The session name (`Workout.notes` - see its own doc comment: "Used as the session name"). */
   name?: string;
+  /** Planned/actual start time of day, "HH:mm" - omitted when the session isn't pinned to one. */
+  startTime?: string;
+  /** Planned wall-clock length of the session in minutes, where one was prescribed. */
+  plannedDuration?: number;
   /** Actual calculated stress score - only meaningful once `status` is "completed". */
   loadFactor?: number;
   fingers?: number;
@@ -115,6 +125,8 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
     status: w.status,
     weekId: w.weekId,
     name: w.notes || undefined,
+    startTime: w.startTime,
+    plannedDuration: w.plannedDuration,
     loadFactor: w.status === "completed" ? w.loadFactor : undefined,
     fingers: w.fingers,
     arms: w.arms,
@@ -126,23 +138,57 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
         name: slotTypeName(e, exerciseTypes),
         duration: v.duration,
         sets: v.sets,
-        reps: v.reps,
+        // Reps per set, as before - `sets` is sent beside it, so the total
+        // would double-count. Routed through the helper only because the
+        // field may now hold one number or one per set.
+        reps: repsRepresentative(v.reps),
         plannedLoad: v.plannedLoad,
       };
     }),
   };
 }
 
-/** The most recent `limit` workouts (any status), in the same array order `workouts` is already stored in - matches the pre-Stage-10 "Last 20" convention. */
+/** The `count` week ids ending with `lastWeekId`, oldest first. */
+function weeksEndingWith(lastWeekId: string, count: number): string[] {
+  const ids: string[] = [];
+  let id = lastWeekId;
+  for (let i = 0; i < count; i++) {
+    ids.unshift(id);
+    id = decrementWeekId(id);
+  }
+  return ids;
+}
+
+/**
+ * The history window around `asOf`: the `fullWeeks` weeks ending with the
+ * current one (sent session by session), and the `summaryWeeks` weeks
+ * before those (sent one line per week).
+ */
+export function historyWeekIds(asOf: Date, history: AIHistoryWindow): { full: string[]; summary: string[] } {
+  const full = weeksEndingWith(getWeekId(asOf), history.fullWeeks);
+  const summary = history.summaryWeeks > 0 ? weeksEndingWith(decrementWeekId(full[0]), history.summaryWeeks) : [];
+  return { full, summary };
+}
+
+/**
+ * Completed sessions from the last `fullWeeks` weeks, oldest first, in full.
+ * Planned sessions are left out: upcoming ones are in the plan context
+ * already, and a past one that never happened isn't history.
+ */
 export function buildRecentWorkouts(
   workouts: Workout[],
   exerciseTypes: ExerciseTypeDef[],
-  limit = RECENT_WORKOUTS_LIMIT,
+  asOf: Date,
+  fullWeeks: number,
 ): RecentWorkoutSummary[] {
-  return workouts.slice(-limit).map((w) => summarizeWorkout(w, exerciseTypes));
+  const weeks = new Set(historyWeekIds(asOf, { fullWeeks, summaryWeeks: 0 }).full);
+  return workouts
+    .filter((w) => w.status === "completed" && weeks.has(w.weekId))
+    .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
+    .map((w) => summarizeWorkout(w, exerciseTypes));
 }
 
-/** Completed workouts whose `weekId` falls in `weekIds` - "Analyze Past"'s own scoped window, full detail (not just names) per UI_PLAN.md §5.8. */
+/** Completed workouts whose `weekId` falls in `weekIds` - "Analyze Past"'s own scoped window, full detail (not just names). */
 export function buildWorkoutsInWeeks(
   workouts: Workout[],
   exerciseTypes: ExerciseTypeDef[],
@@ -167,12 +213,26 @@ export interface TrainingBlockSummary {
   phaseName: string;
   startWeekId: string;
   endWeekId: string;
+  /** Only when note sharing is on and the block has one. */
+  notes?: string;
+}
+
+/** `weekIds`' first and last week, each pushed `BLOCK_WINDOW_MARGIN_WEEKS` further out - the "near the target weeks" window. */
+function widenedWindow(weekIds: string[]): { start: string; end: string } {
+  const sorted = [...weekIds].sort();
+  let start = sorted[0];
+  let end = sorted[sorted.length - 1];
+  for (let i = 0; i < BLOCK_WINDOW_MARGIN_WEEKS; i++) {
+    start = decrementWeekId(start);
+    end = incrementWeekId(end);
+  }
+  return { start, end };
 }
 
 /**
  * `TrainingBlock`s covering `weekIds`, or within `BLOCK_WINDOW_MARGIN_WEEKS`
  * weeks either side of it - "covering or near the target weeks" per
- * UI_PLAN.md §5.8 item 1, so a block that's about to end or about to start
+ * on purpose, so a block that's about to end or about to start
  * still gives the AI useful context even without literally overlapping.
  * Returns `[]` for an empty `weekIds` (nothing to window around).
  */
@@ -180,51 +240,85 @@ export function buildTrainingBlockContext(
   blocks: TrainingBlock[],
   phaseDefs: PhaseDef[],
   weekIds: string[],
+  includeNotes = false,
 ): TrainingBlockSummary[] {
   if (weekIds.length === 0) return [];
-  const sorted = [...weekIds].sort();
-  let windowStart = sorted[0];
-  let windowEnd = sorted[sorted.length - 1];
-  for (let i = 0; i < BLOCK_WINDOW_MARGIN_WEEKS; i++) {
-    windowStart = decrementWeekId(windowStart);
-    windowEnd = incrementWeekId(windowEnd);
-  }
+  const { start: windowStart, end: windowEnd } = widenedWindow(weekIds);
   const phaseName = (phaseId: string) => phaseDefs.find((p) => p.id === phaseId)?.name ?? "Unknown";
   return blocks
     .filter((b) => b.startWeekId <= windowEnd && windowStart <= b.endWeekId)
-    .map((b) => ({ name: b.name, phaseName: phaseName(b.phaseId), startWeekId: b.startWeekId, endWeekId: b.endWeekId }))
+    .map((b) => ({
+      name: b.name,
+      phaseName: phaseName(b.phaseId),
+      startWeekId: b.startWeekId,
+      endWeekId: b.endWeekId,
+      ...(includeNotes && b.notes ? { notes: b.notes } : {}),
+    }))
     .sort((a, b) => (a.startWeekId < b.startWeekId ? -1 : a.startWeekId > b.startWeekId ? 1 : 0));
+}
+
+/**
+ * Week notes for the target weeks and the `BLOCK_WINDOW_MARGIN_WEEKS` either
+ * side - the same "near the timeframe" window as blocks, so a note about
+ * last week's tweaked elbow or next month's trip reaches the plan. Sorted
+ * by week.
+ */
+export function buildWeekNoteContext(weekNotes: WeekNote[], weekIds: string[]): WeekNote[] {
+  if (weekIds.length === 0) return [];
+  const { start, end } = widenedWindow(weekIds);
+  return weekNotes
+    .filter((n) => n.weekId >= start && n.weekId <= end && n.text.trim())
+    .map((n) => ({ weekId: n.weekId, text: n.text }))
+    .sort((a, b) => (a.weekId < b.weekId ? -1 : a.weekId > b.weekId ? 1 : 0));
 }
 
 // --- Competitions --------------------------------------------------------
 
-export interface CompetitionSummary {
+export interface GoalSummary {
   name: string;
+  kind: GoalEvent["kind"];
+  /** Start day. */
   date: string;
-  priority: CompetitionEvent["priority"];
+  /** Trips longer than a day. */
+  endDate?: string;
+  location?: string;
+  /** Trip projects, e.g. "Big Boss 7C", "any 7B (flash)". */
+  projects?: string[];
   daysAway: number;
 }
 
+/** A project as one readable line for the prompt. */
+function projectLabel(p: NonNullable<GoalEvent["projects"]>[number]): string {
+  if (p.name) return p.grade ? `${p.name} ${p.grade}` : p.name;
+  return `any ${p.grade ?? "grade"}${p.flash ? " (flash)" : ""}`;
+}
+
 /**
- * Upcoming events (date >= `asOf`'s calendar day), soonest first, capped at
- * `limit` - except an A-priority event that would otherwise fall outside the
- * cap is kept anyway ("A-priority especially - a coaching prompt should know
- * what the athlete is peaking for", UI_PLAN.md §5.8 item 1).
+ * Upcoming goals - competitions and outdoor trips, including one under way
+ * - soonest first, capped at `limit`. Trips carry their dates, place and
+ * projects so a plan can peak for the trip and train for its problems.
  */
-export function buildCompetitionContext(
-  events: CompetitionEvent[],
-  asOf: Date,
-  limit = COMPETITION_LOOKAHEAD_LIMIT,
-): CompetitionSummary[] {
+export function buildGoalContext(goals: GoalEvent[], asOf: Date, limit = COMPETITION_LOOKAHEAD_LIMIT): GoalSummary[] {
   const asOfDay = toUtcDayIndex(asOf.toISOString());
-  const upcoming = events
-    .filter((e) => toUtcDayIndex(e.date) >= asOfDay)
-    .map((e) => ({ name: e.name, date: e.date, priority: e.priority, daysAway: toUtcDayIndex(e.date) - asOfDay }))
-    .sort((a, b) => a.daysAway - b.daysAway);
-  if (upcoming.length <= limit) return upcoming;
-  const kept = upcoming.slice(0, limit);
-  const droppedAPriority = upcoming.slice(limit).filter((e) => e.priority === "A");
-  return [...kept, ...droppedAPriority].sort((a, b) => a.daysAway - b.daysAway);
+  return goals
+    .filter((g) => toUtcDayIndex(g.endDate && g.endDate > g.date ? g.endDate : g.date) >= asOfDay)
+    .map((g): GoalSummary => ({
+      name: g.name,
+      kind: g.kind,
+      date: g.date,
+      ...(g.endDate && g.endDate > g.date ? { endDate: g.endDate } : {}),
+      ...(g.location ? { location: g.location.name } : {}),
+      ...(g.projects && g.projects.length > 0 ? { projects: g.projects.map(projectLabel) } : {}),
+      daysAway: toUtcDayIndex(g.date) - asOfDay,
+    }))
+    .sort((a, b) => a.daysAway - b.daysAway)
+    .slice(0, limit);
+}
+
+/** The user's Training model settings, so the prompt's readiness matches the app's. */
+export interface ModelOptions {
+  readiness?: ReadinessConfig;
+  fatigueHalfLife?: number;
 }
 
 // --- Readiness / daily metrics --------------------------------------------
@@ -252,7 +346,7 @@ function trendFor(
   days = METRIC_TREND_DAYS,
 ): MetricTrendPoint[] {
   const asOfDay = toUtcDayIndex(asOf.toISOString());
-  return dailyMetrics
+  return loggedMetrics(dailyMetrics)
     .filter((m) => m.metricId === metricId)
     .filter((m) => {
       const day = toUtcDayIndex(m.date);
@@ -268,9 +362,15 @@ function trendFor(
  * 14-day sleep/HRV/RHR/bodyweight trends so the AI can see direction, not
  * just a single snapshot value.
  */
-export function buildReadinessSnapshot(workouts: Workout[], dailyMetrics: DailyMetricEntry[], asOf: Date): ReadinessSnapshot {
+export function buildReadinessSnapshot(
+  workouts: Workout[],
+  allDailyMetrics: DailyMetricEntry[],
+  asOf: Date,
+  model: ModelOptions = {},
+): ReadinessSnapshot {
+  const dailyMetrics = loggedMetrics(allDailyMetrics);
   const todayIso = asOf.toISOString().split("T")[0];
-  const fatigueDecay = computeFatigueDecay(workouts, asOf);
+  const fatigueDecay = computeFatigueDecay(workouts, asOf, model.fatigueHalfLife);
   const acwr = calculateRollingAcwr(workouts, asOf);
   const hrvBaseline = computeHrvBaseline(dailyMetrics, asOf);
   const todaysMetric = (metricId: string): number | undefined =>
@@ -281,7 +381,7 @@ export function buildReadinessSnapshot(workouts: Workout[], dailyMetrics: DailyM
     sleep: todaysMetric("sleep-score"),
     hrv: todaysMetric("hrv"),
     hrvBaseline,
-  });
+  }, model.readiness);
   return {
     score: readiness.score,
     status: readiness.status,
@@ -335,28 +435,33 @@ export interface AIContextSource {
   workouts: Workout[];
   benchmarks: Benchmark[];
   trainingBlocks: TrainingBlock[];
-  competitionEvents: CompetitionEvent[];
+  goals: GoalEvent[];
   dailyMetrics: DailyMetricEntry[];
   painLogs: PainLog[];
   outdoorAscents: OutdoorAscent[];
+  weekNotes: WeekNote[];
 }
 
 export interface AIContextProfile {
   exerciseModalities?: ExerciseModalitySummary[];
   analyticsCategories?: AnalyticsCategorySummary[];
   phases?: string[];
+  /** Completed sessions in full: the history window's recent weeks, or (analyze) the chosen weeks. */
   recentWorkouts: RecentWorkoutSummary[];
+  /** One line per older week - not for analyze, which is scoped to its own weeks. */
+  weeklyHistory?: WeekHistorySummary[];
   benchmarks: Benchmark[];
   trainingBlocks?: TrainingBlockSummary[];
-  competitions?: CompetitionSummary[];
+  goals?: GoalSummary[];
   readiness?: ReadinessSnapshot;
   painLogs?: PainLogSummary[];
   outdoorAscents?: OutdoorAscentSummary[];
+  weekNotes?: WeekNote[];
 }
 
 /**
  * Builds the full condensed profile for one AI prompt, gated by `mode` and
- * `sharing`. Pure - the caller (`AIPromptModal.svelte`) still owns the
+ * `sharing`. Pure - the caller (`lib/ai/coachPrompt.ts`) owns the
  * surrounding prompt text (goal, framing, output instructions) and just
  * `JSON.stringify`s whichever fields of this profile it renders.
  *
@@ -373,15 +478,17 @@ export function buildAIContextProfile(
   sharing: AISharingPreferences,
   asOf: Date,
   targetWeekIds: string[] = [],
+  model: ModelOptions = {},
+  history: AIHistoryWindow = DEFAULT_AI_HISTORY,
 ): AIContextProfile {
   // "Analyze Past" already scopes itself to the picked week range and
-  // doesn't need the full exercise/phase catalog (UI_PLAN.md §5.8 item 1).
+  // doesn't need the full exercise/phase catalog.
   const includeCatalog = mode !== "analyze";
 
   const recentWorkouts =
     mode === "analyze"
       ? buildWorkoutsInWeeks(source.workouts, source.exerciseTypes, targetWeekIds)
-      : buildRecentWorkouts(source.workouts, source.exerciseTypes);
+      : buildRecentWorkouts(source.workouts, source.exerciseTypes, asOf, history.fullWeeks);
 
   const benchmarks =
     mode === "analyze" ? buildBenchmarksInWeeks(source.benchmarks, targetWeekIds) : source.benchmarks;
@@ -390,25 +497,35 @@ export function buildAIContextProfile(
 
   const profile: AIContextProfile = { recentWorkouts, benchmarks };
 
+  if (mode !== "analyze" && history.summaryWeeks > 0) {
+    const phaseOf = sharing.trainingBlocks
+      ? (weekId: string) => source.phaseDefs.find((p) => p.id === getDominantBlockForWeek(source.trainingBlocks, weekId)?.phaseId)?.name
+      : undefined;
+    profile.weeklyHistory = buildWeeklyHistory(source.workouts, source.exerciseTypes, source.analyticsCategories, historyWeekIds(asOf, history).summary, phaseOf);
+  }
+
   if (includeCatalog) {
     profile.exerciseModalities = buildExerciseModalities(source.exerciseTypes);
     profile.analyticsCategories = buildAnalyticsCategorySummaries(source.analyticsCategories);
     profile.phases = source.phaseDefs.filter((p) => !p.archived).map((p) => p.name);
   }
   if (sharing.trainingBlocks) {
-    profile.trainingBlocks = buildTrainingBlockContext(source.trainingBlocks, source.phaseDefs, windowWeekIds);
+    profile.trainingBlocks = buildTrainingBlockContext(source.trainingBlocks, source.phaseDefs, windowWeekIds, sharing.notes);
   }
   if (sharing.competitions) {
-    profile.competitions = buildCompetitionContext(source.competitionEvents, asOf);
+    profile.goals = buildGoalContext(source.goals, asOf);
   }
   if (sharing.readinessMetrics) {
-    profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf);
+    profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf, model);
   }
   if (sharing.painLogs) {
     profile.painLogs = buildPainLogContext(source.painLogs);
   }
   if (sharing.outdoorAscents) {
     profile.outdoorAscents = buildOutdoorAscentContext(source.outdoorAscents);
+  }
+  if (sharing.notes) {
+    profile.weekNotes = buildWeekNoteContext(source.weekNotes, windowWeekIds);
   }
   return profile;
 }

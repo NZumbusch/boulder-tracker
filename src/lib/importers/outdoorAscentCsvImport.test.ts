@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { parseOutdoorAscentCsv } from "./outdoorAscentCsvImport";
 
 // Synthetic CSV strings matching the real 8a.nu column header/quoting/
-// "null"-sentinel format confirmed against a real sample export (data.csv,
-// repo root - not committed as a fixture, see PROGRESS.md 2026-09-17).
+// "null"-sentinel format confirmed against a real sample export
+// (stuff/data.csv - personal data, deliberately not committed as a fixture).
 // These are hand-written, not derived from the real file's content.
 const HEADER =
   '"route_boulder","name","location_name","sector_name","area_name","country_code","date","type","sub_type","rating","project","tries","repeats","difficulty","perceived_hardness","comment","height","recommended","sits"';

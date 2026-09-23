@@ -1,9 +1,8 @@
 <script lang="ts">
   /**
-   * Notifications (UI_PLAN.md §4.7/§5.6, Stage 8) - the fatigue reminder
-   * (Phase 7, moved out of `PreferencesSettings.svelte`'s old "next to the
-   * theme picker" spot per §4.7's own complaint that it "will not scale")
-   * plus the new daily-metrics reminder, each with its own time where
+   * Notifications - the fatigue reminder (moved out of
+   * `PreferencesSettings.svelte`'s old spot next to the theme picker, which
+   * didn't scale) plus the new daily-metrics reminder, each with its own time where
    * applicable. Both ultimately depend on `notificationsEnabled` (native
    * permission) - the section title itself explains this rather than
    * nesting a second conditional gate in the markup.

@@ -13,7 +13,7 @@ export function slotValues(slot: ExerciseSlot): ExerciseValues {
 /**
  * Resolves a slot's exercise type display name via `typeId`, including
  * types that have since been archived (they stay in the list, never
- * hard-deleted, once referenced - see PLAN.md principle 2).
+ * hard-deleted once referenced).
  */
 export function slotTypeName(slot: ExerciseSlot, exerciseTypes: ExerciseTypeDef[]): string {
   return exerciseTypes.find(t => t.id === slot.typeId)?.name ?? 'Unknown';

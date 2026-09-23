@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { WEEK_DAYS } from '../../lib/constants';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
   import { slotTypeName } from '../../lib/exerciseSlot';
-  import type { ExerciseSlot, ExerciseValues, ParameterBlock, WorkoutTemplate, DayOfWeek } from '../../lib/types';
+  import type { ExerciseSlot, ExerciseValues, ParameterBlock, WorkoutTemplate } from '../../lib/types';
   import ExerciseForm from '../workout/ExerciseForm.svelte';
   import Icon from "@iconify/svelte";
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
@@ -16,7 +17,7 @@
     phaseId: string;
   } = $props();
 
-  const days: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const days = WEEK_DAYS;
 
   let editingWorkoutIndex = $state<number | null>(null);
   let isAddingExercise = $state(false);
@@ -107,6 +108,13 @@
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0 flex-1">
           <input bind:value={workout.name} class="w-full bg-transparent text-sm font-bold text-content border-b border-transparent focus:border-primary/30 outline-none pb-1 truncate" placeholder="Session Name" />
+          <textarea
+            value={workout.description ?? ''}
+            oninput={(e) => { const v = e.currentTarget.value; if (v.trim()) workout.description = v; else delete workout.description; }}
+            rows="1"
+            placeholder="Session note (optional) - intent, pacing, what to focus on"
+            class="w-full mt-1 bg-transparent text-caption text-content-muted border-b border-transparent focus:border-primary/30 outline-none resize-y"
+          ></textarea>
         </div>
         <div class="flex items-center gap-0.5 flex-shrink-0">
           <button onclick={() => {
@@ -149,6 +157,36 @@
         >
           None
         </button>
+      </div>
+      <!-- Planned time of day + planned session length. Both optional and
+           both carried onto every workout this template generates (see
+           generateWorkoutsFromTemplate) - a template with neither is just an
+           open-ended session, not a zero-length one. -->
+      <div class="flex gap-2">
+        <label class="flex-1 space-y-1">
+          <span class="text-label text-content-subtle ml-1 block">Start Time</span>
+          <input
+            type="time"
+            value={workout.startTime ?? ''}
+            onchange={(e) => workout.startTime = e.currentTarget.value || undefined}
+            class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content rounded-control border border-border-strong text-label outline-none focus:border-primary/50 transition-colors"
+          />
+        </label>
+        <label class="flex-1 space-y-1">
+          <span class="text-label text-content-subtle ml-1 block">Planned (min)</span>
+          <input
+            type="number"
+            min="1"
+            step="5"
+            placeholder="—"
+            value={workout.plannedDuration ?? ''}
+            onchange={(e) => {
+              const n = Number(e.currentTarget.value);
+              workout.plannedDuration = e.currentTarget.value === '' || !Number.isFinite(n) || n <= 0 ? undefined : n;
+            }}
+            class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content rounded-control border border-border-strong text-label outline-none focus:border-primary/50 transition-colors"
+          />
+        </label>
       </div>
       <div class="space-y-2">
         <section

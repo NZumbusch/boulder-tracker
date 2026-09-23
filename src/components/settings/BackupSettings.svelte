@@ -2,6 +2,8 @@
   import { trainingState } from '../../lib/state.svelte';
   import { showConfirm } from '../../lib/utils';
   import { exportWorkoutsToICS } from '../../lib/ics';
+  import { Capacitor } from '@capacitor/core';
+  import { AUTO_BACKUP_KEEP } from '../../lib/storage/autoBackup';
   import PDFExportModal from './PDFExportModal.svelte';
   import Icon from "@iconify/svelte";
 
@@ -14,6 +16,7 @@
   } = $props();
 
   let showPDFExport = $state(false);
+  const isNative = Capacitor.isNativePlatform();
   let fileInput = $state<HTMLInputElement>();
 
   async function handleImportClick() {
@@ -78,6 +81,25 @@
         <input bind:this={fileInput} type="file" accept=".json" class="hidden" onchange={onImport} />
       </div>
     </div>
+    {#if isNative}
+      <label class="flex items-center justify-between gap-3 p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 cursor-pointer">
+        <div class="min-w-0">
+          <p class="text-body text-content">Automatic weekly backup</p>
+          <p class="text-caption text-content-subtle mt-0.5">
+            Once a week, to Documents/ClimbingTracker, keeping the last {AUTO_BACKUP_KEEP}.
+            {#if trainingState.lastAutoBackup}
+              Last: {new Date(trainingState.lastAutoBackup.at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{trainingState.lastAutoBackup.where !== 'Documents/ClimbingTracker' ? ` (in ${trainingState.lastAutoBackup.where})` : ''}.
+            {/if}
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          checked={trainingState.autoBackup}
+          onchange={(e) => trainingState.setAutoBackup(e.currentTarget.checked)}
+          class="w-5 h-5 rounded accent-primary shrink-0"
+        />
+      </label>
+    {/if}
   </div>
 </div>
 

@@ -43,7 +43,7 @@ describe("calculateWeeklyLoad", () => {
   });
 });
 
-describe("calculateRollingAcwr (UI_PLAN.md §5.3 - rolling 7-day acute / 28-day chronic window, replacing week buckets)", () => {
+describe("calculateRollingAcwr (rolling 7-day acute / 28-day chronic window, replacing week buckets)", () => {
   const asOf = new Date(Date.UTC(2026, 2, 28)); // 2026-03-28, UTC midnight
 
   /** `n` completed workouts of `loadFactor` each, one per day, the most recent on `asOf`, going backward. */
@@ -139,7 +139,7 @@ describe("calculateRollingAcwrSeries", () => {
   });
 });
 
-describe("calculateAcwrForWeeks (UI_PLAN.md §5.3 - ratio/acuteLoad/chronicLoad/sufficient now come from calculateRollingAcwr sampled at each week's UTC end date; rampRate/spike stay week-bucketed, per §5.3's own 'different metric' note)", () => {
+describe("calculateAcwrForWeeks (ratio/acuteLoad/chronicLoad/sufficient now come from calculateRollingAcwr sampled at each week's UTC end date; rampRate/spike stay week-bucketed, as a deliberately 'different metric' note)", () => {
   it("acuteLoad/chronicLoad/ratio/sufficient for a week equal calculateRollingAcwr sampled at that week's end date", () => {
     // 2026-W12 ends 2026-03-22 (see dateUtils.test.ts). Build 28 days of
     // even daily load ending exactly on that date so the rolling window is
@@ -330,6 +330,34 @@ describe("findRecoveryWarnings", () => {
     expect(findRecoveryWarnings(workouts, dailyMetrics, [week1, week2])).toEqual([]);
   });
 
+  it("does not read a week of zero sleep entries as sleep declining", () => {
+    const workouts = [
+      makeWorkout({ status: "completed", weekId: week1, loadFactor: 10, date: "2026-03-02" }),
+      makeWorkout({ status: "completed", weekId: week2, loadFactor: 20, date: "2026-03-09" }),
+    ];
+    const dailyMetrics: DailyMetricEntry[] = [
+      { id: "m1", metricId: "sleep-score", date: "2026-03-02", value: 80 },
+      { id: "m2", metricId: "sleep-score", date: "2026-03-09", value: 0 },
+      { id: "m3", metricId: "sleep-score", date: "2026-03-10", value: 0 },
+    ];
+
+    expect(findRecoveryWarnings(workouts, dailyMetrics, [week1, week2])).toEqual([]);
+  });
+
+  it("averages only the real readings in a week that also has zeros", () => {
+    const workouts = [
+      makeWorkout({ status: "completed", weekId: week1, loadFactor: 10, date: "2026-03-02" }),
+      makeWorkout({ status: "completed", weekId: week2, loadFactor: 20, date: "2026-03-09" }),
+    ];
+    const dailyMetrics: DailyMetricEntry[] = [
+      { id: "m1", metricId: "sleep-score", date: "2026-03-02", value: 70 },
+      { id: "m2", metricId: "sleep-score", date: "2026-03-09", value: 75 },
+      { id: "m3", metricId: "sleep-score", date: "2026-03-10", value: 0 },
+    ];
+
+    expect(findRecoveryWarnings(workouts, dailyMetrics, [week1, week2])).toEqual([]);
+  });
+
   it("includes consecutive-training-day warnings alongside readiness warnings", () => {
     const trainingDays = ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05", "2026-01-06"];
     const workouts = trainingDays.map((date) => makeWorkout({ status: "completed", weekId: "W1", loadFactor: 1, date }));
@@ -395,7 +423,7 @@ describe("correlatePainWithLoadSpikes", () => {
     expect(result.loadSpikeNearby).toBe(false);
   });
 
-  it("a high ratio during a not-yet-sufficient 'building history' window does not count as correlated on its own (the baseline is understated, not trustworthy - UI_PLAN.md §5.3)", () => {
+  it("a high ratio during a not-yet-sufficient 'building history' window does not count as correlated on its own (the baseline is understated, not trustworthy)", () => {
     const acwrInsufficient: AcwrResult[] = [
       { weekId: "W7", acuteLoad: 10, chronicLoad: 2, ratio: 5, sufficient: false, rampRate: 0, spike: false },
     ];

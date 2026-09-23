@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatWeight } from '../../lib/units';
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekDateRange, formatDate } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
@@ -7,7 +8,6 @@
   import { calculateAcwrForWeeks, calculateWeeklyAdherence, correlatePainWithLoadSpikes } from '../../lib/analytics/loadAnalytics';
   import type { ExerciseSlot } from '../../lib/types';
   import Icon from '@iconify/svelte';
-  import html2pdf from 'html2pdf.js';
 
   /** Resolves a slot's effective category name: its override if set, else its type's default. */
   function resolveSlotCategory(e: ExerciseSlot): string {
@@ -78,7 +78,7 @@
     });
   });
 
-  /** Coach-report analytics sections (PLAN.md Phase 6), built on Phase 4's loadAnalytics.ts. */
+  /** Coach-report analytics sections, built on loadAnalytics.ts. */
   const reportAnalytics = $derived.by(() => {
     const acwr = calculateAcwrForWeeks(trainingState.workouts, targetWeekIds);
     const adherence = targetWeekIds
@@ -87,6 +87,7 @@
     const painCorrelations = correlatePainWithLoadSpikes(
       trainingState.painLogs.filter((p) => targetWeekIds.includes(p.weekId)),
       acwr,
+      trainingState.acwrZones.highRisk,
     );
     return { acwr, adherence, painCorrelations };
   });
@@ -113,6 +114,8 @@
 
       // Ensure the container is temporarily visible to html2canvas, but hidden from viewport
       printContainer.style.display = 'block';
+      // Loaded on export only: it's most of Settings' download otherwise.
+      const { default: html2pdf } = await import('html2pdf.js');
       await html2pdf().set(opt).from(printContainer).save();
     } catch (err: any) {
       console.error(err);
@@ -301,7 +304,7 @@
                             {#if ex.minGrade || ex.maxGrade}<span>Grades: {ex.minGrade}{ex.minGrade && ex.maxGrade ? '-' : ''}{ex.maxGrade}</span>{/if}
                             {#if ex.timeOn && ex.timeOff}<span>{ex.timeOn}s ON / {ex.timeOff}s OFF</span>{/if}
                             {#if ex.routeDifficulty}<span>Route Diff: {ex.routeDifficulty}</span>{/if}
-                            {#if ex.weight}<span>Weight: +{ex.weight}kg</span>{/if}
+                            {#if ex.weight}<span>Weight: +{formatWeight(ex.weight, trainingState.units.weight)}</span>{/if}
                             {#if ex.bodyweightPercent}<span>BW %: {ex.bodyweightPercent}%</span>{/if}
                             {#if ex.maxWeightPercent}<span>Max Weight %: {ex.maxWeightPercent}%</span>{/if}
                           </div>

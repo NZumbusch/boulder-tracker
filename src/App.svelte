@@ -3,11 +3,15 @@
   import { trainingState } from './lib/state.svelte';
   
   import FatigueModal from './components/common/FatigueModal.svelte';
-  import { slotValues } from './lib/exerciseSlot';
+  import ActiveSessionModal from './components/workout/ActiveSessionModal.svelte';
+  import WorkoutModal from './components/workout/WorkoutModal.svelte';
+  import Toast from './components/common/Toast.svelte';
+  import SessionBubble from './components/workout/SessionBubble.svelte';
+  import { sessionDuration } from './lib/planning/sessionDuration';
   import Icon from "@iconify/svelte";
 
   // --- Derived State ---
-  const plannedThisWeek = $derived(trainingState.getPlannedWorkoutsForWeek(trainingState.activeWorkout?.weekId || trainingState.currentWeekId));
+  const plannedThisWeek = $derived(trainingState.getPlannedWorkoutsForWeek(trainingState.currentWeekId));
 
   $effect(() => {
     if (typeof document !== 'undefined') {
@@ -22,7 +26,7 @@
   });
 
   // Resolves the "system" motion preference against the OS-level
-  // prefers-reduced-motion query, per UI_PLAN.md §3.4 - an explicit
+  // prefers-reduced-motion query - an explicit
   // full/reduced choice always wins; "system" (the default) tracks the
   // media query live rather than being read once at load.
   $effect(() => {
@@ -47,7 +51,15 @@
 </script>
 
 <main class="flex flex-col h-screen overflow-hidden bg-app-bg text-content font-sans">
-  <div class="flex-1 overflow-y-auto no-scrollbar bg-surface flex flex-col items-center w-full p-4">
+  <!-- `overflow-x-hidden` is a guard, not a layout tool: several charts
+       hang absolutely-positioned nowrap tooltips off their data points,
+       and one on a right-edge point reaches past the viewport, which made
+       the whole page scroll sideways into empty space on a phone. The
+       tooltips are decoration, so clipping them at the edge is right;
+       anything that genuinely needs horizontal room (the Analytics chip
+       row, Home's weather strip) is its own `overflow-x-auto` scroller and
+       is unaffected. -->
+  <div class="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4">
     {#if trainingState.isLoading}
       <div class="flex flex-col items-center justify-center h-full space-y-4">
         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -62,11 +74,8 @@
         <TrainingPlan />
       {/await}
     {:else if trainingState.view === 'add'}
-      {#await import('./components/workout/WorkoutForm.svelte') then { default: WorkoutForm }}
-        <WorkoutForm 
-          plannedWorkouts={plannedThisWeek} 
-          workout={trainingState.activeWorkout}
-        />
+      {#await import('./components/workout/StartScreen.svelte') then { default: StartScreen }}
+        <StartScreen plannedWorkouts={plannedThisWeek} />
       {/await}
     {:else if trainingState.view === 'history'}
       {#await import('./components/history/History.svelte') then { default: History }}
@@ -134,10 +143,36 @@
     </button>
   </nav>
 
+  <!-- The live session and its minimised bubble are mounted here, outside
+       the view switch, so a running session survives navigating between
+       screens. They are mutually exclusive (the bubble only shows while
+       the modal is closed), so the modal's stopwatch never competes with
+       the bubble's own elapsed readout. -->
+  <ActiveSessionModal />
+  <SessionBubble />
+  <WorkoutModal />
+  <Toast />
+
+  {#if trainingState.importProgress}
+    {@const p = trainingState.importProgress}
+    <div class="fixed inset-0 z-[200] flex items-center justify-center bg-app-bg/80 backdrop-blur-sm animate-in fade-in duration-200" role="status" aria-live="polite">
+      <div class="w-72 bg-surface border border-border rounded-card p-5 shadow-card space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-label text-content">Importing backup</p>
+          <span class="text-caption text-content-subtle tabular-nums">{Math.round(p.fraction * 100)}%</span>
+        </div>
+        <div class="h-2 bg-surface-elevated rounded-full overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(p.fraction * 100)}>
+          <div class="h-full bg-primary rounded-full transition-[width] duration-300 ease-out" style="width: {p.fraction * 100}%"></div>
+        </div>
+        <p class="text-caption text-content-subtle">{p.label}…</p>
+      </div>
+    </div>
+  {/if}
+
   {#if trainingState.activeWorkout && trainingState.showFatigue}
     <FatigueModal 
       initialData={trainingState.activeWorkout}
-      duration={trainingState.activeWorkout.exercises.reduce((acc, e) => acc + (slotValues(e).duration || 0), 0)}
+      duration={sessionDuration(trainingState.activeWorkout)}
       onConfirm={(data) => trainingState.confirmFatigue(data)} 
     />
   {/if}

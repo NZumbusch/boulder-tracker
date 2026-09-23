@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Recovery/rest-day warnings panel (PLAN.md Phase 4): consecutive
+   * Recovery/rest-day warnings panel: consecutive
    * training days, or a load spike alongside declining readiness metrics.
    */
   import type { RecoveryWarning } from '../../lib/analytics/loadAnalytics';
@@ -12,15 +12,13 @@
   const flaggedPainLogs = $derived(painCorrelations.filter((p) => p.loadSpikeNearby));
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
-  <div class="flex items-center justify-between px-1">
+<div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+  <div class="flex items-center justify-between">
     <div>
       <h3 class="text-section uppercase text-content-muted">Recovery Warnings</h3>
       <p class="text-caption text-content-subtle mt-0.5">Overtraining and injury-risk signals</p>
     </div>
-    <div class="p-2 bg-danger/10 rounded-control text-danger">
-      <Icon icon="ic:baseline-warning" class="text-lg" />
-    </div>
+    <Icon icon="ic:baseline-warning" class="text-base {warnings.length > 0 ? 'text-danger' : 'text-content-subtle'}" />
   </div>
 
   <div class="space-y-2">

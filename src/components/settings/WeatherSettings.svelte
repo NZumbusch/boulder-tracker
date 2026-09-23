@@ -1,20 +1,32 @@
 <script lang="ts">
   /**
-   * Weather (UI_PLAN.md §4.7/§5.5, Stage 8) - the Settings UI over the
-   * store/preferences already wired in Stage 8 part 3. The whole feature
-   * is off by default (both locations `null`) until set here.
+   * Weather - the Settings UI over the
+   * weather store/preferences. Off by default until a location is set.
+   * A home location drives Home's Weather card; every saved crag gets its
+   * conditions on the Crags card.
    */
   import { trainingState } from '../../lib/state.svelte';
   import type { WeatherLocation } from '../../lib/preferences/migrate';
   import LocationEditor from './LocationEditor.svelte';
-  import Icon from "@iconify/svelte";
+
+  function setCrag(index: number, location: WeatherLocation) {
+    const next = [...trainingState.crags];
+    next[index] = location;
+    trainingState.setCrags(next);
+  }
+  function removeCrag(index: number) {
+    trainingState.setCrags(trainingState.crags.filter((_, i) => i !== index));
+  }
+  function addCrag(location: WeatherLocation) {
+    trainingState.setCrags([...trainingState.crags, location]);
+  }
 </script>
 
 <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Weather</h3>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
-      Open-Meteo, no account needed. A home location shows current conditions on Home; an optional trip location adds a 7-day forecast card for planning outdoor trips.
+      Open-Meteo, no account needed. A home location shows current conditions on Home; each crag you add gets its own climbing conditions and forecast on the Crags card.
     </p>
   </div>
 
@@ -25,11 +37,21 @@
       onSet={(loc: WeatherLocation) => trainingState.setHomeLocation(loc)}
       onClear={() => trainingState.setHomeLocation(null)}
     />
-    <LocationEditor
-      label="Trip location"
-      location={trainingState.tripLocation}
-      onSet={(loc: WeatherLocation) => trainingState.setTripLocation(loc)}
-      onClear={() => trainingState.setTripLocation(null)}
-    />
+    {#each trainingState.crags as crag, i (crag.name)}
+      <LocationEditor
+        label="Crag {i + 1}"
+        location={crag}
+        onSet={(loc: WeatherLocation) => setCrag(i, loc)}
+        onClear={() => removeCrag(i)}
+      />
+    {/each}
+    {#key trainingState.crags.length}
+      <LocationEditor
+        label={trainingState.crags.length === 0 ? 'Crag' : 'Add another crag'}
+        location={null}
+        onSet={(loc: WeatherLocation) => addCrag(loc)}
+        onClear={() => {}}
+      />
+    {/key}
   </div>
 </div>

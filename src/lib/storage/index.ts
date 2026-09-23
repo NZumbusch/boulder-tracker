@@ -6,7 +6,8 @@ import type {
   WorkoutTemplate,
   TrainingBlock,
   WeekOverride,
-  CompetitionEvent,
+  WeekNote,
+  GoalEvent,
   ExerciseTypeDef,
   PhaseDef,
   Benchmark,
@@ -17,12 +18,29 @@ import type {
   PainLog,
   OutdoorAscent,
 } from "../types";
-import { calculatePlannedLoad } from "../types";
 import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
 import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
-import { initDB, flushDB, setDbState, writeMigrationBackup, _dbState } from "./persistence";
+import { upsertWeekNote } from "../planning/notes";
+import { toStoredWorkout } from "../planning/weekProjection";
+import type { PlanWrites } from "../ai/changePlanner";
+import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
+
+/** The tables a bulk plan change (AI change set, copied week) can touch - what its undo snapshot holds. */
+const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes"] as const;
+type PlanTables = Record<(typeof PLAN_TABLE_NAMES)[number], unknown>;
+interface PlanUndoRecord {
+  /** What made the change: an AI change set, or copying a week in the planner. */
+  source: "ai" | "copy";
+  appliedAt: string;
+  before: PlanTables;
+  /** The plan right after applying, to tell whether it was edited since. */
+  after: PlanTables;
+}
+function planTables(db: any): PlanTables {
+  return toPlain(Object.fromEntries(PLAN_TABLE_NAMES.map((t) => [t, db[t]]))) as PlanTables;
+}
 import { runDataMigrations, assertMigrationInvariants } from "./migrations";
 
 export { runDataMigrations, assertMigrationInvariants };
@@ -36,7 +54,8 @@ export const storage = {
   async _getWorkouts(): Promise<Workout[]> { await initDB(); return _dbState.workouts; },
   async _getTrainingBlocks(): Promise<TrainingBlock[]> { await initDB(); return _dbState.trainingBlocks; },
   async _getWeekOverrides(): Promise<WeekOverride[]> { await initDB(); return _dbState.weekOverrides; },
-  async _getCompetitionEvents(): Promise<CompetitionEvent[]> { await initDB(); return _dbState.competitionEvents; },
+  async _getWeekNotes(): Promise<WeekNote[]> { await initDB(); return _dbState.weekNotes; },
+  async _getGoals(): Promise<GoalEvent[]> { await initDB(); return _dbState.goals; },
   async _getBenchmarks(): Promise<Benchmark[]> { await initDB(); return _dbState.benchmarks; },
   async _getBenchmarkTypes(): Promise<BenchmarkTypeDef[]> { await initDB(); return _dbState.benchmarkTypes; },
   async _getAnalyticsCategories(): Promise<AnalyticsCategory[]> { await initDB(); return _dbState.analyticsCategories; },
@@ -48,20 +67,21 @@ export const storage = {
   async _getPainLogs(): Promise<PainLog[]> { await initDB(); return _dbState.painLogs; },
   async _getOutdoorAscents(): Promise<OutdoorAscent[]> { await initDB(); return _dbState.outdoorAscents; },
 
-  async _saveWorkouts(workouts: Workout[]): Promise<void> { await initDB(); _dbState.workouts = workouts; await flushDB(); },
-  async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = blocks; await flushDB(); },
-  async _saveWeekOverrides(overrides: WeekOverride[]): Promise<void> { await initDB(); _dbState.weekOverrides = overrides; await flushDB(); },
-  async _saveCompetitionEvents(events: CompetitionEvent[]): Promise<void> { await initDB(); _dbState.competitionEvents = events; await flushDB(); },
-  async _saveBenchmarks(benchmarks: Benchmark[]): Promise<void> { await initDB(); _dbState.benchmarks = benchmarks; await flushDB(); },
-  async _saveBenchmarkTypes(types: BenchmarkTypeDef[]): Promise<void> { await initDB(); _dbState.benchmarkTypes = types; await flushDB(); },
-  async _saveAnalyticsCategories(categories: AnalyticsCategory[]): Promise<void> { await initDB(); _dbState.analyticsCategories = categories; await flushDB(); },
-  async _saveTemplates(templates: Record<string, WorkoutTemplate[]>): Promise<void> { await initDB(); _dbState.templates = templates; await flushDB(); },
-  async _savePhaseDefs(defs: PhaseDef[]): Promise<void> { await initDB(); _dbState.phaseDefs = defs; await flushDB(); },
-  async _saveExerciseTypes(types: ExerciseTypeDef[]): Promise<void> { await initDB(); _dbState.exerciseTypes = types; await flushDB(); },
-  async _saveMetricDefs(defs: MetricDef[]): Promise<void> { await initDB(); _dbState.metricDefs = defs; await flushDB(); },
-  async _saveDailyMetrics(entries: DailyMetricEntry[]): Promise<void> { await initDB(); _dbState.dailyMetrics = entries; await flushDB(); },
-  async _savePainLogs(logs: PainLog[]): Promise<void> { await initDB(); _dbState.painLogs = logs; await flushDB(); },
-  async _saveOutdoorAscents(ascents: OutdoorAscent[]): Promise<void> { await initDB(); _dbState.outdoorAscents = ascents; await flushDB(); },
+  async _saveWorkouts(workouts: Workout[]): Promise<void> { await initDB(); _dbState.workouts = toPlain(workouts); await flushDB(["workouts"]); },
+  async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(["trainingBlocks"]); },
+  async _saveWeekOverrides(overrides: WeekOverride[]): Promise<void> { await initDB(); _dbState.weekOverrides = toPlain(overrides); await flushDB(["weekOverrides"]); },
+  async _saveWeekNotes(notes: WeekNote[]): Promise<void> { await initDB(); _dbState.weekNotes = toPlain(notes); await flushDB(["weekNotes"]); },
+  async _saveGoals(goals: GoalEvent[]): Promise<void> { await initDB(); _dbState.goals = toPlain(goals); await flushDB(["goals"]); },
+  async _saveBenchmarks(benchmarks: Benchmark[]): Promise<void> { await initDB(); _dbState.benchmarks = toPlain(benchmarks); await flushDB(["benchmarks"]); },
+  async _saveBenchmarkTypes(types: BenchmarkTypeDef[]): Promise<void> { await initDB(); _dbState.benchmarkTypes = toPlain(types); await flushDB(["benchmarkTypes"]); },
+  async _saveAnalyticsCategories(categories: AnalyticsCategory[]): Promise<void> { await initDB(); _dbState.analyticsCategories = toPlain(categories); await flushDB(["analyticsCategories"]); },
+  async _saveTemplates(templates: Record<string, WorkoutTemplate[]>): Promise<void> { await initDB(); _dbState.templates = toPlain(templates); await flushDB(["templates"]); },
+  async _savePhaseDefs(defs: PhaseDef[]): Promise<void> { await initDB(); _dbState.phaseDefs = toPlain(defs); await flushDB(["phaseDefs"]); },
+  async _saveExerciseTypes(types: ExerciseTypeDef[]): Promise<void> { await initDB(); _dbState.exerciseTypes = toPlain(types); await flushDB(["exerciseTypes"]); },
+  async _saveMetricDefs(defs: MetricDef[]): Promise<void> { await initDB(); _dbState.metricDefs = toPlain(defs); await flushDB(["metricDefs"]); },
+  async _saveDailyMetrics(entries: DailyMetricEntry[]): Promise<void> { await initDB(); _dbState.dailyMetrics = toPlain(entries); await flushDB(["dailyMetrics"]); },
+  async _savePainLogs(logs: PainLog[]): Promise<void> { await initDB(); _dbState.painLogs = toPlain(logs); await flushDB(["painLogs"]); },
+  async _saveOutdoorAscents(ascents: OutdoorAscent[]): Promise<void> { await initDB(); _dbState.outdoorAscents = toPlain(ascents); await flushDB(["outdoorAscents"]); },
 
   // --- Public Interface ---
 
@@ -209,24 +229,114 @@ export const storage = {
     }
   },
 
-  async getCompetitionEvents(): Promise<CompetitionEvent[]> {
-    return this._getCompetitionEvents();
+  /**
+   * Writes an AI change set's result (`changePlanner.ts` -> `PlanWrites`) in
+   * one go: catalog lists replaced where they changed, and each touched
+   * week's planned sessions swapped for its new plan (or dropped, when it
+   * now follows its phase). Completed sessions are never removed. One
+   * flush, so a half-applied plan can't be left behind by a failed write.
+   */
+  async applyPlanWrites(writes: PlanWrites, source: PlanUndoRecord["source"] = "ai"): Promise<void> {
+    await initDB();
+    const db = _dbState;
+    const before = planTables(db);
+    if (writes.exerciseTypes) db.exerciseTypes = toPlain(writes.exerciseTypes);
+    if (writes.phaseDefs) db.phaseDefs = toPlain(writes.phaseDefs);
+    if (writes.templates) db.templates = toPlain(writes.templates);
+    if (writes.trainingBlocks) db.trainingBlocks = toPlain(writes.trainingBlocks);
+    if (writes.weeks.length) {
+      const touched = new Set(writes.weeks.map((w) => w.weekId));
+      const kept = (db.workouts as Workout[]).filter((w) => !(touched.has(w.weekId) && w.status === "planned"));
+      const added = writes.weeks.flatMap((w) => (w.planned ?? []).map(toStoredWorkout));
+      db.workouts = toPlain([...kept, ...added]);
+      const overrides = (db.weekOverrides as WeekOverride[]).filter((o) => !touched.has(o.weekId));
+      for (const w of writes.weeks) if (w.customized) overrides.push({ weekId: w.weekId, customized: true });
+      db.weekOverrides = toPlain(overrides);
+    }
+    let notes = db.weekNotes as WeekNote[];
+    for (const n of writes.weekNotes) notes = upsertWeekNote(notes, n.weekId, n.text);
+    db.weekNotes = toPlain(notes);
+    await flushDB();
+    await writePlanUndo({ source, appliedAt: new Date().toISOString(), before, after: planTables(db) } satisfies PlanUndoRecord);
   },
 
-  async saveCompetitionEvent(event: CompetitionEvent): Promise<void> {
-    const events = await this._getCompetitionEvents();
+  /**
+   * Whether the last bulk plan change (an AI change set, or a copied week)
+   * can be undone, what it was, when it was applied, and whether the plan
+   * has been edited since (undoing reverts those edits too). Sessions
+   * logged since don't count as edits - undo keeps them.
+   */
+  async getPlanUndo(): Promise<{ source: PlanUndoRecord["source"]; appliedAt: string; changedSince: boolean } | null> {
+    const record = await readPlanUndo<PlanUndoRecord>();
+    if (!record) return null;
+    await initDB();
+    const now = planTables(_dbState);
+    const completedNow = new Set((now.workouts as Workout[]).filter((w) => w.status === "completed").map((w) => w.id));
+    const comparable = (t: PlanTables) => JSON.stringify({
+      ...t,
+      workouts: (t.workouts as Workout[])
+        .filter((w) => w.status === "planned" && !completedNow.has(w.id))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+    });
+    return { source: record.source ?? "ai", appliedAt: record.appliedAt, changedSince: comparable(now) !== comparable(record.after) };
+  },
+
+  /**
+   * Puts the plan back as it was before the last bulk change: exercises,
+   * phases, templates, blocks, week overrides and notes, and planned
+   * sessions. Completed sessions are always today's - a session logged
+   * since the change stays logged.
+   */
+  async undoPlanChange(): Promise<void> {
+    const record = await readPlanUndo<PlanUndoRecord>();
+    if (!record) return;
+    await initDB();
+    const db = _dbState;
+    const completed = (db.workouts as Workout[]).filter((w) => w.status === "completed");
+    const completedIds = new Set(completed.map((w) => w.id));
+    for (const table of PLAN_TABLE_NAMES) {
+      if (table !== "workouts") db[table] = record.before[table];
+    }
+    db.workouts = toPlain([
+      ...(record.before.workouts as Workout[]).filter((w) => w.status === "planned" && !completedIds.has(w.id)),
+      ...completed,
+    ]);
+    await flushDB();
+    await writePlanUndo(null);
+  },
+
+  async clearPlanUndo(): Promise<void> {
+    await writePlanUndo(null);
+  },
+
+  async getWeekNotes(): Promise<WeekNote[]> {
+    return this._getWeekNotes();
+  },
+
+  /** Sets `weekId`'s note; blank text deletes it (see `upsertWeekNote`). */
+  async saveWeekNote(weekId: string, text: string): Promise<void> {
+    const notes = await this._getWeekNotes();
+    await this._saveWeekNotes(upsertWeekNote(notes, weekId, text));
+  },
+
+  async getGoals(): Promise<GoalEvent[]> {
+    return this._getGoals();
+  },
+
+  async saveGoal(event: GoalEvent): Promise<void> {
+    const events = await this._getGoals();
     const index = events.findIndex((e) => e.id === event.id);
     if (index !== -1) {
       events[index] = event;
     } else {
       events.push(event);
     }
-    await this._saveCompetitionEvents(events);
+    await this._saveGoals(events);
   },
 
-  async deleteCompetitionEvent(id: string): Promise<void> {
-    const events = await this._getCompetitionEvents();
-    await this._saveCompetitionEvents(events.filter((e) => e.id !== id));
+  async deleteGoal(id: string): Promise<void> {
+    const events = await this._getGoals();
+    await this._saveGoals(events.filter((e) => e.id !== id));
   },
 
   async getTemplates(): Promise<Record<string, WorkoutTemplate[]>> {
@@ -262,8 +372,8 @@ export const storage = {
       throw new Error("Duplicate modality names are not allowed.");
     }
 
-    // No rename-propagation needed: exercises reference types by typeId
-    // (Phase 1), which doesn't change when a type's display name does.
+    // No rename-propagation needed: exercises reference types by typeId,
+    // which doesn't change when a type's display name does.
     await this._saveExerciseTypes(types);
   },
 
@@ -304,7 +414,7 @@ export const storage = {
    * Finds an existing MetricDef by id, or creates it from the given
    * defaults. Defensive belt-and-suspenders alongside the fresh-install
    * default (constants.ts's DEFAULT_METRIC_DEFS) and the 3.24->3.25
-   * migration step - see PROGRESS.md 2026-09-17.
+   * migration step.
    */
   async ensureMetricDef(def: MetricDef): Promise<void> {
     const defs = await this._getMetricDefs();
@@ -380,6 +490,23 @@ export const storage = {
    * still wins for template generation/display (see `getDominantBlockForWeek`)
    * - assigning a phase here only ever affects this week's own single-week
    * block, never anyone else's block.
+   *
+   * Assigning a phase no longer hard-writes the phase's sessions into the
+   * week. A week with nothing stored is left *provisional* and projects its
+   * sessions from the phase's templates at read time
+   * (`lib/planning/weekProjection.ts`); it only gains real rows once
+   * something is logged or edited in it, it falls into the past, or the user
+   * commits it. Three cases, in order of how much there is to lose:
+   *
+   *  - nothing stored: clear any `customized` flag and let it project. This
+   *    is what makes "Clear Week, then assign a phase" work on a week a
+   *    multi-week block still covers.
+   *  - stored but not customized (a committed, untouched week): regenerate
+   *    its planned sessions from the new phase, exactly as before.
+   *  - stored and customized: left completely alone. Hand edits still win
+   *    over template regeneration, as they always have.
+   *
+   * Completed sessions are never touched in any of these cases.
    */
   async assignPhaseToWeek(weekId: string, phaseId: string): Promise<void> {
     const blocks = await this._getTrainingBlocks();
@@ -404,22 +531,86 @@ export const storage = {
     }
     await this._saveTrainingBlocks(blocks);
 
-    if (!isCustomized) {
-      const workouts = await this._getWorkouts();
-      const filteredWorkouts = workouts.filter(
-        (w) => !(w.weekId === weekId && w.status === "planned"),
-      );
-      const templates = await this.getTemplates();
-      const dominantBlock = getDominantBlockForWeek(blocks, weekId);
-      const effectivePhaseId = dominantBlock?.phaseId ?? phaseId;
-      const phaseTemplates = templates[effectivePhaseId];
+    const workouts = await this._getWorkouts();
+    const hasStored = workouts.some((w) => w.weekId === weekId);
 
-      const newWorkouts = generateWorkoutsFromTemplate(weekId, phaseTemplates || []).map(
-        (w) => ({ ...w, blockId: dominantBlock?.id }),
-      );
-
-      await this._saveWorkouts([...filteredWorkouts, ...newWorkouts]);
+    if (!hasStored) {
+      // Leave the week provisional - it will project from the new phase.
+      // Dropping any stale `customized` flag is what lets a cleared week
+      // follow a phase again.
+      if (isCustomized) {
+        await this._saveWeekOverrides(overrides.filter((o) => o.weekId !== weekId));
+      }
+      return;
     }
+
+    if (isCustomized) return; // hand-edited: never regenerated over
+
+    const filteredWorkouts = workouts.filter(
+      (w) => !(w.weekId === weekId && w.status === "planned"),
+    );
+    const templates = await this.getTemplates();
+    const dominantBlock = getDominantBlockForWeek(blocks, weekId);
+    const effectivePhaseId = dominantBlock?.phaseId ?? phaseId;
+    const phaseTemplates = templates[effectivePhaseId];
+
+    const newWorkouts = generateWorkoutsFromTemplate(weekId, phaseTemplates || []).map(
+      (w) => ({ ...w, blockId: dominantBlock?.id }),
+    );
+
+    await this._saveWorkouts([...filteredWorkouts, ...newWorkouts]);
+  },
+
+  /**
+   * Turns a provisional week's projected sessions into real stored rows -
+   * the "copy" of copy-on-write. Deliberately does NOT mark the week
+   * customized: materialising is not a hand edit, it only fixes the sessions
+   * in place so they stop tracking the templates.
+   *
+   * Idempotent and last-writer-safe: if anything is already stored for the
+   * week, this is a no-op, so a materialise racing with a save can never
+   * duplicate the week's sessions.
+   */
+  async materializeWeek(weekId: string, projected: Workout[]): Promise<void> {
+    if (projected.length === 0) return;
+    const workouts = await this._getWorkouts();
+    if (workouts.some((w) => w.weekId === weekId)) return;
+    await this._saveWorkouts([...workouts, ...projected]);
+  },
+
+  /**
+   * Puts a week back under its phase's control - the inverse of
+   * materialising it. Drops the week's planned sessions and its
+   * `customized` flag so it projects from the phase's templates again.
+   *
+   * Completed sessions are always kept, which means a week that has any
+   * cannot go back to projecting (stored rows are what make a week
+   * non-provisional). In that case its planned sessions are regenerated
+   * from the templates instead, so "reset" means the same thing either way:
+   * this week's plan matches the phase again.
+   */
+  async resetWeekToPhaseDefaults(weekId: string): Promise<void> {
+    const workouts = await this._getWorkouts();
+    const kept = workouts.filter((w) => !(w.weekId === weekId && w.status === "planned"));
+
+    const overrides = await this._getWeekOverrides();
+    await this._saveWeekOverrides(overrides.filter((o) => o.weekId !== weekId));
+
+    const remaining = kept.filter((w) => w.weekId === weekId);
+    if (remaining.length === 0) {
+      // Nothing pins the week to storage any more - let it project.
+      await this._saveWorkouts(kept);
+      return;
+    }
+
+    const blocks = await this._getTrainingBlocks();
+    const dominantBlock = getDominantBlockForWeek(blocks, weekId);
+    const templates = await this.getTemplates();
+    const phaseTemplates = dominantBlock ? templates[dominantBlock.phaseId] : undefined;
+    const regenerated = generateWorkoutsFromTemplate(weekId, phaseTemplates || []).map(
+      (w) => ({ ...w, blockId: dominantBlock?.id }),
+    );
+    await this._saveWorkouts([...kept, ...regenerated]);
   },
 
   async clearWeekData(weekId: string): Promise<void> {
@@ -432,9 +623,20 @@ export const storage = {
     );
     await this._saveTrainingBlocks(filteredBlocks);
 
-    // 2. Remove the week override
+    // 2. Reset the week override. If a *multi-week* block still covers this
+    // week, the week would immediately re-project its sessions from that
+    // block's phase and "Clear Week" would appear to do nothing - so in that
+    // case the week is marked customized instead, which is exactly the
+    // "deliberately empty, don't regenerate" state. Assigning a phase to the
+    // week later clears that flag again (see `assignPhaseToWeek`).
     const overrides = await this._getWeekOverrides();
-    await this._saveWeekOverrides(overrides.filter((o) => o.weekId !== weekId));
+    const stillCovered = filteredBlocks.some(
+      (b) => b.startWeekId <= weekId && weekId <= b.endWeekId,
+    );
+    const withoutThisWeek = overrides.filter((o) => o.weekId !== weekId);
+    await this._saveWeekOverrides(
+      stillCovered ? [...withoutThisWeek, { weekId, customized: true }] : withoutThisWeek,
+    );
 
     // 3. Remove all workouts for this week
     const workouts = await this._getWorkouts();
@@ -487,7 +689,7 @@ export const storage = {
     }
   },
 
-  async importData(file: File): Promise<void> {
+  async importData(file: File, onProgress: (label: string, fraction: number) => void = () => {}): Promise<void> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -499,12 +701,15 @@ export const storage = {
             throw new Error("Invalid backup format: workouts missing.");
           }
 
+          onProgress("Updating to the current format", 0.35);
           runDataMigrations(data);
+          onProgress("Saving", 0.6);
 
           if (data.workouts) _dbState.workouts = data.workouts;
           if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
           if (data.weekOverrides) _dbState.weekOverrides = data.weekOverrides;
-          if (data.competitionEvents) _dbState.competitionEvents = data.competitionEvents;
+          if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
+          if (data.goals) _dbState.goals = data.goals;
           if (data.templates) _dbState.templates = data.templates;
           if (data.phaseDefs) _dbState.phaseDefs = data.phaseDefs;
           if (data.exerciseTypes) _dbState.exerciseTypes = data.exerciseTypes;
@@ -518,6 +723,8 @@ export const storage = {
           _dbState.exportVersion = data.exportVersion || "1.0";
 
           await flushDB();
+          // A plan-undo snapshot belongs to the data this import replaced.
+          await writePlanUndo(null);
           resolve();
         } catch (err) {
           reject(err);

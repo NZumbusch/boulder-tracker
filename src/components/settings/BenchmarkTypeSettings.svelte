@@ -42,8 +42,9 @@
     } else {
       benchmarkTypes.push({ ...editingBenchmarkType, name });
     }
+    // Closing is enough: nulling the edited object too would make the
+    // form's still-bound inputs read `.name` of null before the form is gone.
     isAddingBenchmark = false;
-    editingBenchmarkType = null;
   }
 
   async function deleteBenchmarkType(id: string) {
@@ -65,7 +66,7 @@
         <div class="space-y-1"><label for="bench-name" class="text-label text-content-subtle ml-1">Test Name</label><input id="bench-name" bind:value={editingBenchmarkType.name} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong focus:ring-1 focus:ring-success outline-none text-sm" placeholder="e.g., 20mm Max Hang" /></div>
         <div class="space-y-1"><label for="bench-unit" class="text-label text-content-subtle ml-1">Result Unit</label><input id="bench-unit" bind:value={editingBenchmarkType.unit} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong focus:ring-1 focus:ring-success outline-none text-sm" placeholder="e.g., kg, reps, s" /></div>
       </div>
-      <div class="flex gap-2 pt-2"><button onclick={saveBenchmarkType} class="flex-1 py-3 bg-success text-white text-sm font-bold rounded-control">Save</button><button onclick={() => { isAddingBenchmark = false; editingBenchmarkType = null; }} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
+      <div class="flex gap-2 pt-2"><button onclick={saveBenchmarkType} class="flex-1 py-3 bg-success text-white text-sm font-bold rounded-control">Save</button><button onclick={() => isAddingBenchmark = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
     </div>
   {:else}
     <div class="space-y-2">

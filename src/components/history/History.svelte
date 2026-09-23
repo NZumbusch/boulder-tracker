@@ -1,14 +1,22 @@
 <script lang="ts">
+  import { RATING_AXES } from '../../lib/constants';
+  import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import type { Workout } from '../../lib/types';
   import { formatDate } from '../../lib/dateUtils';
-  import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
+  import { slotTypeName } from '../../lib/exerciseSlot';
+  import { sessionDuration } from '../../lib/planning/sessionDuration';
   import WorkoutShareImage from './WorkoutShareImage.svelte';
+  import SendsLog from '../sends/SendsLog.svelte';
+  import { applySendFilters } from '../../lib/sends/filter';
+  import { parseFontGrade } from '../../lib/analytics/grades';
+  import { displayGrade } from '../../lib/sends/gradeScale';
   import Icon from "@iconify/svelte";
+  import { onMount, tick } from 'svelte';
 
-  // Stage 4 (UI_PLAN.md §6/§4.5): History overhaul - overflow menu, month
+  // History: overflow menu, month
   // grouping, richer row content (duration/fatigue/block), and the new
-  // typeId/block/search/to-date filters, on top of Stage 3's Share wiring.
+  // typeId/block/search/to-date filters, on top of the Share wiring.
 
   const completedWorkouts = $derived(trainingState.completedWorkouts);
   let limit = $state(50);
@@ -22,12 +30,37 @@
   let filterSearch = $state<string>('');
   let filterMinDuration = $state<number | ''>('');
   let filterMaxDuration = $state<number | ''>('');
+  // Sends' own filters; search and the date range above are shared by both tabs.
+  let filterMinGrade = $state('');
+  let filterMaxGrade = $state('');
+  let filterStyle = $state('');
+  let filterCrag = $state('');
   let workoutToShare = $state<Workout | null>(null);
   let openMenuId = $state<string | null>(null);
-  let expandedId = $state<string | null>(null);
+  const onSends = $derived(trainingState.uiStore.historyTab === 'sends');
 
+  // Arriving from Home's Recent Activity: open that session in the workout
+  // modal and bring its card into view. One-shot - the focus is cleared so coming back later starts
+  // from the top as usual.
+  onMount(async () => {
+    const focusId = trainingState.uiStore.historyFocusId;
+    if (!focusId) return;
+    trainingState.uiStore.historyFocusId = null;
+    const index = filteredWorkouts.findIndex((w) => w.id === focusId);
+    if (index === -1) return;
+    if (index >= limit) limit = index + 1;
+    openWorkout(filteredWorkouts[index]);
+    await tick();
+    document.getElementById(`workout-${focusId}`)?.scrollIntoView({ block: 'center' });
+  });
+
+  // A live session's recorded running time when it has one, otherwise the
+  // logged exercises (falling back to the estimate) - see `sessionDuration`,
+  // which replaced this component's own sum so History, the duration filter,
+  // load factor and the calendar export can't disagree about a session's
+  // length. Sessions logged before live sessions existed are unaffected.
   function workoutDuration(w: Workout): number {
-    return w.exercises?.reduce((acc, e) => acc + (slotValues(e).duration || 0), 0) || 0;
+    return sessionDuration(w);
   }
 
   function blockForWorkout(w: Workout) {
@@ -37,13 +70,6 @@
     return phaseId ? trainingState.phaseDefs.find((p) => p.id === phaseId)?.name : undefined;
   }
 
-  const FATIGUE_AXES: { key: 'fingers' | 'arms' | 'core' | 'systemic'; label: string }[] = [
-    { key: 'fingers', label: 'Fingers' },
-    { key: 'arms', label: 'Arms' },
-    { key: 'core', label: 'Core' },
-    { key: 'systemic', label: 'Systemic' },
-  ];
-
   const filteredWorkouts = $derived(completedWorkouts.slice().sort((a, b) => {
     const timeA = new Date(a.date || 0).getTime();
     const timeB = new Date(b.date || 0).getTime();
@@ -52,8 +78,9 @@
     const startB = b.startTime || "00:00";
     return startA.localeCompare(startB);
   }).reverse().filter(w => {
-    if (filterFromDate && w.date && w.date < filterFromDate) return false;
-    if (filterToDate && w.date && w.date > filterToDate) return false;
+    // Compared by day, so the "to" date includes sessions later that same day.
+    if (filterFromDate && w.date && w.date.slice(0, 10) < filterFromDate) return false;
+    if (filterToDate && w.date && w.date.slice(0, 10) > filterToDate) return false;
 
     const totalDuration = workoutDuration(w);
     if (filterMinDuration !== '' && totalDuration < filterMinDuration) return false;
@@ -86,6 +113,40 @@
   }));
 
   const displayedWorkouts = $derived(filteredWorkouts.slice(0, limit));
+
+  const filteredSends = $derived(applySendFilters(trainingState.outdoorAscents, {
+    search: filterSearch,
+    from: filterFromDate,
+    to: filterToDate,
+    minGrade: filterMinGrade,
+    maxGrade: filterMaxGrade,
+    style: filterStyle,
+    crag: filterCrag,
+  }));
+
+  /** Grades you've sent, lowest first, labelled in the display scale. In V, one option per band: its lowest Font grade for "min", its highest for "max". */
+  function gradeOptions(end: 'min' | 'max'): { value: string; label: string }[] {
+    const grades = [...new Set(trainingState.outdoorAscents.map((a) => a.grade))]
+      .filter((g) => parseFontGrade(g) !== undefined)
+      .sort((a, b) => parseFontGrade(a)! - parseFontGrade(b)!);
+    const byLabel = new Map<string, string>();
+    for (const g of grades) {
+      const label = displayGrade(g, trainingState.units.grades);
+      if (end === 'max' || !byLabel.has(label)) byLabel.set(label, g);
+    }
+    return [...byLabel].map(([label, value]) => ({ label, value }));
+  }
+  const sendStyles = $derived([...new Set(trainingState.outdoorAscents.map((a) => a.style).filter((x): x is string => !!x))].sort());
+  const sendCrags = $derived([...new Set(trainingState.outdoorAscents.map((a) => a.crag).filter((x): x is string => !!x))].sort());
+
+  /** How many filters apply to the tab you're on - shown on the filter button. */
+  const activeFilterCount = $derived(
+    [filterSearch, filterFromDate, filterToDate].filter(Boolean).length +
+      (onSends
+        ? [filterMinGrade, filterMaxGrade, filterStyle, filterCrag].filter(Boolean).length
+        : [filterAnalyticsType, filterExerciseTypeId, filterBlockId].filter(Boolean).length +
+          [filterMinDuration, filterMaxDuration].filter((v) => v !== '').length),
+  );
 
   function monthKey(dateStr: string | null): string {
     if (!dateStr) return 'unknown';
@@ -121,13 +182,14 @@
     filterSearch = '';
     filterMinDuration = '';
     filterMaxDuration = '';
+    filterMinGrade = '';
+    filterMaxGrade = '';
+    filterStyle = '';
+    filterCrag = '';
   }
 
   function toggleMenu(id: string) {
     openMenuId = openMenuId === id ? null : id;
-  }
-  function toggleExpanded(id: string) {
-    expandedId = expandedId === id ? null : id;
   }
 
   function shareWorkout(w: Workout) {
@@ -144,20 +206,36 @@
   }
 </script>
 
-<div class="w-full max-w-lg space-y-5 animate-in fade-in duration-700 pb-12">
+<div class="w-full max-w-lg space-y-5 animate-in fade-in duration-200 pb-12">
   <div class="flex items-center justify-between px-1">
     <div class="flex items-center gap-3">
       <h3 class="text-title text-content">Timeline</h3>
     </div>
     <div class="h-px flex-1 bg-surface mx-3"></div>
-    <span class="text-label text-content-subtle">{filteredWorkouts.length} Sessions</span>
+    <span class="text-label text-content-subtle">
+      {onSends ? `${filteredSends.length} Sends` : `${filteredWorkouts.length} Sessions`}
+    </span>
     <button
       onclick={() => showFilters = !showFilters}
-      class="ml-3 p-2 rounded-control border transition-colors {showFilters ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
+      class="relative ml-3 p-2 rounded-control border transition-colors {showFilters ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
       aria-label="Toggle Filters"
+      aria-expanded={showFilters}
     >
       <Icon icon="ic:baseline-filter-list" class="text-lg" />
+      {#if activeFilterCount > 0 && !showFilters}
+        <span class="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold grid place-items-center tabular-nums">{activeFilterCount}</span>
+      {/if}
     </button>
+  </div>
+
+  <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+    {#each [['sessions', 'Sessions'], ['sends', 'Sends']] as [id, label]}
+      <button
+        onclick={() => trainingState.uiStore.historyTab = id as 'sessions' | 'sends'}
+        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.uiStore.historyTab === id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+        aria-pressed={trainingState.uiStore.historyTab === id}
+      >{label}</button>
+    {/each}
   </div>
 
   {#if showFilters}
@@ -169,7 +247,7 @@
       <div class="grid grid-cols-1 gap-4">
         <div class="space-y-1.5">
           <label for="filter-search" class="text-label text-content-subtle ml-1">Search</label>
-          <input id="filter-search" type="text" bind:value={filterSearch} placeholder="Name or notes" class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+          <input id="filter-search" type="text" bind:value={filterSearch} placeholder={onSends ? 'Name, crag or notes' : 'Name or notes'} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
@@ -181,6 +259,40 @@
             <input id="filter-date-to" type="date" bind:value={filterToDate} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
           </div>
         </div>
+        {#if onSends}
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <label for="filter-min-grade" class="text-label text-content-subtle ml-1">Min Grade</label>
+              <select id="filter-min-grade" bind:value={filterMinGrade} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+                <option value="">Any</option>
+                {#each gradeOptions('min') as g}<option value={g.value}>{g.label}</option>{/each}
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <label for="filter-max-grade" class="text-label text-content-subtle ml-1">Max Grade</label>
+              <select id="filter-max-grade" bind:value={filterMaxGrade} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+                <option value="">Any</option>
+                {#each gradeOptions('max') as g}<option value={g.value}>{g.label}</option>{/each}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <label for="filter-style" class="text-label text-content-subtle ml-1">Style</label>
+              <select id="filter-style" bind:value={filterStyle} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+                <option value="">Any</option>
+                {#each sendStyles as style}<option value={style}>{style}</option>{/each}
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <label for="filter-crag" class="text-label text-content-subtle ml-1">Crag</label>
+              <select id="filter-crag" bind:value={filterCrag} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+                <option value="">Any</option>
+                {#each sendCrags as crag}<option value={crag}>{crag}</option>{/each}
+              </select>
+            </div>
+          </div>
+        {:else}
         <div class="space-y-1.5">
           <label for="filter-type" class="text-label text-content-subtle ml-1">Includes Analytics Type</label>
           <select id="filter-type" bind:value={filterAnalyticsType} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
@@ -220,9 +332,15 @@
             <input id="filter-max-dur" type="number" bind:value={filterMaxDuration} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" placeholder="Any" />
           </div>
         </div>
+        {/if}
       </div>
     </div>
   {/if}
+
+  {#if onSends}
+    <SendsLog ascents={filteredSends} filtered={activeFilterCount > 0} />
+  {:else}
+
 
   <div class="space-y-6">
     {#each groupedWorkouts as group (group.key)}
@@ -236,9 +354,9 @@
           {@const block = blockForWorkout(workout)}
           {@const phaseName = phaseNameForBlock(block?.phaseId)}
           {@const duration = workoutDuration(workout)}
-          <div class="group p-5 bg-surface/30 hover:bg-surface/50 rounded-card border border-border/50 transition-all duration-300">
+          <div id="workout-{workout.id}" class="group p-5 bg-surface/30 hover:bg-surface/50 rounded-card border border-border/50 transition-all duration-300">
             <div class="flex justify-between items-start gap-4">
-              <button onclick={() => toggleExpanded(workout.id)} class="space-y-2.5 flex-1 min-w-0 text-left">
+              <button onclick={() => openWorkout(workout)} class="space-y-2.5 flex-1 min-w-0 text-left">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-label text-primary truncate">
                     {formatDate(workout.date)}
@@ -268,10 +386,9 @@
                 </div>
 
                 <div class="flex items-center gap-3 flex-wrap">
-                  {#each FATIGUE_AXES as axis}
+                  {#each RATING_AXES as axis}
                     <span class="text-caption text-content-subtle tabular-nums">{axis.label[0]}:{workout[axis.key] ?? '—'}</span>
                   {/each}
-                  <Icon icon="ic:baseline-expand-more" class="text-content-subtle text-base transition-transform {expandedId === workout.id ? 'rotate-180' : ''}" />
                 </div>
               </button>
 
@@ -297,7 +414,7 @@
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div class="fixed inset-0 z-40" onclick={() => openMenuId = null}></div>
                     <div class="absolute right-0 top-full mt-1 z-50 w-36 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
-                      <button onclick={() => { trainingState.navigate('add', workout); openMenuId = null; }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+                      <button onclick={() => { openWorkout(workout, 'edit'); openMenuId = null; }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
                         <Icon icon="ic:baseline-edit" class="text-sm" /> Edit
                       </button>
                       <button onclick={() => shareWorkout(workout)} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
@@ -314,36 +431,6 @@
                 </div>
               </div>
             </div>
-
-            {#if expandedId === workout.id}
-              <div class="mt-4 pt-4 border-t border-border-strong/50 space-y-2 animate-in fade-in">
-                {#each workout.exercises as exercise}
-                  {@const v = slotValues(exercise)}
-                  <div class="flex justify-between items-center gap-2">
-                    <span class="text-label text-content truncate">{slotTypeName(exercise, trainingState.exerciseTypes)}</span>
-                    <span class="text-caption text-content-subtle tabular-nums flex-shrink-0">
-                      {#if v.sets && v.reps}
-                        {v.sets}x{v.reps}
-                      {:else if v.duration}
-                        {v.duration}m
-                      {:else if v.distance}
-                        {v.distance}km
-                      {:else}
-                        Done
-                      {/if}
-                      {#if v.weight || v.maxWeightPercent}
-                        @ {v.weight ? `${v.weight}kg` : `${v.maxWeightPercent}%`}
-                      {/if}
-                    </span>
-                  </div>
-                {:else}
-                  <p class="text-caption text-content-subtle italic">No exercises logged.</p>
-                {/each}
-                {#if workout.description}
-                  <p class="text-caption text-content-subtle pt-1">{workout.description}</p>
-                {/if}
-              </div>
-            {/if}
           </div>
         {/each}
       </div>
@@ -362,6 +449,7 @@
       </button>
     {/if}
   </div>
+  {/if}
 </div>
 
 {#if workoutToShare}

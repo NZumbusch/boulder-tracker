@@ -3,8 +3,7 @@ import type { PermissionState } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
 /**
- * Shared `LocalNotifications` infrastructure used by every reminder type
- * (UI_PLAN.md §5.6/§5.8, Stage 8) - extracted out of `fatigueReminder.ts`
+ * Shared `LocalNotifications` infrastructure used by every reminder type - extracted out of `fatigueReminder.ts`
  * once the daily-metrics reminder gave it a second real caller, per that
  * file's own note that this was the point to revisit at.
  *

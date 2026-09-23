@@ -11,9 +11,8 @@ export function getBlocksForWeek(blocks: TrainingBlock[], weekId: string): Train
 }
 
 /**
- * The block that "wins" for a week covered by more than one (PLAN.md Phase
- * 4: `priority` "for overlapping blocks, which dominates template
- * selection/display"). Higher `priority` wins (default 0); ties are broken
+ * The block that "wins" for a week covered by more than one (`priority`
+ * decides which one's templates and colour a week shows). Higher `priority` wins (default 0); ties are broken
  * by whichever block appears later in the array (last-created wins) - an
  * arbitrary but deterministic tiebreak, since the plan doesn't specify one.
  */

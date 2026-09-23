@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { migratePreferences, defaultPreferences, CURRENT_PREFERENCES_VERSION, HOME_SECTION_IDS } from './migrate';
+import { migratePreferences, defaultPreferences, CURRENT_PREFERENCES_VERSION, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS } from './migrate';
+import { defaultHomeDetails } from './homeDetails';
+import { defaultTunables } from './tunables';
 
 const DEFAULT_HOME_SECTIONS = HOME_SECTION_IDS.map((id) => ({ id, visible: true }));
 const DEFAULT_AI_SHARING = {
@@ -8,6 +10,7 @@ const DEFAULT_AI_SHARING = {
   readinessMetrics: false,
   painLogs: false,
   outdoorAscents: true,
+  notes: true,
 };
 
 describe('defaultPreferences', () => {
@@ -18,16 +21,26 @@ describe('defaultPreferences', () => {
       motion: 'system',
       theme: 'dark',
       notificationsEnabled: false,
+      addedExerciseTarget: 'none',
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
       homeLocation: null,
-      tripLocation: null,
+      crags: [],
       fatigueChartStyle: 'bars',
+      chartDensity: 'auto',
       timerVibrateEnabled: true,
       timerBeepEnabled: true,
       timerKeepAwakeEnabled: false,
       homeSections: DEFAULT_HOME_SECTIONS,
+      homeDetails: defaultHomeDetails(),
+      sendsChartCounts: true,
+      tunables: defaultTunables(),
+      units: { temperature: 'C', weight: 'kg', wind: 'kmh', grades: 'font' },
+      analyticsSections: ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })),
+      quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
       aiSharing: DEFAULT_AI_SHARING,
+      aiHistory: { fullWeeks: 2, summaryWeeks: 8 },
+      autoBackup: true,
     });
   });
 });
@@ -70,15 +83,42 @@ describe('migratePreferences', () => {
       dailyMetricsReminderEnabled: false,
       dailyMetricsReminderTime: '07:30',
       homeLocation: { name: 'Munich, DE', latitude: 48.1374, longitude: 11.5755 },
-      tripLocation: null,
+      crags: [],
       fatigueChartStyle: 'radar' as const,
+      chartDensity: 'compact' as const,
       timerVibrateEnabled: false,
       timerBeepEnabled: false,
       timerKeepAwakeEnabled: true,
       homeSections: [...DEFAULT_HOME_SECTIONS.slice(1), DEFAULT_HOME_SECTIONS[0]],
-      aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false },
+      homeDetails: { ...defaultHomeDetails(), 'weather.forecast': false },
+      sendsChartCounts: false,
+      tunables: { ...defaultTunables(), 'fatigue.halfLifeDays': 4 },
+      units: { temperature: 'F' as const, weight: 'lb' as const, wind: 'mph' as const, grades: 'v' as const },
+      analyticsSections: [...ANALYTICS_SECTION_IDS].reverse().map((id, i) => ({ id, visible: i % 2 === 0 })),
+      quickLogActions: [{ id: 'send' as const, visible: true }, { id: 'pain' as const, visible: true }, { id: 'bodyweight' as const, visible: false }, { id: 'benchmark' as const, visible: true }],
+      aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
+      aiHistory: { fullWeeks: 4, summaryWeeks: 16 },
+      autoBackup: false,
+      addedExerciseTarget: 'mirror' as const,
     };
     expect(migratePreferences(valid)).toEqual(valid);
+  });
+
+  it('defaults chartDensity for a blob written before the setting existed, keeping every other field', () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      textScale: 'lg',
+      motion: 'reduced',
+      fatigueChartStyle: 'radar',
+    });
+    expect(result.chartDensity).toBe('auto');
+    expect(result.textScale).toBe('lg');
+    expect(result.fatigueChartStyle).toBe('radar');
+  });
+
+  it('rejects an unknown chartDensity rather than storing it', () => {
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, chartDensity: 'enormous' });
+    expect(result.chartDensity).toBe('auto');
   });
 
   it('drops unknown extra keys', () => {
@@ -120,6 +160,7 @@ describe('migratePreferences', () => {
     expect(result.dailyMetricsReminderEnabled).toBe(true);
     expect(result.dailyMetricsReminderTime).toBe('20:00');
     expect(result.fatigueChartStyle).toBe('bars');
+    expect(result.chartDensity).toBe('auto');
     expect(result.timerVibrateEnabled).toBe(true);
     expect(result.timerBeepEnabled).toBe(true);
     expect(result.timerKeepAwakeEnabled).toBe(false);
@@ -127,7 +168,7 @@ describe('migratePreferences', () => {
     expect(result.aiSharing).toEqual(DEFAULT_AI_SHARING);
   });
 
-  it('backward compat: a real Stage-0-era blob with none of this stage\'s fields at all gets them all defaulted, without resetting textScale/motion (no version bump was needed for this addition)', () => {
+  it('backward compat: an early blob with none of the newer fields at all gets them all defaulted, without resetting textScale/motion (no version bump was needed for this addition)', () => {
     const stage0Blob = {
       version: CURRENT_PREFERENCES_VERSION,
       textScale: 'lg',
@@ -144,6 +185,7 @@ describe('migratePreferences', () => {
     expect(result.dailyMetricsReminderEnabled).toBe(true);
     expect(result.dailyMetricsReminderTime).toBe('20:00');
     expect(result.fatigueChartStyle).toBe('bars');
+    expect(result.chartDensity).toBe('auto');
     expect(result.timerVibrateEnabled).toBe(true);
     expect(result.timerBeepEnabled).toBe(true);
     expect(result.timerKeepAwakeEnabled).toBe(false);
@@ -190,18 +232,34 @@ describe('migratePreferences', () => {
   });
 });
 
-describe('homeLocation / tripLocation (UI_PLAN.md §5.5)', () => {
-  it('default to null - the whole weather feature is off until a location is set', () => {
+describe('homeLocation / crags', () => {
+  it('default to unset - the whole weather feature is off until a location is set', () => {
     expect(defaultPreferences().homeLocation).toBeNull();
-    expect(defaultPreferences().tripLocation).toBeNull();
+    expect(defaultPreferences().crags).toEqual([]);
   });
 
-  it('accepts a valid location object for either field', () => {
+  it('accepts a valid home location and crag list', () => {
     const home = { name: 'Munich, DE', latitude: 48.1374, longitude: 11.5755 };
-    const trip = { name: 'Fontainebleau, FR', latitude: 48.4042, longitude: 2.7017 };
-    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: home, tripLocation: trip });
+    const font = { name: 'Fontainebleau, FR', latitude: 48.4042, longitude: 2.7017 };
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: home, crags: [font] });
     expect(result.homeLocation).toEqual(home);
-    expect(result.tripLocation).toEqual(trip);
+    expect(result.crags).toEqual([font]);
+  });
+
+  it('turns an old single trip location into the first crag', () => {
+    const trip = { name: 'Fontainebleau, FR', latitude: 48.4042, longitude: 2.7017 };
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, tripLocation: trip });
+    expect(result.crags).toEqual([trip]);
+    expect('tripLocation' in result).toBe(false);
+  });
+
+  it('keeps every valid crag, dropping invalid and duplicate ones', () => {
+    const c = (name: string) => ({ name, latitude: 47, longitude: 8 });
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      crags: [c('A'), { name: 'Bad', latitude: 99, longitude: 0 }, c('A'), c('B'), c('C'), c('D')],
+    });
+    expect(result.crags.map((x) => x.name)).toEqual(['A', 'B', 'C', 'D']);
   });
 
   it('an explicit null clears a location back to unset', () => {
@@ -256,7 +314,7 @@ describe('timer toggles', () => {
   });
 });
 
-describe('homeSections (UI_PLAN.md §4.7)', () => {
+describe('homeSections', () => {
   it('defaults to every known section, visible, in the fixed plan order', () => {
     const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION });
     expect(result.homeSections).toEqual(DEFAULT_HOME_SECTIONS);
@@ -287,11 +345,15 @@ describe('homeSections (UI_PLAN.md §4.7)', () => {
     expect(result.homeSections.filter((s) => s.id === 'weather')).toEqual([{ id: 'weather', visible: false }]);
   });
 
-  it('appends a section missing from a partial list, visible by default, rather than letting it disappear', () => {
-    const partial = [{ id: 'today' as const, visible: true }, { id: 'fatigue' as const, visible: false }];
+  it('adds a section missing from a partial list, visible by default, rather than letting it disappear', () => {
+    const partial = [{ id: 'fatigue' as const, visible: false }, { id: 'today' as const, visible: true }];
     const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeSections: partial });
-    expect(result.homeSections[0]).toEqual({ id: 'today', visible: true });
-    expect(result.homeSections[1]).toEqual({ id: 'fatigue', visible: false });
+    const ids = result.homeSections.map((s) => s.id);
+    // The saved sections keep their own relative order and visibility...
+    expect(ids.indexOf('fatigue')).toBeLessThan(ids.indexOf('today'));
+    expect(result.homeSections.find((s) => s.id === 'fatigue')!.visible).toBe(false);
+    // ...and every added one is visible.
+    expect(result.homeSections.filter((s) => s.id !== 'fatigue').every((s) => s.visible)).toBe(true);
     expect(result.homeSections).toHaveLength(HOME_SECTION_IDS.length);
     for (const id of HOME_SECTION_IDS) {
       expect(result.homeSections.some((s) => s.id === id)).toBe(true);
@@ -306,13 +368,13 @@ describe('homeSections (UI_PLAN.md §4.7)', () => {
   });
 });
 
-describe('aiSharing (UI_PLAN.md §5.8, Stage 10)', () => {
+describe('aiSharing', () => {
   it('defaults to Training Blocks/Competitions/Outdoor Ascents on, Readiness & Daily Metrics/Pain Logs off', () => {
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).aiSharing).toEqual(DEFAULT_AI_SHARING);
   });
 
   it('round-trips a fully-set current-version value', () => {
-    const custom = { trainingBlocks: false, competitions: false, readinessMetrics: true, painLogs: true, outdoorAscents: false };
+    const custom = { trainingBlocks: false, competitions: false, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false };
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiSharing: custom }).aiSharing).toEqual(custom);
   });
 
@@ -327,6 +389,7 @@ describe('aiSharing (UI_PLAN.md §5.8, Stage 10)', () => {
       readinessMetrics: true, // valid, preserved
       painLogs: false, // missing, defaulted
       outdoorAscents: true, // missing, defaulted
+      notes: true, // missing (a blob from before notes existed), defaulted
     });
   });
 
@@ -335,5 +398,92 @@ describe('aiSharing (UI_PLAN.md §5.8, Stage 10)', () => {
       const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiSharing: bad });
       expect(result.aiSharing).toEqual(DEFAULT_AI_SHARING);
     }
+  });
+});
+
+describe('addedExerciseTarget', () => {
+  it("defaults to 'none' for a blob written before the setting existed, keeping every other field", () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      textScale: 'lg',
+      planFormat: 'weekly',
+    });
+    expect(result.addedExerciseTarget).toBe('none');
+    expect(result.textScale).toBe('lg');
+    // planFormat was retired with the AI change-set contract - dropped, not kept.
+    expect('planFormat' in result).toBe(false);
+  });
+
+  it("keeps an explicit 'mirror'", () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      addedExerciseTarget: 'mirror',
+    });
+    expect(result.addedExerciseTarget).toBe('mirror');
+  });
+
+  it('rejects an unknown value rather than storing it', () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      addedExerciseTarget: 'zeroes',
+    });
+    expect(result.addedExerciseTarget).toBe('none');
+  });
+});
+
+describe('new home sections land next to their neighbours', () => {
+  it('inserts a section missing from a saved order after the section that precedes it by default', () => {
+    // A saved order from before 'alerts' existed, with the user's own reordering.
+    const saved = HOME_SECTION_IDS.filter((id) => id !== 'alerts').map((id) => ({ id, visible: true })).reverse();
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeSections: saved });
+    const ids = result.homeSections.map((s) => s.id);
+    expect(ids.indexOf('alerts')).toBe(ids.indexOf('readiness') + 1);
+    expect(ids).toHaveLength(HOME_SECTION_IDS.length);
+  });
+});
+
+describe('sendsChartCounts', () => {
+  it('defaults to showing counts, including for a blob written before the setting existed', () => {
+    expect(defaultPreferences().sendsChartCounts).toBe(true);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).sendsChartCounts).toBe(true);
+  });
+
+  it('keeps a saved choice and ignores a malformed one', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, sendsChartCounts: false }).sendsChartCounts).toBe(false);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, sendsChartCounts: 'no' }).sendsChartCounts).toBe(true);
+  });
+});
+
+describe('analyticsSections / quickLogActions', () => {
+  it('default to everything visible in the fixed order', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).analyticsSections.map((s) => s.id)).toEqual([...ANALYTICS_SECTION_IDS]);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).quickLogActions.every((a) => a.visible)).toBe(true);
+  });
+
+  it('keep a saved order and visibility, repairing unknown and missing entries', () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      quickLogActions: [{ id: 'send', visible: true }, { id: 'gone', visible: true }, { id: 'pain', visible: false }],
+    });
+    // Missing ids go right after the id that precedes them by default:
+    // bodyweight after pain, benchmark after send.
+    expect(result.quickLogActions).toEqual([
+      { id: 'send', visible: true },
+      { id: 'benchmark', visible: true },
+      { id: 'pain', visible: false },
+      { id: 'bodyweight', visible: true },
+    ]);
+  });
+});
+
+describe('aiHistory', () => {
+  it('defaults to two weeks in full and eight summarised', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).aiHistory).toEqual({ fullWeeks: 2, summaryWeeks: 8 });
+  });
+
+  it('repairs each field on its own, and only to a listed option', () => {
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiHistory: { fullWeeks: 5, summaryWeeks: 12 } });
+    expect(result.aiHistory).toEqual({ fullWeeks: 2, summaryWeeks: 12 });
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiHistory: 'x' }).aiHistory).toEqual({ fullWeeks: 2, summaryWeeks: 8 });
   });
 });

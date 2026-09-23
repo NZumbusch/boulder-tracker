@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { type Workout, calculateLoadFactor } from '../../lib/types';
+  import { type Workout } from '../../lib/types';
+import { calculateLoadFactor } from '../../lib/analytics/load';
   import { generateId } from '../../lib/utils';
+  import { formatMinutes } from '../../lib/session/formatSession';
 
   // --- Props ---
   let { 
@@ -22,7 +24,7 @@
   let systemic = $state(5);
   let notes = $state('');
 
-  // --- Pain/discomfort logging (PLAN.md Phase 4 - the workout-completion
+  // --- Pain/discomfort logging (the workout-completion
   // flow is the natural entry point, since severity/weekId are already at
   // hand here). Purely optional and additive to the fatigue rating above -
   // it writes its own PainLog, it never affects loadFactor/fatigue.
@@ -30,6 +32,27 @@
   let painBodyPart = $state('');
   let painSeverity = $state(5);
   let painNotes = $state('');
+
+  /**
+   * The session's length, editable here before it is committed.
+   *
+   * Seeded from `duration` (a live session's measured running time, or the
+   * estimate for a session logged by hand) and written back as
+   * `actualDuration`. Editable because a measured time can be wrong in the
+   * one way that matters - a session left running while you drove home -
+   * and this number feeds `loadFactor`, so a bad one distorts every load
+   * chart downstream rather than just reading oddly in History.
+   */
+  let durationMinutes = $state(0);
+  /** What the clock said, kept to show when the number has been corrected. */
+  let measuredMinutes = $state(0);
+
+  $effect(() => {
+    if (trainingState.showFatigue) {
+      durationMinutes = Math.max(0, Math.round(duration));
+      measuredMinutes = Math.max(0, Math.round(duration));
+    }
+  });
 
   $effect(() => {
     if (trainingState.showFatigue && initialData) {
@@ -44,11 +67,11 @@
   });
 
   // calculateLoadFactor deliberately keeps its existing fingers/core/systemic
-  // signature - arms is collected as data (UI_PLAN.md §5.4) but is not a
+  // signature - arms is collected as data but is not a
   // load-formula input. Collecting it and using it in the load calculation
   // are separate decisions; only the first is in scope here, so don't "fix"
-  // this apparent inconsistency without re-reading §5.4/§8.
-  const loadFactor = $derived(calculateLoadFactor(duration, fingers, core, systemic));
+  // this apparent inconsistency.
+  const loadFactor = $derived(calculateLoadFactor(durationMinutes, fingers, core, systemic));
 
   async function handleSave() {
     if (showPainLog && painBodyPart.trim()) {
@@ -61,12 +84,23 @@
         notes: painNotes || undefined,
       });
     }
-    onConfirm({ fingers, arms, core, systemic, notes, loadFactor });
+    onConfirm({
+      fingers,
+      arms,
+      core,
+      systemic,
+      notes,
+      loadFactor,
+      // Zero means "no meaningful length recorded" - left unset so
+      // `sessionDuration` falls back to summing the logged exercises
+      // rather than reporting a zero-minute session.
+      actualDuration: durationMinutes > 0 ? durationMinutes : undefined,
+    });
   }
 </script>
 
 {#if trainingState.showFatigue}
-  <div class="fixed inset-0 bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md transition-all duration-300">
+  <div class="fixed inset-0 bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[115] backdrop-blur-md transition-all duration-300">
     <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
       <div class="w-10 h-1 bg-surface-elevated rounded-full mx-auto mb-6 sm:hidden"></div>
       
@@ -83,6 +117,35 @@
       </div>
 
       <div class="space-y-4">
+        <div class="space-y-2">
+          <label for="session-duration" class="flex justify-between items-baseline text-label text-content-subtle ml-1">
+            <span>Session length</span>
+            {#if measuredMinutes > 0 && durationMinutes !== measuredMinutes}
+              <button
+                type="button"
+                onclick={() => durationMinutes = measuredMinutes}
+                class="text-caption text-content-subtle hover:text-primary transition-colors tabular-nums"
+              >
+                clock said {formatMinutes(measuredMinutes)} &mdash; reset
+              </button>
+            {:else if measuredMinutes > 0}
+              <span class="text-caption text-content-subtle tabular-nums">{formatMinutes(measuredMinutes)} on the clock</span>
+            {/if}
+          </label>
+          <div class="flex items-center gap-2">
+            <input
+              id="session-duration"
+              type="number"
+              min="0"
+              step="5"
+              inputmode="numeric"
+              bind:value={durationMinutes}
+              class="flex-1 min-w-0 bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-sm tabular-nums"
+            />
+            <span class="text-label text-content-subtle shrink-0">min</span>
+          </div>
+        </div>
+
         <div class="space-y-3">
           <label for="fingers-range" class="flex justify-between text-label text-content-subtle ml-1">
             <span>Fingers</span>
@@ -161,7 +224,7 @@
           onclick={() => trainingState.closeFatigueModal()}
           class="w-full bg-surface-elevated hover:bg-surface-elevated-hover text-content-muted font-bold py-3 rounded-control transition-all active:scale-[0.98] text-xs"
         >
-          Back to Session
+          {trainingState.isSessionActive ? 'Back to Session' : 'Cancel'}
         </button>
       </div>
     </div>

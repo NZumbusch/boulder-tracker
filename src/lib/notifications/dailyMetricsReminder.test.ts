@@ -50,6 +50,15 @@ describe("dailyMetricsReminderId", () => {
 });
 
 describe("isDailyMetricsEntryMissing", () => {
+  it("counts a zero entry as not logged", () => {
+    const entries = [
+      metric("sleep-score", "2026-09-18"),
+      metric("hrv", "2026-09-18"),
+      { ...metric("rhr", "2026-09-18"), value: 0 },
+    ];
+    expect(isDailyMetricsEntryMissing(entries, "2026-09-18")).toBe(true);
+  });
+
   it("is true when none of sleep/HRV/RHR are logged for today", () => {
     expect(isDailyMetricsEntryMissing([], "2026-09-18")).toBe(true);
   });

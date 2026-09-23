@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type {
   AnalyticsCategory,
   Benchmark,
-  CompetitionEvent,
+  GoalEvent,
   DailyMetricEntry,
   ExerciseTypeDef,
   OutdoorAscent,
@@ -16,10 +16,11 @@ import {
   buildExerciseModalities,
   buildAnalyticsCategorySummaries,
   buildRecentWorkouts,
+  buildWeeklyHistory,
   buildWorkoutsInWeeks,
   buildBenchmarksInWeeks,
   buildTrainingBlockContext,
-  buildCompetitionContext,
+  buildGoalContext,
   buildReadinessSnapshot,
   buildPainLogContext,
   buildOutdoorAscentContext,
@@ -70,35 +71,70 @@ describe("buildAnalyticsCategorySummaries", () => {
 });
 
 describe("buildRecentWorkouts", () => {
-  it("caps at the given limit, taking the most recent (end of array)", () => {
-    const workouts = Array.from({ length: 25 }, (_, i) => makeWorkout({ id: `w${i}`, weekId: `2026-W${i}` }));
-    const result = buildRecentWorkouts(workouts, exerciseTypes, 20);
-    expect(result).toHaveLength(20);
-    expect(result[0].weekId).toBe("2026-W5");
-    expect(result[19].weekId).toBe("2026-W24");
+  // asOf is 2026-09-18, in 2026-W38.
+  it("keeps only completed sessions from the last `fullWeeks` weeks, oldest first", () => {
+    const workouts = [
+      makeWorkout({ id: "old", status: "completed", date: "2026-09-02", weekId: "2026-W36" }),
+      makeWorkout({ id: "b", status: "completed", date: "2026-09-16", weekId: "2026-W38" }),
+      makeWorkout({ id: "a", status: "completed", date: "2026-09-09", weekId: "2026-W37" }),
+      makeWorkout({ id: "planned", status: "planned", weekId: "2026-W38" }),
+    ];
+    const result = buildRecentWorkouts(workouts, exerciseTypes, asOf, 2);
+    expect(result.map((w) => w.date)).toEqual(["2026-09-09", "2026-09-16"]);
   });
 
-  it("includes loadFactor/fatigue only for completed workouts", () => {
-    const planned = makeWorkout({ status: "planned", loadFactor: 999 });
-    const completed = makeWorkout({ status: "completed", date: "2026-09-01", loadFactor: 42, fingers: 5, arms: 3, core: 4, systemic: 6 });
-    const result = buildRecentWorkouts([planned, completed], exerciseTypes);
-    expect(result[0].loadFactor).toBeUndefined();
-    expect(result[1].loadFactor).toBe(42);
-    expect(result[1]).toMatchObject({ fingers: 5, arms: 3, core: 4, systemic: 6 });
+  it("carries load and ratings", () => {
+    const completed = makeWorkout({ status: "completed", date: "2026-09-16", weekId: "2026-W38", loadFactor: 42, fingers: 5, arms: 3, core: 4, systemic: 6 });
+    const [result] = buildRecentWorkouts([completed], exerciseTypes, asOf, 1);
+    expect(result).toMatchObject({ loadFactor: 42, fingers: 5, arms: 3, core: 4, systemic: 6 });
   });
 
   it("resolves exercise names via typeId, falling back to Unknown", () => {
     const w = makeWorkout({
+      status: "completed",
+      date: "2026-09-16",
+      weekId: "2026-W38",
       exercises: [
-        { id: "s1", typeId: "et-1", prescribed: { duration: 30, sets: 5 } },
-        { id: "s2", typeId: "missing", prescribed: {} },
+        { id: "s1", typeId: "et-1", logged: { duration: 30, sets: 5 } },
+        { id: "s2", typeId: "missing", logged: {} },
       ],
     });
-    const result = buildRecentWorkouts([w], exerciseTypes);
-    expect(result[0].exercises).toEqual([
+    const [result] = buildRecentWorkouts([w], exerciseTypes, asOf, 1);
+    expect(result.exercises).toEqual([
       { name: "Hangboard", duration: 30, sets: 5, reps: undefined, plannedLoad: undefined },
       { name: "Unknown", duration: undefined, sets: undefined, reps: undefined, plannedLoad: undefined },
     ]);
+  });
+});
+
+describe("buildWeeklyHistory", () => {
+  const w = (weekId: string, over: Partial<Workout> = {}) =>
+    makeWorkout({ status: "completed", date: "2026-08-01", weekId, loadFactor: 100, ...over });
+
+  it("gives one line per week, including weeks with nothing logged, oldest first", () => {
+    const result = buildWeeklyHistory([w("2026-W35"), w("2026-W35"), w("2026-W37")], exerciseTypes, analyticsCategories, ["2026-W35", "2026-W36", "2026-W37"]);
+    expect(result.map((h) => [h.week, h.sessions, h.load])).toEqual([["2026-W35", 2, 200], ["2026-W36", 0, undefined], ["2026-W37", 1, 100]]);
+    expect(result[1]).toEqual({ week: "2026-W36", sessions: 0 });
+  });
+
+  it("sums minutes per category and averages the ratings that were given", () => {
+    const result = buildWeeklyHistory(
+      [
+        w("2026-W35", { fingers: 6, exercises: [{ id: "s", typeId: "et-1", logged: { duration: 30 } }] }),
+        w("2026-W35", { fingers: 8, core: 3, exercises: [{ id: "t", typeId: "et-1", logged: { duration: 15 } }] }),
+        w("2026-W35", { status: "planned", exercises: [{ id: "u", typeId: "et-1", prescribed: { duration: 90 } }] }),
+      ],
+      exerciseTypes,
+      analyticsCategories,
+      ["2026-W35"],
+    );
+    expect(result[0].minutesByCategory).toEqual({ Fingers: 45 });
+    expect(result[0].avgRatings).toEqual({ fingers: 7, core: 3 });
+  });
+
+  it("names the phase when a resolver is given", () => {
+    const [h] = buildWeeklyHistory([], exerciseTypes, analyticsCategories, ["2026-W35"], () => "Power");
+    expect(h.phase).toBe("Power");
   });
 });
 
@@ -152,28 +188,43 @@ describe("buildTrainingBlockContext", () => {
   });
 });
 
-describe("buildCompetitionContext", () => {
-  it("excludes past events and sorts soonest-first", () => {
-    const events: CompetitionEvent[] = [
-      { id: "e1", name: "Past Comp", date: "2026-01-01", priority: "B" },
-      { id: "e2", name: "Later Comp", date: "2026-12-01", priority: "B" },
-      { id: "e3", name: "Sooner Comp", date: "2026-10-01", priority: "C" },
+describe("buildGoalContext", () => {
+  it("excludes finished goals, keeps one under way, and sorts soonest-first", () => {
+    const goals: GoalEvent[] = [
+      { id: "e1", kind: "competition", name: "Past Comp", date: "2026-01-01" },
+      { id: "e2", kind: "competition", name: "Later Comp", date: "2026-12-01" },
+      { id: "t1", kind: "trip", name: "Ongoing trip", date: "2026-09-15", endDate: "2026-09-20" },
+      { id: "e3", kind: "competition", name: "Sooner Comp", date: "2026-10-01" },
     ];
-    const result = buildCompetitionContext(events, asOf);
-    expect(result.map((e) => e.name)).toEqual(["Sooner Comp", "Later Comp"]);
-    expect(result[0].daysAway).toBeGreaterThan(0);
+    const result = buildGoalContext(goals, asOf);
+    expect(result.map((e) => e.name)).toEqual(["Ongoing trip", "Sooner Comp", "Later Comp"]);
+    expect(result[0].daysAway).toBeLessThan(0);
   });
 
-  it("keeps an A-priority event even beyond the cap", () => {
-    const events: CompetitionEvent[] = Array.from({ length: 5 }, (_, i) => ({
-      id: `filler${i}`,
-      name: `Filler ${i}`,
-      date: `2026-10-0${i + 1}`,
-      priority: "C" as const,
-    }));
-    events.push({ id: "important", name: "Nationals", date: "2027-01-01", priority: "A" });
-    const result = buildCompetitionContext(events, asOf, 5);
-    expect(result.map((e) => e.name)).toContain("Nationals");
+  it("describes a trip's dates, place and projects", () => {
+    const trip: GoalEvent = {
+      id: "t",
+      kind: "trip",
+      name: "Font",
+      date: "2026-10-05",
+      endDate: "2026-10-12",
+      location: { name: "Fontainebleau, FR", latitude: 48.4, longitude: 2.7 },
+      projects: [{ id: "p1", name: "Big Boss", grade: "7C" }, { id: "p2", grade: "7B", flash: true }],
+    };
+    expect(buildGoalContext([trip], asOf)[0]).toEqual({
+      name: "Font",
+      kind: "trip",
+      date: "2026-10-05",
+      endDate: "2026-10-12",
+      location: "Fontainebleau, FR",
+      projects: ["Big Boss 7C", "any 7B (flash)"],
+      daysAway: 17,
+    });
+  });
+
+  it("caps at the limit", () => {
+    const goals: GoalEvent[] = Array.from({ length: 6 }, (_, i) => ({ id: `e${i}`, kind: "competition", name: `Event ${i}`, date: `2026-10-0${i + 1}` }));
+    expect(buildGoalContext(goals, asOf, 5)).toHaveLength(5);
   });
 });
 
@@ -191,6 +242,23 @@ describe("buildReadinessSnapshot", () => {
     ];
     const result = buildReadinessSnapshot([], dailyMetrics, asOf);
     expect(result.hrvTrend).toEqual([{ date: "2026-09-17", value: 60 }]);
+  });
+});
+
+describe("buildReadinessSnapshot with zero entries", () => {
+  it("leaves zero readings out of trends and treats today's zero as not logged", () => {
+    const today = asOf.toISOString().split("T")[0];
+    const dailyMetrics: DailyMetricEntry[] = [
+      { id: "m1", metricId: "hrv", date: "2026-09-15", value: 60 },
+      { id: "m2", metricId: "hrv", date: "2026-09-16", value: 0 },
+      { id: "m3", metricId: "hrv", date: today, value: 0 },
+      { id: "m4", metricId: "sleep-score", date: today, value: 0 },
+    ];
+    const result = buildReadinessSnapshot([], dailyMetrics, asOf);
+    expect(result.hrvTrend).toEqual([{ date: "2026-09-15", value: 60 }]);
+    expect(result.sleepTrend).toEqual([]);
+    // Neither today's HRV nor sleep counts as an input, so there is nothing to score.
+    expect(result.score).toBeUndefined();
   });
 });
 
@@ -223,6 +291,7 @@ describe("buildAIContextProfile", () => {
     readinessMetrics: true,
     painLogs: true,
     outdoorAscents: true,
+    notes: true,
   };
   const allSharingOff: AISharingPreferences = {
     trainingBlocks: false,
@@ -230,6 +299,7 @@ describe("buildAIContextProfile", () => {
     readinessMetrics: false,
     painLogs: false,
     outdoorAscents: false,
+    notes: false,
   };
 
   const source: AIContextSource = {
@@ -239,10 +309,11 @@ describe("buildAIContextProfile", () => {
     workouts: [makeWorkout({ status: "completed", date: "2026-09-01", weekId: "2026-W25" })],
     benchmarks: [{ id: "b1", typeId: "t1", type: "Max Hang", value: 10, unit: "kg", date: "2026-06-20", weekId: "2026-W25" }],
     trainingBlocks: [{ id: "tb1", name: "Block", phaseId: "phase-1", startWeekId: "2026-W25", endWeekId: "2026-W25" }],
-    competitionEvents: [{ id: "e1", name: "Comp", date: "2026-12-01", priority: "A" }],
+    goals: [{ id: "e1", kind: "competition", name: "Comp", date: "2026-12-01" }],
     dailyMetrics: [{ id: "m1", metricId: "hrv", date: "2026-09-17", value: 60 }],
     painLogs: [{ id: "p1", date: "2026-09-01", weekId: "2026-W25", bodyPart: "Finger", severity: 4 }],
     outdoorAscents: [{ id: "a1", date: "2026-09-01", grade: "7a" }],
+    weekNotes: [],
   };
 
   it("includes the exercise/phase catalog for generate and context modes", () => {
@@ -260,7 +331,7 @@ describe("buildAIContextProfile", () => {
   it("omits every sharing-gated section when every toggle is off", () => {
     const profile = buildAIContextProfile("generate", source, allSharingOff, asOf, ["2026-W25"]);
     expect(profile.trainingBlocks).toBeUndefined();
-    expect(profile.competitions).toBeUndefined();
+    expect(profile.goals).toBeUndefined();
     expect(profile.readiness).toBeUndefined();
     expect(profile.painLogs).toBeUndefined();
     expect(profile.outdoorAscents).toBeUndefined();
@@ -269,7 +340,7 @@ describe("buildAIContextProfile", () => {
   it("includes every sharing-gated section when every toggle is on", () => {
     const profile = buildAIContextProfile("generate", source, allSharingOn, asOf, ["2026-W25"]);
     expect(profile.trainingBlocks).toBeDefined();
-    expect(profile.competitions).toBeDefined();
+    expect(profile.goals).toBeDefined();
     expect(profile.readiness).toBeDefined();
     expect(profile.painLogs).toBeDefined();
     expect(profile.outdoorAscents).toBeDefined();
@@ -282,6 +353,16 @@ describe("buildAIContextProfile", () => {
     expect(profile.trainingBlocks).toEqual([]);
   });
 
+  it("sends recent sessions in full and older weeks as summaries, per the history window - but not for analyze", () => {
+    const history = { fullWeeks: 1, summaryWeeks: 4 };
+    const recent = { ...source, workouts: [makeWorkout({ status: "completed", date: "2026-09-16", weekId: "2026-W38" }), makeWorkout({ status: "planned", weekId: "2026-W38" })] };
+    const profile = buildAIContextProfile("generate", recent, allSharingOff, asOf, ["2026-W39"], {}, history);
+    expect(profile.recentWorkouts).toHaveLength(1);
+    expect(profile.weeklyHistory?.map((h) => h.week)).toEqual(["2026-W34", "2026-W35", "2026-W36", "2026-W37"]);
+    expect(buildAIContextProfile("analyze", recent, allSharingOff, asOf, ["2026-W38"], {}, history).weeklyHistory).toBeUndefined();
+    expect(buildAIContextProfile("generate", recent, allSharingOff, asOf, ["2026-W39"], {}, { fullWeeks: 1, summaryWeeks: 0 }).weeklyHistory).toBeUndefined();
+  });
+
   it("scopes recentWorkouts/benchmarks to the target range for analyze, but not generate/context", () => {
     const analyzeProfile = buildAIContextProfile("analyze", source, allSharingOff, asOf, ["2026-W25"]);
     expect(analyzeProfile.recentWorkouts).toHaveLength(1);
@@ -290,5 +371,47 @@ describe("buildAIContextProfile", () => {
     const outOfRangeProfile = buildAIContextProfile("analyze", source, allSharingOff, asOf, ["2026-W01"]);
     expect(outOfRangeProfile.recentWorkouts).toHaveLength(0);
     expect(outOfRangeProfile.benchmarks).toHaveLength(0);
+  });
+});
+
+describe("notes in the AI profile", () => {
+  const source = (overrides: Partial<Parameters<typeof buildAIContextProfile>[1]> = {}) => ({
+    exerciseTypes: [],
+    analyticsCategories: [],
+    phaseDefs: [{ id: "phase-capacity", name: "Capacity" }],
+    workouts: [],
+    benchmarks: [],
+    trainingBlocks: [
+      { id: "b1", name: "Base", phaseId: "phase-capacity", startWeekId: "2026-W38", endWeekId: "2026-W41", notes: "Rebuild after the trip" },
+    ],
+    goals: [],
+    dailyMetrics: [],
+    painLogs: [],
+    outdoorAscents: [],
+    weekNotes: [
+      { weekId: "2026-W30", text: "Too far back" },
+      { weekId: "2026-W36", text: "Four weeks before" },
+      { weekId: "2026-W40", text: "Travelling Thu-Sun" },
+      { weekId: "2026-W45", text: "Four weeks after" },
+      { weekId: "2026-W50", text: "Too far ahead" },
+    ],
+    ...overrides,
+  });
+  const sharing = { trainingBlocks: true, competitions: true, readinessMetrics: false, painLogs: false, outdoorAscents: true, notes: true };
+
+  it("includes block notes and the week notes within four weeks of the target range", () => {
+    const profile = buildAIContextProfile("generate", source(), sharing, asOf, ["2026-W40", "2026-W41"]);
+    expect(profile.trainingBlocks![0].notes).toBe("Rebuild after the trip");
+    expect(profile.weekNotes).toEqual([
+      { weekId: "2026-W36", text: "Four weeks before" },
+      { weekId: "2026-W40", text: "Travelling Thu-Sun" },
+      { weekId: "2026-W45", text: "Four weeks after" },
+    ]);
+  });
+
+  it("leaves every note out when note sharing is off", () => {
+    const profile = buildAIContextProfile("generate", source(), { ...sharing, notes: false }, asOf, ["2026-W40"]);
+    expect(profile.trainingBlocks![0].notes).toBeUndefined();
+    expect(profile.weekNotes).toBeUndefined();
   });
 });

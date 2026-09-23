@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { RATING_AXES } from '../../lib/constants';
   /**
-   * Analytics' Fatigue panel (UI_PLAN.md §4.6/§5.4, Stage 5). Home already
-   * shows fatigue "as of now" (its own bars) - per §2's "Home = now,
+   * Analytics' Fatigue panel. Home already
+   * shows fatigue "as of now" (its own bars) - following the "Home = now,
    * Analytics = history, no duplicated panels" rule, this panel instead
    * samples the same shared `computeFatigueDecay` model at each displayed
    * week's end date (mirroring the sampling pattern `calculateRollingAcwrSeries`
-   * already established in Stage 2), so it shows a genuine trend rather
+   * already uses), so it shows a genuine trend rather
    * than repeating Home's single snapshot.
    */
   import Icon from "@iconify/svelte";
@@ -31,12 +32,6 @@
     coverage: FatigueCoverage;
   } = $props();
 
-  const AXES: { key: 'fingers' | 'arms' | 'core' | 'systemic'; label: string }[] = [
-    { key: 'fingers', label: 'Fingers' },
-    { key: 'arms', label: 'Arms' },
-    { key: 'core', label: 'Core' },
-    { key: 'systemic', label: 'Systemic' },
-  ];
 
   // Values are on a fixed 1-10 RPE-like scale (same as FatigueModal's
   // sliders), so the y-axis is a fixed 0-10 range, not a per-axis min/max -
@@ -70,36 +65,42 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
-  <div class="flex items-center justify-between px-1">
+<div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+  <div class="flex items-center justify-between">
     <div>
       <h3 class="text-section uppercase text-content-muted">Fatigue</h3>
-      <p class="text-caption text-content-subtle mt-0.5">Decayed load per axis, across the displayed weeks</p>
+      <p class="text-caption text-content-subtle mt-0.5">Decayed load per axis (0&ndash;10), across the window</p>
     </div>
-    <div class="p-2 bg-primary-hover/10 rounded-control text-primary">
-      <Icon icon="ic:baseline-bolt" class="text-lg" />
-    </div>
+    <Icon icon="ic:baseline-bolt" class="text-base text-content-subtle" />
   </div>
 
-  <div class="space-y-4">
-    {#each AXES as axis}
+  <div class="space-y-3">
+    {#each RATING_AXES as axis}
       {@const values = samples.map((s) => s[axis.key])}
       {@const points = toPoints(values)}
       {@const segments = toSegments(points)}
       {@const current = latestValue(values)}
       <div class="space-y-1">
         <div class="flex items-center justify-between">
-          <span class="text-label text-content-subtle">{axis.label}</span>
+          <span class="text-caption text-content-subtle">{axis.label}</span>
           <span class="text-caption text-content tabular-nums">{current !== undefined ? current.toFixed(1) : '—'}</span>
         </div>
-        <div class="h-8 relative">
+        <!-- One sparkline per axis on a shared fixed 0-10 scale, with a
+             hairline baseline so the four rows read as one small-multiple
+             set rather than four unrelated squiggles.
+             Tall enough to read: at 28px a 0-10 range gave each RPE point
+             under 3px, so every line looked like the same flat squiggle.
+             64px plus a midline at 5 makes the shape and the half-scale
+             crossing legible without turning four rows into a full page. -->
+        <div class="h-16 relative border-b border-border/60">
+          <div class="absolute inset-x-0 top-1/2 border-t border-dashed border-border/50 pointer-events-none"></div>
           <svg class="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
             {#each segments as seg}
               <path
                 d="M {seg.map((p) => `${p.x} ${p.y}`).join(' L ')}"
                 fill="none"
                 stroke="var(--color-primary)"
-                stroke-width="2.5"
+                stroke-width="1.5"
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 vector-effect="non-scaling-stroke"
@@ -111,7 +112,7 @@
     {/each}
 
     {#if coverage.total > 0}
-      <p class="text-caption text-content-subtle pt-1">Arms: {coverage.arms} of {coverage.total} sessions in window</p>
+      <p class="text-caption text-content-subtle/70 pt-0.5">Arms rated on {coverage.arms} of {coverage.total} sessions in this window</p>
     {:else}
       <p class="text-caption text-content-subtle italic text-center py-2">No completed sessions in this window</p>
     {/if}

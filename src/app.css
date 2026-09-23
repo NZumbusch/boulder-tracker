@@ -1,4 +1,19 @@
 @import "tailwindcss";
+/* Enter/exit animation utilities (`animate-in`, `fade-in`, `slide-in-from-*`,
+   `zoom-in-*`). The app has used these class names throughout since the
+   first UI stage, but nothing ever provided them, so every one of them was
+   inert - modals appeared instantly, dropdowns popped.
+
+   `tw-animate-css` rather than `tailwindcss-animate`: the latter is the
+   v3-era JS plugin these class names were written for, is unmaintained, and
+   needs v4's legacy `@plugin` path. This is the v4-native CSS-only
+   successor with the same API. Costs ~450 bytes gzipped.
+
+   Durations come from `--tw-duration`, which is what Tailwind's own
+   `duration-*` utilities set - so `duration-200` shortens the animation and
+   the transition together, and the reduced-motion rule further down
+   overrides both. */
+@import "tw-animate-css";
 
 @theme {
   --color-app-bg: var(--theme-app-bg);
@@ -24,22 +39,22 @@
   --color-tertiary-hover: var(--theme-tertiary-hover);
 
   /* Status colour tokens - meaning only (readiness/ACWR/fatigue state).
-     Never used for decoration. See UI_PLAN.md §3.3. */
+     Never used for decoration. */
   --color-status-good: var(--theme-status-good);
   --color-status-caution: var(--theme-status-caution);
   --color-status-risk: var(--theme-status-risk);
   --color-status-neutral: var(--theme-status-neutral);
 
-  /* Two radii only - see UI_PLAN.md §3.2. rounded-full (circles/pills) is
+  /* Two radii only. rounded-full (circles/pills) is
      a separate shape concern, not part of this corner-radius scale. */
   --radius-card: 16px;
   --radius-control: 10px;
 
   /* One shared card elevation, replacing the shadow-lg/xl/2xl mix on card
-     containers (UI_PLAN.md §3.2). Not used for buttons/interactive glow. */
+     containers. Not used for buttons/interactive glow. */
   --shadow-card: 0 4px 24px -2px rgb(0 0 0 / 0.35);
 
-  /* Type ramp - see UI_PLAN.md §3.1. Sizes are indirected through
+  /* Type ramp. Sizes are indirected through
      --typescale-* so `data-text-scale` can override them (below);
      weight/tracking don't scale, so they're set directly here. */
   --text-display: var(--typescale-display);
@@ -160,7 +175,7 @@
   --theme-status-neutral: #a1a1aa; /* zinc-400 */
 }
 
-/* Type ramp base sizes (UI_PLAN.md §3.1), scaled by data-text-scale below.
+/* Type ramp base sizes, scaled by data-text-scale below.
    --typescale-caption never goes below 11px at any scale - the hard floor. */
 :root {
   --typescale-display: 44px;
@@ -192,7 +207,7 @@
   --typescale-caption: 12px;
 }
 
-/* Motion (UI_PLAN.md §3.4). `data-motion` is always resolved to "full" or
+/* Motion. `data-motion` is always resolved to "full" or
    "reduced" in script (App.svelte), including honouring
    prefers-reduced-motion as the default when no explicit choice has been
    made - the media query below is only a pre-hydration/no-JS fallback so
@@ -273,4 +288,25 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--theme-surface-elevated);
   border-radius: 10px;
+}
+
+/* Chart tooltips: hover where hovering exists, tap where it doesn't.
+   The `hover: hover` guard is the important part - without it a tapped
+   element keeps `:hover` on a touchscreen until something else is tapped,
+   so a tooltip opened by a tap stays stuck open and a second tap can't
+   close it. Touch devices therefore get no hover rule at all and are
+   driven entirely by `data-tip-open`, which the chart toggles on tap. */
+.chart-tip {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+@media (hover: hover) {
+  [data-tip-trigger]:hover .chart-tip {
+    opacity: 1;
+  }
+}
+
+[data-tip-trigger][data-tip-open="true"] .chart-tip {
+  opacity: 1;
 }

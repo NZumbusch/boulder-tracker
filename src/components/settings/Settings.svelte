@@ -1,6 +1,6 @@
 <script lang="ts">
   import { trainingState } from '../../lib/state.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { storage } from '../../lib/storage';
   import { showAlert, showConfirm } from '../../lib/utils';
   import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, BenchmarkTypeDef, AnalyticsCategory } from '../../lib/types';
@@ -9,8 +9,7 @@
   import BenchmarkTypeSettings from './BenchmarkTypeSettings.svelte';
   import BackupSettings from './BackupSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
-  import PreferencesSettings from './PreferencesSettings.svelte';
-  import HealthSettings from './HealthSettings.svelte';
+  import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import Icon from "@iconify/svelte";
 
   // --- Props ---
@@ -23,36 +22,84 @@
   }>();
 
   // --- State: Tabs ---
-  type SettingsTab = 'overview' | 'customization' | 'design' | 'integration' | 'health' | 'about';
+  type SettingsTab = 'overview' | 'customization' | 'design' | 'integration' | 'about';
   let currentTab = $state<SettingsTab>('overview');
+  /** The open Appearance topic, if any - back returns to the topic list first. */
+  let appearanceTopic = $state<AppearanceTopic | null>(null);
+  function goBack() {
+    if (currentTab === 'design' && appearanceTopic) appearanceTopic = null;
+    else currentTab = 'overview';
+  }
 
-  // --- State: local editable copies of every catalog, saved together via "Save All" ---
+  // --- State: local editable copies of every catalog, saved as you edit ---
   let templates = $state<Record<string, WorkoutTemplate[]>>({});
   let phaseDefs = $state<PhaseDef[]>([]);
   let exerciseTypes = $state<ExerciseTypeDef[]>([]);
   let benchmarkTypes = $state<BenchmarkTypeDef[]>([]);
   let analyticsCategories = $state<AnalyticsCategory[]>([]);
 
-  // --- Lifecycle ---
+  /**
+   * Autosave. Like every other setting, catalog edits save themselves -
+   * there used to be a "Save All" button, and leaving the tab without it
+   * silently threw the edits away. A change is written 600 ms after the
+   * last edit (typing a name shouldn't write every letter), only the
+   * catalogs that actually changed are written, and a pending save is
+   * flushed when the screen closes.
+   */
+  type Catalog = 'templates' | 'phaseDefs' | 'exerciseTypes' | 'benchmarkTypes' | 'analyticsCategories';
+  const current = (): Record<Catalog, string> => ({
+    templates: JSON.stringify($state.snapshot(templates)),
+    phaseDefs: JSON.stringify($state.snapshot(phaseDefs)),
+    exerciseTypes: JSON.stringify($state.snapshot(exerciseTypes)),
+    benchmarkTypes: JSON.stringify($state.snapshot(benchmarkTypes)),
+    analyticsCategories: JSON.stringify($state.snapshot(analyticsCategories)),
+  });
+  let lastSaved: Record<Catalog, string> | null = null;
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
+
   onMount(async () => {
     templates = await storage.getTemplates();
     phaseDefs = await storage.getPhaseDefs();
     exerciseTypes = await storage.getExerciseTypes();
     benchmarkTypes = await storage.getBenchmarkTypes();
     analyticsCategories = await storage.getAnalyticsCategories();
+    lastSaved = current();
   });
 
-  // --- Global Actions ---
-  async function saveAll() {
+  $effect(() => {
+    const now = current();
+    if (!lastSaved) return;
+    if ((Object.keys(now) as Catalog[]).every((k) => now[k] === lastSaved![k])) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persist, 600);
+  });
+
+  onDestroy(() => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      persist();
+    }
+  });
+
+  async function persist() {
+    saveTimer = undefined;
+    if (!lastSaved) return;
+    const now = current();
+    const changed = (Object.keys(now) as Catalog[]).filter((k) => now[k] !== lastSaved![k]);
+    if (changed.length === 0) return;
+    saveState = 'saving';
     try {
-      await storage.saveTemplates($state.snapshot(templates));
-      await storage.savePhaseDefs($state.snapshot(phaseDefs));
-      await storage.saveExerciseTypes($state.snapshot(exerciseTypes));
-      await storage.saveBenchmarkTypes($state.snapshot(benchmarkTypes));
-      await storage.saveAnalyticsCategories($state.snapshot(analyticsCategories));
+      if (changed.includes('templates')) await storage.saveTemplates($state.snapshot(templates));
+      if (changed.includes('phaseDefs')) await storage.savePhaseDefs($state.snapshot(phaseDefs));
+      if (changed.includes('exerciseTypes')) await storage.saveExerciseTypes($state.snapshot(exerciseTypes));
+      if (changed.includes('benchmarkTypes')) await storage.saveBenchmarkTypes($state.snapshot(benchmarkTypes));
+      if (changed.includes('analyticsCategories')) await storage.saveAnalyticsCategories($state.snapshot(analyticsCategories));
+      for (const k of changed) lastSaved[k] = now[k];
       await trainingState.refresh();
-      await showAlert('Settings', 'Settings saved successfully!');
+      saveState = 'saved';
     } catch (err) {
+      saveState = 'idle';
       await showAlert('Settings Error', err instanceof Error ? err.message : 'Failed to save settings.');
     }
   }
@@ -62,28 +109,31 @@
     if (!confirmed) return;
     await trainingState.resetTemplates();
     templates = await storage.getTemplates();
+    // Already saved by the reset - don't write it again.
+    if (lastSaved) lastSaved.templates = current().templates;
   }
 </script>
 
-<div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+<div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <div class="flex items-center justify-between px-1">
     <div class="flex items-center gap-4">
       {#if currentTab === 'overview'}
         <button onclick={() => trainingState.navigate('home')} class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-muted hover:text-content transition-colors"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
         <h2 class="text-title text-content">Settings</h2>
       {:else}
-        <button onclick={() => currentTab = 'overview'} class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-muted hover:text-content transition-colors"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
+        <button onclick={goBack} class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-muted hover:text-content transition-colors"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
         <h2 class="text-title text-content">
           {#if currentTab === 'customization'}Customization
-          {:else if currentTab === 'design'}Appearance & Behaviour
+          {:else if currentTab === 'design'}{APPEARANCE_TOPICS.find((t) => t.id === appearanceTopic)?.label ?? 'Appearance & Behaviour'}
           {:else if currentTab === 'integration'}Data & Exports
-          {:else if currentTab === 'health'}Health & Outdoor Log
           {:else if currentTab === 'about'}About & Impressum{/if}
         </h2>
       {/if}
     </div>
-    {#if currentTab === 'customization'}
-      <button onclick={saveAll} class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-control transition-all shadow-lg active:scale-95">Save All</button>
+    {#if currentTab === 'customization' && saveState !== 'idle'}
+      <span class="text-caption text-content-subtle flex items-center gap-1" aria-live="polite">
+        {#if saveState === 'saving'}Saving…{:else}<Icon icon="ic:baseline-check" class="text-sm text-success" /> Saved{/if}
+      </span>
     {/if}
   </div>
 
@@ -96,7 +146,7 @@
         </div>
         <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
       </button>
-      <button onclick={() => currentTab = 'design'} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
+      <button onclick={() => { currentTab = 'design'; appearanceTopic = null; }} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
         <div class="flex items-center gap-4">
           <div class="p-3 bg-tertiary-hover/10 rounded-card text-tertiary group-hover:bg-tertiary-hover group-hover:text-white transition-colors"><Icon icon="ic:baseline-color-lens" class="text-2xl" /></div>
           <div class="text-left"><p class="text-body font-bold text-content">Appearance & Behaviour</p><p class="text-caption text-content-subtle mt-1">Theme, layout, timer, weather & notifications</p></div>
@@ -107,13 +157,6 @@
         <div class="flex items-center gap-4">
           <div class="p-3 bg-success/10 rounded-card text-success group-hover:bg-success group-hover:text-white transition-colors"><Icon icon="ic:baseline-sync" class="text-2xl" /></div>
           <div class="text-left"><p class="text-body font-bold text-content">Data & Exports</p><p class="text-caption text-content-subtle mt-1">Backups, calendar/PDF export & AI sharing</p></div>
-        </div>
-        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
-      </button>
-      <button onclick={() => currentTab = 'health'} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
-        <div class="flex items-center gap-4">
-          <div class="p-3 bg-tertiary-hover/10 rounded-card text-tertiary group-hover:bg-tertiary-hover group-hover:text-white transition-colors"><Icon icon="ic:baseline-monitor-weight" class="text-2xl" /></div>
-          <div class="text-left"><p class="text-body font-bold text-content">Health & Outdoor Log</p><p class="text-caption text-content-subtle mt-1">Bodyweight tracking and 8a.nu ascent import</p></div>
         </div>
         <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
       </button>
@@ -141,14 +184,12 @@
       <BenchmarkTypeSettings bind:benchmarkTypes />
     </div>
   {:else if currentTab === 'design'}
-    <PreferencesSettings />
+    <PreferencesSettings bind:topic={appearanceTopic} />
   {:else if currentTab === 'integration'}
     <div class="space-y-4">
       <BackupSettings {onExport} {onImport} />
       <AISharingSettings />
     </div>
-  {:else if currentTab === 'health'}
-    <HealthSettings />
   {:else if currentTab === 'about'}
     <div class="space-y-4">
       <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">

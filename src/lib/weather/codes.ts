@@ -3,8 +3,7 @@
  * field returns) mapped to a short label and an Iconify icon name.
  * Standard table, not this app's own invention - see
  * https://open-meteo.com/en/docs (WMO Weather interpretation codes).
- * Pure data + a pure lookup, no network - fully unit-testable on its own,
- * per UI_PLAN.md §5.5's "pure fetch wrappers... isolated and mockable"
+ * Pure data + a pure lookup, no network - fully unit-testable on its own
  * (the network call is the *other* half; this half never touches it).
  */
 
@@ -18,8 +17,8 @@ const WEATHER_CODES: Record<number, WeatherCodeInfo> = {
   1: { label: 'Mainly clear', icon: 'ic:baseline-wb-sunny' },
   2: { label: 'Partly cloudy', icon: 'ic:baseline-wb-cloudy' },
   3: { label: 'Overcast', icon: 'ic:baseline-cloud' },
-  45: { label: 'Fog', icon: 'ic:baseline-foggy' },
-  48: { label: 'Depositing rime fog', icon: 'ic:baseline-foggy' },
+  45: { label: 'Fog', icon: 'ic:baseline-dehaze' },
+  48: { label: 'Depositing rime fog', icon: 'ic:baseline-dehaze' },
   51: { label: 'Light drizzle', icon: 'ic:baseline-grain' },
   53: { label: 'Moderate drizzle', icon: 'ic:baseline-grain' },
   55: { label: 'Dense drizzle', icon: 'ic:baseline-grain' },

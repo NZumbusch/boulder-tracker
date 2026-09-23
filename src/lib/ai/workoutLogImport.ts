@@ -11,14 +11,12 @@ import {
 
 /**
  * The "paste free-text training notes, get structured exercises" flow
- * (PLAN.md Phase 5) reuses `AIExercise`/name-resolution from the plan
+ * reuses `AIExercise`/name-resolution from the plan
  * importer, but its target is a single in-progress workout's exercise list
- * (`WorkoutForm.svelte`), not the whole plan/calendar - so unlike
+ * (`WorkoutEditor.svelte`), not the whole plan/calendar - so unlike
  * `planImport.ts` there's no `TrainingBlock`/`Workout` to build here. Every
  * exercise from every parsed "workout" is flattened into one slot list,
- * since the consuming form only ever edits one workout at a time (see
- * PLAN.md's own framing: "targeting a single workout's exercises instead of
- * a whole plan").
+ * since the consuming form only ever edits one workout at a time.
  */
 
 export interface WorkoutLogPreviewWorkout {
@@ -59,12 +57,10 @@ export interface WorkoutLogCommitResult {
 }
 
 /**
- * Pure commit builder, mirroring `buildPlanCommit`'s resolution rules
- * exactly (case-insensitive exact-name match, "create" mapping makes a
- * fresh `ExerciseTypeDef`). `bucket` selects which `ExerciseSlot` field the
- * parsed values land in - "prescribed" while planning, "logged" once a
- * session is actually being logged (mirrors `WorkoutForm.svelte`'s existing
- * `exerciseFormMode`).
+ * Pure commit builder. Names resolve by case-insensitive exact match, and a
+ * "create" mapping makes a fresh `ExerciseTypeDef`. `bucket` selects which `ExerciseSlot` field the
+ * parsed values land in - "prescribed" for a planned session, "logged" for
+ * a completed one (the same split as `WorkoutEditor.svelte`'s `bucket`).
  */
 export function buildWorkoutLogCommit(
   log: AIWorkoutLogOutput,

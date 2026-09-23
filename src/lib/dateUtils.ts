@@ -27,7 +27,7 @@ export function getWeekId(date: Date): string {
 /**
  * Returns the week id immediately following `weekId`. Approximates every
  * year as 52 weeks (matches the pre-existing week-range loop this was
- * extracted from in `AIPromptModal.svelte` - see PROGRESS.md) rather than
+ * extracted from in the old AI prompt modal) rather than
  * computing true ISO week counts (52 or 53 depending on the year): a 53-week
  * year can produce one extra, slightly-early rollover to next year. Low-risk
  * here - only used for week-range generation/grouping, not for `getWeekId`
@@ -49,7 +49,7 @@ export function incrementWeekId(weekId: string): string {
  * Returns the week id immediately preceding `weekId` - `incrementWeekId`'s
  * mirror image, same 52-weeks-per-year approximation and same low-risk
  * caveat (only used for windowing/grouping, never `getWeekId` itself).
- * Added for Stage 10's AI context builder (`src/lib/ai/context.ts`), which
+ * Added for the AI context builder (`src/lib/ai/context.ts`), which
  * needs to expand a target week range backward as well as forward.
  */
 export function decrementWeekId(weekId: string): string {
@@ -140,7 +140,7 @@ export function getWeekDateRange(weekId: string): string {
  * use. Exists specifically so day-window arithmetic (rolling ACWR, see
  * `loadAnalytics.ts`) can do plain integer day-index subtraction instead of
  * the `new Date(t - n * 86400000)` + `.toISOString().split('T')[0]` pattern
- * UI_PLAN.md §5.3 explicitly warns drifts across DST boundaries by mixing
+ * would drift across DST boundaries by mixing
  * local and UTC time.
  */
 export function toUtcDayIndex(isoDate: string): number {

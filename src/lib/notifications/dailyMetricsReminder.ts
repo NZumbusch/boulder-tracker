@@ -2,12 +2,12 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import type { DailyMetricEntry } from '../types';
 import { reminderId, checkNotificationPermission, cancelRemindersOfType } from './shared';
+import { isLoggedMetricValue } from '../analytics/metricValues';
 
 /**
- * Evening reminder for missing daily metrics (UI_PLAN.md §2/§5.8, Stage 8
- * part 2, landing on the id-ownership refactor from part 1). Fires once,
+ * Evening reminder for missing daily metrics. Fires once,
  * at a configurable time, when today's sleep score, HRV, or resting heart
- * rate is still unlogged - the well-known `MetricDef` ids Stage 2's
+ * rate is still unlogged - the well-known `MetricDef` ids Home's
  * quick-entry already uses (`DEFAULT_METRIC_DEFS`, `constants.ts`), not
  * new ones. Any one of the three missing counts as "still missing" - the
  * point is nudging toward a completed check-in, not each metric having its
@@ -21,10 +21,10 @@ export function dailyMetricsReminderId(): number {
   return reminderId('dailyMetrics', 'daily-metrics-reminder');
 }
 
-/** True if at least one of the quick-entry metrics has no entry for `todayIso` (`YYYY-MM-DD`). */
+/** True if at least one of the quick-entry metrics has no real entry (a zero doesn't count) for `todayIso` (`YYYY-MM-DD`). */
 export function isDailyMetricsEntryMissing(dailyMetrics: DailyMetricEntry[], todayIso: string): boolean {
   return QUICK_ENTRY_METRIC_IDS.some(
-    (metricId) => !dailyMetrics.some((m) => m.metricId === metricId && m.date === todayIso),
+    (metricId) => !dailyMetrics.some((m) => m.metricId === metricId && m.date === todayIso && isLoggedMetricValue(m.value)),
   );
 }
 

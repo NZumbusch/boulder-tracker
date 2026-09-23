@@ -1,42 +1,36 @@
 import { storage } from '../storage';
-import type { TrainingBlock, WeekOverride, CompetitionEvent, WorkoutTemplate } from '../types';
-import { getBlocksForWeek, getDominantBlockForWeek } from '../planning/trainingBlocks';
+import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate } from '../types';
+import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
  * Training blocks (concurrent phase assignments), week overrides, the
- * competition/peaking calendar, and workout templates (Phase 4 replaces the
- * old one-phase-per-week `periodization` with `TrainingBlock[]` - see
- * PLAN.md Phase 4 / PROGRESS.md).
+ * goals calendar (competitions and outdoor trips), and workout templates.
+ * Blocks replaced the old one-phase-per-week `periodization`.
  */
 export class PlanningStore {
   trainingBlocks = $state<TrainingBlock[]>([]);
   weekOverrides = $state<WeekOverride[]>([]);
-  competitionEvents = $state<CompetitionEvent[]>([]);
+  weekNotes = $state<WeekNote[]>([]);
+  goals = $state<GoalEvent[]>([]);
   templates = $state<Record<string, WorkoutTemplate[]>>({});
 
   async load() {
-    const [trainingBlocks, weekOverrides, competitionEvents, templates] = await Promise.all([
+    const [trainingBlocks, weekOverrides, weekNotes, goals, templates] = await Promise.all([
       storage.getTrainingBlocks(),
       storage.getWeekOverrides(),
-      storage.getCompetitionEvents(),
+      storage.getWeekNotes(),
+      storage.getGoals(),
       storage.getTemplates(),
     ]);
     this.trainingBlocks = trainingBlocks;
     this.weekOverrides = weekOverrides;
-    this.competitionEvents = competitionEvents;
+    this.weekNotes = weekNotes;
+    this.goals = goals;
     this.templates = templates;
-  }
-
-  getBlocksForWeek(weekId: string) {
-    return getBlocksForWeek(this.trainingBlocks, weekId);
   }
 
   getDominantBlockForWeek(weekId: string) {
     return getDominantBlockForWeek(this.trainingBlocks, weekId);
-  }
-
-  isWeekCustomized(weekId: string) {
-    return !!this.weekOverrides.find((o) => o.weekId === weekId)?.customized;
   }
 
   /**
@@ -59,20 +53,25 @@ export class PlanningStore {
     await storage.deleteTrainingBlock(id);
   }
 
-  async saveCompetitionEvent(event: CompetitionEvent) {
-    await storage.saveCompetitionEvent(event);
+  async saveWeekNote(weekId: string, text: string) {
+    await storage.saveWeekNote(weekId, text);
   }
 
-  async deleteCompetitionEvent(id: string) {
-    await storage.deleteCompetitionEvent(id);
+  async saveGoal(goal: GoalEvent) {
+    await storage.saveGoal(goal);
   }
 
-  async updateTemplates(templates: Record<string, WorkoutTemplate[]>) {
-    await storage.saveTemplates(templates);
+  async deleteGoal(id: string) {
+    await storage.deleteGoal(id);
   }
 
   async resetTemplates() {
     await storage.resetTemplates();
+  }
+
+  /** Puts a week back under its phase's control (see `storage.resetWeekToPhaseDefaults`). */
+  async resetWeekToPhaseDefaults(weekId: string) {
+    await storage.resetWeekToPhaseDefaults(weekId);
   }
 
   /**

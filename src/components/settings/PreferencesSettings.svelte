@@ -1,20 +1,64 @@
+<script lang="ts" module>
+  export type AppearanceTopic = 'general' | 'home' | 'plan' | 'sessions' | 'charts' | 'model' | 'weather' | 'notifications';
+
+  /** The topic list - also what Settings' header uses to title an open topic. */
+  export const APPEARANCE_TOPICS: { id: AppearanceTopic; label: string; hint: string; icon: string }[] = [
+    { id: 'general', label: 'General', hint: 'Theme, text size, motion, units', icon: 'ic:baseline-palette' },
+    { id: 'home', label: 'Home', hint: 'Cards and their details, quick log, list lengths, reminders', icon: 'ic:baseline-home' },
+    { id: 'plan', label: 'Plan', hint: 'Week view', icon: 'ic:baseline-calendar-month' },
+    { id: 'sessions', label: 'Sessions & Timer', hint: 'Live sessions, timer sounds and screen', icon: 'ic:baseline-timer' },
+    { id: 'charts', label: 'History & Analytics', hint: 'Analytics cards, chart density, sends chart', icon: 'ic:baseline-bar-chart' },
+    { id: 'model', label: 'Training model', hint: 'Readiness, ACWR zones, fatigue recovery, rest-day alert', icon: 'ic:baseline-tune' },
+    { id: 'weather', label: 'Weather & outdoor', hint: 'Locations, crags, conditions, trips', icon: 'ic:baseline-cloud' },
+    { id: 'notifications', label: 'Notifications', hint: 'Reminders', icon: 'ic:baseline-notifications' },
+  ];
+</script>
+
 <script lang="ts">
   /**
-   * "Appearance & Behaviour" tab (UI_PLAN.md §4.7, renamed from "Appearance
-   * & Design" - Stage 8's last part). Theme/Text size/Motion stay inline
-   * here (small, and Theme was already here); everything else added this
-   * stage is its own focused sub-component, same composition pattern
-   * `Settings.svelte` itself already uses for its other tabs.
+   * "Appearance & Behaviour" tab, grouped by the part of the app each
+   * setting affects: a short topic list, each opening its own page. The
+   * open topic is owned by `Settings.svelte` (bound here) so its header's
+   * back arrow can return to this list before leaving the tab.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import LayoutSettings from './LayoutSettings.svelte';
+  import HomeLayoutSettings from './HomeLayoutSettings.svelte';
+  import PlanDisplaySettings from './PlanDisplaySettings.svelte';
+  import ChartSettings from './ChartSettings.svelte';
+  import SessionSettings from './SessionSettings.svelte';
   import TimerSettings from './TimerSettings.svelte';
   import WeatherSettings from './WeatherSettings.svelte';
   import NotificationSettings from './NotificationSettings.svelte';
+  import TunablesSettings from './TunablesSettings.svelte';
+  import UnitsSettings from './UnitsSettings.svelte';
+  import OrderedListSettings from './OrderedListSettings.svelte';
   import Icon from "@iconify/svelte";
+  import { Capacitor } from '@capacitor/core';
+
+  let { topic = $bindable(null) }: { topic?: AppearanceTopic | null } = $props();
+
+  // Reminders are local notifications, which only exist in the Android
+  // app - in the browser the topic would open an empty page.
+  const topics = Capacitor.isNativePlatform() ? APPEARANCE_TOPICS : APPEARANCE_TOPICS.filter((t) => t.id !== 'notifications');
 </script>
 
 <div class="space-y-4">
+  {#if topic === null}
+    <div class="space-y-2 animate-in fade-in">
+      {#each topics as t (t.id)}
+        <button onclick={() => topic = t.id} class="w-full flex items-center justify-between p-4 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group shadow-card">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="p-2 bg-primary-hover/10 rounded-control text-primary shrink-0"><Icon icon={t.icon} class="text-xl" /></div>
+            <div class="text-left min-w-0">
+              <p class="text-body font-bold text-content">{t.label}</p>
+              <p class="text-caption text-content-subtle mt-0.5 truncate">{t.hint}</p>
+            </div>
+          </div>
+          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle group-hover:text-content text-xl shrink-0" />
+        </button>
+      {/each}
+    </div>
+  {:else if topic === 'general'}
   <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Theme</h3>
@@ -69,7 +113,7 @@
     </div>
   </div>
 
-  <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+    <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Text Size</h3>
     </div>
@@ -80,7 +124,7 @@
     </div>
   </div>
 
-  <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+    <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Motion</h3>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">"System" follows your device's reduced-motion setting automatically.</p>
@@ -92,8 +136,36 @@
     </div>
   </div>
 
-  <LayoutSettings />
-  <TimerSettings />
-  <WeatherSettings />
-  <NotificationSettings />
+    <UnitsSettings />
+  {:else if topic === 'home'}
+    <HomeLayoutSettings />
+    <OrderedListSettings
+      list="quickLogActions"
+      title="Quick log (+)"
+      hint="What the + on Home offers, and in which order."
+      labels={{ pain: 'Log pain', bodyweight: 'Bodyweight', send: 'Outdoor send', benchmark: 'Benchmark' }}
+    />
+    <TunablesSettings topic="layout" title="Lists & reminders" />
+  {:else if topic === 'plan'}
+    <PlanDisplaySettings />
+  {:else if topic === 'sessions'}
+    <SessionSettings />
+    <TimerSettings />
+  {:else if topic === 'charts'}
+    <OrderedListSettings
+      list="analyticsSections"
+      title="Analytics cards"
+      hint="Drag to reorder; untick to hide."
+      labels={{ load: 'Rolling Load & ACWR', mix: 'Training Mix', fatigue: 'Fatigue', adherence: 'Adherence', recovery: 'Recovery Warnings', outdoor: 'Outdoor Ascents', bodyweight: 'Bodyweight Trend', benchmarks: 'Benchmark Progress' }}
+    />
+    <ChartSettings />
+  {:else if topic === 'model'}
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">These tune how the app judges your training - readiness, load zones, fatigue and alerts. The defaults are sensible starting points; change them if they don't match how you respond.</p>
+    <TunablesSettings topic="model" title="Training model" />
+  {:else if topic === 'weather'}
+    <WeatherSettings />
+    <TunablesSettings topic="outdoor" title="Conditions & trips" />
+  {:else if topic === 'notifications'}
+    <NotificationSettings />
+  {/if}
 </div>

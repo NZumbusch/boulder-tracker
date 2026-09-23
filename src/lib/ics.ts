@@ -1,5 +1,5 @@
 import type { Workout, DayOfWeek } from './types';
-import { slotValues } from './exerciseSlot';
+import { estimateSessionDuration } from './planning/sessionDuration';
 
 // Helper to get the starting date of a week given a weekId like "2026-W25"
 export function getDateFromWeekId(weekId: string, dayOfWeek?: DayOfWeek): Date {
@@ -51,17 +51,6 @@ function formatDateToICS(date: Date, timeStr?: string): string {
   return `${yyyy}${MM}${dd}T${hh}${mm}${ss}`;
 }
 
-export function calculateWorkoutDuration(workout: Workout): number {
-  if (!workout.exercises || workout.exercises.length === 0) {
-    return 60; // Default 1 hour if no exercises
-  }
-  let totalDuration = 0;
-  for (const ex of workout.exercises) {
-    totalDuration += slotValues(ex).duration || 30; // Default 30 mins for missing duration
-  }
-  return totalDuration;
-}
-
 export function generateICS(workouts: Workout[]): string {
   let ics = [
     'BEGIN:VCALENDAR',
@@ -83,7 +72,7 @@ export function generateICS(workouts: Workout[]): string {
 
     const startICS = formatDateToICS(dateObj, w.startTime);
     
-    const durationMins = calculateWorkoutDuration(w);
+    const durationMins = estimateSessionDuration(w);
     // Calculate end time
     const endObj = new Date(
       parseInt(startICS.substring(0, 4)),
