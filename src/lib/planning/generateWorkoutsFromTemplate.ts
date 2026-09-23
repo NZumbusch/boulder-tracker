@@ -1,5 +1,5 @@
 import type { Workout, WorkoutTemplate, ExerciseSlot } from "../types";
-import { workoutPlannedLoad } from "../types";
+import { workoutPlannedLoad } from "../analytics/load";
 import { generateId } from "../utils";
 
 /**

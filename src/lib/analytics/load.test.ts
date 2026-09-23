@@ -1,12 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  calculateLoadFactor,
-  calculatePlannedLoad,
-  slotPlannedLoad,
-  slotActualLoad,
-  workoutPlannedLoad,
-} from "./types";
-import type { ExerciseSlot } from "./types";
+import { calculateLoadFactor, calculatePlannedLoad, slotPlannedLoad, slotActualLoad, workoutPlannedLoad } from "./load";
+import type { ExerciseSlot } from "../types";
 
 describe("calculatePlannedLoad", () => {
   it("does not return NaN when called the way every real call site calls it (a single exercise-like object)", () => {

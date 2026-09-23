@@ -1,5 +1,5 @@
 import type { ExerciseTypeDef, Workout } from "../types";
-import { workoutPlannedLoad } from "../types";
+import { workoutPlannedLoad } from "../analytics/load";
 import { slotTypeName } from "../exerciseSlot";
 import { estimateSessionDuration } from "./sessionDuration";
 

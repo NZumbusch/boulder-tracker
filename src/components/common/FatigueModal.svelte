@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { type Workout, calculateLoadFactor } from '../../lib/types';
+  import { type Workout } from '../../lib/types';
+import { calculateLoadFactor } from '../../lib/analytics/load';
   import { generateId } from '../../lib/utils';
   import { formatMinutes } from '../../lib/session/formatSession';
 

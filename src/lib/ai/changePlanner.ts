@@ -32,7 +32,7 @@ import type {
   Workout,
   WorkoutTemplate,
 } from "../types";
-import { workoutPlannedLoad } from "../types";
+import { workoutPlannedLoad } from "../analytics/load";
 import { generateId } from "../utils";
 import { decrementWeekId, incrementWeekId } from "../dateUtils";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";

@@ -1,4 +1,4 @@
-import { calculatePlannedLoad } from "../types";
+import { calculatePlannedLoad } from "../analytics/load";
 import {
   DEFAULT_TEMPLATES,
   DEFAULT_BENCHMARK_TYPES,

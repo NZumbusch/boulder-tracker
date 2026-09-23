@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ExerciseSlot, TrainingData, Workout } from "./types";
-import { workoutPlannedLoad, slotActualLoad, calculateLoadFactor } from "./types";
+import { workoutPlannedLoad, slotActualLoad, calculateLoadFactor } from "./analytics/load";
 import { slotValues } from "./exerciseSlot";
 import { repsRepresentative } from "./exercise/reps";
 import {

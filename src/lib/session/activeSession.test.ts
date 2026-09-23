@@ -26,7 +26,7 @@ import {
   type ActiveSession,
 } from "./activeSession";
 import type { ExerciseSlot, Workout } from "../types";
-import { workoutPlannedLoad } from "../types";
+import { workoutPlannedLoad } from "../analytics/load";
 
 const T0 = Date.parse("2026-09-22T18:00:00.000Z");
 const MIN = 60_000;

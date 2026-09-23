@@ -1,5 +1,5 @@
 import type { Workout, DailyMetricEntry, PainLog } from "../types";
-import { workoutPlannedLoad, slotActualLoad } from "../types";
+import { workoutPlannedLoad, slotActualLoad } from "./load";
 import { getWeekId, getWeekDates, toUtcDayIndex } from "../dateUtils";
 import { loggedMetrics } from "./metricValues";
 

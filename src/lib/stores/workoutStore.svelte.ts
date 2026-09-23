@@ -1,5 +1,6 @@
 import { storage } from '../storage';
-import { workoutPlannedLoad, type Workout } from '../types';
+import { type Workout } from '../types';
+import { workoutPlannedLoad } from '../analytics/load';
 import { generateId } from '../utils';
 import { sortWorkoutsBySchedule } from '../planning/sortWorkouts';
 import { toStoredWorkout } from '../planning/weekProjection';

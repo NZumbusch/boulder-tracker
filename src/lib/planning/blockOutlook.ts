@@ -1,5 +1,5 @@
 import type { TrainingBlock, Workout } from "../types";
-import { workoutPlannedLoad } from "../types";
+import { workoutPlannedLoad } from "../analytics/load";
 import { calculateWeeklyAdherence } from "../analytics/loadAnalytics";
 import { getWeekDates, toUtcDayIndex } from "../dateUtils";
 import { sortBlocks } from "./blockPaging";
