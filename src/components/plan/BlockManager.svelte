@@ -29,6 +29,9 @@
   const phaseDefs = $derived([...trainingState.phaseDefs].filter((p) => !p.archived));
 
   let editingBlock = $state<TrainingBlock | null>(null);
+  // Open/closed is its own flag: nulling `editingBlock` to close the form
+  // would make its still-bound inputs read a field of null before it's gone.
+  let formOpen = $state(false);
   let showBrowser = $state(false);
 
   function phaseName(phaseId: string): string {
@@ -37,6 +40,7 @@
 
   function startAdd() {
     const currentWeekId = trainingState.currentWeekId;
+    formOpen = true;
     editingBlock = {
       id: generateId(),
       name: 'New Block',
@@ -49,6 +53,7 @@
 
   function startEdit(block: TrainingBlock) {
     editingBlock = { ...block };
+    formOpen = true;
   }
 
   async function handleSave() {
@@ -59,7 +64,7 @@
     }
     const { notes, ...block } = $state.snapshot(editingBlock);
     await trainingState.saveTrainingBlock(notes?.trim() ? { ...block, notes: notes.trim() } : block);
-    editingBlock = null;
+    formOpen = false;
   }
 
   async function handleDelete(id: string) {
@@ -87,7 +92,7 @@
       </button>
     </div>
 
-    {#if editingBlock}
+    {#if formOpen && editingBlock}
       <div class="p-4 bg-surface-elevated/50 border border-primary/30 rounded-card space-y-3">
         <div class="space-y-1">
           <label for="block-name" class="text-label text-content-subtle ml-1">Name</label>
@@ -121,7 +126,7 @@
         </div>
         <div class="flex gap-2 pt-1">
           <button onclick={handleSave} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control">Save</button>
-          <button onclick={() => editingBlock = null} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button>
+          <button onclick={() => formOpen = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button>
         </div>
       </div>
     {:else}

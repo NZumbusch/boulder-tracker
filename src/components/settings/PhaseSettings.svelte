@@ -64,8 +64,9 @@
     } else {
       phaseDefs.push({ ...editingPhase, name });
     }
+    // Closing is enough: nulling the edited object too would make the
+    // form's still-bound inputs read a field of null before the form is gone.
     isAddingPhase = false;
-    editingPhase = null;
   }
 
   async function deletePhase(id: string) {
@@ -120,7 +121,7 @@
           </div>
         </div>
       </div>
-      <div class="flex gap-2 pt-2"><button onclick={savePhase} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control">Save</button><button onclick={() => { isAddingPhase = false; editingPhase = null; }} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
+      <div class="flex gap-2 pt-2"><button onclick={savePhase} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control">Save</button><button onclick={() => isAddingPhase = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
     </div>
   {:else}
     <div class="space-y-2">

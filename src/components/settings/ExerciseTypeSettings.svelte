@@ -52,8 +52,9 @@
     } else {
       exerciseTypes.push({ ...editingType, name });
     }
+    // Closing is enough: nulling the edited object too would make the
+    // form's still-bound inputs read a field of null before the form is gone.
     isAddingType = false;
-    editingType = null;
   }
 
   async function deleteType(id: string) {
@@ -101,7 +102,7 @@
       </div>
       <div class="space-y-2"><span class="text-label text-content-subtle ml-1 block">Active Parameters</span><div class="grid grid-cols-2 gap-2">{#each parameterBlocks as block}<button onclick={() => cycleParam(block.id)} class="px-3 py-2 rounded-control text-label border transition-all flex items-center justify-between gap-2 {editingType.parameters.includes(block.id) ? 'bg-primary-hover/10 border-primary/50 text-primary-hover' : (editingType.possibleParameters?.includes(block.id) ? 'bg-surface-elevated border-border-strong text-content' : 'bg-surface border-border/50 text-content-subtle opacity-50')}"><div class="flex items-center gap-2"><Icon icon={editingType.parameters.includes(block.id) ? 'ic:baseline-check-box' : (editingType.possibleParameters?.includes(block.id) ? 'ic:baseline-indeterminate-check-box' : 'ic:baseline-check-box-outline-blank')} class="text-sm" /><span>{block.label}</span></div><span class="text-caption opacity-60">{editingType.parameters.includes(block.id) ? 'Default' : (editingType.possibleParameters?.includes(block.id) ? 'Possible' : '')}</span></button>{/each}</div></div>
     </div>
-    <div class="flex gap-2 pt-2"><button onclick={saveType} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control">Save</button><button onclick={() => { isAddingType = false; editingType = null; }} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
+    <div class="flex gap-2 pt-2"><button onclick={saveType} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control">Save</button><button onclick={() => isAddingType = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
   </div>
 {:else}
   <div class="space-y-2">
