@@ -23,6 +23,8 @@ import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
+import { toStoredWorkout } from "../planning/weekProjection";
+import type { PlanWrites } from "../ai/changePlanner";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState } from "./persistence";
 import { runDataMigrations, assertMigrationInvariants } from "./migrations";
 
@@ -210,6 +212,35 @@ export const storage = {
       overrides.push({ weekId, customized: true });
       await this._saveWeekOverrides(overrides);
     }
+  },
+
+  /**
+   * Writes an AI change set's result (`changePlanner.ts` -> `PlanWrites`) in
+   * one go: catalog lists replaced where they changed, and each touched
+   * week's planned sessions swapped for its new plan (or dropped, when it
+   * now follows its phase). Completed sessions are never removed. One
+   * flush, so a half-applied plan can't be left behind by a failed write.
+   */
+  async applyPlanWrites(writes: PlanWrites): Promise<void> {
+    await initDB();
+    const db = _dbState;
+    if (writes.exerciseTypes) db.exerciseTypes = toPlain(writes.exerciseTypes);
+    if (writes.phaseDefs) db.phaseDefs = toPlain(writes.phaseDefs);
+    if (writes.templates) db.templates = toPlain(writes.templates);
+    if (writes.trainingBlocks) db.trainingBlocks = toPlain(writes.trainingBlocks);
+    if (writes.weeks.length) {
+      const touched = new Set(writes.weeks.map((w) => w.weekId));
+      const kept = (db.workouts as Workout[]).filter((w) => !(touched.has(w.weekId) && w.status === "planned"));
+      const added = writes.weeks.flatMap((w) => (w.planned ?? []).map(toStoredWorkout));
+      db.workouts = toPlain([...kept, ...added]);
+      const overrides = (db.weekOverrides as WeekOverride[]).filter((o) => !touched.has(o.weekId));
+      for (const w of writes.weeks) if (w.customized) overrides.push({ weekId: w.weekId, customized: true });
+      db.weekOverrides = toPlain(overrides);
+    }
+    let notes = db.weekNotes as WeekNote[];
+    for (const n of writes.weekNotes) notes = upsertWeekNote(notes, n.weekId, n.text);
+    db.weekNotes = toPlain(notes);
+    await flushDB();
   },
 
   async getWeekNotes(): Promise<WeekNote[]> {

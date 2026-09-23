@@ -144,7 +144,7 @@
     editingSlot = null;
   }
 
-  /** Appends AI-parsed exercises to this session - see AIImportModal's "workoutLog" mode. */
+  /** Appends AI-parsed exercises to this session - see AIImportModal. */
   function handleImportAILog(slots: ExerciseSlot[]) {
     if (!workout) return;
     workout.exercises = [...workout.exercises, ...slots];
@@ -535,7 +535,6 @@
 
 {#if isImportingAILog}
   <AIImportModal
-    mode="workoutLog"
     bucket={exerciseFormMode}
     onImportWorkoutLog={handleImportAILog}
     onClose={() => isImportingAILog = false}

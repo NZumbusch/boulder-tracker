@@ -96,8 +96,8 @@ export interface AIPlanWeek {
   notes?: string;
   /**
    * The note of the phase this week was expanded from (phase format only).
-   * Carried per week because downstream only sees weeks - `buildPlanCommit`
-   * puts it on the block it regroups those weeks into.
+   * Carried per week because downstream only sees weeks - the legacy
+   * converter (`legacyPlan.ts`) turns it back into the block note.
    */
   blockNotes?: string;
 }
@@ -580,11 +580,11 @@ function validatePlanPhase(raw: unknown, path: string, issues: ValidationIssue[]
  * phase once, and the app instantiates its sessions across every week the
  * phase covers - exactly what assigning a phase to a week already does
  * natively via `generateWorkoutsFromTemplate`. Downstream
- * (`buildPlanPreview`, `buildPlanCommit`) therefore needs no phase
+ * (`legacyPlan.ts`) therefore needs no phase
  * awareness at all; it keeps seeing weeks.
  *
  * Contiguous same-phase weeks are re-grouped into one `TrainingBlock` by
- * `buildPlanCommit`, which reproduces the declared block exactly.
+ * the legacy converter, which reproduces the declared block exactly.
  */
 export function expandPhasePlan(phases: AIPlanPhase[]): AIPlanWeek[] {
   const weeks: AIPlanWeek[] = [];
@@ -764,94 +764,6 @@ HARD RULES for "values" - each of these was a real failure, not a hypothetical:
 - There is no "restTime" field. Rest between sets is "timeBetweenSets".
 - "notes" is the only field that takes free text. Put all coaching detail, pacing, intent and conditions there.
 - Omit any field you have no value for. Never write null.`;
-
-const AI_PLAN_SHARED_RULES = `- "phaseName" should be one of the Available Phases listed above where possible.
-- "exerciseTypeName" should be one of the Custom Exercise Modalities listed above where possible; invent a new, sensibly-named one only if nothing fits.
-- "categoryName" - only include this if "exerciseTypeName" is a new, invented one (not one of the Custom Exercise Modalities listed above): set it to the closest match from the Analytics Categories listed above. Omit it entirely when reusing an existing exercise type.
-- "dayOfWeek" (if given) must be exactly one of: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.
-- "startTime" (optional) is the planned time of day the session starts, 24-hour "HH:mm" - e.g. "18:00", never "6pm" or "evening". Give one when the time of day is part of the prescription (a morning fingerboard vs an evening session); omit it when any time of day would do.
-- "plannedDuration" (optional) is how long the whole session is planned to take, in whole minutes as a bare number: 90, never "90 min" or "1.5h". This is the wall-clock length of the session including rest and warm-up - it is NOT the sum of the exercises' own "duration" values, and setting one does not replace them.`;
-
-/**
- * Per-week format: every week spelled out in full. Maximum control, and
- * the only way to express week-to-week progression explicitly - at the cost
- * of a very long response, since sessions repeat across a phase's weeks.
- */
-export const AI_PLAN_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSON object matching exactly this shape - no markdown code fences, no commentary before or after it:
-
-{
-  "weeks": [
-    {
-      "weekId": "2026-W25",
-      "phaseName": "Capacity",
-      "notes": "optional - anything specific to this week",
-      "workouts": [
-        {
-          "name": "Session name",
-          "dayOfWeek": "Monday",
-          "startTime": "18:00",
-          "plannedDuration": 90,
-          "exercises": [
-            { "exerciseTypeName": "Hangboard", "values": { "duration": 30, "sets": 5, "reps": 6, "timeOn": 10, "timeOff": 180, "notes": "optional" } }
-          ]
-        }
-      ]
-    }
-  ]
-}
-
-Rules:
-- "weekId" must be one of the exact week ids from the Target Timeframe above (format "YYYY-Www").
-${AI_PLAN_SHARED_RULES}
-- Every week in the Target Timeframe must appear exactly once, even if it's a rest/deload week with an empty "workouts" array.
-- A week's "notes" (optional) is a short note about the week as a whole - its intent, a test to run, what to do if something goes wrong. It is shown to me separately from the sessions; per-exercise detail still goes in that exercise's "notes".
-
-${AI_VALUES_CONTRACT}`;
-
-/**
- * Phase format: each phase stated once, with the distinct sessions that
- * define it, and the app instantiates them across the phase's weeks (see
- * `expandPhasePlan`). Roughly a quarter of the output for a long plan,
- * which keeps the model's attention on periodisation rather than on
- * retyping the same session.
- */
-export const AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS = `Respond with ONLY a single JSON object matching exactly this shape - no markdown code fences, no commentary before or after it:
-
-{
-  "phases": [
-    {
-      "phaseName": "Capacity",
-      "startWeekId": "2026-W25",
-      "endWeekId": "2026-W28",
-      "notes": "optional - what this phase is for",
-      "weekNotes": { "2026-W28": "optional - a note for one specific week" },
-      "sessions": [
-        {
-          "name": "Session name",
-          "dayOfWeek": "Monday",
-          "startTime": "18:00",
-          "plannedDuration": 90,
-          "exercises": [
-            { "exerciseTypeName": "Hangboard", "values": { "duration": 30, "sets": 5, "reps": 6, "timeOn": 10, "timeOff": 180, "notes": "optional" } }
-          ]
-        }
-      ]
-    }
-  ]
-}
-
-You are designing a PHASE PLAN, not a week-by-week calendar. For each phase, give the week range it covers and the set of DISTINCT sessions that define a typical week in it. The app repeats those sessions across every week of the phase automatically.
-
-Rules:
-- Do NOT repeat a session once per week, and do NOT emit a "weeks" array. One entry per phase, each listing that phase's distinct weekly sessions once.
-- "startWeekId"/"endWeekId" are inclusive, format "YYYY-Www", and must fall inside the Target Timeframe above.
-- Phases must not overlap, and together they should cover the whole Target Timeframe. Use a short deload/rest phase where one belongs rather than leaving a gap.
-- "sessions" is the typical week for that phase: one entry per training day, each with its own "dayOfWeek" (and "startTime"/"plannedDuration" where they matter). A rest week is a phase with an empty "sessions" array.
-- Put any week-to-week progression inside the phase (e.g. "notes": "add 2kg each week, deload in the final week") rather than splitting the phase into one-week blocks to express it.
-- A phase's "notes" (optional) says what the phase is for and how to progress through it. "weekNotes" (optional) maps a week id inside that phase to a note for that one week - a test to run, a lighter week, what to change if something flares up. Both are shown to me as notes; don't use them for exercise prescriptions.
-${AI_PLAN_SHARED_RULES}
-
-${AI_VALUES_CONTRACT}`;
 
 export const AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS = `You are structuring free-text climbing/training notes into JSON. Respond with ONLY a single JSON object matching exactly this shape - no markdown code fences, no commentary before or after it:
 

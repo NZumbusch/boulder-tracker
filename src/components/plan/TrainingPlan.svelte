@@ -9,7 +9,7 @@
   import Icon from "@iconify/svelte";
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
   import AIPromptModal from './AIPromptModal.svelte';
-  import AIImportModal from './AIImportModal.svelte';
+  import AIPlanImportModal from './AIPlanImportModal.svelte';
   import WeekCalendar from './WeekCalendar.svelte';
   import BlockManager from './BlockManager.svelte';
   import GoalsCalendar from './GoalsCalendar.svelte';
@@ -549,7 +549,7 @@
 {/if}
 
 {#if showAIImport}
-  <AIImportModal mode="plan" onClose={() => showAIImport = false} />
+  <AIPlanImportModal onClose={() => showAIImport = false} />
 {/if}
 
 {#if showBlockManager}

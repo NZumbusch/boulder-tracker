@@ -8,6 +8,7 @@ import { num, flag, type TunableTopic } from './preferences/tunables';
 import type { ReadinessConfig } from './analytics/readiness';
 import type { FrictionConfig } from './weather/friction';
 import type { Units } from './units';
+import type { PlanWrites, PlannerState } from './ai/changePlanner';
 import {
   isWeekProvisional,
   templatesForWeek,
@@ -768,6 +769,27 @@ class TrainingState {
   async saveTrainingBlock(block: TrainingBlock) {
     await this.planningStore.saveTrainingBlock(block);
     await this.refresh();
+  }
+
+  /** Applies an AI change set's result (see `changePlanner.ts`) in one write, then reloads. */
+  async applyPlanWrites(writes: PlanWrites) {
+    await storage.applyPlanWrites(writes);
+    await this.refresh();
+  }
+
+  /** Everything the AI change-set planner needs to know about the current plan. */
+  get plannerState(): PlannerState {
+    return {
+      exerciseTypes: this.exerciseTypes,
+      analyticsCategories: this.analyticsCategories,
+      phaseDefs: this.phaseDefs,
+      templates: this.templates,
+      trainingBlocks: this.trainingBlocks,
+      workouts: this.workouts,
+      weekOverrides: this.weekOverrides,
+      weekNotes: this.weekNotes,
+      currentWeekId: this.currentWeekId,
+    };
   }
 
   /** `weekId`'s note, or "" - see `WeekNote`. */

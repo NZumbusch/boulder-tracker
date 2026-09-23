@@ -2,38 +2,23 @@
   import { trainingState } from '../../lib/state.svelte';
   import { showAlert } from '../../lib/utils';
   import type { ExerciseSlot } from '../../lib/types';
-  import {
-    parseAIPlanOutput,
-    parseAIWorkoutLogOutput,
-    AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS,
-  } from '../../lib/ai/schema';
-  import {
-    buildPlanPreview,
-    buildPlanCommit,
-    normalizeName,
-    type NameMapping,
-  } from '../../lib/ai/planImport';
+  import { parseAIWorkoutLogOutput, AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS } from '../../lib/ai/schema';
+  import { normalizeName, type NameMapping } from '../../lib/ai/planImport';
   import { buildWorkoutLogPreview, buildWorkoutLogCommit } from '../../lib/ai/workoutLogImport';
   import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
-  import { appendAINote } from '../../lib/planning/notes';
   import Icon from '@iconify/svelte';
 
   // --- Props ---
-  // "plan" commits directly (new TrainingBlocks + Workouts, via the normal
-  // planningStore/workoutStore services) - the whole-calendar import.
-  // "workoutLog" hands resolved ExerciseSlot[] back to the caller instead of
-  // writing anything itself, since it targets one already-open workout in
-  // WorkoutForm.svelte, which isn't saved to storage until the user finishes
-  // that form - see PLAN.md's "reuse the pipeline...targeting a single
-  // workout's exercises instead of a whole plan."
+  // Structures free-text training notes into exercises for one open workout
+  // (WorkoutForm.svelte) and hands the resolved ExerciseSlot[] back rather
+  // than writing anything - the workout isn't saved until that form is.
+  // Whole-plan imports live in AIPlanImportModal (AI change sets).
   let {
     onClose,
-    mode = 'plan',
     bucket = 'prescribed',
     onImportWorkoutLog,
   } = $props<{
     onClose: () => void;
-    mode?: 'plan' | 'workoutLog';
     bucket?: 'prescribed' | 'logged';
     onImportWorkoutLog?: (slots: ExerciseSlot[]) => void;
   }>();
@@ -41,24 +26,16 @@
   // --- State ---
   let pasteText = $state('');
   let exerciseTypeMapping = $state<Record<string, NameMapping>>({});
-  let phaseMapping = $state<Record<string, NameMapping>>({});
   let committing = $state(false);
   let showInstructions = $state(false);
   let showRepairs = $state(false);
   let expandedIssue = $state<string | null>(null);
   let copiedErrors = $state(false);
-  let saveAsTemplates = $state(false);
 
   // --- Parsing (validate on every keystroke - cheap, and lets the preview/
   // error list update live rather than only on an explicit "Parse" click) ---
-  const planResult = $derived(mode === 'plan' && pasteText.trim() ? parseAIPlanOutput(pasteText) : null);
-  const logResult = $derived(mode === 'workoutLog' && pasteText.trim() ? parseAIWorkoutLogOutput(pasteText) : null);
+  const logResult = $derived(pasteText.trim() ? parseAIWorkoutLogOutput(pasteText) : null);
 
-  const planPreview = $derived(
-    planResult?.valid && planResult.data
-      ? buildPlanPreview(planResult.data, { exerciseTypes: trainingState.exerciseTypes, phaseDefs: trainingState.phaseDefs })
-      : null,
-  );
   const logPreview = $derived(
     logResult?.valid && logResult.data ? buildWorkoutLogPreview(logResult.data, trainingState.exerciseTypes) : null,
   );
@@ -68,21 +45,14 @@
   // change any of them to "map to existing" before confirming. Never
   // resets a choice the user already made for a name still present.
   $effect(() => {
-    const unresolvedExerciseNames = planPreview?.unresolvedExerciseTypeNames ?? logPreview?.unresolvedExerciseTypeNames ?? [];
+    const unresolvedExerciseNames = logPreview?.unresolvedExerciseTypeNames ?? [];
     for (const name of unresolvedExerciseNames) {
       const key = normalizeName(name);
       if (!(key in exerciseTypeMapping)) exerciseTypeMapping[key] = { action: 'create' };
     }
   });
-  $effect(() => {
-    for (const name of planPreview?.unresolvedPhaseNames ?? []) {
-      const key = normalizeName(name);
-      if (!(key in phaseMapping)) phaseMapping[key] = { action: 'create' };
-    }
-  });
 
   const canConfirm = $derived.by(() => {
-    if (mode === 'plan') return !!planResult?.valid && !!planPreview && planPreview.totalWorkouts > 0;
     return !!logResult?.valid && !!logPreview && logPreview.totalExercises > 0;
   });
 
@@ -93,10 +63,6 @@
   function setExerciseMapping(name: string, value: NameMapping) {
     exerciseTypeMapping[normalizeName(name)] = value;
   }
-  function setPhaseMapping(name: string, value: NameMapping) {
-    phaseMapping[normalizeName(name)] = value;
-  }
-
   async function handleCopyInstructions() {
     await navigator.clipboard.writeText(AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS);
     await showAlert('Copied!', 'Paste this into your preferred AI, then paste your own training notes after it. Paste the JSON it replies with back here.');
@@ -105,52 +71,7 @@
   async function handleConfirm() {
     committing = true;
     try {
-      if (mode === 'plan') {
-        if (!planResult?.data) return;
-        const commit = buildPlanCommit(
-          planResult.data,
-          { exerciseTypes: exerciseTypeMapping, phases: phaseMapping },
-          { exerciseTypes: trainingState.exerciseTypes, phaseDefs: trainingState.phaseDefs, analyticsCategories: trainingState.analyticsCategories },
-          { saveAsTemplates },
-        );
-        if (commit.newExerciseTypes.length) {
-          await trainingState.updateExerciseTypes([...trainingState.exerciseTypes, ...commit.newExerciseTypes]);
-        }
-        if (commit.newPhaseDefs.length) {
-          await trainingState.updatePhaseDefs([...trainingState.phaseDefs, ...commit.newPhaseDefs]);
-        }
-        const templatePhaseCount = Object.keys(commit.templates).length;
-        if (templatePhaseCount > 0) {
-          await trainingState.updateTemplates({ ...trainingState.templates, ...commit.templates });
-        }
-        for (const block of commit.trainingBlocks) {
-          await trainingState.saveTrainingBlock(block);
-        }
-        // Added below whatever the user already wrote for that week, never over it.
-        for (const note of commit.weekNotes) {
-          await trainingState.saveWeekNote(note.weekId, appendAINote(trainingState.getWeekNote(note.weekId), note.text));
-        }
-        const blockNoteCount = commit.trainingBlocks.filter((b) => b.notes).length;
-        const noteCount = blockNoteCount + commit.weekNotes.length;
-        await trainingState.importPlanWorkouts(commit.workouts);
-
-        // Weeks whose sessions are exactly their phase's templates get no
-        // stored rows - they follow the phase until something happens in
-        // them (see lib/planning/weekProjection.ts). Said explicitly here so
-        // a mostly-provisional import doesn't read as "added 0 workouts".
-        const provisionalCount = commit.provisionalWeekIds.length;
-        const written = commit.workouts.length
-          ? `Added ${commit.workouts.length} session(s)`
-          : 'Added no fixed sessions';
-        await showAlert(
-          'Import Complete',
-          `${written} across ${commit.trainingBlocks.length} training block(s)`
-          + `${provisionalCount ? `. ${provisionalCount} week(s) will follow their phase until you log, change or lock them in` : ''}`
-          + `${commit.newExerciseTypes.length ? `. Created ${commit.newExerciseTypes.length} new exercise type(s)` : ''}`
-          + `${templatePhaseCount ? `. Saved templates for ${templatePhaseCount} phase(s)` : ''}`
-          + `${noteCount ? `. Added ${noteCount} note(s) from the AI` : ''}.`,
-        );
-      } else {
+      {
         if (!logResult?.data) return;
         const commit = buildWorkoutLogCommit(
           logResult.data,
@@ -171,8 +92,8 @@
     }
   }
 
-  const issues = $derived(planResult?.issues ?? logResult?.issues ?? []);
-  const repairs = $derived(planResult?.repairs ?? logResult?.repairs ?? []);
+  const issues = $derived(logResult?.issues ?? []);
+  const repairs = $derived(logResult?.repairs ?? []);
 
   // ~170 raw issues from one real plan collapse to a handful of distinct
   // problems - see issueSummary.ts.
@@ -198,7 +119,7 @@
       <div>
         <h2 class="text-title text-content flex items-center gap-2">
           <Icon icon="ic:baseline-auto-awesome" class="text-primary text-xl" />
-          {mode === 'plan' ? 'Import AI Plan' : 'Import AI Workout Log'}
+          Import AI Workout Log
         </h2>
         <p class="text-caption text-content-subtle mt-1">Paste JSON - nothing is saved until you confirm</p>
       </div>
@@ -206,7 +127,6 @@
     </div>
 
     <div class="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-4">
-      {#if mode === 'workoutLog'}
         <div class="space-y-2">
           <button onclick={() => showInstructions = !showInstructions} class="text-label text-primary flex items-center gap-1">
             <Icon icon="ic:baseline-info" class="text-sm" /> How does this work?
@@ -220,7 +140,6 @@
             </div>
           {/if}
         </div>
-      {/if}
 
       <div class="space-y-1.5">
         <label for="ai-import-paste" class="text-label text-content-subtle ml-1">Paste JSON Here</label>
@@ -228,7 +147,7 @@
           id="ai-import-paste"
           bind:value={pasteText}
           rows="6"
-          placeholder={mode === 'plan' ? 'Paste the JSON your AI generated...' : 'Paste the structured workout JSON your AI generated...'}
+          placeholder="Paste the structured workout JSON your AI generated..."
           class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-xs font-mono resize-none"
         ></textarea>
       </div>
@@ -324,75 +243,7 @@
         </div>
       {/if}
 
-      {#if mode === 'plan' && planPreview}
-        <div class="space-y-3">
-          {#if planPreview.format === 'phase'}
-            <div class="p-3.5 bg-primary/10 border border-primary/30 rounded-control space-y-2">
-              <p class="text-label text-primary flex items-center gap-1.5">
-                <Icon icon="ic:baseline-dashboard" class="text-sm" /> Phase plan
-              </p>
-              <p class="text-body text-content leading-snug">
-                {planPreview.phases.length} phase{planPreview.phases.length === 1 ? '' : 's'}
-                &rarr; {planPreview.weeks.length} week{planPreview.weeks.length === 1 ? '' : 's'}
-                &rarr; {planPreview.totalWorkouts} workout{planPreview.totalWorkouts === 1 ? '' : 's'}
-              </p>
-              <ul class="space-y-1">
-                {#each planPreview.phases as phase}
-                  <li class="flex items-center justify-between gap-2 text-body text-content-muted">
-                    <span class="truncate font-medium text-content">{phase.phaseName}</span>
-                    <span class="shrink-0 text-caption text-content-subtle">
-                      {phase.startWeekId} &ndash; {phase.endWeekId} &middot;
-                      {phase.sessionCount} session{phase.sessionCount === 1 ? '' : 's'} x {phase.weekCount} wk
-                    </span>
-                  </li>
-                {/each}
-              </ul>
-            </div>
-          {/if}
-
-          <p class="text-label text-content-subtle">
-            Preview - {planPreview.weeks.length} week(s), {planPreview.totalWorkouts} workout(s), {planPreview.totalExercises} exercise(s)
-          </p>
-          <div class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
-            {#each planPreview.weeks as week}
-              <div class="flex items-center justify-between px-3 py-2 bg-surface-elevated/50 rounded-control text-body">
-                <span class="font-bold text-content">{week.weekId}</span>
-                <span class="flex items-center gap-1.5 {week.phaseResolved ? 'text-content-muted' : 'text-warning'}">
-                  {#if !week.phaseResolved}<Icon icon="ic:baseline-warning" class="text-sm" />{/if}
-                  {week.phaseName}
-                </span>
-                <span class="text-content-subtle">{week.workoutCount} workout(s)</span>
-              </div>
-            {/each}
-          </div>
-
-          {#if planPreview.unresolvedPhaseNames.length > 0}
-            <div class="space-y-2">
-              <p class="text-label text-warning">Unresolved Phases</p>
-              {#each planPreview.unresolvedPhaseNames as name}
-                <div class="flex items-center justify-between gap-2 px-1">
-                  <span class="text-body text-content truncate">{name}</span>
-                  <select
-                    value={mappingSelectValue(phaseMapping[normalizeName(name)])}
-                    onchange={(e) => {
-                      const v = e.currentTarget.value;
-                      setPhaseMapping(name, v === 'create' ? { action: 'create' } : { action: 'map', id: v });
-                    }}
-                    class="bg-surface-elevated text-content text-xs p-2 rounded-control border border-border-strong outline-none"
-                  >
-                    <option value="create">+ Create new phase "{name}"</option>
-                    {#each trainingState.phaseDefs.filter(p => !p.archived) as phase}
-                      <option value={phase.id}>Use "{phase.name}"</option>
-                    {/each}
-                  </select>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      {#if mode === 'workoutLog' && logPreview}
+      {#if logPreview}
         <div class="space-y-3">
           <p class="text-label text-content-subtle">
             Preview - {logPreview.workouts.length} workout(s), {logPreview.totalExercises} exercise(s) will be added to this session
@@ -400,10 +251,10 @@
         </div>
       {/if}
 
-      {#if (planPreview?.unresolvedExerciseTypeNames.length ?? logPreview?.unresolvedExerciseTypeNames.length ?? 0) > 0}
+      {#if (logPreview?.unresolvedExerciseTypeNames.length ?? 0) > 0}
         <div class="space-y-2">
           <p class="text-label text-warning">Unresolved Exercise Types</p>
-          {#each (planPreview?.unresolvedExerciseTypeNames ?? logPreview?.unresolvedExerciseTypeNames ?? []) as name}
+          {#each logPreview?.unresolvedExerciseTypeNames ?? [] as name}
             <div class="flex items-center justify-between gap-2 px-1">
               <span class="text-body text-content truncate">{name}</span>
               <select
@@ -422,19 +273,6 @@
             </div>
           {/each}
         </div>
-      {/if}
-
-      {#if mode === 'plan' && planPreview}
-        <label class="flex items-start gap-3 p-3.5 bg-surface-elevated/50 border border-border-strong rounded-control cursor-pointer">
-          <input type="checkbox" bind:checked={saveAsTemplates} class="mt-0.5 accent-primary w-4 h-4 shrink-0" />
-          <span class="min-w-0">
-            <span class="block text-body text-content font-medium">Save sessions as phase templates</span>
-            <span class="block text-caption text-content-subtle leading-snug mt-0.5">
-              Reuses these sessions whenever you assign the phase to a week later. Replaces the existing templates of
-              every phase in this plan.
-            </span>
-          </span>
-        </label>
       {/if}
 
       <button

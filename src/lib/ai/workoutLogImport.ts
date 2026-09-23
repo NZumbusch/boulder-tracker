@@ -59,9 +59,8 @@ export interface WorkoutLogCommitResult {
 }
 
 /**
- * Pure commit builder, mirroring `buildPlanCommit`'s resolution rules
- * exactly (case-insensitive exact-name match, "create" mapping makes a
- * fresh `ExerciseTypeDef`). `bucket` selects which `ExerciseSlot` field the
+ * Pure commit builder. Names resolve by case-insensitive exact match, and a
+ * "create" mapping makes a fresh `ExerciseTypeDef`. `bucket` selects which `ExerciseSlot` field the
  * parsed values land in - "prescribed" while planning, "logged" once a
  * session is actually being logged (mirrors `WorkoutForm.svelte`'s existing
  * `exerciseFormMode`).

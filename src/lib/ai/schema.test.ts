@@ -4,10 +4,9 @@ import {
   validateAIWorkoutLogOutput,
   parseAIPlanOutput,
   parseAIWorkoutLogOutput,
-  AI_PLAN_OUTPUT_INSTRUCTIONS,
-  AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS,
   AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS,
 } from "./schema";
+import { AI_CHANGESET_INSTRUCTIONS } from "./changeSetPrompt";
 import { EXERCISE_VALUE_SPEC, EXERCISE_VALUE_FIELD_NAMES } from "./valueSpec";
 
 const VALID_PLAN = {
@@ -667,8 +666,7 @@ describe("the full corpus from the rejected 15-week plan", () => {
  */
 describe("AI prompt completeness", () => {
   const PROMPTS = {
-    weekly: AI_PLAN_OUTPUT_INSTRUCTIONS,
-    phase: AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS,
+    changeSet: AI_CHANGESET_INSTRUCTIONS,
     workoutLog: AI_WORKOUT_LOG_OUTPUT_INSTRUCTIONS,
   };
 
@@ -705,17 +703,6 @@ describe("AI prompt completeness", () => {
       });
     });
   }
-
-  it("tells the phase prompt not to emit a week-by-week calendar", () => {
-    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toMatch(/do NOT repeat a session once per week/i);
-    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toContain('"phases"');
-    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toContain("startWeekId");
-  });
-
-  it("still tells the weekly prompt to cover every week", () => {
-    expect(AI_PLAN_OUTPUT_INSTRUCTIONS).toMatch(/every week in the target timeframe/i);
-    expect(AI_PLAN_OUTPUT_INSTRUCTIONS).toContain('"weeks"');
-  });
 });
 
 describe("notes in the plan contract", () => {
@@ -768,11 +755,5 @@ describe("notes in the plan contract", () => {
     });
     expect(result.valid).toBe(true);
     expect(result.data!.weeks[0].notes).toBe("Travel week - hotel gym only");
-  });
-
-  it("documents both note fields in the phase prompt and week notes in the weekly prompt", () => {
-    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toContain('"weekNotes"');
-    expect(AI_PLAN_PHASE_OUTPUT_INSTRUCTIONS).toContain('"notes": "');
-    expect(AI_PLAN_OUTPUT_INSTRUCTIONS).toMatch(/"weekId": "2026-W25",\s*"phaseName": "Capacity",\s*"notes"/);
   });
 });
