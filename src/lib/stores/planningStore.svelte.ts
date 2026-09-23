@@ -1,6 +1,6 @@
 import { storage } from '../storage';
 import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate } from '../types';
-import { getBlocksForWeek, getDominantBlockForWeek } from '../planning/trainingBlocks';
+import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
  * Training blocks (concurrent phase assignments), week overrides, the
@@ -30,16 +30,8 @@ export class PlanningStore {
     this.templates = templates;
   }
 
-  getBlocksForWeek(weekId: string) {
-    return getBlocksForWeek(this.trainingBlocks, weekId);
-  }
-
   getDominantBlockForWeek(weekId: string) {
     return getDominantBlockForWeek(this.trainingBlocks, weekId);
-  }
-
-  isWeekCustomized(weekId: string) {
-    return !!this.weekOverrides.find((o) => o.weekId === weekId)?.customized;
   }
 
   /**

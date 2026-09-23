@@ -13,10 +13,6 @@ export class BenchmarkStore {
     this.benchmarks = await storage.getBenchmarks();
   }
 
-  getBenchmarksForWeek(weekId: string) {
-    return this.benchmarks.filter(b => b.weekId === weekId);
-  }
-
   async saveBenchmark(benchmark: Benchmark) {
     await storage.saveBenchmark(benchmark);
   }

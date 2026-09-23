@@ -23,14 +23,6 @@ export class MetricsStore {
     this.painLogs = painLogs;
   }
 
-  async updateMetricDefs(defs: MetricDef[]) {
-    await storage.saveMetricDefs(defs);
-  }
-
-  async updateDailyMetrics(entries: DailyMetricEntry[]) {
-    await storage.saveDailyMetrics(entries);
-  }
-
   async saveDailyMetric(entry: DailyMetricEntry) {
     await storage.saveDailyMetric(entry);
   }
@@ -41,10 +33,6 @@ export class MetricsStore {
 
   async ensureMetricDef(def: MetricDef) {
     await storage.ensureMetricDef(def);
-  }
-
-  async updatePainLogs(logs: PainLog[]) {
-    await storage.savePainLogs(logs);
   }
 
   async savePainLog(log: PainLog) {

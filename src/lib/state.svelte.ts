@@ -380,20 +380,6 @@ class TrainingState {
   }
 
   /**
-   * Bulk write path for an AI plan import. Deliberately bypasses the
-   * copy-on-write gate: the importer has already decided which weeks get
-   * stored rows and which stay provisional, so materialising a week here
-   * would write the phase's templates *and* the imported sessions into the
-   * same week. Refreshes once at the end rather than once per workout.
-   */
-  async importPlanWorkouts(workouts: Workout[]) {
-    for (const workout of workouts) {
-      await this.workoutStore.saveWorkout(workout);
-    }
-    await this.refresh();
-  }
-
-  /**
    * Puts a week back under its phase's control, undoing a lock-in (or any
    * hand edits). Destructive to this week's planned sessions, so it
    * confirms first; completed sessions are always kept.
@@ -441,20 +427,8 @@ class TrainingState {
     }
   }
 
-  getBlocksForWeek(weekId: string) {
-    return this.planningStore.getBlocksForWeek(weekId);
-  }
-
   getDominantBlockForWeek(weekId: string) {
     return this.planningStore.getDominantBlockForWeek(weekId);
-  }
-
-  isWeekCustomized(weekId: string) {
-    return this.planningStore.isWeekCustomized(weekId);
-  }
-
-  getBenchmarksForWeek(weekId: string) {
-    return this.benchmarkStore.getBenchmarksForWeek(weekId);
   }
 
   // --- Actions ---
