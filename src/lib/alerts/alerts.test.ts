@@ -54,6 +54,11 @@ describe("buildAlerts", () => {
     expect(buildAlerts(input({ lastBackupAt: undefined, workouts: many })).map((a) => a.id)).toContain("backup");
   });
 
+  it("flags sessions still planned during a trip", () => {
+    const alerts = buildAlerts(input({ tripConflicts: [{ tripName: "Font", dates: "Oct 5 – 12", count: 2 }, { tripName: "Day", dates: "Oct 20", count: 0 }], enabled: { ...all, tripConflict: true } }));
+    expect(alerts).toEqual([{ id: "trip-Font", severity: "caution", text: "2 sessions still planned during Font (Oct 5 – 12)" }]);
+  });
+
   it("respects each toggle", () => {
     const off = { recovery: false, pain: false, missingData: false, backup: false };
     expect(buildAlerts(input({ enabled: off, lastBackupAt: "2026-01-01T00:00:00Z" }))).toEqual([]);

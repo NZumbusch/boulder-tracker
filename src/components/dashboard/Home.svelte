@@ -21,6 +21,9 @@
   import { getWeekId } from '../../lib/dateUtils';
   import { upcomingGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates, coversDate } from '../../lib/goals/goals';
   import { tripSummary, resolveCandidate } from '../../lib/goals/projects';
+  import { sessionsDuringTrip } from '../../lib/goals/tripConflicts';
+  import { pastGoals } from '../../lib/goals/goals';
+  import { getWeekDates } from '../../lib/dateUtils';
   import type { GoalEvent, TripProject } from '../../lib/types';
   import { summarizeSession } from '../../lib/planning/sessionSummary';
   import { missedWorkouts, weekDayStrip, WEEK_DAYS, type DayStatus } from '../../lib/planning/weekStatus';
@@ -290,6 +293,37 @@
     return snap.daily.filter((d) => coversDate(nextGoal, d.date));
   });
   let goalNoteOpen = $state(false);
+
+  // --- Trip tie-ins ---
+  /** How far ahead a trip's leftover planned sessions start being flagged. */
+  const TRIP_CONFLICT_HORIZON_DAYS = 21;
+  const tripConflicts = $derived(
+    upcomingGoals(trainingState.goals, todayIso)
+      .filter((g) => g.kind === 'trip' && daysUntilGoal(g, todayIso) <= TRIP_CONFLICT_HORIZON_DAYS)
+      .map((trip) => {
+        const weekIds = new Set<string>();
+        for (let i = 0; i < goalLength(trip); i++) weekIds.add(getWeekId(new Date(Date.parse(`${trip.date}T12:00:00Z`) + i * 86400000)));
+        const workouts = [...weekIds].flatMap((id) => trainingState.getWorkoutsForWeek(id));
+        return { tripName: trip.name, dates: formatGoalDates(trip), count: sessionsDuringTrip(trip, workouts, todayIso).length };
+      }),
+  );
+  /** For each day of this week (Mon-Sun), the trip covering it, if any. */
+  const weekTripDays = $derived.by(() => {
+    const start = getWeekDates(currentWeekId)?.start;
+    const trips = trainingState.goals.filter((g) => g.kind === 'trip');
+    return WEEK_DAYS.map((_, i) => {
+      if (!start) return undefined;
+      const date = new Date(start.getTime() + i * 86400000).toISOString().slice(0, 10);
+      return trips.find((t) => coversDate(t, date));
+    });
+  });
+  /** How long after a trip ends it still shows as "last trip" in Progress. */
+  const LAST_TRIP_DAYS = 90;
+  const lastTrip = $derived.by(() => {
+    const trip = pastGoals(trainingState.goals, todayIso).find((g) => g.kind === 'trip');
+    if (!trip || -daysUntilGoal({ ...trip, date: trip.endDate ?? trip.date }, todayIso) > LAST_TRIP_DAYS) return undefined;
+    return { trip, summary: tripSummary(trip, trainingState.outdoorAscents) };
+  });
   async function answerCandidate(goal: GoalEvent, project: TripProject, sendId: string, counts: boolean) {
     const updated = resolveCandidate(project, sendId, counts);
     await trainingState.saveGoal({
@@ -316,7 +350,9 @@
         pain: trainingState.homeDetails['alerts.pain'],
         missingData: trainingState.homeDetails['alerts.missingData'],
         backup: trainingState.homeDetails['alerts.backup'],
+        tripConflict: trainingState.homeDetails['alerts.tripConflict'],
       },
+      tripConflicts,
     }),
   );
   const ALERT_DOT: Record<AlertSeverity, string> = {
@@ -642,13 +678,16 @@
               <span class="w-6 h-6 rounded-full border flex items-center justify-center {mark.class} {cell.isToday ? 'ring-2 ring-primary/50' : ''}">
                 {#if mark.icon}<Icon icon={mark.icon} class={cell.status === 'planned' ? 'text-[8px]' : 'text-xs'} />{/if}
               </span>
+              {#if weekTripDays[i] && trainingState.homeDetails['thisWeek.tripDays']}
+                <Icon icon="ic:baseline-terrain" class="text-[10px] text-primary -mt-0.5" aria-label="Trip: {weekTripDays[i]!.name}" />
+              {/if}
             </button>
           {/each}
         </div>
         {#if peekDay !== null}
           {@const cell = dayStrip[peekDay]}
           <p class="text-caption text-content-subtle">
-            <span class="text-content-muted">{cell.day}:</span> {cell.sessions.length ? cell.sessions.join(' · ') : 'rest day'}{cell.status === 'missed' ? ' (missed)' : cell.status === 'skipped' ? ' (skipped)' : ''}
+            <span class="text-content-muted">{cell.day}:</span> {weekTripDays[peekDay] ? `${weekTripDays[peekDay]!.name} · ` : ''}{cell.sessions.length ? cell.sessions.join(' · ') : weekTripDays[peekDay] ? 'trip day' : 'rest day'}{cell.status === 'missed' ? ' (missed)' : cell.status === 'skipped' ? ' (skipped)' : ''}
           </p>
         {/if}
       {/if}
@@ -917,7 +956,17 @@
           {/if}
         </div>
       {/if}
-      {#if !showBench && !showRetest && !showSends && !showConsistency}
+      {#if lastTrip && trainingState.homeDetails['progress.lastTrip']}
+        {@const s = lastTrip.summary}
+        <button onclick={() => trainingState.openSends()} class="w-full pt-2 border-t border-border/60 flex items-center gap-1.5 text-left">
+          <Icon icon="ic:baseline-terrain" class="text-sm text-primary shrink-0" />
+          <span class="text-caption text-content-subtle truncate flex-1">
+            Last trip: <span class="text-content">{lastTrip.trip.name}</span> · {s.sends.length} send{s.sends.length === 1 ? '' : 's'}{s.hardest ? ` · hardest ${s.hardest.grade}` : ''}{s.projects.length ? ` · projects ${s.projectsDone}/${s.projects.length}` : ''}
+          </span>
+          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0" />
+        </button>
+      {/if}
+      {#if !showBench && !showRetest && !showSends && !showConsistency && !(lastTrip && trainingState.homeDetails['progress.lastTrip'])}
         <p class="text-caption text-content-subtle italic">Log sessions, benchmarks or sends to see progress here.</p>
       {/if}
     </div>

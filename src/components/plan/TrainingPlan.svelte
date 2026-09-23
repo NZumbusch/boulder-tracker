@@ -1,6 +1,6 @@
 <script lang="ts">
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekDateRange } from '../../lib/dateUtils';
+  import { getWeekId, getWeekDateRange, getWeekDates } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
   import { getBlocksForWeek, getDominantBlockForWeek } from '../../lib/planning/trainingBlocks';
   import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
@@ -13,6 +13,8 @@
   import WeekCalendar from './WeekCalendar.svelte';
   import BlockManager from './BlockManager.svelte';
   import GoalsCalendar from './GoalsCalendar.svelte';
+  import { formatGoalDates, goalEnd } from '../../lib/goals/goals';
+  import { sessionsDuringTrip } from '../../lib/goals/tripConflicts';
   import NoteSheet from '../common/NoteSheet.svelte';
 
   // --- Theme ---
@@ -38,6 +40,20 @@
   let showAIImport = $state(false);
   let showBlockManager = $state(false);
   let showWeekNote = $state(false);
+
+  // Trips overlapping the selected week, with the sessions still planned on their days.
+  const selectedWeekTrips = $derived.by(() => {
+    const weekId = trainingState.selectedWeekId;
+    const range = weekId ? getWeekDates(weekId) : null;
+    if (!weekId || !range) return [];
+    const start = range.start.toISOString().slice(0, 10);
+    const end = range.end.toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    const weekWorkouts = trainingState.getWorkoutsForWeek(weekId);
+    return trainingState.goals
+      .filter((g) => g.kind === 'trip' && g.date <= end && goalEnd(g) >= start)
+      .map((trip) => ({ trip, planned: sessionsDuringTrip(trip, weekWorkouts, today).length }));
+  });
   const selectedWeekNote = $derived(trainingState.selectedWeekId ? trainingState.getWeekNote(trainingState.selectedWeekId) : '');
 
   // --- Logic: Calendar Generation ---
@@ -393,6 +409,16 @@
           </button>
         </div>
       </div>
+
+      {#each selectedWeekTrips as { trip, planned } (trip.id)}
+        <div class="flex items-center gap-2 p-2.5 rounded-control bg-primary/10 border border-primary/20">
+          <Icon icon="ic:baseline-terrain" class="text-primary shrink-0" />
+          <p class="text-label text-content flex-1 min-w-0 truncate">{trip.name} <span class="text-content-subtle">· {formatGoalDates(trip)}{trip.location ? ` · ${trip.location.name}` : ''}</span></p>
+          {#if planned > 0}
+            <span class="text-caption text-status-caution shrink-0">{planned} session{planned === 1 ? '' : 's'} planned during it</span>
+          {/if}
+        </div>
+      {/each}
 
       <div class="space-y-3">
         <div class="flex items-center justify-between">

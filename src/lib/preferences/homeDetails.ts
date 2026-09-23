@@ -32,6 +32,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'alerts.recovery', label: 'Recovery', hint: 'Days in a row without rest; a load spike while sleep/HRV dropped', defaultOn: true },
     { id: 'alerts.pain', label: 'Pain', hint: 'Pain logged in the last week, and whether load spiked around it', defaultOn: true },
     { id: 'alerts.missingData', label: 'Missing data', hint: 'Metrics you usually log going quiet; sessions without fatigue ratings', defaultOn: true },
+    { id: 'alerts.tripConflict', label: 'Sessions during a trip', hint: 'Sessions still planned on the days of an upcoming trip', defaultOn: true },
     { id: 'alerts.backup', label: 'Backup age', defaultOn: true },
   ],
   today: [
@@ -50,6 +51,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'thisWeek.note', label: 'Week note button', hint: 'Opens this week\'s note; filled when there is one', defaultOn: true },
     { id: 'thisWeek.strip', label: 'Day strip', hint: 'Monday to Sunday: done, missed, today, rest', defaultOn: true },
     { id: 'thisWeek.acwr', label: 'ACWR', hint: 'Acute:chronic load ratio and its zone', defaultOn: true },
+    { id: 'thisWeek.tripDays', label: 'Trip days', hint: 'Mark days of an outdoor trip in the day strip', defaultOn: true },
   ],
   trainingBlock: [
     { id: 'trainingBlock.note', label: 'Block note button', hint: 'Opens the current block\'s note', defaultOn: true },
@@ -67,6 +69,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'progress.retest', label: 'Retest nudge', hint: 'Benchmarks not tested in 6 weeks', defaultOn: true },
     { id: 'progress.sends', label: 'Outdoor sends', hint: 'Last send and hardest grade this season', defaultOn: true },
     { id: 'progress.consistency', label: 'Consistency', hint: 'Recent planned sessions done, and your weekly streak', defaultOn: true },
+    { id: 'progress.lastTrip', label: 'Last trip', hint: 'Sends, hardest grade and projects from your most recent trip', defaultOn: true },
   ],
   recentActivity: [
     { id: 'recentActivity.details', label: 'Duration & load', defaultOn: true },

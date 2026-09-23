@@ -21,7 +21,9 @@ export interface AlertInputs {
   painLogs: PainLog[];
   /** ISO timestamp of the last successful backup export, if any. */
   lastBackupAt?: string;
-  enabled: { recovery: boolean; pain: boolean; missingData: boolean; backup: boolean };
+  /** Upcoming or current trips with sessions still planned on their days (see `sessionsDuringTrip`). */
+  tripConflicts?: { tripName: string; dates: string; count: number }[];
+  enabled: { recovery: boolean; pain: boolean; missingData: boolean; backup: boolean; tripConflict?: boolean };
 }
 
 /** Pain logged within this many days shows up. */
@@ -100,6 +102,17 @@ export function buildAlerts(input: AlertInputs): HomeAlert[] {
       if (w.fingers === undefined && w.systemic === undefined) {
         alerts.push({ id: `unrated-${w.id}`, severity: "info", text: `Rate how "${w.notes || "your session"}" felt`, rateWorkoutId: w.id });
       }
+    }
+  }
+
+  if (enabled.tripConflict) {
+    for (const c of input.tripConflicts ?? []) {
+      if (c.count === 0) continue;
+      alerts.push({
+        id: `trip-${c.tripName}`,
+        severity: "caution",
+        text: `${c.count} session${c.count === 1 ? "" : "s"} still planned during ${c.tripName} (${c.dates})`,
+      });
     }
   }
 
