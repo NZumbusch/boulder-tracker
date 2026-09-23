@@ -118,3 +118,23 @@ export function rateFriction(inputs: FrictionInputs): Friction {
   }
   return { score, label: labelFor(score), reason };
 }
+
+/**
+ * A forecast day, rated from its daytime high, mean humidity and dew point,
+ * strongest wind, and that day's own rain total (as the "recent rain").
+ */
+export function rateForecastDay(day: {
+  tempMaxC: number;
+  humidityMeanPercent?: number;
+  dewPointMeanC?: number;
+  windMaxKmh?: number;
+  precipitationSumMm?: number;
+}): Friction {
+  return rateFriction({
+    tempC: day.tempMaxC,
+    humidityPercent: day.humidityMeanPercent,
+    dewPointC: day.dewPointMeanC,
+    windKmh: day.windMaxKmh,
+    recentRainMm: day.precipitationSumMm,
+  });
+}

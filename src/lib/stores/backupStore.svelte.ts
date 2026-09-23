@@ -4,16 +4,29 @@ import { showAlert } from '../utils';
 import { slotValues, slotTypeName } from '../exerciseSlot';
 import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
+const LAST_BACKUP_KEY = 'boulder_tracker_last_backup_at';
+
 /**
  * Import/export/CSV.
  */
 export class BackupStore {
+  /**
+   * When a full JSON backup was last exported from this device - device-local,
+   * like the export itself, and read by Home's backup-age alert. Undefined
+   * if never (or before this was recorded).
+   */
+  lastBackupAt = $state<string | undefined>(
+    typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_BACKUP_KEY) ?? undefined : undefined,
+  );
+
   /**
    * Exports all training data to a JSON file.
    */
   async exportData() {
     try {
       await storage.exportData();
+      this.lastBackupAt = new Date().toISOString();
+      if (typeof localStorage !== 'undefined') localStorage.setItem(LAST_BACKUP_KEY, this.lastBackupAt);
     } catch (err) {
       await showAlert('Export Error', err instanceof Error ? err.message : 'Export failed');
     }
