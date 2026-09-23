@@ -25,14 +25,17 @@
 
   const SECTION_LABELS: Record<HomeSectionPreference['id'], string> = {
     readiness: 'Readiness',
+    alerts: 'Alerts',
     today: 'Today',
     metrics: 'Metrics',
     fatigue: 'Fatigue',
     thisWeek: 'This Week',
     trainingBlock: 'Training Block',
     competition: 'Next Competition',
+    progress: 'Progress',
     recentActivity: 'Recent Activity',
     weather: 'Weather',
+    crags: 'Crags',
   };
 
   // Local mutable mirror, same reasoning as TrainingPlan.svelte's `dayGroups`

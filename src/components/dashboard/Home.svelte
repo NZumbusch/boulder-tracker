@@ -9,11 +9,16 @@
   import { calculateWeeklyAdherence } from '../../lib/analytics/loadAnalytics';
   import { isLoggedMetricValue, loggedMetrics } from '../../lib/analytics/metricValues';
   import { describeWeatherCode } from '../../lib/weather/codes';
-  import { rateFriction, type Friction, type FrictionLabel } from '../../lib/weather/friction';
+  import { rateFriction, rateForecastDay, type Friction, type FrictionLabel } from '../../lib/weather/friction';
   import { bestWindow } from '../../lib/weather/conditions';
   import type { DailyForecastDay, WeatherSnapshot } from '../../lib/weather/api';
   import FatigueRadarChart from '../common/FatigueRadarChart.svelte';
   import NoteSheet from '../common/NoteSheet.svelte';
+  import QuickLogSheet from './QuickLogSheet.svelte';
+  import { buildAlerts, type AlertSeverity } from '../../lib/alerts/alerts';
+  import { latestBenchmarks, retestDue, sendsSummary, consistency, PROGRESS_BENCHMARKS } from '../../lib/analytics/progress';
+  import { outdoorSuggestion } from '../../lib/weather/suggestion';
+  import { getWeekId } from '../../lib/dateUtils';
   import { summarizeSession } from '../../lib/planning/sessionSummary';
   import { missedWorkouts, weekDayStrip, WEEK_DAYS, type DayStatus } from '../../lib/planning/weekStatus';
   import { nextBlock, daysUntilWeek, taperHint, blockLoadTrend } from '../../lib/planning/blockOutlook';
@@ -64,16 +69,7 @@
       recentRainMm: w.recentRain?.last24hMm,
     });
   }
-  /** A forecast day rated from its daytime high, mean humidity/dew point and the day's own rain. */
-  function dayFriction(day: DailyForecastDay): Friction {
-    return rateFriction({
-      tempC: day.tempMaxC,
-      humidityPercent: day.humidityMeanPercent,
-      dewPointC: day.dewPointMeanC,
-      windKmh: day.windMaxKmh,
-      recentRainMm: day.precipitationSumMm,
-    });
-  }
+  const dayFriction = (day: DailyForecastDay): Friction => rateForecastDay(day);
   let showFrictionReason = $state(false);
 
   function formatRelativeAge(iso: string): string {
@@ -292,6 +288,56 @@
 
   const competitionTaperHint = $derived(taperHint(daysUntilCompetition, currentPhaseName));
 
+  // --- Header quick log ---
+  let showQuickLog = $state(false);
+
+  // --- Alerts (lib/alerts/alerts.ts) - the card hides when this is empty ---
+  const alerts = $derived(
+    buildAlerts({
+      asOf,
+      workouts: trainingState.workouts,
+      dailyMetrics: trainingState.dailyMetrics,
+      painLogs: trainingState.painLogs,
+      lastBackupAt: trainingState.lastBackupAt,
+      enabled: {
+        recovery: trainingState.homeDetails['alerts.recovery'],
+        pain: trainingState.homeDetails['alerts.pain'],
+        missingData: trainingState.homeDetails['alerts.missingData'],
+        backup: trainingState.homeDetails['alerts.backup'],
+      },
+    }),
+  );
+  const ALERT_DOT: Record<AlertSeverity, string> = {
+    risk: 'bg-status-risk',
+    caution: 'bg-status-caution',
+    info: 'bg-status-neutral',
+  };
+  function rateSession(workoutId: string) {
+    const workout = trainingState.workouts.find((w) => w.id === workoutId);
+    if (workout) trainingState.openFatigueModal(workout);
+  }
+
+  // --- Progress (lib/analytics/progress.ts) ---
+  const benchmarkProgress = $derived(latestBenchmarks(trainingState.benchmarks, trainingState.benchmarkTypes));
+  const retests = $derived(retestDue(benchmarkProgress, asOf));
+  const sends = $derived(sendsSummary(trainingState.outdoorAscents, asOf));
+  const consistencyStats = $derived(consistency(trainingState.workouts, asOf));
+
+  // --- Crags ---
+  let openCrag = $state<number | null>(null);
+  const DAY_NAME_OF: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const cragSuggestion = $derived.by(() => {
+    const forecasts = trainingState.crags
+      .map((c, i) => ({ name: c.name, days: trainingState.cragWeather[i]?.snapshot?.daily ?? [] }))
+      .filter((c) => c.days.length > 0);
+    if (forecasts.length === 0) return undefined;
+    return outdoorSuggestion(forecasts, todayIso, (date) => {
+      const d = new Date(`${date}T12:00:00Z`);
+      const day = DAY_NAME_OF[d.getUTCDay()];
+      return trainingState.getPlannedWorkoutsForWeek(getWeekId(d)).filter((w) => w.dayOfWeek === day);
+    });
+  });
+
   // --- Recent activity ---
   const recentActivity = $derived(
     buildRecentActivity(trainingState.completedWorkouts, trainingState.outdoorAscents, 3, trainingState.homeDetails['recentActivity.ascents']),
@@ -310,13 +356,23 @@
         {/if}
       </h2>
     </div>
-    <button
-      onclick={() => trainingState.navigate('settings')}
-      class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-subtle hover:text-content transition-colors"
-      aria-label="Settings"
-    >
-      <Icon icon="ic:baseline-settings" class="text-lg" />
-    </button>
+    <div class="flex items-center gap-2 shrink-0">
+      <button
+        onclick={() => showQuickLog = true}
+        class="p-2 bg-primary/10 rounded-control border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
+        aria-label="Quick log: pain, bodyweight, send or benchmark"
+        title="Quick log"
+      >
+        <Icon icon="ic:baseline-plus" class="text-lg" />
+      </button>
+      <button
+        onclick={() => trainingState.navigate('settings')}
+        class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-subtle hover:text-content transition-colors"
+        aria-label="Settings"
+      >
+        <Icon icon="ic:baseline-settings" class="text-lg" />
+      </button>
+    </div>
   </div>
 
   <!-- UI_PLAN.md §4.7 "Home sections show/hide + reorder": every section
@@ -713,6 +769,146 @@
     </div>
   {/snippet}
 
+  {#snippet alertsSection()}
+    {#if alerts.length > 0}
+      <div class="bg-surface/50 border border-status-caution/30 rounded-card p-5 shadow-card space-y-2.5">
+        {@render sectionHeader('ic:baseline-warning-amber', 'Alerts')}
+        {#each alerts as alert (alert.id)}
+          {#if alert.rateWorkoutId}
+            <button onclick={() => rateSession(alert.rateWorkoutId!)} class="w-full flex items-start gap-2.5 text-left group">
+              <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 {ALERT_DOT[alert.severity]}"></span>
+              <span class="text-body text-content group-hover:text-primary transition-colors flex-1">{alert.text}</span>
+              <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0 mt-0.5" />
+            </button>
+          {:else}
+            <div class="flex items-start gap-2.5">
+              <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 {ALERT_DOT[alert.severity]}"></span>
+              <span class="text-body text-content">{alert.text}</span>
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {/if}
+  {/snippet}
+
+  {#snippet progressSection()}
+    {@const showBench = trainingState.homeDetails['progress.benchmarks'] && benchmarkProgress.length > 0}
+    {@const showRetest = trainingState.homeDetails['progress.retest'] && retests.length > 0}
+    {@const showSends = trainingState.homeDetails['progress.sends'] && sends.last}
+    {@const showConsistency = trainingState.homeDetails['progress.consistency'] && consistencyStats.due > 0}
+    <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
+      {@render sectionHeader('ic:baseline-emoji-events', 'Progress')}
+      {#if showConsistency}
+        <div class="flex items-baseline justify-between gap-3">
+          <p class="text-body text-content"><span class="text-metric tabular-nums">{consistencyStats.done}</span><span class="text-content-subtle"> of the last {consistencyStats.due} sessions done</span></p>
+          {#if consistencyStats.weekStreak > 1}
+            <span class="text-label text-primary shrink-0">{consistencyStats.weekStreak}-week streak</span>
+          {/if}
+        </div>
+      {/if}
+      {#if showBench}
+        <div class="space-y-1.5">
+          {#each benchmarkProgress.slice(0, PROGRESS_BENCHMARKS) as b (b.typeKey)}
+            <div class="flex items-baseline justify-between gap-3">
+              <span class="text-label text-content-muted truncate">{b.name}</span>
+              <span class="text-label text-content tabular-nums shrink-0">
+                {b.latest} {b.unit}
+                {#if b.change !== undefined && b.change !== 0}
+                  <span class={b.change > 0 ? 'text-status-good' : 'text-status-caution'}>{b.change > 0 ? '+' : '−'}{Math.abs(b.change)}</span>
+                {/if}
+                <span class="text-content-subtle">· {formatDate(b.latestDate)}</span>
+              </span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+      {#if showRetest}
+        <p class="text-caption text-content-subtle flex items-center gap-1">
+          <Icon icon="ic:baseline-update" class="text-sm shrink-0" />
+          <span>Retest {retests.slice(0, 2).map((r) => `${r.name} (${r.weeks} wk)`).join(', ')}</span>
+        </p>
+      {/if}
+      {#if showSends && sends.last}
+        <div class="pt-2 border-t border-border/60 space-y-1">
+          <p class="text-label text-content-muted flex items-center gap-1.5">
+            <Icon icon="ic:baseline-terrain" class="text-sm text-primary shrink-0" />
+            <span class="truncate">Last send: <span class="text-content">{sends.last.name || 'Outdoor send'} {sends.last.grade}</span> · {formatDate(sends.last.date)}</span>
+          </p>
+          {#if sends.hardest}
+            <p class="text-caption text-content-subtle">Hardest this season: <span class="text-content">{sends.hardest.grade}</span>{sends.hardest.name ? ` (${sends.hardest.name})` : ''} · {sends.countThisSeason} send{sends.countThisSeason === 1 ? '' : 's'}</p>
+          {/if}
+        </div>
+      {/if}
+      {#if !showBench && !showRetest && !showSends && !showConsistency}
+        <p class="text-caption text-content-subtle italic">Log sessions, benchmarks or sends to see progress here.</p>
+      {/if}
+    </div>
+  {/snippet}
+
+  {#snippet cragsSection()}
+    {#if trainingState.crags.length > 0}
+      <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
+        {@render sectionHeader('ic:baseline-landscape', 'Crags')}
+        {#each trainingState.crags as crag, i (crag.name)}
+          {@const state = trainingState.cragWeather[i]}
+          {@const snap = state?.snapshot}
+          <div class="rounded-control bg-surface-elevated/40 border border-border-strong/30">
+            <button onclick={() => openCrag = openCrag === i ? null : i} class="w-full flex items-center gap-3 p-2.5 text-left" aria-expanded={openCrag === i}>
+              <span class="text-label text-content flex-1 truncate">{crag.name}</span>
+              {#if snap}
+                {@const f = currentFriction(snap)}
+                <span class="text-label text-content tabular-nums">{Math.round(snap.currentTempC)}°</span>
+                {#if trainingState.homeDetails['weather.frictionWord'] || trainingState.homeDetails['weather.frictionNumber']}
+                  <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums {FRICTION_STYLE[f.label].badge}">
+                    {#if trainingState.homeDetails['weather.frictionWord']}{f.label}{/if}{#if trainingState.homeDetails['weather.frictionWord'] && trainingState.homeDetails['weather.frictionNumber']} · {/if}{#if trainingState.homeDetails['weather.frictionNumber']}{f.score.toFixed(1)}{/if}
+                  </span>
+                {/if}
+              {:else if state?.unavailable}
+                <span class="text-caption text-content-subtle italic">unavailable</span>
+              {:else}
+                <span class="text-caption text-content-subtle italic">loading…</span>
+              {/if}
+              <Icon icon="ic:baseline-chevron-right" class="text-content-subtle transition-transform {openCrag === i ? 'rotate-90' : ''}" />
+            </button>
+            {#if openCrag === i && snap}
+              <div class="px-2.5 pb-2.5 space-y-2">
+                {#if snap.recentRain && snap.recentRain.last72hMm > 0}
+                  <p class="text-caption text-content-subtle tabular-nums">{snap.recentRain.last72hMm} mm rain in the last 3 days{snap.recentRain.hoursSinceRain !== undefined ? ` · last ${snap.recentRain.hoursSinceRain} h ago` : ''}</p>
+                {/if}
+                <div class="flex gap-3 overflow-x-auto no-scrollbar">
+                  {#each snap.daily as day, d}
+                    {@const code = describeWeatherCode(day.weatherCode)}
+                    {@const df = dayFriction(day)}
+                    <div class="flex flex-col items-center gap-1 shrink-0 w-11">
+                      <span class="text-caption text-content-subtle">{d === 0 ? 'Today' : new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                      <Icon icon={code.icon} class="text-lg text-primary" />
+                      <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
+                      {#if trainingState.homeDetails['weather.frictionNumber']}
+                        <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
+                      {:else}
+                        <span class="w-2 h-2 rounded-full {FRICTION_STYLE[df.label].dot}" title={df.label}></span>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+                {#if state.stale && state.fetchedAt}
+                  <p class="text-caption text-warning">Stale - last updated {formatRelativeAge(state.fetchedAt)}</p>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        {/each}
+        {#if cragSuggestion && trainingState.homeDetails['crags.suggestion']}
+          {@const when = cragSuggestion.date === todayIso ? 'Today' : new Date(`${cragSuggestion.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'long' })}
+          <p class="text-caption text-content-muted flex items-start gap-1.5 pt-1">
+            <Icon icon="ic:outline-lightbulb" class="text-sm text-primary shrink-0 mt-px" />
+            <span>{when} looks prime at {cragSuggestion.cragName} - you have "{cragSuggestion.sessionName}" planned.</span>
+          </p>
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
+
   {#snippet weatherSection()}
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
       {@render sectionHeader('ic:baseline-cloud', 'Weather')}
@@ -843,41 +1039,14 @@
       {/if}
     </div>
 
-    {#if trainingState.tripLocation && trainingState.homeDetails['weather.trip']}
-      <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
-        {@render sectionHeader('ic:baseline-luggage', 'Trip Forecast')}
-        {#if trainingState.tripWeather.unavailable}
-          <p class="text-caption text-content-subtle italic">Weather is currently unavailable.</p>
-        {:else if trainingState.tripWeather.snapshot}
-          {@const t = trainingState.tripWeather.snapshot}
-          <p class="text-caption text-content-subtle">{trainingState.tripLocation.name}</p>
-          <div class="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-            {#each t.daily as day}
-              {@const code = describeWeatherCode(day.weatherCode)}
-              <div class="flex flex-col items-center gap-1 shrink-0 w-12">
-                <span class="text-caption text-content-subtle">{new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}</span>
-                <Icon icon={code.icon} class="text-lg text-primary" />
-                <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
-                <span class="text-caption text-content-subtle tabular-nums">{Math.round(day.tempMinC)}°</span>
-                {#if day.precipitationChance !== undefined && day.precipitationChance >= 20}
-                  <span class="text-caption text-primary/80 tabular-nums leading-none">{Math.round(day.precipitationChance)}%</span>
-                {/if}
-              </div>
-            {/each}
-          </div>
-          {#if trainingState.tripWeather.stale && trainingState.tripWeather.fetchedAt}
-            <p class="text-caption text-warning">Stale - last updated {formatRelativeAge(trainingState.tripWeather.fetchedAt)}</p>
-          {/if}
-        {:else}
-          <p class="text-caption text-content-subtle italic">Loading forecast…</p>
-        {/if}
-      </div>
-    {/if}
   {/snippet}
 
   {#each trainingState.homeSections as section (section.id)}
     {#if section.visible}
       {#if section.id === 'readiness'}{@render readinessSection()}
+      {:else if section.id === 'alerts'}{@render alertsSection()}
+      {:else if section.id === 'progress'}{@render progressSection()}
+      {:else if section.id === 'crags'}{@render cragsSection()}
       {:else if section.id === 'today'}{@render todaySection()}
       {:else if section.id === 'metrics'}{@render metricsSection()}
       {:else if section.id === 'fatigue'}{@render fatigueSection()}
@@ -910,4 +1079,8 @@
     onSave={(text) => trainingState.saveBlockNotes(block.id, text)}
     onClose={() => openNote = null}
   />
+{/if}
+
+{#if showQuickLog}
+  <QuickLogSheet onClose={() => showQuickLog = false} />
 {/if}

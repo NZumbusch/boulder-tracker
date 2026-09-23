@@ -1,0 +1,139 @@
+<script lang="ts">
+  /**
+   * Home's header "+": one sheet for the quick things you log outside a
+   * session - pain, bodyweight, an outdoor send, a benchmark. Each form is
+   * the smallest one that does the job; bodyweight and benchmarks reuse the
+   * existing components so there's one way to enter each.
+   */
+  import { trainingState } from '../../lib/state.svelte';
+  import { generateId } from '../../lib/utils';
+  import { getWeekId } from '../../lib/dateUtils';
+  import BodyweightLog from '../health/BodyweightLog.svelte';
+  import BenchmarkForm from '../common/BenchmarkForm.svelte';
+  import Icon from '@iconify/svelte';
+
+  let { onClose }: { onClose: () => void } = $props();
+
+  type Kind = 'pain' | 'bodyweight' | 'send' | 'benchmark';
+  let kind = $state<Kind | null>(null);
+
+  const ACTIONS: { kind: Kind; icon: string; label: string; hint: string }[] = [
+    { kind: 'pain', icon: 'ic:baseline-healing', label: 'Log pain', hint: 'Where, and how bad' },
+    { kind: 'bodyweight', icon: 'ic:baseline-monitor-weight', label: 'Bodyweight', hint: 'Today\'s weight' },
+    { kind: 'send', icon: 'ic:baseline-terrain', label: 'Outdoor send', hint: 'Problem, grade, crag' },
+    { kind: 'benchmark', icon: 'ic:baseline-straighten', label: 'Benchmark', hint: 'A test result this week' },
+  ];
+
+  const todayIso = () => new Date().toISOString().split('T')[0];
+
+  // --- Pain ---
+  let bodyPart = $state('');
+  let severity = $state(3);
+  let painNotes = $state('');
+  const knownBodyParts = $derived([...new Set(trainingState.painLogs.map((p) => p.bodyPart))].sort());
+  async function savePain() {
+    if (!bodyPart.trim()) return;
+    const date = todayIso();
+    await trainingState.savePainLog({
+      id: generateId(),
+      date,
+      weekId: getWeekId(new Date(date)),
+      bodyPart: bodyPart.trim(),
+      severity,
+      ...(painNotes.trim() ? { notes: painNotes.trim() } : {}),
+    });
+    onClose();
+  }
+
+  // --- Send ---
+  let sendName = $state('');
+  let grade = $state('');
+  let style = $state('');
+  let crag = $state('');
+  let sendDate = $state(todayIso());
+  const knownCrags = $derived(
+    [...new Set([...trainingState.crags.map((c) => c.name), ...trainingState.outdoorAscents.map((a) => a.crag).filter((c): c is string => !!c)])].sort(),
+  );
+  async function saveSend() {
+    if (!grade.trim() || !sendDate) return;
+    await trainingState.saveOutdoorAscent({
+      id: generateId(),
+      date: sendDate,
+      grade: grade.trim(),
+      ...(sendName.trim() ? { name: sendName.trim() } : {}),
+      ...(style ? { style } : {}),
+      ...(crag.trim() ? { crag: crag.trim() } : {}),
+    });
+    onClose();
+  }
+
+  const title = $derived(kind ? ACTIONS.find((a) => a.kind === kind)!.label : 'Quick log');
+  const inputClass = 'w-full bg-surface-elevated/50 text-content p-3 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60';
+</script>
+
+<div class="fixed inset-0 bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
+  <div class="absolute inset-0" onclick={onClose} onkeydown={(e) => e.key === 'Escape' && onClose()} role="button" tabindex="-1" aria-label="Close"></div>
+  <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4">
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2 min-w-0">
+        {#if kind}
+          <button onclick={() => kind = null} class="p-1 -ml-1 text-content-subtle hover:text-content" aria-label="Back">
+            <Icon icon="ic:baseline-arrow-back" class="text-xl" />
+          </button>
+        {/if}
+        <h3 class="text-title text-content truncate">{title}</h3>
+      </div>
+      <button onclick={onClose} class="text-content-subtle hover:text-content transition-colors" aria-label="Close">
+        <Icon icon="ic:baseline-close" class="text-xl" />
+      </button>
+    </div>
+
+    {#if kind === null}
+      <div class="grid grid-cols-2 gap-2">
+        {#each ACTIONS as action}
+          <button onclick={() => kind = action.kind} class="p-4 rounded-card border border-border-strong/50 bg-surface-elevated/40 hover:border-primary/40 text-left transition-colors">
+            <Icon icon={action.icon} class="text-2xl text-primary" />
+            <p class="text-body font-bold text-content mt-2">{action.label}</p>
+            <p class="text-caption text-content-subtle">{action.hint}</p>
+          </button>
+        {/each}
+      </div>
+    {:else if kind === 'pain'}
+      <div class="space-y-3">
+        <input bind:value={bodyPart} list="quicklog-bodyparts" placeholder="Body part, e.g. Left ring finger A2" class={inputClass} />
+        <datalist id="quicklog-bodyparts">
+          {#each knownBodyParts as part}<option value={part}></option>{/each}
+        </datalist>
+        <div class="space-y-1">
+          <div class="flex justify-between text-label text-content-subtle"><span>Severity</span><span class="tabular-nums text-content">{severity}/10</span></div>
+          <input type="range" min="1" max="10" bind:value={severity} class="w-full accent-primary" />
+        </div>
+        <textarea bind:value={painNotes} rows="2" placeholder="Notes (optional)" class="{inputClass} resize-y"></textarea>
+        <button onclick={savePain} disabled={!bodyPart.trim()} class="w-full py-3 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">Save</button>
+      </div>
+    {:else if kind === 'bodyweight'}
+      <BodyweightLog />
+    {:else if kind === 'send'}
+      <div class="space-y-3">
+        <input bind:value={sendName} placeholder="Problem name (optional)" class={inputClass} />
+        <div class="flex gap-2">
+          <input bind:value={grade} placeholder="Grade, e.g. 7A" class="{inputClass} flex-1" />
+          <select bind:value={style} class="{inputClass} flex-1 appearance-none">
+            <option value="">Style</option>
+            <option value="Flash">Flash</option>
+            <option value="Onsight">Onsight</option>
+            <option value="Redpoint">Redpoint</option>
+          </select>
+        </div>
+        <input bind:value={crag} list="quicklog-crags" placeholder="Crag (optional)" class={inputClass} />
+        <datalist id="quicklog-crags">
+          {#each knownCrags as c}<option value={c}></option>{/each}
+        </datalist>
+        <input type="date" bind:value={sendDate} class={inputClass} />
+        <button onclick={saveSend} disabled={!grade.trim()} class="w-full py-3 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">Save</button>
+      </div>
+    {:else if kind === 'benchmark'}
+      <BenchmarkForm weekId={trainingState.currentWeekId} onSave={onClose} onCancel={() => kind = null} />
+    {/if}
+  </div>
+</div>

@@ -125,9 +125,10 @@ class TrainingState {
   // --- Weather (UI_PLAN.md §5.5) ---
 
   get homeLocation() { return this.preferencesStore.homeLocation; }
-  get tripLocation() { return this.preferencesStore.tripLocation; }
+  get crags() { return this.preferencesStore.crags; }
   get homeWeather() { return this.weatherStore.home; }
-  get tripWeather() { return this.weatherStore.trip; }
+  /** Per-crag weather, same order as `crags`. */
+  get cragWeather() { return this.weatherStore.crags; }
 
   /** Sets the home location and immediately fetches for it (or clears the card if `location` is `null`). */
   async setHomeLocation(location: WeatherLocation | null) {
@@ -135,17 +136,17 @@ class TrainingState {
     await this.weatherStore.loadHome(location);
   }
 
-  /** Sets the trip location and immediately fetches for it (or clears the card if `location` is `null`). */
-  async setTripLocation(location: WeatherLocation | null) {
-    this.preferencesStore.setTripLocation(location);
-    await this.weatherStore.loadTrip(location);
+  /** Replaces the saved crags (up to `MAX_CRAGS`) and fetches conditions for them. */
+  async setCrags(crags: WeatherLocation[]) {
+    this.preferencesStore.setCrags(crags);
+    await this.weatherStore.loadCrags(this.preferencesStore.crags);
   }
 
   /** Re-fetches whichever locations are currently set - called from Home on mount, not on every `refresh()` (a network call on every save would be excessive for data that changes over hours, not seconds). */
   async refreshWeather() {
     await Promise.all([
       this.weatherStore.loadHome(this.homeLocation),
-      this.weatherStore.loadTrip(this.tripLocation),
+      this.weatherStore.loadCrags(this.crags),
     ]);
   }
 
@@ -537,6 +538,8 @@ class TrainingState {
   async exportData() {
     await this.backupStore.exportData();
   }
+
+  get lastBackupAt() { return this.backupStore.lastBackupAt; }
 
   /**
    * Imports training data from a JSON file.

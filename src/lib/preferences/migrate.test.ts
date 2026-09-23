@@ -25,7 +25,7 @@ describe('defaultPreferences', () => {
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
       homeLocation: null,
-      tripLocation: null,
+      crags: [],
       fatigueChartStyle: 'bars',
       chartDensity: 'auto',
       timerVibrateEnabled: true,
@@ -76,7 +76,7 @@ describe('migratePreferences', () => {
       dailyMetricsReminderEnabled: false,
       dailyMetricsReminderTime: '07:30',
       homeLocation: { name: 'Munich, DE', latitude: 48.1374, longitude: 11.5755 },
-      tripLocation: null,
+      crags: [],
       fatigueChartStyle: 'radar' as const,
       chartDensity: 'compact' as const,
       timerVibrateEnabled: false,
@@ -219,18 +219,34 @@ describe('migratePreferences', () => {
   });
 });
 
-describe('homeLocation / tripLocation (UI_PLAN.md §5.5)', () => {
-  it('default to null - the whole weather feature is off until a location is set', () => {
+describe('homeLocation / crags (UI_PLAN.md §5.5)', () => {
+  it('default to unset - the whole weather feature is off until a location is set', () => {
     expect(defaultPreferences().homeLocation).toBeNull();
-    expect(defaultPreferences().tripLocation).toBeNull();
+    expect(defaultPreferences().crags).toEqual([]);
   });
 
-  it('accepts a valid location object for either field', () => {
+  it('accepts a valid home location and crag list', () => {
     const home = { name: 'Munich, DE', latitude: 48.1374, longitude: 11.5755 };
-    const trip = { name: 'Fontainebleau, FR', latitude: 48.4042, longitude: 2.7017 };
-    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: home, tripLocation: trip });
+    const font = { name: 'Fontainebleau, FR', latitude: 48.4042, longitude: 2.7017 };
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: home, crags: [font] });
     expect(result.homeLocation).toEqual(home);
-    expect(result.tripLocation).toEqual(trip);
+    expect(result.crags).toEqual([font]);
+  });
+
+  it('turns an old single trip location into the first crag', () => {
+    const trip = { name: 'Fontainebleau, FR', latitude: 48.4042, longitude: 2.7017 };
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, tripLocation: trip });
+    expect(result.crags).toEqual([trip]);
+    expect('tripLocation' in result).toBe(false);
+  });
+
+  it('keeps at most three crags, drops invalid and duplicate ones', () => {
+    const c = (name: string) => ({ name, latitude: 47, longitude: 8 });
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      crags: [c('A'), { name: 'Bad', latitude: 99, longitude: 0 }, c('A'), c('B'), c('C'), c('D')],
+    });
+    expect(result.crags.map((x) => x.name)).toEqual(['A', 'B', 'C']);
   });
 
   it('an explicit null clears a location back to unset', () => {
@@ -316,11 +332,15 @@ describe('homeSections (UI_PLAN.md §4.7)', () => {
     expect(result.homeSections.filter((s) => s.id === 'weather')).toEqual([{ id: 'weather', visible: false }]);
   });
 
-  it('appends a section missing from a partial list, visible by default, rather than letting it disappear', () => {
-    const partial = [{ id: 'today' as const, visible: true }, { id: 'fatigue' as const, visible: false }];
+  it('adds a section missing from a partial list, visible by default, rather than letting it disappear', () => {
+    const partial = [{ id: 'fatigue' as const, visible: false }, { id: 'today' as const, visible: true }];
     const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeSections: partial });
-    expect(result.homeSections[0]).toEqual({ id: 'today', visible: true });
-    expect(result.homeSections[1]).toEqual({ id: 'fatigue', visible: false });
+    const ids = result.homeSections.map((s) => s.id);
+    // The saved sections keep their own relative order and visibility...
+    expect(ids.indexOf('fatigue')).toBeLessThan(ids.indexOf('today'));
+    expect(result.homeSections.find((s) => s.id === 'fatigue')!.visible).toBe(false);
+    // ...and every added one is visible.
+    expect(result.homeSections.filter((s) => s.id !== 'fatigue').every((s) => s.visible)).toBe(true);
     expect(result.homeSections).toHaveLength(HOME_SECTION_IDS.length);
     for (const id of HOME_SECTION_IDS) {
       expect(result.homeSections.some((s) => s.id === id)).toBe(true);
@@ -394,5 +414,16 @@ describe('addedExerciseTarget', () => {
       addedExerciseTarget: 'zeroes',
     });
     expect(result.addedExerciseTarget).toBe('none');
+  });
+});
+
+describe('new home sections land next to their neighbours', () => {
+  it('inserts a section missing from a saved order after the section that precedes it by default', () => {
+    // A saved order from before 'alerts' existed, with the user's own reordering.
+    const saved = HOME_SECTION_IDS.filter((id) => id !== 'alerts').map((id) => ({ id, visible: true })).reverse();
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeSections: saved });
+    const ids = result.homeSections.map((s) => s.id);
+    expect(ids.indexOf('alerts')).toBe(ids.indexOf('readiness') + 1);
+    expect(ids).toHaveLength(HOME_SECTION_IDS.length);
   });
 });

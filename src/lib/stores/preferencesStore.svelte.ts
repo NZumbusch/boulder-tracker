@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat, type AddedExerciseTarget } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, MAX_CRAGS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat, type AddedExerciseTarget } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 
 const PREFERENCES_KEY = 'boulder_tracker_preferences';
@@ -17,7 +17,7 @@ export class PreferencesStore {
   dailyMetricsReminderEnabled = $state(true);
   dailyMetricsReminderTime = $state('20:00');
   homeLocation = $state<WeatherLocation | null>(null);
-  tripLocation = $state<WeatherLocation | null>(null);
+  crags = $state<WeatherLocation[]>([]);
   fatigueChartStyle = $state<FatigueChartStyle>('bars');
   chartDensity = $state<ChartDensity>('auto');
   timerVibrateEnabled = $state(true);
@@ -51,7 +51,7 @@ export class PreferencesStore {
     this.dailyMetricsReminderEnabled = prefs.dailyMetricsReminderEnabled;
     this.dailyMetricsReminderTime = prefs.dailyMetricsReminderTime;
     this.homeLocation = prefs.homeLocation;
-    this.tripLocation = prefs.tripLocation;
+    this.crags = prefs.crags;
     this.fatigueChartStyle = prefs.fatigueChartStyle;
     this.chartDensity = prefs.chartDensity;
     this.timerVibrateEnabled = prefs.timerVibrateEnabled;
@@ -96,8 +96,8 @@ export class PreferencesStore {
     this.persist();
   }
 
-  setTripLocation(location: WeatherLocation | null) {
-    this.tripLocation = location;
+  setCrags(crags: WeatherLocation[]) {
+    this.crags = crags.slice(0, MAX_CRAGS);
     this.persist();
   }
 
@@ -175,7 +175,7 @@ export class PreferencesStore {
       dailyMetricsReminderEnabled: this.dailyMetricsReminderEnabled,
       dailyMetricsReminderTime: this.dailyMetricsReminderTime,
       homeLocation: this.homeLocation,
-      tripLocation: this.tripLocation,
+      crags: this.crags,
       fatigueChartStyle: this.fatigueChartStyle,
       chartDensity: this.chartDensity,
       timerVibrateEnabled: this.timerVibrateEnabled,

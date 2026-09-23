@@ -28,6 +28,12 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'readiness.confidence', label: 'Inputs used', hint: 'Which of fatigue, load, sleep and HRV fed the score', defaultOn: true },
     { id: 'readiness.breakdown', label: 'Score breakdown', hint: 'Tap the ring to see what each input took off', defaultOn: true },
   ],
+  alerts: [
+    { id: 'alerts.recovery', label: 'Recovery', hint: 'Days in a row without rest; a load spike while sleep/HRV dropped', defaultOn: true },
+    { id: 'alerts.pain', label: 'Pain', hint: 'Pain logged in the last week, and whether load spiked around it', defaultOn: true },
+    { id: 'alerts.missingData', label: 'Missing data', hint: 'Metrics you usually log going quiet; sessions without fatigue ratings', defaultOn: true },
+    { id: 'alerts.backup', label: 'Backup age', defaultOn: true },
+  ],
   today: [
     { id: 'today.time', label: 'Start time & length', defaultOn: true },
     { id: 'today.exercises', label: 'Exercise names', hint: 'The first three, then "+N more"', defaultOn: true },
@@ -53,6 +59,12 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
   competition: [
     { id: 'competition.taper', label: 'Taper hint', hint: 'Within 14 days of an event, when the phase isn\'t a taper', defaultOn: true },
   ],
+  progress: [
+    { id: 'progress.benchmarks', label: 'Latest benchmarks', hint: 'With the change since the previous test', defaultOn: true },
+    { id: 'progress.retest', label: 'Retest nudge', hint: 'Benchmarks not tested in 6 weeks', defaultOn: true },
+    { id: 'progress.sends', label: 'Outdoor sends', hint: 'Last send and hardest grade this season', defaultOn: true },
+    { id: 'progress.consistency', label: 'Consistency', hint: 'Recent planned sessions done, and your weekly streak', defaultOn: true },
+  ],
   recentActivity: [
     { id: 'recentActivity.details', label: 'Duration & load', defaultOn: true },
     { id: 'recentActivity.fatigue', label: 'Fatigue ratings', defaultOn: true },
@@ -66,7 +78,9 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'weather.window', label: 'Best window & sunset', hint: 'The best dry 3 hours left today', defaultOn: true },
     { id: 'weather.forecast', label: 'Week ahead', defaultOn: true },
     { id: 'weather.dayFriction', label: 'Conditions per forecast day', defaultOn: true },
-    { id: 'weather.trip', label: 'Trip forecast', hint: 'Only when a trip location is set', defaultOn: true },
+  ],
+  crags: [
+    { id: 'crags.suggestion', label: 'Plan suggestion', hint: 'When a crag looks prime on a day you have a session planned', defaultOn: true },
   ],
 };
 

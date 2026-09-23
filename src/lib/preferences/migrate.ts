@@ -45,14 +45,16 @@ export interface Preferences {
   /** "HH:mm", 24-hour, local time. Default 20:00 per UI_PLAN.md §10 open question 4. */
   dailyMetricsReminderTime: string;
   /**
-   * Weather (UI_PLAN.md §5.5) - both `null` by default, meaning the whole
-   * feature is off until the user sets a location (Stage 8's Settings
-   * screen, not yet built - these fields are inert until then). `trip` is
-   * the optional second location for planning outdoor trips; `home` alone
-   * drives the Home strip.
+   * Weather (UI_PLAN.md §5.5) - `null` by default, meaning the weather card
+   * is off until the user sets a location.
    */
   homeLocation: WeatherLocation | null;
-  tripLocation: WeatherLocation | null;
+  /**
+   * Up to `MAX_CRAGS` outdoor spots, each with its own conditions on the
+   * Home Crags card. Replaces the old single `tripLocation`, which
+   * `migratePreferences` turns into the first crag.
+   */
+  crags: WeatherLocation[];
   /** Bars is the default (UI_PLAN.md §2/§3.3) - radar is the user-requested alternate, both real. */
   fatigueChartStyle: FatigueChartStyle;
   /**
@@ -158,15 +160,20 @@ export interface AISharingPreferences {
 /** Every togglable/reorderable Home section below the always-shown header (UI_PLAN.md §4.2), in the plan's own fixed default order. */
 export const HOME_SECTION_IDS = [
   'readiness',
+  'alerts',
   'today',
   'metrics',
   'fatigue',
   'thisWeek',
   'trainingBlock',
   'competition',
+  'progress',
   'recentActivity',
   'weather',
+  'crags',
 ] as const;
+
+export const MAX_CRAGS = 3;
 export type HomeSectionId = (typeof HOME_SECTION_IDS)[number];
 
 export interface HomeSectionPreference {
@@ -199,7 +206,7 @@ export function defaultPreferences(): Preferences {
     dailyMetricsReminderEnabled: true,
     dailyMetricsReminderTime: DEFAULT_DAILY_METRICS_REMINDER_TIME,
     homeLocation: null,
-    tripLocation: null,
+    crags: [],
     fatigueChartStyle: 'bars',
     chartDensity: 'auto',
     timerVibrateEnabled: true,
@@ -258,8 +265,35 @@ function validateHomeSections(raw: unknown): HomeSectionPreference[] {
       result.push({ id, visible: typeof c.visible === 'boolean' ? c.visible : true });
     }
   }
-  for (const id of HOME_SECTION_IDS) {
-    if (!seen.has(id)) result.push({ id, visible: true });
+  // A section the saved list doesn't know (added in a newer version) goes
+  // right after the section that precedes it in the default order, so a new
+  // card lands where it belongs instead of at the very bottom.
+  HOME_SECTION_IDS.forEach((id, canonicalIndex) => {
+    if (seen.has(id)) return;
+    let insertAt = 0;
+    for (let i = canonicalIndex - 1; i >= 0; i--) {
+      const at = result.findIndex((s) => s.id === HOME_SECTION_IDS[i]);
+      if (at !== -1) {
+        insertAt = at + 1;
+        break;
+      }
+    }
+    result.splice(insertAt, 0, { id, visible: true });
+    seen.add(id);
+  });
+  return result;
+}
+
+/** Valid, de-duplicated (by name) crags, capped at `MAX_CRAGS`; falls back to the legacy single trip location. */
+function validateCrags(raw: unknown, legacyTrip: unknown): WeatherLocation[] {
+  const source = raw === undefined ? (legacyTrip === undefined ? [] : [legacyTrip]) : raw;
+  if (!Array.isArray(source)) return [];
+  const result: WeatherLocation[] = [];
+  for (const entry of source) {
+    const location = validateLocation(entry);
+    if (!location || result.some((c) => c.name === location.name)) continue;
+    result.push(location);
+    if (result.length === MAX_CRAGS) break;
   }
   return result;
 }
@@ -335,7 +369,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
       ? candidate.notificationsEnabled
       : defaults.notificationsEnabled,
     homeLocation: candidate.homeLocation === undefined ? defaults.homeLocation : validateLocation(candidate.homeLocation),
-    tripLocation: candidate.tripLocation === undefined ? defaults.tripLocation : validateLocation(candidate.tripLocation),
+    crags: validateCrags(candidate.crags, candidate.tripLocation),
     fatigueChartStyle: FATIGUE_CHART_STYLES.includes(candidate.fatigueChartStyle as FatigueChartStyle)
       ? (candidate.fatigueChartStyle as FatigueChartStyle)
       : defaults.fatigueChartStyle,
