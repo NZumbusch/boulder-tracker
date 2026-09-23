@@ -12,6 +12,7 @@
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import { loggedDateFor } from '../../lib/planning/scheduledDate';
   import ExerciseCard from './ExerciseCard.svelte';
+  import WorkoutShareImage from '../history/WorkoutShareImage.svelte';
   import Icon from '@iconify/svelte';
 
   let { workout, onEdit, onClose }: { workout: Workout; onEdit: () => void; onClose: () => void } = $props();
@@ -35,6 +36,21 @@
     parts.push(`${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`);
     return parts.join(' · ');
   });
+
+  let menuOpen = $state(false);
+  let sharing = $state(false);
+
+  async function duplicate() {
+    menuOpen = false;
+    await trainingState.duplicateWorkout(workout);
+  }
+
+  async function remove() {
+    menuOpen = false;
+    await trainingState.deleteWorkout(workout.id);
+    // Still there means the delete was cancelled.
+    if (!trainingState.getWorkoutById(workout.id)) onClose();
+  }
 
   function start() {
     onClose();
@@ -70,6 +86,29 @@
       {/if}
       <h2 class="text-title text-content break-words">{workout.notes || 'Session'}</h2>
       <p class="text-caption text-content-subtle mt-0.5">{subtitle}</p>
+    </div>
+    <div class="relative shrink-0">
+      <button onclick={() => menuOpen = !menuOpen} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors" aria-label="More actions" aria-expanded={menuOpen}>
+        <Icon icon="ic:baseline-more-vert" class="text-2xl" />
+      </button>
+      {#if menuOpen}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="fixed inset-0 z-10" onclick={() => menuOpen = false}></div>
+        <div class="absolute right-0 top-full mt-1 z-20 w-40 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <button onclick={duplicate} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+            <Icon icon="ic:baseline-content-copy" class="text-sm" /> Duplicate
+          </button>
+          {#if isCompleted}
+            <button onclick={() => { menuOpen = false; sharing = true; }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+              <Icon icon="ic:baseline-share" class="text-sm" /> Share
+            </button>
+          {/if}
+          <button onclick={remove} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-danger hover:bg-surface transition-colors text-left">
+            <Icon icon="ic:baseline-delete" class="text-sm" /> Delete
+          </button>
+        </div>
+      {/if}
     </div>
   </div>
 </header>
@@ -137,3 +176,7 @@
     {/if}
   </div>
 </footer>
+
+{#if sharing}
+  <WorkoutShareImage {workout} onClose={() => sharing = false} />
+{/if}
