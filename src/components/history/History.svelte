@@ -7,6 +7,9 @@
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import WorkoutShareImage from './WorkoutShareImage.svelte';
   import SendsLog from '../sends/SendsLog.svelte';
+  import { applySendFilters } from '../../lib/sends/filter';
+  import { parseFontGrade } from '../../lib/analytics/grades';
+  import { displayGrade } from '../../lib/sends/gradeScale';
   import Icon from "@iconify/svelte";
   import { onMount, tick } from 'svelte';
 
@@ -26,6 +29,11 @@
   let filterSearch = $state<string>('');
   let filterMinDuration = $state<number | ''>('');
   let filterMaxDuration = $state<number | ''>('');
+  // Sends' own filters; search and the date range above are shared by both tabs.
+  let filterMinGrade = $state('');
+  let filterMaxGrade = $state('');
+  let filterStyle = $state('');
+  let filterCrag = $state('');
   let workoutToShare = $state<Workout | null>(null);
   let openMenuId = $state<string | null>(null);
   const onSends = $derived(trainingState.uiStore.historyTab === 'sends');
@@ -76,8 +84,9 @@
     const startB = b.startTime || "00:00";
     return startA.localeCompare(startB);
   }).reverse().filter(w => {
-    if (filterFromDate && w.date && w.date < filterFromDate) return false;
-    if (filterToDate && w.date && w.date > filterToDate) return false;
+    // Compared by day, so the "to" date includes sessions later that same day.
+    if (filterFromDate && w.date && w.date.slice(0, 10) < filterFromDate) return false;
+    if (filterToDate && w.date && w.date.slice(0, 10) > filterToDate) return false;
 
     const totalDuration = workoutDuration(w);
     if (filterMinDuration !== '' && totalDuration < filterMinDuration) return false;
@@ -110,6 +119,40 @@
   }));
 
   const displayedWorkouts = $derived(filteredWorkouts.slice(0, limit));
+
+  const filteredSends = $derived(applySendFilters(trainingState.outdoorAscents, {
+    search: filterSearch,
+    from: filterFromDate,
+    to: filterToDate,
+    minGrade: filterMinGrade,
+    maxGrade: filterMaxGrade,
+    style: filterStyle,
+    crag: filterCrag,
+  }));
+
+  /** Grades you've sent, lowest first, labelled in the display scale. In V, one option per band: its lowest Font grade for "min", its highest for "max". */
+  function gradeOptions(end: 'min' | 'max'): { value: string; label: string }[] {
+    const grades = [...new Set(trainingState.outdoorAscents.map((a) => a.grade))]
+      .filter((g) => parseFontGrade(g) !== undefined)
+      .sort((a, b) => parseFontGrade(a)! - parseFontGrade(b)!);
+    const byLabel = new Map<string, string>();
+    for (const g of grades) {
+      const label = displayGrade(g, trainingState.units.grades);
+      if (end === 'max' || !byLabel.has(label)) byLabel.set(label, g);
+    }
+    return [...byLabel].map(([label, value]) => ({ label, value }));
+  }
+  const sendStyles = $derived([...new Set(trainingState.outdoorAscents.map((a) => a.style).filter((x): x is string => !!x))].sort());
+  const sendCrags = $derived([...new Set(trainingState.outdoorAscents.map((a) => a.crag).filter((x): x is string => !!x))].sort());
+
+  /** How many filters apply to the tab you're on - shown on the filter button. */
+  const activeFilterCount = $derived(
+    [filterSearch, filterFromDate, filterToDate].filter(Boolean).length +
+      (onSends
+        ? [filterMinGrade, filterMaxGrade, filterStyle, filterCrag].filter(Boolean).length
+        : [filterAnalyticsType, filterExerciseTypeId, filterBlockId].filter(Boolean).length +
+          [filterMinDuration, filterMaxDuration].filter((v) => v !== '').length),
+  );
 
   function monthKey(dateStr: string | null): string {
     if (!dateStr) return 'unknown';
@@ -145,6 +188,10 @@
     filterSearch = '';
     filterMinDuration = '';
     filterMaxDuration = '';
+    filterMinGrade = '';
+    filterMaxGrade = '';
+    filterStyle = '';
+    filterCrag = '';
   }
 
   function toggleMenu(id: string) {
@@ -172,17 +219,19 @@
     </div>
     <div class="h-px flex-1 bg-surface mx-3"></div>
     <span class="text-label text-content-subtle">
-      {onSends ? `${trainingState.outdoorAscents.length} Sends` : `${filteredWorkouts.length} Sessions`}
+      {onSends ? `${filteredSends.length} Sends` : `${filteredWorkouts.length} Sessions`}
     </span>
-    {#if !onSends}
-      <button
-        onclick={() => showFilters = !showFilters}
-        class="ml-3 p-2 rounded-control border transition-colors {showFilters ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
-        aria-label="Toggle Filters"
-      >
-        <Icon icon="ic:baseline-filter-list" class="text-lg" />
-      </button>
-    {/if}
+    <button
+      onclick={() => showFilters = !showFilters}
+      class="relative ml-3 p-2 rounded-control border transition-colors {showFilters ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
+      aria-label="Toggle Filters"
+      aria-expanded={showFilters}
+    >
+      <Icon icon="ic:baseline-filter-list" class="text-lg" />
+      {#if activeFilterCount > 0 && !showFilters}
+        <span class="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold grid place-items-center tabular-nums">{activeFilterCount}</span>
+      {/if}
+    </button>
   </div>
 
   <div class="flex bg-surface-elevated/50 p-1 rounded-control">
@@ -195,10 +244,6 @@
     {/each}
   </div>
 
-  {#if onSends}
-    <SendsLog />
-  {:else}
-
   {#if showFilters}
     <div class="p-5 bg-surface/50 border border-border rounded-card space-y-4 animate-in slide-in-from-top-2">
       <div class="flex items-center justify-between">
@@ -208,7 +253,7 @@
       <div class="grid grid-cols-1 gap-4">
         <div class="space-y-1.5">
           <label for="filter-search" class="text-label text-content-subtle ml-1">Search</label>
-          <input id="filter-search" type="text" bind:value={filterSearch} placeholder="Name or notes" class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+          <input id="filter-search" type="text" bind:value={filterSearch} placeholder={onSends ? 'Name, crag or notes' : 'Name or notes'} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
@@ -220,6 +265,40 @@
             <input id="filter-date-to" type="date" bind:value={filterToDate} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
           </div>
         </div>
+        {#if onSends}
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <label for="filter-min-grade" class="text-label text-content-subtle ml-1">Min Grade</label>
+              <select id="filter-min-grade" bind:value={filterMinGrade} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+                <option value="">Any</option>
+                {#each gradeOptions('min') as g}<option value={g.value}>{g.label}</option>{/each}
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <label for="filter-max-grade" class="text-label text-content-subtle ml-1">Max Grade</label>
+              <select id="filter-max-grade" bind:value={filterMaxGrade} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+                <option value="">Any</option>
+                {#each gradeOptions('max') as g}<option value={g.value}>{g.label}</option>{/each}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <label for="filter-style" class="text-label text-content-subtle ml-1">Style</label>
+              <select id="filter-style" bind:value={filterStyle} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+                <option value="">Any</option>
+                {#each sendStyles as style}<option value={style}>{style}</option>{/each}
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <label for="filter-crag" class="text-label text-content-subtle ml-1">Crag</label>
+              <select id="filter-crag" bind:value={filterCrag} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+                <option value="">Any</option>
+                {#each sendCrags as crag}<option value={crag}>{crag}</option>{/each}
+              </select>
+            </div>
+          </div>
+        {:else}
         <div class="space-y-1.5">
           <label for="filter-type" class="text-label text-content-subtle ml-1">Includes Analytics Type</label>
           <select id="filter-type" bind:value={filterAnalyticsType} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
@@ -259,9 +338,15 @@
             <input id="filter-max-dur" type="number" bind:value={filterMaxDuration} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" placeholder="Any" />
           </div>
         </div>
+        {/if}
       </div>
     </div>
   {/if}
+
+  {#if onSends}
+    <SendsLog ascents={filteredSends} filtered={activeFilterCount > 0} />
+  {:else}
+
 
   <div class="space-y-6">
     {#each groupedWorkouts as group (group.key)}

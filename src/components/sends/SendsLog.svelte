@@ -17,6 +17,9 @@
   import { filterSends, type SendPeriod } from '../../lib/sends/filter';
   import Icon from '@iconify/svelte';
 
+  /** The sends to show - History's filters already applied. `filtered` says whether any filter is on. */
+  let { ascents, filtered = false }: { ascents: OutdoorAscent[]; filtered?: boolean } = $props();
+
   let mode = $state<'list' | 'add' | 'import'>('list');
   let editingId = $state<string | null>(null);
 
@@ -28,7 +31,7 @@
     trainingState.units.grades;
     selectedGrade = null;
   });
-  const inPeriod = $derived(filterSends(trainingState.outdoorAscents, period, null, new Date()));
+  const inPeriod = $derived(filterSends(ascents, period, null, new Date()));
   const shown = $derived(filterSends(inPeriod, 'all', selectedGrade, new Date(), trainingState.units.grades));
   const groups = $derived(groupSends(shown, trainingState.goals));
 
@@ -79,7 +82,7 @@
     </div>
   {/if}
 
-  {#if mode === 'list' && trainingState.outdoorAscents.length > 0}
+  {#if mode === 'list' && ascents.length > 0}
     <GradeChart ascents={inPeriod} bind:period bind:selectedGrade />
     {#if selectedGrade}
       <div class="flex items-center gap-2 px-1">
@@ -113,7 +116,7 @@
     {#if mode === 'list'}
       <div class="p-6 text-center rounded-card border border-dashed border-border">
         <p class="text-caption text-content-subtle italic">
-          {selectedGrade ? `No ${selectedGrade} sends${period === 'year' ? ' in the last 12 months' : ''} yet.` : period === 'year' && trainingState.outdoorAscents.length > 0 ? 'No sends in the last 12 months.' : 'No outdoor sends yet - add one, or import your 8a.nu log.'}
+          {filtered && trainingState.outdoorAscents.length > 0 ? 'No sends match the filters.' : selectedGrade ? `No ${selectedGrade} sends${period === 'year' ? ' in the last 12 months' : ''} yet.` : period === 'year' && trainingState.outdoorAscents.length > 0 ? 'No sends in the last 12 months.' : 'No outdoor sends yet - add one, or import your 8a.nu log.'}
         </p>
       </div>
     {/if}
