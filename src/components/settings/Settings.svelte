@@ -9,7 +9,7 @@
   import BenchmarkTypeSettings from './BenchmarkTypeSettings.svelte';
   import BackupSettings from './BackupSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
-  import PreferencesSettings from './PreferencesSettings.svelte';
+  import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import HealthSettings from './HealthSettings.svelte';
   import Icon from "@iconify/svelte";
 
@@ -25,6 +25,12 @@
   // --- State: Tabs ---
   type SettingsTab = 'overview' | 'customization' | 'design' | 'integration' | 'health' | 'about';
   let currentTab = $state<SettingsTab>('overview');
+  /** The open Appearance topic, if any - back returns to the topic list first. */
+  let appearanceTopic = $state<AppearanceTopic | null>(null);
+  function goBack() {
+    if (currentTab === 'design' && appearanceTopic) appearanceTopic = null;
+    else currentTab = 'overview';
+  }
 
   // --- State: local editable copies of every catalog, saved together via "Save All" ---
   let templates = $state<Record<string, WorkoutTemplate[]>>({});
@@ -72,10 +78,10 @@
         <button onclick={() => trainingState.navigate('home')} class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-muted hover:text-content transition-colors"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
         <h2 class="text-title text-content">Settings</h2>
       {:else}
-        <button onclick={() => currentTab = 'overview'} class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-muted hover:text-content transition-colors"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
+        <button onclick={goBack} class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-muted hover:text-content transition-colors"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
         <h2 class="text-title text-content">
           {#if currentTab === 'customization'}Customization
-          {:else if currentTab === 'design'}Appearance & Behaviour
+          {:else if currentTab === 'design'}{APPEARANCE_TOPICS.find((t) => t.id === appearanceTopic)?.label ?? 'Appearance & Behaviour'}
           {:else if currentTab === 'integration'}Data & Exports
           {:else if currentTab === 'health'}Health & Outdoor Log
           {:else if currentTab === 'about'}About & Impressum{/if}
@@ -96,7 +102,7 @@
         </div>
         <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
       </button>
-      <button onclick={() => currentTab = 'design'} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
+      <button onclick={() => { currentTab = 'design'; appearanceTopic = null; }} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
         <div class="flex items-center gap-4">
           <div class="p-3 bg-tertiary-hover/10 rounded-card text-tertiary group-hover:bg-tertiary-hover group-hover:text-white transition-colors"><Icon icon="ic:baseline-color-lens" class="text-2xl" /></div>
           <div class="text-left"><p class="text-body font-bold text-content">Appearance & Behaviour</p><p class="text-caption text-content-subtle mt-1">Theme, layout, timer, weather & notifications</p></div>
@@ -113,7 +119,7 @@
       <button onclick={() => currentTab = 'health'} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
         <div class="flex items-center gap-4">
           <div class="p-3 bg-tertiary-hover/10 rounded-card text-tertiary group-hover:bg-tertiary-hover group-hover:text-white transition-colors"><Icon icon="ic:baseline-monitor-weight" class="text-2xl" /></div>
-          <div class="text-left"><p class="text-body font-bold text-content">Health & Outdoor Log</p><p class="text-caption text-content-subtle mt-1">Bodyweight tracking and 8a.nu ascent import</p></div>
+          <div class="text-left"><p class="text-body font-bold text-content">Health & Outdoor Log</p><p class="text-caption text-content-subtle mt-1">Bodyweight tracking, and a link to your outdoor sends</p></div>
         </div>
         <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
       </button>
@@ -141,7 +147,7 @@
       <BenchmarkTypeSettings bind:benchmarkTypes />
     </div>
   {:else if currentTab === 'design'}
-    <PreferencesSettings />
+    <PreferencesSettings bind:topic={appearanceTopic} />
   {:else if currentTab === 'integration'}
     <div class="space-y-4">
       <BackupSettings {onExport} {onImport} />
