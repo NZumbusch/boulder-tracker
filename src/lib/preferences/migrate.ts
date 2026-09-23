@@ -111,6 +111,8 @@ export interface Preferences {
    * the generated prompt (`src/lib/ai/context.ts`), never sent-but-redacted.
    */
   aiSharing: AISharingPreferences;
+  /** How much training history AI prompts carry by default - see `AIHistoryWindow`. */
+  aiHistory: AIHistoryWindow;
   /**
    * What `prescribed` an exercise added *during* a live session gets.
    *
@@ -155,6 +157,22 @@ export interface AISharingPreferences {
    */
   notes: boolean;
 }
+
+/**
+ * How far back an AI prompt looks (`src/lib/ai/context.ts`): completed
+ * sessions from the last `fullWeeks` weeks go in full, and the
+ * `summaryWeeks` weeks before those as one line each (sessions, minutes
+ * per category, load, average ratings). The whole history costs about
+ * what 20 sessions used to, and reaches back months instead of ~3 weeks.
+ * The AI Coach can change both per request; these are the defaults.
+ */
+export interface AIHistoryWindow {
+  fullWeeks: number;
+  summaryWeeks: number;
+}
+export const AI_HISTORY_FULL_WEEK_OPTIONS = [1, 2, 3, 4, 6, 8] as const;
+export const AI_HISTORY_SUMMARY_WEEK_OPTIONS = [0, 4, 8, 12, 16, 26] as const;
+export const DEFAULT_AI_HISTORY: AIHistoryWindow = { fullWeeks: 2, summaryWeeks: 8 };
 
 /** Every togglable/reorderable Home section below the always-shown header (UI_PLAN.md §4.2), in the plan's own fixed default order. */
 export const HOME_SECTION_IDS = [
@@ -232,6 +250,7 @@ export function defaultPreferences(): Preferences {
     tunables: defaultTunables(),
     units: { ...DEFAULT_UNITS },
     addedExerciseTarget: 'none',
+    aiHistory: { ...DEFAULT_AI_HISTORY },
     aiSharing: {
       trainingBlocks: true,
       competitions: true,
@@ -342,6 +361,17 @@ function validateAISharing(raw: unknown): AISharingPreferences {
   };
 }
 
+/** Repairs an unknown value into a valid `AIHistoryWindow`; each field falls back on its own, and only to a listed option. */
+function validateAIHistory(raw: unknown): AIHistoryWindow {
+  const c = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  const pick = (v: unknown, options: readonly number[], fallback: number) =>
+    typeof v === 'number' && options.includes(v) ? v : fallback;
+  return {
+    fullWeeks: pick(c.fullWeeks, AI_HISTORY_FULL_WEEK_OPTIONS, DEFAULT_AI_HISTORY.fullWeeks),
+    summaryWeeks: pick(c.summaryWeeks, AI_HISTORY_SUMMARY_WEEK_OPTIONS, DEFAULT_AI_HISTORY.summaryWeeks),
+  };
+}
+
 /** The legacy standalone values to fold in when no preferences blob exists yet. */
 export interface LegacyPreferenceValues {
   theme?: ThemePreference;
@@ -416,6 +446,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     tunables: validateTunables(candidate.tunables),
     units: validateUnits(candidate.units),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
+    aiHistory: validateAIHistory(candidate.aiHistory),
     addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'
       ? candidate.addedExerciseTarget
       : defaults.addedExerciseTarget,

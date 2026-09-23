@@ -25,7 +25,9 @@ import {
 } from "../analytics/readiness";
 import { calculateRollingAcwr } from "../analytics/loadAnalytics";
 import { loggedMetrics } from "../analytics/metricValues";
-import type { AISharingPreferences } from "../preferences/migrate";
+import { DEFAULT_AI_HISTORY, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
+import { estimateSlotDuration, sessionDuration } from "../planning/sessionDuration";
+import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 
 /**
  * Builds the condensed training-profile data embedded in every AI prompt
@@ -55,7 +57,6 @@ import type { AISharingPreferences } from "../preferences/migrate";
  *   is simply omitted from the built profile - never sent-but-redacted.
  */
 
-const RECENT_WORKOUTS_LIMIT = 20;
 const BLOCK_WINDOW_MARGIN_WEEKS = 4;
 const COMPETITION_LOOKAHEAD_LIMIT = 5;
 const PAIN_LOG_LIMIT = 10;
@@ -146,13 +147,108 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
   };
 }
 
-/** The most recent `limit` workouts (any status), in the same array order `workouts` is already stored in - matches the pre-Stage-10 "Last 20" convention. */
+/** The `count` week ids ending with `lastWeekId`, oldest first. */
+function weeksEndingWith(lastWeekId: string, count: number): string[] {
+  const ids: string[] = [];
+  let id = lastWeekId;
+  for (let i = 0; i < count; i++) {
+    ids.unshift(id);
+    id = decrementWeekId(id);
+  }
+  return ids;
+}
+
+/**
+ * The history window around `asOf`: the `fullWeeks` weeks ending with the
+ * current one (sent session by session), and the `summaryWeeks` weeks
+ * before those (sent one line per week).
+ */
+export function historyWeekIds(asOf: Date, history: AIHistoryWindow): { full: string[]; summary: string[] } {
+  const full = weeksEndingWith(getWeekId(asOf), history.fullWeeks);
+  const summary = history.summaryWeeks > 0 ? weeksEndingWith(decrementWeekId(full[0]), history.summaryWeeks) : [];
+  return { full, summary };
+}
+
+/**
+ * Completed sessions from the last `fullWeeks` weeks, oldest first, in full.
+ * Planned sessions are left out: upcoming ones are in the plan context
+ * already, and a past one that never happened isn't history.
+ */
 export function buildRecentWorkouts(
   workouts: Workout[],
   exerciseTypes: ExerciseTypeDef[],
-  limit = RECENT_WORKOUTS_LIMIT,
+  asOf: Date,
+  fullWeeks: number,
 ): RecentWorkoutSummary[] {
-  return workouts.slice(-limit).map((w) => summarizeWorkout(w, exerciseTypes));
+  const weeks = new Set(historyWeekIds(asOf, { fullWeeks, summaryWeeks: 0 }).full);
+  return workouts
+    .filter((w) => w.status === "completed" && weeks.has(w.weekId))
+    .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
+    .map((w) => summarizeWorkout(w, exerciseTypes));
+}
+
+export interface WeekHistorySummary {
+  week: string;
+  /** The week's phase, when training blocks are shared. */
+  phase?: string;
+  sessions: number;
+  /** The rest is left out for a week with no sessions. */
+  minutes?: number;
+  /** Sum of the sessions' load scores. */
+  load?: number;
+  /** Logged exercise minutes per analytics category. */
+  minutesByCategory?: Record<string, number>;
+  /** Average of the post-session ratings (1-10) that were given, per axis. */
+  avgRatings?: Partial<Record<"fingers" | "arms" | "core" | "systemic", number>>;
+}
+
+const RATING_AXES = ["fingers", "arms", "core", "systemic"] as const;
+
+/**
+ * One line per week for older history: what a week of training added up to,
+ * without the session-by-session detail. A week with nothing logged still
+ * gets a line - a rest or sick week is information too.
+ */
+export function buildWeeklyHistory(
+  workouts: Workout[],
+  exerciseTypes: ExerciseTypeDef[],
+  analyticsCategories: AnalyticsCategory[],
+  weekIds: string[],
+  phaseOf?: (weekId: string) => string | undefined,
+): WeekHistorySummary[] {
+  const categoryName = (idOrName: string | undefined) =>
+    analyticsCategories.find((c) => c.id === idOrName)?.name ?? idOrName ?? "Other";
+  return weekIds.map((week) => {
+    const done = workouts.filter((w) => w.status === "completed" && w.weekId === week);
+    const minutesByCategory: Record<string, number> = {};
+    for (const w of done) {
+      for (const slot of w.exercises) {
+        if (!slot.logged) continue;
+        const mins = slot.logged.duration ?? estimateSlotDuration(slot);
+        if (!mins) continue;
+        const cat = categoryName(slot.categoryId ?? exerciseTypes.find((t) => t.id === slot.typeId)?.category);
+        minutesByCategory[cat] = (minutesByCategory[cat] ?? 0) + Math.round(mins);
+      }
+    }
+    const avgRatings: WeekHistorySummary["avgRatings"] = {};
+    for (const axis of RATING_AXES) {
+      const given = done.map((w) => w[axis]).filter((v): v is number => typeof v === "number");
+      if (given.length) avgRatings[axis] = Math.round((given.reduce((a, b) => a + b, 0) / given.length) * 10) / 10;
+    }
+    const phase = phaseOf?.(week);
+    // An empty week is one short line - its zeros say nothing the count doesn't.
+    if (done.length === 0) return phase ? { week, phase, sessions: 0 } : { week, sessions: 0 };
+    const summary: WeekHistorySummary = {
+      week,
+      sessions: done.length,
+      minutes: Math.round(done.reduce((sum, w) => sum + sessionDuration(w), 0)),
+      load: Math.round(done.reduce((sum, w) => sum + (w.loadFactor || 0), 0)),
+      minutesByCategory,
+    };
+    if (phase) summary.phase = phase;
+    if (Object.keys(avgRatings).length) summary.avgRatings = avgRatings;
+    return summary;
+  });
 }
 
 /** Completed workouts whose `weekId` falls in `weekIds` - "Analyze Past"'s own scoped window, full detail (not just names) per UI_PLAN.md §5.8. */
@@ -413,7 +509,10 @@ export interface AIContextProfile {
   exerciseModalities?: ExerciseModalitySummary[];
   analyticsCategories?: AnalyticsCategorySummary[];
   phases?: string[];
+  /** Completed sessions in full: the history window's recent weeks, or (analyze) the chosen weeks. */
   recentWorkouts: RecentWorkoutSummary[];
+  /** One line per older week - not for analyze, which is scoped to its own weeks. */
+  weeklyHistory?: WeekHistorySummary[];
   benchmarks: Benchmark[];
   trainingBlocks?: TrainingBlockSummary[];
   goals?: GoalSummary[];
@@ -443,6 +542,7 @@ export function buildAIContextProfile(
   asOf: Date,
   targetWeekIds: string[] = [],
   model: ModelOptions = {},
+  history: AIHistoryWindow = DEFAULT_AI_HISTORY,
 ): AIContextProfile {
   // "Analyze Past" already scopes itself to the picked week range and
   // doesn't need the full exercise/phase catalog (UI_PLAN.md §5.8 item 1).
@@ -451,7 +551,7 @@ export function buildAIContextProfile(
   const recentWorkouts =
     mode === "analyze"
       ? buildWorkoutsInWeeks(source.workouts, source.exerciseTypes, targetWeekIds)
-      : buildRecentWorkouts(source.workouts, source.exerciseTypes);
+      : buildRecentWorkouts(source.workouts, source.exerciseTypes, asOf, history.fullWeeks);
 
   const benchmarks =
     mode === "analyze" ? buildBenchmarksInWeeks(source.benchmarks, targetWeekIds) : source.benchmarks;
@@ -459,6 +559,13 @@ export function buildAIContextProfile(
   const windowWeekIds = mode === "context" ? [getWeekId(asOf)] : targetWeekIds;
 
   const profile: AIContextProfile = { recentWorkouts, benchmarks };
+
+  if (mode !== "analyze" && history.summaryWeeks > 0) {
+    const phaseOf = sharing.trainingBlocks
+      ? (weekId: string) => source.phaseDefs.find((p) => p.id === getDominantBlockForWeek(source.trainingBlocks, weekId)?.phaseId)?.name
+      : undefined;
+    profile.weeklyHistory = buildWeeklyHistory(source.workouts, source.exerciseTypes, source.analyticsCategories, historyWeekIds(asOf, history).summary, phaseOf);
+  }
 
   if (includeCatalog) {
     profile.exerciseModalities = buildExerciseModalities(source.exerciseTypes);

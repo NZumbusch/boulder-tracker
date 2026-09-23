@@ -16,9 +16,10 @@
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekIdRange } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
-  import { buildAIContextProfile, type AIPromptMode } from '../../lib/ai/context';
-  import { buildPlanContext } from '../../lib/ai/planContext';
-  import { buildCoachPrompt } from '../../lib/ai/coachPrompt';
+  import type { AIPromptMode } from '../../lib/ai/context';
+  import { buildCoachPromptFor, estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
+  import type { AIHistoryWindow } from '../../lib/preferences/migrate';
+  import AIHistoryPicker from '../settings/AIHistoryPicker.svelte';
   import { parsePlanImport } from '../../lib/ai/planImportEntry';
   import { planWithSelection, allItemIds, type ChangeItem, type ChangeSection } from '../../lib/ai/changePlanner';
   import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
@@ -68,47 +69,21 @@
     copiedFor = null;
   }
 
-  function buildPrompt(): string {
-    const targetWeekIds = mode === 'context' ? [] : selectedWeekIds;
-    const profile = buildAIContextProfile(
-      mode,
-      {
-        exerciseTypes: trainingState.exerciseTypes,
-        analyticsCategories: trainingState.analyticsCategories,
-        phaseDefs: trainingState.phaseDefs,
-        workouts: trainingState.workouts,
-        benchmarks: trainingState.benchmarks,
-        trainingBlocks: trainingState.trainingBlocks,
-        goals: trainingState.goals,
-        dailyMetrics: trainingState.dailyMetrics,
-        painLogs: trainingState.painLogs,
-        outdoorAscents: trainingState.outdoorAscents,
-        weekNotes: trainingState.weekNotes,
-      },
-      trainingState.aiSharing,
-      new Date(),
-      mode === 'context' ? undefined : targetWeekIds,
-      { readiness: trainingState.readinessConfig, fatigueHalfLife: trainingState.fatigueHalfLife },
-    );
-    const planContext = mode === 'generate'
-      ? buildPlanContext({
-          exerciseTypes: trainingState.exerciseTypes,
-          phaseDefs: trainingState.phaseDefs,
-          templates: trainingState.templates,
-          trainingBlocks: trainingState.trainingBlocks,
-          workouts: trainingState.workouts,
-          weekOverrides: trainingState.weekOverrides,
-          weekNotes: trainingState.weekNotes,
-          targetWeekIds,
-        })
-      : undefined;
-    return buildCoachPrompt({ mode, profile, targetWeekIds, goal, planContext });
-  }
+  /** How much history this request sends - starts from the Settings default. */
+  let history = $state<AIHistoryWindow>({ ...trainingState.aiHistory });
+  let showHistory = $state(false);
+  const historyIsDefault = $derived(
+    history.fullWeeks === trainingState.aiHistory.fullWeeks && history.summaryWeeks === trainingState.aiHistory.summaryWeeks,
+  );
+
+  /** The prompt exactly as it will be copied - also what the size shown is measured on. */
+  const prompt = $derived(buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history }));
+  const tokens = $derived(estimateTokens(prompt));
 
   async function copyPrompt() {
     if (mode !== 'context' && !rangeValid) return;
     try {
-      await navigator.clipboard.writeText(buildPrompt());
+      await navigator.clipboard.writeText(prompt);
     } catch (err: any) {
       await showAlert('Copy failed', 'Your browser blocked the clipboard: ' + (err?.message ?? 'unknown error'));
       return;
@@ -306,6 +281,45 @@
             <p class="text-body text-content">Copied. Paste it into any AI chat{mode === 'context' ? ', then ask your question' : ''}.</p>
           </div>
         {/if}
+
+        <!-- What history goes along, and what that costs in prompt size. -->
+        <div class="bg-surface/40 border border-border rounded-card">
+          <button
+            onclick={() => showHistory = !showHistory}
+            disabled={mode === 'analyze'}
+            class="w-full p-3.5 flex items-center gap-3 text-left disabled:cursor-default"
+            aria-expanded={showHistory}
+          >
+            <Icon icon="ic:baseline-history" class="text-xl text-content-subtle shrink-0" />
+            <span class="min-w-0 flex-1">
+              <span class="text-label text-content block">
+                {#if mode === 'analyze'}
+                  History: the sessions in the chosen weeks
+                {:else}
+                  History: {history.fullWeeks} week{history.fullWeeks === 1 ? '' : 's'} in full{history.summaryWeeks ? `, ${history.summaryWeeks} summarized` : ''}
+                {/if}
+              </span>
+              <span class="text-caption text-content-subtle block">Prompt size {formatTokens(tokens)}{!historyIsDefault && mode !== 'analyze' ? ' · changed for this request' : ''}</span>
+            </span>
+            {#if mode !== 'analyze'}
+              <Icon icon="ic:baseline-expand-more" class="text-lg text-content-subtle shrink-0 transition-transform {showHistory ? 'rotate-180' : ''}" />
+            {/if}
+          </button>
+          {#if showHistory && mode !== 'analyze'}
+            <div class="px-3.5 pb-3.5 space-y-2.5 animate-in fade-in duration-150">
+              <AIHistoryPicker value={history} onchange={(next) => history = next} />
+              <p class="text-caption text-content-subtle leading-relaxed">
+                Recent weeks go session by session; older weeks as one line each (sessions, minutes per category, load, average ratings).
+              </p>
+              {#if !historyIsDefault}
+                <div class="flex items-center gap-3">
+                  <button onclick={() => history = { ...trainingState.aiHistory }} class="text-label text-content-subtle hover:text-content">Reset</button>
+                  <button onclick={() => trainingState.setAiHistory(history)} class="text-label text-primary hover:underline">Make this my default</button>
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
 
         <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
           <Icon icon="ic:baseline-info" class="text-sm shrink-0 mt-px" />

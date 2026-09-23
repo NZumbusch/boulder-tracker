@@ -39,6 +39,7 @@ describe('defaultPreferences', () => {
       analyticsSections: ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })),
       quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
       aiSharing: DEFAULT_AI_SHARING,
+      aiHistory: { fullWeeks: 2, summaryWeeks: 8 },
     });
   });
 });
@@ -95,6 +96,7 @@ describe('migratePreferences', () => {
       analyticsSections: [...ANALYTICS_SECTION_IDS].reverse().map((id, i) => ({ id, visible: i % 2 === 0 })),
       quickLogActions: [{ id: 'send' as const, visible: true }, { id: 'pain' as const, visible: true }, { id: 'bodyweight' as const, visible: false }, { id: 'benchmark' as const, visible: true }],
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
+      aiHistory: { fullWeeks: 4, summaryWeeks: 16 },
       addedExerciseTarget: 'mirror' as const,
     };
     expect(migratePreferences(valid)).toEqual(valid);
@@ -469,5 +471,17 @@ describe('analyticsSections / quickLogActions', () => {
       { id: 'pain', visible: false },
       { id: 'bodyweight', visible: true },
     ]);
+  });
+});
+
+describe('aiHistory', () => {
+  it('defaults to two weeks in full and eight summarised', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).aiHistory).toEqual({ fullWeeks: 2, summaryWeeks: 8 });
+  });
+
+  it('repairs each field on its own, and only to a listed option', () => {
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiHistory: { fullWeeks: 5, summaryWeeks: 12 } });
+    expect(result.aiHistory).toEqual({ fullWeeks: 2, summaryWeeks: 12 });
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiHistory: 'x' }).aiHistory).toEqual({ fullWeeks: 2, summaryWeeks: 8 });
   });
 });

@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type AddedExerciseTarget } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -33,6 +33,7 @@ export class PreferencesStore {
   analyticsSections = $state<OrderedToggle<AnalyticsSectionId>[]>(ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })));
   quickLogActions = $state<OrderedToggle<QuickLogActionId>[]>(QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })));
   aiSharing = $state<AISharingPreferences>(defaultPreferences().aiSharing);
+  aiHistory = $state<AIHistoryWindow>(defaultPreferences().aiHistory);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
 
   constructor() {
@@ -71,6 +72,7 @@ export class PreferencesStore {
     this.analyticsSections = prefs.analyticsSections;
     this.quickLogActions = prefs.quickLogActions;
     this.aiSharing = prefs.aiSharing;
+    this.aiHistory = prefs.aiHistory;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
 
     // Persist immediately so the fold (or a version migration) only ever
@@ -198,6 +200,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setAiHistory(history: AIHistoryWindow) {
+    this.aiHistory = { ...history };
+    this.persist();
+  }
+
   setAddedExerciseTarget(target: AddedExerciseTarget) {
     this.addedExerciseTarget = target;
     this.persist();
@@ -234,6 +241,7 @@ export class PreferencesStore {
       analyticsSections: this.analyticsSections,
       quickLogActions: this.quickLogActions,
       aiSharing: this.aiSharing,
+      aiHistory: this.aiHistory,
       addedExerciseTarget: this.addedExerciseTarget,
       theme: (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'contrast')
         ? legacyTheme

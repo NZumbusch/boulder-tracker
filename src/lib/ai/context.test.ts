@@ -16,6 +16,7 @@ import {
   buildExerciseModalities,
   buildAnalyticsCategorySummaries,
   buildRecentWorkouts,
+  buildWeeklyHistory,
   buildWorkoutsInWeeks,
   buildBenchmarksInWeeks,
   buildTrainingBlockContext,
@@ -70,35 +71,70 @@ describe("buildAnalyticsCategorySummaries", () => {
 });
 
 describe("buildRecentWorkouts", () => {
-  it("caps at the given limit, taking the most recent (end of array)", () => {
-    const workouts = Array.from({ length: 25 }, (_, i) => makeWorkout({ id: `w${i}`, weekId: `2026-W${i}` }));
-    const result = buildRecentWorkouts(workouts, exerciseTypes, 20);
-    expect(result).toHaveLength(20);
-    expect(result[0].weekId).toBe("2026-W5");
-    expect(result[19].weekId).toBe("2026-W24");
+  // asOf is 2026-09-18, in 2026-W38.
+  it("keeps only completed sessions from the last `fullWeeks` weeks, oldest first", () => {
+    const workouts = [
+      makeWorkout({ id: "old", status: "completed", date: "2026-09-02", weekId: "2026-W36" }),
+      makeWorkout({ id: "b", status: "completed", date: "2026-09-16", weekId: "2026-W38" }),
+      makeWorkout({ id: "a", status: "completed", date: "2026-09-09", weekId: "2026-W37" }),
+      makeWorkout({ id: "planned", status: "planned", weekId: "2026-W38" }),
+    ];
+    const result = buildRecentWorkouts(workouts, exerciseTypes, asOf, 2);
+    expect(result.map((w) => w.date)).toEqual(["2026-09-09", "2026-09-16"]);
   });
 
-  it("includes loadFactor/fatigue only for completed workouts", () => {
-    const planned = makeWorkout({ status: "planned", loadFactor: 999 });
-    const completed = makeWorkout({ status: "completed", date: "2026-09-01", loadFactor: 42, fingers: 5, arms: 3, core: 4, systemic: 6 });
-    const result = buildRecentWorkouts([planned, completed], exerciseTypes);
-    expect(result[0].loadFactor).toBeUndefined();
-    expect(result[1].loadFactor).toBe(42);
-    expect(result[1]).toMatchObject({ fingers: 5, arms: 3, core: 4, systemic: 6 });
+  it("carries load and ratings", () => {
+    const completed = makeWorkout({ status: "completed", date: "2026-09-16", weekId: "2026-W38", loadFactor: 42, fingers: 5, arms: 3, core: 4, systemic: 6 });
+    const [result] = buildRecentWorkouts([completed], exerciseTypes, asOf, 1);
+    expect(result).toMatchObject({ loadFactor: 42, fingers: 5, arms: 3, core: 4, systemic: 6 });
   });
 
   it("resolves exercise names via typeId, falling back to Unknown", () => {
     const w = makeWorkout({
+      status: "completed",
+      date: "2026-09-16",
+      weekId: "2026-W38",
       exercises: [
-        { id: "s1", typeId: "et-1", prescribed: { duration: 30, sets: 5 } },
-        { id: "s2", typeId: "missing", prescribed: {} },
+        { id: "s1", typeId: "et-1", logged: { duration: 30, sets: 5 } },
+        { id: "s2", typeId: "missing", logged: {} },
       ],
     });
-    const result = buildRecentWorkouts([w], exerciseTypes);
-    expect(result[0].exercises).toEqual([
+    const [result] = buildRecentWorkouts([w], exerciseTypes, asOf, 1);
+    expect(result.exercises).toEqual([
       { name: "Hangboard", duration: 30, sets: 5, reps: undefined, plannedLoad: undefined },
       { name: "Unknown", duration: undefined, sets: undefined, reps: undefined, plannedLoad: undefined },
     ]);
+  });
+});
+
+describe("buildWeeklyHistory", () => {
+  const w = (weekId: string, over: Partial<Workout> = {}) =>
+    makeWorkout({ status: "completed", date: "2026-08-01", weekId, loadFactor: 100, ...over });
+
+  it("gives one line per week, including weeks with nothing logged, oldest first", () => {
+    const result = buildWeeklyHistory([w("2026-W35"), w("2026-W35"), w("2026-W37")], exerciseTypes, analyticsCategories, ["2026-W35", "2026-W36", "2026-W37"]);
+    expect(result.map((h) => [h.week, h.sessions, h.load])).toEqual([["2026-W35", 2, 200], ["2026-W36", 0, undefined], ["2026-W37", 1, 100]]);
+    expect(result[1]).toEqual({ week: "2026-W36", sessions: 0 });
+  });
+
+  it("sums minutes per category and averages the ratings that were given", () => {
+    const result = buildWeeklyHistory(
+      [
+        w("2026-W35", { fingers: 6, exercises: [{ id: "s", typeId: "et-1", logged: { duration: 30 } }] }),
+        w("2026-W35", { fingers: 8, core: 3, exercises: [{ id: "t", typeId: "et-1", logged: { duration: 15 } }] }),
+        w("2026-W35", { status: "planned", exercises: [{ id: "u", typeId: "et-1", prescribed: { duration: 90 } }] }),
+      ],
+      exerciseTypes,
+      analyticsCategories,
+      ["2026-W35"],
+    );
+    expect(result[0].minutesByCategory).toEqual({ Fingers: 45 });
+    expect(result[0].avgRatings).toEqual({ fingers: 7, core: 3 });
+  });
+
+  it("names the phase when a resolver is given", () => {
+    const [h] = buildWeeklyHistory([], exerciseTypes, analyticsCategories, ["2026-W35"], () => "Power");
+    expect(h.phase).toBe("Power");
   });
 });
 
@@ -315,6 +351,16 @@ describe("buildAIContextProfile", () => {
     // The fixture block covers 2026-W25, well before asOf's week (2026-W38) -
     // out of a "current week" window, so it should not appear.
     expect(profile.trainingBlocks).toEqual([]);
+  });
+
+  it("sends recent sessions in full and older weeks as summaries, per the history window - but not for analyze", () => {
+    const history = { fullWeeks: 1, summaryWeeks: 4 };
+    const recent = { ...source, workouts: [makeWorkout({ status: "completed", date: "2026-09-16", weekId: "2026-W38" }), makeWorkout({ status: "planned", weekId: "2026-W38" })] };
+    const profile = buildAIContextProfile("generate", recent, allSharingOff, asOf, ["2026-W39"], {}, history);
+    expect(profile.recentWorkouts).toHaveLength(1);
+    expect(profile.weeklyHistory?.map((h) => h.week)).toEqual(["2026-W34", "2026-W35", "2026-W36", "2026-W37"]);
+    expect(buildAIContextProfile("analyze", recent, allSharingOff, asOf, ["2026-W38"], {}, history).weeklyHistory).toBeUndefined();
+    expect(buildAIContextProfile("generate", recent, allSharingOff, asOf, ["2026-W39"], {}, { fullWeeks: 1, summaryWeeks: 0 }).weeklyHistory).toBeUndefined();
   });
 
   it("scopes recentWorkouts/benchmarks to the target range for analyze, but not generate/context", () => {
