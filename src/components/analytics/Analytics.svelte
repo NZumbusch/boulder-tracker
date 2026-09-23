@@ -1,49 +1,40 @@
 <script lang="ts">
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekDates } from '../../lib/dateUtils';
-  import type { Workout, ExerciseTypeDef, Benchmark, ExerciseCategory } from '../../lib/types';
+  import type { Workout, ExerciseTypeDef, ExerciseCategory } from '../../lib/types';
   import { estimateSlotDuration, DEFAULT_EXERCISE_MINUTES } from '../../lib/planning/sessionDuration';
-  import { ChartTips, isTapPointer, isKeyboardActivation } from '../../lib/analytics/chartTips.svelte';
+  import { ChartTips } from '../../lib/analytics/chartTips.svelte';
   import {
     calculateAcwrForWeeks,
     calculateWeeklyAdherence,
     findRecoveryWarnings,
     correlatePainWithLoadSpikes,
-    type AcwrResult,
   } from '../../lib/analytics/loadAnalytics';
   import { computeFatigueDecay } from '../../lib/analytics/readiness';
-  import { weeksToShow, weekWindowOffsets, labelStep, showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
+  import { weeksToShow, weekWindowOffsets, labelStep } from '../../lib/analytics/chartWindow';
   import { parseFontGrade } from '../../lib/analytics/grades';
-  import { formatWeight } from '../../lib/units';
-  import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
+  import LoadPanel from './LoadPanel.svelte';
+  import MixPanel from './MixPanel.svelte';
+  import BodyweightPanel from './BodyweightPanel.svelte';
+  import BenchmarkPanel from './BenchmarkPanel.svelte';
+  import type { ChartData } from './chartTypes';
   import AdherencePanel from './AdherencePanel.svelte';
   import RecoveryWarningsPanel from './RecoveryWarningsPanel.svelte';
   import FatiguePanel from './FatiguePanel.svelte';
   import OutdoorAscentsPanel from './OutdoorAscentsPanel.svelte';
-  import { loggedMetrics } from '../../lib/analytics/metricValues';
   import Icon from "@iconify/svelte";
 
-  // ACWR zone edges - adjustable under Settings -> Training model.
-  const acwrZones = $derived(trainingState.acwrZones);
-
-  // Shared header + section-jump chips,
-  // ACWR merged into Rolling Load (this file), and three new panels
-  // (Fatigue, Outdoor Ascents, Bodyweight Trend). AdherencePanel/
-  // RecoveryWarningsPanel/Benchmark Progress are otherwise unchanged -
-  // their tokens/radii were already retrofitted, so they needed no
-  // further edits.
+  // Analytics: one header (week-window paging, CSV export, section-jump
+  // chips, the window's dates) over the panels, in the order and with the
+  // visibility chosen in Settings. This file owns the week window and the
+  // data every panel reads from it; each panel draws itself.
   //
-  // Not a sticky header (user-directed fixup,
-  // 2026-09-18, after the sticky version's z-index/narrow-screen problems):
-  // the header now scrolls away with the page, matching every other
-  // screen's (e.g. TrainingPlan.svelte) plain top-of-page header instead of
-  // staying pinned. The week-window control/chips are still consolidated
-  // into one shared header - only the "stays fixed on scroll" behaviour was
-  // dropped.
+  // Not a sticky header (user-directed, 2026-09-18, after the sticky
+  // version's z-index/narrow-screen problems): it scrolls away with the
+  // page like every other screen's header.
 
   // --- State ---
   const categories = $derived(trainingState.analyticsCategories);
-  let selectedBenchmarkType = $state<string>('');
   let viewOffset = $state<number>(0);
 
   // --- Responsive week window. The charts used to draw a fixed 12 weeks at
@@ -107,11 +98,6 @@
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // --- Training Mix Controls ---
-  let showRelative = $state(true);
-  let showSettings = $state(false);
-  let includePlanned = $state(true);
-  let hiddenCategoryIds = $state<Set<string>>(new Set());
   // --- Handlers ---
   function navigate(direction: 'prev' | 'next' | 'today') {
     if (direction === 'prev') viewOffset--;
@@ -126,7 +112,7 @@
    * over the currently visible week window (see `visibleWeeks`), aggregating
    * total actual load, total planned load, and counts of exercise categories.
    */
-  const chartData = $derived.by(() => {
+  const chartData = $derived.by((): ChartData => {
     const types = trainingState.exerciseTypes;
 
     // Quick lookup for assigning categories to recorded exercises
@@ -258,61 +244,6 @@
   const recoveryWarnings = $derived(findRecoveryWarnings(trainingState.workouts, trainingState.dailyMetrics, orderedWeekIds, trainingState.tunable('alerts.restDays')));
   const painCorrelations = $derived(correlatePainWithLoadSpikes(trainingState.painLogs, acwrResults, trainingState.acwrZones.highRisk));
 
-  const visibleCategories = $derived(categories.filter(c => !hiddenCategoryIds.has(c.id)));
-  const maxVisibleDuration = $derived(Math.max(...chartData.weeks.map(w => visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? w.categories[cat.name] : w.completedCategories[cat.name]) || 0), 0)), 1));
-
-  // --- ACWR merged into the Rolling Load panel.
-  // Same `AcwrResult[]` the standalone AcwrPanel used to render - only the
-  // presentation moved, not the calculation (the rolling ACWR is consumed
-  // as-is).
-  type RatioStatus = 'good' | 'caution' | 'risk' | 'neutral';
-  const RATIO_STATUS_VAR: Record<RatioStatus, string> = {
-    good: 'var(--color-status-good)',
-    caution: 'var(--color-status-caution)',
-    risk: 'var(--color-status-risk)',
-    neutral: 'var(--color-status-neutral)',
-  };
-  function ratioStatus(r: AcwrResult): RatioStatus {
-    if (r.ratio === undefined || !r.sufficient) return 'neutral';
-    if (r.ratio >= acwrZones.highRisk) return 'risk';
-    if (r.ratio >= acwrZones.caution) return 'caution';
-    return 'good';
-  }
-  const acwrDefinedRatios = $derived(acwrResults.filter((r) => r.ratio !== undefined).map((r) => r.ratio as number));
-  const acwrMaxRatio = $derived(Math.max(...acwrDefinedRatios, acwrZones.highRisk) * 1.15);
-  function ratioToY(ratio: number): number {
-    return 100 - (ratio / acwrMaxRatio) * 100;
-  }
-  const acwrOverlayPoints = $derived(acwrResults.map((r, i) => {
-    const week = chartData.weeks[i];
-    return {
-      weekId: r.weekId,
-      x: ((i + 0.5) / Math.max(acwrResults.length, 1)) * 100,
-      ratioY: r.ratio !== undefined ? ratioToY(r.ratio) : null,
-      ratio: r.ratio,
-      sufficient: r.sufficient,
-      status: ratioStatus(r),
-      spike: r.spike,
-      rampRate: r.rampRate,
-      barTopY: week ? 100 - (week.totalLoad / chartData.maxLoad) * 100 : 100,
-    };
-  }));
-  function buildLineSegments(points: { x: number; y: number | null }[]): { x: number; y: number }[][] {
-    const segments: { x: number; y: number }[][] = [];
-    let current: { x: number; y: number }[] = [];
-    for (const p of points) {
-      if (p.y === null) {
-        if (current.length > 1) segments.push(current);
-        current = [];
-      } else {
-        current.push({ x: p.x, y: p.y });
-      }
-    }
-    if (current.length > 1) segments.push(current);
-    return segments;
-  }
-  const acwrRatioSegments = $derived(buildLineSegments(acwrOverlayPoints.map((p) => ({ x: p.x, y: p.ratioY }))));
-
   // --- Fatigue panel data - `computeFatigueDecay`
   // sampled at each displayed week's end date, mirroring the sampling
   // pattern `calculateRollingAcwrSeries` uses, so this is
@@ -361,145 +292,10 @@
     };
   });
 
-  // --- Bodyweight trend panel - last 10 entries,
-  // matching Benchmark Progress's own established "last 10, not window-
-  // bound" precedent below. Uses a min/max-padded scale rather than
-  // Benchmark Progress's 0-based one: bodyweight has no meaningful "0"
-  // floor, and a 0-based scale would flatten a normal few-kg fluctuation
-  // into an almost-flat line.
-  const bodyweightTrend = $derived.by(() => {
-    const entries = loggedMetrics(trainingState.dailyMetrics)
-      .filter((m) => m.metricId === BODYWEIGHT_METRIC_ID)
-      .slice()
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-10);
-
-    if (entries.length === 0) return { history: [], areaPath: '', linePath: '', min: 0, max: 0 };
-
-    const maxValue = Math.max(...entries.map((e) => e.value)) * 1.02;
-    const minValue = Math.min(...entries.map((e) => e.value)) * 0.98;
-    const range = Math.max(maxValue - minValue, 0.1);
-
-    const history = entries.map((e) => ({ ...e, height: ((e.value - minValue) / range) * 100 }));
-    const count = history.length;
-    const points = history.map((e, i) => ({ x: (i / Math.max(count - 1, 1)) * 100, y: 100 - e.height }));
-    const areaPath = count > 1 ? `M 0,100 ${points.map((p) => `L ${p.x},${p.y}`).join(' ')} L 100,100 Z` : '';
-    const linePath = count > 1 ? `M ${points.map((p) => `${p.x},${p.y}`).join(' L ')}` : '';
-
-    // `min`/`max` are the *padded* bounds the plot is drawn against, so the
-    // axis labels describe the gridlines rather than the raw data range.
-    return { history, areaPath, linePath, min: minValue, max: maxValue };
-  });
-
-  /**
-   * The three bodyweight gridlines, top to bottom. One decimal: the scale
-   * spans a few kg at most, so whole kilos would print the same number
-   * three times on a stable week.
-   */
-  const bodyweightTicks = $derived.by(() => {
-    const { min, max } = bodyweightTrend;
-    if (bodyweightTrend.history.length === 0) return [];
-    return [max, (min + max) / 2, min].map((v) => v.toFixed(1));
-  });
-
-  /**
-   * Derives chart data for the "Benchmark Progress" line graph.
-   * Filters the last 10 historical entries for the currently selected benchmark type
-   * and calculates SVG paths for the interactive line and area gradient.
-   */
-  const benchmarkProgress = $derived.by(() => {
-    const data = trainingState.benchmarks;
-    const benchmarkTypes = trainingState.benchmarkTypes;
-
-    if (benchmarkTypes.length === 0) {
-      return { types: [], history: [], maxValue: 1, unit: '', areaPath: '', linePath: '' };
-    }
-
-    const availableTypes = benchmarkTypes;
-
-    // Use a local variable for the effective selection to avoid mutating state in derived
-    let effectiveTypeId = selectedBenchmarkType;
-    if (!effectiveTypeId || !availableTypes.find(t => t.id === effectiveTypeId)) {
-      effectiveTypeId = availableTypes[0].id;
-    }
-
-    const filtered = data
-      .filter(b => b.typeId === effectiveTypeId)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-10);
-
-    const maxValue = filtered.length > 0 ? Math.max(...filtered.map(b => b.value), 1) * 1.25 : 1;
-    const selectedTypeInfo = availableTypes.find(t => t.id === effectiveTypeId);
-    const unit = selectedTypeInfo ? selectedTypeInfo.unit : '';
-
-    const history = filtered.map(b => ({
-      ...b,
-      height: (b.value / maxValue) * 100
-    }));
-
-    const count = history.length;
-    const points = history.map((b, i) => ({
-      x: (i / Math.max(count - 1, 1)) * 100,
-      y: 100 - b.height
-    }));
-
-    const areaPath = count > 1 ? `M 0,100 ${points.map(p => `L ${p.x},${p.y}`).join(' ')} L 100,100 Z` : '';
-    const linePath = count > 1 ? `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}` : '';
-
-    return {
-      types: availableTypes,
-      history,
-      maxValue,
-      unit,
-      areaPath,
-      linePath
-    };
-  });
-
-  /**
-   * The three Benchmark Progress gridlines, top to bottom.
-   *
-   * This scale is 0-based and padded to `max * 1.25`, so unlike the
-   * bodyweight axis the bottom line really is zero - the labels come from
-   * the same `maxValue` the plot is drawn against rather than from the
-   * raw data, or they would disagree with the line.
-   */
   // Tooltips are hover-only in CSS, which leaves them unreachable on a
   // phone; this drives the tap path. See `lib/analytics/chartTips.svelte.ts`.
   const tips = new ChartTips();
   $effect(() => tips.listen());
-
-  /** The visible label for the overlaid benchmark picker - resolved, since `selectedBenchmarkType` is an id and may not be set yet. */
-  const selectedBenchmarkName = $derived(
-    benchmarkProgress.types.find((t) => t.id === selectedBenchmarkType)?.name
-      ?? benchmarkProgress.types[0]?.name
-      ?? 'Benchmark',
-  );
-
-  const benchmarkTicks = $derived.by(() => {
-    if (benchmarkProgress.history.length === 0) return [];
-    const max = benchmarkProgress.maxValue;
-    return [max, max / 2, 0].map((v) => {
-      // Trims a pointless ".0" while keeping a real fraction: the padded
-      // top of the scale is rarely a round number.
-      const rounded = Number(v.toFixed(1));
-      return String(rounded);
-    });
-  });
-
-  // Date axes carry far wider labels than the week charts' "W34", so they
-  // are capped at a few evenly spaced labels instead of thinned by width.
-  const bodyweightLabelStep = $derived(sparseLabelStep(bodyweightTrend.history.length));
-  const benchmarkLabelStep = $derived(sparseLabelStep(benchmarkProgress.history.length));
-
-  $effect(() => {
-    const benchmarkTypes = trainingState.benchmarkTypes;
-    if (benchmarkTypes.length > 0) {
-      if (!selectedBenchmarkType || !benchmarkTypes.find(t => t.id === selectedBenchmarkType)) {
-        selectedBenchmarkType = benchmarkTypes[0].id;
-      }
-    }
-  });
 </script>
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
@@ -567,337 +363,11 @@
 
   <div class="space-y-5">
     {#snippet loadSection()}
-    <div id="section-load" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative">
-      <div class="relative z-10">
-        <h3 class="text-section uppercase text-content-muted">Rolling Load</h3>
-        <p class="text-caption text-content-subtle mt-0.5">Target vs actual, with acute:chronic ratio</p>
-      </div>
-
-      <!-- The plot area's measured width drives the week count for every
-           chart on this screen - see `chartWidth`. -->
-      <div class="h-48 flex flex-col gap-2 relative z-10">
-        <div class="flex-1 relative flex items-end justify-between gap-px" bind:clientWidth={chartWidth}>
-          <!-- Hairline gridlines: three, at 10% opacity. Enough to read a
-               height against, quiet enough to disappear behind the data. -->
-          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
-            <div class="border-t border-content-subtle w-full"></div>
-            <div class="border-t border-content-subtle w-full"></div>
-            <div class="border-t border-content-subtle w-full"></div>
-          </div>
-
-          <!-- ACWR sweet-spot / caution / risk bands, barely tinted -->
-          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <rect x="0" y={ratioToY(acwrMaxRatio)} width="100" height={Math.max(ratioToY(acwrZones.highRisk) - ratioToY(acwrMaxRatio), 0)} fill="var(--color-status-risk)" opacity="0.06" />
-            <rect x="0" y={ratioToY(acwrZones.highRisk)} width="100" height={Math.max(ratioToY(acwrZones.caution) - ratioToY(acwrZones.highRisk), 0)} fill="var(--color-status-caution)" opacity="0.06" />
-            <rect x="0" y={ratioToY(acwrZones.caution)} width="100" height={Math.max(ratioToY(acwrZones.sweetMin) - ratioToY(acwrZones.caution), 0)} fill="var(--color-status-good)" opacity="0.06" />
-          </svg>
-
-          <!-- Planned Load Line (SVG) -->
-          <svg
-            class="absolute inset-0 w-full h-full overflow-visible pointer-events-none"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-          >
-            {#if chartData.weeks.length > 1}
-              {@const planPoints = chartData.weeks.map((w, i) => ({
-                x: ((i + 0.5) / chartData.weeks.length) * 100,
-                y: 100 - (w.totalPlannedLoad / chartData.maxLoad) * 100,
-                val: w.totalPlannedLoad
-              }))}
-
-              {@const connectedPoints = planPoints.filter(p => p.val > 0)}
-
-              {#if connectedPoints.length > 1}
-                <path
-                  d="M {connectedPoints.map(p => `${p.x} ${p.y}`).join(' L ')}"
-                  fill="none"
-                  stroke="var(--color-success)"
-                  stroke-width="1.5"
-                  stroke-dasharray="3 3"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  vector-effect="non-scaling-stroke"
-                  opacity="0.85"
-                />
-              {/if}
-            {/if}
-          </svg>
-
-          {#each chartData.weeks as week, wi}
-            <button
-              type="button"
-              data-tip-trigger
-              data-tip-open={tips.isOpen(`load-${wi}`)}
-              onclick={() => tips.toggle(`load-${wi}`)}
-              aria-label="Week {week.label} load"
-              class="flex-1 flex flex-col items-center group relative h-full justify-end hover:z-30 {tips.isOpen(`load-${wi}`) ? 'z-30' : ''}"
-            >
-              <!-- Flat fill, no gradient or glow; the current week is the
-                   only one at full strength, which is the whole emphasis
-                   budget this chart spends. -->
-              <div
-                class="w-[62%] max-w-[16px] rounded-[2px] transition-[height] duration-500 relative {week.isCurrent ? 'bg-primary' : 'bg-primary/45 group-hover:bg-primary/70'}"
-                style="height: {(week.totalLoad / chartData.maxLoad) * 100}%"
-              >
-                <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-                  <span class="block">W{week.label} · {Math.round(week.totalLoad)} actual</span>
-                  <span class="block text-content-subtle">{Math.round(week.totalPlannedLoad)} target</span>
-                </div>
-              </div>
-            </button>
-          {/each}
-
-          <!-- ACWR ratio line (SVG, on top of the bars) -->
-          <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-            {#each acwrRatioSegments as seg}
-              <path
-                d="M {seg.map((p) => `${p.x} ${p.y}`).join(' L ')}"
-                fill="none"
-                stroke="var(--color-content-subtle)"
-                stroke-width="1"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                vector-effect="non-scaling-stroke"
-                opacity="0.6"
-              />
-            {/each}
-          </svg>
-
-          <!-- ACWR ratio dots + ramp-rate spike flags (HTML, so they get the same hover-tooltip treatment as the bars/dashed line above) -->
-          <div class="absolute inset-0 pointer-events-none">
-            {#each acwrOverlayPoints as p, pi}
-              {#if p.ratioY !== null}
-                <button
-                  type="button"
-                  data-tip-trigger
-                  data-tip-open={tips.isOpen(`acwr-${pi}`)}
-                  onclick={() => tips.toggle(`acwr-${pi}`)}
-                  aria-label="ACWR {p.ratio?.toFixed(2) ?? 'unavailable'}"
-                  class="absolute pointer-events-auto group hover:z-40 {tips.isOpen(`acwr-${pi}`) ? 'z-40' : 'z-20'}"
-                  style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);"
-                >
-                  <div
-                    class="w-1.5 h-1.5 rounded-full border transition-transform group-hover:scale-150"
-                    style="background: {p.sufficient ? RATIO_STATUS_VAR[p.status] : 'transparent'}; border-color: {RATIO_STATUS_VAR[p.status]};"
-                  ></div>
-                  <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
-                    ACWR {p.ratio?.toFixed(2)}{!p.sufficient ? ' · building history' : ''}
-                  </div>
-                </button>
-              {/if}
-              {#if p.spike}
-                <button
-                  type="button"
-                  data-tip-trigger
-                  data-tip-open={tips.isOpen(`spike-${pi}`)}
-                  onclick={() => tips.toggle(`spike-${pi}`)}
-                  aria-label="Ramp-rate spike"
-                  class="absolute pointer-events-auto group hover:z-40 {tips.isOpen(`spike-${pi}`) ? 'z-40' : 'z-20'}"
-                  style="left: {p.x}%; top: {Math.max(p.barTopY - 8, 2)}%; transform: translate(-50%, -50%);"
-                >
-                  <Icon icon="ic:baseline-warning" class="text-status-risk text-xs" />
-                  <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
-                    Ramp-rate spike: +{Math.round(p.rampRate * 100)}%
-                  </div>
-                </button>
-              {/if}
-            {/each}
-          </div>
-        </div>
-
-        <!-- Baseline + x-axis. Labels are thinned to whatever fits (see
-             `axisStep`), counted back from the most recent week so it is
-             always the one that keeps its label. -->
-        <div class="border-t border-border-strong/60"></div>
-        <div class="flex justify-between gap-px">
-          {#each chartData.weeks as week, i}
-            <div class="flex-1 flex justify-center">
-              {#if showsLabel(i, chartData.weeks.length, axisStep)}
-                <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      </div>
-
-      <div class="flex items-center gap-x-4 gap-y-1.5 pt-1 relative z-10 flex-wrap">
-        <div class="flex items-center gap-1.5">
-          <div class="w-2 h-2 rounded-[2px] bg-primary"></div>
-          <span class="text-caption text-content-subtle">Actual</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <div class="w-3.5 h-0 border-t border-dashed border-success"></div>
-          <span class="text-caption text-content-subtle">Target</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <div class="w-1.5 h-1.5 rounded-full border" style="border-color: var(--color-status-good);"></div>
-          <span class="text-caption text-content-subtle">ACWR</span>
-        </div>
-      </div>
-
-      {#if acwrResults.length === 0}
-        <p class="text-caption text-content-subtle italic text-center py-2">No completed sessions yet</p>
-      {/if}
-    </div>
+    <LoadPanel {chartData} {acwrResults} {axisStep} {tips} bind:chartWidth />
     {/snippet}
 
     {#snippet mixSection()}
-    <div id="section-mix" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative z-30">
-      <!-- No z-index here. The card is `relative z-30`, which makes it a
-           stacking context, so everything inside it is ranked against
-           everything else inside it - and a z-50 on this row put the title
-           and the Options button *above* the chart's tooltips, which is
-           what made them look transparent. The Options dropdown does not
-           need it: its own wrapper below is `relative z-50` and lifts the
-           panel on its own. -->
-      <div class="flex items-start justify-between gap-3 relative">
-        <div class="min-w-0">
-          <h3 class="text-section uppercase text-content-muted">Training Mix</h3>
-          <p class="text-caption text-content-subtle mt-0.5">Breakdown by category</p>
-        </div>
-
-        <div class="shrink-0">
-          <div class="relative z-50">
-            <button
-              onclick={() => showSettings = !showSettings}
-              class="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-elevated/50 hover:bg-surface-elevated border border-border-strong/50 rounded-control transition-colors text-caption text-content-muted hover:text-content"
-              aria-label="Graph settings"
-            >
-              <Icon icon="ic:baseline-tune" class="text-sm" />
-              Options
-            </button>
-
-            {#if showSettings}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div class="fixed inset-0 z-40" onclick={() => showSettings = false}></div>
-              <!-- Anchored right: the trigger now sits at the card's right
-                   edge, so a left-anchored panel would hang off-screen. -->
-              <div class="absolute top-full right-0 mt-2 w-56 bg-surface border border-border-strong rounded-card shadow-card z-50 p-3 space-y-4 animate-in fade-in zoom-in-95 origin-top-right">
-
-                <div class="space-y-2">
-                  <h4 class="text-section uppercase text-content-subtle mb-2 px-1">Display Mode</h4>
-                  <label class="flex items-center justify-between cursor-pointer group px-1">
-                    <span class="text-label text-content-muted">Relative (%)</span>
-                    <div class="relative inline-flex items-center">
-                      <input type="checkbox" bind:checked={showRelative} class="sr-only peer" />
-                      <div class="w-8 h-4 bg-surface-elevated-hover rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary-hover"></div>
-                    </div>
-                  </label>
-                  <label class="flex items-center justify-between cursor-pointer group px-1">
-                    <span class="text-label text-content-muted">Include Planned</span>
-                    <div class="relative inline-flex items-center">
-                      <input type="checkbox" bind:checked={includePlanned} class="sr-only peer" />
-                      <div class="w-8 h-4 bg-surface-elevated-hover rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-success-hover"></div>
-                    </div>
-                  </label>
-                </div>
-
-                <div class="border-t border-border pt-3">
-                  <h4 class="text-section uppercase text-content-subtle mb-2 px-1">Visible Categories</h4>
-                  <div class="space-y-1">
-                    {#each categories as cat}
-                      <label class="flex items-center gap-3 p-1.5 hover:bg-surface-elevated rounded-control cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={!hiddenCategoryIds.has(cat.id)}
-                          onchange={(e) => {
-                            if (e.currentTarget.checked) {
-                              hiddenCategoryIds.delete(cat.id);
-                            } else {
-                              hiddenCategoryIds.add(cat.id);
-                            }
-                            hiddenCategoryIds = new Set(hiddenCategoryIds);
-                          }}
-                          class="w-3.5 h-3.5 bg-surface-elevated border-border-strong rounded text-primary focus:ring-primary/50 focus:ring-offset-surface"
-                        />
-                        <div class="w-2.5 h-2.5 rounded-full {cat.color}"></div>
-                        <span class="text-label text-content">{cat.name}</span>
-                      </label>
-                    {/each}
-                  </div>
-                </div>
-              </div>
-            {/if}
-          </div>
-        </div>
-      </div>
-
-      <div class="space-y-2">
-        <div class="h-40 flex items-end justify-between gap-px relative">
-          {#each chartData.weeks as week, wi}
-            {@const visibleTotalDuration = visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0), 0)}
-            {@const weekHeightPercent = showRelative ? (visibleTotalDuration > 0 ? 100 : 0) : (visibleTotalDuration / maxVisibleDuration) * 100}
-            {@const activeCat = visibleCategories.find((c) => tips.isOpen(`mix-${wi}-${c.id}`))}
-            <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
-              <!-- Segments carry the category colours, so the bar itself
-                   stays flat: no shadow, no per-segment borders, hairline
-                   1px separators only. -->
-              <div class="w-[62%] max-w-[16px] flex flex-col-reverse rounded-[2px] overflow-hidden justify-end transition-[height] duration-500"
-                   style="height: {weekHeightPercent}%">
-                {#each visibleCategories as cat}
-                  {@const catDuration = (includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0}
-                  {#if catDuration > 0 && visibleTotalDuration > 0}
-                    <button
-                      type="button"
-                      data-tip-trigger
-                      onpointerup={(e) => { if (isTapPointer(e)) tips.toggle(`mix-${wi}-${cat.id}`); }}
-                      onclick={(e) => { if (isKeyboardActivation(e)) tips.toggle(`mix-${wi}-${cat.id}`); }}
-                      onpointerenter={(e) => { if (!isTapPointer(e)) tips.open(`mix-${wi}-${cat.id}`); }}
-                      onpointerleave={(e) => { if (!isTapPointer(e)) tips.closeIf(`mix-${wi}-${cat.id}`); }}
-                      aria-label="{cat.name}, {Math.round(catDuration)} minutes in week {week.label}"
-                      class="{cat.color} w-full relative block"
-                      style="height: {(catDuration / visibleTotalDuration) * 100}%"
-                    ></button>
-                  {/if}
-                {/each}
-              </div>
-
-              <!-- The tooltip lives out here, not inside the segment that
-                   triggers it: the bar clips its children (`overflow-hidden`,
-                   which is what rounds the stack's corners), so a tooltip
-                   rendered inside a segment was cut off the moment it grew
-                   past it - which is always. Sitting in the week column
-                   instead, it is anchored just above the bar's top and is
-                   clipped by nothing. Hover therefore has to be driven in
-                   JS too, since `:hover` on the segment can no longer reach
-                   it. Edge columns anchor to their side so a wide label
-                   doesn't run off the chart. -->
-              {#if activeCat}
-                {@const activeDuration = (includePlanned ? week.categories[activeCat.name] : week.completedCategories[activeCat.name]) || 0}
-                <div
-                  class="absolute px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none z-40 whitespace-nowrap shadow-card border border-border
-                    {wi <= 1 ? 'left-0' : wi >= chartData.weeks.length - 2 ? 'right-0' : 'left-1/2 -translate-x-1/2'}"
-                  style="bottom: calc({weekHeightPercent}% + 0.5rem);"
-                >
-                  {activeCat.name}: {Math.round(activeDuration)} min
-                </div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-
-        <div class="border-t border-border-strong/60"></div>
-        <div class="flex justify-between gap-px">
-          {#each chartData.weeks as week, i}
-            <div class="flex-1 flex justify-center">
-              {#if showsLabel(i, chartData.weeks.length, axisStep)}
-                <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      </div>
-
-      <div class="flex flex-wrap gap-x-3 gap-y-1.5 pt-1 relative z-10">
-        {#each visibleCategories as cat}
-          <div class="flex items-center gap-1.5">
-            <div class="w-2 h-2 rounded-[2px] {cat.color}"></div>
-            <span class="text-caption text-content-subtle">{cat.name}</span>
-          </div>
-        {/each}
-      </div>
-    </div>
+    <MixPanel {chartData} {axisStep} {tips} />
     {/snippet}
 
     {#snippet fatigueSection()}
@@ -925,219 +395,11 @@
     {/snippet}
 
     {#snippet bodyweightSection()}
-    <div id="section-bodyweight" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-section uppercase text-content-muted">Bodyweight Trend</h3>
-          <p class="text-caption text-content-subtle mt-0.5">Last {bodyweightTrend.history.length || 10} entries &middot; {trainingState.units.weight}</p>
-        </div>
-        <Icon icon="ic:baseline-monitor-weight" class="text-base text-content-subtle" />
-      </div>
-
-      {#if bodyweightTrend.history.length > 0}
-      <!-- Value gutter beside the plot. The scale is min/max-padded rather
-           than 0-based (a few kg of normal fluctuation would be a flat line
-           against zero), which makes an unlabelled y-axis genuinely
-           unreadable - the same curve means something different every time
-           the range shifts. The date axis sits inside the same column as
-           the plot so the two stay aligned. -->
-      <div class="flex gap-2">
-        <div class="w-9 shrink-0 h-36 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
-          {#each bodyweightTicks as tick}
-            <span>{tick}</span>
-          {/each}
-        </div>
-        <div class="flex-1 min-w-0 space-y-3">
-          <div class="h-36 relative">
-            <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
-              <div class="border-t border-content-subtle w-full"></div>
-              <div class="border-t border-content-subtle w-full"></div>
-              <div class="border-t border-content-subtle w-full"></div>
-            </div>
-
-            <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <defs>
-                <linearGradient id="bodyweight-gradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.16" />
-                  <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
-                </linearGradient>
-              </defs>
-              {#if bodyweightTrend.history.length > 1}
-                <path d={bodyweightTrend.areaPath} fill="url(#bodyweight-gradient)" />
-                <path d={bodyweightTrend.linePath} fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
-              {/if}
-            </svg>
-
-            <div class="absolute inset-0">
-              {#each bodyweightTrend.history as entry, i}
-                {@const xPos = (i / Math.max(bodyweightTrend.history.length - 1, 1)) * 100}
-                <button
-                  type="button"
-                  data-tip-trigger
-                  data-tip-open={tips.isOpen(`bw-${i}`)}
-                  onclick={() => tips.toggle(`bw-${i}`)}
-                  aria-label={formatWeight(entry.value, trainingState.units.weight)}
-                  class="absolute group hover:z-30 {tips.isOpen(`bw-${i}`) ? 'z-30' : ''}"
-                  style="left: {xPos}%; height: 100%;"
-                >
-                  <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-                    {formatWeight(entry.value, trainingState.units.weight)}
-                  </div>
-                  <div class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2" style="bottom: {entry.height}%; left: 0;"></div>
-                </button>
-              {/each}
-            </div>
-          </div>
-          <!-- Horizontal, thinned date axis - the old labels were rotated 45°
-               to stop them colliding, which is the tell of an axis with more
-               labels than room. -->
-          <div class="border-t border-border-strong/60"></div>
-          <div class="relative h-4">
-            {#each bodyweightTrend.history as entry, i}
-              {#if showsLabel(i, bodyweightTrend.history.length, bodyweightLabelStep)}
-                {@const xPos = (i / Math.max(bodyweightTrend.history.length - 1, 1)) * 100}
-                <span
-                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
-                  style="left: {xPos}%; transform: translateX({i === 0 ? '0' : i === bodyweightTrend.history.length - 1 ? '-100%' : '-50%'});"
-                >
-                  {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
-              {/if}
-            {/each}
-          </div>
-        </div>
-      </div>
-      {:else}
-        <p class="text-caption text-content-subtle italic text-center py-4 px-4 leading-relaxed">Log your bodyweight with the + on Home to see your trend</p>
-      {/if}
-    </div>
+    <BodyweightPanel {tips} />
     {/snippet}
 
     {#snippet benchmarksSection()}
-    {#if benchmarkProgress.types.length > 0}
-      <div id="section-benchmarks" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-section uppercase text-content-muted">Benchmark Progress</h3>
-            <!-- A native <select> sizes itself to its *longest* option, so
-                 an arrow pinned to its right edge floated far past a short
-                 name like "Pull-ups". The visible control is therefore the
-                 text and the arrow as an inline pair that shrinks to the
-                 selected name, with the real select laid transparently over
-                 it so the native picker (and keyboard, and a11y) still do
-                 the work. -->
-            <div class="relative inline-flex items-center gap-0.5 mt-1">
-              <span class="text-label text-primary">{selectedBenchmarkName}</span>
-              <Icon icon="ic:baseline-arrow-drop-down" class="text-primary shrink-0" />
-              <select
-                bind:value={selectedBenchmarkType}
-                aria-label="Benchmark type"
-                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              >
-                {#each benchmarkProgress.types as type}
-                  <option value={type.id}>{type.name}</option>
-                {/each}
-              </select>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            {#if benchmarkProgress.unit}
-              <span class="text-caption text-content-subtle">{benchmarkProgress.unit}</span>
-            {/if}
-            <Icon icon="ic:baseline-insights" class="text-base text-content-subtle" />
-          </div>
-        </div>
-
-        <!-- Value gutter beside the plot, same treatment as Bodyweight
-             Trend - an unlabelled axis makes the shape of the line readable
-             but its magnitude guesswork. -->
-        <div class="flex gap-2">
-          <div class="w-9 shrink-0 h-36 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
-            {#each benchmarkTicks as tick}
-              <span>{tick}</span>
-            {/each}
-          </div>
-          <div class="flex-1 min-w-0 space-y-3">
-            <div class="h-36 relative">
-              <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
-                <div class="border-t border-content-subtle w-full"></div>
-                <div class="border-t border-content-subtle w-full"></div>
-                <div class="border-t border-content-subtle w-full"></div>
-              </div>
-
-              <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-                <defs>
-                  <linearGradient id="line-gradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.16" />
-                    <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
-                  </linearGradient>
-                </defs>
-
-                {#if benchmarkProgress.history.length > 1}
-                  <path d={benchmarkProgress.areaPath} fill="url(#line-gradient)" />
-                  <path
-                    d={benchmarkProgress.linePath}
-                    fill="none"
-                    stroke="var(--color-primary)"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    vector-effect="non-scaling-stroke"
-                  />
-                {/if}
-              </svg>
-
-              <div class="absolute inset-0">
-                {#each benchmarkProgress.history as entry, i}
-                  {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
-                  <button
-                    type="button"
-                    data-tip-trigger
-                    data-tip-open={tips.isOpen(`bench-${i}`)}
-                    onclick={() => tips.toggle(`bench-${i}`)}
-                    aria-label="{entry.value} {entry.unit}"
-                    class="absolute group hover:z-30 {tips.isOpen(`bench-${i}`) ? 'z-30' : ''}"
-                    style="left: {xPos}%; height: 100%;"
-                  >
-                    <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-                      {entry.value} {entry.unit}
-                    </div>
-                    <div
-                      class="w-1.5 h-1.5 bg-primary rounded-full group-hover:scale-[2] transition-transform z-10 absolute -translate-x-1/2 translate-y-1/2"
-                      style="bottom: {entry.height}%; left: 0;"
-                    ></div>
-                  </button>
-                {/each}
-              </div>
-
-              {#if benchmarkProgress.history.length === 0}
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <p class="text-caption text-content-subtle italic text-center px-4 leading-relaxed">
-                    Log a {benchmarkProgress.types.find(t => t.id === selectedBenchmarkType)?.name || 'benchmark'} to see your progress
-                  </p>
-                </div>
-              {/if}
-            </div>
-            {#if benchmarkProgress.history.length > 0}
-              <div class="border-t border-border-strong/60"></div>
-              <div class="relative h-4">
-                {#each benchmarkProgress.history as entry, i}
-                  {#if showsLabel(i, benchmarkProgress.history.length, benchmarkLabelStep)}
-                    {@const xPos = (i / Math.max(benchmarkProgress.history.length - 1, 1)) * 100}
-                    <span
-                      class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
-                      style="left: {xPos}%; transform: translateX({i === 0 ? '0' : i === benchmarkProgress.history.length - 1 ? '-100%' : '-50%'});"
-                    >
-                      {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </span>
-                  {/if}
-                {/each}
-              </div>
-            {/if}
-          </div>
-        </div>
-      </div>
-    {/if}
+    <BenchmarkPanel {tips} />
     {/snippet}
 
     <!-- Rendered in the order, and with the visibility, chosen under
