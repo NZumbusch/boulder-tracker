@@ -623,7 +623,7 @@ export const storage = {
     }
   },
 
-  async importData(file: File): Promise<void> {
+  async importData(file: File, onProgress: (label: string, fraction: number) => void = () => {}): Promise<void> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -635,7 +635,9 @@ export const storage = {
             throw new Error("Invalid backup format: workouts missing.");
           }
 
+          onProgress("Updating to the current format", 0.35);
           runDataMigrations(data);
+          onProgress("Saving", 0.6);
 
           if (data.workouts) _dbState.workouts = data.workouts;
           if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;

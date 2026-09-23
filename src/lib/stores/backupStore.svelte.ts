@@ -38,8 +38,8 @@ export class BackupStore {
    * surfacing success/error feedback, since a successful import needs
    * every other store reloaded, not just this one.
    */
-  async importFile(file: File): Promise<void> {
-    await storage.importData(file);
+  async importFile(file: File, onProgress?: (label: string, fraction: number) => void): Promise<void> {
+    await storage.importData(file, onProgress);
   }
 
   /**

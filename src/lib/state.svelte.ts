@@ -60,6 +60,9 @@ class TrainingState {
   weatherStore = new WeatherStore();
 
   isLoading = $state(true);
+  /** Set while a backup import runs - drives the progress overlay in App.svelte. */
+  importProgress = $state<{ label: string; fraction: number } | null>(null);
+  private hasLoaded = false;
 
   constructor() {
     this.refresh();
@@ -250,7 +253,10 @@ class TrainingState {
    * Refreshes all data from storage.
    */
   async refresh() {
-    this.isLoading = true;
+    // Only the first load swaps the screen for the loading view; later
+    // refreshes (after a save or an import) update the current screen in
+    // place instead of flashing it away and back.
+    if (!this.hasLoaded) this.isLoading = true;
     try {
       // Run migrations on the local database before loading
       await storage.runStartupMigrations();
@@ -290,6 +296,7 @@ class TrainingState {
       }
     } finally {
       this.isLoading = false;
+      this.hasLoaded = true;
     }
   }
 
@@ -600,13 +607,23 @@ class TrainingState {
     const file = target.files?.[0];
     if (!file) return;
 
+    const progress = (label: string, fraction: number) => { this.importProgress = { label, fraction }; };
     try {
-      await this.backupStore.importFile(file);
+      progress('Reading backup', 0.1);
+      await this.backupStore.importFile(file, progress);
+      progress('Loading your data', 0.85);
       await this.refresh();
+      progress('Done', 1);
+      // Let the full bar register rather than vanish mid-fill.
+      await new Promise((r) => setTimeout(r, 400));
+      this.importProgress = null;
       await showAlert('Import Success', 'Data imported successfully!');
       this.navigate('history');
     } catch (err) {
+      this.importProgress = null;
       await showAlert('Import Error', 'Failed to import data. Please check the file format.');
+    } finally {
+      target.value = '';
     }
   }
 

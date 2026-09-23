@@ -152,6 +152,22 @@
   <ActiveSessionModal />
   <SessionBubble />
 
+  {#if trainingState.importProgress}
+    {@const p = trainingState.importProgress}
+    <div class="fixed inset-0 z-[200] flex items-center justify-center bg-app-bg/80 backdrop-blur-sm animate-in fade-in duration-200" role="status" aria-live="polite">
+      <div class="w-72 bg-surface border border-border rounded-card p-5 shadow-card space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-label text-content">Importing backup</p>
+          <span class="text-caption text-content-subtle tabular-nums">{Math.round(p.fraction * 100)}%</span>
+        </div>
+        <div class="h-2 bg-surface-elevated rounded-full overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(p.fraction * 100)}>
+          <div class="h-full bg-primary rounded-full transition-[width] duration-300 ease-out" style="width: {p.fraction * 100}%"></div>
+        </div>
+        <p class="text-caption text-content-subtle">{p.label}…</p>
+      </div>
+    </div>
+  {/if}
+
   {#if trainingState.activeWorkout && trainingState.showFatigue}
     <FatigueModal 
       initialData={trainingState.activeWorkout}
