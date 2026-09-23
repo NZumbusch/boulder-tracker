@@ -5,6 +5,7 @@
   import FatigueModal from './components/common/FatigueModal.svelte';
   import ActiveSessionModal from './components/workout/ActiveSessionModal.svelte';
   import WorkoutModal from './components/workout/WorkoutModal.svelte';
+  import Toast from './components/common/Toast.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import Icon from "@iconify/svelte";
@@ -150,6 +151,7 @@
   <ActiveSessionModal />
   <SessionBubble />
   <WorkoutModal />
+  <Toast />
 
   {#if trainingState.importProgress}
     {@const p = trainingState.importProgress}

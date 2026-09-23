@@ -47,9 +47,8 @@
 
   async function remove() {
     menuOpen = false;
+    onClose();
     await trainingState.deleteWorkout(workout.id);
-    // Still there means the delete was cancelled.
-    if (!trainingState.getWorkoutById(workout.id)) onClose();
   }
 
   function start() {

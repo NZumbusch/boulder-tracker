@@ -1,4 +1,5 @@
 import { openWorkout } from './workoutModal.svelte';
+import { toast, showUndo } from './toast.svelte';
 import { storage } from './storage';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
@@ -651,17 +652,18 @@ class TrainingState {
   }
 
   /**
-   * Deletes a workout from storage after confirmation.
+   * Deletes a workout at once, with an Undo toast that saves it back.
    */
   async deleteWorkout(id: string) {
-    const confirmed = await showConfirm('Delete Workout', 'Are you sure you want to delete this workout?');
-    if (!confirmed) return;
-    // Look the week up before deleting, and materialise it first: a
-    // projected session has no stored row to delete until the week is real.
-    const weekId = this.getWorkoutById(id)?.weekId;
-    await this.materializeWeekIfProvisional(weekId);
+    const workout = this.getWorkoutById(id);
+    if (!workout) return;
+    const copy = $state.snapshot(workout) as Workout;
+    // Materialise the week first: a projected session has no stored row to
+    // delete until the week is real.
+    await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.deleteWorkout(id);
     await this.refresh();
+    showUndo(`"${copy.notes || 'Session'}" deleted`, () => this.saveWorkout(copy));
   }
 
   /**
@@ -687,6 +689,7 @@ class TrainingState {
     await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.duplicateWorkout(workout);
     await this.refresh();
+    toast.show(`Copied as a planned session${workout.dayOfWeek ? ` on ${workout.dayOfWeek}` : ''}`);
   }
 
   /**
@@ -698,13 +701,15 @@ class TrainingState {
   }
 
   /**
-   * Deletes a benchmark from storage after confirmation.
+   * Deletes a benchmark at once, with an Undo toast that saves it back.
    */
   async deleteBenchmark(id: string) {
-    const confirmed = await showConfirm('Delete Benchmark', 'Are you sure you want to delete this benchmark?');
-    if (!confirmed) return;
+    const benchmark = this.benchmarkStore.benchmarks.find((b) => b.id === id);
+    if (!benchmark) return;
+    const copy = $state.snapshot(benchmark) as Benchmark;
     await this.benchmarkStore.deleteBenchmark(id);
     await this.refresh();
+    showUndo(`${copy.type} result deleted`, () => this.saveBenchmark(copy));
   }
 
   /**
@@ -819,13 +824,15 @@ class TrainingState {
   }
 
   /**
-   * Deletes a pain/discomfort log entry after confirmation.
+   * Deletes a pain/discomfort log entry at once, with an Undo toast.
    */
   async deletePainLog(id: string) {
-    const confirmed = await showConfirm('Delete Log', 'Delete this pain/discomfort log entry?');
-    if (!confirmed) return;
+    const log = this.metricsStore.painLogs.find((p) => p.id === id);
+    if (!log) return;
+    const copy = $state.snapshot(log) as PainLog;
     await this.metricsStore.deletePainLog(id);
     await this.refresh();
+    showUndo('Pain entry deleted', () => this.savePainLog(copy));
   }
 
   /**
@@ -840,13 +847,18 @@ class TrainingState {
   }
 
   /**
-   * Deletes a daily metric entry (e.g. a bodyweight reading) after confirmation.
+   * Deletes a daily metric entry (e.g. a bodyweight reading) at once, with an Undo toast.
    */
   async deleteDailyMetric(id: string) {
-    const confirmed = await showConfirm('Delete Entry', 'Delete this log entry?');
-    if (!confirmed) return;
+    const entry = this.metricsStore.dailyMetrics.find((m) => m.id === id);
+    if (!entry) return;
+    const copy = $state.snapshot(entry) as DailyMetricEntry;
     await this.metricsStore.deleteDailyMetric(id);
     await this.refresh();
+    showUndo('Entry deleted', async () => {
+      await this.metricsStore.saveDailyMetric(copy);
+      await this.refresh();
+    });
   }
 
   /**
@@ -866,13 +878,15 @@ class TrainingState {
   }
 
   /**
-   * Deletes an outdoor ascent after confirmation.
+   * Deletes an outdoor ascent at once, with an Undo toast.
    */
   async deleteOutdoorAscent(id: string) {
-    const confirmed = await showConfirm('Delete Ascent', 'Delete this logged ascent?');
-    if (!confirmed) return;
+    const ascent = this.outdoorAscentStore.outdoorAscents.find((a) => a.id === id);
+    if (!ascent) return;
+    const copy = $state.snapshot(ascent) as OutdoorAscent;
     await this.outdoorAscentStore.deleteOutdoorAscent(id);
     await this.refresh();
+    showUndo(`${copy.name || 'Send'} deleted`, () => this.saveOutdoorAscent(copy));
   }
 
   /**
