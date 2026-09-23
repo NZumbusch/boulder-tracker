@@ -12,6 +12,7 @@
   import type { OutdoorAscent } from '../../lib/types';
   import SendForm from './SendForm.svelte';
   import SendImport from './SendImport.svelte';
+  import GradeChart from './GradeChart.svelte';
   import Icon from '@iconify/svelte';
 
   let mode = $state<'list' | 'add' | 'import'>('list');
@@ -61,6 +62,10 @@
     <div class="p-4 rounded-card border border-primary/30 bg-surface/50">
       <SendImport onDone={() => mode = 'list'} />
     </div>
+  {/if}
+
+  {#if mode === 'list' && trainingState.outdoorAscents.length > 0}
+    <GradeChart ascents={trainingState.outdoorAscents} />
   {/if}
 
   {#each groups as group (group.key)}

@@ -28,6 +28,7 @@
   let workoutToShare = $state<Workout | null>(null);
   let openMenuId = $state<string | null>(null);
   let expandedId = $state<string | null>(null);
+  const onSends = $derived(trainingState.uiStore.historyTab === 'sends');
 
   // Arriving from Home's Recent Activity: open that session and bring it
   // into view. One-shot - the focus is cleared so coming back later starts
@@ -168,6 +169,25 @@
 </script>
 
 <div class="w-full max-w-lg space-y-5 animate-in fade-in duration-200 pb-12">
+  <div class="flex items-center justify-between px-1">
+    <div class="flex items-center gap-3">
+      <h3 class="text-title text-content">Timeline</h3>
+    </div>
+    <div class="h-px flex-1 bg-surface mx-3"></div>
+    <span class="text-label text-content-subtle">
+      {onSends ? `${trainingState.outdoorAscents.length} Sends` : `${filteredWorkouts.length} Sessions`}
+    </span>
+    {#if !onSends}
+      <button
+        onclick={() => showFilters = !showFilters}
+        class="ml-3 p-2 rounded-control border transition-colors {showFilters ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
+        aria-label="Toggle Filters"
+      >
+        <Icon icon="ic:baseline-filter-list" class="text-lg" />
+      </button>
+    {/if}
+  </div>
+
   <div class="flex bg-surface-elevated/50 p-1 rounded-control">
     {#each [['sessions', 'Sessions'], ['sends', 'Sends']] as [id, label]}
       <button
@@ -178,23 +198,9 @@
     {/each}
   </div>
 
-  {#if trainingState.uiStore.historyTab === 'sends'}
+  {#if onSends}
     <SendsLog />
   {:else}
-  <div class="flex items-center justify-between px-1">
-    <div class="flex items-center gap-3">
-      <h3 class="text-title text-content">Timeline</h3>
-    </div>
-    <div class="h-px flex-1 bg-surface mx-3"></div>
-    <span class="text-label text-content-subtle">{filteredWorkouts.length} Sessions</span>
-    <button
-      onclick={() => showFilters = !showFilters}
-      class="ml-3 p-2 rounded-control border transition-colors {showFilters ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
-      aria-label="Toggle Filters"
-    >
-      <Icon icon="ic:baseline-filter-list" class="text-lg" />
-    </button>
-  </div>
 
   {#if showFilters}
     <div class="p-5 bg-surface/50 border border-border rounded-card space-y-4 animate-in slide-in-from-top-2">
