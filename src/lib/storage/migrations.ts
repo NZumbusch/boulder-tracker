@@ -1099,6 +1099,16 @@ const MIGRATIONS: MigrationStep[] = [
       data.weekNotes = data.weekNotes || [];
     },
   },
+  {
+    from: "3.28",
+    to: "3.29",
+    describe: "Competitions and outdoor trips become one goals list - existing events move over as competitions",
+    migrate: (data: any) => {
+      const moved = (data.competitionEvents || []).map((e: any) => ({ ...e, kind: "competition" }));
+      data.goals = [...(data.goals || []), ...moved];
+      delete data.competitionEvents;
+    },
+  },
 ];
 
 /**

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type {
   AnalyticsCategory,
   Benchmark,
-  CompetitionEvent,
+  GoalEvent,
   DailyMetricEntry,
   ExerciseTypeDef,
   OutdoorAscent,
@@ -19,7 +19,7 @@ import {
   buildWorkoutsInWeeks,
   buildBenchmarksInWeeks,
   buildTrainingBlockContext,
-  buildCompetitionContext,
+  buildGoalContext,
   buildReadinessSnapshot,
   buildPainLogContext,
   buildOutdoorAscentContext,
@@ -152,27 +152,43 @@ describe("buildTrainingBlockContext", () => {
   });
 });
 
-describe("buildCompetitionContext", () => {
-  it("excludes past events and sorts soonest-first", () => {
-    const events: CompetitionEvent[] = [
-      { id: "e1", name: "Past Comp", date: "2026-01-01" },
-      { id: "e2", name: "Later Comp", date: "2026-12-01" },
-      { id: "e3", name: "Sooner Comp", date: "2026-10-01" },
+describe("buildGoalContext", () => {
+  it("excludes finished goals, keeps one under way, and sorts soonest-first", () => {
+    const goals: GoalEvent[] = [
+      { id: "e1", kind: "competition", name: "Past Comp", date: "2026-01-01" },
+      { id: "e2", kind: "competition", name: "Later Comp", date: "2026-12-01" },
+      { id: "t1", kind: "trip", name: "Ongoing trip", date: "2026-09-15", endDate: "2026-09-20" },
+      { id: "e3", kind: "competition", name: "Sooner Comp", date: "2026-10-01" },
     ];
-    const result = buildCompetitionContext(events, asOf);
-    expect(result.map((e) => e.name)).toEqual(["Sooner Comp", "Later Comp"]);
-    expect(result[0].daysAway).toBeGreaterThan(0);
+    const result = buildGoalContext(goals, asOf);
+    expect(result.map((e) => e.name)).toEqual(["Ongoing trip", "Sooner Comp", "Later Comp"]);
+    expect(result[0].daysAway).toBeLessThan(0);
   });
 
-  it("keeps only the soonest events up to the cap, without a priority field", () => {
-    const events: CompetitionEvent[] = Array.from({ length: 6 }, (_, i) => ({
-      id: `e${i}`,
-      name: `Event ${i}`,
-      date: `2026-10-0${i + 1}`,
-    }));
-    const result = buildCompetitionContext(events, asOf, 5);
-    expect(result.map((e) => e.name)).toEqual(["Event 0", "Event 1", "Event 2", "Event 3", "Event 4"]);
-    expect("priority" in result[0]).toBe(false);
+  it("describes a trip's dates, place and projects", () => {
+    const trip: GoalEvent = {
+      id: "t",
+      kind: "trip",
+      name: "Font",
+      date: "2026-10-05",
+      endDate: "2026-10-12",
+      location: { name: "Fontainebleau, FR", latitude: 48.4, longitude: 2.7 },
+      projects: [{ id: "p1", name: "Big Boss", grade: "7C" }, { id: "p2", grade: "7B", flash: true }],
+    };
+    expect(buildGoalContext([trip], asOf)[0]).toEqual({
+      name: "Font",
+      kind: "trip",
+      date: "2026-10-05",
+      endDate: "2026-10-12",
+      location: "Fontainebleau, FR",
+      projects: ["Big Boss 7C", "any 7B (flash)"],
+      daysAway: 17,
+    });
+  });
+
+  it("caps at the limit", () => {
+    const goals: GoalEvent[] = Array.from({ length: 6 }, (_, i) => ({ id: `e${i}`, kind: "competition", name: `Event ${i}`, date: `2026-10-0${i + 1}` }));
+    expect(buildGoalContext(goals, asOf, 5)).toHaveLength(5);
   });
 });
 
@@ -257,7 +273,7 @@ describe("buildAIContextProfile", () => {
     workouts: [makeWorkout({ status: "completed", date: "2026-09-01", weekId: "2026-W25" })],
     benchmarks: [{ id: "b1", typeId: "t1", type: "Max Hang", value: 10, unit: "kg", date: "2026-06-20", weekId: "2026-W25" }],
     trainingBlocks: [{ id: "tb1", name: "Block", phaseId: "phase-1", startWeekId: "2026-W25", endWeekId: "2026-W25" }],
-    competitionEvents: [{ id: "e1", name: "Comp", date: "2026-12-01" }],
+    goals: [{ id: "e1", kind: "competition", name: "Comp", date: "2026-12-01" }],
     dailyMetrics: [{ id: "m1", metricId: "hrv", date: "2026-09-17", value: 60 }],
     painLogs: [{ id: "p1", date: "2026-09-01", weekId: "2026-W25", bodyPart: "Finger", severity: 4 }],
     outdoorAscents: [{ id: "a1", date: "2026-09-01", grade: "7a" }],
@@ -279,7 +295,7 @@ describe("buildAIContextProfile", () => {
   it("omits every sharing-gated section when every toggle is off", () => {
     const profile = buildAIContextProfile("generate", source, allSharingOff, asOf, ["2026-W25"]);
     expect(profile.trainingBlocks).toBeUndefined();
-    expect(profile.competitions).toBeUndefined();
+    expect(profile.goals).toBeUndefined();
     expect(profile.readiness).toBeUndefined();
     expect(profile.painLogs).toBeUndefined();
     expect(profile.outdoorAscents).toBeUndefined();
@@ -288,7 +304,7 @@ describe("buildAIContextProfile", () => {
   it("includes every sharing-gated section when every toggle is on", () => {
     const profile = buildAIContextProfile("generate", source, allSharingOn, asOf, ["2026-W25"]);
     expect(profile.trainingBlocks).toBeDefined();
-    expect(profile.competitions).toBeDefined();
+    expect(profile.goals).toBeDefined();
     expect(profile.readiness).toBeDefined();
     expect(profile.painLogs).toBeDefined();
     expect(profile.outdoorAscents).toBeDefined();
@@ -322,7 +338,7 @@ describe("notes in the AI profile", () => {
     trainingBlocks: [
       { id: "b1", name: "Base", phaseId: "phase-capacity", startWeekId: "2026-W38", endWeekId: "2026-W41", notes: "Rebuild after the trip" },
     ],
-    competitionEvents: [],
+    goals: [],
     dailyMetrics: [],
     painLogs: [],
     outdoorAscents: [],

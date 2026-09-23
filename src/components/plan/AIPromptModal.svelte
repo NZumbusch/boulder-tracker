@@ -45,8 +45,8 @@
     if (profile.trainingBlocks) {
       sections.push(`- Training Blocks (covering or near the timeframe):\n${JSON.stringify(profile.trainingBlocks, null, 2)}`);
     }
-    if (profile.competitions) {
-      sections.push(`- Upcoming Competitions/Events:\n${JSON.stringify(profile.competitions, null, 2)}`);
+    if (profile.goals) {
+      sections.push(`- Upcoming Goals (competitions and outdoor trips I'm peaking for; trips list the problems I want to send there):\n${JSON.stringify(profile.goals, null, 2)}`);
     }
     if (profile.readiness) {
       sections.push(`- Readiness Snapshot:\n${JSON.stringify(profile.readiness, null, 2)}`);
@@ -112,7 +112,7 @@
           workouts: trainingState.workouts,
           benchmarks: trainingState.benchmarks,
           trainingBlocks: trainingState.trainingBlocks,
-          competitionEvents: trainingState.competitionEvents,
+          goals: trainingState.goals,
           dailyMetrics: trainingState.dailyMetrics,
           painLogs: trainingState.painLogs,
           outdoorAscents: trainingState.outdoorAscents,

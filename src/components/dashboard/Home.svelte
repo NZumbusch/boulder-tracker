@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { formatDate, getWeekIdRange, toUtcDayIndex } from '../../lib/dateUtils';
+  import { formatDate, getWeekIdRange } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
   import { DEFAULT_METRIC_DEFS } from '../../lib/constants';
   import { computeFatigueDecay, computeHrvBaseline, computeReadiness, MAX_FATIGUE_PENALTY, MAX_ACWR_PENALTY, MAX_SLEEP_PENALTY, MAX_HRV_PENALTY, type ReadinessStatus } from '../../lib/analytics/readiness';
@@ -19,6 +19,7 @@
   import { latestBenchmarks, retestDue, sendsSummary, consistency, PROGRESS_BENCHMARKS } from '../../lib/analytics/progress';
   import { outdoorSuggestion } from '../../lib/weather/suggestion';
   import { getWeekId } from '../../lib/dateUtils';
+  import { upcomingGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates } from '../../lib/goals/goals';
   import { summarizeSession } from '../../lib/planning/sessionSummary';
   import { missedWorkouts, weekDayStrip, WEEK_DAYS, type DayStatus } from '../../lib/planning/weekStatus';
   import { nextBlock, daysUntilWeek, taperHint, blockLoadTrend } from '../../lib/planning/blockOutlook';
@@ -275,16 +276,10 @@
   );
   const blockTrendMax = $derived(Math.max(1, ...blockTrend.map((b) => Math.max(b.planned, b.actual))));
 
-  // --- Next competition countdown ---
-  const nextCompetition = $derived.by(() => {
-    const upcoming = trainingState.competitionEvents
-      .filter((e) => e.date >= todayIso)
-      .sort((a, b) => a.date.localeCompare(b.date));
-    return upcoming[0];
-  });
-  const daysUntilCompetition = $derived(
-    nextCompetition ? toUtcDayIndex(nextCompetition.date) - toUtcDayIndex(todayIso) : undefined,
-  );
+  // --- Next goal (competition or outdoor trip) ---
+  const nextGoal = $derived(upcomingGoals(trainingState.goals, todayIso)[0]);
+  const nextGoalOngoing = $derived(nextGoal ? isOngoing(nextGoal, todayIso) : false);
+  const daysUntilCompetition = $derived(nextGoal ? daysUntilGoal(nextGoal, todayIso) : undefined);
 
   const competitionTaperHint = $derived(taperHint(daysUntilCompetition, currentPhaseName));
 
@@ -708,26 +703,34 @@
 
   {#snippet competitionSection()}
     <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
-      {@render sectionHeader('ic:baseline-flag', 'Next Competition')}
-      {#if nextCompetition && daysUntilCompetition !== undefined}
+      {@render sectionHeader(nextGoal?.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-flag', 'Next Goal')}
+      {#if nextGoal && daysUntilCompetition !== undefined}
+        {@const length = goalLength(nextGoal)}
         <div class="flex items-center gap-4">
           <div class="text-center shrink-0 px-2">
-            <p class="text-display text-primary tabular-nums leading-none">{daysUntilCompetition}</p>
-            <p class="text-caption text-content-subtle uppercase mt-1">{daysUntilCompetition === 1 ? 'day' : 'days'}</p>
+            {#if nextGoalOngoing && length > 1}
+              <p class="text-display text-primary tabular-nums leading-none">{-daysUntilCompetition + 1}<span class="text-title text-content-subtle">/{length}</span></p>
+              <p class="text-caption text-content-subtle uppercase mt-1">day</p>
+            {:else}
+              <p class="text-display text-primary tabular-nums leading-none">{Math.max(0, daysUntilCompetition)}</p>
+              <p class="text-caption text-content-subtle uppercase mt-1">{daysUntilCompetition === 1 ? 'day' : 'days'}</p>
+            {/if}
           </div>
           <div class="min-w-0 border-l border-border-strong/50 pl-4">
-            <p class="text-body font-bold text-content truncate">{nextCompetition.name}</p>
-            <p class="text-caption text-content-subtle">{daysUntilCompetition === 0 ? 'Today' : formatDate(nextCompetition.date)}</p>
+            <p class="text-body font-bold text-content truncate">{nextGoal.name}</p>
+            <p class="text-caption text-content-subtle truncate">
+              {nextGoalOngoing && length === 1 ? 'Today' : formatGoalDates(nextGoal)}{nextGoal.location ? ` · ${nextGoal.location.name}` : ''}
+            </p>
           </div>
         </div>
-        {#if competitionTaperHint && trainingState.homeDetails['competition.taper']}
+        {#if competitionTaperHint && trainingState.homeDetails['competition.taper'] && !nextGoalOngoing}
           <p class="text-caption text-status-caution flex items-start gap-1">
             <Icon icon="ic:baseline-info" class="text-sm mt-px shrink-0" />
             <span>{competitionTaperHint}</span>
           </p>
         {/if}
       {:else}
-        <p class="text-caption text-content-subtle italic">No upcoming event.</p>
+        <p class="text-caption text-content-subtle italic">No competition or trip coming up. Add one under Plan → Goals.</p>
       {/if}
     </div>
   {/snippet}

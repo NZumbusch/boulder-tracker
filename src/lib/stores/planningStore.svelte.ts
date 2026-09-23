@@ -1,10 +1,10 @@
 import { storage } from '../storage';
-import type { TrainingBlock, WeekOverride, WeekNote, CompetitionEvent, WorkoutTemplate } from '../types';
+import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate } from '../types';
 import { getBlocksForWeek, getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
  * Training blocks (concurrent phase assignments), week overrides, the
- * competition/peaking calendar, and workout templates (Phase 4 replaces the
+ * goals calendar (competitions and outdoor trips), and workout templates (Phase 4 replaces the
  * old one-phase-per-week `periodization` with `TrainingBlock[]` - see
  * PLAN.md Phase 4 / PROGRESS.md).
  */
@@ -12,21 +12,21 @@ export class PlanningStore {
   trainingBlocks = $state<TrainingBlock[]>([]);
   weekOverrides = $state<WeekOverride[]>([]);
   weekNotes = $state<WeekNote[]>([]);
-  competitionEvents = $state<CompetitionEvent[]>([]);
+  goals = $state<GoalEvent[]>([]);
   templates = $state<Record<string, WorkoutTemplate[]>>({});
 
   async load() {
-    const [trainingBlocks, weekOverrides, weekNotes, competitionEvents, templates] = await Promise.all([
+    const [trainingBlocks, weekOverrides, weekNotes, goals, templates] = await Promise.all([
       storage.getTrainingBlocks(),
       storage.getWeekOverrides(),
       storage.getWeekNotes(),
-      storage.getCompetitionEvents(),
+      storage.getGoals(),
       storage.getTemplates(),
     ]);
     this.trainingBlocks = trainingBlocks;
     this.weekOverrides = weekOverrides;
     this.weekNotes = weekNotes;
-    this.competitionEvents = competitionEvents;
+    this.goals = goals;
     this.templates = templates;
   }
 
@@ -66,12 +66,12 @@ export class PlanningStore {
     await storage.saveWeekNote(weekId, text);
   }
 
-  async saveCompetitionEvent(event: CompetitionEvent) {
-    await storage.saveCompetitionEvent(event);
+  async saveGoal(goal: GoalEvent) {
+    await storage.saveGoal(goal);
   }
 
-  async deleteCompetitionEvent(id: string) {
-    await storage.deleteCompetitionEvent(id);
+  async deleteGoal(id: string) {
+    await storage.deleteGoal(id);
   }
 
   async updateTemplates(templates: Record<string, WorkoutTemplate[]>) {

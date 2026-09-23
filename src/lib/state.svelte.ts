@@ -1,5 +1,5 @@
 import { storage } from './storage';
-import type { Workout, WorkoutTemplate, PhaseDef, Benchmark, BenchmarkTypeDef, AnalyticsCategory, ExerciseTypeDef, ViewType, TrainingBlock, CompetitionEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
+import type { Workout, WorkoutTemplate, PhaseDef, Benchmark, BenchmarkTypeDef, AnalyticsCategory, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
@@ -65,7 +65,8 @@ class TrainingState {
   get trainingBlocks() { return this.planningStore.trainingBlocks; }
   get weekOverrides() { return this.planningStore.weekOverrides; }
   get weekNotes() { return this.planningStore.weekNotes; }
-  get competitionEvents() { return this.planningStore.competitionEvents; }
+  /** Competitions and outdoor trips - see `GoalEvent`. */
+  get goals() { return this.planningStore.goals; }
   get templates() { return this.planningStore.templates; }
   get exerciseTypes() { return this.catalogStore.exerciseTypes; }
   get analyticsCategories() { return this.catalogStore.analyticsCategories; }
@@ -754,21 +755,19 @@ class TrainingState {
     await this.refresh();
   }
 
-  /**
-   * Creates or updates a competition/event on the peaking calendar.
-   */
-  async saveCompetitionEvent(event: CompetitionEvent) {
-    await this.planningStore.saveCompetitionEvent(event);
+  /** Creates or updates a goal - a competition or an outdoor trip. */
+  async saveGoal(goal: GoalEvent) {
+    await this.planningStore.saveGoal(goal);
     await this.refresh();
   }
 
-  /**
-   * Deletes a competition/event after confirmation.
-   */
-  async deleteCompetitionEvent(id: string) {
-    const confirmed = await showConfirm('Delete Event', 'Delete this competition/event?');
+  /** Deletes a goal after confirmation. */
+  async deleteGoal(id: string) {
+    const goal = this.planningStore.goals.find((g) => g.id === id);
+    const what = goal?.kind === 'trip' ? 'trip' : 'competition';
+    const confirmed = await showConfirm(`Delete ${what}`, `Delete "${goal?.name ?? 'this goal'}"?`);
     if (!confirmed) return;
-    await this.planningStore.deleteCompetitionEvent(id);
+    await this.planningStore.deleteGoal(id);
     await this.refresh();
   }
 

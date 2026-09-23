@@ -12,7 +12,7 @@
   import AIImportModal from './AIImportModal.svelte';
   import WeekCalendar from './WeekCalendar.svelte';
   import BlockManager from './BlockManager.svelte';
-  import CompetitionCalendar from './CompetitionCalendar.svelte';
+  import GoalsCalendar from './GoalsCalendar.svelte';
   import NoteSheet from '../common/NoteSheet.svelte';
 
   // --- Theme ---
@@ -515,7 +515,7 @@
     </div>
   {/if}
 
-  <CompetitionCalendar />
+  <GoalsCalendar />
 </div>
 
 {#if showAIPrompt}

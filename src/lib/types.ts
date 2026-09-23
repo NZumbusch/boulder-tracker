@@ -346,14 +346,52 @@ export interface TrainingBlock {
   notes?: string;
 }
 
-/**
- * A competition or event to peak for (Phase 4).
- */
-export interface CompetitionEvent {
-  id: string;
+/** A named place with coordinates - a trip's location (same shape as the weather settings' locations). */
+export interface GeoLocation {
   name: string;
-  /** ISO date string */
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Something on a trip worth going for: a named problem (optionally with its
+ * grade), or just a grade ("any 7B", optionally flashed). Ticked off by a
+ * matching send logged during the trip - see `lib/goals/projects.ts`.
+ */
+export interface TripProject {
+  id: string;
+  /** Problem name. Absent for a grade-only target. */
+  name?: string;
+  grade?: string;
+  /** Grade-only target: must be flashed (or onsighted). */
+  flash?: boolean;
+  /** Sends the user confirmed count for this project despite a fuzzy name match. */
+  confirmedSendIds?: string[];
+  /** Fuzzy-matching sends the user said do not count. */
+  rejectedSendIds?: string[];
+}
+
+export type GoalKind = "competition" | "trip";
+
+/**
+ * Something to peak for: a competition (one day) or an outdoor trip (a
+ * date range - `endDate` may equal `date` for a day trip). One list for
+ * both, so the Plan calendar, Home's countdown, the taper hint and the AI
+ * prompt treat them alike; trips just carry more.
+ */
+export interface GoalEvent {
+  id: string;
+  kind: GoalKind;
+  name: string;
+  /** Start day, "YYYY-MM-DD". */
   date: string;
+  /** Trips: last day, inclusive. Absent = a single day. */
+  endDate?: string;
+  /** Trips: where - gives the trip its forecast and pre-fills the crag on sends. */
+  location?: GeoLocation;
+  /** Trips: what to go for. */
+  projects?: TripProject[];
+  notes?: string;
 }
 
 /**
@@ -499,7 +537,7 @@ export interface TrainingData {
   trainingBlocks: TrainingBlock[];
   weekOverrides: WeekOverride[];
   weekNotes: WeekNote[];
-  competitionEvents: CompetitionEvent[];
+  goals: GoalEvent[];
   exerciseTypes: ExerciseTypeDef[];
   templates: Record<string, WorkoutTemplate[]>;
   phaseDefs: PhaseDef[];

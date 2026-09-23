@@ -31,7 +31,7 @@
     fatigue: 'Fatigue',
     thisWeek: 'This Week',
     trainingBlock: 'Training Block',
-    competition: 'Next Competition',
+    competition: 'Next Goal',
     progress: 'Progress',
     recentActivity: 'Recent Activity',
     weather: 'Weather',

@@ -18,19 +18,20 @@ describe("3.26 -> 3.27: drop CompetitionEvent.priority", () => {
     };
     runDataMigrations(data);
     expect(data.exportVersion).toBe(DATA_EXPORT_VERSION);
-    expect(data.competitionEvents).toEqual([
-      { id: "e1", name: "Nationals", date: "2026-11-01" },
-      { id: "e2", name: "League", date: "2026-10-01" },
+    // (Later moved into `goals` as competitions by 3.28->3.29.)
+    expect(data.goals).toEqual([
+      { id: "e1", name: "Nationals", date: "2026-11-01", kind: "competition" },
+      { id: "e2", name: "League", date: "2026-10-01", kind: "competition" },
     ]);
   });
 
   it("tolerates missing or empty competitionEvents", () => {
     const missing: any = { exportVersion: "3.26", workouts: [], exerciseTypes: [] };
     runDataMigrations(missing);
-    expect(missing.competitionEvents).toEqual([]);
+    expect(missing.goals).toEqual([]);
 
     const empty: any = { exportVersion: "3.26", workouts: [], exerciseTypes: [], competitionEvents: [] };
     runDataMigrations(empty);
-    expect(empty.competitionEvents).toEqual([]);
+    expect(empty.goals).toEqual([]);
   });
 });

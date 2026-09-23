@@ -106,7 +106,8 @@ describe("Phase 4: PeriodizationWeek -> single-week TrainingBlock conversion", (
 
     runDataMigrations(data);
 
-    expect(data.competitionEvents).toEqual([]);
+    // Added here, later moved into `goals` by 3.28->3.29.
+    expect(data.goals).toEqual([]);
   });
 });
 
@@ -145,7 +146,7 @@ describe("Phase 4: full old-to-new roundtrip (old_backup.json)", () => {
     expect(after.periodization).toBeUndefined();
     expect(Array.isArray(after.trainingBlocks)).toBe(true);
     expect(Array.isArray(after.weekOverrides)).toBe(true);
-    expect(after.competitionEvents).toEqual([]);
+    expect(after.goals).toEqual([]);
 
     const knownPhaseIds = new Set(after.phaseDefs.map((p: any) => p.id));
     after.trainingBlocks.forEach((b: any) => {

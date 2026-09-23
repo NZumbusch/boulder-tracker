@@ -57,7 +57,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'trainingBlock.loadTrend', label: 'Weekly load', hint: 'Planned vs logged load for each week of the block', defaultOn: true },
   ],
   competition: [
-    { id: 'competition.taper', label: 'Taper hint', hint: 'Within 14 days of an event, when the phase isn\'t a taper', defaultOn: true },
+    { id: 'competition.taper', label: 'Taper hint', hint: 'Within 14 days of a competition or trip, when the phase isn\'t a taper', defaultOn: true },
   ],
   progress: [
     { id: 'progress.benchmarks', label: 'Latest benchmarks', hint: 'With the change since the previous test', defaultOn: true },

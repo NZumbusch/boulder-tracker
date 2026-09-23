@@ -105,7 +105,9 @@ export async function initDB() {
       trainingBlocks: await localforage.getItem("trainingBlocks"),
       weekOverrides: await localforage.getItem("weekOverrides"),
       weekNotes: await localforage.getItem("weekNotes"),
+      // Pre-3.29 key, read so the startup migration can move it into `goals`.
       competitionEvents: await localforage.getItem("competitionEvents"),
+      goals: await localforage.getItem("goals"),
       templates: await localforage.getItem("templates"),
       phaseDefs: await localforage.getItem("phaseDefs"),
       exerciseTypes: await localforage.getItem("exerciseTypes"),
@@ -125,7 +127,8 @@ export async function initDB() {
     trainingBlocks: rawData.trainingBlocks || [],
     weekOverrides: rawData.weekOverrides || [],
     weekNotes: rawData.weekNotes || [],
-    competitionEvents: rawData.competitionEvents || [],
+    ...(rawData.competitionEvents ? { competitionEvents: rawData.competitionEvents } : {}),
+    goals: rawData.goals || [],
     templates: rawData.templates || DEFAULT_TEMPLATES,
     phaseDefs: rawData.phaseDefs || DEFAULT_PHASE_DEFS,
     exerciseTypes: rawData.exerciseTypes || DEFAULT_EXERCISE_TYPES,
@@ -146,6 +149,8 @@ export function setDbState(next: any) {
   _dbState = next;
 }
 
+let legacyEventsKeyCleared = false;
+
 export async function flushDB() {
   if (!_dbState) return;
 
@@ -165,7 +170,13 @@ export async function flushDB() {
     await localforage.setItem("trainingBlocks", _dbState.trainingBlocks);
     await localforage.setItem("weekOverrides", _dbState.weekOverrides);
     await localforage.setItem("weekNotes", _dbState.weekNotes);
-    await localforage.setItem("competitionEvents", _dbState.competitionEvents);
+    await localforage.setItem("goals", _dbState.goals);
+    // The pre-3.29 key: once its events live in `goals` it would only be a
+    // stale copy, so it's dropped - once per app run is enough.
+    if (!legacyEventsKeyCleared && typeof localforage.removeItem === "function") {
+      await localforage.removeItem("competitionEvents");
+      legacyEventsKeyCleared = true;
+    }
     await localforage.setItem("templates", _dbState.templates);
     await localforage.setItem("phaseDefs", _dbState.phaseDefs);
     await localforage.setItem("exerciseTypes", _dbState.exerciseTypes);

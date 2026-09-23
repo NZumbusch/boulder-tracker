@@ -7,7 +7,7 @@ import type {
   TrainingBlock,
   WeekOverride,
   WeekNote,
-  CompetitionEvent,
+  GoalEvent,
   ExerciseTypeDef,
   PhaseDef,
   Benchmark,
@@ -38,7 +38,7 @@ export const storage = {
   async _getTrainingBlocks(): Promise<TrainingBlock[]> { await initDB(); return _dbState.trainingBlocks; },
   async _getWeekOverrides(): Promise<WeekOverride[]> { await initDB(); return _dbState.weekOverrides; },
   async _getWeekNotes(): Promise<WeekNote[]> { await initDB(); return _dbState.weekNotes; },
-  async _getCompetitionEvents(): Promise<CompetitionEvent[]> { await initDB(); return _dbState.competitionEvents; },
+  async _getGoals(): Promise<GoalEvent[]> { await initDB(); return _dbState.goals; },
   async _getBenchmarks(): Promise<Benchmark[]> { await initDB(); return _dbState.benchmarks; },
   async _getBenchmarkTypes(): Promise<BenchmarkTypeDef[]> { await initDB(); return _dbState.benchmarkTypes; },
   async _getAnalyticsCategories(): Promise<AnalyticsCategory[]> { await initDB(); return _dbState.analyticsCategories; },
@@ -54,7 +54,7 @@ export const storage = {
   async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(); },
   async _saveWeekOverrides(overrides: WeekOverride[]): Promise<void> { await initDB(); _dbState.weekOverrides = toPlain(overrides); await flushDB(); },
   async _saveWeekNotes(notes: WeekNote[]): Promise<void> { await initDB(); _dbState.weekNotes = toPlain(notes); await flushDB(); },
-  async _saveCompetitionEvents(events: CompetitionEvent[]): Promise<void> { await initDB(); _dbState.competitionEvents = toPlain(events); await flushDB(); },
+  async _saveGoals(goals: GoalEvent[]): Promise<void> { await initDB(); _dbState.goals = toPlain(goals); await flushDB(); },
   async _saveBenchmarks(benchmarks: Benchmark[]): Promise<void> { await initDB(); _dbState.benchmarks = toPlain(benchmarks); await flushDB(); },
   async _saveBenchmarkTypes(types: BenchmarkTypeDef[]): Promise<void> { await initDB(); _dbState.benchmarkTypes = toPlain(types); await flushDB(); },
   async _saveAnalyticsCategories(categories: AnalyticsCategory[]): Promise<void> { await initDB(); _dbState.analyticsCategories = toPlain(categories); await flushDB(); },
@@ -222,24 +222,24 @@ export const storage = {
     await this._saveWeekNotes(upsertWeekNote(notes, weekId, text));
   },
 
-  async getCompetitionEvents(): Promise<CompetitionEvent[]> {
-    return this._getCompetitionEvents();
+  async getGoals(): Promise<GoalEvent[]> {
+    return this._getGoals();
   },
 
-  async saveCompetitionEvent(event: CompetitionEvent): Promise<void> {
-    const events = await this._getCompetitionEvents();
+  async saveGoal(event: GoalEvent): Promise<void> {
+    const events = await this._getGoals();
     const index = events.findIndex((e) => e.id === event.id);
     if (index !== -1) {
       events[index] = event;
     } else {
       events.push(event);
     }
-    await this._saveCompetitionEvents(events);
+    await this._saveGoals(events);
   },
 
-  async deleteCompetitionEvent(id: string): Promise<void> {
-    const events = await this._getCompetitionEvents();
-    await this._saveCompetitionEvents(events.filter((e) => e.id !== id));
+  async deleteGoal(id: string): Promise<void> {
+    const events = await this._getGoals();
+    await this._saveGoals(events.filter((e) => e.id !== id));
   },
 
   async getTemplates(): Promise<Record<string, WorkoutTemplate[]>> {
@@ -610,7 +610,7 @@ export const storage = {
           if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
           if (data.weekOverrides) _dbState.weekOverrides = data.weekOverrides;
           if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
-          if (data.competitionEvents) _dbState.competitionEvents = data.competitionEvents;
+          if (data.goals) _dbState.goals = data.goals;
           if (data.templates) _dbState.templates = data.templates;
           if (data.phaseDefs) _dbState.phaseDefs = data.phaseDefs;
           if (data.exerciseTypes) _dbState.exerciseTypes = data.exerciseTypes;

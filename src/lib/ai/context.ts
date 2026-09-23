@@ -1,7 +1,7 @@
 import type {
   AnalyticsCategory,
   Benchmark,
-  CompetitionEvent,
+  GoalEvent,
   DailyMetricEntry,
   ExerciseTypeDef,
   OutdoorAscent,
@@ -240,24 +240,45 @@ export function buildWeekNoteContext(weekNotes: WeekNote[], weekIds: string[]): 
 
 // --- Competitions --------------------------------------------------------
 
-export interface CompetitionSummary {
+export interface GoalSummary {
   name: string;
+  kind: GoalEvent["kind"];
+  /** Start day. */
   date: string;
+  /** Trips longer than a day. */
+  endDate?: string;
+  location?: string;
+  /** Trip projects, e.g. "Big Boss 7C", "any 7B (flash)". */
+  projects?: string[];
   daysAway: number;
 }
 
-/** Upcoming events (date >= `asOf`'s calendar day), soonest first, capped at `limit`. */
-export function buildCompetitionContext(
-  events: CompetitionEvent[],
-  asOf: Date,
-  limit = COMPETITION_LOOKAHEAD_LIMIT,
-): CompetitionSummary[] {
+/** A project as one readable line for the prompt. */
+function projectLabel(p: NonNullable<GoalEvent["projects"]>[number]): string {
+  if (p.name) return p.grade ? `${p.name} ${p.grade}` : p.name;
+  return `any ${p.grade ?? "grade"}${p.flash ? " (flash)" : ""}`;
+}
+
+/**
+ * Upcoming goals - competitions and outdoor trips, including one under way
+ * - soonest first, capped at `limit`. Trips carry their dates, place and
+ * projects so a plan can peak for the trip and train for its problems.
+ */
+export function buildGoalContext(goals: GoalEvent[], asOf: Date, limit = COMPETITION_LOOKAHEAD_LIMIT): GoalSummary[] {
   const asOfDay = toUtcDayIndex(asOf.toISOString());
-  const upcoming = events
-    .filter((e) => toUtcDayIndex(e.date) >= asOfDay)
-    .map((e) => ({ name: e.name, date: e.date, daysAway: toUtcDayIndex(e.date) - asOfDay }))
-    .sort((a, b) => a.daysAway - b.daysAway);
-  return upcoming.slice(0, limit);
+  return goals
+    .filter((g) => toUtcDayIndex(g.endDate && g.endDate > g.date ? g.endDate : g.date) >= asOfDay)
+    .map((g): GoalSummary => ({
+      name: g.name,
+      kind: g.kind,
+      date: g.date,
+      ...(g.endDate && g.endDate > g.date ? { endDate: g.endDate } : {}),
+      ...(g.location ? { location: g.location.name } : {}),
+      ...(g.projects && g.projects.length > 0 ? { projects: g.projects.map(projectLabel) } : {}),
+      daysAway: toUtcDayIndex(g.date) - asOfDay,
+    }))
+    .sort((a, b) => a.daysAway - b.daysAway)
+    .slice(0, limit);
 }
 
 // --- Readiness / daily metrics --------------------------------------------
@@ -369,7 +390,7 @@ export interface AIContextSource {
   workouts: Workout[];
   benchmarks: Benchmark[];
   trainingBlocks: TrainingBlock[];
-  competitionEvents: CompetitionEvent[];
+  goals: GoalEvent[];
   dailyMetrics: DailyMetricEntry[];
   painLogs: PainLog[];
   outdoorAscents: OutdoorAscent[];
@@ -383,7 +404,7 @@ export interface AIContextProfile {
   recentWorkouts: RecentWorkoutSummary[];
   benchmarks: Benchmark[];
   trainingBlocks?: TrainingBlockSummary[];
-  competitions?: CompetitionSummary[];
+  goals?: GoalSummary[];
   readiness?: ReadinessSnapshot;
   painLogs?: PainLogSummary[];
   outdoorAscents?: OutdoorAscentSummary[];
@@ -435,7 +456,7 @@ export function buildAIContextProfile(
     profile.trainingBlocks = buildTrainingBlockContext(source.trainingBlocks, source.phaseDefs, windowWeekIds, sharing.notes);
   }
   if (sharing.competitions) {
-    profile.competitions = buildCompetitionContext(source.competitionEvents, asOf);
+    profile.goals = buildGoalContext(source.goals, asOf);
   }
   if (sharing.readinessMetrics) {
     profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf);
