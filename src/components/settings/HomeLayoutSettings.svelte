@@ -26,6 +26,7 @@
     metrics: 'Metrics',
     fatigue: 'Fatigue',
     thisWeek: 'This Week',
+    weekRecap: 'Week Recap',
     trainingBlock: 'Training Block',
     competition: 'Next Goal',
     progress: 'Progress',

@@ -178,6 +178,7 @@ export const HOME_SECTION_IDS = [
   'metrics',
   'fatigue',
   'thisWeek',
+  'weekRecap',
   'trainingBlock',
   'competition',
   'progress',

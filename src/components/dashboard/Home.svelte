@@ -18,6 +18,7 @@
   import FatigueCard from './home/FatigueCard.svelte';
   import ThisWeekCard from './home/ThisWeekCard.svelte';
   import TrainingBlockCard from './home/TrainingBlockCard.svelte';
+  import WeekRecapCard from './home/WeekRecapCard.svelte';
   import NextGoalCard from './home/NextGoalCard.svelte';
   import RecentActivityCard from './home/RecentActivityCard.svelte';
   import WeatherCard from './home/WeatherCard.svelte';
@@ -80,6 +81,7 @@
       {:else if section.id === 'metrics'}<MetricsCard {data} />
       {:else if section.id === 'fatigue'}<FatigueCard {data} />
       {:else if section.id === 'thisWeek'}<ThisWeekCard {data} />
+      {:else if section.id === 'weekRecap'}<WeekRecapCard {data} />
       {:else if section.id === 'trainingBlock'}<TrainingBlockCard {data} />
       {:else if section.id === 'competition'}<NextGoalCard {data} />
       {:else if section.id === 'recentActivity'}<RecentActivityCard />

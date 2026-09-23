@@ -59,6 +59,11 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'trainingBlock.next', label: 'What\'s next', hint: 'The next block and when it starts', defaultOn: true },
     { id: 'trainingBlock.loadTrend', label: 'Weekly load', hint: 'Planned vs logged load for each week of the block', defaultOn: true },
   ],
+  weekRecap: [
+    { id: 'weekRecap.compare', label: 'Compared with the week before', hint: 'Load up or down against the previous week', defaultOn: true },
+    { id: 'weekRecap.mix', label: 'Training mix', hint: 'Minutes per category', defaultOn: true },
+    { id: 'weekRecap.sends', label: 'Sends & pain', hint: 'Outdoor sends that week, and pain entries', defaultOn: true },
+  ],
   competition: [
     { id: 'competition.note', label: 'Note button', hint: 'Opens the goal\'s note', defaultOn: true },
     { id: 'competition.conditions', label: 'Trip conditions', hint: 'Forecast for the trip days and rain beforehand, once it\'s within a week', defaultOn: true },
