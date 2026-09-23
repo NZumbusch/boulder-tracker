@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Weather (UI_PLAN.md §4.7/§5.5, Stage 8) - the Settings UI over the
+   * Weather - the Settings UI over the
    * weather store/preferences. Off by default until a location is set.
    * A home location drives Home's Weather card; every saved crag gets its
    * conditions on the Crags card.

@@ -11,14 +11,12 @@ import {
 
 /**
  * The "paste free-text training notes, get structured exercises" flow
- * (PLAN.md Phase 5) reuses `AIExercise`/name-resolution from the plan
+ * reuses `AIExercise`/name-resolution from the plan
  * importer, but its target is a single in-progress workout's exercise list
  * (`WorkoutEditor.svelte`), not the whole plan/calendar - so unlike
  * `planImport.ts` there's no `TrainingBlock`/`Workout` to build here. Every
  * exercise from every parsed "workout" is flattened into one slot list,
- * since the consuming form only ever edits one workout at a time (see
- * PLAN.md's own framing: "targeting a single workout's exercises instead of
- * a whole plan").
+ * since the consuming form only ever edits one workout at a time.
  */
 
 export interface WorkoutLogPreviewWorkout {

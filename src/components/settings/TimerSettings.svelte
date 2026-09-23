@@ -1,9 +1,8 @@
 <script lang="ts">
   /**
-   * Timer behaviour toggles (UI_PLAN.md §4.7/§5.7, Stage 8). Vibrate/beep
+   * Timer behaviour toggles. Vibrate/beep
    * always offered; keep-awake only when `navigator.wakeLock` actually
-   * exists - "degrade silently... rather than showing a dead toggle"
-   * (§5.7), matching how the Notifications section below already hides
+   * exists - degrade silently rather than showing a dead toggle, matching how the Notifications section below already hides
    * itself entirely on non-native platforms.
    */
   import { trainingState } from '../../lib/state.svelte';

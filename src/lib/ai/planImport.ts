@@ -5,8 +5,8 @@ import type { AIExercise } from "./schema";
 /**
  * How the user resolves one AI-supplied name (an exercise type name or a
  * phase name) that doesn't exactly match an existing catalog entry - either
- * pointing it at an existing entry, or creating a new one. PLAN.md is
- * explicit that an unresolved name must never be silently invented without
+ * pointing it at an existing entry, or creating a new one. An
+ * unresolved name must never be silently invented without
  * the user seeing it happen - this type is what the import UI collects to
  * make that choice explicit before anything commits.
  */
@@ -41,18 +41,18 @@ export function findCategoryByName(name: string, categories: AnalyticsCategory[]
 
 /**
  * Resolves what to write into a freshly-created `ExerciseTypeDef.category`
- * for an AI import (Stage 10, UI_PLAN.md §5.8). `ExerciseTypeDef.category`
+ * for an AI import. `ExerciseTypeDef.category`
  * stores the category's **name**, not its id - confirmed by every other
  * writer (`ExerciseTypeSettings.svelte`'s `<option value={cat.name}>`,
  * `Analytics.svelte`'s `typeToCategory` map keyed straight off `t.category`
- * for chart bucketing). Before this stage both this function's call sites
+ * for chart bucketing). Before this change both of this function's call sites
  * wrote `fallbackCategory?.id` instead - a pre-existing bug (a freshly
  * AI-created exercise type displayed a raw id like "cat-1" as its category)
  * that happened to go unnoticed because nothing exercised the "AI invents a
  * new exercise type" path with real category display. Fixed here, in the
  * same edit that gives the AI a way to *choose* the category via
- * `categoryName` - flagged in `PROGRESS.md` since it's an incidental fix
- * bundled with the new feature, not itself the feature.
+ * `categoryName` - an incidental fix bundled with the new feature, not
+ * itself the feature.
  */
 export function resolveNewExerciseTypeCategory(
   categoryName: string | undefined,

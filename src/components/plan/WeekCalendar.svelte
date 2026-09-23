@@ -1,7 +1,6 @@
 <script lang="ts">
   /**
-   * Presentational calendar grid extracted out of `TrainingPlan.svelte`
-   * (PLAN.md Phase 4) - pure rendering of a row of week cells, with no
+   * Presentational calendar grid extracted out of `TrainingPlan.svelte` - pure rendering of a row of week cells, with no
    * knowledge of `trainingState`/blocks/phases itself. A week can be
    * covered by more than one overlapping `TrainingBlock` now, so each cell
    * takes an already-resolved `color` (the dominant block's color, via

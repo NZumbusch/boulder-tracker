@@ -5,10 +5,9 @@ import { reminderId, checkNotificationPermission, cancelRemindersOfType } from '
 import { isLoggedMetricValue } from '../analytics/metricValues';
 
 /**
- * Evening reminder for missing daily metrics (UI_PLAN.md §2/§5.8, Stage 8
- * part 2, landing on the id-ownership refactor from part 1). Fires once,
+ * Evening reminder for missing daily metrics. Fires once,
  * at a configurable time, when today's sleep score, HRV, or resting heart
- * rate is still unlogged - the well-known `MetricDef` ids Stage 2's
+ * rate is still unlogged - the well-known `MetricDef` ids Home's
  * quick-entry already uses (`DEFAULT_METRIC_DEFS`, `constants.ts`), not
  * new ones. Any one of the three missing counts as "still missing" - the
  * point is nudging toward a completed check-in, not each metric having its

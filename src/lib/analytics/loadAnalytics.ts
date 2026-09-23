@@ -4,13 +4,13 @@ import { getWeekId, getWeekDates, toUtcDayIndex } from "../dateUtils";
 import { loggedMetrics } from "./metricValues";
 
 /**
- * Pure, independently-testable load-management analytics (PLAN.md Phase 4).
+ * Pure, independently-testable load-management analytics.
  * Most of this module still operates on week-buckets (`Workout.weekId`/
  * `loadFactor`) - the app's data model is week-oriented (periodization,
  * templates, the Analytics.svelte charts), and most of these metrics
  * (adherence, ramp rate) are inherently week-over-week comparisons anyway.
  *
- * ACWR is the one exception (UI_PLAN.md §5.3, 2026-09-18): every completed
+ * ACWR is the one exception: every completed
  * workout always has a real `date`, so a week-bucketed ratio isn't actually
  * forced by the data model for that specific metric, and a bucketed ratio
  * makes ACWR unusable as a *daily* readiness input (it would spuriously
@@ -23,7 +23,7 @@ import { loggedMetrics } from "./metricValues";
 // A commonly cited sports-science rule of thumb (the ACWR framework
 // popularized by Gabbett 2016): a >10% week-over-week jump in training load
 // is associated with elevated soft-tissue injury risk. Not a constant this
-// codebase derived itself - a tunable default, see PLAN.md Phase 4.
+// codebase derived itself - a tunable default.
 export const RAMP_RATE_SPIKE_THRESHOLD = 0.1;
 
 // Another commonly cited ACWR rule of thumb: a ratio above ~1.5 (acute load
@@ -35,9 +35,8 @@ export const ACWR_HIGH_RISK_RATIO = 1.5;
 // 2016 and follow-on literature) - below it is undertraining relative to
 // chronic baseline (not flagged as risk by this app), between the two is
 // the target zone, and ACWR_CAUTION_RATIO..ACWR_HIGH_RISK_RATIO is the
-// caution band UI_PLAN.md §3.3's decision table names explicitly ("ACWR
-// 1.3-1.5"). Used by the merged Rolling Load/ACWR panel (UI_PLAN.md §4.6,
-// Stage 5) to render the three status bands - tunable defaults, same
+// caution band (ACWR 1.3-1.5). Used by the merged Rolling Load/ACWR panel
+// to render the three status bands - tunable defaults, same
 // precedent as RAMP_RATE_SPIKE_THRESHOLD/ACWR_HIGH_RISK_RATIO above.
 export const ACWR_SWEET_SPOT_MIN = 0.8;
 export const ACWR_CAUTION_RATIO = 1.3;
@@ -68,7 +67,7 @@ export interface RollingAcwrResult {
    * zeros. Before that, `chronicLoad` is understated and `ratio` reads
    * alarmingly high; callers must degrade (skip a penalty, label it
    * "building history") rather than present the ratio as fact - see
-   * UI_PLAN.md §5.2/§5.3. Independent of whether `ratio` itself is defined:
+   * Independent of whether `ratio` itself is defined:
    * a long-inactive athlete can have `sufficient: true` (plenty of history)
    * and `ratio: undefined` (literally zero load in the current window).
    */
@@ -76,11 +75,11 @@ export interface RollingAcwrResult {
 }
 
 /**
- * Rolling 7-day-acute/28-day-chronic ACWR (UI_PLAN.md §5.3), recalculated
+ * Rolling 7-day-acute/28-day-chronic ACWR, recalculated
  * fresh as of any `asOf` date - the canonical definition of "ACWR" in this
  * app, replacing the old week-bucketed ratio. Works in UTC calendar-day
  * indices throughout (`toUtcDayIndex`) rather than millisecond arithmetic on
- * local dates, per §5.3's explicit DST warning.
+ * local dates, which drift across DST changes.
  */
 export function calculateRollingAcwr(
   workouts: Workout[],
@@ -120,7 +119,7 @@ export interface RollingAcwrPoint extends RollingAcwrResult {
   date: string;
 }
 
-/** `calculateRollingAcwr` sampled at each of `sampleDates` - one code path so a chart and a same-day readiness score can never disagree (UI_PLAN.md §5.3/§4.6). */
+/** `calculateRollingAcwr` sampled at each of `sampleDates` - one code path so a chart and a same-day readiness score can never disagree. */
 export function calculateRollingAcwrSeries(workouts: Workout[], sampleDates: Date[]): RollingAcwrPoint[] {
   return sampleDates.map((asOf) => ({ date: asOf.toISOString(), ...calculateRollingAcwr(workouts, asOf) }));
 }
@@ -142,7 +141,7 @@ export interface AcwrResult {
   ratio: number | undefined;
   /** Whether the rolling window above is backed by enough history to trust - see `RollingAcwrResult.sufficient`. */
   sufficient: boolean;
-  /** Week-over-week % change in this week's *bucketed* completed load vs the previous week - a deliberately different, still week-bucketed metric from the rolling ratio above (UI_PLAN.md §5.3: "a different metric from ACWR, not a bucketed version of it"). 0 if there's no previous week or it had no load. */
+  /** Week-over-week % change in this week's *bucketed* completed load vs the previous week - a deliberately different, still week-bucketed metric from the rolling ratio above - a different metric from ACWR, not a bucketed version of it. 0 if there's no previous week or it had no load. */
   rampRate: number;
   /** rampRate exceeds RAMP_RATE_SPIKE_THRESHOLD. */
   spike: boolean;
@@ -370,8 +369,7 @@ export function correlatePainWithLoadSpikes(
 
     // The high-ratio check additionally requires `sufficient` - an inflated
     // ratio from an understated chronic baseline (early history) isn't a
-    // real signal, same reasoning as readiness's penalty skip (UI_PLAN.md
-    // §5.2/§5.3). `spike` (rampRate-based) is unaffected - it's a distinct,
+    // real signal, same reasoning as readiness's penalty skip. `spike` (rampRate-based) is unaffected - it's a distinct,
     // always-week-bucketed metric.
     const loadSpikeNearby = !!(
       week?.spike ||

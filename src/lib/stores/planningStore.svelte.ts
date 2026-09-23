@@ -4,9 +4,8 @@ import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
  * Training blocks (concurrent phase assignments), week overrides, the
- * goals calendar (competitions and outdoor trips), and workout templates (Phase 4 replaces the
- * old one-phase-per-week `periodization` with `TrainingBlock[]` - see
- * PLAN.md Phase 4 / PROGRESS.md).
+ * goals calendar (competitions and outdoor trips), and workout templates.
+ * Blocks replaced the old one-phase-per-week `periodization`.
  */
 export class PlanningStore {
   trainingBlocks = $state<TrainingBlock[]>([]);

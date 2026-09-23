@@ -25,7 +25,7 @@
   });
 
   // Resolves the "system" motion preference against the OS-level
-  // prefers-reduced-motion query, per UI_PLAN.md §3.4 - an explicit
+  // prefers-reduced-motion query - an explicit
   // full/reduced choice always wins; "system" (the default) tracks the
   // media query live rather than being read once at load.
   $effect(() => {

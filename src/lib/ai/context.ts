@@ -32,12 +32,12 @@ import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 /**
  * Builds the condensed training-profile data embedded in every AI prompt
  * (`AICoachModal.svelte`: "Change plan" / "Analyze" / "Context").
- * Extracted out of the component per UI_PLAN.md §5.8/Stage 10 - pure and
- * independently testable, matching this project's standing "pure
- * data-shaping logic gets tests" convention (PLAN.md's own `loadAnalytics.ts`
- * precedent).
+ * Extracted out of the component - pure and independently testable,
+ * matching this project's standing "pure data-shaping logic gets tests"
+ * convention (`loadAnalytics.ts` is the precedent).
  *
- * Before this stage, the prompts predated Phase 4/6/7 entirely: they sent
+ * Before this module, the prompts predated blocks, goals, metrics and
+ * ascents entirely: they sent
  * exercise type names + default parameters, the last 20 workouts reduced to
  * `{date, status, exercise names}` (no duration/sets/reps/load/fatigue), and
  * phase names + benchmarks. Nothing from `TrainingBlock`s, competitions,
@@ -249,7 +249,7 @@ export function buildWeeklyHistory(
   });
 }
 
-/** Completed workouts whose `weekId` falls in `weekIds` - "Analyze Past"'s own scoped window, full detail (not just names) per UI_PLAN.md §5.8. */
+/** Completed workouts whose `weekId` falls in `weekIds` - "Analyze Past"'s own scoped window, full detail (not just names). */
 export function buildWorkoutsInWeeks(
   workouts: Workout[],
   exerciseTypes: ExerciseTypeDef[],
@@ -293,7 +293,7 @@ function widenedWindow(weekIds: string[]): { start: string; end: string } {
 /**
  * `TrainingBlock`s covering `weekIds`, or within `BLOCK_WINDOW_MARGIN_WEEKS`
  * weeks either side of it - "covering or near the target weeks" per
- * UI_PLAN.md §5.8 item 1, so a block that's about to end or about to start
+ * on purpose, so a block that's about to end or about to start
  * still gives the AI useful context even without literally overlapping.
  * Returns `[]` for an empty `weekIds` (nothing to window around).
  */
@@ -543,7 +543,7 @@ export function buildAIContextProfile(
   history: AIHistoryWindow = DEFAULT_AI_HISTORY,
 ): AIContextProfile {
   // "Analyze Past" already scopes itself to the picked week range and
-  // doesn't need the full exercise/phase catalog (UI_PLAN.md §5.8 item 1).
+  // doesn't need the full exercise/phase catalog.
   const includeCatalog = mode !== "analyze";
 
   const recentWorkouts =

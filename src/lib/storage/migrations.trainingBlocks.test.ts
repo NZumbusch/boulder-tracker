@@ -14,13 +14,12 @@ function loadFixture(name: string): any {
   return JSON.parse(raw);
 }
 
-// Phase 4's migration work: PeriodizationWeek[] -> single-week
+// The training-block migration: PeriodizationWeek[] -> single-week
 // TrainingBlock[] (startWeekId === endWeekId === the old weekId), the
 // `customized` flag split out into a decoupled WeekOverride[] table, and a
-// purely-additive `competitionEvents: []`. See PLAN.md Phase 4 Definition
-// of Done.
+// purely-additive `competitionEvents: []`.
 
-describe("Phase 4: PeriodizationWeek -> single-week TrainingBlock conversion", () => {
+describe("PeriodizationWeek -> single-week TrainingBlock conversion", () => {
   it("converts each periodization entry into a single-week block, resolving the block's name from the phase", () => {
     const data: any = {
       exportVersion: "3.22",
@@ -111,7 +110,7 @@ describe("Phase 4: PeriodizationWeek -> single-week TrainingBlock conversion", (
   });
 });
 
-describe("Phase 4: assertMigrationInvariants checks TrainingBlock.phaseId resolution", () => {
+describe("assertMigrationInvariants checks TrainingBlock.phaseId resolution", () => {
   it("passes when every block's phaseId resolves", () => {
     const after: any = {
       workouts: [],
@@ -135,7 +134,7 @@ describe("Phase 4: assertMigrationInvariants checks TrainingBlock.phaseId resolu
   });
 });
 
-describe("Phase 4: full old-to-new roundtrip (old_backup.json)", () => {
+describe("full old-to-new roundtrip (old_backup.json)", () => {
   it("converts real periodization data into valid TrainingBlocks and passes invariants", () => {
     const before = loadFixture("backup-2.1.json");
     const after = JSON.parse(JSON.stringify(before));

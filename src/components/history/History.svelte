@@ -14,9 +14,9 @@
   import Icon from "@iconify/svelte";
   import { onMount, tick } from 'svelte';
 
-  // Stage 4 (UI_PLAN.md §6/§4.5): History overhaul - overflow menu, month
+  // History: overflow menu, month
   // grouping, richer row content (duration/fatigue/block), and the new
-  // typeId/block/search/to-date filters, on top of Stage 3's Share wiring.
+  // typeId/block/search/to-date filters, on top of the Share wiring.
 
   const completedWorkouts = $derived(trainingState.completedWorkouts);
   let limit = $state(50);

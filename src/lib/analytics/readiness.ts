@@ -4,8 +4,7 @@ import { loggedMetrics } from "./metricValues";
 import { ACWR_HIGH_RISK_RATIO, type RollingAcwrResult } from "./loadAnalytics";
 
 /**
- * Pure, independently-testable readiness/fatigue engine (UI_PLAN.md §5.2 and
- * §5.4). Home's readiness hero and fatigue bars, and later the Analytics
+ * Pure, independently-testable readiness/fatigue engine. Home's readiness hero and fatigue bars, and later the Analytics
  * fatigue panel, all render values computed here rather than each deriving
  * their own - one source of truth, so they can never disagree.
  */
@@ -34,14 +33,14 @@ export interface FatigueDecayResult {
  * Exponentially-decayed fatigue per axis. Each axis is a weighted average of
  * that axis's own logged values across completed workouts, weighted by
  * `0.5 ^ (daysAgo / halfLifeDays)` - a workout with no value for an axis
- * (arms is the common case for any workout logged before Stage 2 added its
- * slider - see UI_PLAN.md §1 item 2) is excluded from that axis's average
+ * (arms is the common case for any workout logged before its slider
+ * existed) is excluded from that axis's average
  * entirely, never imputed with a placeholder value. An axis with zero
  * workouts carrying it anywhere in `workouts` comes back `undefined`, not 0.
  *
  * `coverage` reports, out of the workouts actually passed in, how many
  * carried each axis - callers use this for a coverage note (e.g. "arms: 4
- * of 27 sessions", UI_PLAN.md §5.4/§10 Open Question 2) rather than
+ * of 27 sessions") rather than
  * presenting a sparse axis as equally reliable. This function applies no
  * history window of its own for that count - the decay weighting alone
  * already makes old workouts' contribution negligible, so pass in whatever
@@ -117,10 +116,10 @@ export interface ReadinessResult {
   /** 0-100, or `undefined` when literally no input was usable (a brand-new install with nothing logged). */
   score: number | undefined;
   status: ReadinessStatus;
-  /** Describes state and its implication; deliberately never issues a training instruction - UI_PLAN.md §10 Open Question 1's default ("the athlete has context the app doesn't"). */
+  /** Describes state and its implication; deliberately never issues a training instruction - the athlete has context the app doesn't. */
   advice: string;
   inputsUsed: { fatigue: boolean; acwr: boolean; sleep: boolean; hrv: boolean };
-  /** Names which inputs actually fed the score, e.g. "Fatigue only - no HRV baseline yet" (UI_PLAN.md §4.2 hero spec / §5.2). */
+  /** Names which inputs actually fed the score, e.g. "Fatigue only - no HRV baseline yet". */
   confidence: string;
   /**
    * Points each input took off `READINESS_BASE_SCORE`, before clamping -
@@ -138,7 +137,7 @@ export const READINESS_BASE_SCORE = 100;
 export const MAX_FATIGUE_PENALTY = 45;
 /** A rolling ACWR ratio at/above ACWR_HIGH_RISK_RATIO costs this many points (capped - a further-elevated ratio costs no more). Below 1 (under-training relative to baseline) costs nothing. */
 export const MAX_ACWR_PENALTY = 25;
-/** Sleep score costs up to this many points, scaled linearly from SLEEP_SCORE_LOW_THRESHOLD (0 cost) down to 0 (max cost). No UI wrote the `sleep-score` metric before Stage 2 added quick-entry, so this 0-100 range is this stage's own assumption (matching common wearable sleep-score scales), not a pre-existing app convention. */
+/** Sleep score costs up to this many points, scaled linearly from SLEEP_SCORE_LOW_THRESHOLD (0 cost) down to 0 (max cost). No UI wrote the `sleep-score` metric before Home's quick-entry, so this 0-100 range is that feature's own assumption (matching common wearable sleep-score scales), not a pre-existing app convention. */
 export const MAX_SLEEP_PENALTY = 15;
 export const SLEEP_SCORE_LOW_THRESHOLD = 60;
 /** HRV costs up to this many points once its dip below the 14-day baseline exceeds HRV_DIP_THRESHOLD_PCT, scaling to max cost at a 100% dip. */
@@ -172,9 +171,8 @@ export const READINESS_CAUTION_THRESHOLD = 40;
 // Mirrors calculateLoadFactor's own fingers/systemic/core weighting
 // (src/lib/types.ts) so "what predicts training stress" is one consistent
 // model across load and readiness. `arms` is deliberately excluded here too -
-// same reasoning as calculateLoadFactor (UI_PLAN.md §5.4: collecting arms
-// and using it in a load/fatigue formula are separate decisions; only the
-// first is in scope).
+// same reasoning as calculateLoadFactor: collecting arms and using it in a
+// load/fatigue formula are separate decisions, and only the first was made.
 const FATIGUE_WEIGHTS: Record<"fingers" | "core" | "systemic", number> = { fingers: 0.45, systemic: 0.45, core: 0.1 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -273,7 +271,7 @@ function readinessStatus(score: number): ReadinessStatus {
 
 /**
  * Combines rolling fatigue decay, the rolling ACWR ratio, sleep score and
- * HRV-vs-baseline into a single 0-100 readiness score (UI_PLAN.md §5.2).
+ * HRV-vs-baseline into a single 0-100 readiness score.
  * Every input is optional and independently gated - a missing or
  * not-yet-trustworthy input (e.g. an ACWR window that isn't `sufficient`
  * yet) contributes nothing to the score rather than a fabricated default,

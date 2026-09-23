@@ -15,13 +15,12 @@ function loadFixture(name: string): any {
   return JSON.parse(raw);
 }
 
-// Phase 1's biggest, highest-stakes migration step: flat Exercise[] ->
+// The biggest, highest-stakes migration step: flat Exercise[] ->
 // ExerciseSlot[] with a prescribed/logged split. Each scenario below is one
-// of the specific cases PLAN.md's Phase 1 Definition of Done calls out by
-// name, plus the two gap-fills decided with the user before implementation
-// (see PROGRESS.md 2026-09-16 "Phase 1 scope gap-fills").
+// of the specific cases the prescribed/logged split had to handle, plus the
+// two gap-fills decided with the user before implementation (2026-09-16).
 
-describe("Phase 1: prescribed/logged split - (a) pre-3.12 completed workout, no plannedDuration", () => {
+describe("prescribed/logged split - (a) pre-3.12 completed workout, no plannedDuration", () => {
   it("sets prescribed === logged (honest limitation: no plan/actual distinction ever existed for this data)", () => {
     const data: any = {
       exportVersion: "3.11",
@@ -50,7 +49,7 @@ describe("Phase 1: prescribed/logged split - (a) pre-3.12 completed workout, no 
   });
 });
 
-describe("Phase 1: prescribed/logged split - (b) post-3.12 workout with plannedDuration/actualReps present", () => {
+describe("prescribed/logged split - (b) post-3.12 workout with plannedDuration/actualReps present", () => {
   it("splits duration into prescribed vs logged, and reps into prescribed vs logged", () => {
     const data: any = {
       exportVersion: "3.12",
@@ -80,7 +79,7 @@ describe("Phase 1: prescribed/logged split - (b) post-3.12 workout with plannedD
   });
 });
 
-describe("Phase 1: prescribed/logged split - (c) planned (not yet completed) workout", () => {
+describe("prescribed/logged split - (c) planned (not yet completed) workout", () => {
   it("populates prescribed only, leaving logged undefined", () => {
     const data: any = {
       exportVersion: "3.12",
@@ -106,7 +105,7 @@ describe("Phase 1: prescribed/logged split - (c) planned (not yet completed) wor
   });
 });
 
-describe("Phase 1: prescribed/logged split - (d) unresolvable type/category names get archived placeholders", () => {
+describe("prescribed/logged split - (d) unresolvable type/category names get archived placeholders", () => {
   it("creates an archived ExerciseTypeDef and AnalyticsCategory for names with no current match", () => {
     const data: any = {
       exportVersion: "3.12",
@@ -169,7 +168,7 @@ describe("Phase 1: prescribed/logged split - (d) unresolvable type/category name
   });
 });
 
-describe("Phase 1: (e) full old-to-new roundtrip invariant check", () => {
+describe("(e) full old-to-new roundtrip invariant check", () => {
   it("every real workout's exercises have a resolvable typeId, and invariants pass end to end", () => {
     const before = loadFixture("backup-2.1.json");
     const after = JSON.parse(JSON.stringify(before));
@@ -187,7 +186,7 @@ describe("Phase 1: (e) full old-to-new roundtrip invariant check", () => {
   });
 });
 
-describe("Phase 1: (f) fresh-install/reset-to-default-library shape", () => {
+describe("(f) fresh-install/reset-to-default-library shape", () => {
   it("DEFAULT_TEMPLATES (no migration involved) already has valid typeId/prescribed-shaped exercises", () => {
     const knownTypeIds = new Set(DEFAULT_EXERCISE_TYPES.map((t) => t.id));
     let checkedAtLeastOne = false;
@@ -210,7 +209,7 @@ describe("Phase 1: (f) fresh-install/reset-to-default-library shape", () => {
   });
 });
 
-describe("Phase 1: (g) frozen 2.3->2.4 Deload fallback stays old-shape safe", () => {
+describe("(g) frozen 2.3->2.4 Deload fallback stays old-shape safe", () => {
   function migrateMissingDeload() {
     const data: any = {
       exportVersion: "2.3",
@@ -223,7 +222,7 @@ describe("Phase 1: (g) frozen 2.3->2.4 Deload fallback stays old-shape safe", ()
   }
 
   function assertValidDeloadSlot(data: any) {
-    // Phase 3 rekeys templates from phase name to phaseId, so by the end of
+    // The PhaseDef steps rekey templates from phase name to phaseId, so by the end of
     // the full chain the frozen "Deload" fallback content ends up under
     // "phase-deload", not "Deload" - see migrations.realBackups.test.ts's
     // "New: 3.13 -> 3.14 phase rename" tests for the equivalent rename

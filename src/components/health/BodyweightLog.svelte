@@ -1,8 +1,7 @@
 <script lang="ts">
   /**
-   * Bodyweight tracking (PLAN.md Phase 6). Uses Phase 1's existing
-   * MetricDef/DailyMetricEntry system - no new entity, per PLAN.md's own
-   * scope note. One entry per date (upsert on save, keyed by date).
+   * Bodyweight tracking. Uses the existing
+   * MetricDef/DailyMetricEntry system - no new entity. One entry per date (upsert on save, keyed by date).
    */
   import { trainingState } from '../../lib/state.svelte';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';

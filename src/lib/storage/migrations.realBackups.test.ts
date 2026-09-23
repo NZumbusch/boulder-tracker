@@ -97,8 +97,8 @@ describe("Primary fixture: old_backup.json (exportVersion 2.1, real user data)",
     const data = loadFixture("backup-2.1.json");
     runDataMigrations(data);
 
-    // Phase 3 replaces `phase` (name) with `phaseId` entirely, and Phase 4
-    // converts each periodization entry into a single-week TrainingBlock -
+    // The PhaseDef steps replace `phase` (name) with `phaseId` entirely, and
+    // the training-block step converts each periodization entry into a single-week TrainingBlock -
     // every block should now resolve against a real PhaseDef, and none
     // should carry the pre-3.14 legacy names.
     expect(data.periodization).toBeUndefined();
@@ -373,7 +373,7 @@ describe("New: 3.12 -> 3.13 parameter rename", () => {
   });
 });
 
-describe("New: 3.13 -> 3.14 phase rename (final phaseId/WorkoutTemplate/TrainingBlock shape after the full Phase 3+4 chain)", () => {
+describe("New: 3.13 -> 3.14 phase rename (final phaseId/WorkoutTemplate/TrainingBlock shape after the full phase-id and training-block chain)", () => {
   // runDataMigrations always walks to the current version in one pass, so
   // these assertions check the *final* shape (PhaseDef-resolved phaseId,
   // WorkoutTemplate[] keyed by phaseId, single-week TrainingBlocks instead

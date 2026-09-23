@@ -39,8 +39,7 @@
   import type { DailyMetricEntry, DayOfWeek } from '../../lib/types';
   import Icon from "@iconify/svelte";
 
-  // Stage 2 (UI_PLAN.md §6/§4.2): Home fully populated, on top of Stage 1's
-  // skeleton. Every section below reads from `trainingState` or the pure
+  // Every section below reads from `trainingState` or the pure
   // analytics modules directly - no new business logic lives in this file
   // beyond simple display derivations (day-of-week matching, sparkline
   // scaling) that have no other natural home.
@@ -51,7 +50,7 @@
   const todayName = DAY_NAMES[asOf.getDay()];
   const today = formatDate(asOf.toISOString());
 
-  // --- Weather (UI_PLAN.md §5.5) - fetched once per mount, not on every
+  // --- Weather - fetched once per mount, not on every
   // `refresh()` (a network call on every save would be excessive for
   // conditions that change over hours). No-ops per-location if it isn't set.
   onMount(() => {
@@ -123,7 +122,7 @@
   const weekNote = $derived(trainingState.getWeekNote(currentWeekId));
   let openNote = $state<'week' | 'block' | null>(null);
 
-  // --- Readiness hero (UI_PLAN.md §5.2) ---
+  // --- Readiness hero ---
   const fatigueDecay = $derived(computeFatigueDecay(trainingState.completedWorkouts, asOf, trainingState.fatigueHalfLife));
   const acwr = $derived(calculateRollingAcwr(trainingState.workouts, asOf));
   const hrvBaseline = $derived(computeHrvBaseline(trainingState.dailyMetrics, asOf));
@@ -156,8 +155,7 @@
     risk: 'bg-status-risk',
     neutral: 'bg-status-neutral',
   };
-  // Bold hero treatment (user-directed, 2026-09-18 - see PROGRESS.md
-  // "Home card redesign") - a status-tinted gradient + border, translated
+  // Bold hero treatment (user-directed, 2026-09-18) - a status-tinted gradient + border, translated
   // through this app's existing status tokens rather than the stash's
   // literal emerald/amber/rose. Full literal Tailwind class strings, not
   // built via template interpolation - Tailwind's JIT can't see classes
@@ -215,7 +213,7 @@
     });
   }
 
-  // --- Daily metrics quick-entry (UI_PLAN.md §4.2 item 4 - well-known ids only) ---
+  // --- Daily metrics quick-entry (well-known ids only) ---
   const QUICK_METRICS = $derived(
     DEFAULT_METRIC_DEFS.filter((d) =>
       ['sleep-score', 'hrv', 'rhr'].includes(d.id) || (d.id === BODYWEIGHT_METRIC_ID && trainingState.homeDetails['metrics.bodyweight']),
@@ -270,7 +268,7 @@
     editingMetricId = null;
   }
 
-  // --- Fatigue bars (UI_PLAN.md §5.4 - bars are the default; radar is an Appearance setting, Stage 8) ---
+  // --- Fatigue bars (the default; radar is an Appearance setting) ---
   // --- Weekly load progress ---
   const weeklyAdherence = $derived(calculateWeeklyAdherence(trainingState.workouts, currentWeekId));
   const dayStrip = $derived(weekDayStrip(weekWorkouts, todayName));
@@ -451,7 +449,7 @@
     </div>
   </div>
 
-  <!-- UI_PLAN.md §4.7 "Home sections show/hide + reorder": every section
+  <!-- Home sections show/hide + reorder: every section
        below is a snippet, rendered in `trainingState.homeSections`'
        user-configurable order, skipping any marked hidden. The header
        above is not part of this list - it's always shown, always first. -->
@@ -1183,7 +1181,7 @@
         {/if}
 
         <!-- The week ahead. This was always in the snapshot - the trip card
-             has rendered it since Stage 8 - the home card just never showed
+             has always rendered it - the home card just never showed
              it. Today is labelled rather than given its weekday name, since
              "Mon" beside a live temperature reads as a different day. -->
         {#if w.daily.length > 0 && trainingState.homeDetails['weather.forecast']}

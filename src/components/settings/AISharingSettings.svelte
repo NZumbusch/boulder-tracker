@@ -1,7 +1,6 @@
 <script lang="ts">
   /**
-   * What gets included in an AI prompt's condensed training profile
-   * (UI_PLAN.md §5.8, Stage 10) - a separate privacy decision from "does the
+   * What gets included in an AI prompt's condensed training profile - a separate privacy decision from "does the
    * AI have enough context", since these prompts are copy/pasted into an
    * external AI chat by the user themselves (`AICoachModal.svelte`), not
    * sent anywhere by this app directly. Each category is independently
@@ -10,7 +9,7 @@
    *
    * Placed under Settings' "Data & Exports" tab, next to backups/calendar
    * export - the app's other "what leaves this device" surface - rather
-   * than a new top-level tab, same reasoning Stage 8 used to nest
+   * than a new top-level tab, same reasoning as nesting
    * Notifications into Appearance & Behaviour instead of promoting it.
    */
   import { trainingState } from '../../lib/state.svelte';

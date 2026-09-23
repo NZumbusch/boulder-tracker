@@ -2,10 +2,9 @@ import type { OutdoorAscent } from "../types";
 import { generateId } from "../utils";
 
 /**
- * Parses an 8a.nu ascent-log CSV export into `OutdoorAscent[]` (PLAN.md
- * Phase 6). Column format confirmed against a real sample export
- * (`stuff/data.csv`, gitignored - see PROGRESS.md
- * 2026-09-17), not guessed:
+ * Parses an 8a.nu ascent-log CSV export into `OutdoorAscent[]`. Column
+ * format confirmed against a real sample export (`stuff/data.csv`,
+ * gitignored), not guessed:
  *
  *   route_boulder,name,location_name,sector_name,area_name,country_code,
  *   date,type,sub_type,rating,project,tries,repeats,difficulty,
@@ -13,7 +12,7 @@ import { generateId } from "../utils";
  *
  * Only a subset of these columns is used - this is deliberately a
  * lightweight log for correlating outdoor performance against training
- * load, not a pyramid-builder (PLAN.md's explicit locked-in scope note).
+ * load, not a pyramid-builder (a deliberate scope limit).
  */
 
 export interface OutdoorAscentImportResult {
@@ -24,8 +23,8 @@ export interface OutdoorAscentImportResult {
 /**
  * Hand-rolled RFC4180-ish CSV row parser (quoted fields, "" as an escaped
  * quote, commas/newlines inside quotes, unquoted empty fields) - no new
- * dependency, matching this codebase's existing convention (see PLAN.md
- * Phase 5's `schema.ts`).
+ * dependency, matching this codebase's existing convention (see
+ * `lib/ai/schema.ts`).
  */
 function parseCsvRows(text: string): string[][] {
   const rows: string[][] = [];

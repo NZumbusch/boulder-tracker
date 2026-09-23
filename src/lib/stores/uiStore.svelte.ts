@@ -101,7 +101,7 @@ export class UiStore {
    * Shows a one-time in-app prompt (native only) asking whether to enable
    * fatigue-log reminders, the first time the app runs after this feature
    * shipped. Never re-prompts after this - a decline is respected, not
-   * nagged around (PLAN.md Phase 7's "respect denial gracefully").
+   * nagged around.
    */
   async maybePromptForNotifications() {
     if (!Capacitor.isNativePlatform()) return;

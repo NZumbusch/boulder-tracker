@@ -1,11 +1,8 @@
 <script lang="ts">
   /**
-   * One location field (home or trip) for `WeatherSettings.svelte`
-   * (UI_PLAN.md §5.5). City search via `trainingState.geocodeCity` is the
-   * convenient path; raw lat/lon entry is always available too (§10 open
-   * question 3's stated default: "allow city search for convenience, but
-   * also accept raw lat/lon entry so the feature is usable with no
-   * geocoding call at all").
+   * One location field (home or trip) for `WeatherSettings.svelte`. City search via `trainingState.geocodeCity` is the
+   * convenient path; raw lat/lon entry is always available too, so the
+   * feature works with no geocoding call at all.
    */
   import { trainingState } from '../../lib/state.svelte';
   import type { WeatherLocation } from '../../lib/preferences/migrate';

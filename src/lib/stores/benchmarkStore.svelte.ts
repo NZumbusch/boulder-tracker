@@ -2,8 +2,8 @@ import { storage } from '../storage';
 import type { Benchmark } from '../types';
 
 /**
- * The actual logged `Benchmark` test records (Phase 1 principle 4 -
- * "what was tracked" is a record). Definitions of *what* can be
+ * The actual logged `Benchmark` test records ("what was tracked" is a
+ * record). Definitions of *what* can be
  * benchmarked (`BenchmarkTypeDef`) live in `catalogStore`.
  */
 export class BenchmarkStore {

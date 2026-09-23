@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Recovery/rest-day warnings panel (PLAN.md Phase 4): consecutive
+   * Recovery/rest-day warnings panel: consecutive
    * training days, or a load spike alongside declining readiness metrics.
    */
   import type { RecoveryWarning } from '../../lib/analytics/loadAnalytics';

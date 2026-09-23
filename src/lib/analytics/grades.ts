@@ -1,6 +1,5 @@
 /**
- * Pure grade-ordering helper for the Analytics "Outdoor Ascents" panel
- * (UI_PLAN.md §4.6, Stage 5). `OutdoorAscent.grade` (`types.ts`) is a free
+ * Pure grade-ordering helper for the Analytics "Outdoor Ascents" panel. `OutdoorAscent.grade` (`types.ts`) is a free
  * string with no grade-system field - it's populated only by the 8a.nu CSV
  * importer today (`outdoorAscentCsvImport.ts`), and the real confirmed
  * sample export (`stuff/data.csv`) uses the Fontainebleau bouldering
@@ -17,7 +16,7 @@
  * rejected. `OutdoorAscent` has no `type`/grade-system field to
  * disambiguate (`types.ts`), and the CSV importer doesn't carry the
  * source's `route_boulder` column through either - fixing this needs a
- * schema addition, out of scope for this stage (UI_PLAN.md §7's tripwire).
+ * schema addition, deliberately left out so far.
  */
 
 /**

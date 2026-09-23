@@ -12,10 +12,10 @@ import {
 } from "./valueSpec";
 
 /**
- * Runtime validators for the two AI JSON contracts (Phase 5 - see PLAN.md).
- * Hand-rolled rather than a schema library (zod etc.), per PLAN.md's stated
- * default. Untrusted/unpredictable input (pasted from an LLM, which "doesn't
- * reliably follow strict JSON contracts" per PLAN.md's own DoD) - never
+ * Runtime validators for the two AI JSON contracts.
+ * Hand-rolled rather than a schema library (zod etc.), to stay
+ * dependency-free. Untrusted/unpredictable input (pasted from an LLM, which
+ * doesn't reliably follow strict JSON contracts) - never
  * partially trust it. Validation here is deliberately **all-or-nothing**:
  * if any required field is missing or has the wrong type anywhere in the
  * document, the whole parse is rejected (`valid: false`, no `data`) rather
@@ -63,15 +63,14 @@ export interface ValidationResult<T> {
 export interface AIExercise {
   exerciseTypeName: string;
   /**
-   * Optional Analytics Category name (Stage 10, UI_PLAN.md §5.8) - only
+   * Optional Analytics Category name - only
    * meaningful when `exerciseTypeName` doesn't match an existing catalog
    * entry and a new one gets created from this import. Resolved
    * case-insensitively against `AnalyticsCategory.name` by `planImport.ts`/
    * `workoutLogImport.ts`'s shared `resolveNewExerciseTypeCategory`; an
    * unresolvable or omitted value falls back to today's existing
    * first-non-archived-category default. This is a field on the AI JSON
-   * contract only, not on `TrainingData` - see UI_PLAN.md §7's explicit
-   * carve-out.
+   * contract only, deliberately not on `TrainingData`.
    */
   categoryName?: string;
   values: ExerciseValues;

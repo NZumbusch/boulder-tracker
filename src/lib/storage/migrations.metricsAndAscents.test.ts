@@ -12,11 +12,10 @@ function loadFixture(name: string): any {
   return JSON.parse(raw);
 }
 
-// Phase 6's migration work: seed the built-in `bodyweight` MetricDef
-// (3.24->3.25) and add the purely-additive `outdoorAscents: []` (3.25->3.26).
-// See PLAN.md Phase 6 / PROGRESS.md 2026-09-17.
+// Seed the built-in `bodyweight` MetricDef (3.24->3.25) and add the
+// purely-additive `outdoorAscents: []` (3.25->3.26).
 
-describe("Phase 6: seed the built-in bodyweight MetricDef", () => {
+describe("seed the built-in bodyweight MetricDef", () => {
   it("adds a bodyweight MetricDef when none exists", () => {
     const data: any = {
       exportVersion: "3.24",
@@ -52,7 +51,7 @@ describe("Phase 6: seed the built-in bodyweight MetricDef", () => {
   });
 });
 
-describe("Phase 6: add outdoorAscents (empty by default, purely additive)", () => {
+describe("add outdoorAscents (empty by default, purely additive)", () => {
   it("adds an empty outdoorAscents array", () => {
     const data: any = { exportVersion: "3.25", workouts: [], exerciseTypes: [] };
     runDataMigrations(data);
@@ -67,7 +66,7 @@ describe("Phase 6: add outdoorAscents (empty by default, purely additive)", () =
   });
 });
 
-describe("Phase 6: DEFAULT_METRIC_DEFS (fresh-install seed fix)", () => {
+describe("DEFAULT_METRIC_DEFS (fresh-install seed fix)", () => {
   it("includes all four well-known built-in metric ids, bodyweight among them", () => {
     const ids = DEFAULT_METRIC_DEFS.map((d) => d.id);
     expect(ids).toEqual(expect.arrayContaining(["sleep-score", "hrv", "rhr", BODYWEIGHT_METRIC_ID]));
@@ -75,7 +74,7 @@ describe("Phase 6: DEFAULT_METRIC_DEFS (fresh-install seed fix)", () => {
   });
 });
 
-describe("Phase 6: full old-to-new roundtrip (old_backup.json)", () => {
+describe("full old-to-new roundtrip (old_backup.json)", () => {
   it("migrates to the current version with a seeded bodyweight MetricDef and an empty outdoorAscents array", () => {
     const before = loadFixture("backup-2.1.json");
     const after = JSON.parse(JSON.stringify(before));

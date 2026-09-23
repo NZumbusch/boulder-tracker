@@ -1,5 +1,5 @@
 /**
- * Open-Meteo fetch wrappers (UI_PLAN.md §5.5) - the only network dependency
+ * Open-Meteo fetch wrappers - the only network dependency
  * in an otherwise fully local-first app. No API key needed for
  * non-commercial use. Deliberately isolated in their own module, calling
  * the global `fetch` directly with no other side effects, so
@@ -72,7 +72,7 @@ export interface WeatherSnapshot {
 
 /**
  * City name -> candidate locations, via Open-Meteo's geocoding endpoint.
- * Called once, at the moment the user sets a location (UI_PLAN.md §5.5) -
+ * Called once, at the moment the user sets a location -
  * normal day-to-day operation never calls this, only `fetchWeatherSnapshot`.
  * Returns an empty array (never throws) on a network failure or an
  * unrecognised city name - the caller decides how to present "no matches".
@@ -123,8 +123,8 @@ function optionalNumber(value: unknown): number | undefined {
  * other field is optional, so a partial response still produces a usable
  * snapshot rather than none at all. Returns `null` (never throws) on any
  * network failure or unusable response shape - the caller falls back to a
- * cached snapshot or an "absent" state, per §5.5's "must degrade to
- * absent, never broken."
+ * cached snapshot or an "absent" state - weather degrades to absent,
+ * never broken.
  */
 export async function fetchWeatherSnapshot(latitude: number, longitude: number): Promise<WeatherSnapshot | null> {
   try {

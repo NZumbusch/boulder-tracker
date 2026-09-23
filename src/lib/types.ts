@@ -310,7 +310,7 @@ export function workoutPlannedLoad(exercises: ExerciseSlot[]): number {
 
 /**
  * Defines a macrocycle training phase (e.g. Capacity, Deload). Data, not
- * code (Phase 3 principle 4) - replaces the old closed `PhaseType` union so
+ * code - replaces the old closed `PhaseType` union so
  * phases can be added/renamed/archived without shipping code.
  */
 export interface PhaseDef {
@@ -324,7 +324,7 @@ export interface PhaseDef {
 }
 
 /**
- * A concurrent training emphasis spanning one or more weeks (Phase 4).
+ * A concurrent training emphasis spanning one or more weeks.
  * Replaces the old one-phase-per-week `PeriodizationWeek` - multiple blocks
  * can overlap the same week (e.g. a strength block and a skill-maintenance
  * block running side by side), with `priority` deciding which one dominates
@@ -397,7 +397,7 @@ export interface GoalEvent {
 /**
  * Tracks whether a week's auto-generated workouts were manually edited by
  * the user, kept as a **separate, per-week table decoupled from
- * `TrainingBlock`** (Phase 4 - PLAN.md's recommended default for the
+ * `TrainingBlock`** (the chosen answer to the
  * "what does 'customized' mean once blocks can overlap" question): "has
  * this week been manually edited" stays a per-week concern independent of
  * "what training emphasis covers this week," which is now a per-block
@@ -515,7 +515,7 @@ export interface PainLog {
  * (`src/lib/importers/outdoorAscentCsvImport.ts`) or entered by hand.
  * Deliberately a lightweight log for correlating outdoor performance
  * against training blocks/load - **not** a pyramid-builder or gym-grade
- * tool (see PLAN.md Phase 6's locked-in scope note).
+ * tool (a deliberate scope limit).
  */
 export interface OutdoorAscent {
   id: string;

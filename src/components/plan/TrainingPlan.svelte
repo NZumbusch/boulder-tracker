@@ -58,9 +58,9 @@
 
   // --- Logic: Calendar Generation ---
   // Reverted to the pre-Stage-6 50-week grid + hover-tooltip design
-  // (user-directed, 2026-09-18 - see PROGRESS.md "Stage 6 fixup": the
+  // (user-directed, 2026-09-18: the
   // block-timeline band/16-week window/visible-week-number redesign this
-  // stage originally built per UI_PLAN.md §4.3 didn't read well in the
+  // stage originally built didn't read well in the
   // real app and was reverted in favour of the original look, restyled
   // only with this branch's tokens/radii - not a partial keep of any of
   // that redesign).
@@ -105,7 +105,7 @@
       // (`bg-surface-elevated/50`, matching main's original look) with a
       // flat mid-gray on every unassigned cell. Passing `undefined` here
       // lets that component's own fallback apply instead (found/fixed
-      // 2026-09-18, see PROGRESS.md "Stage 6 fixup").
+      // 2026-09-18).
       color: w.phaseId ? phaseDefById.get(w.phaseId)?.color : undefined,
       tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}${w.provisional ? ' - not saved yet' : ''}`,
       hasOverlap: w.hasOverlap,
@@ -150,7 +150,7 @@
 
   const weekBenchmarks = $derived(trainingState.benchmarks.filter((b: Benchmark) => b.weekId === trainingState.selectedWeekId));
 
-  // --- Sessions grouped under day headings (UI_PLAN.md §4.3) - Mon-Sun in
+  // --- Sessions grouped under day headings - Mon-Sun in
   // that fixed order, then "Unassigned" last. Rest days (and an empty
   // Unassigned group) render explicitly as "- rest -"/"No unassigned
   // sessions" rather than an empty gap - every group always renders, even
@@ -215,8 +215,8 @@
   }
 
   /**
-   * The single write path for reassigning a session's day (UI_PLAN.md
-   * §4.3: "Both write the same field through one handler"). Snapshots
+   * The single write path for reassigning a session's day (the select
+   * and drag-and-drop both write the same field through it). Snapshots
    * before mutating rather than writing to the live store object in place
    * (the stash's version did the latter and is explicitly called out as
    * the thing not to repeat). Uses `saveWorkoutQuiet` rather than
@@ -230,14 +230,14 @@
   }
 
   /**
-   * Drag-and-drop day reassignment (UI_PLAN.md §4.3), via a drag handle on
+   * Drag-and-drop day reassignment, via a drag handle on
    * each session row rather than the whole row - user-directed, so the
    * rest of the row (and the page) keeps its normal scroll/tap behaviour;
    * only the handle itself starts a drag. Each day group is its own
    * `dragHandleZone`; dropping into a different zone than the one a
    * session started in reassigns its day through the exact same
-   * `handleDayReassign` the explicit picker uses - per §4.3's "do not
-   * duplicate the save path", this finalize handler never writes
+   * `handleDayReassign` the explicit picker uses - so the save path isn't
+   * duplicated, this finalize handler never writes
    * `dayOfWeek` itself, it only decides *whether* to call the one function
    * that does.
    */

@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * CRUD for multi-week `TrainingBlock`s - concurrent training emphases
-   * that can span (and overlap) more than one week (PLAN.md Phase 4). The
+   * that can span (and overlap) more than one week. The
    * single-week "quick assign" phase picker on the calendar itself
    * (`TrainingPlan.svelte`) stays the fast path for the common case; this
    * is the editor for real overlapping/longer blocks.

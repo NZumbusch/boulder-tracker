@@ -306,8 +306,8 @@ export const storage = {
       throw new Error("Duplicate modality names are not allowed.");
     }
 
-    // No rename-propagation needed: exercises reference types by typeId
-    // (Phase 1), which doesn't change when a type's display name does.
+    // No rename-propagation needed: exercises reference types by typeId,
+    // which doesn't change when a type's display name does.
     await this._saveExerciseTypes(types);
   },
 
@@ -348,7 +348,7 @@ export const storage = {
    * Finds an existing MetricDef by id, or creates it from the given
    * defaults. Defensive belt-and-suspenders alongside the fresh-install
    * default (constants.ts's DEFAULT_METRIC_DEFS) and the 3.24->3.25
-   * migration step - see PROGRESS.md 2026-09-17.
+   * migration step.
    */
   async ensureMetricDef(def: MetricDef): Promise<void> {
     const defs = await this._getMetricDefs();

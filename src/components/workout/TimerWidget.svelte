@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * Floating stopwatch / countdown / interval timer (stash port, UI_PLAN.md
-   * §1/§5.7, extended 2026-09-22 with interval mode).
+   * Floating stopwatch / countdown / interval timer (ported from an old
+   * stash, extended 2026-09-22 with interval mode).
    *
    * Three modes:
    * - **Stopwatch** and **countdown**, as ported, driven by a plain 1s tick.

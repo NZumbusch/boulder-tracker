@@ -1,7 +1,7 @@
 /**
  * Device-local UI preferences (text scale, motion, and - going forward -
  * anything else purely cosmetic/device-specific). Deliberately outside
- * `TrainingData`: see UI_PLAN.md §5.1 - these are not athlete data, and
+ * `TrainingData`: these are not athlete data, and
  * routing them through the `TrainingData` migration chain would mean a
  * schema field + migration step + `DATA_EXPORT_VERSION` bump for every new
  * toggle, against the highest-blast-radius part of the app.
@@ -10,7 +10,7 @@
  * compatibility (a future stage can move their live ownership here without
  * another shape change) but are NOT yet live-managed by this module - they
  * stay on their existing standalone `localStorage` keys, owned by `UiStore`,
- * per UI_PLAN.md §5.1. `migratePreferences` only folds their *current*
+ * `migratePreferences` only folds their *current*
  * values in once, at first load, so a fresh `boulder_tracker_preferences`
  * blob does not silently reset a returning user's theme/notification choice
  * back to defaults. After that fold, this module never re-reads or
@@ -37,17 +37,17 @@ export interface Preferences {
   /** Forward-compat only - see module doc comment. Not live-managed here yet. */
   notificationsEnabled: boolean;
   /**
-   * Whether the daily-metrics reminder (UI_PLAN.md §5.8, Stage 8) should
+   * Whether the daily-metrics reminder should
    * schedule at all once notifications are otherwise enabled. Defaults to
    * `true` - it's inert until `notificationsEnabled` is also true and
    * permission is granted, so there's no separate opt-in step needed on
    * top of turning notifications on in the first place.
    */
   dailyMetricsReminderEnabled: boolean;
-  /** "HH:mm", 24-hour, local time. Default 20:00 per UI_PLAN.md §10 open question 4. */
+  /** "HH:mm", 24-hour, local time. Default 20:00. */
   dailyMetricsReminderTime: string;
   /**
-   * Weather (UI_PLAN.md §5.5) - `null` by default, meaning the weather card
+   * Weather - `null` by default, meaning the weather card
    * is off until the user sets a location.
    */
   homeLocation: WeatherLocation | null;
@@ -57,7 +57,7 @@ export interface Preferences {
    * `migratePreferences` turns into the first crag.
    */
   crags: WeatherLocation[];
-  /** Bars is the default (UI_PLAN.md §2/§3.3) - radar is the user-requested alternate, both real. */
+  /** Bars is the default - radar is the user-requested alternate, both real. */
   fatigueChartStyle: FatigueChartStyle;
   /**
    * How much horizontal room each week gets in the Analytics charts, which
@@ -69,8 +69,7 @@ export interface Preferences {
    */
   chartDensity: ChartDensity;
   /**
-   * Timer behaviour toggles (UI_PLAN.md §5.7) - defaults match §4.7's own
-   * mockup (vibrate/beep on, keep-awake off). Independently togglable, not
+   * Timer behaviour toggles - defaults: vibrate/beep on, keep-awake off. Independently togglable, not
    * one master "sound on" switch - a user might want the haptic without
    * the beep, e.g.
    */
@@ -78,8 +77,7 @@ export interface Preferences {
   timerBeepEnabled: boolean;
   timerKeepAwakeEnabled: boolean;
   /**
-   * Home section visibility + order (UI_PLAN.md §4.7's "Home sections
-   * show/hide + reorder"). The array's order *is* the display order: an
+   * Home section visibility + order. The array's order *is* the display order: an
    * entry earlier in the array renders above one later in it. Every known
    * section id must appear exactly once - `migratePreferences` repairs a
    * corrupt/partial list back to this invariant rather than letting a
@@ -103,8 +101,7 @@ export interface Preferences {
   /** Display units - storage is always °C / kg / km/h / Font (see `lib/units.ts`). */
   units: Units;
   /**
-   * What gets included in an AI prompt's condensed training profile
-   * (UI_PLAN.md §5.8, Stage 10) - independent of whether the AI *has*
+   * What gets included in an AI prompt's condensed training profile - independent of whether the AI *has*
    * enough context, since sending health-adjacent personal data to an
    * external AI service the user pastes this into is its own privacy
    * decision. A category the user hasn't opted into is simply omitted from
@@ -139,9 +136,8 @@ export type AddedExerciseTarget = 'none' | 'mirror';
  * what's shared today (phases, benchmarks) - default **on**. Readiness &
  * Daily Metrics/Pain Logs are health data in a stricter sense - default
  * **off**, opt-in, so a user who never opens the new settings section gets
- * the same AI-sharing footprint as before this stage. Outdoor Ascents is
- * borderline (performance data, not health data) - default **on**. Exact
- * defaults per UI_PLAN.md §5.8's "Open question forced by this stage".
+ * the same AI-sharing footprint as before these toggles existed. Outdoor Ascents is
+ * borderline (performance data, not health data) - default **on**.
  */
 export interface AISharingPreferences {
   trainingBlocks: boolean;
@@ -174,7 +170,7 @@ export const AI_HISTORY_FULL_WEEK_OPTIONS = [1, 2, 3, 4, 6, 8] as const;
 export const AI_HISTORY_SUMMARY_WEEK_OPTIONS = [0, 4, 8, 12, 16, 26] as const;
 export const DEFAULT_AI_HISTORY: AIHistoryWindow = { fullWeeks: 2, summaryWeeks: 8 };
 
-/** Every togglable/reorderable Home section below the always-shown header (UI_PLAN.md §4.2), in the plan's own fixed default order. */
+/** Every togglable/reorderable Home section below the always-shown header, in the plan's own fixed default order. */
 export const HOME_SECTION_IDS = [
   'readiness',
   'alerts',
@@ -218,7 +214,7 @@ export type { ChartDensity } from '../analytics/chartWindow';
 
 export const DEFAULT_DAILY_METRICS_REMINDER_TIME = '20:00';
 
-/** A resolved lat/lon plus a display label - either geocoded from a city name or entered directly (UI_PLAN.md §10 open question 3: raw lat/lon must work with no geocoding call). */
+/** A resolved lat/lon plus a display label - either geocoded from a city name or entered directly - raw lat/lon must work with no geocoding call. */
 export interface WeatherLocation {
   name: string;
   latitude: number;

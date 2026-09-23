@@ -8,7 +8,7 @@ import { reminderId, checkNotificationPermission, cancelRemindersOfType } from '
 /**
  * Minutes after a workout's estimated end time before nudging the user to
  * log fatigue. A tunable default, not a fixed rule - same "flag, don't
- * treat as gospel" framing as Phase 4's ACWR ramp-rate threshold.
+ * treat as gospel" framing as the ACWR ramp-rate threshold.
  */
 export const FATIGUE_REMINDER_BUFFER_MINUTES = 20;
 

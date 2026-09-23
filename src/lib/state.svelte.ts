@@ -45,7 +45,7 @@ import { cancelRemindersOfType } from './notifications/shared';
  * public API (same property/method names on `trainingState`) so the
  * many existing component call sites don't need to change - the domain
  * stores are the real decomposition, this is a thin compatibility layer
- * over them (see PLAN.md Phase 2 / PROGRESS.md 2026-09-16).
+ * over them.
  */
 class TrainingState {
   workoutStore = new WorkoutStore();
@@ -133,7 +133,7 @@ class TrainingState {
     }
   }
 
-  // --- Weather (UI_PLAN.md §5.5) ---
+  // --- Weather ---
 
   get homeLocation() { return this.preferencesStore.homeLocation; }
   get crags() { return this.preferencesStore.crags; }
@@ -166,12 +166,12 @@ class TrainingState {
   /** Conditions at the next trip's place, once it's within the forecast - see `tripInForecast`. */
   get goalWeather() { return this.weatherStore.goal; }
 
-  /** City name -> candidate locations, for the Settings location picker (UI_PLAN.md §10 open question 3 - raw lat/lon entry bypasses this entirely). */
+  /** City name -> candidate locations, for the Settings location picker (raw lat/lon entry bypasses this entirely). */
   async geocodeCity(query: string) {
     return geocodeCity(query);
   }
 
-  // --- Fatigue chart style, timer toggles, Home section layout (UI_PLAN.md §4.7) ---
+  // --- Fatigue chart style, timer toggles, Home section layout ---
 
   get fatigueChartStyle() { return this.preferencesStore.fatigueChartStyle; }
   setFatigueChartStyle(style: FatigueChartStyle) { this.preferencesStore.setFatigueChartStyle(style); }
@@ -236,7 +236,7 @@ class TrainingState {
     this.preferencesStore.setHomeDetail(id, enabled);
   }
 
-  // --- AI sharing (UI_PLAN.md §5.8, Stage 10) ---
+  // --- AI sharing ---
 
   get aiSharing() { return this.preferencesStore.aiSharing; }
   setAiSharing(category: keyof AISharingPreferences, enabled: boolean) {
@@ -629,7 +629,7 @@ class TrainingState {
    * which reads as the page jumping back to its top. Fine for a save that
    * navigates away anyway, but wrong for an in-place
    * edit where the user stays put (e.g. the Plan screen's day-of-week
-   * reassignment, `UI_PLAN.md §4.3`) - found and fixed 2026-09-18 after the
+   * reassignment) - found and fixed 2026-09-18 after the
    * new day-picker made this pre-existing behaviour newly visible.
    * Reloads only the workouts store (everything a schedule change could
    * plausibly affect) and still re-syncs fatigue-reminder notifications,
@@ -847,7 +847,7 @@ class TrainingState {
   /**
    * Logs (or updates) a daily metric entry, e.g. a bodyweight reading.
    * Ensures the referenced MetricDef exists first - defensive, see
-   * PROGRESS.md 2026-09-17 (fresh-install MetricDef seeding gap).
+   * (fixed 2026-09-17: a fresh install had no MetricDefs seeded).
    */
   async saveDailyMetric(entry: DailyMetricEntry, def: MetricDef) {
     await this.metricsStore.ensureMetricDef(def);

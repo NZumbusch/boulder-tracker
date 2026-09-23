@@ -1,9 +1,9 @@
 <script lang="ts">
   /**
    * Inline prescribed-target hint for a numeric `ExerciseForm` field
-   * (UI_PLAN.md §4.4: "each field shows the corresponding prescribed value
-   * as a hint with a divergence cue (at target / above / below)"). Display
-   * only - never writes to `prescribed`, that invariant stays Phase 1's.
+   * (each field shows the corresponding prescribed value as a hint with a
+   * divergence cue: at target / above / below). Display
+   * only - never writes to `prescribed`, that invariant belongs to the prescribed/logged split.
    */
   import Icon from '@iconify/svelte';
 

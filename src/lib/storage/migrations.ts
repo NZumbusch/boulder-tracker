@@ -10,7 +10,7 @@ import { generateId } from "../utils";
 // --- Migration Helper ---
 
 /**
- * One step in the migration registry. Extracted verbatim (Phase 0) from the
+ * One step in the migration registry. Extracted verbatim from the
  * previous hand-rolled if-chain — each step's `migrate` body is the same
  * code that used to live inside `if (importVersion === "X.Y") { ... }`.
  */
@@ -29,13 +29,13 @@ const migratePre21 = (data: any) => {
 // Frozen old-shape snapshot of defaults.json's pre-Phase-1 "Deload" template,
 // used only by the 2.3->2.4 step below. That step's fallback historically
 // pulled from the live DEFAULT_TEMPLATES constant, which is fine as long as
-// DEFAULT_TEMPLATES stays old-shape - but Phase 1 converts defaults.json's
+// DEFAULT_TEMPLATES stays old-shape - but the prescribed/logged split converted defaults.json's
 // templates to the new typeId/prescribed ExerciseSlot shape, so this step
 // needs its own frozen copy of what DEFAULT_TEMPLATES["Deload"] produced
 // before that change, or it would inject new-shape data into what the rest
 // of this (old-shape) migration step still assumes is a flat Exercise[].
 // Confirmed reachable, not theoretical: backup-2.1.json is missing a
-// "Deload" key and hits this fallback (see PROGRESS.md 2026-09-16).
+// "Deload" key and hits this fallback.
 const LEGACY_DEFAULT_DELOAD_TEMPLATE = [
   {
     notes: "Light Activation Session",
@@ -53,7 +53,7 @@ const LEGACY_DEFAULT_DELOAD_TEMPLATE = [
   },
 ];
 
-// Fixed id mapping for the Phase 3 PhaseDef migration (PLAN.md). By the time
+// Fixed id mapping for the PhaseDef migration. By the time
 // data reaches version 3.19, the 3.7->3.8 and 3.13->3.14 steps above have
 // already normalized every phase value down to these 7 canonical names, so
 // the mapping can be a direct lookup rather than needing to handle the older
@@ -71,7 +71,7 @@ const BUILTIN_PHASE_DEFS = [
 /**
  * Shared "look up an existing PhaseDef by name, or create an archived
  * placeholder for it" resolver, matching the same archived-placeholder
- * pattern the 3.14->3.15/3.15->3.16 Phase 1 steps use for typeId/categoryId
+ * pattern the 3.14->3.15/3.15->3.16 steps use for typeId/categoryId
  * (principle 2 - archived, never hard-deleted, once referenced). Used by two
  * separate migration steps (periodization, then templates) against the same
  * evolving `data.phaseDefs` array, so a name unresolved in one step but seen
@@ -210,7 +210,7 @@ const MIGRATIONS: MigrationStep[] = [
       // Ensure Deload is in templates
       if (data.templates && !data.templates["Deload"]) {
         // Deep-clone: later migration steps mutate this in place (e.g. the
-        // Phase 1 restructuring step reassigns w.exercises), and the source
+        // Exercise->ExerciseSlot restructuring step reassigns w.exercises), and the source
         // is a shared module-level constant - assigning it by reference
         // would corrupt it for any later migration run in this process that
         // hits this same fallback (confirmed via a test that runs this path
@@ -783,7 +783,7 @@ const MIGRATIONS: MigrationStep[] = [
     from: "3.14",
     to: "3.15",
     describe:
-      "Phase 1: resolve Exercise.type (name) to typeId, creating an archived placeholder ExerciseTypeDef for any unresolvable name",
+      "resolve Exercise.type (name) to typeId, creating an archived placeholder ExerciseTypeDef for any unresolvable name",
     migrate: (data: any) => {
       data.exerciseTypes = data.exerciseTypes || [];
       const placeholderIds = new Map<string, string>();
@@ -822,7 +822,7 @@ const MIGRATIONS: MigrationStep[] = [
     from: "3.15",
     to: "3.16",
     describe:
-      "Phase 1: resolve Exercise.category (name override) to categoryId, creating an archived placeholder AnalyticsCategory for any unresolvable name",
+      "resolve Exercise.category (name override) to categoryId, creating an archived placeholder AnalyticsCategory for any unresolvable name",
     migrate: (data: any) => {
       data.analyticsCategories = data.analyticsCategories || [];
       const placeholderIds = new Map<string, string>();
@@ -855,7 +855,7 @@ const MIGRATIONS: MigrationStep[] = [
     from: "3.16",
     to: "3.17",
     describe:
-      "Phase 1: restructure flat Exercise[] into ExerciseSlot[] (typeId/categoryId already resolved), splitting duration/reps into prescribed vs logged",
+      "restructure flat Exercise[] into ExerciseSlot[] (typeId/categoryId already resolved), splitting duration/reps into prescribed vs logged",
     migrate: (data: any) => {
       // Every ExerciseValues field except duration/reps, which are the only
       // two fields that ever had a real prescribed-vs-actual split
@@ -927,7 +927,7 @@ const MIGRATIONS: MigrationStep[] = [
     from: "3.17",
     to: "3.18",
     describe:
-      "Phase 1: convert dailyReadiness into metricDefs + dailyMetrics (seeding built-in sleep-score/hrv/rhr MetricDefs)",
+      "convert dailyReadiness into metricDefs + dailyMetrics (seeding built-in sleep-score/hrv/rhr MetricDefs)",
     migrate: (data: any) => {
       const BUILTIN_METRIC_DEFS = [
         { id: "sleep-score", name: "Sleep Score", unit: "pts" },
@@ -960,7 +960,7 @@ const MIGRATIONS: MigrationStep[] = [
   {
     from: "3.18",
     to: "3.19",
-    describe: "Phase 1: add painLogs (empty by default, purely additive)",
+    describe: "add painLogs (empty by default, purely additive)",
     migrate: (data: any) => {
       data.painLogs = data.painLogs || [];
     },
@@ -968,7 +968,7 @@ const MIGRATIONS: MigrationStep[] = [
   {
     from: "3.19",
     to: "3.20",
-    describe: "Phase 3: seed the 7 built-in PhaseDefs",
+    describe: "seed the 7 built-in PhaseDefs",
     migrate: (data: any) => {
       data.phaseDefs = data.phaseDefs || [];
       BUILTIN_PHASE_DEFS.forEach((def) => {
@@ -982,7 +982,7 @@ const MIGRATIONS: MigrationStep[] = [
     from: "3.20",
     to: "3.21",
     describe:
-      "Phase 3: resolve PeriodizationWeek.phase (name) to phaseId, creating an archived placeholder PhaseDef for any unresolvable name",
+      "resolve PeriodizationWeek.phase (name) to phaseId, creating an archived placeholder PhaseDef for any unresolvable name",
     migrate: (data: any) => {
       data.phaseDefs = data.phaseDefs || [];
       const findOrCreatePhaseId = makePhaseIdResolver(data);
@@ -999,7 +999,7 @@ const MIGRATIONS: MigrationStep[] = [
     from: "3.21",
     to: "3.22",
     describe:
-      "Phase 3: convert templates keyed by phase name into WorkoutTemplate[] keyed by phaseId",
+      "convert templates keyed by phase name into WorkoutTemplate[] keyed by phaseId",
     migrate: (data: any) => {
       data.phaseDefs = data.phaseDefs || [];
       const findOrCreatePhaseId = makePhaseIdResolver(data);
@@ -1028,7 +1028,7 @@ const MIGRATIONS: MigrationStep[] = [
     from: "3.22",
     to: "3.23",
     describe:
-      "Phase 4: convert PeriodizationWeek[] into single-week TrainingBlocks, splitting the 'customized' flag out into a decoupled WeekOverride table",
+      "convert PeriodizationWeek[] into single-week TrainingBlocks, splitting the 'customized' flag out into a decoupled WeekOverride table",
     migrate: (data: any) => {
       data.trainingBlocks = data.trainingBlocks || [];
       data.weekOverrides = data.weekOverrides || [];
@@ -1056,7 +1056,7 @@ const MIGRATIONS: MigrationStep[] = [
   {
     from: "3.23",
     to: "3.24",
-    describe: "Phase 4: add competitionEvents (empty by default, purely additive)",
+    describe: "add competitionEvents (empty by default, purely additive)",
     migrate: (data: any) => {
       data.competitionEvents = data.competitionEvents || [];
     },
@@ -1064,7 +1064,7 @@ const MIGRATIONS: MigrationStep[] = [
   {
     from: "3.24",
     to: "3.25",
-    describe: "Phase 6: seed the built-in bodyweight MetricDef",
+    describe: "seed the built-in bodyweight MetricDef",
     migrate: (data: any) => {
       data.metricDefs = data.metricDefs || [];
       if (!data.metricDefs.some((m: any) => m.id === BODYWEIGHT_METRIC_ID)) {
@@ -1075,7 +1075,7 @@ const MIGRATIONS: MigrationStep[] = [
   {
     from: "3.25",
     to: "3.26",
-    describe: "Phase 6: add outdoorAscents (empty by default, purely additive)",
+    describe: "add outdoorAscents (empty by default, purely additive)",
     migrate: (data: any) => {
       data.outdoorAscents = data.outdoorAscents || [];
     },
@@ -1136,12 +1136,12 @@ export function runDataMigrations(data: any): void {
 }
 
 /**
- * Post-migration safety net (Phase 0). Compares the data before and after
+ * Post-migration safety net. Compares the data before and after
  * running migrations and throws if it looks corrupted, so the caller can
  * roll back to the pre-migration snapshot instead of persisting bad data.
  * Deliberately conservative/cheap checks, not exhaustive validation:
  * workout/benchmark counts must be preserved, and every exercise's
- * `typeId` (Phase 1 - was the name-based `Exercise.type`) must resolve
+ * `typeId` (was the name-based `Exercise.type`) must resolve
  * against the migrated `exerciseTypes` list.
  */
 export function assertMigrationInvariants(before: any, after: any): void {

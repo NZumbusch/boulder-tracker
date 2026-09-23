@@ -62,7 +62,7 @@
   let notes = $state('');
   let categoryOverride = $state<string>('');
 
-  // Optional convenience (PLAN.md Phase 6): shows the absolute added weight
+  // Optional convenience: shows the absolute added weight
   // implied by the bodyweightPercent slider, using the most recently logged
   // bodyweight entry - doesn't change what's stored (still a %, same as
   // before), just a display hint.
@@ -93,7 +93,7 @@
   const activeTypeDef = $derived(exerciseTypes.find(t => t.id === selectedTypeId));
 
   // Exercise picker grouped by analytics category, recent/frequent first
-  // within each group (UI_PLAN.md §4.4 - was a flat `<select>` over every
+  // within each group (was a flat `<select>` over every
   // modality). Usage is read straight from `trainingState.workouts`
   // (already loaded/reactive) rather than a new derived-data module, since
   // this is presentational ordering for one `<select>`, not a reusable
@@ -139,7 +139,7 @@
     (initialSlot?.[mode as 'prescribed' | 'logged']) ?? initialSlot?.prescribed ?? {},
   );
 
-  // Inline prescribed-target hints (UI_PLAN.md §4.4) - only meaningful in
+  // Inline prescribed-target hints - only meaningful in
   // `logged` mode, and only once there's a real `prescribed` bucket to
   // compare against (a brand-new slot added directly while logging has
   // none). Read-only - `handleSubmit` below never writes to `prescribed`.

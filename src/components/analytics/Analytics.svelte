@@ -26,14 +26,14 @@
   // ACWR zone edges - adjustable under Settings -> Training model.
   const acwrZones = $derived(trainingState.acwrZones);
 
-  // Stage 5 (UI_PLAN.md §6/§4.6): shared header + section-jump chips,
+  // Shared header + section-jump chips,
   // ACWR merged into Rolling Load (this file), and three new panels
   // (Fatigue, Outdoor Ascents, Bodyweight Trend). AdherencePanel/
   // RecoveryWarningsPanel/Benchmark Progress are otherwise unchanged -
-  // Stage 0 already retrofitted their tokens/radii, so "restyle only"
-  // needed no further edits there.
+  // their tokens/radii were already retrofitted, so they needed no
+  // further edits.
   //
-  // Deviation from §4.6's literal "sticky header" (user-directed fixup,
+  // Not a sticky header (user-directed fixup,
   // 2026-09-18, after the sticky version's z-index/narrow-screen problems):
   // the header now scrolls away with the page, matching every other
   // screen's (e.g. TrainingPlan.svelte) plain top-of-page header instead of
@@ -88,11 +88,9 @@
     return `${first.start.toLocaleDateString(undefined, startOpts)} – ${last.end.toLocaleDateString(undefined, endOpts)}`;
   });
 
-  // --- Section-jump chips (§4.6: "...add section-jump chips"). ACWR is
-  // merged into the Load panel below, so its chip scrolls to the same
-  // anchor as Load - §4.6 still lists it as a separate chip alongside
-  // Load/Mix/Fatigue/Adherence/Benchmarks, so it's kept as a distinct (if
-  // same-target) entry rather than dropped.
+  // --- Section-jump chips. ACWR is merged into the Load panel below, so
+  // its chip scrolls to the same anchor as Load - kept as a distinct (if
+  // same-target) chip so ACWR is still findable by name.
   // Jump chips follow the cards' order and visibility (Settings -> History & Analytics).
   const CHIPS: Record<string, { id: string; label: string }[]> = {
     load: [{ id: 'section-load', label: 'Load' }, { id: 'section-load', label: 'ACWR' }],
@@ -190,7 +188,7 @@
           : typeToCategory.get(slot.typeId);
 
         // Every typeId is guaranteed resolvable to some ExerciseTypeDef
-        // (Phase 1's migration creates an archived placeholder for any
+        // (the prescribed/logged migration creates an archived placeholder for any
         // that can't resolve a real one), so this is just a final
         // safety net, not name-matching guesswork.
         if (!categoryName) categoryName = 'Other';
@@ -244,7 +242,7 @@
     };
   });
 
-  // --- Phase 4: load analytics (ACWR/ramp-rate, adherence, recovery
+  // --- Load analytics (ACWR/ramp-rate, adherence, recovery
   // warnings, injury-vs-load correlation) - scoped to the same visible
   // week window as the charts above, consistent with this view's existing
   // prev/next/today navigation rather than recomputing over full history.
@@ -263,10 +261,10 @@
   const visibleCategories = $derived(categories.filter(c => !hiddenCategoryIds.has(c.id)));
   const maxVisibleDuration = $derived(Math.max(...chartData.weeks.map(w => visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? w.categories[cat.name] : w.completedCategories[cat.name]) || 0), 0)), 1));
 
-  // --- Stage 5 (UI_PLAN.md §4.6): ACWR merged into the Rolling Load panel.
+  // --- ACWR merged into the Rolling Load panel.
   // Same `AcwrResult[]` the standalone AcwrPanel used to render - only the
-  // presentation moved, not the calculation (Stage 2's rolling ACWR is
-  // consumed as-is, per this session's Stage 5 instruction).
+  // presentation moved, not the calculation (the rolling ACWR is consumed
+  // as-is).
   type RatioStatus = 'good' | 'caution' | 'risk' | 'neutral';
   const RATIO_STATUS_VAR: Record<RatioStatus, string> = {
     good: 'var(--color-status-good)',
@@ -315,11 +313,11 @@
   }
   const acwrRatioSegments = $derived(buildLineSegments(acwrOverlayPoints.map((p) => ({ x: p.x, y: p.ratioY }))));
 
-  // --- Stage 5: Fatigue panel data (UI_PLAN.md §5.4) - `computeFatigueDecay`
+  // --- Fatigue panel data - `computeFatigueDecay`
   // sampled at each displayed week's end date, mirroring the sampling
-  // pattern `calculateRollingAcwrSeries` established in Stage 2, so this is
-  // a trend rather than duplicating Home's single "now" snapshot (§2: "Home
-  // = now, Analytics = history, no duplicated panels").
+  // pattern `calculateRollingAcwrSeries` uses, so this is
+  // a trend rather than duplicating Home's single "now" snapshot ("Home =
+  // now, Analytics = history, no duplicated panels").
   const fatigueSamples = $derived(chartData.weeks.map((w) => {
     const dates = getWeekDates(w.id);
     const asOf = dates ? dates.end : new Date();
@@ -338,7 +336,7 @@
     return c;
   });
 
-  // --- Stage 5: Outdoor Ascents panel data (UI_PLAN.md §4.6) - grouped into
+  // --- Outdoor Ascents panel data - grouped into
   // the same displayed week window, grade parsed via the new Font-grade
   // helper. Ascents whose grade doesn't parse are counted, never dropped
   // silently (see grades.ts's documented French-grade limitation).
@@ -363,7 +361,7 @@
     };
   });
 
-  // --- Stage 5: Bodyweight trend panel (UI_PLAN.md §4.6) - last 10 entries,
+  // --- Bodyweight trend panel - last 10 entries,
   // matching Benchmark Progress's own established "last 10, not window-
   // bound" precedent below. Uses a min/max-padded scale rather than
   // Benchmark Progress's 0-based one: bodyweight has no meaningful "0"
@@ -545,7 +543,7 @@
 
     <!-- Chips get their own full-width row so they always have room to
          scroll horizontally, rather than being squeezed by the nav
-         controls on a narrow phone (see PROGRESS.md, Stage 5 fixup). -->
+         controls on a narrow phone. -->
     <div class="flex gap-1.5 overflow-x-auto no-scrollbar px-1">
       {#each SECTIONS as s}
         <button

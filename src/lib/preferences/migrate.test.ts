@@ -166,7 +166,7 @@ describe('migratePreferences', () => {
     expect(result.aiSharing).toEqual(DEFAULT_AI_SHARING);
   });
 
-  it('backward compat: a real Stage-0-era blob with none of this stage\'s fields at all gets them all defaulted, without resetting textScale/motion (no version bump was needed for this addition)', () => {
+  it('backward compat: an early blob with none of the newer fields at all gets them all defaulted, without resetting textScale/motion (no version bump was needed for this addition)', () => {
     const stage0Blob = {
       version: CURRENT_PREFERENCES_VERSION,
       textScale: 'lg',
@@ -230,7 +230,7 @@ describe('migratePreferences', () => {
   });
 });
 
-describe('homeLocation / crags (UI_PLAN.md §5.5)', () => {
+describe('homeLocation / crags', () => {
   it('default to unset - the whole weather feature is off until a location is set', () => {
     expect(defaultPreferences().homeLocation).toBeNull();
     expect(defaultPreferences().crags).toEqual([]);
@@ -312,7 +312,7 @@ describe('timer toggles', () => {
   });
 });
 
-describe('homeSections (UI_PLAN.md §4.7)', () => {
+describe('homeSections', () => {
   it('defaults to every known section, visible, in the fixed plan order', () => {
     const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION });
     expect(result.homeSections).toEqual(DEFAULT_HOME_SECTIONS);
@@ -366,7 +366,7 @@ describe('homeSections (UI_PLAN.md §4.7)', () => {
   });
 });
 
-describe('aiSharing (UI_PLAN.md §5.8, Stage 10)', () => {
+describe('aiSharing', () => {
   it('defaults to Training Blocks/Competitions/Outdoor Ascents on, Readiness & Daily Metrics/Pain Logs off', () => {
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).aiSharing).toEqual(DEFAULT_AI_SHARING);
   });

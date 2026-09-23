@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * Planned-vs-actual adherence panel (PLAN.md Phase 4) - the payoff for
-   * Phase 1's `prescribed`/`logged` split.
+   * Planned-vs-actual adherence panel - the payoff for
+   * the `prescribed`/`logged` split.
    */
   import type { WeeklyAdherence } from '../../lib/analytics/loadAnalytics';
   import Icon from "@iconify/svelte";

@@ -10,13 +10,13 @@ import { DATA_EXPORT_VERSION, DEFAULT_TEMPLATES, DEFAULT_EXERCISE_TYPES, DEFAULT
 // missing `exportVersion` to "1.0" unconditionally, so `runStartupMigrations`
 // ran the entire migration chain over that already-current-shape data on
 // every fresh install. Most historical steps happen to be idempotent
-// against already-migrated data, but two were not: the Phase 3 templates
+// against already-migrated data, but two were not: the PhaseDef templates
 // step re-resolved already-correct phaseId keys as if they were phase
 // *names* (creating an archived placeholder PhaseDef per phase, visible in
-// Settings as gray duplicates named "phase-..."), and the Phase 1
+// Settings as gray duplicates named "phase-..."), and the
 // Exercise->ExerciseSlot restructure step double-nested `prescribed` on
 // already-slotted default-template exercises (silently hiding every
-// default template's exercise values - a corruption that predates Phase 3
+// default template's exercise values - a corruption that predates the PhaseDef steps
 // but was never caught because manual fresh-install testing was deferred
 // to the user in every prior phase, and existing installs never exercise
 // this path).

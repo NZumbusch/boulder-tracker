@@ -23,7 +23,7 @@
   let systemic = $state(5);
   let notes = $state('');
 
-  // --- Pain/discomfort logging (PLAN.md Phase 4 - the workout-completion
+  // --- Pain/discomfort logging (the workout-completion
   // flow is the natural entry point, since severity/weekId are already at
   // hand here). Purely optional and additive to the fatigue rating above -
   // it writes its own PainLog, it never affects loadFactor/fatigue.
@@ -66,10 +66,10 @@
   });
 
   // calculateLoadFactor deliberately keeps its existing fingers/core/systemic
-  // signature - arms is collected as data (UI_PLAN.md §5.4) but is not a
+  // signature - arms is collected as data but is not a
   // load-formula input. Collecting it and using it in the load calculation
   // are separate decisions; only the first is in scope here, so don't "fix"
-  // this apparent inconsistency without re-reading §5.4/§8.
+  // this apparent inconsistency.
   const loadFactor = $derived(calculateLoadFactor(durationMinutes, fingers, core, systemic));
 
   async function handleSave() {

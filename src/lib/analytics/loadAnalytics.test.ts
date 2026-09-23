@@ -43,7 +43,7 @@ describe("calculateWeeklyLoad", () => {
   });
 });
 
-describe("calculateRollingAcwr (UI_PLAN.md §5.3 - rolling 7-day acute / 28-day chronic window, replacing week buckets)", () => {
+describe("calculateRollingAcwr (rolling 7-day acute / 28-day chronic window, replacing week buckets)", () => {
   const asOf = new Date(Date.UTC(2026, 2, 28)); // 2026-03-28, UTC midnight
 
   /** `n` completed workouts of `loadFactor` each, one per day, the most recent on `asOf`, going backward. */
@@ -139,7 +139,7 @@ describe("calculateRollingAcwrSeries", () => {
   });
 });
 
-describe("calculateAcwrForWeeks (UI_PLAN.md §5.3 - ratio/acuteLoad/chronicLoad/sufficient now come from calculateRollingAcwr sampled at each week's UTC end date; rampRate/spike stay week-bucketed, per §5.3's own 'different metric' note)", () => {
+describe("calculateAcwrForWeeks (ratio/acuteLoad/chronicLoad/sufficient now come from calculateRollingAcwr sampled at each week's UTC end date; rampRate/spike stay week-bucketed, as a deliberately 'different metric' note)", () => {
   it("acuteLoad/chronicLoad/ratio/sufficient for a week equal calculateRollingAcwr sampled at that week's end date", () => {
     // 2026-W12 ends 2026-03-22 (see dateUtils.test.ts). Build 28 days of
     // even daily load ending exactly on that date so the rolling window is
@@ -423,7 +423,7 @@ describe("correlatePainWithLoadSpikes", () => {
     expect(result.loadSpikeNearby).toBe(false);
   });
 
-  it("a high ratio during a not-yet-sufficient 'building history' window does not count as correlated on its own (the baseline is understated, not trustworthy - UI_PLAN.md §5.3)", () => {
+  it("a high ratio during a not-yet-sufficient 'building history' window does not count as correlated on its own (the baseline is understated, not trustworthy)", () => {
     const acwrInsufficient: AcwrResult[] = [
       { weekId: "W7", acuteLoad: 10, chronicLoad: 2, ratio: 5, sufficient: false, rampRate: 0, spike: false },
     ];

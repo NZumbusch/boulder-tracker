@@ -22,7 +22,7 @@ const RANDOM_IDS: TemplateIdFactory = {
 /**
  * Builds the set of planned workouts a phase's templates imply for a week.
  * Pure and synchronous - storage only persists the result, it doesn't decide
- * what a phase assignment implies (see PLAN.md Phase 2).
+ * what a phase assignment implies.
  *
  * Regenerates every exercise slot's id (not just reusing the template's):
  * assigning the same phase to multiple weeks would otherwise give every

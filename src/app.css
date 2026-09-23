@@ -39,22 +39,22 @@
   --color-tertiary-hover: var(--theme-tertiary-hover);
 
   /* Status colour tokens - meaning only (readiness/ACWR/fatigue state).
-     Never used for decoration. See UI_PLAN.md §3.3. */
+     Never used for decoration. */
   --color-status-good: var(--theme-status-good);
   --color-status-caution: var(--theme-status-caution);
   --color-status-risk: var(--theme-status-risk);
   --color-status-neutral: var(--theme-status-neutral);
 
-  /* Two radii only - see UI_PLAN.md §3.2. rounded-full (circles/pills) is
+  /* Two radii only. rounded-full (circles/pills) is
      a separate shape concern, not part of this corner-radius scale. */
   --radius-card: 16px;
   --radius-control: 10px;
 
   /* One shared card elevation, replacing the shadow-lg/xl/2xl mix on card
-     containers (UI_PLAN.md §3.2). Not used for buttons/interactive glow. */
+     containers. Not used for buttons/interactive glow. */
   --shadow-card: 0 4px 24px -2px rgb(0 0 0 / 0.35);
 
-  /* Type ramp - see UI_PLAN.md §3.1. Sizes are indirected through
+  /* Type ramp. Sizes are indirected through
      --typescale-* so `data-text-scale` can override them (below);
      weight/tracking don't scale, so they're set directly here. */
   --text-display: var(--typescale-display);
@@ -175,7 +175,7 @@
   --theme-status-neutral: #a1a1aa; /* zinc-400 */
 }
 
-/* Type ramp base sizes (UI_PLAN.md §3.1), scaled by data-text-scale below.
+/* Type ramp base sizes, scaled by data-text-scale below.
    --typescale-caption never goes below 11px at any scale - the hard floor. */
 :root {
   --typescale-display: 44px;
@@ -207,7 +207,7 @@
   --typescale-caption: 12px;
 }
 
-/* Motion (UI_PLAN.md §3.4). `data-motion` is always resolved to "full" or
+/* Motion. `data-motion` is always resolved to "full" or
    "reduced" in script (App.svelte), including honouring
    prefers-reduced-motion as the default when no explicit choice has been
    made - the media query below is only a pre-hydration/no-JS fallback so

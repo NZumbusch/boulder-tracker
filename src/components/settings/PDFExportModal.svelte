@@ -78,7 +78,7 @@
     });
   });
 
-  /** Coach-report analytics sections (PLAN.md Phase 6), built on Phase 4's loadAnalytics.ts. */
+  /** Coach-report analytics sections, built on loadAnalytics.ts. */
   const reportAnalytics = $derived.by(() => {
     const acwr = calculateAcwrForWeeks(trainingState.workouts, targetWeekIds);
     const adherence = targetWeekIds

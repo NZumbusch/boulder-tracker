@@ -23,9 +23,9 @@ import {
  * behavior) made `runStartupMigrations` run the *entire* migration chain
  * over already-current-shape data - most historical steps happen to be
  * defensive/idempotent against that, but not all of them (confirmed: the
- * Phase 3 templates-rekey step re-resolved already-correct phaseId keys as
+ * PhaseDef templates-rekey step re-resolved already-correct phaseId keys as
  * if they were phase *names*, creating an archived placeholder PhaseDef
- * per phase, and the Phase 1 Exercise->ExerciseSlot restructure step
+ * per phase, and the Exercise->ExerciseSlot restructure step
  * double-nested `prescribed` on already-slotted default-template
  * exercises). A real, pre-existing install (has persisted `workouts`, even
  * an empty array) still defaults to `"1.0"` exactly as before when its

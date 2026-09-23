@@ -1,12 +1,12 @@
 <script lang="ts">
   /**
    * Appearance -> Home: the Fatigue card's chart style, and Home section
-   * visibility + reorder (UI_PLAN.md §4.7). Split out of the old single
+   * visibility + reorder. Split out of the old single
    * "Layout" card when Appearance was grouped by topic.
    *
    * **Home sections** reorder via `svelte-dnd-action`'s `dragHandleZone`/
    * `dragHandle` - the same handle-only pattern (not whole-row-draggable)
-   * Stage 6 used for the Plan screen's day reassignment, so normal page
+   * the Plan screen uses for day reassignment, so normal page
    * scrolling isn't interrupted by an accidental drag start.
    *
    * A section with optional parts (`HOME_SECTION_DETAILS`) gets a chevron
@@ -35,7 +35,7 @@
   };
 
   // Local mutable mirror, same reasoning as TrainingPlan.svelte's `dayGroups`
-  // (Stage 6) - the DnD library needs a locally-reorderable array for live
+  // - the DnD library needs a locally-reorderable array for live
   // visual feedback; the actual write path is `setHomeSectionOrder`, called
   // only on drop.
   let items = $state<HomeSectionPreference[]>(trainingState.homeSections);

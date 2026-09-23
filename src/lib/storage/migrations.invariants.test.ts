@@ -14,12 +14,12 @@ function loadFixture(name: string): any {
   return JSON.parse(raw);
 }
 
-// Phase 0's post-migration safety net: assertMigrationInvariants is the
+// The post-migration safety net: assertMigrationInvariants is the
 // function runStartupMigrations relies on to decide whether to restore the
 // pre-migration backup instead of persisting migrated data. Tested directly
 // (rather than through runStartupMigrations) because that method also
 // touches localforage/Capacitor/showAlert, which aren't meaningful to
-// exercise under vitest's node environment - see PROGRESS.md, Phase 0 entry.
+// exercise under vitest's node environment.
 describe("assertMigrationInvariants", () => {
   const baseline = {
     workouts: [

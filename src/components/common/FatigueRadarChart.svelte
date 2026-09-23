@@ -1,13 +1,11 @@
 <script lang="ts">
   /**
-   * Fatigue radar/spider chart (UI_PLAN.md §2/§3.3 decision table: "Fatigue
-   * visualisation: Both bars and radar, switchable in Appearance... Bars
-   * are the default"). Shared by Home's fatigue section and Analytics'
+   * Fatigue radar/spider chart - the alternative to the default bars,
+   * switchable in Appearance. Shared by Home's fatigue section and Analytics'
    * `FatiguePanel.svelte` - same four values `computeFatigueDecay` already
    * produces, this is presentation only.
    *
-   * The stash's own radar chart was explicitly rejected in the Stage 0/1
-   * stash audit for imputing missing axes with `|| 5` - a radar polygon
+   * The old stash's radar chart was rejected for imputing missing axes with `|| 5` - a radar polygon
    * structurally can't represent "no data" honestly at one vertex without
    * either implying zero fatigue (plotting at centre) or max fatigue
    * (plotting at the rim), and a partial polygon that skips a vertex still

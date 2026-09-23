@@ -1,8 +1,7 @@
 <script lang="ts">
   /**
-   * Outdoor ascent grade distribution over the displayed week window
-   * (UI_PLAN.md §4.6, Stage 5) - `outdoorAscents` are imported and stored
-   * (Phase 6) but nothing charted them until now. Each ascent is plotted
+   * Outdoor ascent grade distribution over the displayed week window - `outdoorAscents` are imported and stored
+   * but nothing charted them until now. Each ascent is plotted
    * as a dot: x = the week it fell in, y = its grade rank (see
    * `../../lib/analytics/grades.ts`) - a scatter, not a bar chart, so the
    * spread of grades climbed each week ("distribution") is visible

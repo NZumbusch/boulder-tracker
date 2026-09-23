@@ -3,8 +3,7 @@
  * field returns) mapped to a short label and an Iconify icon name.
  * Standard table, not this app's own invention - see
  * https://open-meteo.com/en/docs (WMO Weather interpretation codes).
- * Pure data + a pure lookup, no network - fully unit-testable on its own,
- * per UI_PLAN.md §5.5's "pure fetch wrappers... isolated and mockable"
+ * Pure data + a pure lookup, no network - fully unit-testable on its own
  * (the network call is the *other* half; this half never touches it).
  */
 

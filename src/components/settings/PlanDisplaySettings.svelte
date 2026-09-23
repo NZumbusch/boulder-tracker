@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Appearance -> Plan. Week view stays a static "Day list" row rather than
-   * a real toggle - the 7-column grid alternate is deferred (UI_PLAN.md §6);
+   * a real toggle - the 7-column grid alternate is deferred;
    * offering "Grid" now would select a mode that renders nothing.
    */
 </script>

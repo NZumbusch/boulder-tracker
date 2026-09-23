@@ -15,10 +15,10 @@ function loadFixture(name: string): any {
   return JSON.parse(raw);
 }
 
-// Phase 3's migration work: PhaseType (closed union) -> PhaseDef (data),
+// The PhaseDef migration: PhaseType (closed union) -> PhaseDef (data),
 // PeriodizationWeek.phase (name) -> phaseId, and templates rekeyed from
 // phase name to phaseId with a Partial<Workout> -> WorkoutTemplate shape
-// change. See PLAN.md Phase 3 Definition of Done.
+// change.
 
 const ALL_SEVEN_PHASE_NAMES_TO_IDS: Record<string, string> = {
   Capacity: "phase-capacity",
@@ -30,8 +30,8 @@ const ALL_SEVEN_PHASE_NAMES_TO_IDS: Record<string, string> = {
   Deload: "phase-deload",
 };
 
-describe("Phase 3: all 7 legacy phase names map to the correct phaseIds", () => {
-  it("resolves every canonical phase name to its fixed phaseId for periodization entries (now TrainingBlocks, Phase 4)", () => {
+describe("all 7 legacy phase names map to the correct phaseIds", () => {
+  it("resolves every canonical phase name to its fixed phaseId for periodization entries (now TrainingBlocks)", () => {
     const data: any = {
       exportVersion: "3.19",
       workouts: [],
@@ -89,7 +89,7 @@ describe("Phase 3: all 7 legacy phase names map to the correct phaseIds", () => 
   });
 });
 
-describe("Phase 3: unresolvable/custom phase name gets an archived placeholder PhaseDef", () => {
+describe("unresolvable/custom phase name gets an archived placeholder PhaseDef", () => {
   it("never drops the reference - creates an archived PhaseDef instead", () => {
     const data: any = {
       exportVersion: "3.19",
@@ -132,7 +132,7 @@ describe("Phase 3: unresolvable/custom phase name gets an archived placeholder P
   });
 });
 
-describe("Phase 3: full old-to-new roundtrip", () => {
+describe("full old-to-new roundtrip", () => {
   it("every training block's phaseId and templates key resolves against phaseDefs, invariants pass", () => {
     const before = loadFixture("backup-2.1.json");
     const after = JSON.parse(JSON.stringify(before));
@@ -152,7 +152,7 @@ describe("Phase 3: full old-to-new roundtrip", () => {
   });
 });
 
-describe("Phase 3: fresh-install/reset-to-default-library shape", () => {
+describe("fresh-install/reset-to-default-library shape", () => {
   it("DEFAULT_PHASE_DEFS has all 7 built-in phases with the fixed ids", () => {
     const ids = DEFAULT_PHASE_DEFS.map((p) => p.id).sort();
     expect(ids).toEqual(Object.values(ALL_SEVEN_PHASE_NAMES_TO_IDS).sort());
@@ -179,7 +179,7 @@ describe("Phase 3: fresh-install/reset-to-default-library shape", () => {
   });
 });
 
-describe("Phase 3: starter template library (placeholder content only, see PROGRESS.md)", () => {
+describe("starter template library (placeholder content only)", () => {
   it("has at least one set, and every set's exercises resolve against DEFAULT_EXERCISE_TYPES", () => {
     expect(DEFAULT_TEMPLATE_LIBRARY.length).toBeGreaterThan(0);
     const knownTypeIds = new Set(DEFAULT_EXERCISE_TYPES.map((t) => t.id));

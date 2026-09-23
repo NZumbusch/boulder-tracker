@@ -25,7 +25,7 @@ export interface WeatherState {
   /** True once any fetch has succeeded, cleared only by a newer successful fetch - never re-fetched implicitly. */
   stale: boolean;
   loading: boolean;
-  /** True once a fetch has failed with nothing cached to fall back on - the one genuinely "absent" state (UI_PLAN.md §5.5: "must degrade to absent, never broken"). */
+  /** True once a fetch has failed with nothing cached to fall back on - the one genuinely "absent" state - weather degrades to absent, never broken. */
   unavailable: boolean;
 }
 
@@ -34,7 +34,7 @@ function emptyState(): WeatherState {
 }
 
 /**
- * Weather (UI_PLAN.md §5.5) - the app's one network dependency, isolated
+ * Weather - the app's one network dependency, isolated
  * behind `src/lib/weather/api.ts`'s pure fetch wrappers so this store only
  * ever deals with already-shaped data or `null`. Caches the last
  * successful snapshot per location (home and each crag) in `localStorage` with its

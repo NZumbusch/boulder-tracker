@@ -1,12 +1,12 @@
 <script lang="ts">
   import { RATING_AXES } from '../../lib/constants';
   /**
-   * Analytics' Fatigue panel (UI_PLAN.md §4.6/§5.4, Stage 5). Home already
-   * shows fatigue "as of now" (its own bars) - per §2's "Home = now,
+   * Analytics' Fatigue panel. Home already
+   * shows fatigue "as of now" (its own bars) - following the "Home = now,
    * Analytics = history, no duplicated panels" rule, this panel instead
    * samples the same shared `computeFatigueDecay` model at each displayed
    * week's end date (mirroring the sampling pattern `calculateRollingAcwrSeries`
-   * already established in Stage 2), so it shows a genuine trend rather
+   * already uses), so it shows a genuine trend rather
    * than repeating Home's single snapshot.
    */
   import Icon from "@iconify/svelte";
