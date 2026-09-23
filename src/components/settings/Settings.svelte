@@ -10,7 +10,6 @@
   import BackupSettings from './BackupSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
-  import HealthSettings from './HealthSettings.svelte';
   import Icon from "@iconify/svelte";
 
   // --- Props ---
@@ -23,7 +22,7 @@
   }>();
 
   // --- State: Tabs ---
-  type SettingsTab = 'overview' | 'customization' | 'design' | 'integration' | 'health' | 'about';
+  type SettingsTab = 'overview' | 'customization' | 'design' | 'integration' | 'about';
   let currentTab = $state<SettingsTab>('overview');
   /** The open Appearance topic, if any - back returns to the topic list first. */
   let appearanceTopic = $state<AppearanceTopic | null>(null);
@@ -83,7 +82,6 @@
           {#if currentTab === 'customization'}Customization
           {:else if currentTab === 'design'}{APPEARANCE_TOPICS.find((t) => t.id === appearanceTopic)?.label ?? 'Appearance & Behaviour'}
           {:else if currentTab === 'integration'}Data & Exports
-          {:else if currentTab === 'health'}Health & Outdoor Log
           {:else if currentTab === 'about'}About & Impressum{/if}
         </h2>
       {/if}
@@ -113,13 +111,6 @@
         <div class="flex items-center gap-4">
           <div class="p-3 bg-success/10 rounded-card text-success group-hover:bg-success group-hover:text-white transition-colors"><Icon icon="ic:baseline-sync" class="text-2xl" /></div>
           <div class="text-left"><p class="text-body font-bold text-content">Data & Exports</p><p class="text-caption text-content-subtle mt-1">Backups, calendar/PDF export & AI sharing</p></div>
-        </div>
-        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
-      </button>
-      <button onclick={() => currentTab = 'health'} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
-        <div class="flex items-center gap-4">
-          <div class="p-3 bg-tertiary-hover/10 rounded-card text-tertiary group-hover:bg-tertiary-hover group-hover:text-white transition-colors"><Icon icon="ic:baseline-monitor-weight" class="text-2xl" /></div>
-          <div class="text-left"><p class="text-body font-bold text-content">Health & Outdoor Log</p><p class="text-caption text-content-subtle mt-1">Bodyweight tracking, and a link to your outdoor sends</p></div>
         </div>
         <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
       </button>
@@ -153,8 +144,6 @@
       <BackupSettings {onExport} {onImport} />
       <AISharingSettings />
     </div>
-  {:else if currentTab === 'health'}
-    <HealthSettings />
   {:else if currentTab === 'about'}
     <div class="space-y-4">
       <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">

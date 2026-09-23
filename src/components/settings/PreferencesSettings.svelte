@@ -29,14 +29,19 @@
   import WeatherSettings from './WeatherSettings.svelte';
   import NotificationSettings from './NotificationSettings.svelte';
   import Icon from "@iconify/svelte";
+  import { Capacitor } from '@capacitor/core';
 
   let { topic = $bindable(null) }: { topic?: AppearanceTopic | null } = $props();
+
+  // Reminders are local notifications, which only exist in the Android
+  // app - in the browser the topic would open an empty page.
+  const topics = Capacitor.isNativePlatform() ? APPEARANCE_TOPICS : APPEARANCE_TOPICS.filter((t) => t.id !== 'notifications');
 </script>
 
 <div class="space-y-4">
   {#if topic === null}
     <div class="space-y-2 animate-in fade-in">
-      {#each APPEARANCE_TOPICS as t (t.id)}
+      {#each topics as t (t.id)}
         <button onclick={() => topic = t.id} class="w-full flex items-center justify-between p-4 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group shadow-card">
           <div class="flex items-center gap-3.5 min-w-0">
             <div class="p-2 bg-primary-hover/10 rounded-control text-primary shrink-0"><Icon icon={t.icon} class="text-xl" /></div>
