@@ -1,14 +1,15 @@
 <script lang="ts" module>
-  export type AppearanceTopic = 'general' | 'home' | 'plan' | 'sessions' | 'charts' | 'weather' | 'notifications';
+  export type AppearanceTopic = 'general' | 'home' | 'plan' | 'sessions' | 'charts' | 'model' | 'weather' | 'notifications';
 
   /** The topic list - also what Settings' header uses to title an open topic. */
   export const APPEARANCE_TOPICS: { id: AppearanceTopic; label: string; hint: string; icon: string }[] = [
     { id: 'general', label: 'General', hint: 'Theme, text size, motion', icon: 'ic:baseline-palette' },
-    { id: 'home', label: 'Home', hint: 'Which cards show, their order and details', icon: 'ic:baseline-home' },
+    { id: 'home', label: 'Home', hint: 'Cards, their order and details, list lengths, reminders', icon: 'ic:baseline-home' },
     { id: 'plan', label: 'Plan', hint: 'Week view', icon: 'ic:baseline-calendar-month' },
     { id: 'sessions', label: 'Sessions & Timer', hint: 'Live sessions, timer sounds and screen', icon: 'ic:baseline-timer' },
     { id: 'charts', label: 'History & Analytics', hint: 'Chart density, sends-by-grade counts', icon: 'ic:baseline-bar-chart' },
-    { id: 'weather', label: 'Weather', hint: 'Home location and crags', icon: 'ic:baseline-cloud' },
+    { id: 'model', label: 'Training model', hint: 'Readiness, ACWR zones, fatigue recovery, rest-day alert', icon: 'ic:baseline-tune' },
+    { id: 'weather', label: 'Weather & outdoor', hint: 'Locations, crags, conditions, trips', icon: 'ic:baseline-cloud' },
     { id: 'notifications', label: 'Notifications', hint: 'Reminders', icon: 'ic:baseline-notifications' },
   ];
 </script>
@@ -28,6 +29,7 @@
   import TimerSettings from './TimerSettings.svelte';
   import WeatherSettings from './WeatherSettings.svelte';
   import NotificationSettings from './NotificationSettings.svelte';
+  import TunablesSettings from './TunablesSettings.svelte';
   import Icon from "@iconify/svelte";
   import { Capacitor } from '@capacitor/core';
 
@@ -134,6 +136,7 @@
 
   {:else if topic === 'home'}
     <HomeLayoutSettings />
+    <TunablesSettings topic="layout" title="Lists & reminders" />
   {:else if topic === 'plan'}
     <PlanDisplaySettings />
   {:else if topic === 'sessions'}
@@ -141,8 +144,12 @@
     <TimerSettings />
   {:else if topic === 'charts'}
     <ChartSettings />
+  {:else if topic === 'model'}
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">These tune how the app judges your training - readiness, load zones, fatigue and alerts. The defaults are sensible starting points; change them if they don't match how you respond.</p>
+    <TunablesSettings topic="model" title="Training model" />
   {:else if topic === 'weather'}
     <WeatherSettings />
+    <TunablesSettings topic="outdoor" title="Conditions & trips" />
   {:else if topic === 'notifications'}
     <NotificationSettings />
   {/if}

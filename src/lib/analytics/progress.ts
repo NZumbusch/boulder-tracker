@@ -51,11 +51,11 @@ export function latestBenchmarks(benchmarks: Benchmark[], types: BenchmarkTypeDe
 }
 
 /** Benchmark types last tested `RETEST_WEEKS` or more weeks before `asOf`, longest-untested first, with how many weeks. */
-export function retestDue(progress: BenchmarkProgress[], asOf: Date): { name: string; weeks: number }[] {
+export function retestDue(progress: BenchmarkProgress[], asOf: Date, afterWeeks = RETEST_WEEKS): { name: string; weeks: number }[] {
   const today = toUtcDayIndex(asOf.toISOString());
   return progress
     .map((p) => ({ name: p.name, weeks: Math.floor((today - toUtcDayIndex(p.latestDate)) / 7) }))
-    .filter((p) => p.weeks >= RETEST_WEEKS)
+    .filter((p) => p.weeks >= afterWeeks)
     .sort((a, b) => b.weeks - a.weeks);
 }
 

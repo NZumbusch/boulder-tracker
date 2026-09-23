@@ -36,6 +36,19 @@ const WET_SCORE_CAP = 2;
 
 const WEIGHTS = { temp: 0.45, humidity: 0.3, dewSpread: 0.25 };
 
+/** The personal part of the model (Settings -> Outdoor); defaults are the constants above. */
+export interface FrictionConfig {
+  idealMinC: number;
+  idealMaxC: number;
+  wetRainMm: number;
+}
+
+export const DEFAULT_FRICTION_CONFIG: FrictionConfig = {
+  idealMinC: IDEAL_TEMP_MIN_C,
+  idealMaxC: IDEAL_TEMP_MAX_C,
+  wetRainMm: WET_RAIN_MM,
+};
+
 export type FrictionLabel = "Prime" | "Good" | "OK" | "Greasy" | "Wet";
 
 export interface FrictionInputs {
@@ -73,14 +86,15 @@ export function labelFor(score: number): Exclude<FrictionLabel, "Wet"> {
   return "Greasy";
 }
 
-export function rateFriction(inputs: FrictionInputs): Friction {
+export function rateFriction(inputs: FrictionInputs, config: FrictionConfig = DEFAULT_FRICTION_CONFIG): Friction {
   const { tempC, humidityPercent, dewPointC, windKmh, precipitationMm, recentRainMm } = inputs;
+  const { idealMinC, idealMaxC, wetRainMm } = config;
 
   const tempScore = clamp(
-    tempC > IDEAL_TEMP_MAX_C
-      ? 10 - (tempC - IDEAL_TEMP_MAX_C) * HEAT_PENALTY_PER_C
-      : tempC < IDEAL_TEMP_MIN_C
-        ? 10 - (IDEAL_TEMP_MIN_C - tempC) * COLD_PENALTY_PER_C
+    tempC > idealMaxC
+      ? 10 - (tempC - idealMaxC) * HEAT_PENALTY_PER_C
+      : tempC < idealMinC
+        ? 10 - (idealMinC - tempC) * COLD_PENALTY_PER_C
         : 10,
     0,
     10,
@@ -100,7 +114,7 @@ export function rateFriction(inputs: FrictionInputs): Friction {
   score = Math.round(clamp(score, 0, 10) * 10) / 10;
 
   const raining = (precipitationMm ?? 0) > 0;
-  const soaked = (recentRainMm ?? 0) >= WET_RAIN_MM;
+  const soaked = (recentRainMm ?? 0) >= wetRainMm;
   if (raining || soaked) {
     return {
       score: Math.min(score, WET_SCORE_CAP),
@@ -112,7 +126,7 @@ export function rateFriction(inputs: FrictionInputs): Friction {
   const worst = parts.reduce((a, b) => (b.score < a.score ? b : a));
   let reason: string | undefined;
   if (worst.score < 6) {
-    if (worst.name === "temp") reason = tempC > IDEAL_TEMP_MAX_C ? "Warm" : "Very cold";
+    if (worst.name === "temp") reason = tempC > idealMaxC ? "Warm" : "Very cold";
     else if (worst.name === "humidity") reason = "Humid";
     else reason = "Close to the dew point - moisture may condense on the rock";
   }
@@ -129,12 +143,12 @@ export function rateForecastDay(day: {
   dewPointMeanC?: number;
   windMaxKmh?: number;
   precipitationSumMm?: number;
-}): Friction {
+}, config: FrictionConfig = DEFAULT_FRICTION_CONFIG): Friction {
   return rateFriction({
     tempC: day.tempMaxC,
     humidityPercent: day.humidityMeanPercent,
     dewPointC: day.dewPointMeanC,
     windKmh: day.windMaxKmh,
     recentRainMm: day.precipitationSumMm,
-  });
+  }, config);
 }

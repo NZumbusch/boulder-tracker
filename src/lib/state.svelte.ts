@@ -4,6 +4,10 @@ import { getWeekId } from './dateUtils';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
 import { tripInForecast } from './goals/goals';
+import { num, flag, type TunableTopic } from './preferences/tunables';
+import type { ReadinessConfig } from './analytics/readiness';
+import type { FrictionConfig } from './weather/friction';
+import type { Units } from './units';
 import {
   isWeekProvisional,
   templatesForWeek,
@@ -138,7 +142,7 @@ class TrainingState {
     await this.weatherStore.loadHome(location);
   }
 
-  /** Replaces the saved crags (up to `MAX_CRAGS`) and fetches conditions for them. */
+  /** Replaces the saved crags and fetches conditions for them. */
   async setCrags(crags: WeatherLocation[]) {
     this.preferencesStore.setCrags(crags);
     await this.weatherStore.loadCrags(this.preferencesStore.crags);
@@ -187,6 +191,35 @@ class TrainingState {
   /** Per-part Home toggles, keyed by `homeDetails.ts` ids - see `Preferences.homeDetails`. */
   get homeDetails() { return this.preferencesStore.homeDetails; }
   get sendsChartCounts() { return this.preferencesStore.sendsChartCounts; }
+
+  // --- Display units (lib/units.ts) ---
+  get units() { return this.preferencesStore.units; }
+  setUnit<K extends keyof Units>(key: K, value: Units[K]) { this.preferencesStore.setUnit(key, value); }
+
+  // --- Adjustable thresholds (preferences/tunables.ts) ---
+  get tunables() { return this.preferencesStore.tunables; }
+  setTunable(id: string, value: number | boolean) { this.preferencesStore.setTunable(id, value); }
+  resetTunables(topic: TunableTopic) { this.preferencesStore.resetTunables(topic); }
+  /** A number tunable's current value. */
+  tunable(id: string): number { return num(this.preferencesStore.tunables, id); }
+  get readinessConfig(): ReadinessConfig {
+    const t = this.preferencesStore.tunables;
+    return {
+      use: { fatigue: flag(t, 'readiness.useFatigue'), acwr: flag(t, 'readiness.useAcwr'), sleep: flag(t, 'readiness.useSleep'), hrv: flag(t, 'readiness.useHrv') },
+      sleepLow: num(t, 'readiness.sleepLow'),
+      hrvDip: num(t, 'readiness.hrvDip'),
+      acwrHighRisk: num(t, 'acwr.highRisk'),
+    };
+  }
+  get acwrZones() {
+    const t = this.preferencesStore.tunables;
+    return { sweetMin: num(t, 'acwr.sweetMin'), caution: num(t, 'acwr.caution'), highRisk: num(t, 'acwr.highRisk') };
+  }
+  get fatigueHalfLife() { return num(this.preferencesStore.tunables, 'fatigue.halfLifeDays'); }
+  get frictionConfig(): FrictionConfig {
+    const t = this.preferencesStore.tunables;
+    return { idealMinC: num(t, 'friction.idealMinC'), idealMaxC: num(t, 'friction.idealMaxC'), wetRainMm: num(t, 'friction.wetRainMm') };
+  }
   setSendsChartCounts(enabled: boolean) { this.preferencesStore.setSendsChartCounts(enabled); }
   setHomeDetail(id: string, enabled: boolean) {
     this.preferencesStore.setHomeDetail(id, enabled);

@@ -87,6 +87,7 @@
     const painCorrelations = correlatePainWithLoadSpikes(
       trainingState.painLogs.filter((p) => targetWeekIds.includes(p.weekId)),
       acwr,
+      trainingState.acwrZones.highRisk,
     );
     return { acwr, adherence, painCorrelations };
   });

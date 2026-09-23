@@ -9,9 +9,6 @@
     calculateWeeklyAdherence,
     findRecoveryWarnings,
     correlatePainWithLoadSpikes,
-    ACWR_SWEET_SPOT_MIN,
-    ACWR_CAUTION_RATIO,
-    ACWR_HIGH_RISK_RATIO,
     type AcwrResult,
   } from '../../lib/analytics/loadAnalytics';
   import { computeFatigueDecay } from '../../lib/analytics/readiness';
@@ -24,6 +21,9 @@
   import OutdoorAscentsPanel from './OutdoorAscentsPanel.svelte';
   import { loggedMetrics } from '../../lib/analytics/metricValues';
   import Icon from "@iconify/svelte";
+
+  // ACWR zone edges - adjustable under Settings -> Training model.
+  const acwrZones = $derived(trainingState.acwrZones);
 
   // Stage 5 (UI_PLAN.md §6/§4.6): shared header + section-jump chips,
   // ACWR merged into Rolling Load (this file), and three new panels
@@ -252,8 +252,8 @@
       .filter((id) => weeksWithCompletedSessions.has(id))
       .map((id) => calculateWeeklyAdherence(trainingState.workouts, id)),
   );
-  const recoveryWarnings = $derived(findRecoveryWarnings(trainingState.workouts, trainingState.dailyMetrics, orderedWeekIds));
-  const painCorrelations = $derived(correlatePainWithLoadSpikes(trainingState.painLogs, acwrResults));
+  const recoveryWarnings = $derived(findRecoveryWarnings(trainingState.workouts, trainingState.dailyMetrics, orderedWeekIds, trainingState.tunable('alerts.restDays')));
+  const painCorrelations = $derived(correlatePainWithLoadSpikes(trainingState.painLogs, acwrResults, trainingState.acwrZones.highRisk));
 
   const visibleCategories = $derived(categories.filter(c => !hiddenCategoryIds.has(c.id)));
   const maxVisibleDuration = $derived(Math.max(...chartData.weeks.map(w => visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? w.categories[cat.name] : w.completedCategories[cat.name]) || 0), 0)), 1));
@@ -271,12 +271,12 @@
   };
   function ratioStatus(r: AcwrResult): RatioStatus {
     if (r.ratio === undefined || !r.sufficient) return 'neutral';
-    if (r.ratio >= ACWR_HIGH_RISK_RATIO) return 'risk';
-    if (r.ratio >= ACWR_CAUTION_RATIO) return 'caution';
+    if (r.ratio >= acwrZones.highRisk) return 'risk';
+    if (r.ratio >= acwrZones.caution) return 'caution';
     return 'good';
   }
   const acwrDefinedRatios = $derived(acwrResults.filter((r) => r.ratio !== undefined).map((r) => r.ratio as number));
-  const acwrMaxRatio = $derived(Math.max(...acwrDefinedRatios, ACWR_HIGH_RISK_RATIO) * 1.15);
+  const acwrMaxRatio = $derived(Math.max(...acwrDefinedRatios, acwrZones.highRisk) * 1.15);
   function ratioToY(ratio: number): number {
     return 100 - (ratio / acwrMaxRatio) * 100;
   }
@@ -318,7 +318,7 @@
   const fatigueSamples = $derived(chartData.weeks.map((w) => {
     const dates = getWeekDates(w.id);
     const asOf = dates ? dates.end : new Date();
-    const decay = computeFatigueDecay(trainingState.completedWorkouts, asOf);
+    const decay = computeFatigueDecay(trainingState.completedWorkouts, asOf, trainingState.fatigueHalfLife);
     return { weekId: w.id, fingers: decay.fingers, arms: decay.arms, core: decay.core, systemic: decay.systemic };
   }));
   const fatigueCoverage = $derived.by(() => {
@@ -583,9 +583,9 @@
 
           <!-- ACWR sweet-spot / caution / risk bands, barely tinted -->
           <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <rect x="0" y={ratioToY(acwrMaxRatio)} width="100" height={Math.max(ratioToY(ACWR_HIGH_RISK_RATIO) - ratioToY(acwrMaxRatio), 0)} fill="var(--color-status-risk)" opacity="0.06" />
-            <rect x="0" y={ratioToY(ACWR_HIGH_RISK_RATIO)} width="100" height={Math.max(ratioToY(ACWR_CAUTION_RATIO) - ratioToY(ACWR_HIGH_RISK_RATIO), 0)} fill="var(--color-status-caution)" opacity="0.06" />
-            <rect x="0" y={ratioToY(ACWR_CAUTION_RATIO)} width="100" height={Math.max(ratioToY(ACWR_SWEET_SPOT_MIN) - ratioToY(ACWR_CAUTION_RATIO), 0)} fill="var(--color-status-good)" opacity="0.06" />
+            <rect x="0" y={ratioToY(acwrMaxRatio)} width="100" height={Math.max(ratioToY(acwrZones.highRisk) - ratioToY(acwrMaxRatio), 0)} fill="var(--color-status-risk)" opacity="0.06" />
+            <rect x="0" y={ratioToY(acwrZones.highRisk)} width="100" height={Math.max(ratioToY(acwrZones.caution) - ratioToY(acwrZones.highRisk), 0)} fill="var(--color-status-caution)" opacity="0.06" />
+            <rect x="0" y={ratioToY(acwrZones.caution)} width="100" height={Math.max(ratioToY(acwrZones.sweetMin) - ratioToY(acwrZones.caution), 0)} fill="var(--color-status-good)" opacity="0.06" />
           </svg>
 
           <!-- Planned Load Line (SVG) -->

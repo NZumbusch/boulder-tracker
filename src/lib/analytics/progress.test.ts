@@ -18,6 +18,9 @@ describe("latestBenchmarks / retestDue", () => {
 
   it("nudges a retest for types untested for six weeks or more", () => {
     expect(retestDue(latestBenchmarks(list, []), asOf)).toEqual([{ name: "pull", weeks: 12 }]);
+    // "hang" was last tested 3 weeks ago, "pull" 12: the window decides who's due.
+    expect(retestDue(latestBenchmarks(list, []), asOf, 4).map((r) => r.name)).toEqual(["pull"]);
+    expect(retestDue(latestBenchmarks(list, []), asOf, 3).map((r) => r.name)).toEqual(["pull", "hang"]);
   });
 });
 

@@ -24,6 +24,8 @@ export interface AlertInputs {
   /** Upcoming or current trips with sessions still planned on their days (see `sessionsDuringTrip`). */
   tripConflicts?: { tripName: string; dates: string; count: number }[];
   enabled: { recovery: boolean; pain: boolean; missingData: boolean; backup: boolean; tripConflict?: boolean };
+  /** Settings -> Training model / Layout; each falls back to this module's default. */
+  config?: { restDays?: number; backupDays?: number; acwrHighRisk?: number };
 }
 
 /** Pain logged within this many days shows up. */
@@ -62,7 +64,7 @@ export function buildAlerts(input: AlertInputs): HomeAlert[] {
   const previousWeekId = weekIds[weekIds.length - 2];
 
   if (enabled.recovery) {
-    for (const warning of findRecoveryWarnings(workouts, dailyMetrics, weekIds)) {
+    for (const warning of findRecoveryWarnings(workouts, dailyMetrics, weekIds, input.config?.restDays)) {
       const isWeek = /^\d{4}-W\d{2}$/.test(warning.date);
       const current = isWeek ? warning.date === currentWeekId || warning.date === previousWeekId : daysAgo(warning.date, asOf) <= 1;
       if (current) alerts.push({ id: `recovery-${warning.date}`, severity: "risk", text: warning.reason });
@@ -72,7 +74,7 @@ export function buildAlerts(input: AlertInputs): HomeAlert[] {
   if (enabled.pain) {
     const recent = painLogs.filter((p) => daysAgo(p.date, asOf) >= 0 && daysAgo(p.date, asOf) <= PAIN_ALERT_DAYS);
     const nearSpike = new Map(
-      correlatePainWithLoadSpikes(recent, calculateAcwrForWeeks(workouts, weekIds)).map((c) => [c.painLogId, c.loadSpikeNearby]),
+      correlatePainWithLoadSpikes(recent, calculateAcwrForWeeks(workouts, weekIds), input.config?.acwrHighRisk).map((c) => [c.painLogId, c.loadSpikeNearby]),
     );
     for (const log of [...recent].sort((a, b) => b.severity - a.severity)) {
       const ago = daysAgo(log.date, asOf);
@@ -116,13 +118,14 @@ export function buildAlerts(input: AlertInputs): HomeAlert[] {
     }
   }
 
-  if (enabled.backup) {
+  const backupDays = input.config?.backupDays ?? BACKUP_STALE_DAYS;
+  if (enabled.backup && backupDays > 0) {
     const completedCount = workouts.filter((w) => w.status === "completed").length;
     if (!input.lastBackupAt) {
       if (completedCount >= BACKUP_MIN_SESSIONS) alerts.push({ id: "backup", severity: "info", text: "No backup exported from this device yet" });
     } else {
       const age = daysAgo(input.lastBackupAt, asOf);
-      if (age > BACKUP_STALE_DAYS) alerts.push({ id: "backup", severity: "info", text: `Last backup ${age} days ago` });
+      if (age > backupDays) alerts.push({ id: "backup", severity: "info", text: `Last backup ${age} days ago` });
     }
   }
 

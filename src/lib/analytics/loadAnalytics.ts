@@ -305,8 +305,9 @@ export function findRecoveryWarnings(
   workouts: Workout[],
   dailyMetrics: DailyMetricEntry[],
   orderedWeekIds: string[],
+  restDays = CONSECUTIVE_TRAINING_DAY_THRESHOLD,
 ): RecoveryWarning[] {
-  const warnings = findConsecutiveTrainingDayWarnings(workouts);
+  const warnings = findConsecutiveTrainingDayWarnings(workouts, restDays);
 
   const acwr = calculateAcwrForWeeks(workouts, orderedWeekIds);
   const sleepByWeek = averageMetricByWeek(dailyMetrics, "sleep-score");
@@ -358,6 +359,7 @@ export interface PainLoadCorrelation {
 export function correlatePainWithLoadSpikes(
   painLogs: PainLog[],
   acwr: AcwrResult[],
+  highRiskRatio = ACWR_HIGH_RISK_RATIO,
 ): PainLoadCorrelation[] {
   const indexByWeek = new Map(acwr.map((a, i) => [a.weekId, i]));
 
@@ -374,7 +376,7 @@ export function correlatePainWithLoadSpikes(
     const loadSpikeNearby = !!(
       week?.spike ||
       prevWeek?.spike ||
-      (week && week.sufficient && week.ratio !== undefined && week.ratio > ACWR_HIGH_RISK_RATIO)
+      (week && week.sufficient && week.ratio !== undefined && week.ratio > highRiskRatio)
     );
 
     return {

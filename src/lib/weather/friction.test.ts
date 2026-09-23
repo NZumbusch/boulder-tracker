@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rateFriction, labelFor, WET_RAIN_MM } from "./friction";
+import { rateFriction, labelFor, WET_RAIN_MM, DEFAULT_FRICTION_CONFIG } from "./friction";
 
 describe("rateFriction", () => {
   it("rates a cool, dry, breezy day as prime", () => {
@@ -38,5 +38,20 @@ describe("rateFriction", () => {
 describe("labelFor", () => {
   it("maps score bands to words", () => {
     expect([9, 7, 5, 2].map(labelFor)).toEqual(["Prime", "Good", "OK", "Greasy"]);
+  });
+});
+
+describe("rateFriction with a personal config", () => {
+  it("moves 'ideal' to the configured temperature band", () => {
+    const air = { tempC: 16, humidityPercent: 40, dewPointC: 4 };
+    expect(rateFriction(air).score).toBeLessThan(10);
+    expect(rateFriction(air, { ...DEFAULT_FRICTION_CONFIG, idealMaxC: 18 }).score).toBe(10);
+    expect(rateFriction({ tempC: -3 }, { ...DEFAULT_FRICTION_CONFIG, idealMinC: -5 }).score).toBe(10);
+  });
+
+  it("uses the configured wet-rain threshold", () => {
+    const air = { tempC: 8, humidityPercent: 40, dewPointC: -4, recentRainMm: 3 };
+    expect(rateFriction(air).label).not.toBe("Wet");
+    expect(rateFriction(air, { ...DEFAULT_FRICTION_CONFIG, wetRainMm: 2 }).label).toBe("Wet");
   });
 });

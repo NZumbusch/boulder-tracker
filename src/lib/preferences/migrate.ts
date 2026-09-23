@@ -19,6 +19,8 @@
 
 import type { ChartDensity } from '../analytics/chartWindow';
 import { defaultHomeDetails, validateHomeDetails, type HomeDetails } from './homeDetails';
+import { defaultTunables, validateTunables, type Tunables } from './tunables';
+import { DEFAULT_UNITS, validateUnits, type Units } from '../units';
 
 export const CURRENT_PREFERENCES_VERSION = 1;
 
@@ -50,8 +52,8 @@ export interface Preferences {
    */
   homeLocation: WeatherLocation | null;
   /**
-   * Up to `MAX_CRAGS` outdoor spots, each with its own conditions on the
-   * Home Crags card. Replaces the old single `tripLocation`, which
+   * Saved outdoor spots (as many as you like), each with its own
+   * conditions on the Home Crags card. Replaces the old single `tripLocation`, which
    * `migratePreferences` turns into the first crag.
    */
   crags: WeatherLocation[];
@@ -92,6 +94,10 @@ export interface Preferences {
   homeDetails: HomeDetails;
   /** Whether History's sends-by-grade chart prints each bar's count above it (it always shows on tap/hover). */
   sendsChartCounts: boolean;
+  /** Adjustable thresholds and windows - see `tunables.ts`, which owns ids, ranges and defaults. */
+  tunables: Tunables;
+  /** Display units - storage is always °C / kg / km/h / Font (see `lib/units.ts`). */
+  units: Units;
   /**
    * What gets included in an AI prompt's condensed training profile
    * (UI_PLAN.md §5.8, Stage 10) - independent of whether the AI *has*
@@ -175,7 +181,6 @@ export const HOME_SECTION_IDS = [
   'crags',
 ] as const;
 
-export const MAX_CRAGS = 3;
 export type HomeSectionId = (typeof HOME_SECTION_IDS)[number];
 
 export interface HomeSectionPreference {
@@ -217,6 +222,8 @@ export function defaultPreferences(): Preferences {
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
     homeDetails: defaultHomeDetails(),
     sendsChartCounts: true,
+    tunables: defaultTunables(),
+    units: { ...DEFAULT_UNITS },
     planFormat: 'phase',
     addedExerciseTarget: 'none',
     aiSharing: {
@@ -287,7 +294,7 @@ function validateHomeSections(raw: unknown): HomeSectionPreference[] {
   return result;
 }
 
-/** Valid, de-duplicated (by name) crags, capped at `MAX_CRAGS`; falls back to the legacy single trip location. */
+/** Valid, de-duplicated (by name) crags; falls back to the legacy single trip location. */
 function validateCrags(raw: unknown, legacyTrip: unknown): WeatherLocation[] {
   const source = raw === undefined ? (legacyTrip === undefined ? [] : [legacyTrip]) : raw;
   if (!Array.isArray(source)) return [];
@@ -296,7 +303,6 @@ function validateCrags(raw: unknown, legacyTrip: unknown): WeatherLocation[] {
     const location = validateLocation(entry);
     if (!location || result.some((c) => c.name === location.name)) continue;
     result.push(location);
-    if (result.length === MAX_CRAGS) break;
   }
   return result;
 }
@@ -391,6 +397,8 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
     homeDetails: validateHomeDetails(candidate.homeDetails),
     sendsChartCounts: typeof candidate.sendsChartCounts === 'boolean' ? candidate.sendsChartCounts : defaults.sendsChartCounts,
+    tunables: validateTunables(candidate.tunables),
+    units: validateUnits(candidate.units),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
     planFormat: candidate.planFormat === 'weekly' || candidate.planFormat === 'phase' ? candidate.planFormat : defaults.planFormat,
     addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'

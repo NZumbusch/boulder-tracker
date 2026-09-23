@@ -16,7 +16,7 @@
   import NoteSheet from '../common/NoteSheet.svelte';
   import QuickLogSheet from './QuickLogSheet.svelte';
   import { buildAlerts, type AlertSeverity } from '../../lib/alerts/alerts';
-  import { latestBenchmarks, retestDue, sendsSummary, consistency, PROGRESS_BENCHMARKS } from '../../lib/analytics/progress';
+  import { latestBenchmarks, retestDue, sendsSummary, consistency } from '../../lib/analytics/progress';
   import { outdoorSuggestion } from '../../lib/weather/suggestion';
   import { getWeekId } from '../../lib/dateUtils';
   import { upcomingGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates, coversDate } from '../../lib/goals/goals';
@@ -31,8 +31,6 @@
   import { recentActivity as buildRecentActivity } from '../../lib/activity/recentActivity';
   import { averageReading } from '../../lib/analytics/metricValues';
   import { sessionDuration } from '../../lib/planning/sessionDuration';
-  import { HRV_DIP_THRESHOLD_PCT } from '../../lib/analytics/readiness';
-  import { ACWR_SWEET_SPOT_MIN, ACWR_CAUTION_RATIO, ACWR_HIGH_RISK_RATIO } from '../../lib/analytics/loadAnalytics';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import type { Workout } from '../../lib/types';
   import type { DailyMetricEntry, DayOfWeek } from '../../lib/types';
@@ -73,9 +71,9 @@
       windKmh: w.windSpeedKmh,
       precipitationMm: w.precipitationMm,
       recentRainMm: w.recentRain?.last24hMm,
-    });
+    }, trainingState.frictionConfig);
   }
-  const dayFriction = (day: DailyForecastDay): Friction => rateForecastDay(day);
+  const dayFriction = (day: DailyForecastDay): Friction => rateForecastDay(day, trainingState.frictionConfig);
   let showFrictionReason = $state(false);
 
   /**
@@ -120,7 +118,7 @@
   let openNote = $state<'week' | 'block' | null>(null);
 
   // --- Readiness hero (UI_PLAN.md §5.2) ---
-  const fatigueDecay = $derived(computeFatigueDecay(trainingState.completedWorkouts, asOf));
+  const fatigueDecay = $derived(computeFatigueDecay(trainingState.completedWorkouts, asOf, trainingState.fatigueHalfLife));
   const acwr = $derived(calculateRollingAcwr(trainingState.workouts, asOf));
   const hrvBaseline = $derived(computeHrvBaseline(trainingState.dailyMetrics, asOf));
   /** Today's stored entry for `metricId`, zero or not - what a save/clear acts on. */
@@ -138,7 +136,7 @@
       sleep: todaysMetric('sleep-score')?.value,
       hrv: todaysMetric('hrv')?.value,
       hrvBaseline,
-    }),
+    }, trainingState.readinessConfig),
   );
   const STATUS_COLOR: Record<ReadinessStatus, string> = {
     good: 'text-status-good',
@@ -281,9 +279,10 @@
   const acwrZone = $derived.by((): { label: string; class: string } | undefined => {
     if (!acwr.sufficient || acwr.ratio === undefined) return undefined;
     const r = acwr.ratio;
-    if (r > ACWR_HIGH_RISK_RATIO) return { label: 'high risk', class: 'bg-status-risk/15 text-status-risk border-status-risk/30' };
-    if (r > ACWR_CAUTION_RATIO) return { label: 'caution', class: 'bg-status-caution/15 text-status-caution border-status-caution/30' };
-    if (r >= ACWR_SWEET_SPOT_MIN) return { label: 'sweet spot', class: 'bg-status-good/15 text-status-good border-status-good/30' };
+    const zones = trainingState.acwrZones;
+    if (r > zones.highRisk) return { label: 'high risk', class: 'bg-status-risk/15 text-status-risk border-status-risk/30' };
+    if (r > zones.caution) return { label: 'caution', class: 'bg-status-caution/15 text-status-caution border-status-caution/30' };
+    if (r >= zones.sweetMin) return { label: 'sweet spot', class: 'bg-status-good/15 text-status-good border-status-good/30' };
     return { label: 'low', class: 'bg-surface-elevated text-content-muted border-border-strong/50' };
   });
 
@@ -311,11 +310,9 @@
   let goalNoteOpen = $state(false);
 
   // --- Trip tie-ins ---
-  /** How far ahead a trip's leftover planned sessions start being flagged. */
-  const TRIP_CONFLICT_HORIZON_DAYS = 21;
   const tripConflicts = $derived(
     upcomingGoals(trainingState.goals, todayIso)
-      .filter((g) => g.kind === 'trip' && daysUntilGoal(g, todayIso) <= TRIP_CONFLICT_HORIZON_DAYS)
+      .filter((g) => g.kind === 'trip' && daysUntilGoal(g, todayIso) <= trainingState.tunable('trips.conflictHorizonDays'))
       .map((trip) => {
         const weekIds = new Set<string>();
         for (let i = 0; i < goalLength(trip); i++) weekIds.add(getWeekId(new Date(Date.parse(`${trip.date}T12:00:00Z`) + i * 86400000)));
@@ -333,11 +330,9 @@
       return trips.find((t) => coversDate(t, date));
     });
   });
-  /** How long after a trip ends it still shows as "last trip" in Progress. */
-  const LAST_TRIP_DAYS = 90;
   const lastTrip = $derived.by(() => {
     const trip = pastGoals(trainingState.goals, todayIso).find((g) => g.kind === 'trip');
-    if (!trip || -daysUntilGoal({ ...trip, date: trip.endDate ?? trip.date }, todayIso) > LAST_TRIP_DAYS) return undefined;
+    if (!trip || -daysUntilGoal({ ...trip, date: trip.endDate ?? trip.date }, todayIso) > trainingState.tunable('trips.lastTripDays')) return undefined;
     return { trip, summary: tripSummary(trip, trainingState.outdoorAscents) };
   });
   async function answerCandidate(goal: GoalEvent, project: TripProject, sendId: string, counts: boolean) {
@@ -369,6 +364,11 @@
         tripConflict: trainingState.homeDetails['alerts.tripConflict'],
       },
       tripConflicts,
+      config: {
+        restDays: trainingState.tunable('alerts.restDays'),
+        backupDays: trainingState.tunable('alerts.backupDays'),
+        acwrHighRisk: trainingState.acwrZones.highRisk,
+      },
     }),
   );
   const ALERT_DOT: Record<AlertSeverity, string> = {
@@ -383,7 +383,7 @@
 
   // --- Progress (lib/analytics/progress.ts) ---
   const benchmarkProgress = $derived(latestBenchmarks(trainingState.benchmarks, trainingState.benchmarkTypes));
-  const retests = $derived(retestDue(benchmarkProgress, asOf));
+  const retests = $derived(retestDue(benchmarkProgress, asOf, trainingState.tunable('progress.retestWeeks')));
   const sends = $derived(sendsSummary(trainingState.outdoorAscents, asOf));
   const consistencyStats = $derived(consistency(trainingState.workouts, asOf));
 
@@ -399,12 +399,12 @@
       const d = new Date(`${date}T12:00:00Z`);
       const day = DAY_NAME_OF[d.getUTCDay()];
       return trainingState.getPlannedWorkoutsForWeek(getWeekId(d)).filter((w) => w.dayOfWeek === day);
-    });
+    }, trainingState.frictionConfig);
   });
 
   // --- Recent activity ---
   const recentActivity = $derived(
-    buildRecentActivity(trainingState.completedWorkouts, trainingState.outdoorAscents, 3, trainingState.homeDetails['recentActivity.ascents']),
+    buildRecentActivity(trainingState.completedWorkouts, trainingState.outdoorAscents, trainingState.tunable('home.recentActivityCount'), trainingState.homeDetails['recentActivity.ascents']),
   );
 </script>
 
@@ -629,7 +629,7 @@
               </button>
             {/if}
             {#if def.id === 'hrv' && hrvDelta !== undefined && hrvBaseline !== undefined && trainingState.homeDetails['metrics.hrvBaseline']}
-              <p class="text-caption tabular-nums {hrvDelta < -HRV_DIP_THRESHOLD_PCT ? 'text-status-caution' : 'text-content-subtle'}">
+              <p class="text-caption tabular-nums {hrvDelta < -trainingState.readinessConfig.hrvDip ? 'text-status-caution' : 'text-content-subtle'}">
                 {hrvDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(hrvDelta * 100))}% vs 14-day baseline ({Math.round(hrvBaseline)})
               </p>
             {:else if def.id === BODYWEIGHT_METRIC_ID && bodyweightAvg !== undefined}
@@ -951,7 +951,7 @@
       {/if}
       {#if showBench}
         <div class="space-y-1.5">
-          {#each benchmarkProgress.slice(0, PROGRESS_BENCHMARKS) as b (b.typeKey)}
+          {#each benchmarkProgress.slice(0, trainingState.tunable('home.progressBenchmarks')) as b (b.typeKey)}
             <div class="flex items-baseline justify-between gap-3">
               <span class="text-label text-content-muted truncate">{b.name}</span>
               <!-- Parts laid out with a flex gap, not markup spaces - spaces at
@@ -1147,7 +1147,7 @@
         {#if trainingState.homeDetails['weather.window'] && w.localTime}
           {@const today = w.localTime.slice(0, 10)}
           {@const sunset = w.daily.find((d) => d.date === today)?.sunset}
-          {@const best = w.hours ? bestWindow(w.hours, today, sunset, w.recentRain?.last24hMm) : undefined}
+          {@const best = w.hours ? bestWindow(w.hours, today, sunset, w.recentRain?.last24hMm, trainingState.frictionConfig) : undefined}
           {@const sunsetAhead = sunset !== undefined && sunset > w.localTime}
           {#if best || sunsetAhead}
             <p class="text-caption text-content-subtle flex items-center gap-1.5 tabular-nums">

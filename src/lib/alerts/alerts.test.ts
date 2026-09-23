@@ -59,6 +59,14 @@ describe("buildAlerts", () => {
     expect(alerts).toEqual([{ id: "trip-Font", severity: "caution", text: "2 sessions still planned during Font (Oct 5 – 12)" }]);
   });
 
+  it("uses the configured rest-day count and backup interval, where 0 turns the reminder off", () => {
+    const five = ["2026-09-18", "2026-09-19", "2026-09-20", "2026-09-21", "2026-09-22"].map((d) => done(d));
+    expect(buildAlerts(input({ workouts: five }))).toEqual([]);
+    expect(buildAlerts(input({ workouts: five, config: { restDays: 5 } }))[0].text).toBe("5 consecutive training days without a rest day");
+    expect(buildAlerts(input({ lastBackupAt: "2026-09-01T00:00:00Z", config: { backupDays: 30 } }))).toEqual([]);
+    expect(buildAlerts(input({ lastBackupAt: "2026-01-01T00:00:00Z", config: { backupDays: 0 } }))).toEqual([]);
+  });
+
   it("respects each toggle", () => {
     const off = { recovery: false, pain: false, missingData: false, backup: false };
     expect(buildAlerts(input({ enabled: off, lastBackupAt: "2026-01-01T00:00:00Z" }))).toEqual([]);

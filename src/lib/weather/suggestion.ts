@@ -1,6 +1,6 @@
 import type { Workout } from "../types";
 import type { DailyForecastDay } from "./api";
-import { rateForecastDay } from "./friction";
+import { rateForecastDay, DEFAULT_FRICTION_CONFIG, type FrictionConfig } from "./friction";
 import { isSkippedWorkout } from "../planning/weekStatus";
 
 export interface CragForecast {
@@ -27,13 +27,14 @@ export function outdoorSuggestion(
   crags: CragForecast[],
   todayIso: string,
   plannedOn: (date: string) => Workout[],
+  config: FrictionConfig = DEFAULT_FRICTION_CONFIG,
 ): OutdoorSuggestion | undefined {
   const dates = [...new Set(crags.flatMap((c) => c.days.map((d) => d.date)))].filter((d) => d >= todayIso).sort();
   for (const date of dates) {
     const prime = crags
       .map((c) => {
         const day = c.days.find((d) => d.date === date);
-        return day ? { crag: c.name, friction: rateForecastDay(day) } : undefined;
+        return day ? { crag: c.name, friction: rateForecastDay(day, config) } : undefined;
       })
       .filter((x): x is { crag: string; friction: ReturnType<typeof rateForecastDay> } => !!x && x.friction.label === "Prime")
       .sort((a, b) => b.friction.score - a.friction.score);

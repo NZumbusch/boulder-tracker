@@ -145,6 +145,28 @@ export const SLEEP_SCORE_LOW_THRESHOLD = 60;
 export const MAX_HRV_PENALTY = 15;
 export const HRV_DIP_THRESHOLD_PCT = 0.1;
 export const READINESS_GOOD_THRESHOLD = 70;
+
+/**
+ * The user-adjustable parts of the readiness model (Settings -> Training
+ * model). Defaults are the constants above, so passing nothing keeps the
+ * model exactly as documented.
+ */
+export interface ReadinessConfig {
+  /** Inputs switched off never feed the score and aren't reported as missing. */
+  use: { fatigue: boolean; acwr: boolean; sleep: boolean; hrv: boolean };
+  sleepLow: number;
+  /** As a fraction: 0.1 = 10% below baseline. */
+  hrvDip: number;
+  /** The ACWR ratio at which the load penalty reaches its maximum. */
+  acwrHighRisk: number;
+}
+
+export const DEFAULT_READINESS_CONFIG: ReadinessConfig = {
+  use: { fatigue: true, acwr: true, sleep: true, hrv: true },
+  sleepLow: SLEEP_SCORE_LOW_THRESHOLD,
+  hrvDip: HRV_DIP_THRESHOLD_PCT,
+  acwrHighRisk: ACWR_HIGH_RISK_RATIO,
+};
 export const READINESS_CAUTION_THRESHOLD = 40;
 
 // Mirrors calculateLoadFactor's own fingers/systemic/core weighting
@@ -175,7 +197,7 @@ function capitalize(s: string): string {
   return s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
-function buildAdvice(args: {
+function buildAdvice(config: ReadinessConfig, args: {
   fatigueUsed: boolean;
   fatigueComposite: number | undefined;
   acwrUsed: boolean;
@@ -193,17 +215,17 @@ function buildAdvice(args: {
     clauses.push("fatigue is low - fingers and systemic feel fresh");
   }
 
-  if (args.acwrUsed && args.acwr.ratio! > ACWR_HIGH_RISK_RATIO) {
+  if (args.acwrUsed && args.acwr.ratio! > config.acwrHighRisk) {
     clauses.push("acute load is well above your chronic baseline");
   } else if (args.acwrUsed && args.acwr.ratio! < 0.8) {
     clauses.push("acute load is well below your chronic baseline");
   }
 
-  if (args.sleepUsed && args.sleep! < SLEEP_SCORE_LOW_THRESHOLD) {
+  if (args.sleepUsed && args.sleep! < config.sleepLow) {
     clauses.push("sleep score is below usual");
   }
 
-  if (args.hrvUsed && args.hrvDipPct > HRV_DIP_THRESHOLD_PCT) {
+  if (args.hrvUsed && args.hrvDipPct > config.hrvDip) {
     clauses.push("HRV is down from your 14-day baseline");
   }
 
@@ -216,24 +238,29 @@ function buildAdvice(args: {
 function buildConfidence(
   inputsUsed: ReadinessResult["inputsUsed"],
   acwr: RollingAcwrResult,
+  use: ReadinessConfig["use"],
 ): string {
   const present: string[] = [];
   const missing: string[] = [];
 
+  // An input switched off in Settings is neither present nor missing.
   if (inputsUsed.fatigue) present.push("fatigue");
-  else missing.push("fatigue");
+  else if (use.fatigue) missing.push("fatigue");
 
   if (inputsUsed.acwr) present.push("load (ACWR)");
+  else if (!use.acwr) { /* off */ }
   else if (acwr.ratio !== undefined && !acwr.sufficient) missing.push("load (still building a 28-day history)");
   else missing.push("load");
 
   if (inputsUsed.sleep) present.push("sleep");
-  else missing.push("sleep");
+  else if (use.sleep) missing.push("sleep");
 
   if (inputsUsed.hrv) present.push("HRV baseline");
-  else missing.push("HRV baseline");
+  else if (use.hrv) missing.push("HRV baseline");
 
-  if (missing.length === 0) return "Full picture - fatigue, load, sleep and HRV all available.";
+  const allOn = use.fatigue && use.acwr && use.sleep && use.hrv;
+  if (missing.length === 0 && allOn) return "Full picture - fatigue, load, sleep and HRV all available.";
+  if (missing.length === 0 && present.length > 0) return `${capitalize(present.join(", "))} - everything you've switched on.`;
   if (present.length === 0) return "No inputs available yet.";
   return `${capitalize(present.join(", "))} only - no ${missing.join(", ")} yet.`;
 }
@@ -253,29 +280,30 @@ function readinessStatus(score: number): ReadinessStatus {
  * and `inputsUsed`/`confidence` say plainly what actually fed the number so
  * the UI never presents a partially-informed score as complete.
  */
-export function computeReadiness(inputs: ReadinessInputs): ReadinessResult {
+export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfig = DEFAULT_READINESS_CONFIG): ReadinessResult {
   const { fatigue, acwr, sleep, hrv, hrvBaseline } = inputs;
+  const { use, sleepLow, hrvDip, acwrHighRisk } = config;
 
-  const fatigueComposite = compositeFatigue(fatigue);
+  const fatigueComposite = use.fatigue ? compositeFatigue(fatigue) : undefined;
   const fatigueUsed = fatigueComposite !== undefined;
   const fatiguePenalty = fatigueUsed ? ((fatigueComposite! - 1) / 9) * MAX_FATIGUE_PENALTY : 0;
 
-  const acwrUsed = acwr.sufficient && acwr.ratio !== undefined;
+  const acwrUsed = use.acwr && acwr.sufficient && acwr.ratio !== undefined;
   const acwrPenalty = acwrUsed
-    ? clamp((acwr.ratio! - 1) / (ACWR_HIGH_RISK_RATIO - 1), 0, 1) * MAX_ACWR_PENALTY
+    ? clamp((acwr.ratio! - 1) / (acwrHighRisk - 1), 0, 1) * MAX_ACWR_PENALTY
     : 0;
 
-  const sleepUsed = sleep !== undefined;
+  const sleepUsed = use.sleep && sleep !== undefined;
   const sleepPenalty =
-    sleepUsed && sleep! < SLEEP_SCORE_LOW_THRESHOLD
-      ? ((SLEEP_SCORE_LOW_THRESHOLD - sleep!) / SLEEP_SCORE_LOW_THRESHOLD) * MAX_SLEEP_PENALTY
+    sleepUsed && sleep! < sleepLow
+      ? ((sleepLow - sleep!) / sleepLow) * MAX_SLEEP_PENALTY
       : 0;
 
-  const hrvUsed = hrv !== undefined && hrvBaseline !== undefined && hrvBaseline > 0;
+  const hrvUsed = use.hrv && hrv !== undefined && hrvBaseline !== undefined && hrvBaseline > 0;
   const hrvDipPct = hrvUsed ? (hrvBaseline! - hrv!) / hrvBaseline! : 0;
   const hrvPenalty =
-    hrvUsed && hrvDipPct > HRV_DIP_THRESHOLD_PCT
-      ? clamp((hrvDipPct - HRV_DIP_THRESHOLD_PCT) / (1 - HRV_DIP_THRESHOLD_PCT), 0, 1) * MAX_HRV_PENALTY
+    hrvUsed && hrvDipPct > hrvDip
+      ? clamp((hrvDipPct - hrvDip) / (1 - hrvDip), 0, 1) * MAX_HRV_PENALTY
       : 0;
 
   const inputsUsed = { fatigue: fatigueUsed, acwr: acwrUsed, sleep: sleepUsed, hrv: hrvUsed };
@@ -298,9 +326,9 @@ export function computeReadiness(inputs: ReadinessInputs): ReadinessResult {
   return {
     score,
     status: readinessStatus(score),
-    advice: buildAdvice({ fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, hrvUsed, hrvDipPct }),
+    advice: buildAdvice(config, { fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, hrvUsed, hrvDipPct }),
     inputsUsed,
-    confidence: buildConfidence(inputsUsed, acwr),
+    confidence: buildConfidence(inputsUsed, acwr, use),
     penalties,
   };
 }

@@ -20,6 +20,7 @@ import {
   computeFatigueDecay,
   computeHrvBaseline,
   computeReadiness,
+  type ReadinessConfig,
   type ReadinessStatus,
 } from "../analytics/readiness";
 import { calculateRollingAcwr } from "../analytics/loadAnalytics";
@@ -281,6 +282,12 @@ export function buildGoalContext(goals: GoalEvent[], asOf: Date, limit = COMPETI
     .slice(0, limit);
 }
 
+/** The user's Training model settings, so the prompt's readiness matches the app's. */
+export interface ModelOptions {
+  readiness?: ReadinessConfig;
+  fatigueHalfLife?: number;
+}
+
 // --- Readiness / daily metrics --------------------------------------------
 
 export interface MetricTrendPoint {
@@ -322,10 +329,15 @@ function trendFor(
  * 14-day sleep/HRV/RHR/bodyweight trends so the AI can see direction, not
  * just a single snapshot value.
  */
-export function buildReadinessSnapshot(workouts: Workout[], allDailyMetrics: DailyMetricEntry[], asOf: Date): ReadinessSnapshot {
+export function buildReadinessSnapshot(
+  workouts: Workout[],
+  allDailyMetrics: DailyMetricEntry[],
+  asOf: Date,
+  model: ModelOptions = {},
+): ReadinessSnapshot {
   const dailyMetrics = loggedMetrics(allDailyMetrics);
   const todayIso = asOf.toISOString().split("T")[0];
-  const fatigueDecay = computeFatigueDecay(workouts, asOf);
+  const fatigueDecay = computeFatigueDecay(workouts, asOf, model.fatigueHalfLife);
   const acwr = calculateRollingAcwr(workouts, asOf);
   const hrvBaseline = computeHrvBaseline(dailyMetrics, asOf);
   const todaysMetric = (metricId: string): number | undefined =>
@@ -336,7 +348,7 @@ export function buildReadinessSnapshot(workouts: Workout[], allDailyMetrics: Dai
     sleep: todaysMetric("sleep-score"),
     hrv: todaysMetric("hrv"),
     hrvBaseline,
-  });
+  }, model.readiness);
   return {
     score: readiness.score,
     status: readiness.status,
@@ -430,6 +442,7 @@ export function buildAIContextProfile(
   sharing: AISharingPreferences,
   asOf: Date,
   targetWeekIds: string[] = [],
+  model: ModelOptions = {},
 ): AIContextProfile {
   // "Analyze Past" already scopes itself to the picked week range and
   // doesn't need the full exercise/phase catalog (UI_PLAN.md §5.8 item 1).
@@ -459,7 +472,7 @@ export function buildAIContextProfile(
     profile.goals = buildGoalContext(source.goals, asOf);
   }
   if (sharing.readinessMetrics) {
-    profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf);
+    profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf, model);
   }
   if (sharing.painLogs) {
     profile.painLogs = buildPainLogContext(source.painLogs);

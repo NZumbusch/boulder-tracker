@@ -1,4 +1,4 @@
-import { rateFriction } from "./friction";
+import { rateFriction, DEFAULT_FRICTION_CONFIG, type FrictionConfig } from "./friction";
 
 /** One hour of Open-Meteo's hourly data, local time "YYYY-MM-DDTHH:MM". */
 export interface HourlyPoint {
@@ -69,6 +69,7 @@ export function bestWindow(
   today: string,
   until?: string,
   recentRainMm?: number,
+  config: FrictionConfig = DEFAULT_FRICTION_CONFIG,
 ): ClimbingWindow | undefined {
   // An hour counts only if it is over by `until` - a window must not run past sunset.
   const hourEnd = (h: HourlyPoint) => {
@@ -82,7 +83,7 @@ export function bestWindow(
     const dry = run.every((h) => (h.precipitationMm ?? 0) === 0 && (h.precipitationChance ?? 0) < WINDOW_MAX_RAIN_CHANCE);
     if (!dry) continue;
     const scores = run.map((h) =>
-      rateFriction({ tempC: h.tempC, humidityPercent: h.humidityPercent, dewPointC: h.dewPointC, windKmh: h.windKmh, recentRainMm }).score,
+      rateFriction({ tempC: h.tempC, humidityPercent: h.humidityPercent, dewPointC: h.dewPointC, windKmh: h.windKmh, recentRainMm }, config).score,
     );
     const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
     const avgTempC = run.reduce((s, h) => s + h.tempC, 0) / run.length;

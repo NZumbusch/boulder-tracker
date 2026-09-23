@@ -1,5 +1,7 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, MAX_CRAGS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat, type AddedExerciseTarget } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat, type AddedExerciseTarget } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
+import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
+import { DEFAULT_UNITS, type Units } from '../units';
 
 const PREFERENCES_KEY = 'boulder_tracker_preferences';
 const LEGACY_THEME_KEY = 'boulder_tracker_theme';
@@ -26,6 +28,8 @@ export class PreferencesStore {
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
   homeDetails = $state<HomeDetails>(defaultHomeDetails());
   sendsChartCounts = $state(true);
+  tunables = $state<Tunables>(defaultTunables());
+  units = $state<Units>({ ...DEFAULT_UNITS });
   aiSharing = $state<AISharingPreferences>(defaultPreferences().aiSharing);
   planFormat = $state<PlanFormat>(defaultPreferences().planFormat);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
@@ -61,6 +65,8 @@ export class PreferencesStore {
     this.homeSections = prefs.homeSections;
     this.homeDetails = prefs.homeDetails;
     this.sendsChartCounts = prefs.sendsChartCounts;
+    this.tunables = prefs.tunables;
+    this.units = prefs.units;
     this.aiSharing = prefs.aiSharing;
     this.planFormat = prefs.planFormat;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
@@ -99,7 +105,7 @@ export class PreferencesStore {
   }
 
   setCrags(crags: WeatherLocation[]) {
-    this.crags = crags.slice(0, MAX_CRAGS);
+    this.crags = crags;
     this.persist();
   }
 
@@ -137,6 +143,22 @@ export class PreferencesStore {
   setHomeSectionOrder(order: HomeSectionPreference['id'][]) {
     const byId = new Map(this.homeSections.map((s) => [s.id, s]));
     this.homeSections = order.map((id) => byId.get(id)!).filter(Boolean);
+    this.persist();
+  }
+
+  /** Sets one tunable; the whole map is re-validated so ranges and ordering always hold. */
+  setTunable(id: string, value: number | boolean) {
+    this.tunables = validateTunables({ ...this.tunables, [id]: value });
+    this.persist();
+  }
+
+  setUnit<K extends keyof Units>(key: K, value: Units[K]) {
+    this.units = { ...this.units, [key]: value };
+    this.persist();
+  }
+
+  resetTunables(topic: TunableTopic) {
+    this.tunables = resetTopic(this.tunables, topic);
     this.persist();
   }
 
@@ -191,6 +213,8 @@ export class PreferencesStore {
       homeSections: this.homeSections,
       homeDetails: this.homeDetails,
       sendsChartCounts: this.sendsChartCounts,
+      tunables: this.tunables,
+      units: this.units,
       aiSharing: this.aiSharing,
       planFormat: this.planFormat,
       addedExerciseTarget: this.addedExerciseTarget,

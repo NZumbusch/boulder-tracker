@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { migratePreferences, defaultPreferences, CURRENT_PREFERENCES_VERSION, HOME_SECTION_IDS } from './migrate';
 import { defaultHomeDetails } from './homeDetails';
+import { defaultTunables } from './tunables';
 
 const DEFAULT_HOME_SECTIONS = HOME_SECTION_IDS.map((id) => ({ id, visible: true }));
 const DEFAULT_AI_SHARING = {
@@ -34,6 +35,8 @@ describe('defaultPreferences', () => {
       homeSections: DEFAULT_HOME_SECTIONS,
       homeDetails: defaultHomeDetails(),
       sendsChartCounts: true,
+      tunables: defaultTunables(),
+      units: { temperature: 'C', weight: 'kg', wind: 'kmh', grades: 'font' },
       aiSharing: DEFAULT_AI_SHARING,
     });
   });
@@ -86,6 +89,8 @@ describe('migratePreferences', () => {
       homeSections: [...DEFAULT_HOME_SECTIONS.slice(1), DEFAULT_HOME_SECTIONS[0]],
       homeDetails: { ...defaultHomeDetails(), 'weather.forecast': false },
       sendsChartCounts: false,
+      tunables: { ...defaultTunables(), 'fatigue.halfLifeDays': 4 },
+      units: { temperature: 'F' as const, weight: 'lb' as const, wind: 'mph' as const, grades: 'v' as const },
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
       planFormat: 'weekly' as const,
       addedExerciseTarget: 'mirror' as const,
@@ -242,13 +247,13 @@ describe('homeLocation / crags (UI_PLAN.md §5.5)', () => {
     expect('tripLocation' in result).toBe(false);
   });
 
-  it('keeps at most three crags, drops invalid and duplicate ones', () => {
+  it('keeps every valid crag, dropping invalid and duplicate ones', () => {
     const c = (name: string) => ({ name, latitude: 47, longitude: 8 });
     const result = migratePreferences({
       version: CURRENT_PREFERENCES_VERSION,
       crags: [c('A'), { name: 'Bad', latitude: 99, longitude: 0 }, c('A'), c('B'), c('C'), c('D')],
     });
-    expect(result.crags.map((x) => x.name)).toEqual(['A', 'B', 'C']);
+    expect(result.crags.map((x) => x.name)).toEqual(['A', 'B', 'C', 'D']);
   });
 
   it('an explicit null clears a location back to unset', () => {

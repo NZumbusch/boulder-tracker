@@ -11,6 +11,7 @@ import {
   MAX_SLEEP_PENALTY,
   MAX_HRV_PENALTY,
   SLEEP_SCORE_LOW_THRESHOLD,
+  DEFAULT_READINESS_CONFIG,
 } from "./readiness";
 import { ACWR_HIGH_RISK_RATIO, type RollingAcwrResult } from "./loadAnalytics";
 
@@ -299,5 +300,28 @@ describe("computeReadiness penalties (the breakdown behind the score)", () => {
   it("is zero for inputs that were missing or cost nothing", () => {
     const r = computeReadiness({ fatigue: {}, acwr: acwr(0.9), sleep: 85 });
     expect(r.penalties).toEqual({ fatigue: 0, acwr: 0, sleep: 0, hrv: 0 });
+  });
+});
+
+describe("computeReadiness with a custom config", () => {
+  const acwr = (ratio: number): RollingAcwrResult => ({ acuteLoad: 0, chronicLoad: 0, ratio, daysCovered: 28, sufficient: true });
+  const base = { fatigue: { fingers: 6, core: 4, systemic: 6 }, acwr: acwr(1.3), sleep: 55, hrv: 50, hrvBaseline: 60 };
+
+  it("leaves out inputs that are switched off", () => {
+    const r = computeReadiness(base, { ...DEFAULT_READINESS_CONFIG, use: { fatigue: true, acwr: false, sleep: false, hrv: false } });
+    expect(r.inputsUsed).toEqual({ fatigue: true, acwr: false, sleep: false, hrv: false });
+    expect(r.penalties.acwr + r.penalties.sleep + r.penalties.hrv).toBe(0);
+  });
+
+  it("uses the configured low-sleep score and HRV dip", () => {
+    const strict = computeReadiness(base, { ...DEFAULT_READINESS_CONFIG, sleepLow: 50, hrvDip: 0.2 });
+    expect(strict.penalties.sleep).toBe(0); // 55 is above a low of 50
+    expect(strict.penalties.hrv).toBe(0); // a 17% dip is inside a 20% allowance
+    expect(computeReadiness(base).penalties.sleep).toBeGreaterThan(0);
+  });
+
+  it("scales the load penalty to the configured high-risk ratio", () => {
+    const lenient = computeReadiness(base, { ...DEFAULT_READINESS_CONFIG, acwrHighRisk: 2 });
+    expect(lenient.penalties.acwr).toBeLessThan(computeReadiness(base).penalties.acwr);
   });
 });

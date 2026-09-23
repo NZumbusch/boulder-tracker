@@ -121,6 +121,7 @@
         trainingState.aiSharing,
         new Date(),
         targetWeekIds,
+        { readiness: trainingState.readinessConfig, fatigueHalfLife: trainingState.fatigueHalfLife },
       );
       const profileText = renderProfileSections(profile, mode);
 
