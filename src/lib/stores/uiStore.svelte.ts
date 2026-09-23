@@ -18,6 +18,8 @@ export class UiStore {
   showFatigue = $state(false);
   /** A completed workout History should open expanded and scroll to - set by Home's Recent Activity, consumed (cleared) by History. */
   historyFocusId = $state<string | null>(null);
+  /** Which half of History is showing - kept across visits so a trip to Sends stays on Sends. */
+  historyTab = $state<'sessions' | 'sends'>('sessions');
   theme = $state<'dark' | 'light' | 'contrast'>('dark');
   notificationsEnabled = $state(false);
   notificationPermission = $state<PermissionState>('prompt');

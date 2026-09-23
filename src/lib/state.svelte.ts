@@ -410,6 +410,13 @@ class TrainingState {
   /** Opens History with `workoutId` expanded and scrolled into view. */
   openInHistory(workoutId: string) {
     this.uiStore.historyFocusId = workoutId;
+    this.uiStore.historyTab = 'sessions';
+    this.uiStore.navigate('history');
+  }
+
+  /** Opens History on its Sends tab. */
+  openSends() {
+    this.uiStore.historyTab = 'sends';
     this.uiStore.navigate('history');
   }
 

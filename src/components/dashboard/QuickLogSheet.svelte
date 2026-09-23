@@ -10,6 +10,8 @@
   import { getWeekId } from '../../lib/dateUtils';
   import BodyweightLog from '../health/BodyweightLog.svelte';
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
+  import SendForm from '../sends/SendForm.svelte';
+  import { isOngoing } from '../../lib/goals/goals';
   import Icon from '@iconify/svelte';
 
   let { onClose }: { onClose: () => void } = $props();
@@ -45,27 +47,10 @@
     onClose();
   }
 
-  // --- Send ---
-  let sendName = $state('');
-  let grade = $state('');
-  let style = $state('');
-  let crag = $state('');
-  let sendDate = $state(todayIso());
-  const knownCrags = $derived(
-    [...new Set([...trainingState.crags.map((c) => c.name), ...trainingState.outdoorAscents.map((a) => a.crag).filter((c): c is string => !!c)])].sort(),
+  // --- Send: during a trip, its place is the default crag ---
+  const ongoingTrip = $derived(
+    trainingState.goals.find((g) => g.kind === 'trip' && g.location && isOngoing(g, todayIso())),
   );
-  async function saveSend() {
-    if (!grade.trim() || !sendDate) return;
-    await trainingState.saveOutdoorAscent({
-      id: generateId(),
-      date: sendDate,
-      grade: grade.trim(),
-      ...(sendName.trim() ? { name: sendName.trim() } : {}),
-      ...(style ? { style } : {}),
-      ...(crag.trim() ? { crag: crag.trim() } : {}),
-    });
-    onClose();
-  }
 
   const title = $derived(kind ? ACTIONS.find((a) => a.kind === kind)!.label : 'Quick log');
   const inputClass = 'w-full bg-surface-elevated/50 text-content p-3 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60';
@@ -114,24 +99,7 @@
     {:else if kind === 'bodyweight'}
       <BodyweightLog />
     {:else if kind === 'send'}
-      <div class="space-y-3">
-        <input bind:value={sendName} placeholder="Problem name (optional)" class={inputClass} />
-        <div class="flex gap-2">
-          <input bind:value={grade} placeholder="Grade, e.g. 7A" class="{inputClass} flex-1" />
-          <select bind:value={style} class="{inputClass} flex-1 appearance-none">
-            <option value="">Style</option>
-            <option value="Flash">Flash</option>
-            <option value="Onsight">Onsight</option>
-            <option value="Redpoint">Redpoint</option>
-          </select>
-        </div>
-        <input bind:value={crag} list="quicklog-crags" placeholder="Crag (optional)" class={inputClass} />
-        <datalist id="quicklog-crags">
-          {#each knownCrags as c}<option value={c}></option>{/each}
-        </datalist>
-        <input type="date" bind:value={sendDate} class={inputClass} />
-        <button onclick={saveSend} disabled={!grade.trim()} class="w-full py-3 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">Save</button>
-      </div>
+      <SendForm defaults={{ crag: ongoingTrip?.location?.name }} onDone={onClose} />
     {:else if kind === 'benchmark'}
       <BenchmarkForm weekId={trainingState.currentWeekId} onSave={onClose} onCancel={() => kind = null} />
     {/if}
