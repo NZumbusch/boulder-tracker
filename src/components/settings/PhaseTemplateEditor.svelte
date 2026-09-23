@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { WEEK_DAYS } from '../../lib/constants';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
   import { slotTypeName } from '../../lib/exerciseSlot';
-  import type { ExerciseSlot, ExerciseValues, ParameterBlock, WorkoutTemplate, DayOfWeek } from '../../lib/types';
+  import type { ExerciseSlot, ExerciseValues, ParameterBlock, WorkoutTemplate } from '../../lib/types';
   import ExerciseForm from '../workout/ExerciseForm.svelte';
   import Icon from "@iconify/svelte";
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
@@ -16,7 +17,7 @@
     phaseId: string;
   } = $props();
 
-  const days: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const days = WEEK_DAYS;
 
   let editingWorkoutIndex = $state<number | null>(null);
   let isAddingExercise = $state(false);

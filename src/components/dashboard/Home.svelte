@@ -4,7 +4,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { formatDate, getWeekIdRange } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
-  import { DEFAULT_METRIC_DEFS } from '../../lib/constants';
+  import { DEFAULT_METRIC_DEFS, RATING_AXES } from '../../lib/constants';
   import { computeFatigueDecay, computeHrvBaseline, computeReadiness, MAX_FATIGUE_PENALTY, MAX_ACWR_PENALTY, MAX_SLEEP_PENALTY, MAX_HRV_PENALTY, type ReadinessStatus } from '../../lib/analytics/readiness';
   import { calculateRollingAcwr } from '../../lib/analytics/loadAnalytics';
   import { calculateWeeklyAdherence } from '../../lib/analytics/loadAnalytics';
@@ -271,13 +271,6 @@
   }
 
   // --- Fatigue bars (UI_PLAN.md §5.4 - bars are the default; radar is an Appearance setting, Stage 8) ---
-  const FATIGUE_BARS: { key: 'fingers' | 'arms' | 'core' | 'systemic'; label: string }[] = [
-    { key: 'fingers', label: 'Fingers' },
-    { key: 'arms', label: 'Arms' },
-    { key: 'core', label: 'Core' },
-    { key: 'systemic', label: 'Systemic' },
-  ];
-
   // --- Weekly load progress ---
   const weeklyAdherence = $derived(calculateWeeklyAdherence(trainingState.workouts, currentWeekId));
   const dayStrip = $derived(weekDayStrip(weekWorkouts, todayName));
@@ -689,7 +682,7 @@
       {#if trainingState.fatigueChartStyle === 'radar'}
         <FatigueRadarChart fingers={fatigueDecay.fingers} arms={fatigueDecay.arms} core={fatigueDecay.core} systemic={fatigueDecay.systemic} />
       {:else}
-        {#each FATIGUE_BARS as bar}
+        {#each RATING_AXES as bar}
           {@const value = fatigueDecay[bar.key]}
           <div class="space-y-1.5">
             <div class="flex justify-between text-label text-content-subtle">

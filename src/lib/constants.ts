@@ -1,5 +1,16 @@
-import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, ParameterBlock, AnalyticsCategory, BenchmarkTypeDef, MetricDef } from "./types";
+import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, ParameterBlock, AnalyticsCategory, BenchmarkTypeDef, MetricDef, DayOfWeek } from "./types";
 import defaults from "../data/defaults.json";
+
+/** The week, Monday first - the order the planner, schedule and AI all use. */
+export const WEEK_DAYS: DayOfWeek[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+/** The four post-session ratings (1-10), in display order. */
+export const RATING_AXES = [
+  { key: "fingers", label: "Fingers" },
+  { key: "arms", label: "Arms" },
+  { key: "core", label: "Core" },
+  { key: "systemic", label: "Systemic" },
+] as const;
 
 /**
  * Current data model version for exports and migrations.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { RATING_AXES } from '../../lib/constants';
   /**
    * Analytics' Fatigue panel (UI_PLAN.md §4.6/§5.4, Stage 5). Home already
    * shows fatigue "as of now" (its own bars) - per §2's "Home = now,
@@ -31,12 +32,6 @@
     coverage: FatigueCoverage;
   } = $props();
 
-  const AXES: { key: 'fingers' | 'arms' | 'core' | 'systemic'; label: string }[] = [
-    { key: 'fingers', label: 'Fingers' },
-    { key: 'arms', label: 'Arms' },
-    { key: 'core', label: 'Core' },
-    { key: 'systemic', label: 'Systemic' },
-  ];
 
   // Values are on a fixed 1-10 RPE-like scale (same as FatigueModal's
   // sliders), so the y-axis is a fixed 0-10 range, not a per-axis min/max -
@@ -80,7 +75,7 @@
   </div>
 
   <div class="space-y-3">
-    {#each AXES as axis}
+    {#each RATING_AXES as axis}
       {@const values = samples.map((s) => s[axis.key])}
       {@const points = toPoints(values)}
       {@const segments = toSegments(points)}

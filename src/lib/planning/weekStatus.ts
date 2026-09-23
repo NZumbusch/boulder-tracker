@@ -1,7 +1,8 @@
 import type { DayOfWeek, Workout } from "../types";
 
 /** ISO week order - Monday first, matching how week ids are counted. */
-export const WEEK_DAYS: DayOfWeek[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+import { WEEK_DAYS } from "../constants";
+export { WEEK_DAYS };
 
 /** 0 (Monday) - 6 (Sunday). */
 export function isoDayIndex(day: DayOfWeek): number {

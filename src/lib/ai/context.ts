@@ -15,7 +15,7 @@ import type {
 import { slotTypeName, slotValues } from "../exerciseSlot";
 import { repsRepresentative } from "../exercise/reps";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex } from "../dateUtils";
-import { BODYWEIGHT_METRIC_ID } from "../constants";
+import { BODYWEIGHT_METRIC_ID, RATING_AXES } from "../constants";
 import {
   computeFatigueDecay,
   computeHrvBaseline,
@@ -202,8 +202,6 @@ export interface WeekHistorySummary {
   avgRatings?: Partial<Record<"fingers" | "arms" | "core" | "systemic", number>>;
 }
 
-const RATING_AXES = ["fingers", "arms", "core", "systemic"] as const;
-
 /**
  * One line per week for older history: what a week of training added up to,
  * without the session-by-session detail. A week with nothing logged still
@@ -231,7 +229,7 @@ export function buildWeeklyHistory(
       }
     }
     const avgRatings: WeekHistorySummary["avgRatings"] = {};
-    for (const axis of RATING_AXES) {
+    for (const { key: axis } of RATING_AXES) {
       const given = done.map((w) => w[axis]).filter((v): v is number => typeof v === "number");
       if (given.length) avgRatings[axis] = Math.round((given.reduce((a, b) => a + b, 0) / given.length) * 10) / 10;
     }

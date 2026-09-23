@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { RATING_AXES } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import type { Workout } from '../../lib/types';
@@ -68,13 +69,6 @@
   function phaseNameForBlock(phaseId?: string) {
     return phaseId ? trainingState.phaseDefs.find((p) => p.id === phaseId)?.name : undefined;
   }
-
-  const FATIGUE_AXES: { key: 'fingers' | 'arms' | 'core' | 'systemic'; label: string }[] = [
-    { key: 'fingers', label: 'Fingers' },
-    { key: 'arms', label: 'Arms' },
-    { key: 'core', label: 'Core' },
-    { key: 'systemic', label: 'Systemic' },
-  ];
 
   const filteredWorkouts = $derived(completedWorkouts.slice().sort((a, b) => {
     const timeA = new Date(a.date || 0).getTime();
@@ -392,7 +386,7 @@
                 </div>
 
                 <div class="flex items-center gap-3 flex-wrap">
-                  {#each FATIGUE_AXES as axis}
+                  {#each RATING_AXES as axis}
                     <span class="text-caption text-content-subtle tabular-nums">{axis.label[0]}:{workout[axis.key] ?? '—'}</span>
                   {/each}
                 </div>

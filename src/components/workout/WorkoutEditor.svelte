@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { WEEK_DAYS } from '../../lib/constants';
   /**
    * The workout modal's edit mode - the viewer made editable in place rather
    * than a separate form: the title and note are fields, the schedule is a
@@ -8,7 +9,7 @@
    *
    * Edits a local copy; nothing is written until Save.
    */
-  import type { Workout, ExerciseSlot, ExerciseValues, ParameterBlock, DayOfWeek } from '../../lib/types';
+  import type { Workout, ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId, showConfirm } from '../../lib/utils';
   import { slotTypeName } from '../../lib/exerciseSlot';
@@ -47,7 +48,7 @@
   let isImportingAI = $state(false);
   let isSaving = $state(false);
 
-  const DAYS: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const DAYS = WEEK_DAYS;
 
   /** Grows a textarea to fit its text, so long notes wrap and expand down instead of scrolling. */
   function autosize(node: HTMLTextAreaElement, _value?: string) {

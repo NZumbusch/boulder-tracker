@@ -1,4 +1,5 @@
 import type { DayOfWeek, ExerciseValues } from "../types";
+import { WEEK_DAYS } from "../constants";
 import { getWeekIdRange } from "../dateUtils";
 import {
   EXERCISE_VALUE_SPEC,
@@ -31,9 +32,7 @@ import {
  * key can't corrupt stored data - it's simply never read).
  */
 
-export const DAYS_OF_WEEK: DayOfWeek[] = [
-  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-];
+const DAYS_OF_WEEK = WEEK_DAYS;
 
 export interface ValidationIssue {
   /** Dotted/bracketed path into the input, e.g. "weeks[2].workouts[0].exercises[1].values.sets" */

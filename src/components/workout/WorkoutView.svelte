@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { RATING_AXES } from '../../lib/constants';
   /**
    * The workout modal's default mode: a read-only look at a session, laid
    * out like the running session minus everything live. Planned sessions
@@ -18,13 +19,6 @@
   const isCompleted = $derived(workout.status === 'completed');
   const isThisRunning = $derived(trainingState.sessionStore.isRunning(workout.id));
   const blocked = $derived(trainingState.isSessionActive && !isThisRunning);
-
-  const RATINGS = [
-    { key: 'fingers', label: 'Fingers' },
-    { key: 'arms', label: 'Arms' },
-    { key: 'core', label: 'Core' },
-    { key: 'systemic', label: 'Systemic' },
-  ] as const;
 
   const subtitle = $derived.by(() => {
     const parts: string[] = [];
@@ -89,7 +83,7 @@
     {#if isCompleted}
       <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-center gap-3">
         <div class="flex-1 grid grid-cols-4 gap-2">
-          {#each RATINGS as r}
+          {#each RATING_AXES as r}
             <div class="min-w-0 text-center">
               <p class="text-caption text-content-subtle truncate">{r.label}</p>
               <p class="text-label font-bold text-content tabular-nums">{workout[r.key] ?? '—'}</p>

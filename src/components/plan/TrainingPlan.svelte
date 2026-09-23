@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekDateRange, getWeekDates } from '../../lib/dateUtils';
@@ -155,7 +156,7 @@
   // sessions" rather than an empty gap - every group always renders, even
   // empty, since each one is also a live drag-and-drop zone (below) and
   // needs a real drop target to reassign a session *to* an empty day.
-  const DAYS: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const DAYS = WEEK_DAYS;
   type DayKey = DayOfWeek | 'Unassigned';
   const DAY_GROUP_KEYS: DayKey[] = [...DAYS, 'Unassigned'];
 
