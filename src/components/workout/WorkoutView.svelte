@@ -9,6 +9,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { formatMinutes } from '../../lib/session/formatSession';
   import { sessionDuration } from '../../lib/planning/sessionDuration';
+  import { loggedDateFor } from '../../lib/planning/scheduledDate';
   import ExerciseCard from './ExerciseCard.svelte';
   import Icon from '@iconify/svelte';
 
@@ -51,6 +52,8 @@
     const w = $state.snapshot(workout) as Workout;
     w.exercises = w.exercises.map((e) => e.logged ? e : { ...e, logged: { ...(e.prescribed ?? {}) } });
     w.status = 'completed';
+    // A missed session is recorded on its planned day, not today.
+    w.date = loggedDateFor(w);
     trainingState.openFatigueModal(w);
   }
 </script>

@@ -625,7 +625,7 @@
                     <p class="text-label text-content truncate">{workout.notes || 'Session'}</p>
                     <p class="text-caption text-content-subtle">{workout.dayOfWeek}</p>
                   </div>
-                  <button onclick={() => openWorkout(workout)} class="px-2.5 py-1 text-label text-primary bg-primary/10 hover:bg-primary/20 rounded-control shrink-0">Log</button>
+                  <button onclick={() => openWorkout(workout)} class="px-2.5 py-1 text-label text-primary bg-primary/10 hover:bg-primary/20 rounded-control shrink-0">Open</button>
                   <button onclick={() => skipWorkout(workout)} class="px-2.5 py-1 text-label text-content-subtle hover:text-content bg-surface-elevated rounded-control shrink-0">Skip</button>
                 </div>
               {/each}

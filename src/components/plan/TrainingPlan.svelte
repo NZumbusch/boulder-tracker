@@ -522,14 +522,14 @@
 
         <div class="space-y-2">
           {#each weekBenchmarks as benchmark}
-            <div class="flex items-center justify-between p-3.5 bg-primary-hover/5 rounded-control border border-primary/10 group/benchmark">
+            <div class="flex items-center justify-between p-3.5 bg-primary-hover/5 rounded-control border border-primary/10">
               <div class="flex-1 min-w-0">
                 <p class="text-body font-bold text-content leading-tight truncate">{benchmark.type}</p>
                 <p class="text-label text-primary-hover mt-0.5">{benchmark.value} {benchmark.unit}</p>
               </div>
               <div class="flex items-center gap-2">
-                <button onclick={() => handleEditBenchmark(benchmark)} class="p-1.5 text-content-subtle hover:text-content transition-colors opacity-0 group-hover/benchmark:opacity-100"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
-                <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors opacity-0 group-hover/benchmark:opacity-100"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+                <button onclick={() => handleEditBenchmark(benchmark)} class="p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit benchmark"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
+                <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete benchmark"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
               </div>
             </div>
           {:else}

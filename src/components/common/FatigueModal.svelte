@@ -223,7 +223,7 @@
           onclick={() => trainingState.closeFatigueModal()}
           class="w-full bg-surface-elevated hover:bg-surface-elevated-hover text-content-muted font-bold py-3 rounded-control transition-all active:scale-[0.98] text-xs"
         >
-          Back to Session
+          {trainingState.isSessionActive ? 'Back to Session' : 'Cancel'}
         </button>
       </div>
     </div>
