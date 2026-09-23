@@ -4,31 +4,43 @@
    * pyramid: every Font grade from your easiest to your hardest send, one
    * step of padding either side, empty grades left empty so gaps show.
    * One series, so one colour and no legend. Only the tallest bar carries
-   * its number; tap (or hover) any bar for its readout. Ladder and counts
-   * come from `lib/sends/gradeHistogram.ts`.
+   * its number; hover a bar for its readout, tap it to filter the sends
+   * list to that grade (tap again to clear). Ladder and counts come from
+   * `lib/sends/gradeHistogram.ts`; the period and the selected grade are
+   * owned by the list (`SendsLog`), so both follow the same filter.
    */
   import type { OutdoorAscent } from '../../lib/types';
   import { gradeHistogram } from '../../lib/sends/gradeHistogram';
-  import { toUtcDayIndex } from '../../lib/dateUtils';
+  import type { SendPeriod } from '../../lib/sends/filter';
 
-  let { ascents }: { ascents: OutdoorAscent[] } = $props();
+  let { ascents, period = $bindable('all'), selectedGrade = $bindable(null) }: {
+    /** Already filtered to `period` by the owner. */
+    ascents: OutdoorAscent[];
+    period?: SendPeriod;
+    selectedGrade?: string | null;
+  } = $props();
 
-  type Period = 'all' | 'year';
-  let period = $state<Period>('all');
-  const todayIndex = toUtcDayIndex(new Date().toISOString());
-  const inPeriod = $derived(
-    period === 'all' ? ascents : ascents.filter((a) => a.date && todayIndex - toUtcDayIndex(a.date) <= 365),
-  );
-  const histogram = $derived(gradeHistogram(inPeriod));
+  const histogram = $derived(gradeHistogram(ascents));
   const maxCount = $derived(Math.max(1, ...histogram.bars.map((b) => b.count)));
   const tallest = $derived(histogram.bars.findIndex((b) => b.count === maxCount));
   const total = $derived(histogram.bars.reduce((s, b) => s + b.count, 0));
 
-  let active = $state<number | null>(null);
+  /** The bar under the pointer (hover preview); falls back to the selected one for the readout. */
+  let hovered = $state<number | null>(null);
+  const selectedIndex = $derived(selectedGrade ? histogram.bars.findIndex((b) => b.grade === selectedGrade) : -1);
+  const active = $derived(hovered ?? (selectedIndex >= 0 ? selectedIndex : null));
   const activeBar = $derived(active !== null ? histogram.bars[active] : undefined);
 
-  /** With many steps, label only the whole grades ("6A", not "6A+") so labels never collide. */
-  const thinLabels = $derived(histogram.bars.length > 12);
+  function toggle(grade: string) {
+    selectedGrade = selectedGrade === grade ? null : grade;
+  }
+
+  // Every grade gets its label when there's room: a label ("6A+") needs
+  // about this many px at the axis's 10px size. Narrower than that, only
+  // whole grades are labelled so neighbours never overlap.
+  const LABEL_MIN_PX = 22;
+  let plotWidth = $state(0);
+  const thinLabels = $derived(plotWidth > 0 && plotWidth / Math.max(1, histogram.bars.length) < LABEL_MIN_PX);
 
   const PLOT_HEIGHT = 112;
 </script>
@@ -44,7 +56,7 @@
     <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0">
       {#each [['all', 'All time'], ['year', '12 months']] as [id, label]}
         <button
-          onclick={() => { period = id as Period; active = null; }}
+          onclick={() => { period = id as SendPeriod; selectedGrade = null; }}
           class="px-2.5 py-1 text-caption rounded-control transition-colors {period === id ? 'bg-primary text-white' : 'text-content-muted hover:text-content'}"
           aria-pressed={period === id}
         >{label}</button>
@@ -57,12 +69,13 @@
   {:else}
     <div>
       <!-- Plot: one full-height hit target per grade; the bar sits on the baseline. -->
-      <div class="flex items-end gap-0.5 border-b border-border-strong/60" style="height: {PLOT_HEIGHT + 16}px" onmouseleave={() => active = null} role="group" aria-label="Sends per grade">
+      <div bind:clientWidth={plotWidth} class="flex items-end gap-0.5 border-b border-border-strong/60" style="height: {PLOT_HEIGHT + 16}px" onmouseleave={() => hovered = null} role="group" aria-label="Sends per grade - tap a grade to filter the list">
         {#each histogram.bars as bar, i (bar.grade)}
           <button
             class="flex-1 h-full flex flex-col justify-end items-center min-w-0 group"
-            onclick={() => active = active === i ? null : i}
-            onmouseenter={() => active = i}
+            onclick={() => toggle(bar.grade)}
+            onmouseenter={() => hovered = i}
+            aria-pressed={selectedGrade === bar.grade}
             aria-label="{bar.grade}: {bar.count} send{bar.count === 1 ? '' : 's'}{bar.flashed ? `, ${bar.flashed} flashed` : ''}"
           >
             {#if i === tallest && active === null}
@@ -80,7 +93,7 @@
       <!-- Grade axis -->
       <div class="flex gap-0.5 mt-1" aria-hidden="true">
         {#each histogram.bars as bar, i (bar.grade)}
-          <span class="flex-1 min-w-0 text-center text-[10px] leading-tight tabular-nums truncate {active === i ? 'text-content' : 'text-content-subtle'}">
+          <span class="flex-1 min-w-0 text-center text-[10px] leading-tight tabular-nums whitespace-nowrap {active === i || selectedGrade === bar.grade ? 'text-content font-bold' : 'text-content-subtle'}">
             {!thinLabels || !bar.grade.endsWith('+') ? bar.grade : ''}
           </span>
         {/each}
@@ -95,7 +108,7 @@
           activeBar.flashed > 0 && `${activeBar.flashed} flashed`,
         ].filter(Boolean).join(' · ')}
       {:else}
-        Tap a bar for its count
+        Tap a grade to show only those sends
       {/if}
     </p>
 

@@ -13,12 +13,18 @@
   import SendForm from './SendForm.svelte';
   import SendImport from './SendImport.svelte';
   import GradeChart from './GradeChart.svelte';
+  import { filterSends, type SendPeriod } from '../../lib/sends/filter';
   import Icon from '@iconify/svelte';
 
   let mode = $state<'list' | 'add' | 'import'>('list');
   let editingId = $state<string | null>(null);
 
-  const groups = $derived(groupSends(trainingState.outdoorAscents, trainingState.goals));
+  // The chart's period and tapped grade filter the list too, so the two always agree.
+  let period = $state<SendPeriod>('all');
+  let selectedGrade = $state<string | null>(null);
+  const inPeriod = $derived(filterSends(trainingState.outdoorAscents, period, null, new Date()));
+  const shown = $derived(filterSends(inPeriod, 'all', selectedGrade, new Date()));
+  const groups = $derived(groupSends(shown, trainingState.goals));
 
   function monthLabel(month: string): string {
     const d = new Date(`${month}-01T00:00:00Z`);
@@ -65,7 +71,15 @@
   {/if}
 
   {#if mode === 'list' && trainingState.outdoorAscents.length > 0}
-    <GradeChart ascents={trainingState.outdoorAscents} />
+    <GradeChart ascents={inPeriod} bind:period bind:selectedGrade />
+    {#if selectedGrade}
+      <div class="flex items-center gap-2 px-1">
+        <span class="text-label text-content">Showing {selectedGrade} sends{period === 'year' ? ' from the last 12 months' : ''}</span>
+        <button onclick={() => selectedGrade = null} class="px-2 py-0.5 rounded-full border border-border-strong/60 text-caption text-content-subtle hover:text-content flex items-center gap-1">
+          <Icon icon="ic:baseline-close" class="text-xs" /> Clear
+        </button>
+      </div>
+    {/if}
   {/if}
 
   {#each groups as group (group.key)}
@@ -89,7 +103,9 @@
   {:else}
     {#if mode === 'list'}
       <div class="p-6 text-center rounded-card border border-dashed border-border">
-        <p class="text-caption text-content-subtle italic">No outdoor sends yet - add one, or import your 8a.nu log.</p>
+        <p class="text-caption text-content-subtle italic">
+          {selectedGrade ? `No ${selectedGrade} sends${period === 'year' ? ' in the last 12 months' : ''} yet.` : period === 'year' && trainingState.outdoorAscents.length > 0 ? 'No sends in the last 12 months.' : 'No outdoor sends yet - add one, or import your 8a.nu log.'}
+        </p>
       </div>
     {/if}
   {/each}
