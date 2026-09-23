@@ -3,8 +3,9 @@
    * Sends per grade - a minimal bar chart in the spirit of the Kilter app's
    * pyramid: every Font grade from your easiest to your hardest send, one
    * step of padding either side, empty grades left empty so gaps show.
-   * One series, so one colour and no legend. Only the tallest bar carries
-   * its number; hover a bar for its readout, tap it to filter the sends
+   * One series, so one colour and no legend. Every bar with sends carries
+   * its count (as in Kilter's pyramid) while the bars are wide enough to
+   * hold one; hover a bar for its readout, tap it to filter the sends
    * list to that grade (tap again to clear). Ladder and counts come from
    * `lib/sends/gradeHistogram.ts`; the period and the selected grade are
    * owned by the list (`SendsLog`), so both follow the same filter.
@@ -22,7 +23,6 @@
 
   const histogram = $derived(gradeHistogram(ascents));
   const maxCount = $derived(Math.max(1, ...histogram.bars.map((b) => b.count)));
-  const tallest = $derived(histogram.bars.findIndex((b) => b.count === maxCount));
   const total = $derived(histogram.bars.reduce((s, b) => s + b.count, 0));
 
   /** The bar under the pointer (hover preview); falls back to the selected one for the readout. */
@@ -41,6 +41,9 @@
   const LABEL_MIN_PX = 22;
   let plotWidth = $state(0);
   const thinLabels = $derived(plotWidth > 0 && plotWidth / Math.max(1, histogram.bars.length) < LABEL_MIN_PX);
+  /** Counts above the bars need less room than grade names, but still some. */
+  const COUNT_MIN_PX = 14;
+  const showCounts = $derived(plotWidth === 0 || plotWidth / Math.max(1, histogram.bars.length) >= COUNT_MIN_PX);
 
   const PLOT_HEIGHT = 112;
 </script>
@@ -78,8 +81,8 @@
             aria-pressed={selectedGrade === bar.grade}
             aria-label="{bar.grade}: {bar.count} send{bar.count === 1 ? '' : 's'}{bar.flashed ? `, ${bar.flashed} flashed` : ''}"
           >
-            {#if i === tallest && active === null}
-              <span class="text-caption text-content-muted tabular-nums leading-none mb-1">{bar.count}</span>
+            {#if showCounts && bar.count > 0}
+              <span class="text-[10px] tabular-nums leading-none mb-1 {active === i ? 'text-content font-bold' : 'text-content-subtle'}">{bar.count}</span>
             {/if}
             {#if bar.count > 0}
               <span
