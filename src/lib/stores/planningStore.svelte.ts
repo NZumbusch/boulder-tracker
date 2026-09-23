@@ -65,10 +65,6 @@ export class PlanningStore {
     await storage.deleteGoal(id);
   }
 
-  async updateTemplates(templates: Record<string, WorkoutTemplate[]>) {
-    await storage.saveTemplates(templates);
-  }
-
   async resetTemplates() {
     await storage.resetTemplates();
   }

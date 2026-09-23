@@ -1,6 +1,6 @@
 <script lang="ts">
   import { trainingState } from '../../lib/state.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { storage } from '../../lib/storage';
   import { showAlert, showConfirm } from '../../lib/utils';
   import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, BenchmarkTypeDef, AnalyticsCategory } from '../../lib/types';
@@ -31,33 +31,75 @@
     else currentTab = 'overview';
   }
 
-  // --- State: local editable copies of every catalog, saved together via "Save All" ---
+  // --- State: local editable copies of every catalog, saved as you edit ---
   let templates = $state<Record<string, WorkoutTemplate[]>>({});
   let phaseDefs = $state<PhaseDef[]>([]);
   let exerciseTypes = $state<ExerciseTypeDef[]>([]);
   let benchmarkTypes = $state<BenchmarkTypeDef[]>([]);
   let analyticsCategories = $state<AnalyticsCategory[]>([]);
 
-  // --- Lifecycle ---
+  /**
+   * Autosave. Like every other setting, catalog edits save themselves -
+   * there used to be a "Save All" button, and leaving the tab without it
+   * silently threw the edits away. A change is written 600 ms after the
+   * last edit (typing a name shouldn't write every letter), only the
+   * catalogs that actually changed are written, and a pending save is
+   * flushed when the screen closes.
+   */
+  type Catalog = 'templates' | 'phaseDefs' | 'exerciseTypes' | 'benchmarkTypes' | 'analyticsCategories';
+  const current = (): Record<Catalog, string> => ({
+    templates: JSON.stringify($state.snapshot(templates)),
+    phaseDefs: JSON.stringify($state.snapshot(phaseDefs)),
+    exerciseTypes: JSON.stringify($state.snapshot(exerciseTypes)),
+    benchmarkTypes: JSON.stringify($state.snapshot(benchmarkTypes)),
+    analyticsCategories: JSON.stringify($state.snapshot(analyticsCategories)),
+  });
+  let lastSaved: Record<Catalog, string> | null = null;
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
+
   onMount(async () => {
     templates = await storage.getTemplates();
     phaseDefs = await storage.getPhaseDefs();
     exerciseTypes = await storage.getExerciseTypes();
     benchmarkTypes = await storage.getBenchmarkTypes();
     analyticsCategories = await storage.getAnalyticsCategories();
+    lastSaved = current();
   });
 
-  // --- Global Actions ---
-  async function saveAll() {
+  $effect(() => {
+    const now = current();
+    if (!lastSaved) return;
+    if ((Object.keys(now) as Catalog[]).every((k) => now[k] === lastSaved![k])) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persist, 600);
+  });
+
+  onDestroy(() => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      persist();
+    }
+  });
+
+  async function persist() {
+    saveTimer = undefined;
+    if (!lastSaved) return;
+    const now = current();
+    const changed = (Object.keys(now) as Catalog[]).filter((k) => now[k] !== lastSaved![k]);
+    if (changed.length === 0) return;
+    saveState = 'saving';
     try {
-      await storage.saveTemplates($state.snapshot(templates));
-      await storage.savePhaseDefs($state.snapshot(phaseDefs));
-      await storage.saveExerciseTypes($state.snapshot(exerciseTypes));
-      await storage.saveBenchmarkTypes($state.snapshot(benchmarkTypes));
-      await storage.saveAnalyticsCategories($state.snapshot(analyticsCategories));
+      if (changed.includes('templates')) await storage.saveTemplates($state.snapshot(templates));
+      if (changed.includes('phaseDefs')) await storage.savePhaseDefs($state.snapshot(phaseDefs));
+      if (changed.includes('exerciseTypes')) await storage.saveExerciseTypes($state.snapshot(exerciseTypes));
+      if (changed.includes('benchmarkTypes')) await storage.saveBenchmarkTypes($state.snapshot(benchmarkTypes));
+      if (changed.includes('analyticsCategories')) await storage.saveAnalyticsCategories($state.snapshot(analyticsCategories));
+      for (const k of changed) lastSaved[k] = now[k];
       await trainingState.refresh();
-      await showAlert('Settings', 'Settings saved successfully!');
+      saveState = 'saved';
     } catch (err) {
+      saveState = 'idle';
       await showAlert('Settings Error', err instanceof Error ? err.message : 'Failed to save settings.');
     }
   }
@@ -67,6 +109,8 @@
     if (!confirmed) return;
     await trainingState.resetTemplates();
     templates = await storage.getTemplates();
+    // Already saved by the reset - don't write it again.
+    if (lastSaved) lastSaved.templates = current().templates;
   }
 </script>
 
@@ -86,8 +130,10 @@
         </h2>
       {/if}
     </div>
-    {#if currentTab === 'customization'}
-      <button onclick={saveAll} class="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-control transition-all shadow-lg active:scale-95">Save All</button>
+    {#if currentTab === 'customization' && saveState !== 'idle'}
+      <span class="text-caption text-content-subtle flex items-center gap-1" aria-live="polite">
+        {#if saveState === 'saving'}Saving…{:else}<Icon icon="ic:baseline-check" class="text-sm text-success" /> Saved{/if}
+      </span>
     {/if}
   </div>
 

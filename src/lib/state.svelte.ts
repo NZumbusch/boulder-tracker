@@ -1,6 +1,6 @@
 import { openWorkout } from './workoutModal.svelte';
 import { storage } from './storage';
-import type { Workout, WorkoutTemplate, PhaseDef, Benchmark, BenchmarkTypeDef, AnalyticsCategory, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
@@ -724,22 +724,6 @@ class TrainingState {
   }
 
   /**
-   * Updates the global list of benchmark test types.
-   */
-  async updateBenchmarkTypes(types: BenchmarkTypeDef[]) {
-    await this.catalogStore.updateBenchmarkTypes(types);
-    await this.refresh();
-  }
-
-  /**
-   * Updates the global list of macrocycle phase definitions.
-   */
-  async updatePhaseDefs(defs: PhaseDef[]) {
-    await this.catalogStore.updatePhaseDefs(defs);
-    await this.refresh();
-  }
-
-  /**
    * Assigns a training phase to a specific week.
    */
   async assignPhase(weekId: string, phaseId: string) {
@@ -892,14 +876,6 @@ class TrainingState {
   }
 
   /**
-   * Updates the global list of analytics categories.
-   */
-  async updateAnalyticsCategories(categories: AnalyticsCategory[]) {
-    await this.catalogStore.updateAnalyticsCategories(categories);
-    await this.refresh();
-  }
-
-  /**
    * Updates the global list of exercise modalities.
    */
   async updateExerciseTypes(types: ExerciseTypeDef[]) {
@@ -907,13 +883,6 @@ class TrainingState {
     await this.refresh();
   }
 
-  /**
-   * Updates workout templates for different phases.
-   */
-  async updateTemplates(templates: Record<string, WorkoutTemplate[]>) {
-    await this.planningStore.updateTemplates(templates);
-    await this.refresh();
-  }
 
   /**
    * Resets templates to their default values.

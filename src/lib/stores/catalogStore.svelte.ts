@@ -30,16 +30,4 @@ export class CatalogStore {
   async updateExerciseTypes(types: ExerciseTypeDef[]) {
     await storage.saveExerciseTypes(types);
   }
-
-  async updateAnalyticsCategories(categories: AnalyticsCategory[]) {
-    await storage.saveAnalyticsCategories(categories);
-  }
-
-  async updateBenchmarkTypes(types: BenchmarkTypeDef[]) {
-    await storage.saveBenchmarkTypes(types);
-  }
-
-  async updatePhaseDefs(defs: PhaseDef[]) {
-    await storage.savePhaseDefs(defs);
-  }
 }
