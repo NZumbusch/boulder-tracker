@@ -78,6 +78,22 @@
   const dayFriction = (day: DailyForecastDay): Friction => rateForecastDay(day);
   let showFrictionReason = $state(false);
 
+  /**
+   * Joins the parts of a one-line summary with " · ", skipping empty ones.
+   * Built in code on purpose: written in markup, a " · " at the edge of an
+   * {#if} block loses its surrounding spaces ("min·6 exercises").
+   */
+  function joinParts(...parts: (string | false | null | undefined)[]): string {
+    return parts.filter((p): p is string => !!p).join(' · ');
+  }
+  /** A conditions badge's text - the word, the score, or both, as the two weather options say. */
+  function frictionText(f: Friction): string {
+    return joinParts(
+      trainingState.homeDetails['weather.frictionWord'] && f.label,
+      trainingState.homeDetails['weather.frictionNumber'] && f.score.toFixed(1),
+    );
+  }
+
   function formatRelativeAge(iso: string): string {
     const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
     if (minutes < 60) return `${minutes}m ago`;
@@ -532,7 +548,12 @@
                 <Icon icon="ic:outline-cloud-queue" class="text-xs text-primary/70 shrink-0" />
               {/if}
               <span class="truncate">
-                {#if showTime}{summary.startTime ? `${summary.startTime} · ` : ''}{summary.estimated ? '~' : ''}{summary.minutes} min · {/if}{workout.exercises.length} exercise{workout.exercises.length === 1 ? '' : 's'}{#if showLoad} · load {summary.plannedLoad}{/if}
+                {joinParts(
+                  showTime && summary.startTime,
+                  showTime && `${summary.estimated ? '~' : ''}${summary.minutes} min`,
+                  `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
+                  showLoad && `load ${summary.plannedLoad}`,
+                )}
               </span>
             </p>
             {#if trainingState.homeDetails['today.exercises'] && summary.exerciseNames.length > 0}
@@ -795,7 +816,7 @@
                 {@const code = describeWeatherCode(day.weatherCode)}
                 <div class="flex flex-col items-center gap-1 shrink-0 w-11 pt-2">
                   <span class="text-caption text-content-subtle">{day.date === todayIso ? 'Today' : new Date(`${day.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short' })}</span>
-                  <Icon icon={code.icon} class="text-lg text-primary" />
+                  <span title={code.label} class="flex"><Icon icon={code.icon} class="text-lg text-primary" aria-label={code.label} /></span>
                   <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
                   {#if trainingState.homeDetails['weather.frictionNumber']}
                     <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
@@ -863,7 +884,12 @@
             <div class="min-w-0 flex-1">
               <p class="text-label text-content truncate">{workout.notes || 'Session'}</p>
               <p class="text-caption text-content-subtle truncate tabular-nums">
-                {formatDate(workout.date)}{#if trainingState.homeDetails['recentActivity.details']} · {Math.round(sessionDuration(workout))} min · load {Math.round(workout.loadFactor || 0)}{/if}{#if trainingState.homeDetails['recentActivity.fatigue'] && fatigue.length > 0} · {fatigue.map(([k, v]) => `${k}${v}`).join(' ')}{/if}
+                {joinParts(
+                  formatDate(workout.date),
+                  trainingState.homeDetails['recentActivity.details'] && `${Math.round(sessionDuration(workout))} min`,
+                  trainingState.homeDetails['recentActivity.details'] && `load ${Math.round(workout.loadFactor || 0)}`,
+                  trainingState.homeDetails['recentActivity.fatigue'] && fatigue.length > 0 && fatigue.map(([k, v]) => `${k}${v}`).join(' '),
+                )}
               </p>
             </div>
             <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0" />
@@ -917,7 +943,7 @@
       {@render sectionHeader('ic:baseline-emoji-events', 'Progress')}
       {#if showConsistency}
         <div class="flex items-baseline justify-between gap-3">
-          <p class="text-body text-content"><span class="text-metric tabular-nums">{consistencyStats.done}</span><span class="text-content-subtle"> of the last {consistencyStats.due} sessions done</span></p>
+          <p class="text-body text-content"><span class="text-metric tabular-nums">{consistencyStats.done}</span>{' '}<span class="text-content-subtle">of the last {consistencyStats.due} sessions done</span></p>
           {#if consistencyStats.weekStreak > 1}
             <span class="text-label text-primary shrink-0">{consistencyStats.weekStreak}-week streak</span>
           {/if}
@@ -928,8 +954,10 @@
           {#each benchmarkProgress.slice(0, PROGRESS_BENCHMARKS) as b (b.typeKey)}
             <div class="flex items-baseline justify-between gap-3">
               <span class="text-label text-content-muted truncate">{b.name}</span>
-              <span class="text-label text-content tabular-nums shrink-0">
-                {b.latest} {b.unit}
+              <!-- Parts laid out with a flex gap, not markup spaces - spaces at
+                   an {#if} edge are dropped (see joinParts). -->
+              <span class="text-label text-content tabular-nums shrink-0 flex items-baseline gap-1.5">
+                <span>{b.latest} {b.unit}</span>
                 {#if b.change !== undefined && b.change !== 0}
                   <span class={b.change > 0 ? 'text-status-good' : 'text-status-caution'}>{b.change > 0 ? '+' : '−'}{Math.abs(b.change)}</span>
                 {/if}
@@ -987,7 +1015,7 @@
                 <span class="text-label text-content tabular-nums">{Math.round(snap.currentTempC)}°</span>
                 {#if trainingState.homeDetails['weather.frictionWord'] || trainingState.homeDetails['weather.frictionNumber']}
                   <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums {FRICTION_STYLE[f.label].badge}">
-                    {#if trainingState.homeDetails['weather.frictionWord']}{f.label}{/if}{#if trainingState.homeDetails['weather.frictionWord'] && trainingState.homeDetails['weather.frictionNumber']} · {/if}{#if trainingState.homeDetails['weather.frictionNumber']}{f.score.toFixed(1)}{/if}
+                    {frictionText(f)}
                   </span>
                 {/if}
               {:else if state?.unavailable}
@@ -1008,7 +1036,7 @@
                     {@const df = dayFriction(day)}
                     <div class="flex flex-col items-center gap-1 shrink-0 w-11">
                       <span class="text-caption text-content-subtle">{d === 0 ? 'Today' : new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}</span>
-                      <Icon icon={code.icon} class="text-lg text-primary" />
+                      <span title={code.label} class="flex"><Icon icon={code.icon} class="text-lg text-primary" aria-label={code.label} /></span>
                       <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
                       {#if trainingState.homeDetails['weather.frictionNumber']}
                         <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
@@ -1062,14 +1090,16 @@
               aria-expanded={showFrictionReason}
               title="Climbing conditions - tap for why"
             >
-              {#if showWord}{friction.label}{/if}{#if showWord && showNumber} · {/if}{#if showNumber}{friction.score.toFixed(1)}{/if}
+              {frictionText(friction)}
             </button>
           {/if}
         </div>
         {#if showFrictionReason && (showWord || showNumber)}
           <p class="text-caption text-content-subtle">
-            {friction.reason ?? 'Nothing holding conditions back.'}
-            {#if w.dewPointC !== undefined} Air is {Math.max(0, Math.round(w.currentTempC - w.dewPointC))}° above its dew point.{/if}
+            {[
+              friction.reason ? `${friction.reason}.` : 'Nothing holding conditions back.',
+              w.dewPointC !== undefined && `Air is ${Math.max(0, Math.round(w.currentTempC - w.dewPointC))}° above its dew point.`,
+            ].filter(Boolean).join(' ')}
           </p>
         {/if}
 
@@ -1122,7 +1152,11 @@
           {#if best || sunsetAhead}
             <p class="text-caption text-content-subtle flex items-center gap-1.5 tabular-nums">
               <Icon icon="ic:baseline-schedule" class="text-sm shrink-0" />
-              {#if best}Best {best.start}–{best.end} · {Math.round(best.avgTempC)}° dry{/if}{#if best && sunsetAhead} · {/if}{#if sunsetAhead}sunset {sunset!.slice(11, 16)}{/if}
+              {joinParts(
+                best && `Best ${best.start}–${best.end}`,
+                best && `${Math.round(best.avgTempC)}° dry`,
+                sunsetAhead && `sunset ${sunset!.slice(11, 16)}`,
+              )}
             </p>
           {/if}
         {/if}
@@ -1139,7 +1173,7 @@
                 <span class="text-caption {i === 0 ? 'text-content-muted' : 'text-content-subtle'}">
                   {i === 0 ? 'Today' : new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}
                 </span>
-                <Icon icon={dayCode.icon} class="text-lg text-primary" />
+                <span title={dayCode.label} class="flex"><Icon icon={dayCode.icon} class="text-lg text-primary" aria-label={dayCode.label} /></span>
                 <span class="text-caption text-content tabular-nums">{Math.round(day.tempMaxC)}°</span>
                 <span class="text-caption text-content-subtle tabular-nums">{Math.round(day.tempMinC)}°</span>
                 {#if day.precipitationChance !== undefined && day.precipitationChance >= 20}
