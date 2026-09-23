@@ -25,18 +25,12 @@
   import { formatWeight } from '../../lib/units';
   import type { ExerciseSlot, Workout } from '../../lib/types';
   import { formatDate } from '../../lib/dateUtils';
-  import { showAlert } from '../../lib/utils';
   import { trainingState } from '../../lib/state.svelte';
   import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import { formatMinutes } from '../../lib/session/formatSession';
-  import {
-    shareImage,
-    copyImageToClipboard,
-    canCopyImages,
-    shareImageFileName,
-  } from '../../lib/share/imageShare';
-  import html2canvas from 'html2canvas';
+  import { canCopyImages, shareImageFileName } from '../../lib/share/imageShare';
+  import { copyCard, shareCard } from '../../lib/share/cardShare';
   import Icon from '@iconify/svelte';
 
   let { workout, onClose } = $props<{ workout: Workout, onClose: () => void }>();
@@ -84,37 +78,11 @@
     return base + load;
   }
 
-  // --- Export ---
-
-  /** Renders the card once, as both a Blob (web share/clipboard) and a data URL (native Filesystem). */
-  async function render(): Promise<{ blob: Blob; dataUrl: string }> {
-    const canvas = await html2canvas(containerNode!, {
-      scale: 3,
-      useCORS: true,
-      backgroundColor: null,
-      logging: false,
-    });
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('Failed to create image blob');
-    return { blob, dataUrl: canvas.toDataURL('image/png') };
-  }
-
   async function handleCopy() {
     if (!containerNode || busy) return;
     busy = 'copy';
     try {
-      const { blob } = await render();
-      const outcome = await copyImageToClipboard(blob);
-      if (outcome === 'copied') {
-        await showAlert('Copied', 'The card is on your clipboard.');
-      } else if (outcome === 'unsupported') {
-        await showAlert('Not available here', 'This device can\'t copy images to the clipboard. Use Share instead.');
-      } else {
-        await showAlert('Copy failed', 'The image could not be copied. Use Share instead.');
-      }
-    } catch (err) {
-      console.error('Failed to generate share image:', err);
-      await showAlert('Something went wrong', 'The card could not be generated.');
+      await copyCard(containerNode);
     } finally {
       busy = null;
     }
@@ -124,23 +92,11 @@
     if (!containerNode || busy) return;
     busy = 'share';
     try {
-      const { blob, dataUrl } = await render();
-      const outcome = await shareImage({
-        blob,
-        dataUrl,
+      await shareCard(containerNode, {
         fileName: shareImageFileName(workout.date),
-        title: title,
+        title,
         text: `${title} - ${exerciseCount} ${exerciseCount === 1 ? 'exercise' : 'exercises'}, ${formatMinutes(durationMinutes)}`,
       });
-      if (outcome === 'downloaded') {
-        await showAlert('Saved', 'The card was saved to your downloads.');
-      } else if (outcome === 'failed') {
-        await showAlert('Share failed', 'The card could not be shared.');
-      }
-      // "shared" and "dismissed" both speak for themselves - no alert.
-    } catch (err) {
-      console.error('Failed to generate share image:', err);
-      await showAlert('Something went wrong', 'The card could not be generated.');
     } finally {
       busy = null;
     }

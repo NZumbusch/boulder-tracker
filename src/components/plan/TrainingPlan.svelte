@@ -11,6 +11,7 @@
   import Icon from "@iconify/svelte";
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
   import AICoachModal from './AICoachModal.svelte';
+  import WeekShareImage from './WeekShareImage.svelte';
   import WeekCalendar from './WeekCalendar.svelte';
   import BlockManager from './BlockManager.svelte';
   import GoalsCalendar from './GoalsCalendar.svelte';
@@ -43,6 +44,7 @@
 
   // --- Copy / repeat a week ---
   let showCopy = $state(false);
+  let sharingWeek = $state(false);
   let repeatCount = $state(1);
   const previousWeekId = $derived(trainingState.selectedWeekId ? decrementWeekId(trainingState.selectedWeekId) : '');
   const previousWeekCount = $derived(previousWeekId ? trainingState.getWorkoutsForWeek(previousWeekId).length : 0);
@@ -398,11 +400,11 @@
             class="flex items-center px-2.5 py-2 rounded-control border transition-all active:scale-95 {showCopy
               ? 'bg-primary/10 text-primary border-primary/20'
               : 'bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border-border-strong/50'}"
-            title="Copy last week here, or repeat this week"
-            aria-label="Copy or repeat a week"
+            title="Copy, repeat or share this week"
+            aria-label="Copy, repeat or share this week"
             aria-expanded={showCopy}
           >
-            <Icon icon="ic:baseline-content-copy" class="text-sm" />
+            <Icon icon="ic:baseline-more-horiz" class="text-sm" />
           </button>
           {#if isProvisionalWeek}
             <button
@@ -461,6 +463,14 @@
             >Repeat</button>
           </div>
           <p class="text-caption text-content-subtle">Replaces the planned sessions there; completed ones stay. You can undo it.</p>
+          <button
+            onclick={() => { showCopy = false; sharingWeek = true; }}
+            disabled={weekWorkouts.length === 0}
+            class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left disabled:opacity-40 disabled:cursor-not-allowed group"
+          >
+            <Icon icon="ic:baseline-ios-share" class="text-base text-primary shrink-0" />
+            <span class="text-label text-content group-hover:text-primary transition-colors">Share this week as an image</span>
+          </button>
         </div>
       {/if}
 
@@ -607,6 +617,10 @@
 
   <GoalsCalendar />
 </div>
+
+{#if sharingWeek && trainingState.selectedWeekId}
+  <WeekShareImage weekId={trainingState.selectedWeekId} onClose={() => sharingWeek = false} />
+{/if}
 
 {#if showAICoach}
   <AICoachModal onClose={() => showAICoach = false} />
