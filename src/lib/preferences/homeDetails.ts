@@ -39,6 +39,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'today.time', label: 'Start time & length', defaultOn: true },
     { id: 'today.exercises', label: 'Exercise names', hint: 'The first three, then "+N more"', defaultOn: true },
     { id: 'today.load', label: 'Planned load', defaultOn: true },
+    { id: 'today.sessionNotes', label: 'Session notes', hint: 'The note on a session - yours or the AI\'s', defaultOn: true },
     { id: 'today.missed', label: 'Missed this week', hint: 'Earlier sessions this week you haven\'t logged or skipped', defaultOn: true },
   ],
   metrics: [

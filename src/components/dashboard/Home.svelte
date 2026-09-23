@@ -579,6 +579,9 @@
                 {summary.exerciseNames.join(' · ')}{summary.moreExercises > 0 ? ` +${summary.moreExercises} more` : ''}
               </p>
             {/if}
+            {#if trainingState.homeDetails['today.sessionNotes'] && workout.description}
+              <p class="text-caption text-content-muted mt-1 line-clamp-2 leading-snug">{workout.description}</p>
+            {/if}
           </div>
           <!-- Start goes live: it begins the session and opens the session
                modal, rather than opening the workout in the planning form.

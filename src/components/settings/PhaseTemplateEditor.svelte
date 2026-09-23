@@ -107,6 +107,13 @@
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0 flex-1">
           <input bind:value={workout.name} class="w-full bg-transparent text-sm font-bold text-content border-b border-transparent focus:border-primary/30 outline-none pb-1 truncate" placeholder="Session Name" />
+          <textarea
+            value={workout.description ?? ''}
+            oninput={(e) => { const v = e.currentTarget.value; if (v.trim()) workout.description = v; else delete workout.description; }}
+            rows="1"
+            placeholder="Session note (optional) - intent, pacing, what to focus on"
+            class="w-full mt-1 bg-transparent text-caption text-content-muted border-b border-transparent focus:border-primary/30 outline-none resize-y"
+          ></textarea>
         </div>
         <div class="flex items-center gap-0.5 flex-shrink-0">
           <button onclick={() => {

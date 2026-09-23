@@ -475,6 +475,9 @@
                         {/if}
                         <span class="truncate">{workout.exercises.length} Exercises{workout.plannedDuration ? ` · ${workout.plannedDuration} min planned` : ''}</span>
                       </p>
+                      {#if workout.description}
+                        <p class="text-caption text-content-subtle mt-1 line-clamp-2 leading-snug">{workout.description}</p>
+                      {/if}
                     </div>
                   </div>
 

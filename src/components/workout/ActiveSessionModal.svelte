@@ -202,6 +202,9 @@
               {store.isPaused ? 'Paused' : 'Session running'}
             </p>
             <h2 class="text-title text-content truncate">{session.workout.notes || 'Session'}</h2>
+            {#if session.workout.description}
+              <p class="text-caption text-content-subtle mt-0.5 line-clamp-2 leading-snug">{session.workout.description}</p>
+            {/if}
           </div>
           <button
             onclick={() => isExiting = true}
