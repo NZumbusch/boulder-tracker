@@ -1,14 +1,13 @@
 <script lang="ts">
   /**
    * Home's header "+": one sheet for the quick things you log outside a
-   * session - pain, bodyweight, an outdoor send, a benchmark. Each form is
-   * the smallest one that does the job; bodyweight and benchmarks reuse the
-   * existing components so there's one way to enter each.
+   * session - pain, bodyweight, an outdoor send, a benchmark. Pain and
+   * bodyweight show their history too, to edit or delete; sends and
+   * benchmarks reuse the existing forms so there's one way to enter each.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import { generateId } from '../../lib/utils';
-  import { getWeekId } from '../../lib/dateUtils';
   import BodyweightLog from '../health/BodyweightLog.svelte';
+  import PainLog from '../health/PainLog.svelte';
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
   import SendForm from '../sends/SendForm.svelte';
   import { isOngoing } from '../../lib/goals/goals';
@@ -20,7 +19,7 @@
   let kind = $state<Kind | null>(null);
 
   const ALL_ACTIONS: { kind: Kind; icon: string; label: string; hint: string }[] = [
-    { kind: 'pain', icon: 'ic:baseline-healing', label: 'Log pain', hint: 'Where, and how bad' },
+    { kind: 'pain', icon: 'ic:baseline-healing', label: 'Pain', hint: 'Log, or see past entries' },
     { kind: 'bodyweight', icon: 'ic:baseline-monitor-weight', label: 'Bodyweight', hint: 'Today\'s weight' },
     { kind: 'send', icon: 'ic:baseline-terrain', label: 'Outdoor send', hint: 'Problem, grade, crag' },
     { kind: 'benchmark', icon: 'ic:baseline-straighten', label: 'Benchmark', hint: 'A test result this week' },
@@ -35,32 +34,12 @@
 
   const todayIso = () => new Date().toISOString().split('T')[0];
 
-  // --- Pain ---
-  let bodyPart = $state('');
-  let severity = $state(3);
-  let painNotes = $state('');
-  const knownBodyParts = $derived([...new Set(trainingState.painLogs.map((p) => p.bodyPart))].sort());
-  async function savePain() {
-    if (!bodyPart.trim()) return;
-    const date = todayIso();
-    await trainingState.savePainLog({
-      id: generateId(),
-      date,
-      weekId: getWeekId(new Date(date)),
-      bodyPart: bodyPart.trim(),
-      severity,
-      ...(painNotes.trim() ? { notes: painNotes.trim() } : {}),
-    });
-    onClose();
-  }
-
   // --- Send: during a trip, its place is the default crag ---
   const ongoingTrip = $derived(
     trainingState.goals.find((g) => g.kind === 'trip' && g.location && isOngoing(g, todayIso())),
   );
 
   const title = $derived(kind ? ALL_ACTIONS.find((a) => a.kind === kind)!.label : 'Quick log');
-  const inputClass = 'w-full bg-surface-elevated/50 text-content p-3 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60';
 </script>
 
 <div class="fixed inset-0 bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
@@ -91,18 +70,7 @@
         {/each}
       </div>
     {:else if kind === 'pain'}
-      <div class="space-y-3">
-        <input bind:value={bodyPart} list="quicklog-bodyparts" placeholder="Body part, e.g. Left ring finger A2" class={inputClass} />
-        <datalist id="quicklog-bodyparts">
-          {#each knownBodyParts as part}<option value={part}></option>{/each}
-        </datalist>
-        <div class="space-y-1">
-          <div class="flex justify-between text-label text-content-subtle"><span>Severity</span><span class="tabular-nums text-content">{severity}/10</span></div>
-          <input type="range" min="1" max="10" bind:value={severity} class="w-full accent-primary" />
-        </div>
-        <textarea bind:value={painNotes} rows="2" placeholder="Notes (optional)" class="{inputClass} resize-y"></textarea>
-        <button onclick={savePain} disabled={!bodyPart.trim()} class="w-full py-3 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">Save</button>
-      </div>
+      <PainLog />
     {:else if kind === 'bodyweight'}
       <BodyweightLog />
     {:else if kind === 'send'}
