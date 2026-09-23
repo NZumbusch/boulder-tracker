@@ -248,3 +248,36 @@ export async function writeMigrationBackup(fromVersion: string, data: any): Prom
     console.error("Failed to write pre-migration backup", err);
   }
 }
+
+// --- Undo for the last AI plan change (see storage.applyPlanWrites) ---
+// Kept beside the database, not in it: it's a safety net, not data, and a
+// backup export shouldn't carry it.
+const AI_UNDO_KEY = "ai_undo";
+const AI_UNDO_FILE = "boulder_tracker_ai_undo.json";
+
+export async function writeAiUndo(record: unknown | null): Promise<void> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      if (record === null) await Filesystem.deleteFile({ path: AI_UNDO_FILE, directory: Directory.Data }).catch(() => {});
+      else await Filesystem.writeFile({ path: AI_UNDO_FILE, data: JSON.stringify(record), directory: Directory.Data, encoding: Encoding.UTF8 });
+    } else if (record === null) {
+      await localforage.removeItem(AI_UNDO_KEY);
+    } else {
+      await localforage.setItem(AI_UNDO_KEY, record);
+    }
+  } catch (err) {
+    console.error("Failed to write the AI undo snapshot", err);
+  }
+}
+
+export async function readAiUndo<T>(): Promise<T | null> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const res = await Filesystem.readFile({ path: AI_UNDO_FILE, directory: Directory.Data, encoding: Encoding.UTF8 });
+      return JSON.parse(res.data as string) as T;
+    }
+    return ((await localforage.getItem(AI_UNDO_KEY)) as T) ?? null;
+  } catch {
+    return null;
+  }
+}

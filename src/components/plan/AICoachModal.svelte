@@ -98,6 +98,13 @@
     }
   }
 
+  // --- Undo the last applied AI change ---
+  let lastAiChange = $state<{ appliedAt: string; changedSince: boolean } | null>(null);
+  $effect(() => {
+    trainingState.aiUndoVersion;
+    trainingState.getAiUndo().then((u) => (lastAiChange = u));
+  });
+
   // --- Paste & review (Change plan) ---
 
   let pasteText = $state('');
@@ -166,8 +173,6 @@
       // Re-plan once more for the final writes, so ids are fresh and nothing stale is applied.
       const final = planWithSelection(changeSet, trainingState.plannerState, plan.selected);
       await trainingState.applyPlanWrites(final.writes);
-      const skipped = final.items.length - final.selected.size;
-      await showAlert('Plan updated', `Applied ${final.selected.size} change${final.selected.size === 1 ? '' : 's'}${skipped ? ` (${skipped} left out)` : ''}.`);
       onClose();
     } catch (err: any) {
       await showAlert('Apply failed', err?.message || 'Something went wrong applying the changes.');
@@ -320,6 +325,21 @@
             </div>
           {/if}
         </div>
+
+        {#if mode === 'generate' && lastAiChange}
+          <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-center gap-3">
+            <Icon icon="ic:baseline-history" class="text-xl text-content-subtle shrink-0" />
+            <div class="min-w-0 flex-1">
+              <p class="text-label text-content">Last AI change</p>
+              <p class="text-caption text-content-subtle">
+                Applied {new Date(lastAiChange.appliedAt).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lastAiChange.changedSince ? ' · edited since' : ''}
+              </p>
+            </div>
+            <button onclick={() => trainingState.undoAiChange()} class="shrink-0 px-3 py-1.5 text-label font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-control transition-colors">
+              Undo
+            </button>
+          </div>
+        {/if}
 
         <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
           <Icon icon="ic:baseline-info" class="text-sm shrink-0 mt-px" />

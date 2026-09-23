@@ -64,6 +64,8 @@ class TrainingState {
   isLoading = $state(true);
   /** Set while a backup import runs - drives the progress overlay in App.svelte. */
   importProgress = $state<{ label: string; fraction: number } | null>(null);
+  /** Bumped whenever the AI undo snapshot changes, so views re-read `getAiUndo`. */
+  aiUndoVersion = $state(0);
   private hasLoaded = false;
 
   constructor() {
@@ -748,6 +750,35 @@ class TrainingState {
   async applyPlanWrites(writes: PlanWrites) {
     await storage.applyPlanWrites(writes);
     await this.refresh();
+    this.aiUndoVersion++;
+    showUndo('AI changes applied', async () => { await this.undoAiChange(); });
+  }
+
+  /** When the last AI plan change was applied, and whether the plan was edited since - or null if there's nothing to undo. */
+  getAiUndo() {
+    return storage.getAiUndo();
+  }
+
+  /**
+   * Undoes the last AI plan change. If the plan was edited since, those
+   * edits would be reverted too, so that asks first. Sessions logged since
+   * are always kept.
+   */
+  async undoAiChange(): Promise<boolean> {
+    const undo = await storage.getAiUndo();
+    if (!undo) return false;
+    if (undo.changedSince) {
+      const ok = await showConfirm(
+        'Undo AI changes',
+        'You have edited the plan since these AI changes. Undoing also reverts those edits (sessions you logged stay). Undo anyway?',
+      );
+      if (!ok) return false;
+    }
+    await storage.undoAiChange();
+    await this.refresh();
+    this.aiUndoVersion++;
+    toast.show('AI changes undone');
+    return true;
   }
 
   /** Everything the AI change-set planner needs to know about the current plan. */

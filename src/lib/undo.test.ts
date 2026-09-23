@@ -63,6 +63,22 @@ describe("deleting shows an undo instead of asking first", () => {
   });
 });
 
+describe("undoing an AI plan change from its toast", () => {
+  it("puts the blocks back", async () => {
+    const blocksBefore = trainingState.trainingBlocks.map((b) => b.id);
+    await trainingState.applyPlanWrites({
+      trainingBlocks: [{ id: "ai", name: "AI", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W41" }],
+      weeks: [],
+      weekNotes: [],
+    });
+    expect(trainingState.trainingBlocks.map((b) => b.id)).toEqual(["ai"]);
+    expect(toast.current?.text).toMatch(/AI changes applied/);
+    await toast.current!.action!.run();
+    expect(trainingState.trainingBlocks.map((b) => b.id)).toEqual(blocksBefore);
+    expect(await trainingState.getAiUndo()).toBeNull();
+  });
+});
+
 describe("toast", () => {
   it("shows one at a time and dismisses itself", async () => {
     vi.useFakeTimers();

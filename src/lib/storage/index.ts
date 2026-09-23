@@ -25,7 +25,20 @@ import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
 import { toStoredWorkout } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
-import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState } from "./persistence";
+import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writeAiUndo, readAiUndo } from "./persistence";
+
+/** The tables an AI plan change can touch - what its undo snapshot holds. */
+const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes"] as const;
+type PlanTables = Record<(typeof PLAN_TABLE_NAMES)[number], unknown>;
+interface AiUndoRecord {
+  appliedAt: string;
+  before: PlanTables;
+  /** The plan right after applying, to tell whether it was edited since. */
+  after: PlanTables;
+}
+function planTables(db: any): PlanTables {
+  return toPlain(Object.fromEntries(PLAN_TABLE_NAMES.map((t) => [t, db[t]]))) as PlanTables;
+}
 import { runDataMigrations, assertMigrationInvariants } from "./migrations";
 
 export { runDataMigrations, assertMigrationInvariants };
@@ -224,6 +237,7 @@ export const storage = {
   async applyPlanWrites(writes: PlanWrites): Promise<void> {
     await initDB();
     const db = _dbState;
+    const before = planTables(db);
     if (writes.exerciseTypes) db.exerciseTypes = toPlain(writes.exerciseTypes);
     if (writes.phaseDefs) db.phaseDefs = toPlain(writes.phaseDefs);
     if (writes.templates) db.templates = toPlain(writes.templates);
@@ -241,6 +255,55 @@ export const storage = {
     for (const n of writes.weekNotes) notes = upsertWeekNote(notes, n.weekId, n.text);
     db.weekNotes = toPlain(notes);
     await flushDB();
+    await writeAiUndo({ appliedAt: new Date().toISOString(), before, after: planTables(db) } satisfies AiUndoRecord);
+  },
+
+  /**
+   * Whether the last AI plan change can be undone, when it was applied, and
+   * whether the plan has been edited since (undoing reverts those edits
+   * too). Sessions logged since don't count as edits - undo keeps them.
+   */
+  async getAiUndo(): Promise<{ appliedAt: string; changedSince: boolean } | null> {
+    const record = await readAiUndo<AiUndoRecord>();
+    if (!record) return null;
+    await initDB();
+    const now = planTables(_dbState);
+    const completedNow = new Set((now.workouts as Workout[]).filter((w) => w.status === "completed").map((w) => w.id));
+    const comparable = (t: PlanTables) => JSON.stringify({
+      ...t,
+      workouts: (t.workouts as Workout[])
+        .filter((w) => w.status === "planned" && !completedNow.has(w.id))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+    });
+    return { appliedAt: record.appliedAt, changedSince: comparable(now) !== comparable(record.after) };
+  },
+
+  /**
+   * Puts the plan back as it was before the last AI change: exercises,
+   * phases, templates, blocks, week overrides and notes, and planned
+   * sessions. Completed sessions are always today's - a session logged
+   * since the change stays logged.
+   */
+  async undoAiChange(): Promise<void> {
+    const record = await readAiUndo<AiUndoRecord>();
+    if (!record) return;
+    await initDB();
+    const db = _dbState;
+    const completed = (db.workouts as Workout[]).filter((w) => w.status === "completed");
+    const completedIds = new Set(completed.map((w) => w.id));
+    for (const table of PLAN_TABLE_NAMES) {
+      if (table !== "workouts") db[table] = record.before[table];
+    }
+    db.workouts = toPlain([
+      ...(record.before.workouts as Workout[]).filter((w) => w.status === "planned" && !completedIds.has(w.id)),
+      ...completed,
+    ]);
+    await flushDB();
+    await writeAiUndo(null);
+  },
+
+  async clearAiUndo(): Promise<void> {
+    await writeAiUndo(null);
   },
 
   async getWeekNotes(): Promise<WeekNote[]> {
@@ -657,6 +720,8 @@ export const storage = {
           _dbState.exportVersion = data.exportVersion || "1.0";
 
           await flushDB();
+          // An AI undo snapshot belongs to the data this import replaced.
+          await writeAiUndo(null);
           resolve();
         } catch (err) {
           reject(err);
