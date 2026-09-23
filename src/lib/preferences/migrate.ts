@@ -86,6 +86,10 @@ export interface Preferences {
    * section silently disappear or duplicate.
    */
   homeSections: HomeSectionPreference[];
+  /** Order + visibility of the Analytics cards. */
+  analyticsSections: OrderedToggle<AnalyticsSectionId>[];
+  /** Order + visibility of the quick-log actions. */
+  quickLogActions: OrderedToggle<QuickLogActionId>[];
   /**
    * Per-part toggles inside each Home card (Appearance -> Home sections,
    * expanded row). Keyed by the ids in `homeDetails.ts`'s registry, which
@@ -188,6 +192,20 @@ export interface HomeSectionPreference {
   visible: boolean;
 }
 
+/** Analytics cards that can be shown, hidden and reordered (Settings -> History & Analytics). */
+export const ANALYTICS_SECTION_IDS = ['load', 'mix', 'fatigue', 'adherence', 'recovery', 'outdoor', 'bodyweight', 'benchmarks'] as const;
+export type AnalyticsSectionId = (typeof ANALYTICS_SECTION_IDS)[number];
+
+/** The actions in Home's "+" quick-log sheet (Settings -> Home). */
+export const QUICK_LOG_ACTION_IDS = ['pain', 'bodyweight', 'send', 'benchmark'] as const;
+export type QuickLogActionId = (typeof QUICK_LOG_ACTION_IDS)[number];
+
+/** One entry of a user-ordered, individually hideable list. */
+export interface OrderedToggle<Id extends string> {
+  id: Id;
+  visible: boolean;
+}
+
 export type FatigueChartStyle = 'bars' | 'radar';
 
 /** Re-exported from the analytics helper that owns the per-density widths, so there is one definition of the set. */
@@ -220,6 +238,8 @@ export function defaultPreferences(): Preferences {
     timerBeepEnabled: true,
     timerKeepAwakeEnabled: false,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
+    analyticsSections: ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })),
+    quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
     homeDetails: defaultHomeDetails(),
     sendsChartCounts: true,
     tunables: defaultTunables(),
@@ -262,27 +282,35 @@ function validateLocation(raw: unknown): WeatherLocation | null {
  * can never silently disappear or duplicate, and this can never throw.
  */
 function validateHomeSections(raw: unknown): HomeSectionPreference[] {
-  const seen = new Set<HomeSectionId>();
-  const result: HomeSectionPreference[] = [];
+  return validateOrderedToggles(raw, HOME_SECTION_IDS);
+}
+
+/**
+ * Repairs any user-ordered, hideable list against its known ids: unknown
+ * and duplicate entries are dropped, the saved order and visibility are
+ * kept, and a known id the saved list lacks (added in a newer version) is
+ * inserted - visible - right after the id that precedes it by default, so
+ * it lands where it belongs rather than at the bottom. Never throws.
+ */
+export function validateOrderedToggles<Id extends string>(raw: unknown, ids: readonly Id[]): OrderedToggle<Id>[] {
+  const seen = new Set<Id>();
+  const result: OrderedToggle<Id>[] = [];
   if (Array.isArray(raw)) {
     for (const entry of raw) {
       if (typeof entry !== 'object' || entry === null) continue;
       const c = entry as Record<string, unknown>;
-      if (typeof c.id !== 'string' || !(HOME_SECTION_IDS as readonly string[]).includes(c.id)) continue;
-      const id = c.id as HomeSectionId;
+      if (typeof c.id !== 'string' || !(ids as readonly string[]).includes(c.id)) continue;
+      const id = c.id as Id;
       if (seen.has(id)) continue;
       seen.add(id);
       result.push({ id, visible: typeof c.visible === 'boolean' ? c.visible : true });
     }
   }
-  // A section the saved list doesn't know (added in a newer version) goes
-  // right after the section that precedes it in the default order, so a new
-  // card lands where it belongs instead of at the very bottom.
-  HOME_SECTION_IDS.forEach((id, canonicalIndex) => {
+  ids.forEach((id, canonicalIndex) => {
     if (seen.has(id)) return;
     let insertAt = 0;
     for (let i = canonicalIndex - 1; i >= 0; i--) {
-      const at = result.findIndex((s) => s.id === HOME_SECTION_IDS[i]);
+      const at = result.findIndex((s) => s.id === ids[i]);
       if (at !== -1) {
         insertAt = at + 1;
         break;
@@ -395,6 +423,8 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
       ? candidate.timerKeepAwakeEnabled
       : defaults.timerKeepAwakeEnabled,
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
+    analyticsSections: validateOrderedToggles(candidate.analyticsSections, ANALYTICS_SECTION_IDS),
+    quickLogActions: validateOrderedToggles(candidate.quickLogActions, QUICK_LOG_ACTION_IDS),
     homeDetails: validateHomeDetails(candidate.homeDetails),
     sendsChartCounts: typeof candidate.sendsChartCounts === 'boolean' ? candidate.sendsChartCounts : defaults.sendsChartCounts,
     tunables: validateTunables(candidate.tunables),

@@ -19,12 +19,19 @@
   type Kind = 'pain' | 'bodyweight' | 'send' | 'benchmark';
   let kind = $state<Kind | null>(null);
 
-  const ACTIONS: { kind: Kind; icon: string; label: string; hint: string }[] = [
+  const ALL_ACTIONS: { kind: Kind; icon: string; label: string; hint: string }[] = [
     { kind: 'pain', icon: 'ic:baseline-healing', label: 'Log pain', hint: 'Where, and how bad' },
     { kind: 'bodyweight', icon: 'ic:baseline-monitor-weight', label: 'Bodyweight', hint: 'Today\'s weight' },
     { kind: 'send', icon: 'ic:baseline-terrain', label: 'Outdoor send', hint: 'Problem, grade, crag' },
     { kind: 'benchmark', icon: 'ic:baseline-straighten', label: 'Benchmark', hint: 'A test result this week' },
   ];
+  // In the order, and with the visibility, chosen under Settings -> Home.
+  const ACTIONS = $derived(
+    trainingState.quickLogActions
+      .filter((a) => a.visible)
+      .map((a) => ALL_ACTIONS.find((x) => x.kind === a.id)!)
+      .filter(Boolean),
+  );
 
   const todayIso = () => new Date().toISOString().split('T')[0];
 
@@ -52,7 +59,7 @@
     trainingState.goals.find((g) => g.kind === 'trip' && g.location && isOngoing(g, todayIso())),
   );
 
-  const title = $derived(kind ? ACTIONS.find((a) => a.kind === kind)!.label : 'Quick log');
+  const title = $derived(kind ? ALL_ACTIONS.find((a) => a.kind === kind)!.label : 'Quick log');
   const inputClass = 'w-full bg-surface-elevated/50 text-content p-3 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60';
 </script>
 

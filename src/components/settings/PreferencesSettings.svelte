@@ -4,10 +4,10 @@
   /** The topic list - also what Settings' header uses to title an open topic. */
   export const APPEARANCE_TOPICS: { id: AppearanceTopic; label: string; hint: string; icon: string }[] = [
     { id: 'general', label: 'General', hint: 'Theme, text size, motion, units', icon: 'ic:baseline-palette' },
-    { id: 'home', label: 'Home', hint: 'Cards, their order and details, list lengths, reminders', icon: 'ic:baseline-home' },
+    { id: 'home', label: 'Home', hint: 'Cards and their details, quick log, list lengths, reminders', icon: 'ic:baseline-home' },
     { id: 'plan', label: 'Plan', hint: 'Week view', icon: 'ic:baseline-calendar-month' },
     { id: 'sessions', label: 'Sessions & Timer', hint: 'Live sessions, timer sounds and screen', icon: 'ic:baseline-timer' },
-    { id: 'charts', label: 'History & Analytics', hint: 'Chart density, sends-by-grade counts', icon: 'ic:baseline-bar-chart' },
+    { id: 'charts', label: 'History & Analytics', hint: 'Analytics cards, chart density, sends chart', icon: 'ic:baseline-bar-chart' },
     { id: 'model', label: 'Training model', hint: 'Readiness, ACWR zones, fatigue recovery, rest-day alert', icon: 'ic:baseline-tune' },
     { id: 'weather', label: 'Weather & outdoor', hint: 'Locations, crags, conditions, trips', icon: 'ic:baseline-cloud' },
     { id: 'notifications', label: 'Notifications', hint: 'Reminders', icon: 'ic:baseline-notifications' },
@@ -31,6 +31,7 @@
   import NotificationSettings from './NotificationSettings.svelte';
   import TunablesSettings from './TunablesSettings.svelte';
   import UnitsSettings from './UnitsSettings.svelte';
+  import OrderedListSettings from './OrderedListSettings.svelte';
   import Icon from "@iconify/svelte";
   import { Capacitor } from '@capacitor/core';
 
@@ -138,6 +139,12 @@
     <UnitsSettings />
   {:else if topic === 'home'}
     <HomeLayoutSettings />
+    <OrderedListSettings
+      list="quickLogActions"
+      title="Quick log (+)"
+      hint="What the + on Home offers, and in which order."
+      labels={{ pain: 'Log pain', bodyweight: 'Bodyweight', send: 'Outdoor send', benchmark: 'Benchmark' }}
+    />
     <TunablesSettings topic="layout" title="Lists & reminders" />
   {:else if topic === 'plan'}
     <PlanDisplaySettings />
@@ -145,6 +152,12 @@
     <SessionSettings />
     <TimerSettings />
   {:else if topic === 'charts'}
+    <OrderedListSettings
+      list="analyticsSections"
+      title="Analytics cards"
+      hint="Drag to reorder; untick to hide."
+      labels={{ load: 'Rolling Load & ACWR', mix: 'Training Mix', fatigue: 'Fatigue', adherence: 'Adherence', recovery: 'Recovery Warnings', outdoor: 'Outdoor Ascents', bodyweight: 'Bodyweight Trend', benchmarks: 'Benchmark Progress' }}
+    />
     <ChartSettings />
   {:else if topic === 'model'}
     <p class="text-caption text-content-subtle px-1 leading-relaxed">These tune how the app judges your training - readiness, load zones, fatigue and alerts. The defaults are sensible starting points; change them if they don't match how you respond.</p>

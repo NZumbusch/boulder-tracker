@@ -437,14 +437,16 @@
       </h2>
     </div>
     <div class="flex items-center gap-2 shrink-0">
+      {#if trainingState.quickLogActions.some((a) => a.visible)}
       <button
-        onclick={() => showQuickLog = true}
-        class="p-2 bg-primary/10 rounded-control border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
-        aria-label="Quick log: pain, bodyweight, send or benchmark"
-        title="Quick log"
-      >
-        <Icon icon="ic:baseline-plus" class="text-lg" />
-      </button>
+          onclick={() => showQuickLog = true}
+          class="p-2 bg-primary/10 rounded-control border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
+          aria-label="Quick log: pain, bodyweight, send or benchmark"
+          title="Quick log"
+        >
+          <Icon icon="ic:baseline-plus" class="text-lg" />
+        </button>
+      {/if}
       <button
         onclick={() => trainingState.navigate('settings')}
         class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-subtle hover:text-content transition-colors"

@@ -93,14 +93,18 @@
   // anchor as Load - §4.6 still lists it as a separate chip alongside
   // Load/Mix/Fatigue/Adherence/Benchmarks, so it's kept as a distinct (if
   // same-target) entry rather than dropped.
-  const SECTIONS: { id: string; label: string }[] = [
-    { id: 'section-load', label: 'Load' },
-    { id: 'section-mix', label: 'Mix' },
-    { id: 'section-load', label: 'ACWR' },
-    { id: 'section-fatigue', label: 'Fatigue' },
-    { id: 'section-adherence', label: 'Adherence' },
-    { id: 'section-benchmarks', label: 'Benchmarks' },
-  ];
+  // Jump chips follow the cards' order and visibility (Settings -> History & Analytics).
+  const CHIPS: Record<string, { id: string; label: string }[]> = {
+    load: [{ id: 'section-load', label: 'Load' }, { id: 'section-load', label: 'ACWR' }],
+    mix: [{ id: 'section-mix', label: 'Mix' }],
+    fatigue: [{ id: 'section-fatigue', label: 'Fatigue' }],
+    adherence: [{ id: 'section-adherence', label: 'Adherence' }],
+    recovery: [{ id: 'section-recovery', label: 'Recovery' }],
+    outdoor: [{ id: 'section-outdoor', label: 'Outdoor' }],
+    bodyweight: [{ id: 'section-bodyweight', label: 'Bodyweight' }],
+    benchmarks: [{ id: 'section-benchmarks', label: 'Benchmarks' }],
+  };
+  const SECTIONS = $derived(trainingState.analyticsSections.filter((s) => s.visible).flatMap((s) => CHIPS[s.id] ?? []));
   function scrollToSection(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -564,6 +568,7 @@
   </div>
 
   <div class="space-y-5">
+    {#snippet loadSection()}
     <div id="section-load" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative">
       <div class="relative z-10">
         <h3 class="text-section uppercase text-content-muted">Rolling Load</h3>
@@ -736,7 +741,9 @@
         <p class="text-caption text-content-subtle italic text-center py-2">No completed sessions yet</p>
       {/if}
     </div>
+    {/snippet}
 
+    {#snippet mixSection()}
     <div id="section-mix" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative z-30">
       <!-- No z-index here. The card is `relative z-30`, which makes it a
            stacking context, so everything inside it is ranked against
@@ -893,20 +900,34 @@
         {/each}
       </div>
     </div>
+    {/snippet}
 
+    {#snippet fatigueSection()}
     <div id="section-fatigue" class="scroll-mt-4">
       <FatiguePanel samples={fatigueSamples} {weekLabels} coverage={fatigueCoverage} />
     </div>
+    {/snippet}
 
+    {#snippet adherenceSection()}
     <div id="section-adherence" class="scroll-mt-4">
       <AdherencePanel results={weeklyAdherenceResults} {weekLabels} />
     </div>
+    {/snippet}
 
-    <RecoveryWarningsPanel warnings={recoveryWarnings} {painCorrelations} />
+    {#snippet recoverySection()}
+    <div id="section-recovery" class="scroll-mt-4">
+      <RecoveryWarningsPanel warnings={recoveryWarnings} {painCorrelations} />
+    </div>
+    {/snippet}
 
-    <OutdoorAscentsPanel weeks={outdoorAscentData.weeks} {weekLabels} unparsedCount={outdoorAscentData.unparsedCount} labelStep={axisStep} />
+    {#snippet outdoorSection()}
+    <div id="section-outdoor" class="scroll-mt-4">
+      <OutdoorAscentsPanel weeks={outdoorAscentData.weeks} {weekLabels} unparsedCount={outdoorAscentData.unparsedCount} labelStep={axisStep} />
+    </div>
+    {/snippet}
 
-    <div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+    {#snippet bodyweightSection()}
+    <div id="section-bodyweight" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-section uppercase text-content-muted">Bodyweight Trend</h3>
@@ -989,10 +1010,12 @@
         </div>
       </div>
       {:else}
-        <p class="text-caption text-content-subtle italic text-center py-4 px-4 leading-relaxed">Log your bodyweight in Settings › Health to see your trend</p>
+        <p class="text-caption text-content-subtle italic text-center py-4 px-4 leading-relaxed">Log your bodyweight with the + on Home to see your trend</p>
       {/if}
     </div>
+    {/snippet}
 
+    {#snippet benchmarksSection()}
     {#if benchmarkProgress.types.length > 0}
       <div id="section-benchmarks" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
         <div class="flex items-center justify-between">
@@ -1117,6 +1140,23 @@
         </div>
       </div>
     {/if}
+    {/snippet}
+
+    <!-- Rendered in the order, and with the visibility, chosen under
+         Settings -> History & Analytics. -->
+    {#each trainingState.analyticsSections as section (section.id)}
+      {#if section.visible}
+        {#if section.id === 'load'}{@render loadSection()}
+        {:else if section.id === 'mix'}{@render mixSection()}
+        {:else if section.id === 'fatigue'}{@render fatigueSection()}
+        {:else if section.id === 'adherence'}{@render adherenceSection()}
+        {:else if section.id === 'recovery'}{@render recoverySection()}
+        {:else if section.id === 'outdoor'}{@render outdoorSection()}
+        {:else if section.id === 'bodyweight'}{@render bodyweightSection()}
+        {:else if section.id === 'benchmarks'}{@render benchmarksSection()}
+        {/if}
+      {/if}
+    {/each}
 
     {#if trainingState.completedWorkouts.length === 0}
       <div class="py-12 text-center bg-surface-elevated/20 rounded-card border border-dashed border-border">

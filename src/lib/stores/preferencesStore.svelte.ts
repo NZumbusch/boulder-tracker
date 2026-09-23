@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat, type AddedExerciseTarget } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type PlanFormat, type AddedExerciseTarget } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -30,6 +30,8 @@ export class PreferencesStore {
   sendsChartCounts = $state(true);
   tunables = $state<Tunables>(defaultTunables());
   units = $state<Units>({ ...DEFAULT_UNITS });
+  analyticsSections = $state<OrderedToggle<AnalyticsSectionId>[]>(ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })));
+  quickLogActions = $state<OrderedToggle<QuickLogActionId>[]>(QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })));
   aiSharing = $state<AISharingPreferences>(defaultPreferences().aiSharing);
   planFormat = $state<PlanFormat>(defaultPreferences().planFormat);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
@@ -67,6 +69,8 @@ export class PreferencesStore {
     this.sendsChartCounts = prefs.sendsChartCounts;
     this.tunables = prefs.tunables;
     this.units = prefs.units;
+    this.analyticsSections = prefs.analyticsSections;
+    this.quickLogActions = prefs.quickLogActions;
     this.aiSharing = prefs.aiSharing;
     this.planFormat = prefs.planFormat;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
@@ -152,6 +156,25 @@ export class PreferencesStore {
     this.persist();
   }
 
+  /** Show/hide one entry of an ordered list (Analytics cards, quick-log actions). */
+  setListVisible(list: 'analyticsSections' | 'quickLogActions', id: string, visible: boolean) {
+    if (list === 'analyticsSections') this.analyticsSections = this.analyticsSections.map((s) => (s.id === id ? { ...s, visible } : s));
+    else this.quickLogActions = this.quickLogActions.map((s) => (s.id === id ? { ...s, visible } : s));
+    this.persist();
+  }
+
+  /** Reorders an ordered list to exactly `order` (the drag-and-drop write path). */
+  setListOrder(list: 'analyticsSections' | 'quickLogActions', order: string[]) {
+    if (list === 'analyticsSections') {
+      const byId = new Map(this.analyticsSections.map((s) => [s.id as string, s]));
+      this.analyticsSections = order.map((id) => byId.get(id)!).filter(Boolean);
+    } else {
+      const byId = new Map(this.quickLogActions.map((s) => [s.id as string, s]));
+      this.quickLogActions = order.map((id) => byId.get(id)!).filter(Boolean);
+    }
+    this.persist();
+  }
+
   setUnit<K extends keyof Units>(key: K, value: Units[K]) {
     this.units = { ...this.units, [key]: value };
     this.persist();
@@ -215,6 +238,8 @@ export class PreferencesStore {
       sendsChartCounts: this.sendsChartCounts,
       tunables: this.tunables,
       units: this.units,
+      analyticsSections: this.analyticsSections,
+      quickLogActions: this.quickLogActions,
       aiSharing: this.aiSharing,
       planFormat: this.planFormat,
       addedExerciseTarget: this.addedExerciseTarget,

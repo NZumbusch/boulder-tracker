@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migratePreferences, defaultPreferences, CURRENT_PREFERENCES_VERSION, HOME_SECTION_IDS } from './migrate';
+import { migratePreferences, defaultPreferences, CURRENT_PREFERENCES_VERSION, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS } from './migrate';
 import { defaultHomeDetails } from './homeDetails';
 import { defaultTunables } from './tunables';
 
@@ -37,6 +37,8 @@ describe('defaultPreferences', () => {
       sendsChartCounts: true,
       tunables: defaultTunables(),
       units: { temperature: 'C', weight: 'kg', wind: 'kmh', grades: 'font' },
+      analyticsSections: ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })),
+      quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
       aiSharing: DEFAULT_AI_SHARING,
     });
   });
@@ -91,6 +93,8 @@ describe('migratePreferences', () => {
       sendsChartCounts: false,
       tunables: { ...defaultTunables(), 'fatigue.halfLifeDays': 4 },
       units: { temperature: 'F' as const, weight: 'lb' as const, wind: 'mph' as const, grades: 'v' as const },
+      analyticsSections: [...ANALYTICS_SECTION_IDS].reverse().map((id, i) => ({ id, visible: i % 2 === 0 })),
+      quickLogActions: [{ id: 'send' as const, visible: true }, { id: 'pain' as const, visible: true }, { id: 'bodyweight' as const, visible: false }, { id: 'benchmark' as const, visible: true }],
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
       planFormat: 'weekly' as const,
       addedExerciseTarget: 'mirror' as const,
@@ -444,5 +448,27 @@ describe('sendsChartCounts', () => {
   it('keeps a saved choice and ignores a malformed one', () => {
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, sendsChartCounts: false }).sendsChartCounts).toBe(false);
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, sendsChartCounts: 'no' }).sendsChartCounts).toBe(true);
+  });
+});
+
+describe('analyticsSections / quickLogActions', () => {
+  it('default to everything visible in the fixed order', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).analyticsSections.map((s) => s.id)).toEqual([...ANALYTICS_SECTION_IDS]);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).quickLogActions.every((a) => a.visible)).toBe(true);
+  });
+
+  it('keep a saved order and visibility, repairing unknown and missing entries', () => {
+    const result = migratePreferences({
+      version: CURRENT_PREFERENCES_VERSION,
+      quickLogActions: [{ id: 'send', visible: true }, { id: 'gone', visible: true }, { id: 'pain', visible: false }],
+    });
+    // Missing ids go right after the id that precedes them by default:
+    // bodyweight after pain, benchmark after send.
+    expect(result.quickLogActions).toEqual([
+      { id: 'send', visible: true },
+      { id: 'benchmark', visible: true },
+      { id: 'pain', visible: false },
+      { id: 'bodyweight', visible: true },
+    ]);
   });
 });

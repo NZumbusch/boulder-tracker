@@ -192,6 +192,12 @@ class TrainingState {
   get homeDetails() { return this.preferencesStore.homeDetails; }
   get sendsChartCounts() { return this.preferencesStore.sendsChartCounts; }
 
+  // --- Ordered, hideable lists (Analytics cards, quick-log actions) ---
+  get analyticsSections() { return this.preferencesStore.analyticsSections; }
+  get quickLogActions() { return this.preferencesStore.quickLogActions; }
+  setListVisible(list: 'analyticsSections' | 'quickLogActions', id: string, visible: boolean) { this.preferencesStore.setListVisible(list, id, visible); }
+  setListOrder(list: 'analyticsSections' | 'quickLogActions', order: string[]) { this.preferencesStore.setListOrder(list, order); }
+
   // --- Display units (lib/units.ts) ---
   get units() { return this.preferencesStore.units; }
   setUnit<K extends keyof Units>(key: K, value: Units[K]) { this.preferencesStore.setUnit(key, value); }
