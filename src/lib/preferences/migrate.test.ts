@@ -33,6 +33,7 @@ describe('defaultPreferences', () => {
       timerKeepAwakeEnabled: false,
       homeSections: DEFAULT_HOME_SECTIONS,
       homeDetails: defaultHomeDetails(),
+      sendsChartCounts: true,
       aiSharing: DEFAULT_AI_SHARING,
     });
   });
@@ -84,6 +85,7 @@ describe('migratePreferences', () => {
       timerKeepAwakeEnabled: true,
       homeSections: [...DEFAULT_HOME_SECTIONS.slice(1), DEFAULT_HOME_SECTIONS[0]],
       homeDetails: { ...defaultHomeDetails(), 'weather.forecast': false },
+      sendsChartCounts: false,
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
       planFormat: 'weekly' as const,
       addedExerciseTarget: 'mirror' as const,
@@ -425,5 +427,17 @@ describe('new home sections land next to their neighbours', () => {
     const ids = result.homeSections.map((s) => s.id);
     expect(ids.indexOf('alerts')).toBe(ids.indexOf('readiness') + 1);
     expect(ids).toHaveLength(HOME_SECTION_IDS.length);
+  });
+});
+
+describe('sendsChartCounts', () => {
+  it('defaults to showing counts, including for a blob written before the setting existed', () => {
+    expect(defaultPreferences().sendsChartCounts).toBe(true);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).sendsChartCounts).toBe(true);
+  });
+
+  it('keeps a saved choice and ignores a malformed one', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, sendsChartCounts: false }).sendsChartCounts).toBe(false);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, sendsChartCounts: 'no' }).sendsChartCounts).toBe(true);
   });
 });

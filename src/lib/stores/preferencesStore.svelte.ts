@@ -25,6 +25,7 @@ export class PreferencesStore {
   timerKeepAwakeEnabled = $state(false);
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
   homeDetails = $state<HomeDetails>(defaultHomeDetails());
+  sendsChartCounts = $state(true);
   aiSharing = $state<AISharingPreferences>(defaultPreferences().aiSharing);
   planFormat = $state<PlanFormat>(defaultPreferences().planFormat);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
@@ -59,6 +60,7 @@ export class PreferencesStore {
     this.timerKeepAwakeEnabled = prefs.timerKeepAwakeEnabled;
     this.homeSections = prefs.homeSections;
     this.homeDetails = prefs.homeDetails;
+    this.sendsChartCounts = prefs.sendsChartCounts;
     this.aiSharing = prefs.aiSharing;
     this.planFormat = prefs.planFormat;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
@@ -138,6 +140,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setSendsChartCounts(enabled: boolean) {
+    this.sendsChartCounts = enabled;
+    this.persist();
+  }
+
   setHomeDetail(id: string, enabled: boolean) {
     this.homeDetails = { ...this.homeDetails, [id]: enabled };
     this.persist();
@@ -183,6 +190,7 @@ export class PreferencesStore {
       timerKeepAwakeEnabled: this.timerKeepAwakeEnabled,
       homeSections: this.homeSections,
       homeDetails: this.homeDetails,
+      sendsChartCounts: this.sendsChartCounts,
       aiSharing: this.aiSharing,
       planFormat: this.planFormat,
       addedExerciseTarget: this.addedExerciseTarget,

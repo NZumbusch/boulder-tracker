@@ -186,6 +186,8 @@ class TrainingState {
   }
   /** Per-part Home toggles, keyed by `homeDetails.ts` ids - see `Preferences.homeDetails`. */
   get homeDetails() { return this.preferencesStore.homeDetails; }
+  get sendsChartCounts() { return this.preferencesStore.sendsChartCounts; }
+  setSendsChartCounts(enabled: boolean) { this.preferencesStore.setSendsChartCounts(enabled); }
   setHomeDetail(id: string, enabled: boolean) {
     this.preferencesStore.setHomeDetail(id, enabled);
   }

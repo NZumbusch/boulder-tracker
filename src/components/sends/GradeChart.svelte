@@ -5,7 +5,7 @@
    * step of padding either side, empty grades left empty so gaps show.
    * One series, so one colour and no legend. Every bar with sends carries
    * its count (as in Kilter's pyramid) while the bars are wide enough to
-   * hold one; hover a bar for its readout, tap it to filter the sends
+   * hold one - unless turned off in Settings (`sendsChartCounts`); hover a bar for its readout, tap it to filter the sends
    * list to that grade (tap again to clear). Ladder and counts come from
    * `lib/sends/gradeHistogram.ts`; the period and the selected grade are
    * owned by the list (`SendsLog`), so both follow the same filter.
@@ -13,6 +13,7 @@
   import type { OutdoorAscent } from '../../lib/types';
   import { gradeHistogram } from '../../lib/sends/gradeHistogram';
   import type { SendPeriod } from '../../lib/sends/filter';
+  import { trainingState } from '../../lib/state.svelte';
 
   let { ascents, period = $bindable('all'), selectedGrade = $bindable(null) }: {
     /** Already filtered to `period` by the owner. */
@@ -43,7 +44,9 @@
   const thinLabels = $derived(plotWidth > 0 && plotWidth / Math.max(1, histogram.bars.length) < LABEL_MIN_PX);
   /** Counts above the bars need less room than grade names, but still some. */
   const COUNT_MIN_PX = 14;
-  const showCounts = $derived(plotWidth === 0 || plotWidth / Math.max(1, histogram.bars.length) >= COUNT_MIN_PX);
+  const showCounts = $derived(
+    trainingState.sendsChartCounts && (plotWidth === 0 || plotWidth / Math.max(1, histogram.bars.length) >= COUNT_MIN_PX),
+  );
 
   const PLOT_HEIGHT = 112;
 </script>

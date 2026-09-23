@@ -90,6 +90,8 @@ export interface Preferences {
    * owns the defaults; always holds every registered id after migration.
    */
   homeDetails: HomeDetails;
+  /** Whether History's sends-by-grade chart prints each bar's count above it (it always shows on tap/hover). */
+  sendsChartCounts: boolean;
   /**
    * What gets included in an AI prompt's condensed training profile
    * (UI_PLAN.md §5.8, Stage 10) - independent of whether the AI *has*
@@ -214,6 +216,7 @@ export function defaultPreferences(): Preferences {
     timerKeepAwakeEnabled: false,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
     homeDetails: defaultHomeDetails(),
+    sendsChartCounts: true,
     planFormat: 'phase',
     addedExerciseTarget: 'none',
     aiSharing: {
@@ -387,6 +390,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
       : defaults.timerKeepAwakeEnabled,
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
     homeDetails: validateHomeDetails(candidate.homeDetails),
+    sendsChartCounts: typeof candidate.sendsChartCounts === 'boolean' ? candidate.sendsChartCounts : defaults.sendsChartCounts,
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
     planFormat: candidate.planFormat === 'weekly' || candidate.planFormat === 'phase' ? candidate.planFormat : defaults.planFormat,
     addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'
