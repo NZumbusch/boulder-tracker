@@ -40,6 +40,7 @@ describe('defaultPreferences', () => {
       quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
       aiSharing: DEFAULT_AI_SHARING,
       aiHistory: { fullWeeks: 2, summaryWeeks: 8 },
+      autoBackup: true,
     });
   });
 });
@@ -97,6 +98,7 @@ describe('migratePreferences', () => {
       quickLogActions: [{ id: 'send' as const, visible: true }, { id: 'pain' as const, visible: true }, { id: 'bodyweight' as const, visible: false }, { id: 'benchmark' as const, visible: true }],
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
       aiHistory: { fullWeeks: 4, summaryWeeks: 16 },
+      autoBackup: false,
       addedExerciseTarget: 'mirror' as const,
     };
     expect(migratePreferences(valid)).toEqual(valid);

@@ -305,7 +305,10 @@ class TrainingState {
       }
     } finally {
       this.isLoading = false;
+      const firstLoad = !this.hasLoaded;
       this.hasLoaded = true;
+      // Once per app start, after the data has loaded, in the background.
+      if (firstLoad) void this.backupStore.runAutoBackupIfDue(this.preferencesStore.autoBackup);
     }
   }
 
@@ -581,6 +584,12 @@ class TrainingState {
   }
 
   get lastBackupAt() { return this.backupStore.lastBackupAt; }
+  get lastAutoBackup() { return this.backupStore.lastAutoBackup; }
+  get autoBackup() { return this.preferencesStore.autoBackup; }
+  setAutoBackup(enabled: boolean) {
+    this.preferencesStore.setAutoBackup(enabled);
+    if (enabled) void this.backupStore.runAutoBackupIfDue(true);
+  }
 
   /**
    * Imports training data from a JSON file.

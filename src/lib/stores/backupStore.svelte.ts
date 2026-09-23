@@ -1,13 +1,25 @@
 import { storage } from '../storage';
+import { Capacitor } from '@capacitor/core';
+import { autoBackupDue, writeAutoBackup } from '../storage/autoBackup';
 import type { Workout, TrainingBlock, ExerciseTypeDef, PhaseDef } from '../types';
 import { showAlert } from '../utils';
 import { slotValues, slotTypeName } from '../exerciseSlot';
 import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 const LAST_BACKUP_KEY = 'boulder_tracker_last_backup_at';
+const LAST_AUTO_BACKUP_KEY = 'boulder_tracker_last_auto_backup';
+
+function readLastAutoBackup(): { at: string; where: string } | undefined {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_AUTO_BACKUP_KEY) : null;
+    return raw ? JSON.parse(raw) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
- * Import/export/CSV.
+ * Import/export/CSV, and Android's automatic weekly backup.
  */
 export class BackupStore {
   /**
@@ -19,14 +31,40 @@ export class BackupStore {
     typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_BACKUP_KEY) ?? undefined : undefined,
   );
 
+  /** The last automatic backup (Android): when, and where it was written. */
+  lastAutoBackup = $state<{ at: string; where: string } | undefined>(readLastAutoBackup());
+
+  private markBackedUp(at: string) {
+    this.lastBackupAt = at;
+    if (typeof localStorage !== 'undefined') localStorage.setItem(LAST_BACKUP_KEY, at);
+  }
+
+  /**
+   * Writes the weekly automatic backup if one is due - Android only, and
+   * only when the setting is on. Never throws: a failed backup is logged
+   * and tried again next start, and the app carries on.
+   */
+  async runAutoBackupIfDue(enabled: boolean, now = new Date()) {
+    if (!enabled || !Capacitor.isNativePlatform() || !autoBackupDue(this.lastAutoBackup?.at, now)) return;
+    try {
+      const where = await writeAutoBackup(now);
+      const at = now.toISOString();
+      this.lastAutoBackup = { at, where };
+      if (typeof localStorage !== 'undefined') localStorage.setItem(LAST_AUTO_BACKUP_KEY, JSON.stringify(this.lastAutoBackup));
+      // It's a real backup, so the backup-age alert should count it.
+      this.markBackedUp(at);
+    } catch (err) {
+      console.error('Automatic backup failed:', err);
+    }
+  }
+
   /**
    * Exports all training data to a JSON file.
    */
   async exportData() {
     try {
       await storage.exportData();
-      this.lastBackupAt = new Date().toISOString();
-      if (typeof localStorage !== 'undefined') localStorage.setItem(LAST_BACKUP_KEY, this.lastBackupAt);
+      this.markBackedUp(new Date().toISOString());
     } catch (err) {
       await showAlert('Export Error', err instanceof Error ? err.message : 'Export failed');
     }

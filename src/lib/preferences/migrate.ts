@@ -110,6 +110,8 @@ export interface Preferences {
   aiSharing: AISharingPreferences;
   /** How much training history AI prompts carry by default - see `AIHistoryWindow`. */
   aiHistory: AIHistoryWindow;
+  /** Android: write a backup to Documents/ClimbingTracker once a week (`lib/storage/autoBackup.ts`). */
+  autoBackup: boolean;
   /**
    * What `prescribed` an exercise added *during* a live session gets.
    *
@@ -248,6 +250,7 @@ export function defaultPreferences(): Preferences {
     units: { ...DEFAULT_UNITS },
     addedExerciseTarget: 'none',
     aiHistory: { ...DEFAULT_AI_HISTORY },
+    autoBackup: true,
     aiSharing: {
       trainingBlocks: true,
       competitions: true,
@@ -444,6 +447,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     units: validateUnits(candidate.units),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
     aiHistory: validateAIHistory(candidate.aiHistory),
+    autoBackup: typeof candidate.autoBackup === 'boolean' ? candidate.autoBackup : defaults.autoBackup,
     addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'
       ? candidate.addedExerciseTarget
       : defaults.addedExerciseTarget,

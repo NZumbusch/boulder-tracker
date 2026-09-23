@@ -34,6 +34,7 @@ export class PreferencesStore {
   quickLogActions = $state<OrderedToggle<QuickLogActionId>[]>(QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })));
   aiSharing = $state<AISharingPreferences>(defaultPreferences().aiSharing);
   aiHistory = $state<AIHistoryWindow>(defaultPreferences().aiHistory);
+  autoBackup = $state(defaultPreferences().autoBackup);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
 
   constructor() {
@@ -73,6 +74,7 @@ export class PreferencesStore {
     this.quickLogActions = prefs.quickLogActions;
     this.aiSharing = prefs.aiSharing;
     this.aiHistory = prefs.aiHistory;
+    this.autoBackup = prefs.autoBackup;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
 
     // Persist immediately so the fold (or a version migration) only ever
@@ -200,6 +202,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setAutoBackup(enabled: boolean) {
+    this.autoBackup = enabled;
+    this.persist();
+  }
+
   setAiHistory(history: AIHistoryWindow) {
     this.aiHistory = { ...history };
     this.persist();
@@ -242,6 +249,7 @@ export class PreferencesStore {
       quickLogActions: this.quickLogActions,
       aiSharing: this.aiSharing,
       aiHistory: this.aiHistory,
+      autoBackup: this.autoBackup,
       addedExerciseTarget: this.addedExerciseTarget,
       theme: (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'contrast')
         ? legacyTheme
