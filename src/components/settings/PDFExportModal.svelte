@@ -8,7 +8,6 @@
   import { calculateAcwrForWeeks, calculateWeeklyAdherence, correlatePainWithLoadSpikes } from '../../lib/analytics/loadAnalytics';
   import type { ExerciseSlot } from '../../lib/types';
   import Icon from '@iconify/svelte';
-  import html2pdf from 'html2pdf.js';
 
   /** Resolves a slot's effective category name: its override if set, else its type's default. */
   function resolveSlotCategory(e: ExerciseSlot): string {
@@ -115,6 +114,8 @@
 
       // Ensure the container is temporarily visible to html2canvas, but hidden from viewport
       printContainer.style.display = 'block';
+      // Loaded on export only: it's most of Settings' download otherwise.
+      const { default: html2pdf } = await import('html2pdf.js');
       await html2pdf().set(opt).from(printContainer).save();
     } catch (err: any) {
       console.error(err);

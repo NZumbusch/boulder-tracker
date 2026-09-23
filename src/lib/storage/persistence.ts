@@ -151,7 +151,22 @@ export function setDbState(next: any) {
 
 let legacyEventsKeyCleared = false;
 
-export async function flushDB() {
+/** Every table stored under its own localforage key on the web. */
+const TABLES = [
+  "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "goals", "templates", "phaseDefs",
+  "exerciseTypes", "benchmarks", "benchmarkTypes", "analyticsCategories", "metricDefs",
+  "dailyMetrics", "painLogs", "outdoorAscents",
+] as const;
+export type TableName = (typeof TABLES)[number];
+
+/**
+ * Persists the in-memory database. On native it's one JSON file, so the
+ * whole thing is written. On the web each table is its own IndexedDB key:
+ * pass `tables` to write only what changed - a workout save then writes
+ * one key instead of all sixteen, each a structured clone of the table.
+ * Without `tables` (migrations, imports, bulk plan writes) everything is.
+ */
+export async function flushDB(tables?: TableName[]) {
   if (!_dbState) return;
 
   if (Capacitor.isNativePlatform()) {
@@ -165,30 +180,20 @@ export async function flushDB() {
     } catch (err) {
       console.error("Failed to write to native Filesystem", err);
     }
-  } else {
-    await localforage.setItem("workouts", _dbState.workouts);
-    await localforage.setItem("trainingBlocks", _dbState.trainingBlocks);
-    await localforage.setItem("weekOverrides", _dbState.weekOverrides);
-    await localforage.setItem("weekNotes", _dbState.weekNotes);
-    await localforage.setItem("goals", _dbState.goals);
-    // The pre-3.29 key: once its events live in `goals` it would only be a
-    // stale copy, so it's dropped - once per app run is enough.
-    if (!legacyEventsKeyCleared && typeof localforage.removeItem === "function") {
-      await localforage.removeItem("competitionEvents");
-      legacyEventsKeyCleared = true;
-    }
-    await localforage.setItem("templates", _dbState.templates);
-    await localforage.setItem("phaseDefs", _dbState.phaseDefs);
-    await localforage.setItem("exerciseTypes", _dbState.exerciseTypes);
-    await localforage.setItem("benchmarks", _dbState.benchmarks);
-    await localforage.setItem("benchmarkTypes", _dbState.benchmarkTypes);
-    await localforage.setItem("analyticsCategories", _dbState.analyticsCategories);
-    await localforage.setItem("metricDefs", _dbState.metricDefs);
-    await localforage.setItem("dailyMetrics", _dbState.dailyMetrics);
-    await localforage.setItem("painLogs", _dbState.painLogs);
-    await localforage.setItem("outdoorAscents", _dbState.outdoorAscents);
-    await localforage.setItem("database_version", _dbState.exportVersion);
+    return;
   }
+
+  for (const table of tables ?? TABLES) {
+    await localforage.setItem(table, _dbState[table]);
+  }
+  if (tables) return;
+  // The pre-3.29 key: once its events live in `goals` it would only be a
+  // stale copy, so it's dropped - once per app run is enough.
+  if (!legacyEventsKeyCleared && typeof localforage.removeItem === "function") {
+    await localforage.removeItem("competitionEvents");
+    legacyEventsKeyCleared = true;
+  }
+  await localforage.setItem("database_version", _dbState.exportVersion);
 }
 
 // Single fixed key/filename so a new backup always overwrites the previous

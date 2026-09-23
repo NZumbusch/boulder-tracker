@@ -127,3 +127,10 @@ describe("storage never persists reactive proxies", () => {
     expect(() => structuredClone(_dbState)).not.toThrow();
   });
 });
+
+describe("what a save writes", () => {
+  it("writes only the table that changed, not the whole database", async () => {
+    await storage.saveBenchmark({ id: "b1", typeId: "t", type: "Max Hang", value: 10, unit: "kg", date: "2026-09-01", weekId: "2026-W36" });
+    expect(setItem.mock.calls.map(([key]) => key)).toEqual(["benchmarks"]);
+  });
+});
