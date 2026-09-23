@@ -3,7 +3,7 @@
    * What gets included in an AI prompt's condensed training profile
    * (UI_PLAN.md §5.8, Stage 10) - a separate privacy decision from "does the
    * AI have enough context", since these prompts are copy/pasted into an
-   * external AI chat by the user themselves (`AIPromptModal.svelte`), not
+   * external AI chat by the user themselves (`AICoachModal.svelte`), not
    * sent anywhere by this app directly. Each category is independently
    * togglable; a disabled one is simply omitted from the generated prompt,
    * never sent-but-redacted (`src/lib/ai/context.ts`).

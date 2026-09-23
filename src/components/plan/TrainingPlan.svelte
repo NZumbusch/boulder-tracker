@@ -9,8 +9,7 @@
   import { dragHandleZone, dragHandle, type DndEvent } from 'svelte-dnd-action';
   import Icon from "@iconify/svelte";
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
-  import AIPromptModal from './AIPromptModal.svelte';
-  import AIPlanImportModal from './AIPlanImportModal.svelte';
+  import AICoachModal from './AICoachModal.svelte';
   import WeekCalendar from './WeekCalendar.svelte';
   import BlockManager from './BlockManager.svelte';
   import GoalsCalendar from './GoalsCalendar.svelte';
@@ -37,8 +36,7 @@
   let showPhaseDropdown = $state(false);
   let isAddingBenchmark = $state(false);
   let editingBenchmark = $state<Benchmark | null>(null);
-  let showAIPrompt = $state(false);
-  let showAIImport = $state(false);
+  let showAICoach = $state(false);
   let showBlockManager = $state(false);
   let showWeekNote = $state(false);
 
@@ -277,20 +275,12 @@
           <Icon icon="ic:baseline-view-week" class="text-base" />
         </button>
         <button
-          onclick={() => showAIPrompt = true}
+          onclick={() => showAICoach = true}
           class="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-control transition-all active:scale-95"
-          aria-label="Generate AI Prompt"
-          title="Generate AI Prompt"
+          aria-label="AI Coach"
+          title="AI Coach: change the plan, analyze, or share context"
         >
           <Icon icon="ic:baseline-auto-awesome" class="text-base" />
-        </button>
-        <button
-          onclick={() => showAIImport = true}
-          class="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-control transition-all active:scale-95"
-          aria-label="Import AI Plan"
-          title="Import AI Plan"
-        >
-          <Icon icon="ic:baseline-file-upload" class="text-base" />
         </button>
         <button
           onclick={() => navigate('today')}
@@ -555,12 +545,8 @@
   <GoalsCalendar />
 </div>
 
-{#if showAIPrompt}
-  <AIPromptModal onClose={() => showAIPrompt = false} />
-{/if}
-
-{#if showAIImport}
-  <AIPlanImportModal onClose={() => showAIImport = false} />
+{#if showAICoach}
+  <AICoachModal onClose={() => showAICoach = false} />
 {/if}
 
 {#if showBlockManager}

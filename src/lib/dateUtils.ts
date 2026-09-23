@@ -27,7 +27,7 @@ export function getWeekId(date: Date): string {
 /**
  * Returns the week id immediately following `weekId`. Approximates every
  * year as 52 weeks (matches the pre-existing week-range loop this was
- * extracted from in `AIPromptModal.svelte` - see PROGRESS.md) rather than
+ * extracted from in the old AI prompt modal - see PROGRESS.md) rather than
  * computing true ISO week counts (52 or 53 depending on the year): a 53-week
  * year can produce one extra, slightly-early rollover to next year. Low-risk
  * here - only used for week-range generation/grouping, not for `getWeekId`

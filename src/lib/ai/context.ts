@@ -29,7 +29,7 @@ import type { AISharingPreferences } from "../preferences/migrate";
 
 /**
  * Builds the condensed training-profile data embedded in every AI prompt
- * (`AIPromptModal.svelte`, "Generate Plan"/"Analyze Past"/"Context Only").
+ * (`AICoachModal.svelte`: "Change plan" / "Analyze" / "Context").
  * Extracted out of the component per UI_PLAN.md §5.8/Stage 10 - pure and
  * independently testable, matching this project's standing "pure
  * data-shaping logic gets tests" convention (PLAN.md's own `loadAnalytics.ts`
@@ -425,7 +425,7 @@ export interface AIContextProfile {
 
 /**
  * Builds the full condensed profile for one AI prompt, gated by `mode` and
- * `sharing`. Pure - the caller (`AIPromptModal.svelte`) still owns the
+ * `sharing`. Pure - the caller (`lib/ai/coachPrompt.ts`) owns the
  * surrounding prompt text (goal, framing, output instructions) and just
  * `JSON.stringify`s whichever fields of this profile it renders.
  *
