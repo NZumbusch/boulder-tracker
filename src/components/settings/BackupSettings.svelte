@@ -5,6 +5,7 @@
   import { Capacitor } from '@capacitor/core';
   import { AUTO_BACKUP_KEEP } from '../../lib/storage/autoBackup';
   import PDFExportModal from './PDFExportModal.svelte';
+  import { driveSync } from '../../lib/sync/driveSync.svelte';
   import Icon from "@iconify/svelte";
 
   let {
@@ -23,6 +24,7 @@
     const confirmed = await showConfirm(
       'Import Data',
       'Are you sure you want to import this data? This will overwrite your existing data and cannot be undone.'
+        + (driveSync.connected ? ' Sync is on, so your other devices get the imported data too.' : '')
     );
     if (confirmed) {
       fileInput?.click();

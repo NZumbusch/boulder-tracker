@@ -6,8 +6,8 @@ npm install
 # Build the Svelte app
 npm run build
 
-# Add the Android platform (if not already added)
-npx cap add android
+# The Android project is tracked in git; only add it if it's missing
+[ -d android ] || npx cap add android
 
 # Sync the web assets to the Android project
 npx cap sync android

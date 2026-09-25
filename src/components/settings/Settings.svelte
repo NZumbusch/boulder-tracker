@@ -11,6 +11,7 @@
   import AISharingSettings from './AISharingSettings.svelte';
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import NavRow from '../common/NavRow.svelte';
+  import SyncSettings from './SyncSettings.svelte';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import Icon from "@iconify/svelte";
 
@@ -149,7 +150,7 @@
     <div class="card py-1 divide-y divide-border">
       <NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} />
       <NavRow icon="ic:baseline-color-lens" title="Appearance & Behaviour" hint="Theme, layout, timer, weather & notifications" onclick={() => { currentTab = 'design'; appearanceTopic = null; }} />
-      <NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Backups, calendar/PDF export & AI sharing" onclick={() => currentTab = 'integration'} />
+      <NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Sync, backups, calendar/PDF export & AI sharing" onclick={() => currentTab = 'integration'} />
       <NavRow icon="ic:baseline-info" title="About & Impressum" hint="Application details and legal information" onclick={() => currentTab = 'about'} />
     </div>
   {:else if currentTab === 'customization'}
@@ -171,6 +172,7 @@
     <PreferencesSettings bind:topic={appearanceTopic} />
   {:else if currentTab === 'integration'}
     <div class="space-y-4">
+      <SyncSettings />
       <BackupSettings {onExport} {onImport} />
       <AISharingSettings />
     </div>

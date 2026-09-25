@@ -188,7 +188,7 @@ async function startNativeWrite(): Promise<void> {
 }
 
 /** Every table stored under its own localforage key on the web. */
-const TABLES = [
+export const TABLES = [
   "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "goals", "templates", "phaseDefs",
   "exerciseTypes", "benchmarks", "benchmarkTypes", "analyticsCategories", "metricDefs",
   "dailyMetrics", "painLogs", "outdoorAscents",
@@ -202,8 +202,20 @@ export type TableName = (typeof TABLES)[number];
  * one key instead of all sixteen, each a structured clone of the table.
  * Without `tables` (migrations, imports, bulk plan writes) everything is.
  */
+/**
+ * Told about every save, before it's written, with the tables it covers -
+ * how sync (`lib/sync/driveSync`) notices local changes without every
+ * write path knowing about it. Runs synchronously, so a change is seen the
+ * moment it's saved.
+ */
+let flushListener: ((tables: readonly TableName[]) => void) | null = null;
+export function setFlushListener(listener: ((tables: readonly TableName[]) => void) | null) {
+  flushListener = listener;
+}
+
 export async function flushDB(tables?: TableName[]) {
   if (!_dbState) return;
+  flushListener?.(tables ?? TABLES);
 
   if (Capacitor.isNativePlatform()) {
     await writeNativeFile();

@@ -37,6 +37,7 @@
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.1",
+    "capacitor-drive-sync": "file:plugins/drive-sync",
     "capacitor-timer-service": "file:plugins/timer-service",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",

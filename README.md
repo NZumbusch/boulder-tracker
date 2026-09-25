@@ -34,6 +34,19 @@ Needs Android Studio.
 ./run_android.sh     # afterwards: builds, syncs and opens Android Studio
 ```
 
+`android/` is tracked in git (manifest, `MainActivity`, launcher shortcuts in `res/xml/shortcuts.xml`, the widget); local Capacitor plugins live in `plugins/` (`timer-service`, `drive-sync`).
+
+### Google Drive sync - one-time setup
+
+Sync (Settings → Data & Exports → Sync) uses each user's own Google Drive app folder; there is no server. Google only hands out Drive access to apps registered in a Google Cloud project, so once:
+
+1. [Google Cloud console](https://console.cloud.google.com) → create a project (e.g. "Boulder Tracker").
+2. *APIs & Services → Library* → enable **Google Drive API**.
+3. *Google Auth Platform* (OAuth consent screen) → set it up as **External**, with an app name and your email. Under *Audience*, either add your Google account as a test user (in *Testing*, Google asks you to sign in again every 7 days) or **publish** it - `drive.appdata` is a non-sensitive scope, so publishing needs no review.
+4. *Clients* → create an **Android** OAuth client: package name `com.example.bouldertracker`, and the SHA-1 of the key the APK is signed with. For debug builds from a machine: `keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey`. Each signing key (another computer, a release key) needs its own Android client in the same project.
+
+No client ID goes into the code - Play services matches the app by package name and signature. How sync works: `src/lib/sync/` (`merge.ts`, `syncEngine.ts`, `driveSync.svelte.ts`).
+
 ## Deployment
 
 Pushing to `main` builds the app and deploys it to GitHub Pages (`.github/workflows/deploy.yml`). The build uses a relative base path, so the same `dist/` works on Pages and inside the Android app.

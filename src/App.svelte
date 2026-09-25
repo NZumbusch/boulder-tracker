@@ -11,6 +11,7 @@
   import { onMount } from 'svelte';
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
   import { installDeepLinks } from './lib/native/deepLinks';
+  import { driveSync } from './lib/sync/driveSync.svelte';
   import type { ViewType } from './lib/types';
   import Icon from "@iconify/svelte";
 
@@ -24,6 +25,7 @@
     if (requested && requested !== 'home' && VIEWS.includes(requested)) trainingState.navigate(requested);
     void installAndroidBack();
     void installDeepLinks();
+    void driveSync.init();
   });
 
   // --- Derived State ---
