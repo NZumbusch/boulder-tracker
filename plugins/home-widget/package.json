@@ -1,0 +1,15 @@
+{
+  "name": "capacitor-home-widget",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Android home-screen widgets (Today, Readiness) drawn from a snapshot the app hands over; taps open the app through bouldertracker:// links.",
+  "files": ["android/src/main/", "android/build.gradle"],
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  },
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}

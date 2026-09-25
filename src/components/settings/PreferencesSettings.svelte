@@ -21,6 +21,7 @@
    * open topic is owned by `Settings.svelte` (bound here) so its header's
    * back arrow can return to this list before leaving the tab.
    */
+  import WidgetSettings from './WidgetSettings.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import HomeLayoutSettings from './HomeLayoutSettings.svelte';
   import PlanDisplaySettings from './PlanDisplaySettings.svelte';
@@ -95,6 +96,7 @@
     <UnitsSettings />
   {:else if topic === 'home'}
     <HomeLayoutSettings />
+    <WidgetSettings />
     <OrderedListSettings
       list="quickLogActions"
       title="Quick log (+)"

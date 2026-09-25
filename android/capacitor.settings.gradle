@@ -20,5 +20,8 @@ project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/sh
 include ':capacitor-drive-sync'
 project(':capacitor-drive-sync').projectDir = new File('../plugins/drive-sync/android')
 
+include ':capacitor-home-widget'
+project(':capacitor-home-widget').projectDir = new File('../plugins/home-widget/android')
+
 include ':capacitor-timer-service'
 project(':capacitor-timer-service').projectDir = new File('../plugins/timer-service/android')

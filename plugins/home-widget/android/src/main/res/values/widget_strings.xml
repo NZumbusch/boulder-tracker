@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_label">Today</string>
+    <string name="widget_today_description">Readiness, today\'s session and quick buttons</string>
+    <string name="widget_readiness_label">Readiness</string>
+    <string name="widget_readiness_description">Today\'s readiness score</string>
+</resources>
