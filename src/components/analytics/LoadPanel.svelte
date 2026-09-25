@@ -23,6 +23,8 @@
     timeline,
     xOfDay,
     onSelect,
+    adherence,
+    windowAdherence,
     chartWidth = $bindable(0),
   }: {
     chartData: ChartData;
@@ -35,6 +37,10 @@
     xOfDay: (day: number) => number;
     /** A column was tapped - Analytics opens its detail sheet. */
     onSelect: (index: number) => void;
+    /** Share of planned exercises logged, per column id (only columns with completed sessions). */
+    adherence: Record<string, number>;
+    /** The same over the whole window, if anything was completed in it. */
+    windowAdherence?: number;
     chartWidth?: number;
   } = $props();
 
@@ -167,7 +173,7 @@
           >
             <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
               <span class="block">{week.label} · {Math.round(week.totalLoad)} actual</span>
-              <span class="block text-content-subtle">{Math.round(week.totalPlannedLoad)} target</span>
+              <span class="block text-content-subtle">{Math.round(week.totalPlannedLoad)} target{adherence[week.id] !== undefined ? ` · ${Math.round(adherence[week.id] * 100)}% of exercises done` : ''}</span>
             </div>
           </div>
         </button>
@@ -260,6 +266,12 @@
       <span class="text-caption text-content-subtle">ACWR</span>
     </div>
   </div>
+
+  {#if windowAdherence !== undefined}
+    <p class="text-caption text-content-subtle relative z-10">
+      Adherence: <span class="text-content tabular-nums">{Math.round(windowAdherence * 100)}%</span> of planned exercises logged in completed sessions
+    </p>
+  {/if}
 
   {#if acwrResults.length === 0}
     <p class="text-caption text-content-subtle italic text-center py-2">No completed sessions yet</p>

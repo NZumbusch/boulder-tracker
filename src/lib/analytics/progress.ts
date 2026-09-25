@@ -122,3 +122,35 @@ export function consistency(workouts: Workout[], asOf: Date): Consistency {
 
   return { done: recent.filter((w) => w.status === "completed").length, due: recent.length, weekStreak };
 }
+
+export interface BenchmarkChangeSeries {
+  typeKey: string;
+  name: string;
+  /** Each result in the window as % change from the first result ever of its type. */
+  points: { day: number; value: number; pct: number }[];
+}
+
+/**
+ * Every benchmark type with results in [firstDay, lastDay], each result as
+ * % change from that type's very first result - so benchmarks in kg,
+ * seconds and reps share one axis. Archived types are left out.
+ */
+export function benchmarkChanges(benchmarks: Benchmark[], types: BenchmarkTypeDef[], firstDay: number, lastDay: number): BenchmarkChangeSeries[] {
+  const byType = new Map<string, Benchmark[]>();
+  for (const b of benchmarks) {
+    const key = benchmarkKey(b);
+    byType.set(key, [...(byType.get(key) ?? []), b]);
+  }
+  const series: BenchmarkChangeSeries[] = [];
+  for (const [key, list] of byType) {
+    const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
+    const def = types.find((t) => t.id === sorted[0].typeId);
+    if (def?.archived || sorted[0].value <= 0) continue;
+    const first = sorted[0].value;
+    const points = sorted
+      .map((b) => ({ day: toUtcDayIndex(b.date), value: b.value, pct: (b.value / first - 1) * 100 }))
+      .filter((p) => p.day >= firstDay && p.day <= lastDay);
+    if (points.length > 0) series.push({ typeKey: key, name: def?.name ?? sorted[0].type, points });
+  }
+  return series.sort((a, b) => a.name.localeCompare(b.name));
+}

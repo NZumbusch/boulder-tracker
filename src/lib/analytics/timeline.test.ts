@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { GoalEvent, TrainingBlock } from "../types";
-import { blockSegments, goalsInWindow, FALLBACK_BLOCK_COLOR } from "./timeline";
+import { blockSegments, goalsInWindow, painRows, FALLBACK_BLOCK_COLOR } from "./timeline";
 import { toUtcDayIndex } from "../dateUtils";
 
 const block = (id: string, start: string, end: string, extra: Partial<TrainingBlock> = {}): TrainingBlock => ({
@@ -40,5 +40,17 @@ describe("goalsInWindow", () => {
     const got = goalsInWindow(goals, toUtcDayIndex("2026-09-01"), toUtcDayIndex("2026-10-03"));
     expect(got.map((g) => g.id)).toEqual(["c", "t"]);
     expect(got[1].endDay).toBe(toUtcDayIndex("2026-10-10"));
+  });
+});
+
+describe("painRows", () => {
+  const log = (id: string, date: string, bodyPart: string, severity = 3) => ({ id, date, weekId: "", bodyPart, severity });
+  it("groups by body part regardless of case, most-logged first, within the window", () => {
+    const rows = painRows(
+      [log("a", "2026-09-02", "Left ring finger"), log("b", "2026-09-05", "left ring  finger"), log("c", "2026-09-03", "Elbow"), log("d", "2026-01-01", "Elbow")],
+      toUtcDayIndex("2026-09-01"),
+      toUtcDayIndex("2026-09-30"),
+    );
+    expect(rows.map((r) => [r.bodyPart, r.points.length])).toEqual([["Left ring finger", 2], ["Elbow", 1]]);
   });
 });

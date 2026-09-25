@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Recovery: HRV, sleep score and resting HR day by day over the Analytics
-   * window, with readiness and daily load underneath so cause (load) and
+   * window, with readiness, bodyweight and daily load underneath so cause (load) and
    * effect (recovery) sit on one time axis.
    *
    * Two ways to draw the three metrics (a setting - Appearance -> History &
@@ -28,6 +28,8 @@
   } from '../../lib/analytics/recoverySeries';
   import type { TimelineSegment, TimelineGoal } from '../../lib/analytics/timeline';
   import PhaseBand from './PhaseBand.svelte';
+  import { formatWeight } from '../../lib/units';
+  import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import Icon from "@iconify/svelte";
 
   let { firstDay, lastDay, today, timeline }: {
@@ -72,7 +74,6 @@
     };
   }));
   const shown = $derived(metrics.filter((m) => !hidden.has(m.id)));
-  const hasAnyReading = $derived(metrics.some((m) => m.series.some((d) => d.value !== undefined)));
 
   const loadByDay = $derived(dailyLoadByDay(trainingState.workouts));
   const maxLoad = $derived(Math.max(1, ...Array.from({ length: dayCount }, (_, i) => loadByDay.get(firstDay + i) ?? 0)));
@@ -172,6 +173,28 @@
     };
   }));
 
+  // --- Bodyweight: its own lane in real units (never a % - "better" has
+  // no direction for weight), on a min/max-padded scale.
+  const bodyweight = $derived.by(() => {
+    if (drawnLast < firstDay) return null;
+    const series = buildRecoverySeries(trainingState.dailyMetrics, { id: BODYWEIGHT_METRIC_ID, higherIsBetter: true }, firstDay, drawnLast);
+    const values = series.flatMap((d) => (d.value !== undefined ? [d.value] : []));
+    if (values.length === 0) return null;
+    const lo = Math.min(...values);
+    const hi = Math.max(...values);
+    const pad = Math.max((hi - lo) * 0.15, 0.3);
+    const y = (v: number) => 100 - ((v - (lo - pad)) / (hi - lo + 2 * pad)) * 100;
+    const latest = [...series].reverse().find((d) => d.value !== undefined);
+    return {
+      series,
+      dots: dots(series.map((d) => (d.value === undefined ? null : { x: xOf(d.day), y: y(d.value) }))),
+      line: segments(series.map((d) => (d.avg === undefined ? null : { x: xOf(d.day), y: y(d.avg) }))),
+      latest: latest?.value,
+    };
+  });
+
+  const hasAnyReading = $derived(metrics.some((m) => m.series.some((d) => d.value !== undefined)) || bodyweight !== null);
+
   const readinessLine = $derived(segments(
     Array.from({ length: Math.max(drawnLast - firstDay + 1, 0) }, (_, i) => {
       const score = readiness.get(firstDay + i);
@@ -229,6 +252,7 @@
       metrics: metrics.map((m) => ({ ...m, day: m.series[i] })),
       readiness: readiness.get(readoutDay),
       load: loadByDay.get(readoutDay) ?? 0,
+      weight: bodyweight?.series[i]?.value,
     };
   });
 
@@ -279,7 +303,7 @@
   </div>
 
   {#if !hasAnyReading}
-    <p class="text-caption text-content-subtle italic text-center py-6 px-4 leading-relaxed">Log HRV, sleep score or resting HR on Home to see how you recover</p>
+    <p class="text-caption text-content-subtle italic text-center py-6 px-4 leading-relaxed">Log HRV, sleep score, resting HR or bodyweight on Home to see how you recover</p>
   {:else}
     <!-- Legend doubles as the metric filter. -->
     <div class="flex flex-wrap gap-1.5">
@@ -385,6 +409,23 @@
           {/if}
         </div>
       </div>
+      {#if bodyweight}
+        <div class="flex gap-2 mt-2">
+          <div class="w-8 shrink-0 text-caption leading-tight text-right text-content-subtle">Weight</div>
+          <div class="flex-1 min-w-0 h-10 relative">
+            <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+              <path d={bodyweight.dots} stroke="var(--color-content-muted)" stroke-opacity="0.5" stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
+              <path d={bodyweight.line} stroke="var(--color-content-muted)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
+            </svg>
+            {#if bodyweight.latest !== undefined}
+              <span class="absolute right-0 -top-1 text-caption leading-none text-content-subtle tabular-nums bg-surface/70 px-1 rounded">{formatWeight(bodyweight.latest, trainingState.units.weight)}</span>
+            {/if}
+            {#if readoutDay !== null}
+              <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(readoutDay)}%"></div>
+            {/if}
+          </div>
+        </div>
+      {/if}
       <div class="flex gap-2 mt-1">
         <div class="w-8 shrink-0 text-caption leading-tight text-right text-content-subtle">Load</div>
         <div class="flex-1 min-w-0 h-8 relative">
@@ -419,11 +460,13 @@
       </div>
     </div>
 
-    {#if readout && (readout.readiness !== undefined || readout.load > 0)}
+    {#if readout && (readout.readiness !== undefined || readout.load > 0 || readout.weight !== undefined)}
       <p class="text-caption text-content-subtle tabular-nums">
-        {#if readout.readiness !== undefined}Readiness {Math.round(readout.readiness)}{/if}
-        {#if readout.readiness !== undefined && readout.load > 0} · {/if}
-        {#if readout.load > 0}Load {Math.round(readout.load)}{/if}
+        {[
+          readout.readiness !== undefined ? `Readiness ${Math.round(readout.readiness)}` : '',
+          readout.weight !== undefined ? `Weight ${formatWeight(readout.weight, trainingState.units.weight)}` : '',
+          readout.load > 0 ? `Load ${Math.round(readout.load)}` : '',
+        ].filter(Boolean).join(' · ')}
       </p>
     {/if}
 

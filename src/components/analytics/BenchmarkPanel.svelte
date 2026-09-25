@@ -1,12 +1,18 @@
 <script lang="ts">
-  /** Benchmark Progress: the last ten results of one benchmark type, picked from a list. */
+  /** Benchmark Progress: one benchmark type's results within the Analytics window, picked from a list. */
   import { trainingState } from '../../lib/state.svelte';
   import type { ChartTips } from '../../lib/analytics/chartTips.svelte';
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import { relativeStrength } from '../../lib/analytics/proMetrics';
+  import { toUtcDayIndex } from '../../lib/dateUtils';
   import Icon from "@iconify/svelte";
 
-  let { tips }: { tips: ChartTips } = $props();
+  let { tips, firstDay, lastDay }: {
+    tips: ChartTips;
+    /** The Analytics window, as day indices - only results inside it are drawn. */
+    firstDay: number;
+    lastDay: number;
+  } = $props();
 
   let selectedBenchmarkType = $state<string>('');
   /** Relative strength: a kg benchmark as % of bodyweight (see `relativeStrength`). */
@@ -14,7 +20,7 @@
 
   /**
    * Derives chart data for the "Benchmark Progress" line graph.
-   * Filters the last 10 historical entries for the currently selected benchmark type
+   * Filters the selected benchmark type's results inside the window
    * and calculates SVG paths for the interactive line and area gradient.
    */
   const benchmarkProgress = $derived.by(() => {
@@ -43,11 +49,15 @@
 
     const ofType = data
       .filter(b => b.typeId === effectiveTypeId)
+      .filter(b => {
+        const day = toUtcDayIndex(b.date);
+        return day >= firstDay && day <= lastDay;
+      })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const filtered = (isRelative
       ? relativeStrength(ofType, trainingState.dailyMetrics, valueIsAdded).map((p) => ({ id: p.date, date: p.date, value: Math.round(p.ratio * 1000) / 10, unit: '% BW' }))
       : ofType
-    ).slice(-10);
+    );
 
     // Absolute results sit on a 0-based scale; % of bodyweight lives around
     // 100-150, where a 0 floor would flatten years of progress into a line.
@@ -245,7 +255,7 @@
               <p class="text-caption text-content-subtle italic text-center px-4 leading-relaxed">
                 {benchmarkProgress.isRelative
                   ? 'Needs a bodyweight logged within two weeks of a result'
-                  : `Log a ${benchmarkProgress.types.find(t => t.id === selectedBenchmarkType)?.name || 'benchmark'} to see your progress`}
+                  : `No ${benchmarkProgress.types.find(t => t.id === selectedBenchmarkType)?.name || 'benchmark'} results in this range - try 6M or 1Y`}
               </p>
             </div>
           {/if}

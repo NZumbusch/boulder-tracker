@@ -10,10 +10,9 @@
   import { ChartTips } from '../../lib/analytics/chartTips.svelte';
   import {
     calculateAcwrForBuckets,
+    calculateAcwrForWeeks,
     calculateWorkoutAdherence,
-    findRecoveryWarnings,
     correlatePainWithLoadSpikes,
-    type WeeklyAdherence,
   } from '../../lib/analytics/loadAnalytics';
   import { computeFatigueDecay } from '../../lib/analytics/readiness';
   import { labelStep } from '../../lib/analytics/chartWindow';
@@ -21,16 +20,16 @@
   import { toUtcDayIndex } from '../../lib/dateUtils';
   import { buildBuckets, bucketOfDay, dayToX, ANALYTICS_RANGES, RANGE_LABELS, type Bucket } from '../../lib/analytics/range';
   import { windowStats, comparisonSpans } from '../../lib/analytics/windowSummary';
-  import { blockSegments, goalsInWindow } from '../../lib/analytics/timeline';
+  import { blockSegments, goalsInWindow, painRows } from '../../lib/analytics/timeline';
+  import { benchmarkChanges } from '../../lib/analytics/progress';
+  import PainTimelinePanel from './PainTimelinePanel.svelte';
+  import BenchmarkOverviewPanel from './BenchmarkOverviewPanel.svelte';
   import { dayIndexToIso, localDayIndex } from '../../lib/analytics/recoverySeries';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
   import LoadPanel from './LoadPanel.svelte';
   import MixPanel from './MixPanel.svelte';
-  import BodyweightPanel from './BodyweightPanel.svelte';
   import BenchmarkPanel from './BenchmarkPanel.svelte';
   import type { ChartData } from './chartTypes';
-  import AdherencePanel from './AdherencePanel.svelte';
-  import RecoveryWarningsPanel from './RecoveryWarningsPanel.svelte';
   import FatiguePanel from './FatiguePanel.svelte';
   import OutdoorAscentsPanel from './OutdoorAscentsPanel.svelte';
   import RecoveryTrendPanel from './RecoveryTrendPanel.svelte';
@@ -112,12 +111,11 @@
     heatmap: 'training',
     mix: 'training',
     fatigue: 'training',
-    adherence: 'training',
-    recovery: 'training',
     recoveryTrend: 'body',
-    bodyweight: 'body',
+    pain: 'body',
     outdoor: 'performance',
     benchmarks: 'performance',
+    benchmarkOverview: 'performance',
   };
   const tabSections = $derived(trainingState.analyticsSections.filter((s) => s.visible && TAB_OF[s.id] === tab));
 
@@ -256,24 +254,41 @@
     };
   });
 
-  // --- Load analytics (ACWR/ramp-rate, adherence, recovery warnings,
-  // injury-vs-load correlation) - scoped to the same window as the charts.
+  // --- Load analytics (ACWR/ramp-rate, adherence, injury-vs-load
+  // correlation) - scoped to the same window as the charts.
   const allWeekIds = $derived(buckets.flatMap((b) => b.weekIds));
   const weekLabels = $derived(Object.fromEntries(buckets.map((b) => [b.id, b.label])));
   const acwrResults = $derived(calculateAcwrForBuckets(trainingState.workouts, buckets));
-  const adherenceResults = $derived.by((): WeeklyAdherence[] => buckets.flatMap((b) => {
-    const results = trainingState.workouts
-      .filter((w) => w.status === 'completed' && b.weekIds.includes(w.weekId))
-      .map(calculateWorkoutAdherence);
-    if (results.length === 0) return [];
-    const totalSlots = results.reduce((s, r) => s + r.totalSlots, 0);
-    const loggedSlots = results.reduce((s, r) => s + r.loggedSlots, 0);
-    const plannedLoad = results.reduce((s, r) => s + r.plannedLoad, 0);
-    const actualLoad = results.reduce((s, r) => s + r.actualLoad, 0);
-    return [{ weekId: b.id, completionRate: totalSlots > 0 ? loggedSlots / totalSlots : 0, plannedLoad, actualLoad, loadVariance: actualLoad - plannedLoad }];
-  }));
-  const recoveryWarnings = $derived(findRecoveryWarnings(trainingState.workouts, trainingState.dailyMetrics, allWeekIds, trainingState.tunable('alerts.restDays')));
-  const painCorrelations = $derived(correlatePainWithLoadSpikes(trainingState.painLogs, acwrResults, trainingState.acwrZones.highRisk));
+  // Adherence (share of planned exercises logged in completed sessions),
+  // shown on the Load chart rather than as its own card.
+  const adherence = $derived.by(() => {
+    const perColumn: Record<string, number> = {};
+    let slots = 0;
+    let logged = 0;
+    for (const b of buckets) {
+      const results = trainingState.workouts
+        .filter((w) => w.status === 'completed' && b.weekIds.includes(w.weekId))
+        .map(calculateWorkoutAdherence);
+      const total = results.reduce((sum, r) => sum + r.totalSlots, 0);
+      const done = results.reduce((sum, r) => sum + r.loggedSlots, 0);
+      if (total > 0) perColumn[b.id] = done / total;
+      slots += total;
+      logged += done;
+    }
+    return { perColumn, window: slots > 0 ? logged / slots : undefined };
+  });
+
+  // --- Pain timeline: rows per body part, ringed where a load spike was
+  // near (judged week by week, whatever the column size).
+  const painData = $derived.by(() => {
+    const correlations = correlatePainWithLoadSpikes(trainingState.painLogs, calculateAcwrForWeeks(trainingState.workouts, allWeekIds), trainingState.acwrZones.highRisk);
+    return {
+      rows: painRows(trainingState.painLogs, firstDay, lastDay),
+      spikeIds: new Set(correlations.filter((c) => c.loadSpikeNearby).map((c) => c.painLogId)),
+    };
+  });
+
+  const benchmarkSeries = $derived(benchmarkChanges(trainingState.benchmarks, trainingState.benchmarkTypes, firstDay, lastDay));
 
   // --- Fatigue panel data - `computeFatigueDecay` sampled at each
   // column's last day, so this is a trend rather than duplicating Home's
@@ -414,7 +429,7 @@
 
     <div class="space-y-5">
       {#snippet loadSection()}
-      <LoadPanel {chartData} {acwrResults} {axisStep} {tips} {timeline} xOfDay={(day) => dayToX(buckets, day)} onSelect={(i) => (selectedBucket = buckets[i])} bind:chartWidth />
+      <LoadPanel {chartData} {acwrResults} {axisStep} {tips} {timeline} xOfDay={(day) => dayToX(buckets, day)} onSelect={(i) => (selectedBucket = buckets[i])} adherence={adherence.perColumn} windowAdherence={adherence.window} bind:chartWidth />
       {/snippet}
 
       {#snippet strainSection()}
@@ -443,30 +458,22 @@
       <RecoveryTrendPanel {firstDay} {lastDay} {today} {timeline} />
       {/snippet}
 
-      {#snippet adherenceSection()}
-      <div id="section-adherence" class="scroll-mt-4">
-        <AdherencePanel results={adherenceResults} {weekLabels} />
-      </div>
-      {/snippet}
-
-      {#snippet recoverySection()}
-      <div id="section-recovery" class="scroll-mt-4">
-        <RecoveryWarningsPanel warnings={recoveryWarnings} {painCorrelations} />
-      </div>
-      {/snippet}
-
       {#snippet outdoorSection()}
       <div id="section-outdoor" class="scroll-mt-4">
         <OutdoorAscentsPanel weeks={outdoorAscentData.weeks} {weekLabels} unparsedCount={outdoorAscentData.unparsedCount} labelStep={axisStep} />
       </div>
       {/snippet}
 
-      {#snippet bodyweightSection()}
-      <BodyweightPanel {tips} />
+      {#snippet benchmarksSection()}
+      <BenchmarkPanel {tips} {firstDay} {lastDay} />
       {/snippet}
 
-      {#snippet benchmarksSection()}
-      <BenchmarkPanel {tips} />
+      {#snippet painSection()}
+      <PainTimelinePanel {firstDay} {lastDay} rows={painData.rows} spikeIds={painData.spikeIds} loadByDay={dailyLoadByDay(trainingState.workouts)} />
+      {/snippet}
+
+      {#snippet benchmarkOverviewSection()}
+      <BenchmarkOverviewPanel series={benchmarkSeries} {firstDay} {lastDay} />
       {/snippet}
 
       {#each tabSections as section (section.id)}
@@ -477,11 +484,10 @@
         {:else if section.id === 'mix'}{@render mixSection()}
         {:else if section.id === 'fatigue'}{@render fatigueSection()}
         {:else if section.id === 'recoveryTrend'}{@render recoveryTrendSection()}
-        {:else if section.id === 'adherence'}{@render adherenceSection()}
-        {:else if section.id === 'recovery'}{@render recoverySection()}
+        {:else if section.id === 'pain'}{@render painSection()}
         {:else if section.id === 'outdoor'}{@render outdoorSection()}
-        {:else if section.id === 'bodyweight'}{@render bodyweightSection()}
         {:else if section.id === 'benchmarks'}{@render benchmarksSection()}
+        {:else if section.id === 'benchmarkOverview'}{@render benchmarkOverviewSection()}
         {/if}
       {/each}
 

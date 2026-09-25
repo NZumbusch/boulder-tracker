@@ -196,7 +196,7 @@ export interface HomeSectionPreference {
 }
 
 /** Analytics cards that can be shown, hidden and reordered (Settings -> History & Analytics). */
-export const ANALYTICS_SECTION_IDS = ['load', 'strain', 'fingerLoad', 'mix', 'fatigue', 'heatmap', 'recoveryTrend', 'adherence', 'recovery', 'outdoor', 'bodyweight', 'benchmarks'] as const;
+export const ANALYTICS_SECTION_IDS = ['load', 'strain', 'fingerLoad', 'mix', 'fatigue', 'heatmap', 'recoveryTrend', 'pain', 'outdoor', 'benchmarks', 'benchmarkOverview'] as const;
 export type AnalyticsSectionId = (typeof ANALYTICS_SECTION_IDS)[number];
 
 /** The actions in Home's "+" quick-log sheet (Settings -> Home). */
