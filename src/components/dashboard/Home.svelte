@@ -34,6 +34,18 @@
   });
 
   let showQuickLog = $state(false);
+
+  // A launcher shortcut / the widget asked for the quick log (see lib/navigation/deepLink).
+  // "metrics" is MetricsCard's to handle - unless that card is hidden, then there's nothing to open.
+  $effect(() => {
+    const request = trainingState.uiStore.homeRequest;
+    if (request === 'quickLog') {
+      showQuickLog = true;
+      trainingState.uiStore.homeRequest = null;
+    } else if (request === 'metrics' && !trainingState.homeSections.some((s) => s.id === 'metrics' && s.visible)) {
+      trainingState.uiStore.homeRequest = null;
+    }
+  });
 </script>
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-24">

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Long-press the app icon. Each opens a bouldertracker:// link that the page
+  routes (src/lib/navigation/deepLink.ts). targetPackage is the applicationId.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="session"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_session"
+        android:shortcutShortLabel="@string/shortcut_session_short"
+        android:shortcutLongLabel="@string/shortcut_session_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="bouldertracker://session"
+            android:targetPackage="com.example.bouldertracker"
+            android:targetClass="com.example.bouldertracker.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="quicklog"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_quicklog"
+        android:shortcutShortLabel="@string/shortcut_quicklog_short"
+        android:shortcutLongLabel="@string/shortcut_quicklog_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="bouldertracker://quicklog"
+            android:targetPackage="com.example.bouldertracker"
+            android:targetClass="com.example.bouldertracker.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="metrics"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_metrics"
+        android:shortcutShortLabel="@string/shortcut_metrics_short"
+        android:shortcutLongLabel="@string/shortcut_metrics_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="bouldertracker://metrics"
+            android:targetPackage="com.example.bouldertracker"
+            android:targetClass="com.example.bouldertracker.MainActivity" />
+    </shortcut>
+</shortcuts>

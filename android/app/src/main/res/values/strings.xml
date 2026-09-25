@@ -4,4 +4,10 @@
     <string name="title_activity_main">Climbing Tracker</string>
     <string name="package_name">com.example.bouldertracker</string>
     <string name="custom_url_scheme">com.example.bouldertracker</string>
+    <string name="shortcut_session_short">Session</string>
+    <string name="shortcut_session_long">Start or resume a session</string>
+    <string name="shortcut_quicklog_short">Quick log</string>
+    <string name="shortcut_quicklog_long">Log pain, weight, a send or a benchmark</string>
+    <string name="shortcut_metrics_short">Morning metrics</string>
+    <string name="shortcut_metrics_long">Log sleep, HRV and resting HR</string>
 </resources>

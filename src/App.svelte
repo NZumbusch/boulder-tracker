@@ -10,6 +10,7 @@
   import { sessionDuration } from './lib/planning/sessionDuration';
   import { onMount } from 'svelte';
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
+  import { installDeepLinks } from './lib/native/deepLinks';
   import type { ViewType } from './lib/types';
   import Icon from "@iconify/svelte";
 
@@ -22,6 +23,7 @@
     window.history.replaceState(null, '', '#/home');
     if (requested && requested !== 'home' && VIEWS.includes(requested)) trainingState.navigate(requested);
     void installAndroidBack();
+    void installDeepLinks();
   });
 
   // --- Derived State ---

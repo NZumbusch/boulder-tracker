@@ -22,6 +22,8 @@ export class UiStore {
   historyFocusId = $state<string | null>(null);
   /** Which half of History is showing - kept across visits so a trip to Sends stays on Sends. */
   historyTab = $state<'sessions' | 'sends'>('sessions');
+  /** Something a shortcut or the widget asked Home to open (see `navigation/deepLink`); Home clears it once handled. */
+  homeRequest = $state<'quickLog' | 'metrics' | null>(null);
   theme = $state<'dark' | 'light' | 'contrast'>('dark');
   notificationsEnabled = $state(false);
   notificationPermission = $state<PermissionState>('prompt');

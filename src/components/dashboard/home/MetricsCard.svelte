@@ -8,6 +8,7 @@
   import { isLoggedMetricValue, loggedMetrics, averageReading } from '../../../lib/analytics/metricValues';
   import { displayWeight, toKg } from '../../../lib/units';
   import SectionHeader from './SectionHeader.svelte';
+  import { tick } from 'svelte';
   import Icon from '@iconify/svelte';
 
   let { data }: { data: HomeData } = $props();
@@ -57,6 +58,20 @@
     const current = todaysMetric(metricId)?.value;
     draftValue = current === undefined ? '' : String(isWeight(metricId) ? W(current) : current);
   }
+  // The "Morning metrics" shortcut: straight into today's first missing reading, keyboard up.
+  let cardEl = $state<HTMLElement | null>(null);
+  $effect(() => {
+    if (trainingState.uiStore.homeRequest !== 'metrics') return;
+    trainingState.uiStore.homeRequest = null;
+    const target = QUICK_METRICS.find((d) => !todaysMetric(d.id)) ?? QUICK_METRICS[0];
+    if (!target) return;
+    startEdit(target.id);
+    void tick().then(() => {
+      cardEl?.scrollIntoView({ block: 'center' });
+      cardEl?.querySelector('input')?.focus();
+    });
+  });
+
   async function saveMetric(metricId: string) {
     const typed = parseFloat(draftValue);
     if (Number.isNaN(typed)) return;
@@ -75,7 +90,7 @@
   }
 </script>
 
-<div class="card space-y-1">
+<div class="card space-y-1" bind:this={cardEl}>
   <SectionHeader label="Metrics" subtitle={`Sleep, HRV, resting heart rate${trainingState.homeDetails['metrics.bodyweight'] ? ', bodyweight' : ''}`} />
   <div class="divide-y divide-border">
   {#each QUICK_METRICS as def}
