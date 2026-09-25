@@ -1,51 +1,18 @@
 /**
- * How many weeks the Analytics charts show, and how their x-axis is
- * labelled, for a given container width.
+ * Axis arithmetic for the Analytics charts: the week window's position,
+ * and how far the x- and y-axis labels have to be thinned to fit.
  *
- * The charts used to draw a fixed 12 weeks at any width. On a phone that
- * left each week roughly 16px of a ~280px chart - narrower than the "W34"
- * label under it, so the axis collided with itself and every bar was a
- * sliver. The week count is now derived from the measured width instead,
- * and the label row is thinned to whatever actually fits.
+ * (How many columns a chart shows is the range preset's job now - see
+ * `range.ts`. Width no longer decides it; it only decides the labels.)
  *
  * Pure arithmetic, no DOM - the component measures, this decides.
  */
 
-export type ChartDensity = "auto" | "compact" | "comfortable";
-
-/**
- * Target horizontal space per week, in CSS px. "auto" is sized so a "W34"
- * label fits under every bar with breathing room; "compact" trades that for
- * more history on screen (the axis thins itself instead), "comfortable"
- * spends it on fewer, wider bars.
- */
-export const WEEK_SLOT_PX: Record<ChartDensity, number> = {
-  compact: 18,
-  auto: 28,
-  comfortable: 44,
-};
-
 /** Roughly the width of a "W34" axis label at the app's caption size. */
 const LABEL_WIDTH_PX = 24;
 
-/** Below this, a chart stops being readable; above it, the window is more history than the eye can compare. */
+/** Below this, a chart stops being readable. */
 export const MIN_WEEKS = 4;
-export const MAX_WEEKS = 26;
-
-/** The fallback until the container has been measured (first paint, or a non-DOM environment). */
-export const DEFAULT_WEEKS = 10;
-
-/**
- * How many weeks fit in `containerWidth` at `density`. An unmeasured
- * container (0/undefined width, as on the very first render) falls back to
- * `DEFAULT_WEEKS` rather than collapsing to the minimum and then visibly
- * re-laying out.
- */
-export function weeksToShow(containerWidth: number | undefined, density: ChartDensity): number {
-  if (!containerWidth || containerWidth <= 0) return DEFAULT_WEEKS;
-  const fitted = Math.round(containerWidth / WEEK_SLOT_PX[density]);
-  return Math.min(Math.max(fitted, MIN_WEEKS), MAX_WEEKS);
-}
 
 /**
  * The visible window as week offsets from today, for a page `viewOffset`

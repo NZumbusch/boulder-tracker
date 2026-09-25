@@ -1,50 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  weeksToShow,
   weekWindowOffsets,
   labelStep,
   showsLabel,
   sparseLabelStep,
-  WEEK_SLOT_PX,
   MIN_WEEKS,
-  MAX_WEEKS,
-  DEFAULT_WEEKS,
   pickAxisTicks,
 } from "./chartWindow";
-
-describe("weeksToShow", () => {
-  it("fits more weeks into a wider container", () => {
-    expect(weeksToShow(560, "auto")).toBeGreaterThan(weeksToShow(280, "auto"));
-  });
-
-  it("shows fewer weeks at a phone width than the old fixed 12", () => {
-    expect(weeksToShow(280, "auto")).toBeLessThan(12);
-  });
-
-  it("orders the densities: compact shows the most, comfortable the fewest", () => {
-    const width = 400;
-    expect(weeksToShow(width, "compact")).toBeGreaterThan(weeksToShow(width, "auto"));
-    expect(weeksToShow(width, "auto")).toBeGreaterThan(weeksToShow(width, "comfortable"));
-  });
-
-  it("gives each week roughly its density's target width", () => {
-    for (const density of ["compact", "auto", "comfortable"] as const) {
-      const width = 400;
-      const perWeek = width / weeksToShow(width, density);
-      expect(Math.abs(perWeek - WEEK_SLOT_PX[density])).toBeLessThan(WEEK_SLOT_PX[density] * 0.3);
-    }
-  });
-
-  it("clamps to a readable range at extreme widths", () => {
-    expect(weeksToShow(40, "comfortable")).toBe(MIN_WEEKS);
-    expect(weeksToShow(5000, "compact")).toBe(MAX_WEEKS);
-  });
-
-  it("falls back to a sensible default before the container is measured", () => {
-    expect(weeksToShow(undefined, "auto")).toBe(DEFAULT_WEEKS);
-    expect(weeksToShow(0, "auto")).toBe(DEFAULT_WEEKS);
-  });
-});
 
 describe("weekWindowOffsets", () => {
   it("spans exactly the requested number of weeks", () => {

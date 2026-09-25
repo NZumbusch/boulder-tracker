@@ -34,7 +34,7 @@ import { SessionStore } from './stores/sessionStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, ChartDensity, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
@@ -180,8 +180,8 @@ class TrainingState {
   get fatigueChartStyle() { return this.preferencesStore.fatigueChartStyle; }
   setFatigueChartStyle(style: FatigueChartStyle) { this.preferencesStore.setFatigueChartStyle(style); }
 
-  get chartDensity() { return this.preferencesStore.chartDensity; }
-  setChartDensity(density: ChartDensity) { this.preferencesStore.setChartDensity(density); }
+  get analyticsRange() { return this.preferencesStore.analyticsRange; }
+  setAnalyticsRange(range: AnalyticsRange) { this.preferencesStore.setAnalyticsRange(range); }
 
   get timerVibrateEnabled() { return this.preferencesStore.timerVibrateEnabled; }
   get timerBeepEnabled() { return this.preferencesStore.timerBeepEnabled; }

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Workout, DailyMetricEntry, PainLog } from "../types";
 import { getWeekId } from "../dateUtils";
 import {
+  calculateAcwrForBuckets,
   RAMP_RATE_SPIKE_THRESHOLD,
   ACWR_HIGH_RISK_RATIO,
   CONSECUTIVE_TRAINING_DAY_THRESHOLD,
@@ -182,6 +183,26 @@ describe("calculateAcwrForWeeks (ratio/acuteLoad/chronicLoad/sufficient now come
 
   it("RAMP_RATE_SPIKE_THRESHOLD is the documented 10% rule of thumb", () => {
     expect(RAMP_RATE_SPIKE_THRESHOLD).toBe(0.1);
+  });
+});
+
+describe("calculateAcwrForBuckets", () => {
+  it("sums each column's weeks for ramp rate and samples the ratio at its last day", () => {
+    const workouts = [
+      makeWorkout({ id: "a", status: "completed", date: "2026-03-03T10:00:00.000Z", weekId: "2026-W10", loadFactor: 100 }),
+      makeWorkout({ id: "b", status: "completed", date: "2026-03-10T10:00:00.000Z", weekId: "2026-W11", loadFactor: 100 }),
+      makeWorkout({ id: "c", status: "completed", date: "2026-03-31T10:00:00.000Z", weekId: "2026-W14", loadFactor: 500 }),
+    ];
+    const day = (iso: string) => Math.floor(Date.parse(iso) / 86400000);
+    const [feb, mar] = calculateAcwrForBuckets(workouts, [
+      { id: "m1", weekIds: ["2026-W10", "2026-W11"], endDay: day("2026-03-15") },
+      { id: "m2", weekIds: ["2026-W12", "2026-W13", "2026-W14"], endDay: day("2026-04-05") },
+    ]);
+    expect(feb.weekId).toBe("m1");
+    expect(feb.rampRate).toBe(0);
+    expect(mar.rampRate).toBeCloseTo(1.5);
+    expect(mar.spike).toBe(true);
+    expect(mar.acuteLoad).toBe(500);
   });
 });
 

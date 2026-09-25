@@ -120,7 +120,7 @@
                   onclick={(e) => { if (isKeyboardActivation(e)) tips.toggle(`mix-${wi}-${cat.id}`); }}
                   onpointerenter={(e) => { if (!isTapPointer(e)) tips.open(`mix-${wi}-${cat.id}`); }}
                   onpointerleave={(e) => { if (!isTapPointer(e)) tips.closeIf(`mix-${wi}-${cat.id}`); }}
-                  aria-label="{cat.name}, {Math.round(catDuration)} minutes in week {week.label}"
+                  aria-label="{cat.name}, {Math.round(catDuration)} minutes in {week.label}"
                   class="{cat.color} w-full relative block"
                   style="height: {(catDuration / visibleTotalDuration) * 100}%"
                 ></button>
@@ -157,7 +157,7 @@
       {#each chartData.weeks as week, i}
         <div class="flex-1 flex justify-center">
           {#if showsLabel(i, chartData.weeks.length, axisStep)}
-            <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
+            <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">{week.label}</span>
           {/if}
         </div>
       {/each}

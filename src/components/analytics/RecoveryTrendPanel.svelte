@@ -26,14 +26,18 @@
     dayIndexToIso,
     type RecoveryDay,
   } from '../../lib/analytics/recoverySeries';
+  import type { TimelineSegment, TimelineGoal } from '../../lib/analytics/timeline';
+  import PhaseBand from './PhaseBand.svelte';
   import Icon from "@iconify/svelte";
 
-  let { firstDay, lastDay, today }: {
+  let { firstDay, lastDay, today, timeline }: {
     /** First and last day index of the window (Monday of the first week, Sunday of the last). */
     firstDay: number;
     lastDay: number;
     /** Today's day index - nothing is drawn after it. */
     today: number;
+    /** Blocks and goals for the band over the plot. */
+    timeline: { segments: TimelineSegment[]; goals: TimelineGoal[] };
   } = $props();
 
   const STYLE: Record<string, { short: string; color: string }> = {
@@ -178,6 +182,8 @@
   // --- Readout: the tapped/hovered day, or else the latest day with any reading.
   let selected = $state<number | null>(null);
   let plotEl = $state<HTMLElement | null>(null);
+  /** The date axis spans exactly the plots' x extent (the label gutter excluded), so positions are measured against it. */
+  let axisEl = $state<HTMLElement | null>(null);
   const latestDay = $derived.by(() => {
     for (let d = drawnLast; d >= firstDay; d--) {
       if (metrics.some((m) => m.series[d - firstDay]?.value !== undefined)) return d;
@@ -186,8 +192,8 @@
   });
   const readoutDay = $derived(selected ?? latestDay);
   function dayAt(event: PointerEvent): number | null {
-    if (!plotEl) return null;
-    const rect = plotEl.getBoundingClientRect();
+    if (!axisEl) return null;
+    const rect = axisEl.getBoundingClientRect();
     const day = firstDay + Math.floor(((event.clientX - rect.left) / rect.width) * dayCount);
     return day < firstDay || day > drawnLast ? null : day;
   }
@@ -306,6 +312,13 @@
       </div>
     {/if}
 
+    <div class="flex gap-2">
+      <div class="w-8 shrink-0"></div>
+      <div class="flex-1 min-w-0">
+        <PhaseBand segments={timeline.segments} goals={timeline.goals} xOf={(day) => ((day - firstDay) / dayCount) * 100} />
+      </div>
+    </div>
+
     <div
       bind:this={plotEl}
       class="relative cursor-crosshair select-none"
@@ -388,7 +401,7 @@
 
       <div class="flex gap-2">
         <div class="w-8 shrink-0"></div>
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0" bind:this={axisEl}>
           <div class="border-t border-border-strong/60"></div>
           <div class="relative h-4">
             {#each axisDays as day, i}

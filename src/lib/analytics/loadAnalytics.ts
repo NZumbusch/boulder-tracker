@@ -174,6 +174,34 @@ export function calculateAcwrForWeeks(workouts: Workout[], orderedWeekIds: strin
   });
 }
 
+/**
+ * `calculateAcwrForWeeks` for chart columns that may span several weeks
+ * (the year view's months - see `range.ts`). The rolling ratio is sampled
+ * at each column's last day; ramp rate compares each column's completed
+ * load with the column before it. `id` becomes the result's `weekId`, so
+ * existing consumers key it the same way they key the columns.
+ */
+export function calculateAcwrForBuckets(
+  workouts: Workout[],
+  buckets: { id: string; weekIds: string[]; endDay: number }[],
+): AcwrResult[] {
+  const loads = buckets.map((b) => b.weekIds.reduce((sum, weekId) => sum + calculateWeeklyLoad(workouts, weekId), 0));
+  return buckets.map((b, i) => {
+    const rolling = calculateRollingAcwr(workouts, new Date(b.endDay * 86400000));
+    const prevLoad = i > 0 ? loads[i - 1] : undefined;
+    const rampRate = prevLoad ? (loads[i] - prevLoad) / prevLoad : 0;
+    return {
+      weekId: b.id,
+      acuteLoad: rolling.acuteLoad,
+      chronicLoad: rolling.chronicLoad,
+      ratio: rolling.ratio,
+      sufficient: rolling.sufficient,
+      rampRate,
+      spike: rampRate > RAMP_RATE_SPIKE_THRESHOLD,
+    };
+  });
+}
+
 export interface AdherenceResult {
   workoutId: string;
   weekId: string;

@@ -17,7 +17,7 @@
  * overwrites those two fields - `UiStore` remains their sole writer.
  */
 
-import type { ChartDensity } from '../analytics/chartWindow';
+import { ANALYTICS_RANGES, DEFAULT_ANALYTICS_RANGE, type AnalyticsRange } from '../analytics/range';
 import { defaultHomeDetails, validateHomeDetails, type HomeDetails } from './homeDetails';
 import { defaultTunables, validateTunables, type Tunables } from './tunables';
 import { DEFAULT_UNITS, validateUnits, type Units } from '../units';
@@ -59,15 +59,8 @@ export interface Preferences {
   crags: WeatherLocation[];
   /** Bars is the default - radar is the user-requested alternate, both real. */
   fatigueChartStyle: FatigueChartStyle;
-  /**
-   * How much horizontal room each week gets in the Analytics charts, which
-   * is what decides how many weeks a given screen shows (see
-   * `src/lib/analytics/chartWindow.ts`). "auto" sizes a week so its axis
-   * label fits; "compact" packs in more history and thins the axis;
-   * "comfortable" shows fewer, wider weeks. Every option fits the screen -
-   * this is density, not overflow.
-   */
-  chartDensity: ChartDensity;
+  /** The Analytics window: 4 weeks, 3 or 6 months (a week per column), or a year (a month per column) - see `lib/analytics/range.ts`. */
+  analyticsRange: AnalyticsRange;
   /**
    * Timer behaviour toggles - defaults: vibrate/beep on, keep-awake off. Independently togglable, not
    * one master "sound on" switch - a user might want the haptic without
@@ -215,7 +208,7 @@ export interface OrderedToggle<Id extends string> {
 export type FatigueChartStyle = 'bars' | 'radar';
 
 /** Re-exported from the analytics helper that owns the per-density widths, so there is one definition of the set. */
-export type { ChartDensity } from '../analytics/chartWindow';
+export type { AnalyticsRange } from '../analytics/range';
 
 export const DEFAULT_DAILY_METRICS_REMINDER_TIME = '20:00';
 
@@ -239,7 +232,7 @@ export function defaultPreferences(): Preferences {
     homeLocation: null,
     crags: [],
     fatigueChartStyle: 'bars',
-    chartDensity: 'auto',
+    analyticsRange: DEFAULT_ANALYTICS_RANGE,
     timerVibrateEnabled: true,
     timerBeepEnabled: true,
     timerKeepAwakeEnabled: false,
@@ -269,7 +262,6 @@ const TEXT_SCALES: TextScale[] = ['sm', 'md', 'lg'];
 const MOTION_PREFS: MotionPreference[] = ['system', 'full', 'reduced'];
 const THEMES: ThemePreference[] = ['dark', 'light', 'contrast'];
 const FATIGUE_CHART_STYLES: FatigueChartStyle[] = ['bars', 'radar'];
-const CHART_DENSITIES: ChartDensity[] = ['auto', 'compact', 'comfortable'];
 export type RecoveryChartMode = 'overlay' | 'lanes';
 const RECOVERY_CHART_MODES: RecoveryChartMode[] = ['overlay', 'lanes'];
 
@@ -431,9 +423,9 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     fatigueChartStyle: FATIGUE_CHART_STYLES.includes(candidate.fatigueChartStyle as FatigueChartStyle)
       ? (candidate.fatigueChartStyle as FatigueChartStyle)
       : defaults.fatigueChartStyle,
-    chartDensity: CHART_DENSITIES.includes(candidate.chartDensity as ChartDensity)
-      ? (candidate.chartDensity as ChartDensity)
-      : defaults.chartDensity,
+    analyticsRange: ANALYTICS_RANGES.includes(candidate.analyticsRange as AnalyticsRange)
+      ? (candidate.analyticsRange as AnalyticsRange)
+      : defaults.analyticsRange,
     timerVibrateEnabled: typeof candidate.timerVibrateEnabled === 'boolean'
       ? candidate.timerVibrateEnabled
       : defaults.timerVibrateEnabled,

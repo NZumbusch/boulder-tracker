@@ -2,14 +2,17 @@
   /**
    * Rolling Load: weekly actual load as bars, the target as a dashed line,
    * and the acute:chronic ratio (with its zone bands and ramp-rate spikes)
-   * on top. Its plot's measured width sets how many weeks every chart on
-   * the screen shows - see `chartWidth` in Analytics.svelte.
+   * on top, and the training blocks and goals as a band above. Tapping a
+   * column opens its detail sheet; its plot's measured width sets how far
+   * the x-axis labels are thinned - see `chartWidth` in Analytics.svelte.
    */
   import { trainingState } from '../../lib/state.svelte';
   import type { AcwrResult } from '../../lib/analytics/loadAnalytics';
   import type { ChartTips } from '../../lib/analytics/chartTips.svelte';
   import { showsLabel } from '../../lib/analytics/chartWindow';
   import type { ChartData } from './chartTypes';
+  import type { TimelineSegment, TimelineGoal } from '../../lib/analytics/timeline';
+  import PhaseBand from './PhaseBand.svelte';
   import Icon from "@iconify/svelte";
 
   let {
@@ -17,8 +20,23 @@
     acwrResults,
     axisStep,
     tips,
+    timeline,
+    xOfDay,
+    onSelect,
     chartWidth = $bindable(0),
-  }: { chartData: ChartData; acwrResults: AcwrResult[]; axisStep: number; tips: ChartTips; chartWidth?: number } = $props();
+  }: {
+    chartData: ChartData;
+    acwrResults: AcwrResult[];
+    axisStep: number;
+    tips: ChartTips;
+    /** Blocks and goals for the band over the plot. */
+    timeline: { segments: TimelineSegment[]; goals: TimelineGoal[] };
+    /** A day's x on this chart's columns (0-100). */
+    xOfDay: (day: number) => number;
+    /** A column was tapped - Analytics opens its detail sheet. */
+    onSelect: (index: number) => void;
+    chartWidth?: number;
+  } = $props();
 
   // ACWR zone edges - adjustable under Settings -> Training model.
   const acwrZones = $derived(trainingState.acwrZones);
@@ -75,11 +93,15 @@
 <div id="section-load" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative">
   <div class="relative z-10">
     <h3 class="text-section uppercase text-content-muted">Rolling Load</h3>
-    <p class="text-caption text-content-subtle mt-0.5">Target vs actual, with acute:chronic ratio</p>
+    <p class="text-caption text-content-subtle mt-0.5">Target vs actual, with acute:chronic ratio · tap a column for details</p>
   </div>
 
-  <!-- The plot area's measured width drives the week count for every
-       chart on this screen - see `chartWidth`. -->
+  <div class="relative z-10">
+    <PhaseBand segments={timeline.segments} goals={timeline.goals} xOf={xOfDay} />
+  </div>
+
+  <!-- The plot area's measured width decides how far every chart's
+       x-axis labels are thinned - see `chartWidth`. -->
   <div class="h-48 flex flex-col gap-2 relative z-10">
     <div class="flex-1 relative flex items-end justify-between gap-px" bind:clientWidth={chartWidth}>
       <!-- Hairline gridlines: three, at 10% opacity. Enough to read a
@@ -132,10 +154,9 @@
         <button
           type="button"
           data-tip-trigger
-          data-tip-open={tips.isOpen(`load-${wi}`)}
-          onclick={() => tips.toggle(`load-${wi}`)}
-          aria-label="Week {week.label} load"
-          class="flex-1 flex flex-col items-center group relative h-full justify-end hover:z-30 {tips.isOpen(`load-${wi}`) ? 'z-30' : ''}"
+          onclick={() => onSelect(wi)}
+          aria-label="{week.label}: {Math.round(week.totalLoad)} load - details"
+          class="flex-1 flex flex-col items-center group relative h-full justify-end hover:z-30"
         >
           <!-- Flat fill, no gradient or glow; the current week is the
                only one at full strength, which is the whole emphasis
@@ -145,7 +166,7 @@
             style="height: {(week.totalLoad / chartData.maxLoad) * 100}%"
           >
             <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-              <span class="block">W{week.label} · {Math.round(week.totalLoad)} actual</span>
+              <span class="block">{week.label} · {Math.round(week.totalLoad)} actual</span>
               <span class="block text-content-subtle">{Math.round(week.totalPlannedLoad)} target</span>
             </div>
           </div>
@@ -218,7 +239,7 @@
       {#each chartData.weeks as week, i}
         <div class="flex-1 flex justify-center">
           {#if showsLabel(i, chartData.weeks.length, axisStep)}
-            <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">W{week.label}</span>
+            <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">{week.label}</span>
           {/if}
         </div>
       {/each}

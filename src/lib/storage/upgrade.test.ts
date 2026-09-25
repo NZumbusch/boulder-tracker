@@ -117,7 +117,7 @@ describe("upgrading an existing install", () => {
   });
 
   it("keeps an existing preferences blob's settings and defaults the new one", () => {
-    // A blob written before chartDensity existed. The version is unchanged,
+    // A blob written before analyticsRange existed. The version is unchanged,
     // so it must be accepted rather than reset to defaults wholesale.
     const existing = {
       version: 1,
@@ -133,6 +133,6 @@ describe("upgrading an existing install", () => {
     expect(migrated.theme).toBe("light");
     expect(migrated.fatigueChartStyle).toBe("radar");
     expect("planFormat" in migrated).toBe(false); // retired setting, dropped on load
-    expect(migrated.chartDensity).toBe("auto");
+    expect(migrated.analyticsRange).toBe("3m");
   });
 });

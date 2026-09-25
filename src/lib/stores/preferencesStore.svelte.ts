@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -21,7 +21,7 @@ export class PreferencesStore {
   homeLocation = $state<WeatherLocation | null>(null);
   crags = $state<WeatherLocation[]>([]);
   fatigueChartStyle = $state<FatigueChartStyle>('bars');
-  chartDensity = $state<ChartDensity>('auto');
+  analyticsRange = $state<AnalyticsRange>('3m');
   timerVibrateEnabled = $state(true);
   timerBeepEnabled = $state(true);
   timerKeepAwakeEnabled = $state(false);
@@ -62,7 +62,7 @@ export class PreferencesStore {
     this.homeLocation = prefs.homeLocation;
     this.crags = prefs.crags;
     this.fatigueChartStyle = prefs.fatigueChartStyle;
-    this.chartDensity = prefs.chartDensity;
+    this.analyticsRange = prefs.analyticsRange;
     this.timerVibrateEnabled = prefs.timerVibrateEnabled;
     this.timerBeepEnabled = prefs.timerBeepEnabled;
     this.timerKeepAwakeEnabled = prefs.timerKeepAwakeEnabled;
@@ -122,8 +122,8 @@ export class PreferencesStore {
     this.persist();
   }
 
-  setChartDensity(density: ChartDensity) {
-    this.chartDensity = density;
+  setAnalyticsRange(range: AnalyticsRange) {
+    this.analyticsRange = range;
     this.persist();
   }
 
@@ -243,7 +243,7 @@ export class PreferencesStore {
       homeLocation: this.homeLocation,
       crags: this.crags,
       fatigueChartStyle: this.fatigueChartStyle,
-      chartDensity: this.chartDensity,
+      analyticsRange: this.analyticsRange,
       timerVibrateEnabled: this.timerVibrateEnabled,
       timerBeepEnabled: this.timerBeepEnabled,
       timerKeepAwakeEnabled: this.timerKeepAwakeEnabled,

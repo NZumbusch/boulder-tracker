@@ -1,7 +1,7 @@
 /** One week column of the Load and Mix charts. */
 export interface ChartWeek {
   id: string;
-  /** The week number, "34". */
+  /** Axis label: "W34" for a week column, "Sep" for a month column (the year view). */
   label: string;
   totalLoad: number;
   totalPlannedLoad: number;
