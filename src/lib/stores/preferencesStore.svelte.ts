@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -28,6 +28,7 @@ export class PreferencesStore {
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
   homeDetails = $state<HomeDetails>(defaultHomeDetails());
   sendsChartCounts = $state(true);
+  recoveryChartMode = $state<RecoveryChartMode>('overlay');
   tunables = $state<Tunables>(defaultTunables());
   units = $state<Units>({ ...DEFAULT_UNITS });
   analyticsSections = $state<OrderedToggle<AnalyticsSectionId>[]>(ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })));
@@ -68,6 +69,7 @@ export class PreferencesStore {
     this.homeSections = prefs.homeSections;
     this.homeDetails = prefs.homeDetails;
     this.sendsChartCounts = prefs.sendsChartCounts;
+    this.recoveryChartMode = prefs.recoveryChartMode;
     this.tunables = prefs.tunables;
     this.units = prefs.units;
     this.analyticsSections = prefs.analyticsSections;
@@ -192,6 +194,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setRecoveryChartMode(mode: RecoveryChartMode) {
+    this.recoveryChartMode = mode;
+    this.persist();
+  }
+
   setHomeDetail(id: string, enabled: boolean) {
     this.homeDetails = { ...this.homeDetails, [id]: enabled };
     this.persist();
@@ -243,6 +250,7 @@ export class PreferencesStore {
       homeSections: this.homeSections,
       homeDetails: this.homeDetails,
       sendsChartCounts: this.sendsChartCounts,
+      recoveryChartMode: this.recoveryChartMode,
       tunables: this.tunables,
       units: this.units,
       analyticsSections: this.analyticsSections,

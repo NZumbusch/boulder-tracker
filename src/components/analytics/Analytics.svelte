@@ -22,6 +22,9 @@
   import RecoveryWarningsPanel from './RecoveryWarningsPanel.svelte';
   import FatiguePanel from './FatiguePanel.svelte';
   import OutdoorAscentsPanel from './OutdoorAscentsPanel.svelte';
+  import RecoveryTrendPanel from './RecoveryTrendPanel.svelte';
+  import { localDayIndex } from '../../lib/analytics/recoverySeries';
+  import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
   import Icon from "@iconify/svelte";
 
   // Analytics: one header (week-window paging, CSV export, section-jump
@@ -87,8 +90,9 @@
     load: [{ id: 'section-load', label: 'Load' }, { id: 'section-load', label: 'ACWR' }],
     mix: [{ id: 'section-mix', label: 'Mix' }],
     fatigue: [{ id: 'section-fatigue', label: 'Fatigue' }],
+    recoveryTrend: [{ id: 'section-recoveryTrend', label: 'Recovery' }],
     adherence: [{ id: 'section-adherence', label: 'Adherence' }],
-    recovery: [{ id: 'section-recovery', label: 'Recovery' }],
+    recovery: [{ id: 'section-recovery', label: 'Warnings' }],
     outdoor: [{ id: 'section-outdoor', label: 'Outdoor' }],
     bodyweight: [{ id: 'section-bodyweight', label: 'Bodyweight' }],
     benchmarks: [{ id: 'section-benchmarks', label: 'Benchmarks' }],
@@ -100,9 +104,26 @@
 
   // --- Handlers ---
   function navigate(direction: 'prev' | 'next' | 'today') {
+    const before = viewOffset;
     if (direction === 'prev') viewOffset--;
     else if (direction === 'next') viewOffset++;
     else if (direction === 'today') viewOffset = 0;
+    if (viewOffset !== before) slideIn(viewOffset < before ? 'prev' : 'next');
+  }
+
+  // Paging slides the panels in from the side the new weeks come from, so
+  // a swipe feels like moving along the timeline rather than a redraw.
+  // Animated in place (Web Animations) rather than by re-keying the
+  // panels, which would remount them and reset their own state (Mix
+  // options, the chosen benchmark).
+  let panelsEl = $state<HTMLElement | null>(null);
+  function slideIn(from: SwipeDirection) {
+    if (!panelsEl?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const dx = from === 'prev' ? -32 : 32;
+    panelsEl.animate(
+      [{ transform: `translateX(${dx}px)`, opacity: 0.35 }, { transform: 'none', opacity: 1 }],
+      { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
+    );
   }
 
   // --- Logic: Data Processing ---
@@ -267,6 +288,14 @@
     return c;
   });
 
+  // --- Recovery chart: the same window, as calendar days.
+  const recoveryDays = $derived.by(() => {
+    const first = chartData.weeks.length ? getWeekDates(chartData.weeks[0].id) : null;
+    const last = chartData.weeks.length ? getWeekDates(chartData.weeks[chartData.weeks.length - 1].id) : null;
+    if (!first || !last) return null;
+    return { firstDay: localDayIndex(first.start), lastDay: localDayIndex(last.end), today: localDayIndex(new Date()) };
+  });
+
   // --- Outdoor Ascents panel data - grouped into
   // the same displayed week window, grade parsed via the new Font-grade
   // helper. Ascents whose grade doesn't parse are counted, never dropped
@@ -361,7 +390,9 @@
     {/if}
   </div>
 
-  <div class="space-y-5">
+  <!-- touch-action keeps vertical scrolling native while a sideways swipe
+       pages the window (see lib/analytics/swipe.ts). -->
+  <div class="space-y-5 touch-pan-y" bind:this={panelsEl} use:swipePaging={(d) => navigate(d)}>
     {#snippet loadSection()}
     <LoadPanel {chartData} {acwrResults} {axisStep} {tips} bind:chartWidth />
     {/snippet}
@@ -374,6 +405,12 @@
     <div id="section-fatigue" class="scroll-mt-4">
       <FatiguePanel samples={fatigueSamples} {weekLabels} coverage={fatigueCoverage} />
     </div>
+    {/snippet}
+
+    {#snippet recoveryTrendSection()}
+    {#if recoveryDays}
+      <RecoveryTrendPanel {...recoveryDays} />
+    {/if}
     {/snippet}
 
     {#snippet adherenceSection()}
@@ -409,6 +446,7 @@
         {#if section.id === 'load'}{@render loadSection()}
         {:else if section.id === 'mix'}{@render mixSection()}
         {:else if section.id === 'fatigue'}{@render fatigueSection()}
+        {:else if section.id === 'recoveryTrend'}{@render recoveryTrendSection()}
         {:else if section.id === 'adherence'}{@render adherenceSection()}
         {:else if section.id === 'recovery'}{@render recoverySection()}
         {:else if section.id === 'outdoor'}{@render outdoorSection()}

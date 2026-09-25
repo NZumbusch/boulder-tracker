@@ -34,7 +34,7 @@ import { SessionStore } from './stores/sessionStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, ChartDensity, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, ChartDensity, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
@@ -200,6 +200,7 @@ class TrainingState {
   /** Per-part Home toggles, keyed by `homeDetails.ts` ids - see `Preferences.homeDetails`. */
   get homeDetails() { return this.preferencesStore.homeDetails; }
   get sendsChartCounts() { return this.preferencesStore.sendsChartCounts; }
+  get recoveryChartMode() { return this.preferencesStore.recoveryChartMode; }
 
   // --- Ordered, hideable lists (Analytics cards, quick-log actions) ---
   get analyticsSections() { return this.preferencesStore.analyticsSections; }
@@ -236,6 +237,7 @@ class TrainingState {
     return { idealMinC: num(t, 'friction.idealMinC'), idealMaxC: num(t, 'friction.idealMaxC'), wetRainMm: num(t, 'friction.wetRainMm') };
   }
   setSendsChartCounts(enabled: boolean) { this.preferencesStore.setSendsChartCounts(enabled); }
+  setRecoveryChartMode(mode: RecoveryChartMode) { this.preferencesStore.setRecoveryChartMode(mode); }
   setHomeDetail(id: string, enabled: boolean) {
     this.preferencesStore.setHomeDetail(id, enabled);
   }
