@@ -28,6 +28,8 @@ export class PreferencesStore {
   timerBackgroundAlerts = $state(true);
   timerCountdownTicks = $state(true);
   timerWarnBeforeEnd = $state(false);
+  timerPillHidden = $state(false);
+  sessionNotification = $state(true);
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
   homeDetails = $state<HomeDetails>(defaultHomeDetails());
   sendsChartCounts = $state(true);
@@ -74,6 +76,8 @@ export class PreferencesStore {
     this.timerBackgroundAlerts = prefs.timerBackgroundAlerts;
     this.timerCountdownTicks = prefs.timerCountdownTicks;
     this.timerWarnBeforeEnd = prefs.timerWarnBeforeEnd;
+    this.timerPillHidden = prefs.timerPillHidden;
+    this.sessionNotification = prefs.sessionNotification;
     this.homeSections = prefs.homeSections;
     this.homeDetails = prefs.homeDetails;
     this.sendsChartCounts = prefs.sendsChartCounts;
@@ -164,6 +168,16 @@ export class PreferencesStore {
 
   setTimerWarnBeforeEnd(enabled: boolean) {
     this.timerWarnBeforeEnd = enabled;
+    this.persist();
+  }
+
+  setTimerPillHidden(hidden: boolean) {
+    this.timerPillHidden = hidden;
+    this.persist();
+  }
+
+  setSessionNotification(enabled: boolean) {
+    this.sessionNotification = enabled;
     this.persist();
   }
 
@@ -285,6 +299,8 @@ export class PreferencesStore {
       timerBackgroundAlerts: this.timerBackgroundAlerts,
       timerCountdownTicks: this.timerCountdownTicks,
       timerWarnBeforeEnd: this.timerWarnBeforeEnd,
+      timerPillHidden: this.timerPillHidden,
+      sessionNotification: this.sessionNotification,
       homeSections: this.homeSections,
       homeDetails: this.homeDetails,
       sendsChartCounts: this.sendsChartCounts,

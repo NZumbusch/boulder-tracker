@@ -30,6 +30,8 @@ export interface LiveSegment {
   startedAt?: number;
   title: string;
   body: string;
+  /** Buttons for this segment only (the session's, shown once a timer has run out); otherwise the plan's. */
+  actions?: LiveAction[];
 }
 
 export interface LiveCue {
@@ -37,7 +39,7 @@ export interface LiveCue {
   kind: CueKind;
 }
 
-export type LiveAction = "pause" | "resume" | "add30";
+export type LiveAction = "pause" | "resume" | "add30" | "sessionPause" | "sessionResume";
 
 export interface LiveTimerConfig {
   segments: LiveSegment[];

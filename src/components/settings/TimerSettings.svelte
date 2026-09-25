@@ -95,6 +95,21 @@
     {#if isNative}
       <label class="w-full flex items-center justify-between py-3 cursor-pointer">
         <div class="flex items-center gap-3">
+          <Icon icon="ic:baseline-directions-run" class="text-lg text-content-muted" />
+          <div>
+            <span class="block text-body text-content">Session notification</span>
+            <span class="block text-caption text-content-subtle">While a session runs: its clock, the current exercise and how far you are, with Pause / Resume</span>
+          </div>
+        </div>
+        <input
+          type="checkbox"
+          checked={trainingState.sessionNotification}
+          onchange={(e) => trainingState.setSessionNotification(e.currentTarget.checked)}
+          class="w-5 h-5 rounded accent-primary shrink-0"
+        />
+      </label>
+      <label class="w-full flex items-center justify-between py-3 cursor-pointer">
+        <div class="flex items-center gap-3">
           <Icon icon="ic:baseline-phonelink-ring" class="text-lg text-content-muted" />
           <div>
             <span class="block text-body text-content">Timer in the background</span>

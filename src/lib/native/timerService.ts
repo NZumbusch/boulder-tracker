@@ -12,7 +12,7 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import type { LiveTimerConfig } from "../timer/liveTimer";
 
-export type LiveAction = { kind: "pause" | "resume" | "add30"; at: number; seq: number };
+export type LiveAction = { kind: "pause" | "resume" | "add30" | "sessionPause" | "sessionResume"; at: number; seq: number };
 
 interface TimerServicePlugin {
   start(options: LiveTimerConfig & { sound: boolean; vibrate: boolean }): Promise<void>;

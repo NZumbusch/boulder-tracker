@@ -55,7 +55,8 @@
   import { scheduleTimerAlerts, cancelTimerAlerts, ensureTimerAlertPermission } from "../../lib/notifications/timerAlerts";
   import { hasIntervalTiming } from "../../lib/timer/intervalTimer";
   import { buildLiveTimer } from "../../lib/timer/liveTimer";
-  import { liveTimerAvailable, sendLiveTimer, stopLiveTimer, onLiveTimerAction, takeLiveActions, type LiveAction } from "../../lib/native/timerService";
+  import { liveTimerAvailable, type LiveAction } from "../../lib/native/timerService";
+  import { live, onLiveAction, collectLiveActions } from "../../lib/native/liveNotification.svelte";
   import { slotTypeName } from "../../lib/exerciseSlot";
   import SetRunView from "./SetRunView.svelte";
   import {
@@ -396,7 +397,8 @@
     if (interval) clearInterval(interval);
     if (ticker) clearInterval(ticker);
     // Unmounted = the session ended: nothing left to restore or alert about.
-    void stopLiveTimer();
+    live.timerPlan = null;
+    live.timerFinished = false;
     try { localStorage.removeItem(ACTIVE_TIMER_KEY); } catch { /* storage unavailable */ }
     void cancelTimerAlerts();
   });
@@ -405,7 +407,8 @@
   // While a timer runs, the native service (plugins/timer-service) shows
   // it as a notification with a live countdown and plays its cues - also
   // when the phone is locked, over music. Re-planned on every change.
-  let liveActive = $state(false);
+  /** The service is playing this timer's cues (its plan is published and the service is up). */
+  const liveActive = $derived(live.timerPlan !== null && live.serviceOk);
   /**
    * Set while the page is hidden with the service running: the service owns
    * the timer then, and the page must not finish anything by itself - when
@@ -414,15 +417,17 @@
    * button presses have been collected and applied.
    */
   let heldForNative = $state(false);
-  let lastActionSeq = 0;
   const useLive = $derived(liveTimerAvailable() && trainingState.timerBackgroundAlerts);
 
+  /**
+   * Publishes this timer's plan for the session notification (see
+   * `lib/native/liveNotification`, which combines it with the session and
+   * talks to Android). Null when no timer runs.
+   */
   function syncLive() {
     if (!useLive) {
-      if (liveActive) {
-        liveActive = false;
-        void stopLiveTimer();
-      }
+      live.timerPlan = null;
+      live.timerFinished = false;
       return;
     }
     const config = buildLiveTimer({
@@ -438,19 +443,12 @@
       label: currentSlot ? slotTypeName(currentSlot, trainingState.exerciseTypes) : 'Session timer',
       workLabel,
     }, Date.now());
-    if (!config) {
-      // Ran out by itself: the service finishes on its own and leaves its
-      // "done" notification. Stopped or reset by hand: take it down now.
-      const finished = (mode === 'timer' && basic.bankedMs > 0 && countdownRemainingMs(targetTime, basic, Date.now()) <= 0)
-        || (mode === 'interval' && (selfPaced ? setRun.done : intervalFinished));
-      if (!finished) void stopLiveTimer();
-      liveActive = false;
-      return;
-    }
-    liveActive = true;
-    void sendLiveTimer(config, trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled).then((ok) => {
-      if (!ok) liveActive = false;
-    });
+    // Ran out by itself: the service plays the finish and moves on by itself.
+    live.timerFinished = !config && (
+      (mode === 'timer' && basic.bankedMs > 0 && countdownRemainingMs(targetTime, basic, Date.now()) <= 0)
+      || (mode === 'interval' && (selfPaced ? setRun.done : intervalFinished))
+    );
+    live.timerPlan = config;
   }
 
   $effect(() => {
@@ -462,9 +460,8 @@
   });
 
   /** A notification button was pressed: apply it to the timer at the moment it happened. */
-  function applyLiveAction({ kind, at, seq }: LiveAction) {
-    if (seq <= lastActionSeq) return;
-    lastActionSeq = seq;
+  function applyLiveAction({ kind, at }: LiveAction) {
+    if (kind !== 'pause' && kind !== 'resume' && kind !== 'add30') return; // the session's, not the timer's
     if (kind === 'add30') {
       addTime(30);
       return;
@@ -485,18 +482,7 @@
       syncBasicTicker();
     }
   }
-  $effect(() => {
-    let off = () => {};
-    let gone = false;
-    void onLiveTimerAction(applyLiveAction).then((remove) => {
-      if (gone) remove();
-      else off = remove;
-    });
-    return () => {
-      gone = true;
-      off();
-    };
-  });
+  $effect(() => onLiveAction(applyLiveAction));
 
   // --- Surviving the background ------------------------------------------
 
@@ -585,8 +571,7 @@
       } else {
         void cancelTimerAlerts();
         // Apply what was pressed in the notification first, then catch up.
-        void takeLiveActions().then((actions) => {
-          for (const action of actions) applyLiveAction(action);
+        void collectLiveActions().then(() => {
           heldForNative = false;
           now = Date.now();
         });
@@ -607,6 +592,7 @@
    * Called from the session's exercise card ("Timer").
    */
   export function openForExercise() {
+    trainingState.setTimerPillHidden(false);
     const values = currentSlot ? slotValues(currentSlot) : undefined;
     if (hasIntervalTiming(values)) selectMode('interval');
     else if (mode === 'interval') selectMode('stopwatch');
@@ -940,7 +926,27 @@
 <!-- z-[111]: above the live session (z-110) - at z-50 it sat hidden behind
      it, which is why the timer could not be found at all - and below the
      session's own sheets and the interval views. -->
-<div class="fixed {bottomClass} left-1/2 -translate-x-1/2 z-[111] flex flex-col items-center gap-2 {!visible || (mode === 'interval' && expanded) ? 'hidden' : ''}">
+<!-- Tucked away: a small button at the side. It still shows a running
+     timer's time, and a tap brings the whole timer back. -->
+{#if visible && trainingState.timerPillHidden && !(mode === 'interval' && expanded)}
+  {@const running = mode === 'interval' ? intervalRunning : isRunning}
+  <button
+    onclick={() => trainingState.setTimerPillHidden(false)}
+    class="fixed {bottomClass} right-4 z-[111] h-11 min-w-11 px-3 rounded-full flex items-center justify-center gap-1.5 bg-surface/90 backdrop-blur-md border border-border shadow-card text-label tabular-nums animate-in fade-in {running ? 'text-primary' : 'text-content-subtle'}"
+    aria-label="Show the timer"
+  >
+    <Icon icon={mode === 'interval' ? 'ic:baseline-repeat' : mode === 'timer' ? 'ic:baseline-hourglass-empty' : 'ic:baseline-timer'} class="text-lg" />
+    {#if running}
+      {mode === 'interval' ? (selfPaced ? `Set ${setRun.currentSet}` : `${position.remaining}s`) : formatTime(time)}
+    {/if}
+  </button>
+{/if}
+
+<!-- Full-width row that centres the pill. Positioning the pill itself at
+     left: 50% only gave it half the screen to lay out in, so the minimised
+     interval readout wrapped into a narrow broken column. The row lets taps
+     through; only the pill takes them. -->
+<div class="fixed {bottomClass} inset-x-0 px-4 z-[111] flex flex-col items-center gap-2 pointer-events-none [&>*]:pointer-events-auto {!visible || trainingState.timerPillHidden || (mode === 'interval' && expanded) ? 'hidden' : ''}">
   {#if presets.length > 0 && mode !== 'interval'}
     <div class="flex items-center gap-1.5 bg-surface/90 backdrop-blur-md border border-border rounded-control px-2 py-1 shadow-card animate-in fade-in">
       {#each presets as preset}
@@ -986,7 +992,7 @@
            action - finishing a set - actually lives. -->
       <button onclick={() => expanded = true} class="flex items-center gap-3 pr-1 text-left">
         <div class="min-w-0">
-          <p class="text-label font-bold text-content leading-tight tabular-nums">
+          <p class="text-label font-bold text-content leading-tight tabular-nums whitespace-nowrap">
             {#if setRun.done}
               Done
             {:else if setRunPhase(setRun) === 'leadIn'}
@@ -998,7 +1004,7 @@
               Set {setRun.currentSet}
             {/if}
           </p>
-          <p class="text-caption text-content-subtle tabular-nums leading-tight">
+          <p class="text-caption text-content-subtle tabular-nums leading-tight whitespace-nowrap">
             {setRun.completed.length}/{spec.sets} sets done
           </p>
         </div>
@@ -1017,11 +1023,11 @@
            get the big view back. -->
       <button onclick={() => expanded = true} class="flex items-center gap-3 pr-1 text-left">
         <div class="min-w-0">
-          <p class="text-label font-bold text-content leading-tight tabular-nums">
+          <p class="text-label font-bold text-content leading-tight tabular-nums whitespace-nowrap">
             {intervalFinished ? 'Done' : phaseLabel(position.step?.phase ?? 'leadIn', workLabel)}
             {#if !intervalFinished}<span class="text-content-subtle"> {position.remaining}s</span>{/if}
           </p>
-          <p class="text-caption text-content-subtle tabular-nums leading-tight">
+          <p class="text-caption text-content-subtle tabular-nums leading-tight whitespace-nowrap">
             S{progress.currentSet}/{spec.sets} &middot; R{progress.currentRep}/{spec.reps}
           </p>
         </div>
@@ -1065,5 +1071,13 @@
         </button>
       </div>
     {/if}
+    <button
+      onclick={() => trainingState.setTimerPillHidden(true)}
+      class="w-8 h-8 -ml-1 rounded-full flex items-center justify-center text-content-subtle hover:text-content transition-colors"
+      aria-label="Hide the timer"
+      title="Hide - it keeps running"
+    >
+      <Icon icon="ic:baseline-keyboard-arrow-down" class="text-xl" />
+    </button>
   </div>
 </div>

@@ -45,6 +45,8 @@ public class TimerForegroundService extends Service {
     static final String ACTION_PAUSE = "com.climbingtracker.timerservice.PAUSE";
     static final String ACTION_RESUME = "com.climbingtracker.timerservice.RESUME";
     static final String ACTION_ADD30 = "com.climbingtracker.timerservice.ADD30";
+    static final String ACTION_SESSION_PAUSE = "com.climbingtracker.timerservice.SESSION_PAUSE";
+    static final String ACTION_SESSION_RESUME = "com.climbingtracker.timerservice.SESSION_RESUME";
     static final String EXTRA_CONFIG = "config";
 
     private static final String CHANNEL_ID = "timer_live";
@@ -78,6 +80,8 @@ public class TimerForegroundService extends Service {
         long startedAt; // 0 = not a count-up
         String title;
         String body;
+        /** This segment's own buttons (the session's, after a timer); null = the plan's. */
+        List<String> actions;
     }
 
     private static final class Cue {
@@ -116,6 +120,8 @@ public class TimerForegroundService extends Service {
             resumeFromNotification();
         } else if (ACTION_ADD30.equals(action)) {
             add30FromNotification();
+        } else if (ACTION_SESSION_PAUSE.equals(action) || ACTION_SESSION_RESUME.equals(action)) {
+            sessionFromNotification(ACTION_SESSION_PAUSE.equals(action));
         } else if (intent != null && intent.hasExtra(EXTRA_CONFIG)) {
             applyConfig(intent.getStringExtra(EXTRA_CONFIG));
         }
@@ -154,6 +160,11 @@ public class TimerForegroundService extends Service {
                     seg.startedAt = s.optLong("startedAt", 0);
                     seg.title = s.optString("title", "Timer");
                     seg.body = s.optString("body", "");
+                    JSONArray segActions = s.optJSONArray("actions");
+                    if (segActions != null) {
+                        seg.actions = new ArrayList<>();
+                        for (int k = 0; k < segActions.length(); k++) seg.actions.add(segActions.getString(k));
+                    }
                     segments.add(seg);
                 }
             }
@@ -278,6 +289,27 @@ public class TimerForegroundService extends Service {
         notifyListener("add30", now);
     }
 
+    /**
+     * Session pause/resume: the page owns the session, so this only reports
+     * it and shows it straight away (the clock frozen, or running on from
+     * where it stopped); the page answers with a fresh plan.
+     */
+    private void sessionFromNotification(boolean pause) {
+        long now = System.currentTimeMillis();
+        Segment seg = currentSegment(now);
+        if (seg != null && seg.actions != null) {
+            if (pause && seg.startedAt > 0) {
+                seg.body = "Paused · " + format(now - seg.startedAt) + " · " + seg.body;
+                seg.startedAt = 0;
+                seg.actions = new ArrayList<>(java.util.Collections.singletonList("sessionResume"));
+            } else if (!pause) {
+                seg.actions = new ArrayList<>(java.util.Collections.singletonList("sessionPause"));
+            }
+            render();
+        }
+        notifyListener(pause ? "sessionPause" : "sessionResume", now);
+    }
+
     private void notifyListener(String kind, long at) {
         long seq;
         synchronized (TimerForegroundService.class) {
@@ -397,11 +429,13 @@ public class TimerForegroundService extends Service {
         }
 
         int code = 1;
-        for (String a : actions) {
+        for (String a : (seg.actions != null ? seg.actions : actions)) {
             switch (a) {
                 case "pause": b.addAction(0, "Pause", actionIntent(ACTION_PAUSE, code++)); break;
                 case "resume": b.addAction(0, "Resume", actionIntent(ACTION_RESUME, code++)); break;
                 case "add30": b.addAction(0, "+30 s", actionIntent(ACTION_ADD30, code++)); break;
+                case "sessionPause": b.addAction(0, "Pause session", actionIntent(ACTION_SESSION_PAUSE, code++)); break;
+                case "sessionResume": b.addAction(0, "Resume session", actionIntent(ACTION_SESSION_RESUME, code++)); break;
                 default: break;
             }
         }
