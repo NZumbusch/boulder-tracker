@@ -23,16 +23,16 @@
     <p class="text-caption text-content-subtle px-1 leading-relaxed">What you can log in a workout, and how it's grouped on charts.</p>
   </div>
 
-  <div class="flex bg-surface-elevated/50 rounded-control border border-border p-1">
+  <div class="seg p-1">
     <button
       onclick={() => subTab = 'modalities'}
-      class="flex-1 py-2 rounded-control text-label transition-all {subTab === 'modalities' ? 'bg-primary text-white shadow-lg' : 'text-content-muted hover:text-content'}"
+      class="seg-item flex-1 py-1.5 text-label {subTab === 'modalities' ? 'seg-on' : 'hover:text-content'}"
     >
       Modalities
     </button>
     <button
       onclick={() => subTab = 'categories'}
-      class="flex-1 py-2 rounded-control text-label transition-all {subTab === 'categories' ? 'bg-primary text-white shadow-lg' : 'text-content-muted hover:text-content'}"
+      class="seg-item flex-1 py-1.5 text-label {subTab === 'categories' ? 'seg-on' : 'hover:text-content'}"
     >
       Analytics Categories
     </button>

@@ -47,9 +47,9 @@
     </p>
   </div>
 
-  <div class="space-y-1.5">
+  <div class="divide-y divide-border">
     {#each CATEGORIES as category}
-      <label class="flex items-center justify-between gap-3 p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 cursor-pointer">
+      <label class="flex items-center justify-between gap-3 py-3 cursor-pointer">
         <div class="min-w-0">
           <p class="text-body text-content">{category.label}</p>
           <p class="text-caption text-content-subtle mt-0.5">{category.description}</p>
@@ -64,7 +64,7 @@
     {/each}
   </div>
 
-  <div class="space-y-2.5 p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30">
+  <div class="space-y-2.5 pt-3 border-t border-border">
     <div>
       <p class="text-body text-content">Training History</p>
       <p class="text-caption text-content-subtle mt-0.5">Recent weeks go session by session; older weeks as one line each (sessions, minutes per category, load, average ratings). The AI Coach can change this per request.</p>
