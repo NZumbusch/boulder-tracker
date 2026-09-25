@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { motionMs, scrollBehavior } from '../../lib/motion';
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -304,7 +305,7 @@
   );
   /** Tapping a day in the strip: jump to its sessions, or start a new one on an empty day. */
   function onStripDay(day: DayOfWeek, hasSessions: boolean) {
-    if (hasSessions) document.getElementById(`plan-day-${day}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (hasSessions) document.getElementById(`plan-day-${day}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
     else handleAddWorkout(trainingState.selectedWeekId!, day);
   }
   /** Normally only days with sessions are listed; arranging shows them all, as drop targets. */
@@ -574,7 +575,7 @@
               <h5 class="text-caption uppercase tracking-wide text-content-subtle pt-1">{dayHeading(dayKey)}</h5>
               <div
                 class="divide-y divide-border rounded-control transition-colors {arranging ? 'min-h-[2.25rem]' : ''}"
-                use:dragHandleZone={{ items: dayGroups[dayKey], flipDurationMs: 200, dragDisabled: !arranging, delayTouchStart: true, dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
+                use:dragHandleZone={{ items: dayGroups[dayKey], flipDurationMs: motionMs(200), dragDisabled: !arranging, delayTouchStart: true, dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
                 onconsider={(e) => handleDndConsider(dayKey, e)}
                 onfinalize={(e) => handleDndFinalize(dayKey, e)}
               >

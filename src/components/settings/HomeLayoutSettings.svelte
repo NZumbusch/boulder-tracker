@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { motionMs } from '../../lib/motion';
   /**
    * Appearance -> Home: the Fatigue card's chart style, and Home section
    * visibility + reorder. Split out of the old single
@@ -67,7 +68,7 @@
     <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide. Open a section to choose what it shows.</p>
     <div
       class="space-y-1.5"
-      use:dragHandleZone={{ items, flipDurationMs: 150, dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
+      use:dragHandleZone={{ items, flipDurationMs: motionMs(150), dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
       onconsider={handleConsider}
       onfinalize={handleFinalize}
     >

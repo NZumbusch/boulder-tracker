@@ -280,9 +280,15 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  /* Native controls (selects, date pickers, checkboxes, scrollbars)
+     follow the theme - light mode used to get dark date pickers. */
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {

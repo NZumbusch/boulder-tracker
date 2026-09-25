@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { motionMs } from '../../lib/motion';
   /**
    * A user-ordered, individually hideable list in Settings - drag the
    * handle to reorder, tick to show. Used for the Analytics cards and the
@@ -40,7 +41,7 @@
   </div>
   <div
     class="space-y-1.5"
-    use:dragHandleZone={{ items, flipDurationMs: 150, dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
+    use:dragHandleZone={{ items, flipDurationMs: motionMs(150), dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
     onconsider={consider}
     onfinalize={finalize}
   >

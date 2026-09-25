@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+  import { motionReduced } from '../../lib/motion';
   import { trainingState } from '../../lib/state.svelte';
   import type { Workout, ExerciseTypeDef, ExerciseCategory } from '../../lib/types';
   import { estimateSlotDuration, DEFAULT_EXERCISE_MINUTES } from '../../lib/planning/sessionDuration';
@@ -140,7 +141,7 @@
   // options, the chosen benchmark).
   let panelsEl = $state<HTMLElement | null>(null);
   function slideIn(from: SwipeDirection) {
-    if (!panelsEl?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    if (!panelsEl?.animate || motionReduced()) return;
     const dx = from === 'prev' ? -32 : 32;
     panelsEl.animate(
       [{ transform: `translateX(${dx}px)`, opacity: 0.35 }, { transform: 'none', opacity: 1 }],
