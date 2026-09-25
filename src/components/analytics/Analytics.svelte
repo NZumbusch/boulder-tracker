@@ -295,6 +295,8 @@
   // single "now" snapshot ("Home = now, Analytics = history, no duplicated
   // panels").
   const fatigueSamples = $derived(buckets.map((b) => {
+    // Nothing to sample in a column that hasn't started yet.
+    if (b.startDay > today) return { weekId: b.id };
     const decay = computeFatigueDecay(trainingState.completedWorkouts, new Date(b.endDay * 86400000), trainingState.fatigueHalfLife);
     return { weekId: b.id, fingers: decay.fingers, arms: decay.arms, core: decay.core, systemic: decay.systemic };
   }));
@@ -460,7 +462,7 @@
 
       {#snippet outdoorSection()}
       <div id="section-outdoor" class="scroll-mt-4">
-        <OutdoorAscentsPanel weeks={outdoorAscentData.weeks} {weekLabels} unparsedCount={outdoorAscentData.unparsedCount} labelStep={axisStep} />
+        <OutdoorAscentsPanel weeks={outdoorAscentData.weeks} {weekLabels} unparsedCount={outdoorAscentData.unparsedCount} />
       </div>
       {/snippet}
 

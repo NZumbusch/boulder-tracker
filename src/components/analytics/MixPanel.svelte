@@ -1,160 +1,150 @@
 <script lang="ts">
-  /** Training Mix: each week's minutes per analytics category, stacked, with display options. */
+  /**
+   * Training Mix: minutes per analytics category - the whole window as one
+   * share bar on top (where the time actually went), then each column
+   * stacked below it.
+   *
+   * Display options sit inline rather than in a dropdown: share vs minutes,
+   * and done-only vs including what is still planned. The legend is the
+   * category filter. Tap or hover a column for its breakdown.
+   */
   import { trainingState } from '../../lib/state.svelte';
-  import { ChartTips, isTapPointer, isKeyboardActivation } from '../../lib/analytics/chartTips.svelte';
+  import type { ChartTips } from '../../lib/analytics/chartTips.svelte';
+  import { ColumnPicker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel } from '../../lib/analytics/chartWindow';
   import type { ChartData } from './chartTypes';
-  import Icon from "@iconify/svelte";
 
-  let { chartData, axisStep, tips }: { chartData: ChartData; axisStep: number; tips: ChartTips } = $props();
+  // `tips` is accepted for a uniform panel API; this chart reads out through its column picker instead.
+  let { chartData, axisStep }: { chartData: ChartData; axisStep: number; tips?: ChartTips } = $props();
 
-  const categories = $derived(trainingState.analyticsCategories);
+  const categories = $derived(trainingState.analyticsCategories.filter((c) => !c.archived));
   let showRelative = $state(true);
-  let showSettings = $state(false);
   let includePlanned = $state(true);
   let hiddenCategoryIds = $state<Set<string>>(new Set());
-  const visibleCategories = $derived(categories.filter(c => !hiddenCategoryIds.has(c.id)));
-  const maxVisibleDuration = $derived(Math.max(...chartData.weeks.map(w => visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? w.categories[cat.name] : w.completedCategories[cat.name]) || 0), 0)), 1));
+  const visibleCategories = $derived(categories.filter((c) => !hiddenCategoryIds.has(c.id)));
+
+  function toggleCategory(id: string) {
+    const next = new Set(hiddenCategoryIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    hiddenCategoryIds = next;
+  }
+
+  const minutesOf = (week: ChartData['weeks'][number], name: string) =>
+    (includePlanned ? week.categories[name] : week.completedCategories[name]) || 0;
+
+  /** Per column: each visible category's minutes, and their total. */
+  const columns = $derived(chartData.weeks.map((week) => {
+    const parts = visibleCategories.map((c) => ({ cat: c, minutes: minutesOf(week, c.name) })).filter((p) => p.minutes > 0);
+    return { week, parts, total: parts.reduce((a, p) => a + p.minutes, 0) };
+  }));
+  const maxTotal = $derived(Math.max(1, ...columns.map((c) => c.total)));
+
+  /** The whole window, per category (all categories, so hidden ones keep their chip and share). */
+  const windowShares = $derived.by(() => {
+    const totals = categories.map((c) => ({ cat: c, minutes: chartData.weeks.reduce((a, w) => a + minutesOf(w, c.name), 0) }));
+    const visibleTotal = totals.filter((t) => !hiddenCategoryIds.has(t.cat.id)).reduce((a, t) => a + t.minutes, 0);
+    return totals.map((t) => ({ ...t, share: visibleTotal > 0 && !hiddenCategoryIds.has(t.cat.id) ? t.minutes / visibleTotal : 0 }));
+  });
+  const windowTotal = $derived(windowShares.reduce((a, t) => a + (hiddenCategoryIds.has(t.cat.id) ? 0 : t.minutes), 0));
+
+  const picker = new ColumnPicker(() => chartData.weeks.length);
+  $effect(() => picker.listen());
+  const selected = $derived(picker.selected !== null ? columns[picker.selected] : null);
+
+  const hours = (minutes: number) => (minutes >= 600 ? `${Math.round(minutes / 60)} h` : `${(minutes / 60).toFixed(1)} h`);
 </script>
 
-<div id="section-mix" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative z-30">
-  <!-- No z-index here. The card is `relative z-30`, which makes it a
-       stacking context, so everything inside it is ranked against
-       everything else inside it - and a z-50 on this row put the title
-       and the Options button *above* the chart's tooltips, which is
-       what made them look transparent. The Options dropdown does not
-       need it: its own wrapper below is `relative z-50` and lifts the
-       panel on its own. -->
-  <div class="flex items-start justify-between gap-3 relative">
+<div id="section-mix" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+  <div class="flex items-start justify-between gap-3">
     <div class="min-w-0">
       <h3 class="text-section uppercase text-content-muted">Training Mix</h3>
-      <p class="text-caption text-content-subtle mt-0.5">Breakdown by category</p>
+      <p class="text-caption text-content-subtle mt-0.5">{windowTotal > 0 ? `${hours(windowTotal)} in this window` : 'Time by category'}</p>
     </div>
-
-    <div class="shrink-0">
-      <div class="relative z-50">
-        <button
-          onclick={() => showSettings = !showSettings}
-          class="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-elevated/50 hover:bg-surface-elevated border border-border-strong/50 rounded-control transition-colors text-caption text-content-muted hover:text-content"
-          aria-label="Graph settings"
-        >
-          <Icon icon="ic:baseline-tune" class="text-sm" />
-          Options
-        </button>
-
-        {#if showSettings}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="fixed inset-0 z-40" onclick={() => showSettings = false}></div>
-          <!-- Anchored right: the trigger now sits at the card's right
-               edge, so a left-anchored panel would hang off-screen. -->
-          <div class="absolute top-full right-0 mt-2 w-56 bg-surface border border-border-strong rounded-card shadow-card z-50 p-3 space-y-4 animate-in fade-in zoom-in-95 origin-top-right">
-
-            <div class="space-y-2">
-              <h4 class="text-section uppercase text-content-subtle mb-2 px-1">Display Mode</h4>
-              <label class="flex items-center justify-between cursor-pointer group px-1">
-                <span class="text-label text-content-muted">Relative (%)</span>
-                <div class="relative inline-flex items-center">
-                  <input type="checkbox" bind:checked={showRelative} class="sr-only peer" />
-                  <div class="w-8 h-4 bg-surface-elevated-hover rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary-hover"></div>
-                </div>
-              </label>
-              <label class="flex items-center justify-between cursor-pointer group px-1">
-                <span class="text-label text-content-muted">Include Planned</span>
-                <div class="relative inline-flex items-center">
-                  <input type="checkbox" bind:checked={includePlanned} class="sr-only peer" />
-                  <div class="w-8 h-4 bg-surface-elevated-hover rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-success-hover"></div>
-                </div>
-              </label>
-            </div>
-
-            <div class="border-t border-border pt-3">
-              <h4 class="text-section uppercase text-content-subtle mb-2 px-1">Visible Categories</h4>
-              <div class="space-y-1">
-                {#each categories as cat}
-                  <label class="flex items-center gap-3 p-1.5 hover:bg-surface-elevated rounded-control cursor-pointer transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={!hiddenCategoryIds.has(cat.id)}
-                      onchange={(e) => {
-                        if (e.currentTarget.checked) {
-                          hiddenCategoryIds.delete(cat.id);
-                        } else {
-                          hiddenCategoryIds.add(cat.id);
-                        }
-                        hiddenCategoryIds = new Set(hiddenCategoryIds);
-                      }}
-                      class="w-3.5 h-3.5 bg-surface-elevated border-border-strong rounded text-primary focus:ring-primary/50 focus:ring-offset-surface"
-                    />
-                    <div class="w-2.5 h-2.5 rounded-full {cat.color}"></div>
-                    <span class="text-label text-content">{cat.name}</span>
-                  </label>
-                {/each}
-              </div>
-            </div>
-          </div>
-        {/if}
+    <div class="flex flex-col items-end gap-1 shrink-0">
+      <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
+        <button onclick={() => (showRelative = true)} class="px-2 py-0.5 text-caption rounded-control {showRelative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Share</button>
+        <button onclick={() => (showRelative = false)} class="px-2 py-0.5 text-caption rounded-control {!showRelative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Minutes</button>
+      </div>
+      <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
+        <button onclick={() => (includePlanned = false)} class="px-2 py-0.5 text-caption rounded-control {!includePlanned ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Done</button>
+        <button onclick={() => (includePlanned = true)} class="px-2 py-0.5 text-caption rounded-control {includePlanned ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">+ Planned</button>
       </div>
     </div>
   </div>
 
-  <div class="space-y-2">
-    <div class="h-40 flex items-end justify-between gap-px relative">
-      {#each chartData.weeks as week, wi}
-        {@const visibleTotalDuration = visibleCategories.reduce((acc, cat) => acc + ((includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0), 0)}
-        {@const weekHeightPercent = showRelative ? (visibleTotalDuration > 0 ? 100 : 0) : (visibleTotalDuration / maxVisibleDuration) * 100}
-        {@const activeCat = visibleCategories.find((c) => tips.isOpen(`mix-${wi}-${c.id}`))}
-        <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
-          <!-- Segments carry the category colours, so the bar itself
-               stays flat: no shadow, no per-segment borders, hairline
-               1px separators only. -->
-          <div class="w-[62%] max-w-[16px] flex flex-col-reverse rounded-[2px] overflow-hidden justify-end transition-[height] duration-500"
-               style="height: {weekHeightPercent}%">
-            {#each visibleCategories as cat}
-              {@const catDuration = (includePlanned ? week.categories[cat.name] : week.completedCategories[cat.name]) || 0}
-              {#if catDuration > 0 && visibleTotalDuration > 0}
-                <button
-                  type="button"
-                  data-tip-trigger
-                  onpointerup={(e) => { if (isTapPointer(e)) tips.toggle(`mix-${wi}-${cat.id}`); }}
-                  onclick={(e) => { if (isKeyboardActivation(e)) tips.toggle(`mix-${wi}-${cat.id}`); }}
-                  onpointerenter={(e) => { if (!isTapPointer(e)) tips.open(`mix-${wi}-${cat.id}`); }}
-                  onpointerleave={(e) => { if (!isTapPointer(e)) tips.closeIf(`mix-${wi}-${cat.id}`); }}
-                  aria-label="{cat.name}, {Math.round(catDuration)} minutes in {week.label}"
-                  class="{cat.color} w-full relative block"
-                  style="height: {(catDuration / visibleTotalDuration) * 100}%"
-                ></button>
-              {/if}
+  {#if windowTotal > 0}
+    <!-- The window at a glance: one bar, where the time went. -->
+    <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px]">
+      {#each windowShares as t (t.cat.id)}
+        {#if t.share > 0}
+          <div class="{t.cat.color} h-full" style="width: {t.share * 100}%" title="{t.cat.name} {Math.round(t.share * 100)}%"></div>
+        {/if}
+      {/each}
+    </div>
+  {/if}
+
+  <!-- Legend is the filter; share of the window beside each. Categories
+       with no time in the window are left out. -->
+  <div class="flex flex-wrap gap-1.5">
+    {#each windowShares as t (t.cat.id)}
+      {#if t.minutes > 0}
+        <button
+          onclick={() => toggleCategory(t.cat.id)}
+          aria-pressed={!hiddenCategoryIds.has(t.cat.id)}
+          class="flex items-center gap-1.5 px-2 py-0.5 rounded-control border border-border text-caption transition-opacity {hiddenCategoryIds.has(t.cat.id) ? 'opacity-40' : ''}"
+        >
+          <span class="w-2 h-2 rounded-full {t.cat.color}"></span>
+          <span class="text-content-muted">{t.cat.name}</span>
+          {#if t.share > 0}<span class="text-content tabular-nums">{Math.round(t.share * 100)}%</span>{/if}
+        </button>
+      {/if}
+    {/each}
+  </div>
+
+  <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
+    {#if selected}
+      <span>{selected.week.label}</span>
+      {#if selected.total === 0}
+        <span class="text-content-subtle"> · nothing logged</span>
+      {:else}
+        <span class="text-content-subtle"> · {hours(selected.total)}</span>
+        {#each [...selected.parts].sort((a, b) => b.minutes - a.minutes).slice(0, 3) as p (p.cat.id)}
+          <span class="ml-2 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full {p.cat.color}"></span>{p.cat.name} {Math.round((p.minutes / selected.total) * 100)}%</span>
+        {/each}
+      {/if}
+    {:else}
+      <span class="text-content-subtle/70">Tap a column for its breakdown</span>
+    {/if}
+  </div>
+
+  <div>
+    <div
+      bind:this={picker.el}
+      class="h-36 flex items-end gap-px cursor-crosshair select-none"
+      role="presentation"
+      onpointermove={picker.move}
+      onpointerleave={picker.leave}
+      onpointerup={picker.tap}
+    >
+      {#each columns as col, i (col.week.id)}
+        {@const height = showRelative ? (col.total > 0 ? 100 : 0) : (col.total / maxTotal) * 100}
+        {@const dim = picker.selected !== null && picker.selected !== i}
+        <div class="flex-1 h-full flex justify-center items-end">
+          <div
+            class="w-[62%] max-w-[16px] flex flex-col-reverse gap-[1.5px] transition-[height,opacity] duration-300 {dim ? 'opacity-40' : ''}"
+            style="height: {height}%"
+          >
+            {#each col.parts as p (p.cat.id)}
+              <div class="{p.cat.color} w-full rounded-[2px] min-h-[2px]" style="height: {(p.minutes / col.total) * 100}%"></div>
             {/each}
           </div>
-
-          <!-- The tooltip lives out here, not inside the segment that
-               triggers it: the bar clips its children (`overflow-hidden`,
-               which is what rounds the stack's corners), so a tooltip
-               rendered inside a segment was cut off the moment it grew
-               past it - which is always. Sitting in the week column
-               instead, it is anchored just above the bar's top and is
-               clipped by nothing. Hover therefore has to be driven in
-               JS too, since `:hover` on the segment can no longer reach
-               it. Edge columns anchor to their side so a wide label
-               doesn't run off the chart. -->
-          {#if activeCat}
-            {@const activeDuration = (includePlanned ? week.categories[activeCat.name] : week.completedCategories[activeCat.name]) || 0}
-            <div
-              class="absolute px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none z-40 whitespace-nowrap shadow-card border border-border
-                {wi <= 1 ? 'left-0' : wi >= chartData.weeks.length - 2 ? 'right-0' : 'left-1/2 -translate-x-1/2'}"
-              style="bottom: calc({weekHeightPercent}% + 0.5rem);"
-            >
-              {activeCat.name}: {Math.round(activeDuration)} min
-            </div>
-          {/if}
         </div>
       {/each}
     </div>
-
-    <div class="border-t border-border-strong/60"></div>
-    <div class="flex justify-between gap-px">
-      {#each chartData.weeks as week, i}
+    <div class="border-t border-border-strong/60 mt-1"></div>
+    <div class="flex gap-px">
+      {#each chartData.weeks as week, i (week.id)}
         <div class="flex-1 flex justify-center">
           {#if showsLabel(i, chartData.weeks.length, axisStep)}
             <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">{week.label}</span>
@@ -162,14 +152,5 @@
         </div>
       {/each}
     </div>
-  </div>
-
-  <div class="flex flex-wrap gap-x-3 gap-y-1.5 pt-1 relative z-10">
-    {#each visibleCategories as cat}
-      <div class="flex items-center gap-1.5">
-        <div class="w-2 h-2 rounded-[2px] {cat.color}"></div>
-        <span class="text-caption text-content-subtle">{cat.name}</span>
-      </div>
-    {/each}
   </div>
 </div>
