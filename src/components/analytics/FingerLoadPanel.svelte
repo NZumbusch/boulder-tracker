@@ -49,7 +49,7 @@
   const selected = $derived(picker.selected !== null ? withRamp[picker.selected] : null);
 </script>
 
-<div id="section-fingerLoad" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+<div id="section-fingerLoad" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div>
       <h3 class="text-section uppercase text-content-muted">Finger Load</h3>

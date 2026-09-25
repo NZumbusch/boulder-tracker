@@ -50,7 +50,7 @@
   const fmtDay = (day: number) => new Date(`${dayIndexToIso(day)}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 </script>
 
-<div id="section-pain" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+<div id="section-pain" class="scroll-mt-4 card space-y-3">
   <div>
     <h3 class="text-section uppercase text-content-muted">Pain</h3>
     <p class="text-caption text-content-subtle mt-0.5">By body part over daily load · ringed: load spike that week or the one before</p>

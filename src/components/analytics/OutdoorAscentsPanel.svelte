@@ -116,7 +116,7 @@
   const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+<div class="card space-y-3">
   <div>
     <h3 class="text-section uppercase text-content-muted">Outdoor Ascents</h3>
     <p class="text-caption text-content-subtle mt-0.5">

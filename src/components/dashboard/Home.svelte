@@ -36,7 +36,7 @@
   let showQuickLog = $state(false);
 </script>
 
-<div class="w-full max-w-lg space-y-5 animate-in fade-in duration-200 pb-24">
+<div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-24">
   <div class="flex items-center justify-between px-1">
     <div>
       <p class="text-caption text-content-subtle">{data.todayLabel}</p>
@@ -52,16 +52,16 @@
       {#if trainingState.quickLogActions.some((a) => a.visible)}
       <button
           onclick={() => showQuickLog = true}
-          class="p-2 bg-primary/10 rounded-control border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
+          class="p-2 rounded-control text-primary hover:bg-surface-elevated transition-colors"
           aria-label="Quick log: pain, bodyweight, send or benchmark"
           title="Quick log"
         >
-          <Icon icon="ic:baseline-plus" class="text-lg" />
+          <Icon icon="ic:baseline-plus" class="text-xl" />
         </button>
       {/if}
       <button
         onclick={() => trainingState.navigate('settings')}
-        class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-subtle hover:text-content transition-colors"
+        class="p-2 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
         aria-label="Settings"
       >
         <Icon icon="ic:baseline-settings" class="text-lg" />

@@ -275,7 +275,7 @@
   }
 </script>
 
-<div id="section-recoveryTrend" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+<div id="section-recoveryTrend" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div class="min-w-0">
       <h3 class="text-section uppercase text-content-muted">Recovery</h3>

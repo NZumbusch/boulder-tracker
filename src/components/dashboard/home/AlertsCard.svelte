@@ -42,8 +42,8 @@
 </script>
 
 {#if alerts.length > 0}
-  <div class="bg-surface/50 border border-status-caution/30 rounded-card p-5 shadow-card space-y-2.5">
-    <SectionHeader icon="ic:baseline-warning-amber" label="Alerts" />
+  <div class="card space-y-3">
+    <SectionHeader label="Alerts" />
     {#each alerts as alert (alert.id)}
       {#if alert.rateWorkoutId}
         <button onclick={() => rateSession(alert.rateWorkoutId!)} class="w-full flex items-start gap-2.5 text-left group">

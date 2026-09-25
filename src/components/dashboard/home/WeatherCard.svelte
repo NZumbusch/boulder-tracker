@@ -11,8 +11,8 @@
   let showFrictionReason = $state(false);
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
-  <SectionHeader icon="ic:baseline-cloud" label="Weather" />
+<div class="card space-y-3">
+  <SectionHeader label="Weather" />
   {#if !trainingState.homeLocation}
     <p class="text-caption text-content-subtle italic">Set a home location in Settings to see conditions here.</p>
   {:else if trainingState.homeWeather.unavailable}

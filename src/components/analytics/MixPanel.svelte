@@ -55,7 +55,7 @@
   const hours = (minutes: number) => (minutes >= 600 ? `${Math.round(minutes / 60)} h` : `${(minutes / 60).toFixed(1)} h`);
 </script>
 
-<div id="section-mix" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+<div id="section-mix" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div class="min-w-0">
       <h3 class="text-section uppercase text-content-muted">Training Mix</h3>

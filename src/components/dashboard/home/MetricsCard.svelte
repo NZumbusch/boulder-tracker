@@ -33,12 +33,18 @@
   function entriesFor(metricId: string): DailyMetricEntry[] {
     return loggedMetrics(trainingState.dailyMetrics).filter((m) => m.metricId === metricId).slice().sort((a, b) => a.date.localeCompare(b.date));
   }
-  function sparkHeightPercent(value: number, values: number[]): number {
-    if (values.length === 0) return 0;
+  /** Each metric in its Analytics Recovery-chart colour, so HRV is blue everywhere. */
+  const METRIC_COLOR: Record<string, string> = {
+    hrv: 'var(--color-primary)',
+    'sleep-score': 'var(--color-tertiary)',
+    rhr: 'var(--color-warning)',
+  };
+  /** A line-and-dots sparkline in a 0-100 box, min/max scaled. */
+  function sparkPath(values: number[]): { line: string; dots: string } {
     const min = Math.min(...values);
-    const max = Math.max(...values);
-    if (max === min) return 50;
-    return 10 + ((value - min) / (max - min)) * 80;
+    const range = Math.max(Math.max(...values) - min, 0.0001);
+    const pts = values.map((v, i) => `${(i / Math.max(values.length - 1, 1)) * 100},${90 - ((v - min) / range) * 80}`);
+    return { line: `M ${pts.join(' L ')}`, dots: pts.map((p) => `M ${p} h 0`).join(' ') };
   }
   // Bodyweight is stored in kg and shown/typed in the chosen weight unit.
   const isWeight = (metricId: string) => metricId === BODYWEIGHT_METRIC_ID;
@@ -69,14 +75,15 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
-  <SectionHeader icon="ic:baseline-favorite" label="Metrics" subtitle={`Sleep, HRV, resting heart rate${trainingState.homeDetails['metrics.bodyweight'] ? ', bodyweight' : ''}`} />
+<div class="card space-y-1">
+  <SectionHeader label="Metrics" subtitle={`Sleep, HRV, resting heart rate${trainingState.homeDetails['metrics.bodyweight'] ? ', bodyweight' : ''}`} />
+  <div class="divide-y divide-border">
   {#each QUICK_METRICS as def}
     {@const entry = todaysMetric(def.id)}
     {@const spark = entriesFor(def.id).slice(-7)}
-    <div class="flex items-center justify-between gap-3 p-2.5 bg-surface-elevated/40 rounded-control border border-border-strong/30">
+    <div class="flex items-center justify-between gap-3 py-2.5">
       <div class="min-w-0">
-        <p class="text-label text-content-subtle">{def.name}</p>
+        <p class="text-caption text-content-muted">{def.name}</p>
         {#if editingMetricId === def.id}
           <form onsubmit={(e) => { e.preventDefault(); saveMetric(def.id); }} class="flex items-center gap-2 mt-1">
             <input type="number" step="0.1" bind:value={draftValue} class="w-20 bg-surface-elevated text-content p-1.5 rounded-control border border-border-strong outline-none text-sm" />
@@ -84,8 +91,8 @@
             <button type="button" onclick={() => editingMetricId = null} class="p-1.5 text-content-subtle hover:text-content"><Icon icon="ic:baseline-close" class="text-sm" /></button>
           </form>
         {:else}
-          <button onclick={() => startEdit(def.id)} class="text-body text-content tabular-nums hover:text-primary transition-colors">
-            {entry ? metricText(def.id, entry.value, def.unit) : 'Log'}
+          <button onclick={() => startEdit(def.id)} class="tabular-nums transition-colors {entry ? 'text-body font-semibold text-content hover:text-primary' : 'text-label text-primary hover:text-primary-hover'}">
+            {entry ? metricText(def.id, entry.value, def.unit) : '+ Log today'}
           </button>
         {/if}
         {#if def.id === 'hrv' && hrvDelta !== undefined && hrvBaseline !== undefined && trainingState.homeDetails['metrics.hrvBaseline']}
@@ -104,12 +111,14 @@
         {/if}
       </div>
       {#if spark.length > 1 && trainingState.homeDetails['metrics.sparklines']}
-        <div class="h-8 flex items-end gap-0.5 shrink-0">
-          {#each spark as s}
-            <div class="w-1.5 rounded-t-control bg-primary/50" style="height: {sparkHeightPercent(s.value, spark.map((v) => v.value))}%"></div>
-          {/each}
-        </div>
+        {@const path = sparkPath(spark.map((v) => v.value))}
+        {@const color = METRIC_COLOR[def.id] ?? 'var(--color-content-muted)'}
+        <svg class="w-20 h-8 shrink-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <path d={path.line} fill="none" stroke={color} stroke-opacity="0.6" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+          <path d={path.dots} fill="none" stroke={color} stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+        </svg>
       {/if}
     </div>
   {/each}
+  </div>
 </div>

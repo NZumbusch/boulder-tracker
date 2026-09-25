@@ -37,8 +37,8 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
-  <SectionHeader icon={nextGoal?.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-flag'} label="Next Goal"
+<div class="card space-y-3">
+  <SectionHeader label="Next Goal"
   note={nextGoal && trainingState.homeDetails['competition.note'] ? { has: !!nextGoal.notes, open: () => goalNoteOpen = true, what: nextGoal.kind === 'trip' ? 'trip' : 'competition' } : undefined} />
   {#if nextGoal && daysUntilCompetition !== undefined}
     {@const length = goalLength(nextGoal)}

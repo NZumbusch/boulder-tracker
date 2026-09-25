@@ -37,8 +37,8 @@
   });
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
-  <SectionHeader icon="ic:baseline-trending-up" label="This Week" subtitle="Actual vs planned load"
+<div class="card space-y-3">
+  <SectionHeader label="This Week" subtitle="Actual vs planned load"
   note={trainingState.homeDetails['thisWeek.note'] ? { has: !!weekNote, open: () => noteOpen = true, what: 'week' } : undefined} />
   {#if trainingState.homeDetails['thisWeek.strip']}
     <div class="grid grid-cols-7 gap-1">
@@ -69,17 +69,19 @@
   {#if weeklyAdherence.plannedLoad > 0 || weeklyAdherence.actualLoad > 0}
     {@const percent = weeklyAdherence.plannedLoad > 0 ? Math.min(100, (weeklyAdherence.actualLoad / weeklyAdherence.plannedLoad) * 100) : 100}
     <div class="flex items-baseline justify-between gap-2">
-      <p class="text-metric text-content tabular-nums">{Math.round(weeklyAdherence.actualLoad)} <span class="text-caption text-content-subtle font-normal">of {Math.round(weeklyAdherence.plannedLoad)}</span></p>
+      <p class="text-metric text-content tabular-nums">{Math.round(weeklyAdherence.actualLoad)} <span class="text-caption text-content-subtle font-normal">{weeklyAdherence.plannedLoad > 0 ? `of ${Math.round(weeklyAdherence.plannedLoad)} load` : 'load'}</span></p>
       <div class="flex items-center gap-2 shrink-0">
         {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
           <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums {acwrZone.class}" title="Acute:chronic workload ratio - last 7 days vs the 28-day average">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>
         {/if}
-        <span class="text-label text-success">{Math.round(weeklyAdherence.completionRate * 100)}% logged</span>
+        <span class="text-caption text-content-subtle tabular-nums">{Math.round(weeklyAdherence.completionRate * 100)}% logged</span>
       </div>
     </div>
-    <div class="h-2.5 bg-surface-elevated rounded-control overflow-hidden border border-border-strong/30">
-      <div class="h-full bg-success rounded-control transition-all duration-700" style="width: {percent}%"></div>
-    </div>
+    {#if weeklyAdherence.plannedLoad > 0}
+      <div class="h-1.5 bg-surface-elevated rounded-full overflow-hidden">
+        <div class="h-full bg-success rounded-full transition-all duration-700" style="width: {percent}%"></div>
+      </div>
+    {/if}
   {:else}
     <div class="flex items-center justify-between gap-2">
       <p class="text-caption text-content-subtle italic">No load logged yet this week.</p>

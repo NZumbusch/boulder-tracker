@@ -32,7 +32,7 @@
   const signed = (pct: number) => `${pct >= 0 ? '+' : '−'}${Math.abs(Math.round(pct))}%`;
 </script>
 
-<div id="section-benchmarkOverview" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+<div id="section-benchmarkOverview" class="scroll-mt-4 card space-y-3">
   <div>
     <h3 class="text-section uppercase text-content-muted">All Benchmarks</h3>
     <p class="text-caption text-content-subtle mt-0.5">% change since your first test of each</p>

@@ -96,7 +96,7 @@
   const acwrRatioSegments = $derived(buildLineSegments(acwrOverlayPoints.map((p) => ({ x: p.x, y: p.ratioY }))));
 </script>
 
-<div id="section-load" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card relative">
+<div id="section-load" class="scroll-mt-4 card space-y-3 relative">
   <div class="relative z-10">
     <h3 class="text-section uppercase text-content-muted">Rolling Load</h3>
     <p class="text-caption text-content-subtle mt-0.5">Target vs actual, with acute:chronic ratio · tap a column for details</p>

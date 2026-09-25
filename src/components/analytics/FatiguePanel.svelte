@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { RATING_AXES } from '../../lib/constants';
+  import { RATING_AXES, FATIGUE_AXIS_COLORS } from '../../lib/constants';
   /**
    * Analytics' Fatigue panel. Home already shows fatigue "as of now" -
    * following the "Home = now, Analytics = history, no duplicated panels"
@@ -41,12 +41,7 @@
   const axisStep = $derived(labelStep(samples.length, plotWidth));
 
   type AxisKey = (typeof RATING_AXES)[number]['key'];
-  const COLORS: Record<AxisKey, string> = {
-    fingers: 'var(--color-warning)',
-    arms: 'var(--color-tertiary)',
-    core: 'var(--color-success)',
-    systemic: 'var(--color-primary)',
-  };
+  const COLORS = FATIGUE_AXIS_COLORS;
   /** Ratings at or above this read as high fatigue - shaded faintly. */
   const HIGH = 7;
 
@@ -97,7 +92,7 @@
   const readoutIndex = $derived(picker.selected ?? lastWithData);
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+<div class="card space-y-3">
   <div>
     <h3 class="text-section uppercase text-content-muted">Fatigue</h3>
     <p class="text-caption text-content-subtle mt-0.5">Decayed rating per area (0–10) · shaded: {HIGH}+</p>

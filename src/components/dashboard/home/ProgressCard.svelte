@@ -27,8 +27,8 @@
   const showConsistency = $derived(trainingState.homeDetails['progress.consistency'] && consistencyStats.due > 0);
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
-  <SectionHeader icon="ic:baseline-emoji-events" label="Progress" />
+<div class="card space-y-3">
+  <SectionHeader label="Progress" />
   {#if showConsistency}
     <div class="flex items-baseline justify-between gap-3">
       <p class="text-body text-content"><span class="text-metric tabular-nums">{consistencyStats.done}</span>{' '}<span class="text-content-subtle">of the last {consistencyStats.due} sessions done</span></p>

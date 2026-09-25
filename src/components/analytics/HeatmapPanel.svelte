@@ -52,7 +52,7 @@
   });
 </script>
 
-<div id="section-heatmap" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
+<div id="section-heatmap" class="scroll-mt-4 card space-y-3">
   <div>
     <h3 class="text-section uppercase text-content-muted">Training Calendar</h3>
     <p class="text-caption text-content-subtle mt-0.5">{trainingDays} training days in the year to {new Date(`${dayIndexToIso(lastDay)}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</p>
