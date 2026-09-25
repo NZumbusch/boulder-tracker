@@ -73,8 +73,9 @@
   });
 </script>
 
-{#if drawn.length > 0 || marks.length > 0}
-  <div bind:this={el} class="space-y-0.5">
+<!-- Always takes its row, even with no blocks or goals in the window, so
+     the chart under it doesn't jump while paging into unplanned weeks. -->
+<div bind:this={el} class="space-y-0.5">
     <div class="relative h-5" aria-label="Training blocks and goals">
       {#each drawn as s (s.key)}
         <button
@@ -116,5 +117,4 @@
         <Icon icon={activeInfo.icon} class="text-sm shrink-0" />{activeInfo.text}
       </p>
     {/if}
-  </div>
-{/if}
+</div>

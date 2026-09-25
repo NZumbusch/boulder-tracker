@@ -267,11 +267,10 @@
     </div>
   </div>
 
-  {#if windowAdherence !== undefined}
-    <p class="text-caption text-content-subtle relative z-10">
-      Adherence: <span class="text-content tabular-nums">{Math.round(windowAdherence * 100)}%</span> of planned exercises logged in completed sessions
-    </p>
-  {/if}
+  <!-- Always there ("–" with nothing completed) so the card keeps its height while paging. -->
+  <p class="text-caption text-content-subtle relative z-10">
+    Adherence: <span class="text-content tabular-nums">{windowAdherence !== undefined ? `${Math.round(windowAdherence * 100)}%` : '–'}</span> of planned exercises logged in completed sessions
+  </p>
 
   {#if acwrResults.length === 0}
     <p class="text-caption text-content-subtle italic text-center py-2">No completed sessions yet</p>

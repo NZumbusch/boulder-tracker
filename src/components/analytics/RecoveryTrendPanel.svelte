@@ -32,6 +32,7 @@
   import { formatWeight } from '../../lib/units';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import Icon from "@iconify/svelte";
+  import ChartEmpty from './ChartEmpty.svelte';
 
   let { firstDay, lastDay, today, timeline }: {
     /** First and last day index of the window (Monday of the first week, Sunday of the last). */
@@ -195,6 +196,9 @@
   });
 
   const hasAnyReading = $derived(metrics.some((m) => m.series.some((d) => d.value !== undefined)) || bodyweight !== null);
+  /** Whether anything was ever logged - decides the empty note, and keeps the weight lane in windows without a weigh-in. */
+  const everLogged = $derived(trainingState.dailyMetrics.length > 0);
+  const everWeighed = $derived(trainingState.dailyMetrics.some((m) => m.metricId === BODYWEIGHT_METRIC_ID));
 
   const readinessLine = $derived(segments(
     Array.from({ length: Math.max(drawnLast - firstDay + 1, 0) }, (_, i) => {
@@ -305,9 +309,6 @@
     </div>
   </div>
 
-  {#if !hasAnyReading}
-    <p class="text-caption text-content-subtle italic text-center py-6 px-4 leading-relaxed">Log HRV, sleep score, resting HR or bodyweight on Home to see how you recover</p>
-  {:else}
     <!-- Legend doubles as the metric filter. -->
     <div class="flex flex-wrap gap-1.5">
       {#each metrics as m (m.id)}
@@ -324,8 +325,8 @@
 
     <!-- Readout for the tapped day (or the latest), instead of a floating
          tooltip - it never has to fit beside a finger on a phone. -->
-    {#if readout}
-      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-caption tabular-nums min-h-[1.25rem]">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-caption tabular-nums min-h-[1.25rem]">
+      {#if readout}
         <span class="text-content-muted">{readout.date}</span>
         {#each readout.metrics as m (m.id)}
           {#if !hidden.has(m.id)}
@@ -336,8 +337,8 @@
             </span>
           {/if}
         {/each}
-      </div>
-    {/if}
+      {/if}
+    </div>
 
     <div class="flex gap-2">
       <div class="w-8 shrink-0"></div>
@@ -413,15 +414,15 @@
           {/if}
         </div>
       </div>
-      {#if bodyweight}
+      {#if bodyweight || everWeighed}
         <div class="flex gap-2 mt-2">
           <div class="w-8 shrink-0 text-caption leading-tight text-right text-content-subtle">Weight</div>
           <div class="flex-1 min-w-0 h-10 relative">
             <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <path d={bodyweight.dots} stroke="var(--color-content-muted)" stroke-opacity="0.5" stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
-              <path d={bodyweight.line} stroke="var(--color-content-muted)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
+              <path d={bodyweight?.dots} stroke="var(--color-content-muted)" stroke-opacity="0.5" stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
+              <path d={bodyweight?.line} stroke="var(--color-content-muted)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
             </svg>
-            {#if bodyweight.latest !== undefined}
+            {#if bodyweight?.latest !== undefined}
               <span class="absolute right-0 -top-1 text-caption leading-none text-content-subtle tabular-nums bg-surface/70 px-1 rounded">{formatWeight(bodyweight.latest, trainingState.units.weight)}</span>
             {/if}
             {#if readoutDay !== null}
@@ -462,17 +463,20 @@
           </div>
         </div>
       </div>
+      {#if !hasAnyReading}
+        <ChartEmpty>{everLogged ? 'No readings in this window' : 'Log HRV, sleep score, resting HR or bodyweight on Home to see how you recover'}</ChartEmpty>
+      {/if}
     </div>
 
-    {#if readout && (readout.readiness !== undefined || readout.load > 0 || readout.weight !== undefined)}
-      <p class="text-caption text-content-subtle tabular-nums">
+    <p class="text-caption text-content-subtle tabular-nums min-h-[1.25rem]">
+      {#if readout && (readout.readiness !== undefined || readout.load > 0 || readout.weight !== undefined)}
         {[
           readout.readiness !== undefined ? `Readiness ${Math.round(readout.readiness)}` : '',
           readout.weight !== undefined ? `Weight ${formatWeight(readout.weight, trainingState.units.weight)}` : '',
           readout.load > 0 ? `Load ${Math.round(readout.load)}` : '',
         ].filter(Boolean).join(' · ')}
-      </p>
-    {/if}
+      {/if}
+    </p>
 
     {#if insights.length > 0}
       <div class="space-y-1.5 pt-1 border-t border-border">
@@ -487,5 +491,4 @@
         {/each}
       </div>
     {/if}
-  {/if}
 </div>

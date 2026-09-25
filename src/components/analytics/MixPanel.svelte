@@ -13,6 +13,7 @@
   import { ColumnPicker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel } from '../../lib/analytics/chartWindow';
   import type { ChartData } from './chartTypes';
+  import ChartEmpty from './ChartEmpty.svelte';
 
   // `tips` is accepted for a uniform panel API; this chart reads out through its column picker instead.
   let { chartData, axisStep }: { chartData: ChartData; axisStep: number; tips?: ChartTips } = $props();
@@ -73,26 +74,27 @@
     </div>
   </div>
 
-  {#if windowTotal > 0}
-    <!-- The window at a glance: one bar, where the time went. -->
-    <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px]">
+  <!-- The window at a glance: one bar, where the time went (an empty
+       track in an empty window, so nothing below it moves). -->
+  <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px] bg-surface-elevated/60">
       {#each windowShares as t (t.cat.id)}
         {#if t.share > 0}
           <div class="{t.cat.color} h-full" style="width: {t.share * 100}%" title="{t.cat.name} {Math.round(t.share * 100)}%"></div>
         {/if}
       {/each}
-    </div>
-  {/if}
+  </div>
 
   <!-- Legend is the filter; share of the window beside each. Categories
-       with no time in the window are left out. -->
+       with no time in the window are left out - unless that's all of
+       them, when every chip shows, so an empty window keeps the legend's
+       height and the page doesn't jump while paging. -->
   <div class="flex flex-wrap gap-1.5">
     {#each windowShares as t (t.cat.id)}
-      {#if t.minutes > 0}
+      {#if t.minutes > 0 || windowTotal === 0}
         <button
           onclick={() => toggleCategory(t.cat.id)}
           aria-pressed={!hiddenCategoryIds.has(t.cat.id)}
-          class="flex items-center gap-1.5 px-2 py-0.5 rounded-control border border-border text-caption transition-opacity {hiddenCategoryIds.has(t.cat.id) ? 'opacity-40' : ''}"
+          class="flex items-center gap-1.5 px-2 py-0.5 rounded-control border border-border text-caption transition-opacity {hiddenCategoryIds.has(t.cat.id) || windowTotal === 0 ? 'opacity-40' : ''}"
         >
           <span class="w-2 h-2 rounded-full {t.cat.color}"></span>
           <span class="text-content-muted">{t.cat.name}</span>
@@ -114,14 +116,14 @@
         {/each}
       {/if}
     {:else}
-      <span class="text-content-subtle/70">Tap a column for its breakdown</span>
+      <span class="text-content-subtle/70" class:invisible={windowTotal === 0}>Tap a column for its breakdown</span>
     {/if}
   </div>
 
   <div>
     <div
       bind:this={picker.el}
-      class="h-36 flex items-end gap-px cursor-crosshair select-none"
+      class="h-36 relative flex items-end gap-px cursor-crosshair select-none"
       role="presentation"
       onpointerdown={picker.down}
       onpointermove={picker.move}
@@ -142,6 +144,7 @@
           </div>
         </div>
       {/each}
+      {#if windowTotal === 0}<ChartEmpty>{includePlanned ? 'Nothing done or planned in this window' : 'Nothing done in this window'}</ChartEmpty>{/if}
     </div>
     <div class="border-t border-border-strong/60 mt-1"></div>
     <div class="flex gap-px">

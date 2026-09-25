@@ -8,6 +8,7 @@
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import type { BenchmarkChangeSeries } from '../../lib/analytics/progress';
+  import ChartEmpty from './ChartEmpty.svelte';
 
   let { series, firstDay, lastDay }: { series: BenchmarkChangeSeries[]; firstDay: number; lastDay: number } = $props();
 
@@ -38,10 +39,7 @@
     <p class="text-caption text-content-subtle mt-0.5">% change since your first test of each</p>
   </div>
 
-  {#if colored.length === 0}
-    <p class="text-caption text-content-subtle italic text-center py-4">No benchmark results in this window</p>
-  {:else}
-    <div class="flex flex-wrap gap-x-3 gap-y-1">
+    <div class="flex flex-wrap gap-x-3 gap-y-1 min-h-[1.25rem]">
       {#each colored as s (s.typeKey)}
         <button
           onclick={() => (selected = selected === s.typeKey ? null : s.typeKey)}
@@ -56,9 +54,11 @@
 
     <div class="flex gap-2">
       <div class="w-9 shrink-0 h-36 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
-        <span>{signed(bounds.hi)}</span>
-        <span>{signed((bounds.hi + bounds.lo) / 2)}</span>
-        <span>{signed(bounds.lo)}</span>
+        {#if colored.length > 0}
+          <span>{signed(bounds.hi)}</span>
+          <span>{signed((bounds.hi + bounds.lo) / 2)}</span>
+          <span>{signed(bounds.lo)}</span>
+        {/if}
       </div>
       <div class="flex-1 min-w-0">
         <div class="h-36 relative">
@@ -72,6 +72,7 @@
               <path d={s.points.map((p) => `M ${xOf(p.day)},${yOf(p.pct)} h 0`).join(' ')} stroke={s.color} stroke-opacity={faded ? 0.2 : 1} stroke-width="6" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
             {/each}
           </svg>
+          {#if colored.length === 0}<ChartEmpty>No benchmark results in this window</ChartEmpty>{/if}
         </div>
         <div class="border-t border-border-strong/60"></div>
         <div class="relative h-4">
@@ -86,5 +87,4 @@
         </div>
       </div>
     </div>
-  {/if}
 </div>

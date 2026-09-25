@@ -11,6 +11,7 @@
   import { displayGrade } from '../../lib/sends/gradeScale';
   import { showsLabel, pickAxisTicks, labelStep as labelStepFor } from '../../lib/analytics/chartWindow';
   import { ColumnPicker } from '../../lib/analytics/columnPicker.svelte';
+  import ChartEmpty from './ChartEmpty.svelte';
 
   export interface WeekAscentPoint {
     id: string;
@@ -124,9 +125,8 @@
     </p>
   </div>
 
-  {#if hasAscents}
     <div class="text-caption min-h-[1.25rem] text-content-muted">
-      {#if selected}
+      {#if selected && hasAscents}
         <span>{weekLabels[selected.weekId] ?? ''}</span>
         {#if selected.ascents.length === 0}
           <span class="text-content-subtle"> · no sends</span>
@@ -135,7 +135,7 @@
             <span class="ml-2"><span class="text-content font-semibold">{G(a.grade)}</span>{a.name ? ` ${a.name}` : ''}{a.style ? ` · ${a.style}` : ''}</span>
           {/each}
         {/if}
-      {:else}
+      {:else if hasAscents}
         <span class="text-content-subtle/70">Tap a column for its sends</span>
       {/if}
     </div>
@@ -179,6 +179,7 @@
           {#if picker.selected !== null}
             <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(picker.selected)}%"></div>
           {/if}
+          {#if !hasAscents}<ChartEmpty>No outdoor ascents logged in this window</ChartEmpty>{/if}
         </div>
         <div class="border-t border-border-strong/60"></div>
         <div class="flex gap-px">
@@ -196,9 +197,6 @@
       <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full border-2 border-tertiary"></span><span class="text-caption text-content-subtle">Redpoint / other</span></div>
       <div class="flex items-center gap-1.5"><span class="w-3.5 h-0 border-t border-dashed border-tertiary"></span><span class="text-caption text-content-subtle">Hardest</span></div>
     </div>
-  {:else}
-    <p class="text-caption text-content-subtle italic text-center py-4">No outdoor ascents logged in this window</p>
-  {/if}
 
   {#if unparsedCount > 0}
     <p class="text-caption text-content-subtle italic">{unparsedCount} ascent{unparsedCount === 1 ? '' : 's'} in this window {unparsedCount === 1 ? 'has' : 'have'} a grade format that couldn't be plotted.</p>

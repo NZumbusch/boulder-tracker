@@ -56,10 +56,12 @@
     <p class="text-caption text-content-subtle mt-0.5">By body part over daily load · ringed: load spike that week or the one before</p>
   </div>
 
-  {#if rows.length === 0}
-    <p class="text-caption text-content-subtle italic text-center py-4">No pain logged in this window</p>
-  {:else}
     <div class="space-y-1">
+      <!-- An empty window keeps one row's worth of room, so the load strip
+           and the axis below stay put while paging. -->
+      {#if rows.length === 0}
+        <p class="h-6 flex items-center justify-center text-caption text-content-subtle italic">No pain logged in this window</p>
+      {/if}
       {#each rows as row (row.bodyPart)}
         <div class="flex items-center gap-2">
           <div class="w-20 shrink-0 text-caption text-content-muted truncate" title={row.bodyPart}>{row.bodyPart}</div>
@@ -111,8 +113,7 @@
       {#if selectedInfo}
         <span class="text-content-subtle">{selectedInfo.date}</span> · {selectedInfo.bodyPart} · {selectedInfo.severity}/10{selectedInfo.notes ? ` · ${selectedInfo.notes}` : ''}{selectedInfo.spike ? ' · load spike nearby' : ''}
       {:else}
-        <span class="text-content-subtle/70">Tap a dot for details</span>
+        <span class="text-content-subtle/70">{rows.length > 0 ? 'Tap a dot for details' : ''}</span>
       {/if}
     </p>
-  {/if}
 </div>

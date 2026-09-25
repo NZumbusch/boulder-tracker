@@ -13,6 +13,7 @@
   import { RAMP_RATE_SPIKE_THRESHOLD } from '../../lib/analytics/loadAnalytics';
   import { fingerCategoryIds } from '../../lib/analytics/proMetrics';
   import Icon from '@iconify/svelte';
+  import ChartEmpty from './ChartEmpty.svelte';
 
   let { columns, axisStep }: {
     columns: { id: string; label: string; isCurrent: boolean; finger: number; total: number }[];
@@ -86,9 +87,6 @@
     </div>
   {/if}
 
-  {#if !hasAny}
-    <p class="text-caption text-content-subtle italic text-center py-4">No finger-category exercises logged in this window</p>
-  {:else}
     <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
       {#if selected}
         {selected.label}
@@ -96,7 +94,7 @@
         {#if selected.share !== undefined}<span class="text-content-subtle"> · {Math.round(selected.share * 100)}% of total</span>{/if}
         {#if selected.ramp}<span class="{selected.spike ? 'text-status-risk' : 'text-content-subtle'}"> · {selected.ramp > 0 ? '+' : ''}{Math.round(selected.ramp * 100)}% vs before</span>{/if}
       {:else}
-        <span class="text-content-subtle/70">Tap a column for its values · ⚠ = more than {Math.round(RAMP_RATE_SPIKE_THRESHOLD * 100)}% up on the column before</span>
+        <span class="text-content-subtle/70" class:invisible={!hasAny}>Tap a column for its values · ⚠ = more than {Math.round(RAMP_RATE_SPIKE_THRESHOLD * 100)}% up on the column before</span>
       {/if}
     </div>
 
@@ -122,6 +120,7 @@
             </div>
           </div>
         {/each}
+        {#if !hasAny}<ChartEmpty>No finger-category exercises logged in this window</ChartEmpty>{/if}
       </div>
       <div class="border-t border-border-strong/60"></div>
       <div class="flex gap-px">
@@ -134,5 +133,4 @@
         {/each}
       </div>
     </div>
-  {/if}
 </div>

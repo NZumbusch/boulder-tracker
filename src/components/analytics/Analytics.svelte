@@ -162,6 +162,10 @@
       partial: spans.current.endDay < lastDay,
     };
   });
+  const summaryLogged = $derived.by(() => {
+    const ids = new Set(trainingState.dailyMetrics.map((m) => m.metricId));
+    return { hrv: ids.has('hrv'), rhr: ids.has('rhr'), sleep: ids.has('sleep-score'), sends: trainingState.outdoorAscents.length > 0 };
+  });
   const RANGE_WORDS: Record<typeof range, string> = { '4w': '4 weeks', '3m': '3 months', '6m': '6 months', '1y': 'year' };
   const comparisonLabel = $derived(
     summary.partial
@@ -415,7 +419,7 @@
   <!-- touch-action keeps vertical scrolling native while a sideways swipe
        pages the window (see lib/analytics/swipe.ts). -->
   <div class="space-y-4 touch-pan-y" bind:this={panelsEl} use:swipePaging={(d) => navigate(d)}>
-    <SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} />
+    <SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} logged={summaryLogged} />
 
     <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="tablist">
       {#each TABS as t}

@@ -14,6 +14,7 @@
    */
   import { ColumnPicker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel, labelStep } from '../../lib/analytics/chartWindow';
+  import ChartEmpty from './ChartEmpty.svelte';
 
   export interface FatigueWeekSample {
     weekId: string;
@@ -98,11 +99,6 @@
     <p class="text-caption text-content-subtle mt-0.5">Decayed rating per area (0–10) · shaded: {HIGH}+</p>
   </div>
 
-  {#if !hasAny}
-    <p class="text-caption text-content-subtle italic text-center py-4">
-      {coverage.total > 0 ? 'Rate fatigue after sessions to see it here' : 'No completed sessions in this window'}
-    </p>
-  {:else}
     <!-- Legend doubles as the filter; each chip carries the latest value. -->
     <div class="flex flex-wrap gap-1.5">
       {#each series as s (s.key)}
@@ -117,16 +113,16 @@
       {/each}
     </div>
 
-    {#if readoutIndex !== null}
-      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-caption tabular-nums min-h-[1.25rem]">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-caption tabular-nums min-h-[1.25rem]">
+      {#if readoutIndex !== null}
         <span class="text-content-muted">{weekLabels[samples[readoutIndex].weekId] ?? ''}</span>
         {#each series as s (s.key)}
           {#if !hidden.has(s.key)}
             <span><span style="color: {s.color}">●</span> <span class="text-content">{s.values[readoutIndex]?.toFixed(1) ?? '–'}</span></span>
           {/if}
         {/each}
-      </div>
-    {/if}
+      {/if}
+    </div>
 
     <div class="flex gap-2">
       <div class="w-6 shrink-0 h-40 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
@@ -155,6 +151,9 @@
           {#if readoutIndex !== null}
             <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(readoutIndex)}%"></div>
           {/if}
+          {#if !hasAny}
+            <ChartEmpty>{coverage.total > 0 ? 'Rate fatigue after sessions to see it here' : 'No completed sessions in this window'}</ChartEmpty>
+          {/if}
         </div>
         <div class="border-t border-border-strong/60"></div>
         <div class="flex gap-px">
@@ -172,5 +171,4 @@
     {#if coverage.total > 0 && coverage.arms < coverage.total}
       <p class="text-caption text-content-subtle/70">Arms rated on {coverage.arms} of {coverage.total} sessions in this window</p>
     {/if}
-  {/if}
 </div>

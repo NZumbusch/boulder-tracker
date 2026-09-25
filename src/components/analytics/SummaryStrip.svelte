@@ -10,11 +10,17 @@
   import { percentChange, type WindowStats } from '../../lib/analytics/windowSummary';
   import Icon from '@iconify/svelte';
 
-  let { current, previous, comparisonLabel }: {
+  let { current, previous, comparisonLabel, logged }: {
     current: WindowStats;
     previous?: WindowStats;
     /** e.g. "vs the 3 months before" - what the arrows compare against. */
     comparisonLabel: string;
+    /**
+     * Which optional tiles to show: ones ever logged, not ones with data in
+     * this window - so the strip keeps the same tiles (a "–" where the
+     * window has none) and doesn't jump while paging into empty weeks.
+     */
+    logged: { hrv: boolean; rhr: boolean; sleep: boolean; sends: boolean };
   } = $props();
 
   type Tile = { label: string; value: string; delta?: number; sense: 'neutral' | 'higher' | 'lower' };
@@ -30,10 +36,11 @@
       { label: 'Hours', value: hours(current.minutes), delta: percentChange(current.minutes, previous?.minutes), sense: 'neutral' },
       { label: 'Load', value: Math.round(current.load).toLocaleString(), delta: percentChange(current.load, previous?.load), sense: 'neutral' },
     ];
-    if (current.hrv !== undefined) t.push({ label: 'HRV', value: `${Math.round(current.hrv)}`, delta: percentChange(current.hrv, previous?.hrv), sense: 'higher' });
-    if (current.rhr !== undefined) t.push({ label: 'RHR', value: `${Math.round(current.rhr)}`, delta: percentChange(current.rhr, previous?.rhr), sense: 'lower' });
-    if (current.sleep !== undefined) t.push({ label: 'Sleep', value: `${Math.round(current.sleep)}`, delta: percentChange(current.sleep, previous?.sleep), sense: 'higher' });
-    if (current.sends > 0 || (previous?.sends ?? 0) > 0) t.push({ label: 'Sends', value: String(current.sends), delta: percentChange(current.sends, previous?.sends), sense: 'neutral' });
+    const mean = (v: number | undefined) => (v === undefined ? '–' : `${Math.round(v)}`);
+    if (logged.hrv) t.push({ label: 'HRV', value: mean(current.hrv), delta: percentChange(current.hrv, previous?.hrv), sense: 'higher' });
+    if (logged.rhr) t.push({ label: 'RHR', value: mean(current.rhr), delta: percentChange(current.rhr, previous?.rhr), sense: 'lower' });
+    if (logged.sleep) t.push({ label: 'Sleep', value: mean(current.sleep), delta: percentChange(current.sleep, previous?.sleep), sense: 'higher' });
+    if (logged.sends) t.push({ label: 'Sends', value: String(current.sends), delta: percentChange(current.sends, previous?.sends), sense: 'neutral' });
     return t;
   });
 
@@ -60,7 +67,6 @@
       </div>
     {/each}
   </div>
-  {#if previous}
-    <p class="text-caption text-content-subtle/70 px-1">{comparisonLabel}</p>
-  {/if}
+  <!-- The line stays (empty) when there's nothing to compare, e.g. a window in the future. -->
+  <p class="text-caption text-content-subtle/70 px-1 min-h-[1.25rem]">{previous ? comparisonLabel : ''}</p>
 </div>

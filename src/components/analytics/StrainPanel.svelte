@@ -9,6 +9,7 @@
   import { ColumnPicker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel } from '../../lib/analytics/chartWindow';
   import { MONOTONY_WARNING, type WeekStrain } from '../../lib/analytics/proMetrics';
+  import ChartEmpty from './ChartEmpty.svelte';
 
   let { columns, axisStep, monthly }: {
     columns: (WeekStrain & { id: string; label: string; isCurrent: boolean })[];
@@ -51,12 +52,11 @@
       <h3 class="text-section uppercase text-content-muted">Monotony & Strain</h3>
       <p class="text-caption text-content-subtle mt-0.5">Too few easy days shows as monotony above {MONOTONY_WARNING}{monthly ? ' · mean week per month' : ''}</p>
     </div>
-    {#if latest?.monotony !== undefined}
-      <div class="text-right shrink-0">
-        <p class="text-body font-semibold tabular-nums {latest.monotony >= MONOTONY_WARNING ? 'text-status-caution' : 'text-content'}">{latest.monotony.toFixed(1)}</p>
-        <p class="text-caption text-content-subtle">latest monotony</p>
-      </div>
-    {/if}
+    <!-- Always there ("–" when empty) so the header doesn't reflow between windows. -->
+    <div class="text-right shrink-0">
+      <p class="text-body font-semibold tabular-nums {(latest?.monotony ?? 0) >= MONOTONY_WARNING ? 'text-status-caution' : latest ? 'text-content' : 'text-content-subtle'}">{latest?.monotony?.toFixed(1) ?? '–'}</p>
+      <p class="text-caption text-content-subtle">latest monotony</p>
+    </div>
   </div>
 
   <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
@@ -66,7 +66,7 @@
       <span class="text-content-subtle"> · monotony</span> <span class="text-content">{selected.monotony?.toFixed(2) ?? '–'}</span>
       <span class="text-content-subtle"> · load</span> <span class="text-content">{Math.round(selected.load)}</span>
     {:else}
-      <span class="text-content-subtle/70">Tap a column for its values</span>
+      <span class="text-content-subtle/70" class:invisible={!columns.some((c) => c.load > 0)}>Tap a column for its values</span>
     {/if}
   </div>
 
@@ -92,6 +92,7 @@
       <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
         <path d={line} fill="none" stroke="var(--color-content-muted)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
       </svg>
+      {#if !columns.some((c) => c.load > 0)}<ChartEmpty>No training logged in this window</ChartEmpty>{/if}
     </div>
     <div class="border-t border-border-strong/60"></div>
     <div class="flex gap-px">

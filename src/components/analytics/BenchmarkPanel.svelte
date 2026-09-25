@@ -16,6 +16,7 @@
   import { relativeStrength } from '../../lib/analytics/proMetrics';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
   import { toUtcDayIndex } from '../../lib/dateUtils';
+  import ChartEmpty from './ChartEmpty.svelte';
 
   // `tips` is accepted for a uniform panel API; this chart uses its own readout line instead.
   let { firstDay, lastDay }: {
@@ -124,8 +125,12 @@
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
         <h3 class="text-section uppercase text-content-muted">Benchmark Progress</h3>
-        {#if latest}
-          <p class="mt-1 flex flex-wrap items-baseline gap-x-2 tabular-nums">
+        <!-- "–" in an empty window, so the header keeps its height while paging. -->
+        <p class="mt-1 flex flex-wrap items-baseline gap-x-2 tabular-nums">
+          {#if !latest}
+            <span class="text-title text-content-subtle">–</span>
+            <span class="text-caption text-content-subtle">{unit}</span>
+          {:else}
             <span class="text-title text-content">{fmt(latest.value)}</span>
             <span class="text-caption text-content-subtle">{unit}</span>
             {#if change}
@@ -134,8 +139,8 @@
               </span>
               <span class="text-caption text-content-subtle">in this range</span>
             {/if}
-          </p>
-        {/if}
+          {/if}
+        </p>
       </div>
       {#if canBeRelative}
         <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0">
@@ -175,13 +180,6 @@
       </label>
     {/if}
 
-    {#if results.length === 0}
-      <p class="text-caption text-content-subtle italic text-center py-6 px-4 leading-relaxed">
-        {isRelative
-          ? 'Needs a bodyweight logged within two weeks of a result'
-          : `No ${type?.name ?? 'benchmark'} results in this range - try 6M or 1Y`}
-      </p>
-    {:else}
       <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
         {#if readout}
           <span class="text-content-subtle">{fmtDay(readout.day, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
@@ -191,9 +189,11 @@
 
       <div class="flex gap-2">
         <div class="w-9 shrink-0 h-36 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
-          <span>{fmt(bounds.hi)}</span>
-          <span>{fmt((bounds.hi + bounds.lo) / 2)}</span>
-          <span>{fmt(bounds.lo)}</span>
+          {#if results.length > 0}
+            <span>{fmt(bounds.hi)}</span>
+            <span>{fmt((bounds.hi + bounds.lo) / 2)}</span>
+            <span>{fmt(bounds.lo)}</span>
+          {/if}
         </div>
         <div class="flex-1 min-w-0">
           <div
@@ -227,6 +227,13 @@
             {#if readout}
               <div class="absolute inset-y-0 border-l border-content-subtle/30 pointer-events-none" style="left: {xOf(readout.day)}%"></div>
             {/if}
+            {#if results.length === 0}
+              <ChartEmpty>
+                {isRelative
+                  ? 'Needs a bodyweight logged within two weeks of a result'
+                  : `No ${type?.name ?? 'benchmark'} results in this range - try 6M or 1Y`}
+              </ChartEmpty>
+            {/if}
           </div>
           <div class="border-t border-border-strong/60"></div>
           <div class="relative h-4">
@@ -241,6 +248,5 @@
           </div>
         </div>
       </div>
-    {/if}
   </div>
 {/if}
