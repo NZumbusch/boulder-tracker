@@ -3,11 +3,14 @@
   import { trainingState } from '../../lib/state.svelte';
   import type { ChartTips } from '../../lib/analytics/chartTips.svelte';
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
+  import { relativeStrength } from '../../lib/analytics/proMetrics';
   import Icon from "@iconify/svelte";
 
   let { tips }: { tips: ChartTips } = $props();
 
   let selectedBenchmarkType = $state<string>('');
+  /** Relative strength: a kg benchmark as % of bodyweight (see `relativeStrength`). */
+  let relative = $state(false);
 
   /**
    * Derives chart data for the "Benchmark Progress" line graph.
@@ -19,7 +22,7 @@
     const benchmarkTypes = trainingState.benchmarkTypes;
 
     if (benchmarkTypes.length === 0) {
-      return { types: [], history: [], maxValue: 1, unit: '', areaPath: '', linePath: '' };
+      return { types: [], history: [], maxValue: 1, minValue: 0, unit: '', areaPath: '', linePath: '', typeId: '', canBeRelative: false, isRelative: false, valueIsAdded: true };
     }
 
     const availableTypes = benchmarkTypes;
@@ -30,18 +33,32 @@
       effectiveTypeId = availableTypes[0].id;
     }
 
-    const filtered = data
-      .filter(b => b.typeId === effectiveTypeId)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-10);
-
-    const maxValue = filtered.length > 0 ? Math.max(...filtered.map(b => b.value), 1) * 1.25 : 1;
     const selectedTypeInfo = availableTypes.find(t => t.id === effectiveTypeId);
-    const unit = selectedTypeInfo ? selectedTypeInfo.unit : '';
+    const rawUnit = selectedTypeInfo ? selectedTypeInfo.unit : '';
+    // Relative strength only means something for a weight, measured in
+    // the same kilos bodyweight is stored in.
+    const canBeRelative = rawUnit === 'kg';
+    const isRelative = relative && canBeRelative;
+    const valueIsAdded = !trainingState.benchmarkTotalTypeIds.includes(effectiveTypeId);
+
+    const ofType = data
+      .filter(b => b.typeId === effectiveTypeId)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const filtered = (isRelative
+      ? relativeStrength(ofType, trainingState.dailyMetrics, valueIsAdded).map((p) => ({ id: p.date, date: p.date, value: Math.round(p.ratio * 1000) / 10, unit: '% BW' }))
+      : ofType
+    ).slice(-10);
+
+    // Absolute results sit on a 0-based scale; % of bodyweight lives around
+    // 100-150, where a 0 floor would flatten years of progress into a line.
+    const values = filtered.map(b => b.value);
+    const maxValue = filtered.length > 0 ? Math.max(...values, 1) * (isRelative ? 1.03 : 1.25) : 1;
+    const minValue = isRelative && filtered.length > 0 ? Math.min(...values) * 0.97 : 0;
+    const unit = isRelative ? '% BW' : rawUnit;
 
     const history = filtered.map(b => ({
       ...b,
-      height: (b.value / maxValue) * 100
+      height: ((b.value - minValue) / Math.max(maxValue - minValue, 0.1)) * 100
     }));
 
     const count = history.length;
@@ -57,9 +74,14 @@
       types: availableTypes,
       history,
       maxValue,
+      minValue,
       unit,
       areaPath,
-      linePath
+      linePath,
+      typeId: effectiveTypeId,
+      canBeRelative,
+      isRelative,
+      valueIsAdded,
     };
   });
 
@@ -71,15 +93,17 @@
   );
 
   /**
-   * The three gridlines, top to bottom. This scale is 0-based and padded
-   * to `max * 1.25`, so the bottom line really is zero - the labels come
-   * from the same `maxValue` the plot is drawn against rather than from
-   * the raw data, or they would disagree with the line.
+   * The three gridlines, top to bottom. An absolute scale is 0-based and
+   * padded to `max * 1.25`, so the bottom line really is zero; % of
+   * bodyweight is min/max-padded. Either way the labels come from the same
+   * bounds the plot is drawn against rather than from the raw data, or
+   * they would disagree with the line.
    */
   const benchmarkTicks = $derived.by(() => {
     if (benchmarkProgress.history.length === 0) return [];
     const max = benchmarkProgress.maxValue;
-    return [max, max / 2, 0].map((v) => {
+    const min = benchmarkProgress.minValue;
+    return [max, (max + min) / 2, min].map((v) => {
       // Trims a pointless ".0" while keeping a real fraction: the padded
       // top of the scale is rarely a round number.
       const rounded = Number(v.toFixed(1));
@@ -128,12 +152,31 @@
         </div>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        {#if benchmarkProgress.unit}
+        {#if benchmarkProgress.canBeRelative}
+          <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
+            <button onclick={() => (relative = false)} class="px-2 py-0.5 text-caption rounded-control {!relative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">kg</button>
+            <button onclick={() => (relative = true)} class="px-2 py-0.5 text-caption rounded-control {relative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">% BW</button>
+          </div>
+        {:else if benchmarkProgress.unit}
           <span class="text-caption text-content-subtle">{benchmarkProgress.unit}</span>
         {/if}
-        <Icon icon="ic:baseline-insights" class="text-base text-content-subtle" />
       </div>
     </div>
+
+    {#if benchmarkProgress.isRelative}
+      <label class="flex items-center gap-2 text-caption text-content-subtle cursor-pointer">
+        <input
+          type="checkbox"
+          class="w-3.5 h-3.5 rounded accent-primary"
+          checked={!benchmarkProgress.valueIsAdded}
+          onchange={(e) => {
+            const others = trainingState.benchmarkTotalTypeIds.filter((id) => id !== benchmarkProgress.typeId);
+            trainingState.setBenchmarkTotalTypeIds(e.currentTarget.checked ? [...others, benchmarkProgress.typeId] : others);
+          }}
+        />
+        Result already includes bodyweight (otherwise it's added weight: bodyweight + result)
+      </label>
+    {/if}
 
     <!-- Value gutter beside the plot, same treatment as Bodyweight
          Trend - an unlabelled axis makes the shape of the line readable
@@ -200,7 +243,9 @@
           {#if benchmarkProgress.history.length === 0}
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
               <p class="text-caption text-content-subtle italic text-center px-4 leading-relaxed">
-                Log a {benchmarkProgress.types.find(t => t.id === selectedBenchmarkType)?.name || 'benchmark'} to see your progress
+                {benchmarkProgress.isRelative
+                  ? 'Needs a bodyweight logged within two weeks of a result'
+                  : `Log a ${benchmarkProgress.types.find(t => t.id === selectedBenchmarkType)?.name || 'benchmark'} to see your progress`}
               </p>
             </div>
           {/if}

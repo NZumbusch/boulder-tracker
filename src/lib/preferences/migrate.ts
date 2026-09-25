@@ -91,6 +91,10 @@ export interface Preferences {
   sendsChartCounts: boolean;
   /** Analytics recovery chart: HRV/sleep/RHR overlaid as % vs baseline, or as three lanes in their own units. */
   recoveryChartMode: RecoveryChartMode;
+  /** Analytics categories counted as finger load; null = guessed from the category names (see `proMetrics.ts`). */
+  fingerCategoryIds: string[] | null;
+  /** Weight benchmarks whose value already includes bodyweight (a total, not added weight) - for relative strength. */
+  benchmarkTotalTypeIds: string[];
   /** Adjustable thresholds and windows - see `tunables.ts`, which owns ids, ranges and defaults. */
   tunables: Tunables;
   /** Display units - storage is always °C / kg / km/h / Font (see `lib/units.ts`). */
@@ -192,7 +196,7 @@ export interface HomeSectionPreference {
 }
 
 /** Analytics cards that can be shown, hidden and reordered (Settings -> History & Analytics). */
-export const ANALYTICS_SECTION_IDS = ['load', 'mix', 'fatigue', 'recoveryTrend', 'adherence', 'recovery', 'outdoor', 'bodyweight', 'benchmarks'] as const;
+export const ANALYTICS_SECTION_IDS = ['load', 'strain', 'fingerLoad', 'mix', 'fatigue', 'heatmap', 'recoveryTrend', 'adherence', 'recovery', 'outdoor', 'bodyweight', 'benchmarks'] as const;
 export type AnalyticsSectionId = (typeof ANALYTICS_SECTION_IDS)[number];
 
 /** The actions in Home's "+" quick-log sheet (Settings -> Home). */
@@ -242,6 +246,8 @@ export function defaultPreferences(): Preferences {
     homeDetails: defaultHomeDetails(),
     sendsChartCounts: true,
     recoveryChartMode: 'overlay',
+    fingerCategoryIds: null,
+    benchmarkTotalTypeIds: [],
     tunables: defaultTunables(),
     units: { ...DEFAULT_UNITS },
     addedExerciseTarget: 'none',
@@ -263,6 +269,9 @@ const MOTION_PREFS: MotionPreference[] = ['system', 'full', 'reduced'];
 const THEMES: ThemePreference[] = ['dark', 'light', 'contrast'];
 const FATIGUE_CHART_STYLES: FatigueChartStyle[] = ['bars', 'radar'];
 export type RecoveryChartMode = 'overlay' | 'lanes';
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === 'string');
+}
 const RECOVERY_CHART_MODES: RecoveryChartMode[] = ['overlay', 'lanes'];
 
 /** Validates an unknown value as a `WeatherLocation`, or `null` if it isn't one - never throws, mirrors every other field's independent-defaulting discipline. */
@@ -443,6 +452,8 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     recoveryChartMode: RECOVERY_CHART_MODES.includes(candidate.recoveryChartMode as RecoveryChartMode)
       ? (candidate.recoveryChartMode as RecoveryChartMode)
       : defaults.recoveryChartMode,
+    fingerCategoryIds: isStringArray(candidate.fingerCategoryIds) ? candidate.fingerCategoryIds : null,
+    benchmarkTotalTypeIds: isStringArray(candidate.benchmarkTotalTypeIds) ? candidate.benchmarkTotalTypeIds : [],
     tunables: validateTunables(candidate.tunables),
     units: validateUnits(candidate.units),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),

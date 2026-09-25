@@ -36,6 +36,11 @@
   import RecoveryTrendPanel from './RecoveryTrendPanel.svelte';
   import SummaryStrip from './SummaryStrip.svelte';
   import WeekDetailSheet from './WeekDetailSheet.svelte';
+  import StrainPanel from './StrainPanel.svelte';
+  import FingerLoadPanel from './FingerLoadPanel.svelte';
+  import HeatmapPanel from './HeatmapPanel.svelte';
+  import { bucketStrain, fingerCategoryIds, fingerLoad } from '../../lib/analytics/proMetrics';
+  import { dailyLoadByDay } from '../../lib/analytics/recoverySeries';
   import Icon from "@iconify/svelte";
 
   // Analytics: a header (range preset, window paging, CSV export, the
@@ -102,6 +107,9 @@
   ];
   const TAB_OF: Record<string, Tab> = {
     load: 'training',
+    strain: 'training',
+    fingerLoad: 'training',
+    heatmap: 'training',
     mix: 'training',
     fatigue: 'training',
     adherence: 'training',
@@ -311,6 +319,20 @@
     };
   });
 
+  // --- Pro metrics: monotony & strain, finger load.
+  const strainColumns = $derived.by(() => {
+    const byDay = dailyLoadByDay(trainingState.workouts);
+    return buckets.map((b) => ({ id: b.id, label: b.label, isCurrent: b.isCurrent, ...bucketStrain(byDay, b.weekIds) }));
+  });
+  const fingerColumns = $derived.by(() => {
+    const opts = {
+      types: trainingState.exerciseTypes,
+      categories: trainingState.analyticsCategories,
+      fingerIds: fingerCategoryIds(trainingState.analyticsCategories, trainingState.fingerCategoryIds),
+    };
+    return buckets.map((b) => ({ id: b.id, label: b.label, isCurrent: b.isCurrent, ...fingerLoad(trainingState.workouts, b.weekIds, opts) }));
+  });
+
   // Tooltips are hover-only in CSS, which leaves them unreachable on a
   // phone; this drives the tap path. See `lib/analytics/chartTips.svelte.ts`.
   const tips = new ChartTips();
@@ -395,6 +417,18 @@
       <LoadPanel {chartData} {acwrResults} {axisStep} {tips} {timeline} xOfDay={(day) => dayToX(buckets, day)} onSelect={(i) => (selectedBucket = buckets[i])} bind:chartWidth />
       {/snippet}
 
+      {#snippet strainSection()}
+      <StrainPanel columns={strainColumns} {axisStep} {tips} monthly={range === '1y'} />
+      {/snippet}
+
+      {#snippet fingerLoadSection()}
+      <FingerLoadPanel columns={fingerColumns} {axisStep} {tips} />
+      {/snippet}
+
+      {#snippet heatmapSection()}
+      <HeatmapPanel endDay={lastDay} {today} />
+      {/snippet}
+
       {#snippet mixSection()}
       <MixPanel {chartData} {axisStep} {tips} />
       {/snippet}
@@ -437,6 +471,9 @@
 
       {#each tabSections as section (section.id)}
         {#if section.id === 'load'}{@render loadSection()}
+        {:else if section.id === 'strain'}{@render strainSection()}
+        {:else if section.id === 'fingerLoad'}{@render fingerLoadSection()}
+        {:else if section.id === 'heatmap'}{@render heatmapSection()}
         {:else if section.id === 'mix'}{@render mixSection()}
         {:else if section.id === 'fatigue'}{@render fatigueSection()}
         {:else if section.id === 'recoveryTrend'}{@render recoveryTrendSection()}

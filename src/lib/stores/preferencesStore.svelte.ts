@@ -29,6 +29,8 @@ export class PreferencesStore {
   homeDetails = $state<HomeDetails>(defaultHomeDetails());
   sendsChartCounts = $state(true);
   recoveryChartMode = $state<RecoveryChartMode>('overlay');
+  fingerCategoryIds = $state<string[] | null>(null);
+  benchmarkTotalTypeIds = $state<string[]>([]);
   tunables = $state<Tunables>(defaultTunables());
   units = $state<Units>({ ...DEFAULT_UNITS });
   analyticsSections = $state<OrderedToggle<AnalyticsSectionId>[]>(ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })));
@@ -70,6 +72,8 @@ export class PreferencesStore {
     this.homeDetails = prefs.homeDetails;
     this.sendsChartCounts = prefs.sendsChartCounts;
     this.recoveryChartMode = prefs.recoveryChartMode;
+    this.fingerCategoryIds = prefs.fingerCategoryIds;
+    this.benchmarkTotalTypeIds = prefs.benchmarkTotalTypeIds;
     this.tunables = prefs.tunables;
     this.units = prefs.units;
     this.analyticsSections = prefs.analyticsSections;
@@ -199,6 +203,16 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setFingerCategoryIds(ids: string[] | null) {
+    this.fingerCategoryIds = ids;
+    this.persist();
+  }
+
+  setBenchmarkTotalTypeIds(ids: string[]) {
+    this.benchmarkTotalTypeIds = ids;
+    this.persist();
+  }
+
   setHomeDetail(id: string, enabled: boolean) {
     this.homeDetails = { ...this.homeDetails, [id]: enabled };
     this.persist();
@@ -251,6 +265,8 @@ export class PreferencesStore {
       homeDetails: this.homeDetails,
       sendsChartCounts: this.sendsChartCounts,
       recoveryChartMode: this.recoveryChartMode,
+      fingerCategoryIds: this.fingerCategoryIds,
+      benchmarkTotalTypeIds: this.benchmarkTotalTypeIds,
       tunables: this.tunables,
       units: this.units,
       analyticsSections: this.analyticsSections,

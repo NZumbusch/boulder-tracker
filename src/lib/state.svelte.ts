@@ -201,6 +201,8 @@ class TrainingState {
   get homeDetails() { return this.preferencesStore.homeDetails; }
   get sendsChartCounts() { return this.preferencesStore.sendsChartCounts; }
   get recoveryChartMode() { return this.preferencesStore.recoveryChartMode; }
+  get fingerCategoryIds() { return this.preferencesStore.fingerCategoryIds; }
+  get benchmarkTotalTypeIds() { return this.preferencesStore.benchmarkTotalTypeIds; }
 
   // --- Ordered, hideable lists (Analytics cards, quick-log actions) ---
   get analyticsSections() { return this.preferencesStore.analyticsSections; }
@@ -238,6 +240,8 @@ class TrainingState {
   }
   setSendsChartCounts(enabled: boolean) { this.preferencesStore.setSendsChartCounts(enabled); }
   setRecoveryChartMode(mode: RecoveryChartMode) { this.preferencesStore.setRecoveryChartMode(mode); }
+  setFingerCategoryIds(ids: string[] | null) { this.preferencesStore.setFingerCategoryIds(ids); }
+  setBenchmarkTotalTypeIds(ids: string[]) { this.preferencesStore.setBenchmarkTotalTypeIds(ids); }
   setHomeDetail(id: string, enabled: boolean) {
     this.preferencesStore.setHomeDetail(id, enabled);
   }
