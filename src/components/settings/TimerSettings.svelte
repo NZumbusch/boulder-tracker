@@ -97,8 +97,8 @@
         <div class="flex items-center gap-3">
           <Icon icon="ic:baseline-phonelink-ring" class="text-lg text-content-muted" />
           <div>
-            <span class="block text-body text-content">Alerts in the background</span>
-            <span class="block text-caption text-content-subtle">A notification when a rest or countdown ends while the phone is locked or you're in another app</span>
+            <span class="block text-body text-content">Timer in the background</span>
+            <span class="block text-caption text-content-subtle">While a timer runs: a notification with the live countdown (Pause / +30 s), and the beeps keep playing when the phone is locked - music gets quieter for each beep instead of stopping</span>
           </div>
         </div>
         <input
@@ -110,7 +110,7 @@
       </label>
       {#if trainingState.timerBackgroundAlerts && exactAlarms === 'denied'}
         <div class="flex items-center justify-between gap-3 py-3">
-          <p class="text-caption text-status-caution">Android may deliver these late. Allow exact alarms so a rest-over alert comes on the second.</p>
+          <p class="text-caption text-status-caution">Only matters if the timer notification can't run: plain alerts may then arrive late. Allowing exact alarms keeps them on time.</p>
           <button onclick={() => openExactAlarmSetting()} class="chip text-primary shrink-0">Allow</button>
         </div>
       {/if}

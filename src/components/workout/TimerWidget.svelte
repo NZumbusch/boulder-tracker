@@ -54,6 +54,9 @@
   import { ACTIVE_TIMER_KEY, parseStoredTimer, serializeTimer, type TimerSnapshot } from "../../lib/timer/persistTimer";
   import { scheduleTimerAlerts, cancelTimerAlerts, ensureTimerAlertPermission } from "../../lib/notifications/timerAlerts";
   import { hasIntervalTiming } from "../../lib/timer/intervalTimer";
+  import { buildLiveTimer } from "../../lib/timer/liveTimer";
+  import { liveTimerAvailable, sendLiveTimer, stopLiveTimer, onLiveTimerAction, takeLiveActions, type LiveAction } from "../../lib/native/timerService";
+  import { slotTypeName } from "../../lib/exerciseSlot";
   import SetRunView from "./SetRunView.svelte";
   import {
     type SetRunState,
@@ -241,10 +244,18 @@
    * to go, a single tone to come off, a falling triple for the long rest,
    * and a rising triple when the whole protocol is done.
    */
-  function cue(kind: 'work' | 'rest' | 'setRest' | 'leadIn' | 'done' | 'tick' | 'warn') {
-    // Hidden (locked, backgrounded): the scheduled notification speaks
-    // for the timer, so a late beep on return would only double it up.
+  /**
+   * `immediate` marks a cue that answers a tap (finishing a set) rather
+   * than a moment on the clock. Clock cues are played by the Android timer
+   * service while it runs (it has the same schedule, and keeps playing when
+   * the phone is locked), so the page stays quiet for them to avoid double
+   * beeps; tap cues always come from the page.
+   */
+  function cue(kind: 'work' | 'rest' | 'setRest' | 'leadIn' | 'done' | 'tick' | 'warn', immediate = false) {
+    // Hidden (locked, backgrounded): the service or a scheduled
+    // notification speaks for the timer, so a late beep would double it.
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (liveActive && !immediate) return;
     if (kind === 'tick' && !trainingState.timerCountdownTicks) return;
     switch (kind) {
       case 'warn':
@@ -282,7 +293,7 @@
   // `lastTickSecond` from inside re-runs this once more, which then no-ops -
   // it settles rather than looping.
   $effect(() => {
-    if (mode !== 'interval' || !intervalRunning) return;
+    if (mode !== 'interval' || !intervalRunning || heldForNative) return;
 
     const pos = position;
 
@@ -317,7 +328,7 @@
   // effect because the two never run at the same time and sharing one
   // would mean guarding every branch on which engine is live.
   $effect(() => {
-    if (mode !== 'interval' || !selfPaced || runningSince === null) return;
+    if (mode !== 'interval' || !selfPaced || runningSince === null || heldForNative) return;
 
     const phase = setRunPhase(setRun);
 
@@ -385,8 +396,106 @@
     if (interval) clearInterval(interval);
     if (ticker) clearInterval(ticker);
     // Unmounted = the session ended: nothing left to restore or alert about.
+    void stopLiveTimer();
     try { localStorage.removeItem(ACTIVE_TIMER_KEY); } catch { /* storage unavailable */ }
     void cancelTimerAlerts();
+  });
+
+  // --- Android timer service ---------------------------------------------
+  // While a timer runs, the native service (plugins/timer-service) shows
+  // it as a notification with a live countdown and plays its cues - also
+  // when the phone is locked, over music. Re-planned on every change.
+  let liveActive = $state(false);
+  /**
+   * Set while the page is hidden with the service running: the service owns
+   * the timer then, and the page must not finish anything by itself - when
+   * it wakes it would otherwise see a countdown that was paused from the
+   * notification as already run out. Cleared once the notification's
+   * button presses have been collected and applied.
+   */
+  let heldForNative = $state(false);
+  let lastActionSeq = 0;
+  const useLive = $derived(liveTimerAvailable() && trainingState.timerBackgroundAlerts);
+
+  function syncLive() {
+    if (!useLive) {
+      if (liveActive) {
+        liveActive = false;
+        void stopLiveTimer();
+      }
+      return;
+    }
+    const config = buildLiveTimer({
+      mode,
+      targetSeconds: targetTime,
+      basic,
+      spec,
+      intervalClock: { bankedMs, runningSince },
+      selfPaced,
+      setRun,
+      ticks: trainingState.timerCountdownTicks,
+      warningSeconds: trainingState.timerWarnBeforeEnd ? WARN_SECONDS : 0,
+      label: currentSlot ? slotTypeName(currentSlot, trainingState.exerciseTypes) : 'Session timer',
+      workLabel,
+    }, Date.now());
+    if (!config) {
+      // Ran out by itself: the service finishes on its own and leaves its
+      // "done" notification. Stopped or reset by hand: take it down now.
+      const finished = (mode === 'timer' && basic.bankedMs > 0 && countdownRemainingMs(targetTime, basic, Date.now()) <= 0)
+        || (mode === 'interval' && (selfPaced ? setRun.done : intervalFinished));
+      if (!finished) void stopLiveTimer();
+      liveActive = false;
+      return;
+    }
+    liveActive = true;
+    void sendLiveTimer(config, trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled).then((ok) => {
+      if (!ok) liveActive = false;
+    });
+  }
+
+  $effect(() => {
+    void [mode, targetTime, basic.bankedMs, basic.runningSince, spec, bankedMs, runningSince, timingMode, selfPaced,
+      setRun.currentSet, setRun.completed.length, setRun.done, setRun.leadInRemainingMs > 0, currentSlot?.id,
+      trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, trainingState.timerBeepEnabled,
+      trainingState.timerVibrateEnabled, useLive];
+    untrack(syncLive);
+  });
+
+  /** A notification button was pressed: apply it to the timer at the moment it happened. */
+  function applyLiveAction({ kind, at, seq }: LiveAction) {
+    if (seq <= lastActionSeq) return;
+    lastActionSeq = seq;
+    if (kind === 'add30') {
+      addTime(30);
+      return;
+    }
+    if (mode === 'interval') {
+      if (kind === 'pause' && runningSince !== null) {
+        bankedMs += Math.max(0, at - runningSince);
+        runningSince = null;
+        releaseWakeLock();
+      } else if (kind === 'resume' && runningSince === null) {
+        runningSince = at;
+      }
+      now = Date.now();
+      syncTicker();
+    } else {
+      basic = kind === 'pause' ? pauseClock(basic, at) : startClock(basic, at);
+      now = Date.now();
+      syncBasicTicker();
+    }
+  }
+  $effect(() => {
+    let off = () => {};
+    let gone = false;
+    void onLiveTimerAction(applyLiveAction).then((remove) => {
+      if (gone) remove();
+      else off = remove;
+    });
+    return () => {
+      gone = true;
+      off();
+    };
   });
 
   // --- Surviving the background ------------------------------------------
@@ -458,7 +567,10 @@
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
         saveTimer();
-        if (!trainingState.timerBackgroundAlerts) return;
+        // The timer service already covers it; plain notifications are the
+        // fallback when it isn't running (web has neither).
+        if (liveActive) heldForNative = true;
+        if (!trainingState.timerBackgroundAlerts || liveActive) return;
         const alerts = upcomingAlerts({
           mode,
           targetSeconds: targetTime,
@@ -471,8 +583,13 @@
         }, Date.now());
         void scheduleTimerAlerts(alerts);
       } else {
-        now = Date.now();
         void cancelTimerAlerts();
+        // Apply what was pressed in the notification first, then catch up.
+        void takeLiveActions().then((actions) => {
+          for (const action of actions) applyLiveAction(action);
+          heldForNative = false;
+          now = Date.now();
+        });
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -576,12 +693,12 @@
     restCuedForSet = 0;
     lastTickSecond = -1;
     if (next.done) {
-      cue('done');
+      cue('done', true);
       runningSince = null;
       syncTicker();
       releaseWakeLock();
     } else {
-      cue('setRest');
+      cue('setRest', true);
       if (runningSince === null) startSetRunClock();
     }
   }
@@ -715,7 +832,7 @@
 
   // Countdown cues and its end, read off the clock rather than counted.
   $effect(() => {
-    if (mode !== 'timer' || basic.runningSince === null) return;
+    if (mode !== 'timer' || basic.runningSince === null || heldForNative) return;
     const remaining = countdownRemainingMs(targetTime, basic, now);
     const second = Math.ceil(remaining / 1000);
     if (remaining <= 0) {
