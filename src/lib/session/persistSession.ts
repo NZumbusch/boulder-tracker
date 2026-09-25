@@ -74,7 +74,28 @@ export function parseStoredSession(raw: string | null): ActiveSession | null {
     runningSince,
     currentIndex,
     sourceWorkoutId: typeof c.sourceWorkoutId === "string" ? c.sourceWorkoutId : null,
+    slotMs: parseSlotMs(c.slotMs),
+    slotClock: parseSlotClock(c.slotClock),
   };
+}
+
+/** Per-exercise banked times; bad entries are dropped, not the session. */
+function parseSlotMs(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (typeof raw !== "object" || raw === null) return out;
+  for (const [id, ms] of Object.entries(raw as Record<string, unknown>)) {
+    const n = nonNegativeNumber(ms);
+    if (n !== undefined) out[id] = n;
+  }
+  return out;
+}
+
+function parseSlotClock(raw: unknown): { slotId: string | null; since: number | null } {
+  if (typeof raw !== "object" || raw === null) return { slotId: null, since: null };
+  const c = raw as Record<string, unknown>;
+  const slotId = typeof c.slotId === "string" ? c.slotId : null;
+  const since = slotId !== null && typeof c.since === "number" && Number.isFinite(c.since) ? c.since : null;
+  return { slotId: since === null ? null : slotId, since };
 }
 
 function validateWorkout(raw: unknown): Workout | null {

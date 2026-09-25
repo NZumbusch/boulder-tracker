@@ -39,6 +39,14 @@ export interface ActiveSession {
    * `null` for a session started from scratch.
    */
   sourceWorkoutId: string | null;
+  /**
+   * Time spent on each exercise, banked when you move off it, keyed by slot
+   * id. Only counts while the session is running, so a session pause stops
+   * it too. See `syncSlotClock`.
+   */
+  slotMs?: Record<string, number>;
+  /** The exercise currently being timed and since when (epoch ms); both null while paused or when nothing is pending. */
+  slotClock?: { slotId: string | null; since: number | null };
 }
 
 /** Where a slot stands in a running session. */
@@ -100,6 +108,38 @@ export function elapsedMinutes(session: ActiveSession, now: number): number {
   return Math.round(elapsedMs(session, now) / 60_000);
 }
 
+/** How long an exercise has been worked on so far, in ms - banked time plus the current stretch. */
+export function slotElapsedMs(session: ActiveSession, slotId: string, now: number): number {
+  const banked = session.slotMs?.[slotId] ?? 0;
+  const clock = session.slotClock;
+  const live = clock && clock.slotId === slotId && clock.since !== null ? Math.max(0, now - clock.since) : 0;
+  return banked + live;
+}
+
+/**
+ * Keeps the per-exercise clock in step with the session after any change:
+ * banks the time of whichever exercise was being timed, then starts timing
+ * whichever is current now - but only while the session runs and that
+ * exercise is still pending. Applied after every session change in one
+ * place (the store), so pausing, resuming, finishing, skipping, jumping to
+ * another exercise and reopening one all come out right without each of
+ * those functions knowing about it.
+ */
+export function syncSlotClock(before: ActiveSession, after: ActiveSession, now: number): ActiveSession {
+  const slotMs = { ...(after.slotMs ?? before.slotMs ?? {}) };
+  const clock = before.slotClock;
+  if (clock?.slotId && clock.since !== null) {
+    slotMs[clock.slotId] = (slotMs[clock.slotId] ?? 0) + Math.max(0, now - clock.since);
+  }
+  const current = currentSlot(after);
+  const timing = after.runningSince !== null && current !== undefined && slotStatus(current) === "pending";
+  return {
+    ...after,
+    slotMs,
+    slotClock: { slotId: timing ? current!.id : null, since: timing ? now : null },
+  };
+}
+
 /** What the session was expected to take, for the "50/100 min" readout. */
 export function expectedMinutes(session: ActiveSession): number {
   return estimateSessionDuration(session.workout);
@@ -152,7 +192,7 @@ export function startSession(
   };
   const firstPending = nextPendingIndex(session, 0);
   session.currentIndex = firstPending === -1 ? 0 : firstPending;
-  return session;
+  return syncSlotClock(session, session, now);
 }
 
 /** Banks the current running stretch and stops the clock. No-op if already paused. */
@@ -225,7 +265,13 @@ export function skipSlot(session: ActiveSession, slotId: string): ActiveSession 
 
 /** Puts a logged or skipped slot back to pending and focuses it, for fixing a number mid-session. */
 export function unfinishSlot(session: ActiveSession, slotId: string): ActiveSession {
-  const next = mapSlot(session, slotId, (slot) => {
+  // Reopened: its clock carries on from the duration you logged for it
+  // (which may be a corrected number), not from zero.
+  const loggedMinutes = Number(session.workout.exercises.find((s) => s.id === slotId)?.logged?.duration);
+  const withTime = Number.isFinite(loggedMinutes) && loggedMinutes > 0
+    ? { ...session, slotMs: { ...(session.slotMs ?? {}), [slotId]: loggedMinutes * 60_000 } }
+    : session;
+  const next = mapSlot(withTime, slotId, (slot) => {
     const { logged: _logged, skipped: _skipped, ...rest } = slot;
     return rest;
   });

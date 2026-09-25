@@ -23,6 +23,8 @@ import {
   focusSlot,
   updateWorkout,
   toCompletedWorkout,
+  syncSlotClock,
+  slotElapsedMs,
 } from '../session/activeSession';
 import { ACTIVE_SESSION_KEY, serializeSession, parseStoredSession } from '../session/persistSession';
 
@@ -63,7 +65,10 @@ export class SessionStore {
 
   constructor() {
     if (typeof localStorage !== 'undefined') {
-      this.session = parseStoredSession(localStorage.getItem(ACTIVE_SESSION_KEY));
+      const stored = parseStoredSession(localStorage.getItem(ACTIVE_SESSION_KEY));
+      // A restored session picks its exercise clock up where it left off
+      // (the time the app was away counts, as it does for the session).
+      this.session = stored ? syncSlotClock(stored, stored, Date.now()) : null;
     }
     this.#syncTicker();
   }
@@ -113,6 +118,11 @@ export class SessionStore {
 
   get currentIndex() {
     return this.session?.currentIndex ?? 0;
+  }
+
+  /** Time spent on one exercise so far (ms), live - stops with the session pause. */
+  slotElapsedMs(slotId: string): number {
+    return this.session ? slotElapsedMs(this.session, slotId, this.now) : 0;
   }
 
   get currentSlot(): ExerciseSlot | undefined {
@@ -233,7 +243,8 @@ export class SessionStore {
   /** Runs a pure transition against the live session, if there is one. */
   #apply(fn: (session: ActiveSession) => ActiveSession) {
     if (!this.session) return;
-    this.#commit(fn($state.snapshot(this.session) as ActiveSession));
+    const before = $state.snapshot(this.session) as ActiveSession;
+    this.#commit(syncSlotClock(before, fn(before), Date.now()));
   }
 
   /**
