@@ -16,10 +16,23 @@
   import { formatWeight } from '../../lib/units';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import type { Bucket } from '../../lib/analytics/range';
+  import type { AcwrResult } from '../../lib/analytics/loadAnalytics';
   import type { Workout, DayOfWeek } from '../../lib/types';
   import Icon from '@iconify/svelte';
 
-  let { bucket, onClose }: { bucket: Bucket; onClose: () => void } = $props();
+  let { bucket, acwr, onClose }: {
+    bucket: Bucket;
+    /** The Load chart's ACWR and ramp for this column - its dots are too small to tap on a phone, so they are repeated here. */
+    acwr?: AcwrResult;
+    onClose: () => void;
+  } = $props();
+  const acwrZones = $derived(trainingState.acwrZones);
+  const acwrClass = $derived(
+    !acwr?.sufficient || acwr.ratio === undefined ? 'text-content-subtle'
+      : acwr.ratio >= acwrZones.highRisk ? 'text-status-risk'
+      : acwr.ratio >= acwrZones.caution ? 'text-status-caution'
+      : 'text-status-good',
+  );
 
   const DAY_ORDER: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const span = $derived({ startDay: bucket.startDay, endDay: bucket.endDay });
@@ -107,6 +120,19 @@
         <p class="text-caption text-content-subtle">hours</p>
       </div>
     </div>
+
+    {#if acwr && (acwr.ratio !== undefined || acwr.rampRate)}
+      <div class="flex flex-wrap gap-x-4 gap-y-1 text-caption tabular-nums">
+        {#if acwr.ratio !== undefined}
+          <span><span class="text-content-subtle">ACWR</span> <span class={acwrClass}>{acwr.ratio.toFixed(2)}</span>{!acwr.sufficient ? ' (building history)' : ''}</span>
+        {/if}
+        {#if acwr.rampRate}
+          <span class={acwr.spike ? 'text-status-risk' : 'text-content-muted'}>
+            <span class="text-content-subtle">Load vs {bucket.kind === 'week' ? 'week' : 'month'} before</span> {acwr.rampRate > 0 ? '+' : ''}{Math.round(acwr.rampRate * 100)}%{acwr.spike ? ' ⚠' : ''}
+          </span>
+        {/if}
+      </div>
+    {/if}
 
     {#if recovery.length || bodyweight !== undefined}
       <div class="flex flex-wrap gap-x-4 gap-y-1 text-caption text-content-muted tabular-nums">

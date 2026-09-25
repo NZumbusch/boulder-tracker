@@ -11,6 +11,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import type { ChartTips } from '../../lib/analytics/chartTips.svelte';
   import { isTapPointer } from '../../lib/analytics/chartTips.svelte';
+  import { TapTracker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import { relativeStrength } from '../../lib/analytics/proMetrics';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
@@ -93,6 +94,7 @@
 
   // Readout: the result nearest the pointer, or the latest.
   let selected = $state<number | null>(null);
+  const taps = new TapTracker();
   let plotEl = $state<HTMLElement | null>(null);
   function nearest(event: PointerEvent): number | null {
     if (!plotEl || results.length === 0) return null;
@@ -198,9 +200,10 @@
             bind:this={plotEl}
             class="h-36 relative cursor-crosshair select-none"
             role="presentation"
+            onpointerdown={taps.down}
             onpointermove={(e) => { if (!isTapPointer(e)) selected = nearest(e); }}
             onpointerleave={(e) => { if (!isTapPointer(e)) selected = null; }}
-            onpointerup={(e) => { if (isTapPointer(e)) selected = nearest(e); }}
+            onpointerup={(e) => { if (isTapPointer(e) && taps.isTap(e)) selected = nearest(e); }}
           >
             <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
               <div class="border-t border-content-subtle/10"></div>

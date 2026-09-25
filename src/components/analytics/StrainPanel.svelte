@@ -6,13 +6,15 @@
    * overreaching. Maths in `lib/analytics/proMetrics.ts`.
    */
   import type { ChartTips } from '../../lib/analytics/chartTips.svelte';
+  import { ColumnPicker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel } from '../../lib/analytics/chartWindow';
   import { MONOTONY_WARNING, type WeekStrain } from '../../lib/analytics/proMetrics';
 
-  let { columns, axisStep, tips, monthly }: {
+  let { columns, axisStep, monthly }: {
     columns: (WeekStrain & { id: string; label: string; isCurrent: boolean })[];
     axisStep: number;
-    tips: ChartTips;
+    /** Accepted for a uniform panel API; this chart reads out through its column picker. */
+    tips?: ChartTips;
     /** Month columns show the mean week of the month. */
     monthly: boolean;
   } = $props();
@@ -35,6 +37,12 @@
     return runs.join(' ');
   });
   const latest = $derived([...columns].reverse().find((c) => c.monotony !== undefined));
+
+  // Tap (or hover) a column: its values print in the readout line, which
+  // never gets clipped at the screen edge the way a floating tooltip did.
+  const picker = new ColumnPicker(() => columns.length);
+  $effect(() => picker.listen());
+  const selected = $derived(picker.selected !== null ? columns[picker.selected] : null);
 </script>
 
 <div id="section-strain" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
@@ -51,28 +59,35 @@
     {/if}
   </div>
 
+  <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
+    {#if selected}
+      {selected.label}
+      <span class="text-content-subtle"> · strain</span> <span class="text-content">{Math.round(selected.strain ?? 0)}</span>
+      <span class="text-content-subtle"> · monotony</span> <span class="text-content">{selected.monotony?.toFixed(2) ?? '–'}</span>
+      <span class="text-content-subtle"> · load</span> <span class="text-content">{Math.round(selected.load)}</span>
+    {:else}
+      <span class="text-content-subtle/70">Tap a column for its values</span>
+    {/if}
+  </div>
+
   <div class="h-32 flex flex-col gap-2">
-    <div class="flex-1 relative flex items-end gap-px">
+    <div
+      bind:this={picker.el}
+      class="flex-1 relative flex items-end gap-px cursor-crosshair select-none"
+      role="presentation"
+      onpointerdown={picker.down}
+      onpointermove={picker.move}
+      onpointerleave={picker.leave}
+      onpointerup={picker.tap}
+    >
       <div class="absolute inset-x-0 border-t border-dashed border-status-caution/50 pointer-events-none" style="top: {monoY(MONOTONY_WARNING)}%"></div>
       {#each columns as c, i (c.id)}
-        <button
-          type="button"
-          data-tip-trigger
-          data-tip-open={tips.isOpen(`strain-${i}`)}
-          onclick={() => tips.toggle(`strain-${i}`)}
-          aria-label="{c.label}: strain {Math.round(c.strain ?? 0)}, monotony {c.monotony?.toFixed(1) ?? 'none'}"
-          class="flex-1 h-full flex justify-center items-end group relative hover:z-30 {tips.isOpen(`strain-${i}`) ? 'z-30' : ''}"
-        >
+        <div class="flex-1 h-full flex justify-center items-end">
           <div
-            class="w-[62%] max-w-[16px] rounded-[2px] relative {(c.monotony ?? 0) >= MONOTONY_WARNING ? 'bg-status-caution/70' : c.isCurrent ? 'bg-tertiary' : 'bg-tertiary/45'}"
+            class="w-[62%] max-w-[16px] rounded-[2px] transition-opacity {(c.monotony ?? 0) >= MONOTONY_WARNING ? 'bg-status-caution/70' : c.isCurrent ? 'bg-tertiary' : 'bg-tertiary/45'} {picker.selected !== null && picker.selected !== i ? 'opacity-40' : ''}"
             style="height: {((c.strain ?? 0) / maxStrain) * 100}%"
-          >
-            <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-              <span class="block">{c.label} · strain {Math.round(c.strain ?? 0)}</span>
-              <span class="block text-content-subtle">monotony {c.monotony?.toFixed(2) ?? '–'} · load {Math.round(c.load)}</span>
-            </div>
-          </div>
-        </button>
+          ></div>
+        </div>
       {/each}
       <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
         <path d={line} fill="none" stroke="var(--color-content-muted)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" />

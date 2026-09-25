@@ -18,7 +18,7 @@
   import { labelStep } from '../../lib/analytics/chartWindow';
   import { parseFontGrade } from '../../lib/analytics/grades';
   import { toUtcDayIndex } from '../../lib/dateUtils';
-  import { buildBuckets, bucketOfDay, dayToX, ANALYTICS_RANGES, RANGE_LABELS, type Bucket } from '../../lib/analytics/range';
+  import { buildBuckets, bucketOfDay, dayToX, ANALYTICS_RANGES, RANGE_LABELS } from '../../lib/analytics/range';
   import { windowStats, comparisonSpans } from '../../lib/analytics/windowSummary';
   import { blockSegments, goalsInWindow, painRows } from '../../lib/analytics/timeline';
   import { benchmarkChanges } from '../../lib/analytics/progress';
@@ -64,7 +64,7 @@
   $effect(() => {
     rememberedTab = tab;
   });
-  let selectedBucket = $state<Bucket | null>(null);
+  let selectedIndex = $state<number | null>(null);
 
   const buckets = $derived(buildBuckets(range, viewOffset));
   const previousBuckets = $derived(buildBuckets(range, viewOffset - 1));
@@ -431,7 +431,7 @@
 
     <div class="space-y-5">
       {#snippet loadSection()}
-      <LoadPanel {chartData} {acwrResults} {axisStep} {tips} {timeline} xOfDay={(day) => dayToX(buckets, day)} onSelect={(i) => (selectedBucket = buckets[i])} adherence={adherence.perColumn} windowAdherence={adherence.window} bind:chartWidth />
+      <LoadPanel {chartData} {acwrResults} {axisStep} {tips} {timeline} xOfDay={(day) => dayToX(buckets, day)} onSelect={(i) => (selectedIndex = i)} adherence={adherence.perColumn} windowAdherence={adherence.window} bind:chartWidth />
       {/snippet}
 
       {#snippet strainSection()}
@@ -511,6 +511,6 @@
   </div>
 </div>
 
-{#if selectedBucket}
-  <WeekDetailSheet bucket={selectedBucket} onClose={() => (selectedBucket = null)} />
+{#if selectedIndex !== null && buckets[selectedIndex]}
+  <WeekDetailSheet bucket={buckets[selectedIndex]} acwr={acwrResults[selectedIndex]} onClose={() => (selectedIndex = null)} />
 {/if}

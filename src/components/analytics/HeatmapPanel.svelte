@@ -9,6 +9,9 @@
   import { heatmap } from '../../lib/analytics/proMetrics';
   import { dailyLoadByDay, dayIndexToIso } from '../../lib/analytics/recoverySeries';
   import { toUtcDayIndex } from '../../lib/dateUtils';
+  // Hover is mouse-only: on touch, an emulated hover would select the cell
+  // just before the tap's click toggled it off again.
+  import { isTapPointer, isKeyboardActivation } from '../../lib/analytics/chartTips.svelte';
 
   let { endDay, today }: { endDay: number; today: number } = $props();
 
@@ -69,8 +72,9 @@
           {#each week as cell (cell.day)}
             <button
               type="button"
-              onclick={() => (selected = selected === cell.day ? null : cell.day)}
-              onmouseenter={() => (selected = cell.day)}
+              onpointerup={(e) => { if (isTapPointer(e)) selected = selected === cell.day ? null : cell.day; }}
+              onclick={(e) => { if (isKeyboardActivation(e)) selected = selected === cell.day ? null : cell.day; }}
+              onpointerenter={(e) => { if (!isTapPointer(e)) selected = cell.day; }}
               aria-label="{dayIndexToIso(cell.day)}: load {Math.round(cell.load)}"
               class="w-full aspect-square rounded-[2px] {cell.day > lastDay ? 'opacity-0 pointer-events-none' : LEVEL_CLASS[cell.level]} {selected === cell.day ? 'ring-1 ring-content' : ''}"
             ></button>

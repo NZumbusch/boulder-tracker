@@ -16,6 +16,7 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import { isTapPointer } from '../../lib/analytics/chartTips.svelte';
+  import { TapTracker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import {
     RECOVERY_METRICS,
@@ -223,8 +224,10 @@
   function onMove(event: PointerEvent) {
     if (!isTapPointer(event)) selected = dayAt(event);
   }
+  const taps = new TapTracker();
   function onTap(event: PointerEvent) {
-    if (!isTapPointer(event)) return;
+    // A swipe across the chart pages the window; it must not also pick a day.
+    if (!isTapPointer(event) || !taps.isTap(event)) return;
     const day = dayAt(event);
     selected = day === selected ? null : day;
   }
@@ -347,6 +350,7 @@
       bind:this={plotEl}
       class="relative cursor-crosshair select-none"
       role="presentation"
+      onpointerdown={taps.down}
       onpointermove={onMove}
       onpointerleave={(e) => { if (!isTapPointer(e)) selected = null; }}
       onpointerup={onTap}

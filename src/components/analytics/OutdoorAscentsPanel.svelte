@@ -158,6 +158,7 @@
           bind:this={picker.el}
           class="h-36 relative cursor-crosshair select-none"
           role="presentation"
+          onpointerdown={picker.down}
           onpointermove={picker.move}
           onpointerleave={picker.leave}
           onpointerup={picker.tap}

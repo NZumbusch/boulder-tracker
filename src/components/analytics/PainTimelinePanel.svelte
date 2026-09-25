@@ -9,6 +9,8 @@
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
   import type { PainRow } from '../../lib/analytics/timeline';
+  // Hover is mouse-only (see HeatmapPanel for why).
+  import { isTapPointer, isKeyboardActivation } from '../../lib/analytics/chartTips.svelte';
 
   let { firstDay, lastDay, rows, spikeIds, loadByDay }: {
     firstDay: number;
@@ -67,8 +69,9 @@
               {@const size = 6 + p.severity}
               <button
                 type="button"
-                onclick={() => (selected = selected?.id === p.id ? null : { row: row.bodyPart, id: p.id })}
-                onmouseenter={() => (selected = { row: row.bodyPart, id: p.id })}
+                onpointerup={(e) => { if (isTapPointer(e)) selected = selected?.id === p.id ? null : { row: row.bodyPart, id: p.id }; }}
+                onclick={(e) => { if (isKeyboardActivation(e)) selected = selected?.id === p.id ? null : { row: row.bodyPart, id: p.id }; }}
+                onpointerenter={(e) => { if (!isTapPointer(e)) selected = { row: row.bodyPart, id: p.id }; }}
                 aria-label="{row.bodyPart}, severity {p.severity}"
                 class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full {spikeIds.has(p.id) ? 'ring-2 ring-status-risk/60 ring-offset-1 ring-offset-surface' : ''} {selected?.id === p.id ? 'outline outline-1 outline-content' : ''}"
                 style="left: {xOf(p.day)}%; width: {size}px; height: {size}px; background: {severityColor(p.severity)};"

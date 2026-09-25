@@ -8,16 +8,21 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import type { ChartTips } from '../../lib/analytics/chartTips.svelte';
+  import { ColumnPicker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel } from '../../lib/analytics/chartWindow';
   import { RAMP_RATE_SPIKE_THRESHOLD } from '../../lib/analytics/loadAnalytics';
   import { fingerCategoryIds } from '../../lib/analytics/proMetrics';
   import Icon from '@iconify/svelte';
 
-  let { columns, axisStep, tips }: {
+  let { columns, axisStep }: {
     columns: { id: string; label: string; isCurrent: boolean; finger: number; total: number }[];
     axisStep: number;
-    tips: ChartTips;
+    /** Accepted for a uniform panel API; this chart reads out through its column picker. */
+    tips?: ChartTips;
   } = $props();
+
+  const picker = new ColumnPicker(() => columns.length);
+  $effect(() => picker.listen());
 
   let choosing = $state(false);
   const categories = $derived(trainingState.analyticsCategories.filter((c) => !c.archived));
@@ -41,6 +46,7 @@
     return t > 0 ? Math.round((f / t) * 100) : undefined;
   });
   const hasAny = $derived(columns.some((c) => c.finger > 0));
+  const selected = $derived(picker.selected !== null ? withRamp[picker.selected] : null);
 </script>
 
 <div id="section-fingerLoad" class="scroll-mt-4 bg-surface/50 border border-border rounded-card p-4 space-y-3 shadow-card">
@@ -83,29 +89,38 @@
   {#if !hasAny}
     <p class="text-caption text-content-subtle italic text-center py-4">No finger-category exercises logged in this window</p>
   {:else}
+    <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
+      {#if selected}
+        {selected.label}
+        <span class="text-content-subtle"> · </span><span class="text-content">{Math.round(selected.finger)}</span> finger load
+        {#if selected.share !== undefined}<span class="text-content-subtle"> · {Math.round(selected.share * 100)}% of total</span>{/if}
+        {#if selected.ramp}<span class="{selected.spike ? 'text-status-risk' : 'text-content-subtle'}"> · {selected.ramp > 0 ? '+' : ''}{Math.round(selected.ramp * 100)}% vs before</span>{/if}
+      {:else}
+        <span class="text-content-subtle/70">Tap a column for its values · ⚠ = more than {Math.round(RAMP_RATE_SPIKE_THRESHOLD * 100)}% up on the column before</span>
+      {/if}
+    </div>
+
     <div class="h-32 flex flex-col gap-2">
-      <div class="flex-1 relative flex items-end gap-px">
+      <div
+        bind:this={picker.el}
+        class="flex-1 relative flex items-end gap-px cursor-crosshair select-none"
+        role="presentation"
+        onpointerdown={picker.down}
+        onpointermove={picker.move}
+        onpointerleave={picker.leave}
+        onpointerup={picker.tap}
+      >
         {#each withRamp as c, i (c.id)}
-          <button
-            type="button"
-            data-tip-trigger
-            data-tip-open={tips.isOpen(`finger-${i}`)}
-            onclick={() => tips.toggle(`finger-${i}`)}
-            aria-label="{c.label}: finger load {Math.round(c.finger)}"
-            class="flex-1 h-full flex justify-center items-end group relative hover:z-30 {tips.isOpen(`finger-${i}`) ? 'z-30' : ''}"
-          >
-            <div class="w-[62%] max-w-[16px] rounded-[2px] relative {c.isCurrent ? 'bg-warning' : 'bg-warning/45'}" style="height: {(c.finger / maxLoad) * 100}%">
+          <div class="flex-1 h-full flex justify-center items-end">
+            <div
+              class="w-[62%] max-w-[16px] rounded-[2px] relative transition-opacity {c.isCurrent ? 'bg-warning' : 'bg-warning/45'} {picker.selected !== null && picker.selected !== i ? 'opacity-40' : ''}"
+              style="height: {(c.finger / maxLoad) * 100}%"
+            >
               {#if c.spike}
                 <Icon icon="ic:baseline-warning" class="absolute -top-4 left-1/2 -translate-x-1/2 text-status-risk text-xs" />
               {/if}
-              <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-                <span class="block">{c.label} · {Math.round(c.finger)} finger load</span>
-                <span class="block text-content-subtle">
-                  {c.share !== undefined ? `${Math.round(c.share * 100)}% of total` : ''}{c.ramp ? ` · ${c.ramp > 0 ? '+' : ''}${Math.round(c.ramp * 100)}% vs before` : ''}
-                </span>
-              </div>
             </div>
-          </button>
+          </div>
         {/each}
       </div>
       <div class="border-t border-border-strong/60"></div>

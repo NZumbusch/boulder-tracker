@@ -123,6 +123,7 @@
       bind:this={picker.el}
       class="h-36 flex items-end gap-px cursor-crosshair select-none"
       role="presentation"
+      onpointerdown={picker.down}
       onpointermove={picker.move}
       onpointerleave={picker.leave}
       onpointerup={picker.tap}

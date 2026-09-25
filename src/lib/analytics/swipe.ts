@@ -44,12 +44,27 @@ export function swipePaging(node: HTMLElement, onSwipe: (direction: SwipeDirecti
     }
     start = { x: event.touches[0].clientX, y: event.touches[0].clientY };
   };
+  // A sideways swipe isn't a scroll (touch-action lets it through), so the
+  // browser still fires a click where the finger lifted - which would open
+  // whatever it lifted over (a week sheet on the Load chart). The click
+  // after a swipe is swallowed.
+  let suppressUntil = 0;
+  const onClick = (event: MouseEvent) => {
+    if (Date.now() < suppressUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressUntil = 0;
+    }
+  };
   const onEnd = (event: TouchEvent) => {
     if (!start) return;
     const touch = event.changedTouches[0];
     const direction = touch ? swipeDirection(touch.clientX - start.x, touch.clientY - start.y) : null;
     start = null;
-    if (direction) handler(direction);
+    if (direction) {
+      suppressUntil = Date.now() + 500;
+      handler(direction);
+    }
   };
   const onCancel = () => {
     start = null;
@@ -58,6 +73,7 @@ export function swipePaging(node: HTMLElement, onSwipe: (direction: SwipeDirecti
   node.addEventListener("touchstart", onStart, { passive: true });
   node.addEventListener("touchend", onEnd, { passive: true });
   node.addEventListener("touchcancel", onCancel, { passive: true });
+  node.addEventListener("click", onClick, true);
 
   return {
     update(next: (direction: SwipeDirection) => void) {
@@ -67,6 +83,7 @@ export function swipePaging(node: HTMLElement, onSwipe: (direction: SwipeDirecti
       node.removeEventListener("touchstart", onStart);
       node.removeEventListener("touchend", onEnd);
       node.removeEventListener("touchcancel", onCancel);
+      node.removeEventListener("click", onClick, true);
     },
   };
 }

@@ -6,9 +6,36 @@
  * never fits beside an edge column), the whole plot is one target: hover
  * moves the selection on a mouse, a tap picks a column on touch, and the
  * chart prints the selected column in a readout line. Tapping outside the
- * plot, or the same column again, clears it.
+ * plot, or the same column again, clears it. A swipe across the plot is
+ * not a tap (see `TapTracker`). Wire all four handlers: down, move, leave
+ * and tap (on pointerup).
  */
 import { isTapPointer } from "./chartTips.svelte";
+
+/** A finger moving less than this between down and up is a tap; more is a swipe or scroll. */
+export const TAP_SLOP_PX = 10;
+
+export function isTapMovement(down: { x: number; y: number } | null, up: { x: number; y: number }): boolean {
+  return !!down && Math.abs(up.x - down.x) < TAP_SLOP_PX && Math.abs(up.y - down.y) < TAP_SLOP_PX;
+}
+
+/**
+ * Tells a tap from the end of a swipe. The Analytics panels let a sideways
+ * swipe through to the page (it pages the window), so a `pointerup` on a
+ * chart can be the end of a swipe - which must not also select a column.
+ */
+export class TapTracker {
+  #down: { x: number; y: number } | null = null;
+  down = (event: PointerEvent) => {
+    this.#down = { x: event.clientX, y: event.clientY };
+  };
+  /** Whether this `pointerup` ends a tap (and resets for the next gesture). */
+  isTap(event: PointerEvent): boolean {
+    const tap = isTapMovement(this.#down, { x: event.clientX, y: event.clientY });
+    this.#down = null;
+    return tap;
+  }
+}
 
 /** The column under `clientX` in a plot spanning `rect`, or null outside it. */
 export function columnAt(clientX: number, rect: { left: number; width: number }, count: number): number | null {
@@ -21,6 +48,7 @@ export class ColumnPicker {
   selected = $state<number | null>(null);
   el: HTMLElement | null = null;
   #count: () => number;
+  #taps = new TapTracker();
 
   constructor(count: () => number) {
     this.#count = count;
@@ -38,8 +66,10 @@ export class ColumnPicker {
     if (!isTapPointer(event)) this.selected = null;
   };
 
+  down = (event: PointerEvent) => this.#taps.down(event);
+
   tap = (event: PointerEvent) => {
-    if (!isTapPointer(event)) return;
+    if (!isTapPointer(event) || !this.#taps.isTap(event)) return;
     const i = this.#at(event);
     this.selected = i === this.selected ? null : i;
   };
