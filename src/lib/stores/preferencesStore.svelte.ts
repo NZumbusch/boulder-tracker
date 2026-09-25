@@ -25,6 +25,9 @@ export class PreferencesStore {
   timerVibrateEnabled = $state(true);
   timerBeepEnabled = $state(true);
   timerKeepAwakeEnabled = $state(false);
+  timerBackgroundAlerts = $state(true);
+  timerCountdownTicks = $state(true);
+  timerWarnBeforeEnd = $state(false);
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
   homeDetails = $state<HomeDetails>(defaultHomeDetails());
   sendsChartCounts = $state(true);
@@ -68,6 +71,9 @@ export class PreferencesStore {
     this.timerVibrateEnabled = prefs.timerVibrateEnabled;
     this.timerBeepEnabled = prefs.timerBeepEnabled;
     this.timerKeepAwakeEnabled = prefs.timerKeepAwakeEnabled;
+    this.timerBackgroundAlerts = prefs.timerBackgroundAlerts;
+    this.timerCountdownTicks = prefs.timerCountdownTicks;
+    this.timerWarnBeforeEnd = prefs.timerWarnBeforeEnd;
     this.homeSections = prefs.homeSections;
     this.homeDetails = prefs.homeDetails;
     this.sendsChartCounts = prefs.sendsChartCounts;
@@ -143,6 +149,21 @@ export class PreferencesStore {
 
   setTimerKeepAwakeEnabled(enabled: boolean) {
     this.timerKeepAwakeEnabled = enabled;
+    this.persist();
+  }
+
+  setTimerBackgroundAlerts(enabled: boolean) {
+    this.timerBackgroundAlerts = enabled;
+    this.persist();
+  }
+
+  setTimerCountdownTicks(enabled: boolean) {
+    this.timerCountdownTicks = enabled;
+    this.persist();
+  }
+
+  setTimerWarnBeforeEnd(enabled: boolean) {
+    this.timerWarnBeforeEnd = enabled;
     this.persist();
   }
 
@@ -261,6 +282,9 @@ export class PreferencesStore {
       timerVibrateEnabled: this.timerVibrateEnabled,
       timerBeepEnabled: this.timerBeepEnabled,
       timerKeepAwakeEnabled: this.timerKeepAwakeEnabled,
+      timerBackgroundAlerts: this.timerBackgroundAlerts,
+      timerCountdownTicks: this.timerCountdownTicks,
+      timerWarnBeforeEnd: this.timerWarnBeforeEnd,
       homeSections: this.homeSections,
       homeDetails: this.homeDetails,
       sendsChartCounts: this.sendsChartCounts,

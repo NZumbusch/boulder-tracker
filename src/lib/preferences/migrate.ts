@@ -69,6 +69,12 @@ export interface Preferences {
   timerVibrateEnabled: boolean;
   timerBeepEnabled: boolean;
   timerKeepAwakeEnabled: boolean;
+  /** Alert when a rest or countdown ends while the app is in the background (a scheduled notification). */
+  timerBackgroundAlerts: boolean;
+  /** Beep the last three seconds of a countdown, rest or interval phase (3-2-1). */
+  timerCountdownTicks: boolean;
+  /** A heads-up 15 seconds before a countdown or rest ends - on screen and, in the background, as a notification. */
+  timerWarnBeforeEnd: boolean;
   /**
    * Home section visibility + order. The array's order *is* the display order: an
    * entry earlier in the array renders above one later in it. Every known
@@ -240,6 +246,9 @@ export function defaultPreferences(): Preferences {
     timerVibrateEnabled: true,
     timerBeepEnabled: true,
     timerKeepAwakeEnabled: false,
+    timerBackgroundAlerts: true,
+    timerCountdownTicks: true,
+    timerWarnBeforeEnd: false,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
     analyticsSections: ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })),
     quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
@@ -444,6 +453,9 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     timerKeepAwakeEnabled: typeof candidate.timerKeepAwakeEnabled === 'boolean'
       ? candidate.timerKeepAwakeEnabled
       : defaults.timerKeepAwakeEnabled,
+    timerBackgroundAlerts: typeof candidate.timerBackgroundAlerts === 'boolean' ? candidate.timerBackgroundAlerts : defaults.timerBackgroundAlerts,
+    timerCountdownTicks: typeof candidate.timerCountdownTicks === 'boolean' ? candidate.timerCountdownTicks : defaults.timerCountdownTicks,
+    timerWarnBeforeEnd: typeof candidate.timerWarnBeforeEnd === 'boolean' ? candidate.timerWarnBeforeEnd : defaults.timerWarnBeforeEnd,
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
     analyticsSections: validateOrderedToggles(candidate.analyticsSections, ANALYTICS_SECTION_IDS),
     quickLogActions: validateOrderedToggles(candidate.quickLogActions, QUICK_LOG_ACTION_IDS),

@@ -4,7 +4,10 @@
    * stash, extended 2026-09-22 with interval mode).
    *
    * Three modes:
-   * - **Stopwatch** and **countdown**, as ported, driven by a plain 1s tick.
+   * - **Stopwatch** and **countdown**, kept as timestamps (`lib/timer/clock`)
+   *   so they stay right while the phone is locked or the app is in the
+   *   background - a per-second counter fell behind as soon as Android
+   *   throttled it.
    * - **Interval**, which runs a whole sets x reps protocol
    *   (`lib/timer/intervalTimer.ts`). A hangboard repeater is sets x reps x
    *   (hang -> rest) with a longer rest between sets, so it needs no mode
@@ -18,8 +21,14 @@
    *
    * `bottom-[91px]` (the default) clears App.svelte's nav bar; the session
    * modal covers that nav with a shorter footer and overrides it.
+   *
+   * Survives the app being closed in the background: its state is saved
+   * (`lib/timer/persistTimer`) and restored on the next start. While the
+   * app is hidden, upcoming moments (rest over, countdown done, the
+   * optional 15 s warning) are handed to Android as notifications
+   * (`lib/timer/timerAlerts`) and taken back on return.
    */
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import Icon from "@iconify/svelte";
   import { slotValues } from "../../lib/exerciseSlot";
   import { trainingState } from "../../lib/state.svelte";
@@ -40,6 +49,11 @@
     clampSpec,
   } from "../../lib/timer/intervalTimer";
   import IntervalTimerView from "./IntervalTimerView.svelte";
+  import { type Clock, STOPPED_CLOCK, clockElapsedMs, startClock, pauseClock, countdownRemainingMs } from "../../lib/timer/clock";
+  import { upcomingAlerts } from "../../lib/timer/timerAlerts";
+  import { ACTIVE_TIMER_KEY, parseStoredTimer, serializeTimer, type TimerSnapshot } from "../../lib/timer/persistTimer";
+  import { scheduleTimerAlerts, cancelTimerAlerts, ensureTimerAlertPermission } from "../../lib/notifications/timerAlerts";
+  import { hasIntervalTiming } from "../../lib/timer/intervalTimer";
   import SetRunView from "./SetRunView.svelte";
   import {
     type SetRunState,
@@ -84,11 +98,23 @@
 
   let mode = $state<'stopwatch' | 'timer' | 'interval'>('stopwatch');
 
-  // --- Stopwatch / countdown (unchanged behaviour) ---
-  let time = $state(0);
-  let isRunning = $state(false);
-  let interval: ReturnType<typeof setInterval> | null = null;
+  /** The one clock reading every timer display derives from, refreshed by the tickers. */
+  let now = $state(Date.now());
+
+  // --- Stopwatch / countdown: a timestamp clock, ticked only to redraw ---
+  let basic = $state<Clock>(STOPPED_CLOCK);
   let targetTime = $state(60);
+  let interval: ReturnType<typeof setInterval> | null = null;
+  const isRunning = $derived(basic.runningSince !== null);
+  /** Whole seconds shown: up for the stopwatch, down (rounded up) for the countdown. */
+  const time = $derived(
+    mode === 'timer'
+      ? Math.ceil(countdownRemainingMs(targetTime, basic, now) / 1000)
+      : Math.floor(clockElapsedMs(basic, now) / 1000),
+  );
+  /** Cue bookkeeping for the countdown's 3-2-1 and warning. */
+  let basicLastTick = -1;
+  let basicWarned = false;
 
   // --- Interval mode ---
   let spec = $state<IntervalSpec>(DEFAULT_SPEC);
@@ -97,12 +123,15 @@
   let seededForSlotId = $state<string | null>(null);
   let bankedMs = $state(0);
   let runningSince = $state<number | null>(null);
-  let now = $state(Date.now());
   let ticker: ReturnType<typeof setInterval> | null = null;
   let expanded = $state(false);
   /** Cue bookkeeping, so a phase change or a countdown second fires exactly once. */
   let lastStepIndex = $state(-1);
   let lastTickSecond = $state(-1);
+  /** The 15 s heads-up (optional, Settings -> Sessions & Timer). */
+  const WARN_SECONDS = 15;
+  let warnedStepIndex = -1;
+  let restWarnedForSet = 0;
 
   // --- Self-paced sets (strength work: you set the pace, the rest is timed) ---
   let timingMode = $state<SetTimingMode>('auto');
@@ -212,8 +241,16 @@
    * to go, a single tone to come off, a falling triple for the long rest,
    * and a rising triple when the whole protocol is done.
    */
-  function cue(kind: 'work' | 'rest' | 'setRest' | 'leadIn' | 'done' | 'tick') {
+  function cue(kind: 'work' | 'rest' | 'setRest' | 'leadIn' | 'done' | 'tick' | 'warn') {
+    // Hidden (locked, backgrounded): the scheduled notification speaks
+    // for the timer, so a late beep on return would only double it up.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (kind === 'tick' && !trainingState.timerCountdownTicks) return;
     switch (kind) {
+      case 'warn':
+        tone(740, 90); tone(740, 90, 160);
+        buzz([80, 80, 80]);
+        break;
       case 'work':
         tone(880, 120); tone(1320, 220, 120);
         buzz([120, 60, 220]);
@@ -261,6 +298,12 @@
       return;
     }
 
+    // The optional heads-up before a set rest ends.
+    if (trainingState.timerWarnBeforeEnd && pos.step?.phase === 'setRest' && pos.remaining === WARN_SECONDS && warnedStepIndex !== pos.index) {
+      warnedStepIndex = pos.index;
+      cue('warn');
+    }
+
     // Count the last three seconds of a phase, so the change is never a
     // surprise - you get onto or off the holds on the beat, not after it.
     if (!pos.done && pos.remaining > 0 && pos.remaining <= 3 && pos.remaining !== lastTickSecond) {
@@ -297,6 +340,10 @@
     if (isResting(setRun)) {
       const left = restRemainingSeconds(setRun, spec);
       const second = Math.ceil(left);
+      if (trainingState.timerWarnBeforeEnd && left > 0 && left <= WARN_SECONDS && restWarnedForSet !== setRun.currentSet) {
+        restWarnedForSet = setRun.currentSet;
+        cue('warn');
+      }
       if (left > 0 && second <= 3 && second !== lastTickSecond) {
         lastTickSecond = second;
         cue('tick');
@@ -337,7 +384,121 @@
     releaseWakeLock();
     if (interval) clearInterval(interval);
     if (ticker) clearInterval(ticker);
+    // Unmounted = the session ended: nothing left to restore or alert about.
+    try { localStorage.removeItem(ACTIVE_TIMER_KEY); } catch { /* storage unavailable */ }
+    void cancelTimerAlerts();
   });
+
+  // --- Surviving the background ------------------------------------------
+
+  function snapshot(): TimerSnapshot {
+    return {
+      mode,
+      targetSeconds: targetTime,
+      basic: $state.snapshot(basic),
+      spec: $state.snapshot(spec),
+      baseSpec: $state.snapshot(baseSpec),
+      seededForSlotId,
+      intervalClock: { bankedMs, runningSince },
+      expanded,
+      timingMode,
+      setRun: $state.snapshot(setRun),
+      stagedReps,
+      lastTickAt,
+    };
+  }
+
+  function saveTimer() {
+    try { localStorage.setItem(ACTIVE_TIMER_KEY, serializeTimer(snapshot())); } catch { /* storage unavailable */ }
+  }
+
+  // Restore what was running before Android closed the app. Seeding is
+  // skipped for the same exercise, so the reseed effect below leaves it.
+  {
+    let stored: TimerSnapshot | null = null;
+    try { stored = parseStoredTimer(localStorage.getItem(ACTIVE_TIMER_KEY)); } catch { /* storage unavailable */ }
+    if (stored) {
+      mode = stored.mode;
+      targetTime = stored.targetSeconds;
+      basic = stored.basic;
+      spec = stored.spec;
+      baseSpec = stored.baseSpec;
+      seededForSlotId = stored.seededForSlotId;
+      bankedMs = stored.intervalClock.bankedMs;
+      runningSince = stored.intervalClock.runningSince;
+      expanded = stored.expanded;
+      timingMode = stored.timingMode;
+      setRun = stored.setRun;
+      stagedReps = stored.stagedReps;
+      lastTickAt = stored.lastTickAt;
+      now = Date.now();
+      // Cues for steps that passed while the app was gone stay silent.
+      const restoredElapsedMs = stored.intervalClock.bankedMs + (stored.intervalClock.runningSince === null ? 0 : Date.now() - stored.intervalClock.runningSince);
+      lastStepIndex = positionAt(buildTimeline(stored.spec), restoredElapsedMs / 1000).index;
+      queueMicrotask(() => { syncTicker(); syncBasicTicker(); });
+    }
+  }
+
+  // Saved on every meaningful change (not on each 100 ms tick - the tick
+  // fields are saved with the next change, on hide, and every few seconds).
+  $effect(() => {
+    void [mode, targetTime, basic.bankedMs, basic.runningSince, spec, baseSpec, seededForSlotId, bankedMs, runningSince,
+      expanded, timingMode, setRun.currentSet, setRun.completed.length, setRun.done, stagedReps];
+    untrack(saveTimer);
+  });
+  $effect(() => {
+    const running = runningSince !== null || basic.runningSince !== null;
+    if (!running) return;
+    const id = setInterval(saveTimer, 5000);
+    return () => clearInterval(id);
+  });
+
+  // Hidden: save, and hand the next moments to Android. Back: take them back.
+  $effect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        saveTimer();
+        if (!trainingState.timerBackgroundAlerts) return;
+        const alerts = upcomingAlerts({
+          mode,
+          targetSeconds: targetTime,
+          basic,
+          spec,
+          intervalClock: { bankedMs, runningSince },
+          selfPaced,
+          setRun,
+          warningSeconds: trainingState.timerWarnBeforeEnd ? WARN_SECONDS : 0,
+        }, Date.now());
+        void scheduleTimerAlerts(alerts);
+      } else {
+        now = Date.now();
+        void cancelTimerAlerts();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  });
+
+  /** On the first timer start (a real tap), ask for notification permission if background alerts are on. */
+  function askForAlerts() {
+    if (trainingState.timerBackgroundAlerts) void ensureTimerAlertPermission();
+  }
+
+  /**
+   * Opens the timer that fits the current exercise - the interval protocol
+   * or the self-paced set run when it has timing, a stopwatch otherwise.
+   * Called from the session's exercise card ("Timer").
+   */
+  export function openForExercise() {
+    const values = currentSlot ? slotValues(currentSlot) : undefined;
+    if (hasIntervalTiming(values)) selectMode('interval');
+    else if (mode === 'interval') selectMode('stopwatch');
+  }
+
+  /** Whether the current exercise has timing the interval/set timer can run. */
+  export function exerciseHasTiming(): boolean {
+    return hasIntervalTiming(currentSlot ? slotValues(currentSlot) : undefined);
+  }
 
   // --- Interval controls ------------------------------------------------
 
@@ -345,7 +506,9 @@
     const shouldTick = mode === 'interval' && runningSince !== null;
     if (shouldTick && ticker === null) {
       now = Date.now();
-      lastTickAt = now;
+      // A restored run keeps its last tick, so the first tick covers the
+      // time the app was away; a fresh start begins from now.
+      if (lastTickAt === 0) lastTickAt = now;
       ticker = setInterval(() => {
         const at = Date.now();
         const delta = lastTickAt > 0 ? at - lastTickAt : 0;
@@ -365,6 +528,7 @@
 
   function startInterval() {
     unlockAudio();
+    askForAlerts();
     if (runningSince !== null) return;
     // Starting from a finished run begins again rather than sitting at the end.
     if (position.done && elapsedMs > 0) bankedMs = 0;
@@ -425,6 +589,7 @@
   /** The self-paced run shares the interval clock's running flag, so pause works the same. */
   function startSetRunClock() {
     unlockAudio();
+    askForAlerts();
     if (runningSince !== null) return;
     runningSince = Date.now();
     now = runningSince;
@@ -528,46 +693,71 @@
   function applyPreset(seconds: number) {
     mode = 'timer';
     targetTime = seconds;
-    if (!isRunning) time = seconds;
+    if (!isRunning) basic = STOPPED_CLOCK;
   }
 
   function resetStopwatch() {
-    if (interval) clearInterval(interval);
-    isRunning = false;
-    time = 0;
+    basic = STOPPED_CLOCK;
+    syncBasicTicker();
   }
+
+  /** Redraws the stopwatch/countdown while it runs, and ends the countdown. */
+  function syncBasicTicker() {
+    const shouldTick = basic.runningSince !== null && mode !== 'interval';
+    if (shouldTick && interval === null) {
+      now = Date.now();
+      interval = setInterval(() => { now = Date.now(); }, 250);
+    } else if (!shouldTick && interval !== null) {
+      clearInterval(interval);
+      interval = null;
+    }
+  }
+
+  // Countdown cues and its end, read off the clock rather than counted.
+  $effect(() => {
+    if (mode !== 'timer' || basic.runningSince === null) return;
+    const remaining = countdownRemainingMs(targetTime, basic, now);
+    const second = Math.ceil(remaining / 1000);
+    if (remaining <= 0) {
+      basic = { bankedMs: targetTime * 1000, runningSince: null };
+      untrack(() => { syncBasicTicker(); releaseWakeLock(); });
+      basicLastTick = -1;
+      cue('done');
+      return;
+    }
+    if (trainingState.timerWarnBeforeEnd && !basicWarned && targetTime > WARN_SECONDS && second <= WARN_SECONDS) {
+      basicWarned = true;
+      cue('warn');
+    }
+    if (second <= 3 && second !== basicLastTick) {
+      basicLastTick = second;
+      cue('tick');
+    }
+  });
 
   function toggle() {
     unlockAudio();
     if (isRunning) {
-      if (interval) clearInterval(interval);
-      isRunning = false;
+      basic = pauseClock(basic, Date.now());
       releaseWakeLock();
     } else {
-      isRunning = true;
+      // Starting a finished countdown begins it again.
+      if (mode === 'timer' && countdownRemainingMs(targetTime, basic, Date.now()) <= 0) basic = STOPPED_CLOCK;
+      basicLastTick = -1;
+      basicWarned = mode === 'timer' && countdownRemainingMs(targetTime, basic, Date.now()) <= WARN_SECONDS * 1000;
+      basic = startClock(basic, Date.now());
       acquireWakeLock();
-      interval = setInterval(() => {
-        if (mode === 'stopwatch') {
-          time++;
-        } else {
-          if (time > 0) {
-            time--;
-          } else {
-            if (interval) clearInterval(interval);
-            isRunning = false;
-            releaseWakeLock();
-            cue('done');
-          }
-        }
-      }, 1000);
+      askForAlerts();
     }
+    syncBasicTicker();
   }
 
   function reset() {
-    if (interval) clearInterval(interval);
-    isRunning = false;
+    basic = STOPPED_CLOCK;
+    basicLastTick = -1;
+    basicWarned = false;
+    syncBasicTicker();
     releaseWakeLock();
-    time = mode === 'timer' ? targetTime : 0;
   }
 
   function formatTime(s: number) {
@@ -578,9 +768,8 @@
 
   function addTime(seconds: number) {
     if (mode === 'timer') {
-      targetTime += seconds;
-      if (targetTime < 0) targetTime = 0;
-      if (!isRunning) time = targetTime;
+      targetTime = Math.max(0, targetTime + seconds);
+      if (countdownRemainingMs(targetTime, basic, Date.now()) > WARN_SECONDS * 1000) basicWarned = false;
     }
   }
 </script>
@@ -631,7 +820,10 @@
   />
 {/if}
 
-<div class="fixed {bottomClass} left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 {!visible || (mode === 'interval' && expanded) ? 'hidden' : ''}">
+<!-- z-[111]: above the live session (z-110) - at z-50 it sat hidden behind
+     it, which is why the timer could not be found at all - and below the
+     session's own sheets and the interval views. -->
+<div class="fixed {bottomClass} left-1/2 -translate-x-1/2 z-[111] flex flex-col items-center gap-2 {!visible || (mode === 'interval' && expanded) ? 'hidden' : ''}">
   {#if presets.length > 0 && mode !== 'interval'}
     <div class="flex items-center gap-1.5 bg-surface/90 backdrop-blur-md border border-border rounded-control px-2 py-1 shadow-card animate-in fade-in">
       {#each presets as preset}

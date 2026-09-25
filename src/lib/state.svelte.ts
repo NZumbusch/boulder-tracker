@@ -186,9 +186,15 @@ class TrainingState {
   get timerVibrateEnabled() { return this.preferencesStore.timerVibrateEnabled; }
   get timerBeepEnabled() { return this.preferencesStore.timerBeepEnabled; }
   get timerKeepAwakeEnabled() { return this.preferencesStore.timerKeepAwakeEnabled; }
+  get timerBackgroundAlerts() { return this.preferencesStore.timerBackgroundAlerts; }
+  get timerCountdownTicks() { return this.preferencesStore.timerCountdownTicks; }
+  get timerWarnBeforeEnd() { return this.preferencesStore.timerWarnBeforeEnd; }
   setTimerVibrateEnabled(enabled: boolean) { this.preferencesStore.setTimerVibrateEnabled(enabled); }
   setTimerBeepEnabled(enabled: boolean) { this.preferencesStore.setTimerBeepEnabled(enabled); }
   setTimerKeepAwakeEnabled(enabled: boolean) { this.preferencesStore.setTimerKeepAwakeEnabled(enabled); }
+  setTimerBackgroundAlerts(enabled: boolean) { this.preferencesStore.setTimerBackgroundAlerts(enabled); }
+  setTimerCountdownTicks(enabled: boolean) { this.preferencesStore.setTimerCountdownTicks(enabled); }
+  setTimerWarnBeforeEnd(enabled: boolean) { this.preferencesStore.setTimerWarnBeforeEnd(enabled); }
 
   get homeSections() { return this.preferencesStore.homeSections; }
   setHomeSectionVisible(id: HomeSectionPreference['id'], visible: boolean) {

@@ -28,6 +28,7 @@
   import ExerciseLogSheet from './ExerciseLogSheet.svelte';
   import SessionExitModal from './SessionExitModal.svelte';
   import TimerWidget from './TimerWidget.svelte';
+  import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -45,6 +46,8 @@
   let intervalSeed = $state<ExerciseValues | null>(null);
 
   const session = $derived(store.session);
+  /** The session timer, so the exercise card's Timer button can open it. */
+  let timer = $state<ReturnType<typeof TimerWidget> | undefined>(undefined);
 
   // Back (phone key or browser): the add/edit screen returns to the
   // session; the session itself minimises to the bubble - it keeps running.
@@ -304,6 +307,20 @@
                     >
                       Skip
                     </button>
+                    {#if hasIntervalTiming(slotValues(slot))}
+                      <!-- Opens the timer that fits: the interval protocol
+                           for timed work (hangs), the set timer with rests
+                           for strength sets. The floating pill below also
+                           offers stopwatch and countdown for anything else. -->
+                      <button
+                        onclick={() => timer?.openForExercise()}
+                        class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5"
+                        aria-label="Open the timer for this exercise"
+                      >
+                        <Icon icon="ic:baseline-timer" class="text-base" />
+                        Timer
+                      </button>
+                    {/if}
                     <button
                       onclick={() => loggingSlotId = slot.id}
                       class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2"
@@ -365,6 +382,7 @@
        and `visible` still keeps it off screen exactly when the session
        modal is, so it never competes with the session bubble. -->
   <TimerWidget
+    bind:this={timer}
     currentSlot={current ?? null}
     bottomClass="bottom-[80px]"
     visible={store.isModalOpen}
