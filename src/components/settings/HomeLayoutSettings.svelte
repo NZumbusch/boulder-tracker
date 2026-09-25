@@ -61,7 +61,7 @@
   }
 </script>
 
-<div class="bg-surface border border-border rounded-card p-5 space-y-5 backdrop-blur-sm shadow-card animate-in fade-in">
+<div class="card space-y-5 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Home sections</h3>
     <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide. Open a section to choose what it shows.</p>
@@ -124,7 +124,7 @@
   </div>
 </div>
 
-<div class="bg-surface border border-border rounded-card p-5 space-y-3 backdrop-blur-sm shadow-card animate-in fade-in">
+<div class="card space-y-3 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Fatigue card</h3>
     <p class="text-caption text-content-subtle px-1">How the Fatigue card on Home draws the four axes.</p>

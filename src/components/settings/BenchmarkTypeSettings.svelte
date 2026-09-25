@@ -54,7 +54,7 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
+<div class="card space-y-4">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Benchmark Types</h3>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic performance tests (max hang, max pull-up, ...) tracked over time. These are separate from Exercise Modalities — you log a result under "Benchmark Tests" on the Training Plan screen, not as part of a workout.</p>

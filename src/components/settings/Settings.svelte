@@ -116,12 +116,12 @@
 
 <div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <div class="flex items-center justify-between px-1">
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2">
       {#if currentTab === 'overview'}
-        <button onclick={() => trainingState.navigate('home')} class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-muted hover:text-content transition-colors"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
+        <button onclick={() => trainingState.navigate('home')} class="p-1.5 -ml-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors" aria-label="Back"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
         <h2 class="text-title text-content">Settings</h2>
       {:else}
-        <button onclick={goBack} class="p-2 bg-surface-elevated/50 rounded-control border border-border-strong/50 text-content-muted hover:text-content transition-colors"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
+        <button onclick={goBack} class="p-1.5 -ml-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors" aria-label="Back"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
         <h2 class="text-title text-content">
           {#if currentTab === 'customization'}Customization
           {:else if currentTab === 'design'}{APPEARANCE_TOPICS.find((t) => t.id === appearanceTopic)?.label ?? 'Appearance & Behaviour'}
@@ -138,39 +138,25 @@
   </div>
 
   {#if currentTab === 'overview'}
-    <div class="space-y-4">
-      <button onclick={() => currentTab = 'customization'} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
-        <div class="flex items-center gap-4">
-          <div class="p-3 bg-primary-hover/10 rounded-card text-primary group-hover:bg-primary-hover group-hover:text-white transition-colors"><Icon icon="ic:baseline-tune" class="text-2xl" /></div>
-          <div class="text-left"><p class="text-body font-bold text-content">Customization</p><p class="text-caption text-content-subtle mt-1">Exercises, categories, training phases, templates & benchmarks</p></div>
-        </div>
-        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
+    {#snippet navRow(icon: string, title: string, subtitle: string, onclick: () => void)}
+      <button {onclick} class="w-full flex items-center gap-3 py-3.5 text-left group">
+        <Icon {icon} class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" />
+        <span class="min-w-0 flex-1">
+          <span class="block text-body font-semibold text-content group-hover:text-primary transition-colors">{title}</span>
+          <span class="block text-caption text-content-subtle">{subtitle}</span>
+        </span>
+        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl shrink-0" />
       </button>
-      <button onclick={() => { currentTab = 'design'; appearanceTopic = null; }} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
-        <div class="flex items-center gap-4">
-          <div class="p-3 bg-tertiary-hover/10 rounded-card text-tertiary group-hover:bg-tertiary-hover group-hover:text-white transition-colors"><Icon icon="ic:baseline-color-lens" class="text-2xl" /></div>
-          <div class="text-left"><p class="text-body font-bold text-content">Appearance & Behaviour</p><p class="text-caption text-content-subtle mt-1">Theme, layout, timer, weather & notifications</p></div>
-        </div>
-        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
-      </button>
-      <button onclick={() => currentTab = 'integration'} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
-        <div class="flex items-center gap-4">
-          <div class="p-3 bg-success/10 rounded-card text-success group-hover:bg-success group-hover:text-white transition-colors"><Icon icon="ic:baseline-sync" class="text-2xl" /></div>
-          <div class="text-left"><p class="text-body font-bold text-content">Data & Exports</p><p class="text-caption text-content-subtle mt-1">Backups, calendar/PDF export & AI sharing</p></div>
-        </div>
-        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
-      </button>
-      <button onclick={() => currentTab = 'about'} class="w-full flex items-center justify-between p-5 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group backdrop-blur-sm shadow-card">
-        <div class="flex items-center gap-4">
-          <div class="p-3 bg-status-neutral/10 rounded-card text-content-subtle group-hover:bg-status-neutral group-hover:text-content transition-colors"><Icon icon="ic:baseline-info" class="text-2xl" /></div>
-          <div class="text-left"><p class="text-body font-bold text-content">About & Impressum</p><p class="text-caption text-content-subtle mt-1">Application details and legal information</p></div>
-        </div>
-        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-2xl" />
-      </button>
+    {/snippet}
+    <div class="card py-1 divide-y divide-border">
+      {@render navRow('ic:baseline-tune', 'Customization', 'Exercises, categories, training phases, templates & benchmarks', () => currentTab = 'customization')}
+      {@render navRow('ic:baseline-color-lens', 'Appearance & Behaviour', 'Theme, layout, timer, weather & notifications', () => { currentTab = 'design'; appearanceTopic = null; })}
+      {@render navRow('ic:baseline-sync', 'Data & Exports', 'Backups, calendar/PDF export & AI sharing', () => currentTab = 'integration')}
+      {@render navRow('ic:baseline-info', 'About & Impressum', 'Application details and legal information', () => currentTab = 'about')}
     </div>
   {:else if currentTab === 'customization'}
     <div class="space-y-4">
-      <div class="bg-primary/5 border border-primary/20 rounded-card p-5 space-y-2.5">
+      <div class="card space-y-2">
         <div class="flex items-center gap-2 text-primary">
           <Icon icon="ic:baseline-info" class="text-lg" />
           <span class="text-label">How These Fit Together</span>
@@ -192,7 +178,7 @@
     </div>
   {:else if currentTab === 'about'}
     <div class="space-y-4">
-      <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+      <div class="card space-y-4 animate-in fade-in">
         <div class="space-y-4">
           <div class="text-center py-4">
             <Icon icon="ic:baseline-terrain" class="text-6xl text-primary mx-auto mb-2" />

@@ -242,7 +242,11 @@
   @apply bg-surface/50 border border-border rounded-card p-4 shadow-card;
 }
 /* Segmented control: `seg` is the track, `seg-item` each option, and
-   `seg-on` marks the selected one. */
+   `seg-on` marks the selected one. This quiet version is for switching a
+   *view* (a chart's mode, a tab). Choosing a *setting* - a full-width
+   row of options, as in Settings and the live session - keeps the filled
+   primary segment (`bg-primary text-white`), so a choice that changes
+   behaviour reads stronger than one that changes what you look at. */
 @utility seg {
   @apply flex bg-surface-elevated/50 p-0.5 rounded-control;
 }

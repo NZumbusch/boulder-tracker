@@ -17,7 +17,7 @@
   let subTab = $state<SubTab>('modalities');
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
+<div class="card space-y-4">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Exercises</h3>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">What you can log in a workout, and how it's grouped on charts.</p>

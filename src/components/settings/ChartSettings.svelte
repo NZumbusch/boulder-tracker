@@ -8,7 +8,7 @@
   import { trainingState } from '../../lib/state.svelte';
 </script>
 
-<div class="bg-surface border border-border rounded-card p-5 space-y-5 backdrop-blur-sm shadow-card animate-in fade-in">
+<div class="card space-y-5 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Recovery chart</h3>
     <p class="text-caption text-content-subtle px-1">HRV, sleep and resting HR together as % vs your own baseline (easiest to compare), or as three rows in their real units. The chart's own toggle changes this too.</p>

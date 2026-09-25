@@ -31,7 +31,7 @@
 </script>
 
 <div class="space-y-4">
-  <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+  <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Calendar Integration</h3>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">Export training history as an ICS file for integration with standard calendar applications.</p>
@@ -53,7 +53,7 @@
     </button>
   </div>
 
-  <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+  <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Printable Training Plan</h3><p class="text-caption text-content-subtle px-1 leading-relaxed">Generate a PDF of your workouts for any week range.</p></div>
     <button
       onclick={() => showPDFExport = true}
@@ -72,7 +72,7 @@
     </button>
   </div>
 
-  <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+  <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">JSON Backups</h3><p class="text-caption text-content-subtle px-1">Ensure your data is safe by exporting a local JSON backup.</p></div>
     <div class="grid grid-cols-1 gap-3">
       <button onclick={onExport} class="flex items-center justify-between p-4 bg-surface-elevated/50 hover:bg-surface-elevated rounded-card border border-border-strong/50 transition-all group"><div class="flex items-center gap-3"><div class="p-2.5 bg-primary-hover/10 rounded-control text-primary group-hover:bg-primary-hover group-hover:text-white transition-colors"><Icon icon="ic:baseline-download" class="text-xl" /></div><div class="text-left"><p class="text-body font-bold text-content">Export</p><p class="text-caption text-content-subtle">Save to local JSON</p></div></div><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" /></button>

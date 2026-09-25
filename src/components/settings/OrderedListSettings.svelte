@@ -33,7 +33,7 @@
   }
 </script>
 
-<div class="bg-surface border border-border rounded-card p-5 space-y-3 backdrop-blur-sm shadow-card animate-in fade-in">
+<div class="card space-y-3 animate-in fade-in">
   <div class="space-y-1">
     <h3 class="text-section uppercase text-content-muted px-1">{title}</h3>
     {#if hint}<p class="text-caption text-content-subtle px-1">{hint}</p>{/if}

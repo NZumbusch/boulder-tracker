@@ -59,7 +59,7 @@
       {/each}
     </div>
   {:else if topic === 'general'}
-  <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+  <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Theme</h3>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">Configure interface themes and high-contrast settings to optimize visibility across diverse lighting conditions.</p>
@@ -113,7 +113,7 @@
     </div>
   </div>
 
-    <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+    <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Text Size</h3>
     </div>
@@ -124,7 +124,7 @@
     </div>
   </div>
 
-    <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+    <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Motion</h3>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">"System" follows your device's reduced-motion setting automatically.</p>

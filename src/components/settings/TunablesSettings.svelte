@@ -42,7 +42,7 @@
   }
 </script>
 
-<div class="bg-surface border border-border rounded-card p-5 space-y-5 backdrop-blur-sm shadow-card animate-in fade-in">
+<div class="card space-y-5 animate-in fade-in">
   <div class="flex items-center justify-between gap-3">
     <h3 class="text-section uppercase text-content-muted px-1">{title}</h3>
     <button onclick={reset} class="flex items-center gap-1 text-caption text-content-subtle hover:text-primary transition-colors">
