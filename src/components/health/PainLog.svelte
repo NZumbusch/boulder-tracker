@@ -60,7 +60,7 @@
   const inputClass = 'w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60';
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
+<div class="card space-y-4">
   <div class="flex items-center justify-between px-1">
     <div>
       <h3 class="text-section uppercase text-content-muted">Pain & discomfort</h3>

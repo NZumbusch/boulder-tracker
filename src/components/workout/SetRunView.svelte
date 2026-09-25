@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * The self-paced set timer, full screen.
    *
@@ -117,9 +118,13 @@
     { value: 'selfPaced', label: 'Self-paced' },
     { value: 'timed', label: 'Counted' },
   ];
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onMinimize());
 </script>
 
-<div class="fixed inset-0 z-[70] bg-app-bg flex flex-col">
+<!-- Above the live session (z-110), below its sheets (z-115+). -->
+<div class="fixed inset-0 z-[112] bg-app-bg flex flex-col">
   <!-- Header -->
   <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
     <button onclick={onMinimize} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors" aria-label="Minimise timer" title="Minimise — the timer keeps running">

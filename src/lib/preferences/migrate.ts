@@ -17,7 +17,7 @@
  * overwrites those two fields - `UiStore` remains their sole writer.
  */
 
-import type { ChartDensity } from '../analytics/chartWindow';
+import { ANALYTICS_RANGES, DEFAULT_ANALYTICS_RANGE, type AnalyticsRange } from '../analytics/range';
 import { defaultHomeDetails, validateHomeDetails, type HomeDetails } from './homeDetails';
 import { defaultTunables, validateTunables, type Tunables } from './tunables';
 import { DEFAULT_UNITS, validateUnits, type Units } from '../units';
@@ -59,15 +59,8 @@ export interface Preferences {
   crags: WeatherLocation[];
   /** Bars is the default - radar is the user-requested alternate, both real. */
   fatigueChartStyle: FatigueChartStyle;
-  /**
-   * How much horizontal room each week gets in the Analytics charts, which
-   * is what decides how many weeks a given screen shows (see
-   * `src/lib/analytics/chartWindow.ts`). "auto" sizes a week so its axis
-   * label fits; "compact" packs in more history and thins the axis;
-   * "comfortable" shows fewer, wider weeks. Every option fits the screen -
-   * this is density, not overflow.
-   */
-  chartDensity: ChartDensity;
+  /** The Analytics window: 4 weeks, 3 or 6 months (a week per column), or a year (a month per column) - see `lib/analytics/range.ts`. */
+  analyticsRange: AnalyticsRange;
   /**
    * Timer behaviour toggles - defaults: vibrate/beep on, keep-awake off. Independently togglable, not
    * one master "sound on" switch - a user might want the haptic without
@@ -76,6 +69,16 @@ export interface Preferences {
   timerVibrateEnabled: boolean;
   timerBeepEnabled: boolean;
   timerKeepAwakeEnabled: boolean;
+  /** Alert when a rest or countdown ends while the app is in the background (a scheduled notification). */
+  timerBackgroundAlerts: boolean;
+  /** Beep the last three seconds of a countdown, rest or interval phase (3-2-1). */
+  timerCountdownTicks: boolean;
+  /** A heads-up 15 seconds before a countdown or rest ends - on screen and, in the background, as a notification. */
+  timerWarnBeforeEnd: boolean;
+  /** The live session's floating timer is tucked away to a small button. */
+  timerPillHidden: boolean;
+  /** Android: an ongoing notification while a session runs (its clock, progress, pause). */
+  sessionNotification: boolean;
   /**
    * Home section visibility + order. The array's order *is* the display order: an
    * entry earlier in the array renders above one later in it. Every known
@@ -96,6 +99,12 @@ export interface Preferences {
   homeDetails: HomeDetails;
   /** Whether History's sends-by-grade chart prints each bar's count above it (it always shows on tap/hover). */
   sendsChartCounts: boolean;
+  /** Analytics recovery chart: HRV/sleep/RHR overlaid as % vs baseline, or as three lanes in their own units. */
+  recoveryChartMode: RecoveryChartMode;
+  /** Analytics categories counted as finger load; null = guessed from the category names (see `proMetrics.ts`). */
+  fingerCategoryIds: string[] | null;
+  /** Weight benchmarks whose value already includes bodyweight (a total, not added weight) - for relative strength. */
+  benchmarkTotalTypeIds: string[];
   /** Adjustable thresholds and windows - see `tunables.ts`, which owns ids, ranges and defaults. */
   tunables: Tunables;
   /** Display units - storage is always °C / kg / km/h / Font (see `lib/units.ts`). */
@@ -197,7 +206,7 @@ export interface HomeSectionPreference {
 }
 
 /** Analytics cards that can be shown, hidden and reordered (Settings -> History & Analytics). */
-export const ANALYTICS_SECTION_IDS = ['load', 'mix', 'fatigue', 'adherence', 'recovery', 'outdoor', 'bodyweight', 'benchmarks'] as const;
+export const ANALYTICS_SECTION_IDS = ['load', 'strain', 'fingerLoad', 'mix', 'fatigue', 'heatmap', 'recoveryTrend', 'pain', 'outdoor', 'benchmarks', 'benchmarkOverview'] as const;
 export type AnalyticsSectionId = (typeof ANALYTICS_SECTION_IDS)[number];
 
 /** The actions in Home's "+" quick-log sheet (Settings -> Home). */
@@ -213,7 +222,7 @@ export interface OrderedToggle<Id extends string> {
 export type FatigueChartStyle = 'bars' | 'radar';
 
 /** Re-exported from the analytics helper that owns the per-density widths, so there is one definition of the set. */
-export type { ChartDensity } from '../analytics/chartWindow';
+export type { AnalyticsRange } from '../analytics/range';
 
 export const DEFAULT_DAILY_METRICS_REMINDER_TIME = '20:00';
 
@@ -237,15 +246,23 @@ export function defaultPreferences(): Preferences {
     homeLocation: null,
     crags: [],
     fatigueChartStyle: 'bars',
-    chartDensity: 'auto',
+    analyticsRange: DEFAULT_ANALYTICS_RANGE,
     timerVibrateEnabled: true,
     timerBeepEnabled: true,
     timerKeepAwakeEnabled: false,
+    timerBackgroundAlerts: true,
+    timerCountdownTicks: true,
+    timerWarnBeforeEnd: false,
+    timerPillHidden: false,
+    sessionNotification: true,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
     analyticsSections: ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })),
     quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
     homeDetails: defaultHomeDetails(),
     sendsChartCounts: true,
+    recoveryChartMode: 'overlay',
+    fingerCategoryIds: null,
+    benchmarkTotalTypeIds: [],
     tunables: defaultTunables(),
     units: { ...DEFAULT_UNITS },
     addedExerciseTarget: 'none',
@@ -266,7 +283,11 @@ const TEXT_SCALES: TextScale[] = ['sm', 'md', 'lg'];
 const MOTION_PREFS: MotionPreference[] = ['system', 'full', 'reduced'];
 const THEMES: ThemePreference[] = ['dark', 'light', 'contrast'];
 const FATIGUE_CHART_STYLES: FatigueChartStyle[] = ['bars', 'radar'];
-const CHART_DENSITIES: ChartDensity[] = ['auto', 'compact', 'comfortable'];
+export type RecoveryChartMode = 'overlay' | 'lanes';
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === 'string');
+}
+const RECOVERY_CHART_MODES: RecoveryChartMode[] = ['overlay', 'lanes'];
 
 /** Validates an unknown value as a `WeatherLocation`, or `null` if it isn't one - never throws, mirrors every other field's independent-defaulting discipline. */
 function validateLocation(raw: unknown): WeatherLocation | null {
@@ -426,9 +447,9 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     fatigueChartStyle: FATIGUE_CHART_STYLES.includes(candidate.fatigueChartStyle as FatigueChartStyle)
       ? (candidate.fatigueChartStyle as FatigueChartStyle)
       : defaults.fatigueChartStyle,
-    chartDensity: CHART_DENSITIES.includes(candidate.chartDensity as ChartDensity)
-      ? (candidate.chartDensity as ChartDensity)
-      : defaults.chartDensity,
+    analyticsRange: ANALYTICS_RANGES.includes(candidate.analyticsRange as AnalyticsRange)
+      ? (candidate.analyticsRange as AnalyticsRange)
+      : defaults.analyticsRange,
     timerVibrateEnabled: typeof candidate.timerVibrateEnabled === 'boolean'
       ? candidate.timerVibrateEnabled
       : defaults.timerVibrateEnabled,
@@ -438,11 +459,21 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     timerKeepAwakeEnabled: typeof candidate.timerKeepAwakeEnabled === 'boolean'
       ? candidate.timerKeepAwakeEnabled
       : defaults.timerKeepAwakeEnabled,
+    timerBackgroundAlerts: typeof candidate.timerBackgroundAlerts === 'boolean' ? candidate.timerBackgroundAlerts : defaults.timerBackgroundAlerts,
+    timerCountdownTicks: typeof candidate.timerCountdownTicks === 'boolean' ? candidate.timerCountdownTicks : defaults.timerCountdownTicks,
+    timerWarnBeforeEnd: typeof candidate.timerWarnBeforeEnd === 'boolean' ? candidate.timerWarnBeforeEnd : defaults.timerWarnBeforeEnd,
+    timerPillHidden: typeof candidate.timerPillHidden === 'boolean' ? candidate.timerPillHidden : defaults.timerPillHidden,
+    sessionNotification: typeof candidate.sessionNotification === 'boolean' ? candidate.sessionNotification : defaults.sessionNotification,
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
     analyticsSections: validateOrderedToggles(candidate.analyticsSections, ANALYTICS_SECTION_IDS),
     quickLogActions: validateOrderedToggles(candidate.quickLogActions, QUICK_LOG_ACTION_IDS),
     homeDetails: validateHomeDetails(candidate.homeDetails),
     sendsChartCounts: typeof candidate.sendsChartCounts === 'boolean' ? candidate.sendsChartCounts : defaults.sendsChartCounts,
+    recoveryChartMode: RECOVERY_CHART_MODES.includes(candidate.recoveryChartMode as RecoveryChartMode)
+      ? (candidate.recoveryChartMode as RecoveryChartMode)
+      : defaults.recoveryChartMode,
+    fingerCategoryIds: isStringArray(candidate.fingerCategoryIds) ? candidate.fingerCategoryIds : null,
+    benchmarkTotalTypeIds: isStringArray(candidate.benchmarkTotalTypeIds) ? candidate.benchmarkTotalTypeIds : [],
     tunables: validateTunables(candidate.tunables),
     units: validateUnits(candidate.units),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),

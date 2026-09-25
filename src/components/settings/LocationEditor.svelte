@@ -57,7 +57,7 @@
   }
 </script>
 
-<div class="p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 space-y-3">
+<div class="py-3 space-y-3">
   <div class="flex items-center justify-between gap-3">
     <div class="min-w-0">
       <p class="text-label text-content-subtle">{label}</p>

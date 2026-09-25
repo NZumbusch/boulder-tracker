@@ -70,7 +70,7 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
+<div class="card space-y-4">
   <div class="flex items-center justify-between px-1">
     <div>
       <h3 class="text-section uppercase text-content-muted">Bodyweight</h3>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { motionMs, scrollBehavior } from '../../lib/motion';
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -18,6 +19,10 @@
   import { formatGoalDates, goalEnd } from '../../lib/goals/goals';
   import { sessionsDuringTrip } from '../../lib/goals/tripConflicts';
   import NoteSheet from '../common/NoteSheet.svelte';
+  import ListRow from '../common/ListRow.svelte';
+  import { summarizeSession } from '../../lib/planning/sessionSummary';
+  import { weekStartDay } from '../../lib/analytics/range';
+  import { localDayIndex } from '../../lib/analytics/recoverySeries';
 
   // --- Theme ---
   const FALLBACK_PHASE_COLOR = 'bg-status-neutral';
@@ -41,6 +46,13 @@
   let showAICoach = $state(false);
   let showBlockManager = $state(false);
   let showWeekNote = $state(false);
+  /**
+   * Arrange mode: drag handles (and every day as a drop zone, rest days
+   * included) only while it's on. Normally rows are clean and a tap opens
+   * the session - dragging stays deliberate, never a side effect of
+   * scrolling (user-directed: drag by handle only).
+   */
+  let arranging = $state(false);
 
   // --- Copy / repeat a week ---
   let showCopy = $state(false);
@@ -222,13 +234,14 @@
     showPhaseDropdown = false;
   }
 
-  function handleAddWorkout(weekId: string) {
+  function handleAddWorkout(weekId: string, dayOfWeek?: DayOfWeek) {
     const dominantBlock = getDominantBlockForWeek(trainingState.trainingBlocks, weekId);
     const newWorkout: Workout = {
       id: generateId(),
       status: 'planned',
       date: null,
       weekId,
+      dayOfWeek,
       notes: 'New Session',
       loadFactor: 0,
       exercises: [],
@@ -274,6 +287,35 @@
     if (moved) await handleDayReassign(moved, dayKey === 'Unassigned' ? undefined : dayKey);
   }
 
+  // --- The M-S strip over the session list: each day's date, and a dot per
+  // session (filled = done, ring = planned, dashed = not saved yet).
+  const weekStrip = $derived.by(() => {
+    const start = trainingState.selectedWeekId ? weekStartDay(trainingState.selectedWeekId) : undefined;
+    const today = localDayIndex(new Date());
+    return DAYS.map((day, i) => ({
+      day,
+      date: start !== undefined ? new Date((start + i) * 86400000).getUTCDate() : undefined,
+      isToday: start !== undefined && start + i === today,
+      sessions: dayGroups[day],
+    }));
+  });
+  const doneCount = $derived(weekWorkouts.filter((w) => w.status === 'completed').length);
+  const plannedLoadTotal = $derived(
+    weekWorkouts.reduce((sum, w) => sum + summarizeSession(w, trainingState.exerciseTypes).plannedLoad, 0),
+  );
+  /** Tapping a day in the strip: jump to its sessions, or start a new one on an empty day. */
+  function onStripDay(day: DayOfWeek, hasSessions: boolean) {
+    if (hasSessions) document.getElementById(`plan-day-${day}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
+    else handleAddWorkout(trainingState.selectedWeekId!, day);
+  }
+  /** Normally only days with sessions are listed; arranging shows them all, as drop targets. */
+  const listedDays = $derived(DAY_GROUP_KEYS.filter((k) => arranging || dayGroups[k].length > 0));
+  function dayHeading(day: DayKey): string {
+    if (day === 'Unassigned') return 'No day';
+    const cell = weekStrip.find((c) => c.day === day);
+    return `${day.slice(0, 3)}${cell?.date !== undefined ? ` ${cell.date}` : ''}`;
+  }
+
   function handleAddBenchmark() {
     editingBenchmark = null;
     isAddingBenchmark = true;
@@ -287,43 +329,44 @@
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-12">
   <div class="flex flex-col gap-4">
-    <div class="flex flex-wrap items-center justify-between gap-y-2 px-1">
-      <h2 class="text-title text-content">Training Plan</h2>
-      <div class="flex items-center gap-1.5">
+    <!-- Same quiet control row as Analytics: tools, then paging. -->
+    <div class="flex items-center justify-between gap-2 px-1">
+      <h2 class="text-title text-content">Plan</h2>
+      <div class="flex items-center gap-1">
         <button
           onclick={() => showBlockManager = true}
-          class="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-control transition-all active:scale-95"
-          aria-label="Manage Training Blocks"
-          title="Manage Training Blocks"
+          class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+          aria-label="Manage training blocks"
+          title="Training blocks"
         >
-          <Icon icon="ic:baseline-view-week" class="text-base" />
+          <Icon icon="ic:baseline-view-week" class="text-lg" />
         </button>
         <button
           onclick={() => showAICoach = true}
-          class="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-control transition-all active:scale-95"
+          class="p-1.5 text-primary hover:text-primary-hover rounded-control hover:bg-surface-elevated transition-colors"
           aria-label="AI Coach"
           title="AI Coach: change the plan, analyze, or share context"
         >
-          <Icon icon="ic:baseline-auto-awesome" class="text-base" />
+          <Icon icon="ic:baseline-auto-awesome" class="text-lg" />
         </button>
-        <button
-          onclick={() => navigate('today')}
-          class="px-3 py-2.5 bg-surface-elevated/50 hover:bg-surface-elevated text-label text-content-muted hover:text-content rounded-control border border-border-strong/50 transition-all active:scale-95"
-        >
+        <span class="w-px h-5 bg-border mx-1"></span>
+        <button onclick={() => navigate('prev')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Earlier weeks">
+          <Icon icon="ic:baseline-chevron-left" class="text-lg" />
+        </button>
+        <button onclick={() => navigate('today')} class="px-2 py-1 text-caption rounded-control hover:bg-surface-elevated transition-colors {trainingState.weekOffset === 0 && trainingState.selectedWeekId === trainingState.currentWeekId ? 'text-content-subtle/50' : 'text-primary'}">
           Today
         </button>
-        <div class="flex bg-surface/50 rounded-control border border-border p-1">
-          <button onclick={() => navigate('prev')} class="p-2 hover:bg-surface-elevated text-content-subtle hover:text-content rounded-control transition-colors active:scale-90"><Icon icon="ic:baseline-chevron-left" class="text-lg" /></button>
-          <button onclick={() => navigate('next')} class="p-2 hover:bg-surface-elevated text-content-subtle hover:text-content rounded-control transition-colors active:scale-90"><Icon icon="ic:baseline-chevron-right" class="text-lg" /></button>
-        </div>
+        <button onclick={() => navigate('next')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Later weeks">
+          <Icon icon="ic:baseline-chevron-right" class="text-lg" />
+        </button>
       </div>
     </div>
 
     <div class="flex flex-wrap gap-x-3 gap-y-1.5 px-1">
       {#each selectablePhases as phase}
         <div class="flex items-center gap-1">
-          <div class="w-2.5 h-2.5 rounded-control {phase.color || FALLBACK_PHASE_COLOR}"></div>
-          <span class="text-label text-content-subtle">{phase.name}</span>
+          <div class="w-2 h-2 rounded-full {phase.color || FALLBACK_PHASE_COLOR}"></div>
+          <span class="text-caption text-content-subtle">{phase.name}</span>
         </div>
       {/each}
     </div>
@@ -336,10 +379,10 @@
   </div>
 
   {#if trainingState.selectedWeekId && selectedWeekData}
-    <div class="bg-surface/50 border border-border p-5 rounded-card backdrop-blur-sm space-y-4 shadow-card relative {showPhaseDropdown ? 'z-30' : ''}">
+    <div class="card space-y-4 relative {showPhaseDropdown ? 'z-30' : ''}">
       <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <div class="flex-1 min-w-[11rem] relative">
-          <span class="text-section uppercase text-primary mb-0.5 block">{selectedWeekData.isCurrent ? 'Current Week' : selectedWeekData.id} <span class="text-content-subtle opacity-70 ml-2 lowercase tracking-normal">({getWeekDateRange(selectedWeekData.id)})</span></span>
+          <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : `Week ${selectedWeekData.id.split('-W')[1]}`}<span class="normal-case tracking-normal font-normal text-content-subtle">{` · ${getWeekDateRange(selectedWeekData.id)}`}</span></span>
           <div class="flex items-center gap-2 flex-wrap">
             <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-2">
               <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(selectedWeekData.phaseId) ?? 'No Phase'}</h3>
@@ -382,23 +425,21 @@
         <!-- Sits top-right beside the phase title, and drops onto its own
              line only when the title column can no longer hold its 11rem
              minimum - i.e. on very narrow screens. -->
-        <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+        <div class="flex items-center gap-0.5 shrink-0 ml-auto">
           <!-- Filled when the week has a note, outline when not. Opening it
                never materialises the week - see WeekNote. -->
           <button
             onclick={() => showWeekNote = true}
-            class="flex items-center px-2.5 py-2 rounded-control border transition-all active:scale-95 {selectedWeekNote
-              ? 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20'
-              : 'bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border-border-strong/50'}"
+            class="p-2 rounded-control transition-colors hover:bg-surface-elevated {selectedWeekNote ? 'text-primary' : 'text-content-subtle hover:text-content'}"
             title={selectedWeekNote ? 'Week note' : 'Add a week note'}
             aria-label={selectedWeekNote ? 'Open week note' : 'Add a week note'}
           >
-            <Icon icon={selectedWeekNote ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-sm" />
+            <Icon icon={selectedWeekNote ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-lg" />
           </button>
           {#if isProvisionalWeek}
             <button
               onclick={() => trainingState.materializeWeek(trainingState.selectedWeekId!)}
-              class="flex items-center gap-1.5 px-2.5 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-control border border-primary/20 transition-all text-label active:scale-95"
+              class="chip border-primary/30 text-primary hover:bg-primary/10 transition-colors"
               title="Save these sessions into this week so they stop following the phase templates"
             >
               <Icon icon="ic:baseline-push-pin" class="text-sm" />
@@ -407,37 +448,35 @@
           {:else if canResetWeek}
             <button
               onclick={() => trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!)}
-              class="flex items-center gap-1.5 px-2.5 py-2 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content rounded-control border border-border-strong/50 transition-all text-label active:scale-95"
+              class="p-2 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
               title="Discard this week's planned sessions and follow the phase templates again"
               aria-label="Reset week to its phase"
             >
-              <Icon icon="ic:baseline-restore" class="text-sm" />
+              <Icon icon="ic:baseline-restore" class="text-lg" />
             </button>
           {/if}
           <button
             onclick={() => trainingState.clearWeek(trainingState.selectedWeekId!)}
-            class="flex items-center gap-1.5 px-2.5 py-2 bg-surface-elevated/50 hover:bg-danger/10 text-content-subtle hover:text-danger rounded-control border border-border-strong/50 hover:border-danger/20 transition-all text-label active:scale-95"
+            class="p-2 rounded-control text-content-subtle hover:text-danger hover:bg-danger/10 transition-colors"
             title="Clear all data for this week"
             aria-label="Clear week"
           >
-            <Icon icon="ic:baseline-delete-sweep" class="text-sm" />
+            <Icon icon="ic:baseline-delete-sweep" class="text-lg" />
           </button>
           <button
             onclick={() => showCopy = !showCopy}
-            class="flex items-center px-2.5 py-2 rounded-control border transition-all active:scale-95 {showCopy
-              ? 'bg-primary/10 text-primary border-primary/20'
-              : 'bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border-border-strong/50'}"
+            class="p-2 rounded-control transition-colors hover:bg-surface-elevated {showCopy ? 'text-primary bg-surface-elevated' : 'text-content-subtle hover:text-content'}"
             title="Copy, repeat or share this week"
             aria-label="Copy, repeat or share this week"
             aria-expanded={showCopy}
           >
-            <Icon icon="ic:baseline-more-horiz" class="text-sm" />
+            <Icon icon="ic:baseline-more-horiz" class="text-lg" />
           </button>
         </div>
       </div>
 
       {#if showCopy}
-        <div class="p-3.5 rounded-card border border-border bg-surface/40 space-y-3 animate-in fade-in duration-150">
+        <div class="p-3.5 rounded-control bg-surface-elevated/40 space-y-3 animate-in fade-in duration-150">
           <button
             onclick={copyLastWeekHere}
             disabled={previousWeekCount === 0}
@@ -475,7 +514,7 @@
       {/if}
 
       {#each selectedWeekTrips as { trip, planned } (trip.id)}
-        <div class="flex items-center gap-2 p-2.5 rounded-control bg-primary/10 border border-primary/20">
+        <div class="flex items-center gap-2 py-2 px-3 rounded-control bg-surface-elevated/40">
           <Icon icon="ic:baseline-terrain" class="text-primary shrink-0" />
           <p class="text-label text-content flex-1 min-w-0 truncate">{trip.name} <span class="text-content-subtle">· {formatGoalDates(trip)}{trip.location ? ` · ${trip.location.name}` : ''}</span></p>
           {#if planned > 0}
@@ -484,101 +523,122 @@
         </div>
       {/each}
 
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h4 class="text-section uppercase text-content-subtle">Scheduled Sessions</h4>
-          <div class="flex items-center gap-3">
-            <span class="text-caption text-content-subtle">{weekWorkouts.length} Total</span>
-            <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="bg-surface-elevated hover:bg-surface-elevated-hover text-content p-1 rounded-control transition-colors"><Icon icon="ic:baseline-plus" class="text-sm" /></button>
+      <!-- The week at a glance: tap a day to jump to it, or to plan a
+           session on an empty one. -->
+      <div class="grid grid-cols-7 gap-1">
+        {#each weekStrip as cell (cell.day)}
+          <button
+            onclick={() => onStripDay(cell.day, cell.sessions.length > 0)}
+            class="flex flex-col items-center gap-1 py-1.5 rounded-control hover:bg-surface-elevated/60 transition-colors"
+            aria-label="{cell.day}{cell.sessions.length ? `: ${cell.sessions.map((w) => w.notes || 'Session').join(', ')}` : ': add a session'}"
+          >
+            <span class="text-caption {cell.isToday ? 'text-primary font-bold' : 'text-content-subtle'}">{cell.day.slice(0, 1)}</span>
+            <span class="text-label tabular-nums {cell.isToday ? 'text-primary font-bold' : 'text-content'}">{cell.date ?? ''}</span>
+            <span class="flex gap-0.5 h-1.5">
+              {#each cell.sessions.slice(0, 3) as w (w.id)}
+                <span class="w-1.5 h-1.5 rounded-full {w.status === 'completed' ? 'bg-success' : w.provisional ? 'border border-dashed border-primary' : 'border border-primary'}"></span>
+              {/each}
+            </span>
+          </button>
+        {/each}
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <h4 class="text-section uppercase text-content-muted">Sessions</h4>
+            {#if weekWorkouts.length > 0}
+              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {weekWorkouts.length} done{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal}` : ''}</p>
+            {/if}
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            {#if weekWorkouts.length > 0}
+              <button
+                onclick={() => arranging = !arranging}
+                aria-pressed={arranging}
+                class="chip transition-colors {arranging ? 'border-primary bg-primary/15 text-content' : 'text-content-subtle hover:text-content'}"
+              >
+                <Icon icon="ic:baseline-drag-indicator" class="text-sm" />{arranging ? 'Done' : 'Arrange'}
+              </button>
+            {/if}
+            <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session">
+              <Icon icon="ic:baseline-plus" class="text-lg" />
+            </button>
           </div>
         </div>
 
         {#if weekWorkouts.length === 0}
-          <div class="p-4 bg-surface-elevated/20 rounded-control border border-dashed border-border text-center"><p class="text-caption text-content-subtle italic">No workouts planned</p></div>
+          <p class="text-caption text-content-subtle italic py-3">Nothing planned - tap a day above or + to add a session.</p>
         {:else}
-        {#each DAY_GROUP_KEYS as dayKey}
-          <div class="space-y-2">
-            <h5 class="text-label font-bold text-content-subtle">{dayKey}</h5>
-
-            <div
-              class="space-y-2 min-h-[1.5rem] rounded-control transition-colors"
-              use:dragHandleZone={{ items: dayGroups[dayKey], flipDurationMs: 200, delayTouchStart: true, dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
-              onconsider={(e) => handleDndConsider(dayKey, e)}
-              onfinalize={(e) => handleDndFinalize(dayKey, e)}
-            >
-              {#each dayGroups[dayKey] as workout (workout.id)}
-                <div class="flex items-center justify-between p-3.5 rounded-control transition-colors group/item {workout.provisional ? 'bg-surface-elevated/20 border border-dashed border-border-strong/60' : 'bg-surface-elevated/50 border border-border-strong/50 hover:border-border-strong'}">
-                  <div class="flex items-center gap-2 flex-1 min-w-0">
-                    <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle hover:text-content shrink-0 touch-none p-1 -ml-1" aria-label="Drag to reassign day">
-                      <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
-                    </div>
-                    <div class="w-1.5 h-1.5 rounded-full {workout.status === 'completed' ? 'bg-success' : 'bg-primary-hover'} shrink-0"></div>
-                    <div
-                      class="min-w-0 flex-1 cursor-pointer"
-                      role="button"
-                      tabindex="0"
-                      onclick={() => openWorkout(workout)}
-                      onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openWorkout(workout); } }}
-                    >
-                      <div class="flex items-center gap-2">
-                        <div class="flex items-center gap-1.5">
-                          <select
-                            onclick={(e) => e.stopPropagation()}
-                            value={workout.dayOfWeek ?? ''}
-                            onchange={(e) => handleDayReassign(workout, (e.currentTarget.value || undefined) as DayOfWeek | undefined)}
-                            class="w-11 text-center text-caption font-bold text-primary-hover bg-primary-hover/10 px-0 py-0.5 rounded-control leading-none shrink-0 border-none outline-none appearance-none"
-                            aria-label="Reassign day"
-                          >
-                            <option value="">—</option>
-                            {#each DAYS as d}
-                              <option value={d}>{d.slice(0, 3)}</option>
-                            {/each}
-                          </select>
-                          {#if workout.startTime}
-                            <span class="text-caption font-bold text-content-muted bg-surface-elevated px-1.5 py-0.5 rounded-control border border-border leading-none shrink-0">{workout.startTime}</span>
-                          {/if}
+          {#each listedDays as dayKey (dayKey)}
+            <div id="plan-day-{dayKey}" class="scroll-mt-20">
+              <h5 class="text-caption uppercase tracking-wide text-content-subtle pt-1">{dayHeading(dayKey)}</h5>
+              <div
+                class="divide-y divide-border rounded-control transition-colors {arranging ? 'min-h-[2.25rem]' : ''}"
+                use:dragHandleZone={{ items: dayGroups[dayKey], flipDurationMs: motionMs(200), dragDisabled: !arranging, delayTouchStart: true, dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
+                onconsider={(e) => handleDndConsider(dayKey, e)}
+                onfinalize={(e) => handleDndFinalize(dayKey, e)}
+              >
+                {#each dayGroups[dayKey] as workout (workout.id)}
+                  {@const summary = summarizeSession(workout, trainingState.exerciseTypes)}
+                  {@const isThisRunning = trainingState.sessionStore.isRunning(workout.id)}
+                  <ListRow
+                    title={workout.notes || 'Session'}
+                    meta={[
+                      summary.startTime,
+                      `${summary.estimated ? '~' : ''}${summary.minutes} min`,
+                      summary.plannedLoad > 0 ? `load ${summary.plannedLoad}` : `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
+                      workout.provisional ? 'not saved yet' : undefined,
+                    ].filter(Boolean).join(' · ')}
+                    muted={workout.provisional}
+                    onclick={arranging ? undefined : () => openWorkout(workout)}
+                  >
+                    {#snippet leading()}
+                      {#if arranging}
+                        <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle hover:text-content shrink-0 touch-none p-1 -ml-1" aria-label="Drag to another day">
+                          <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
                         </div>
-                        <p class="text-body font-bold text-content leading-tight truncate">{workout.notes}</p>
-                      </div>
-                      <p class="text-caption text-content-subtle mt-0.5 flex items-center gap-1">
-                        {#if workout.provisional}
-                          <Icon icon="ic:outline-cloud-queue" class="text-xs text-primary/70 shrink-0" />
-                        {/if}
-                        <span class="truncate">{workout.exercises.length} Exercises{workout.plannedDuration ? ` · ${workout.plannedDuration} min planned` : ''}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div class="flex items-center gap-2 ml-4">
-                    <button onclick={() => trainingState.duplicateWorkout(workout)} class="p-1.5 text-content-subtle hover:text-content transition-colors" title="Duplicate"><Icon icon="ic:baseline-content-copy" class="text-sm" /></button>
-                    <button onclick={() => openWorkout(workout, 'edit')} class="p-1.5 text-content-subtle hover:text-content transition-colors"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
-                    <button onclick={() => trainingState.deleteWorkout(workout.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
-                    {#if workout.status === 'completed'}
-                      <span class="text-label text-success">Done</span>
-                    {:else}
-                      {@const isThisRunning = trainingState.sessionStore.isRunning(workout.id)}
-                      <button
-                        onclick={() => trainingState.startSession(workout)}
-                        disabled={trainingState.isSessionActive && !isThisRunning}
-                        title={trainingState.isSessionActive && !isThisRunning ? 'Finish or discard the running session first' : undefined}
-                        class="text-label hover:scale-105 transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 {isThisRunning ? 'text-success font-bold' : 'text-primary'}"
-                      >{isThisRunning ? 'Resume' : 'Start'}</button>
-                    {/if}
-                  </div>
-                </div>
-              {:else}
-                <p class="text-caption text-content-subtle italic pl-1">{dayKey === 'Unassigned' ? 'No unassigned sessions' : '— rest —'}</p>
-              {/each}
+                      {/if}
+                    {/snippet}
+                    {#snippet trailing()}
+                      {#if arranging}
+                        <!-- The keyboard/precise alternative to dragging. -->
+                        <select
+                          value={workout.dayOfWeek ?? ''}
+                          onchange={(e) => handleDayReassign(workout, (e.currentTarget.value || undefined) as DayOfWeek | undefined)}
+                          class="chip bg-transparent text-content-muted outline-none"
+                          aria-label="Move to day"
+                        >
+                          <option value="">No day</option>
+                          {#each DAYS as d}<option value={d}>{d.slice(0, 3)}</option>{/each}
+                        </select>
+                      {:else if workout.status === 'completed'}
+                        <span class="flex items-center gap-1 text-caption text-success shrink-0"><Icon icon="ic:baseline-check" class="text-sm" />Done</span>
+                      {:else}
+                        <button
+                          onclick={() => trainingState.startSession(workout)}
+                          disabled={trainingState.isSessionActive && !isThisRunning}
+                          title={trainingState.isSessionActive && !isThisRunning ? 'Finish or discard the running session first' : undefined}
+                          class="flex items-center gap-1 px-3 py-1.5 rounded-control text-label font-semibold shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed {isThisRunning ? 'bg-success/15 text-success' : 'bg-primary/10 text-primary hover:bg-primary/20'}"
+                        >
+                          <Icon icon="ic:baseline-play-arrow" class="text-sm" />{isThisRunning ? 'Resume' : 'Start'}
+                        </button>
+                      {/if}
+                    {/snippet}
+                  </ListRow>
+                {:else}
+                  <p class="text-caption text-content-subtle/60 italic py-2">Drop here</p>
+                {/each}
+              </div>
             </div>
-          </div>
-        {/each}
+          {/each}
         {/if}
       </div>
 
-      <div class="pt-4 space-y-3">
+      <div class="pt-3 border-t border-border space-y-2">
         <div class="flex items-center justify-between">
-          <h4 class="text-section uppercase text-content-subtle">Benchmark Tests</h4>
-          <button onclick={handleAddBenchmark} class="bg-surface-elevated hover:bg-surface-elevated-hover text-content p-1 rounded-control transition-colors"><Icon icon="ic:baseline-plus" class="text-sm" /></button>
+          <h4 class="text-section uppercase text-content-muted">Benchmarks</h4>
+          <button onclick={handleAddBenchmark} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a benchmark result"><Icon icon="ic:baseline-plus" class="text-lg" /></button>
         </div>
 
         {#if isAddingBenchmark}
@@ -590,21 +650,16 @@
           />
         {/if}
 
-        <div class="space-y-2">
+        <div class="divide-y divide-border">
           {#each weekBenchmarks as benchmark}
-            <div class="flex items-center justify-between p-3.5 bg-primary-hover/5 rounded-control border border-primary/10">
-              <div class="flex-1 min-w-0">
-                <p class="text-body font-bold text-content leading-tight truncate">{benchmark.type}</p>
-                <p class="text-label text-primary-hover mt-0.5">{benchmark.value} {benchmark.unit}</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <button onclick={() => handleEditBenchmark(benchmark)} class="p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit benchmark"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
+            <ListRow title={benchmark.type} value="{benchmark.value} {benchmark.unit}" onclick={() => handleEditBenchmark(benchmark)}>
+              {#snippet trailing()}
                 <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete benchmark"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
-              </div>
-            </div>
+              {/snippet}
+            </ListRow>
           {:else}
             {#if !isAddingBenchmark}
-              <div class="p-4 bg-surface-elevated/20 rounded-control border border-dashed border-border text-center"><p class="text-caption text-content-subtle italic">No benchmarks logged</p></div>
+              <p class="text-caption text-content-subtle italic py-1">None this week</p>
             {/if}
           {/each}
         </div>

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Benchmark, OutdoorAscent, Workout } from "../types";
-import { consistency, latestBenchmarks, retestDue, sendsSummary } from "./progress";
+import { benchmarkChanges, consistency, latestBenchmarks, retestDue, sendsSummary } from "./progress";
+import { toUtcDayIndex } from "../dateUtils";
 
 const asOf = new Date("2026-09-23T12:00:00Z"); // Wednesday of 2026-W39
 const bench = (typeId: string, date: string, value: number): Benchmark => ({ id: typeId + date, typeId, type: typeId, value, unit: "kg", date, weekId: "x" });
@@ -62,5 +63,16 @@ describe("consistency", () => {
     expect(c.weekStreak).toBe(3);
     const gap = consistency([w("2026-W36", "Monday", "completed"), w("2026-W38", "Monday", "completed")], asOf);
     expect(gap.weekStreak).toBe(1);
+  });
+});
+
+describe("benchmarkChanges", () => {
+  const b = (typeId: string, date: string, value: number) => ({ id: typeId + date, typeId, type: typeId, value, unit: "kg", date, weekId: "" });
+  const types = [{ id: "hang", name: "Max hang", unit: "kg" }, { id: "old", name: "Old", unit: "kg", archived: true }];
+  it("is % change from the first result ever, for results inside the window", () => {
+    const got = benchmarkChanges([b("hang", "2026-01-01", 20), b("hang", "2026-09-01", 25), b("old", "2026-09-02", 5)], types, toUtcDayIndex("2026-08-01"), toUtcDayIndex("2026-09-30"));
+    expect(got).toHaveLength(1);
+    expect(got[0].points).toHaveLength(1);
+    expect(got[0].points[0].pct).toBeCloseTo(25);
   });
 });

@@ -3,10 +3,9 @@
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import type { Workout } from '../../lib/types';
-  import { formatDate } from '../../lib/dateUtils';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { sessionDuration } from '../../lib/planning/sessionDuration';
-  import WorkoutShareImage from './WorkoutShareImage.svelte';
+  import ListRow from '../common/ListRow.svelte';
   import SendsLog from '../sends/SendsLog.svelte';
   import { applySendFilters } from '../../lib/sends/filter';
   import { parseFontGrade } from '../../lib/analytics/grades';
@@ -35,8 +34,6 @@
   let filterMaxGrade = $state('');
   let filterStyle = $state('');
   let filterCrag = $state('');
-  let workoutToShare = $state<Workout | null>(null);
-  let openMenuId = $state<string | null>(null);
   const onSends = $derived(trainingState.uiStore.historyTab === 'sends');
 
   // Arriving from Home's Recent Activity: open that session in the workout
@@ -65,9 +62,6 @@
 
   function blockForWorkout(w: Workout) {
     return w.blockId ? trainingState.trainingBlocks.find((b) => b.id === w.blockId) : undefined;
-  }
-  function phaseNameForBlock(phaseId?: string) {
-    return phaseId ? trainingState.phaseDefs.find((p) => p.id === phaseId)?.name : undefined;
   }
 
   const filteredWorkouts = $derived(completedWorkouts.slice().sort((a, b) => {
@@ -187,59 +181,41 @@
     filterStyle = '';
     filterCrag = '';
   }
-
-  function toggleMenu(id: string) {
-    openMenuId = openMenuId === id ? null : id;
-  }
-
-  function shareWorkout(w: Workout) {
-    workoutToShare = w;
-    openMenuId = null;
-  }
-  function duplicateWorkout(w: Workout) {
-    trainingState.duplicateWorkout(w);
-    openMenuId = null;
-  }
-  function deleteWorkout(id: string) {
-    trainingState.deleteWorkout(id);
-    openMenuId = null;
-  }
 </script>
 
-<div class="w-full max-w-lg space-y-5 animate-in fade-in duration-200 pb-12">
-  <div class="flex items-center justify-between px-1">
-    <div class="flex items-center gap-3">
-      <h3 class="text-title text-content">Timeline</h3>
-    </div>
-    <div class="h-px flex-1 bg-surface mx-3"></div>
-    <span class="text-label text-content-subtle">
-      {onSends ? `${filteredSends.length} Sends` : `${filteredWorkouts.length} Sessions`}
+<div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-12">
+  <div class="flex items-center justify-between gap-3 px-1">
+    <h2 class="text-title text-content">History</h2>
+    <div class="flex items-center gap-2">
+    <span class="text-caption text-content-subtle tabular-nums">
+      {onSends ? `${filteredSends.length} sends` : `${filteredWorkouts.length} sessions`}
     </span>
     <button
       onclick={() => showFilters = !showFilters}
-      class="relative ml-3 p-2 rounded-control border transition-colors {showFilters ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
+      class="relative p-1.5 rounded-control transition-colors hover:bg-surface-elevated {showFilters || activeFilterCount > 0 ? 'text-primary' : 'text-content-subtle hover:text-content'}"
       aria-label="Toggle Filters"
       aria-expanded={showFilters}
     >
       <Icon icon="ic:baseline-filter-list" class="text-lg" />
       {#if activeFilterCount > 0 && !showFilters}
-        <span class="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold grid place-items-center tabular-nums">{activeFilterCount}</span>
+        <span class="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold grid place-items-center tabular-nums">{activeFilterCount}</span>
       {/if}
     </button>
+    </div>
   </div>
 
-  <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+  <div class="seg p-1">
     {#each [['sessions', 'Sessions'], ['sends', 'Sends']] as [id, label]}
       <button
         onclick={() => trainingState.uiStore.historyTab = id as 'sessions' | 'sends'}
-        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.uiStore.historyTab === id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+        class="seg-item flex-1 py-1.5 text-label {trainingState.uiStore.historyTab === id ? 'seg-on' : 'hover:text-content'}"
         aria-pressed={trainingState.uiStore.historyTab === id}
       >{label}</button>
     {/each}
   </div>
 
   {#if showFilters}
-    <div class="p-5 bg-surface/50 border border-border rounded-card space-y-4 animate-in slide-in-from-top-2">
+    <div class="card space-y-4 animate-in slide-in-from-top-2">
       <div class="flex items-center justify-between">
         <h4 class="text-section uppercase text-content-muted">Filters</h4>
         <button onclick={clearFilters} class="text-label text-content-subtle hover:text-primary transition-colors">Clear All</button>
@@ -342,108 +318,49 @@
   {:else}
 
 
-  <div class="space-y-6">
+  <div class="space-y-4">
     {#each groupedWorkouts as group (group.key)}
-      <div class="space-y-3">
-        <div class="flex items-center justify-between px-1">
+      <!-- One card per month: its totals as the header, then a row per
+           session (the same row as Home's Recent Activity). Tapping a row
+           opens the session, where edit, share, duplicate and delete live. -->
+      <div class="card space-y-1">
+        <div class="flex items-baseline justify-between gap-3">
           <span class="text-section uppercase text-content-muted">{group.label}</span>
-          <span class="text-caption text-content-subtle">{group.workouts.length} session{group.workouts.length === 1 ? '' : 's'} · {Math.round(group.totalLoad)} load</span>
+          <span class="text-caption text-content-subtle tabular-nums">{group.workouts.length} session{group.workouts.length === 1 ? '' : 's'} · {Math.round(group.totalLoad)} load</span>
         </div>
-
-        {#each group.workouts as workout (workout.id)}
-          {@const block = blockForWorkout(workout)}
-          {@const phaseName = phaseNameForBlock(block?.phaseId)}
-          {@const duration = workoutDuration(workout)}
-          <div id="workout-{workout.id}" class="group p-5 bg-surface/30 hover:bg-surface/50 rounded-card border border-border/50 transition-all duration-300">
-            <div class="flex justify-between items-start gap-4">
-              <button onclick={() => openWorkout(workout)} class="space-y-2.5 flex-1 min-w-0 text-left">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-label text-primary truncate">
-                    {formatDate(workout.date)}
-                  </span>
-                  {#if duration > 0}
-                    <span class="w-1 h-1 bg-surface-elevated-hover rounded-full flex-shrink-0"></span>
-                    <span class="text-caption text-content-subtle">{duration}m</span>
-                  {/if}
-                  {#if block}
-                    <span class="w-1 h-1 bg-surface-elevated-hover rounded-full flex-shrink-0"></span>
-                    <span class="flex items-center gap-1 text-caption text-content-subtle truncate">
-                      <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 {block.color || 'bg-status-neutral'}"></span>
-                      {block.name}{phaseName ? ` · ${phaseName}` : ''}
-                    </span>
-                  {/if}
-                </div>
-
-                <div class="min-w-0">
-                  <p class="text-body font-bold text-content truncate">{workout.notes || 'Unnamed Session'}</p>
-                  <div class="flex flex-wrap gap-1.5 mt-1.5">
-                    {#each workout.exercises as exercise}
-                      <span class="text-label px-2 py-0.5 bg-surface-elevated text-content-muted rounded-control border border-border-strong">
-                        {slotTypeName(exercise, trainingState.exerciseTypes)}
-                      </span>
-                    {/each}
-                  </div>
-                </div>
-
-                <div class="flex items-center gap-3 flex-wrap">
-                  {#each RATING_AXES as axis}
-                    <span class="text-caption text-content-subtle tabular-nums">{axis.label[0]}:{workout[axis.key] ?? '—'}</span>
-                  {/each}
-                </div>
-              </button>
-
-              <div class="flex flex-col items-end gap-2 flex-shrink-0">
-                <div class="text-right">
-                  <div class="bg-primary-hover/10 px-2.5 py-1 rounded-control border border-primary/20 mb-0.5 inline-block">
-                    <span class="text-body font-black text-primary tabular-nums">{Math.round(workout.loadFactor)}</span>
-                  </div>
-                  <p class="text-caption text-content-subtle">Load</p>
-                </div>
-
-                <div class="relative">
-                  <button
-                    onclick={() => toggleMenu(workout.id)}
-                    class="p-1.5 text-content-subtle hover:text-content transition-colors"
-                    aria-label="More actions"
-                    aria-expanded={openMenuId === workout.id}
-                  >
-                    <Icon icon="ic:baseline-more-vert" class="text-lg" />
-                  </button>
-                  {#if openMenuId === workout.id}
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <div class="fixed inset-0 z-40" onclick={() => openMenuId = null}></div>
-                    <div class="absolute right-0 top-full mt-1 z-50 w-36 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
-                      <button onclick={() => { openWorkout(workout, 'edit'); openMenuId = null; }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
-                        <Icon icon="ic:baseline-edit" class="text-sm" /> Edit
-                      </button>
-                      <button onclick={() => shareWorkout(workout)} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
-                        <Icon icon="ic:baseline-share" class="text-sm" /> Share
-                      </button>
-                      <button onclick={() => duplicateWorkout(workout)} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
-                        <Icon icon="ic:baseline-content-copy" class="text-sm" /> Duplicate
-                      </button>
-                      <button onclick={() => deleteWorkout(workout.id)} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-danger hover:bg-surface transition-colors text-left">
-                        <Icon icon="ic:baseline-delete" class="text-sm" /> Delete
-                      </button>
-                    </div>
-                  {/if}
-                </div>
-              </div>
+        <div class="divide-y divide-border">
+          {#each group.workouts as workout (workout.id)}
+            {@const block = blockForWorkout(workout)}
+            {@const duration = workoutDuration(workout)}
+            {@const ratings = RATING_AXES.filter((axis) => workout[axis.key] !== undefined).map((axis) => `${axis.label[0]}${workout[axis.key]}`).join(' ')}
+            <div id="workout-{workout.id}" class="scroll-mt-20">
+              <ListRow
+                title={workout.notes || 'Session'}
+                meta={[
+                  workout.date ? `${new Date(workout.date).toLocaleDateString(undefined, { weekday: 'short' })} ${new Date(workout.date).getDate()}` : undefined,
+                  duration > 0 ? `${duration} min` : undefined,
+                  ratings || undefined,
+                ].filter(Boolean).join(' · ')}
+                detail={[
+                  workout.exercises.map((e) => slotTypeName(e, trainingState.exerciseTypes)).join(', '),
+                  block?.name,
+                ].filter(Boolean).join(' · ') || undefined}
+                value={Math.round(workout.loadFactor)}
+                valueHint="load"
+                onclick={() => openWorkout(workout)}
+              />
             </div>
-          </div>
-        {/each}
+          {/each}
+        </div>
       </div>
     {:else}
-      <div class="py-12 text-center bg-surface/10 rounded-card border border-dashed border-border">
-        <p class="text-content-subtle italic text-body">No workout history yet.</p>
-      </div>
+      <p class="text-caption text-content-subtle italic text-center py-12">No workout history yet.</p>
     {/each}
 
     {#if filteredWorkouts.length > limit}
       <button
         onclick={() => limit += 50}
-        class="w-full py-4 bg-surface hover:bg-surface-elevated text-content-muted hover:text-content text-label rounded-card transition-all border border-border"
+        class="w-full py-3 text-label text-primary hover:bg-surface-elevated rounded-control transition-colors"
       >
         Load More
       </button>
@@ -452,6 +369,4 @@
   {/if}
 </div>
 
-{#if workoutToShare}
-  <WorkoutShareImage workout={workoutToShare} onClose={() => workoutToShare = null} />
-{/if}
+

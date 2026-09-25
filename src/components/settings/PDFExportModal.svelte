@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { formatWeight } from '../../lib/units';
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekDateRange, formatDate } from '../../lib/dateUtils';
@@ -126,6 +127,9 @@
       onClose();
     }
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onClose());
 </script>
 
 <div class="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-300 p-0 sm:p-4 pb-[80px]">

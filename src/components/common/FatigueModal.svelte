@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { onMount } from 'svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { type Workout } from '../../lib/types';
@@ -97,6 +98,9 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
       actualDuration: durationMinutes > 0 ? durationMinutes : undefined,
     });
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => trainingState.closeFatigueModal());
 </script>
 
 {#if trainingState.showFatigue}

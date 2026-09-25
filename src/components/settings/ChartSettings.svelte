@@ -1,42 +1,36 @@
 <script lang="ts">
   /**
-   * Appearance -> History & Analytics: how the charts draw - the Analytics
-   * week density, and whether History's sends-by-grade chart prints each
-   * bar's count.
+   * Appearance -> History & Analytics: how the charts draw - how the
+   * recovery chart lays out HRV/sleep/RHR, and whether History's
+   * sends-by-grade chart prints each bar's count. (The Analytics range is
+   * picked, and remembered, in the Analytics header itself.)
    */
   import { trainingState } from '../../lib/state.svelte';
 </script>
 
-<div class="bg-surface border border-border rounded-card p-5 space-y-5 backdrop-blur-sm shadow-card animate-in fade-in">
+<div class="card space-y-5 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Analytics chart density</h3>
-    <p class="text-caption text-content-subtle px-1">How much room each week gets in the Analytics charts - which decides how many weeks your screen shows. All three fit the screen.</p>
+    <h3 class="text-section uppercase text-content-muted px-1">Recovery chart</h3>
+    <p class="text-caption text-content-subtle px-1">HRV, sleep and resting HR together as % vs your own baseline (easiest to compare), or as three rows in their real units. The chart's own toggle changes this too.</p>
     <div class="flex bg-surface-elevated/50 p-1 rounded-control">
       <button
-        onclick={() => trainingState.setChartDensity('auto')}
-        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.chartDensity === 'auto' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+        onclick={() => trainingState.setRecoveryChartMode('overlay')}
+        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.recoveryChartMode === 'overlay' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
       >
-        Auto-fit
+        % vs baseline
       </button>
       <button
-        onclick={() => trainingState.setChartDensity('compact')}
-        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.chartDensity === 'compact' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+        onclick={() => trainingState.setRecoveryChartMode('lanes')}
+        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.recoveryChartMode === 'lanes' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
       >
-        Compact
-      </button>
-      <button
-        onclick={() => trainingState.setChartDensity('comfortable')}
-        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.chartDensity === 'comfortable' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-      >
-        Comfortable
+        Separate rows
       </button>
     </div>
   </div>
 
-
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Sends by grade</h3>
-    <label class="flex items-center justify-between gap-3 p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 cursor-pointer">
+    <label class="flex items-center justify-between gap-3 py-2 px-1 cursor-pointer">
       <div class="min-w-0">
         <p class="text-body text-content">Show counts on the bars</p>
         <p class="text-caption text-content-subtle">History → Sends. Tapping a bar always shows its count.</p>

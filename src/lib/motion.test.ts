@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
+import { motionReduced, motionMs, scrollBehavior } from "./motion";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -97,5 +98,34 @@ describe("animation length", () => {
   it("is actually looking at the components, not an empty list", () => {
     const animated = classAttributes().filter(({ value }) => value.includes("animate-in"));
     expect(animated.length).toBeGreaterThan(20);
+  });
+});
+
+// --- lib/motion.ts: the same setting, for motion started from script ---
+
+const g = globalThis as { document?: unknown };
+const original = g.document;
+function setMotion(motion: string | undefined) {
+  g.document = { documentElement: { dataset: motion ? { motion } : {} } };
+}
+afterEach(() => {
+  g.document = original;
+});
+
+describe("motion", () => {
+  it("follows the app's resolved setting", () => {
+    setMotion("reduced");
+    expect(motionReduced()).toBe(true);
+    expect(motionMs(200)).toBe(0);
+    expect(scrollBehavior()).toBe("auto");
+    setMotion("full");
+    expect(motionReduced()).toBe(false);
+    expect(motionMs(200)).toBe(200);
+    expect(scrollBehavior()).toBe("smooth");
+  });
+
+  it("treats a missing document (tests, SSR) as full motion", () => {
+    g.document = undefined;
+    expect(motionReduced()).toBe(false);
   });
 });

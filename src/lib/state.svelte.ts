@@ -34,7 +34,7 @@ import { SessionStore } from './stores/sessionStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, ChartDensity, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
@@ -180,15 +180,25 @@ class TrainingState {
   get fatigueChartStyle() { return this.preferencesStore.fatigueChartStyle; }
   setFatigueChartStyle(style: FatigueChartStyle) { this.preferencesStore.setFatigueChartStyle(style); }
 
-  get chartDensity() { return this.preferencesStore.chartDensity; }
-  setChartDensity(density: ChartDensity) { this.preferencesStore.setChartDensity(density); }
+  get analyticsRange() { return this.preferencesStore.analyticsRange; }
+  setAnalyticsRange(range: AnalyticsRange) { this.preferencesStore.setAnalyticsRange(range); }
 
   get timerVibrateEnabled() { return this.preferencesStore.timerVibrateEnabled; }
   get timerBeepEnabled() { return this.preferencesStore.timerBeepEnabled; }
   get timerKeepAwakeEnabled() { return this.preferencesStore.timerKeepAwakeEnabled; }
+  get timerBackgroundAlerts() { return this.preferencesStore.timerBackgroundAlerts; }
+  get timerCountdownTicks() { return this.preferencesStore.timerCountdownTicks; }
+  get timerWarnBeforeEnd() { return this.preferencesStore.timerWarnBeforeEnd; }
+  get timerPillHidden() { return this.preferencesStore.timerPillHidden; }
+  get sessionNotification() { return this.preferencesStore.sessionNotification; }
   setTimerVibrateEnabled(enabled: boolean) { this.preferencesStore.setTimerVibrateEnabled(enabled); }
   setTimerBeepEnabled(enabled: boolean) { this.preferencesStore.setTimerBeepEnabled(enabled); }
   setTimerKeepAwakeEnabled(enabled: boolean) { this.preferencesStore.setTimerKeepAwakeEnabled(enabled); }
+  setTimerBackgroundAlerts(enabled: boolean) { this.preferencesStore.setTimerBackgroundAlerts(enabled); }
+  setTimerCountdownTicks(enabled: boolean) { this.preferencesStore.setTimerCountdownTicks(enabled); }
+  setTimerWarnBeforeEnd(enabled: boolean) { this.preferencesStore.setTimerWarnBeforeEnd(enabled); }
+  setTimerPillHidden(hidden: boolean) { this.preferencesStore.setTimerPillHidden(hidden); }
+  setSessionNotification(enabled: boolean) { this.preferencesStore.setSessionNotification(enabled); }
 
   get homeSections() { return this.preferencesStore.homeSections; }
   setHomeSectionVisible(id: HomeSectionPreference['id'], visible: boolean) {
@@ -200,6 +210,9 @@ class TrainingState {
   /** Per-part Home toggles, keyed by `homeDetails.ts` ids - see `Preferences.homeDetails`. */
   get homeDetails() { return this.preferencesStore.homeDetails; }
   get sendsChartCounts() { return this.preferencesStore.sendsChartCounts; }
+  get recoveryChartMode() { return this.preferencesStore.recoveryChartMode; }
+  get fingerCategoryIds() { return this.preferencesStore.fingerCategoryIds; }
+  get benchmarkTotalTypeIds() { return this.preferencesStore.benchmarkTotalTypeIds; }
 
   // --- Ordered, hideable lists (Analytics cards, quick-log actions) ---
   get analyticsSections() { return this.preferencesStore.analyticsSections; }
@@ -236,6 +249,9 @@ class TrainingState {
     return { idealMinC: num(t, 'friction.idealMinC'), idealMaxC: num(t, 'friction.idealMaxC'), wetRainMm: num(t, 'friction.wetRainMm') };
   }
   setSendsChartCounts(enabled: boolean) { this.preferencesStore.setSendsChartCounts(enabled); }
+  setRecoveryChartMode(mode: RecoveryChartMode) { this.preferencesStore.setRecoveryChartMode(mode); }
+  setFingerCategoryIds(ids: string[] | null) { this.preferencesStore.setFingerCategoryIds(ids); }
+  setBenchmarkTotalTypeIds(ids: string[]) { this.preferencesStore.setBenchmarkTotalTypeIds(ids); }
   setHomeDetail(id: string, enabled: boolean) {
     this.preferencesStore.setHomeDetail(id, enabled);
   }

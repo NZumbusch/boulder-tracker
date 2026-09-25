@@ -31,8 +31,8 @@
   const categoryColor = (name: string) => trainingState.analyticsCategories.find((c) => c.name === name)?.color ?? 'bg-primary';
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
-  <SectionHeader icon="ic:baseline-event-note" label="Week Recap"
+<div class="card space-y-3">
+  <SectionHeader label="Week Recap"
     subtitle={recap.isCurrentWeek ? `This week so far · W${weekId.split('-W')[1]}` : `Last week · W${weekId.split('-W')[1]}`} />
 
   {#if recap.planned === 0 && recap.sends.length === 0}
@@ -62,7 +62,7 @@
 
     {#if trainingState.homeDetails['weekRecap.mix'] && mixTotal > 0}
       <div class="space-y-1.5">
-        <div class="flex h-2 rounded-control overflow-hidden gap-px" aria-hidden="true">
+        <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px]" aria-hidden="true">
           {#each recap.mix as m}
             <div class={categoryColor(m.name)} style="width: {(m.minutes / mixTotal) * 100}%"></div>
           {/each}

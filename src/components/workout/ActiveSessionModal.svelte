@@ -1,4 +1,9 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import { live, composeLive, onLiveAction } from '../../lib/native/liveNotification.svelte';
+  import { liveTimerAvailable, sendLiveTimer, stopLiveTimer } from '../../lib/native/timerService';
+  import { untrack } from 'svelte';
+  import { motionMs } from '../../lib/motion';
   /**
    * The running session, full screen.
    *
@@ -26,6 +31,7 @@
   import ExerciseLogSheet from './ExerciseLogSheet.svelte';
   import SessionExitModal from './SessionExitModal.svelte';
   import TimerWidget from './TimerWidget.svelte';
+  import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -43,6 +49,51 @@
   let intervalSeed = $state<ExerciseValues | null>(null);
 
   const session = $derived(store.session);
+  // --- The Android session notification (lib/native/liveNotification) ---
+  // This is its one sender: the session (always, while one runs) plus the
+  // timer's plan when a timer runs. Re-sent on every meaningful change.
+  let notificationSent = false;
+  $effect(() => {
+    const s = session;
+    void [live.timerPlan, live.timerFinished, s?.runningSince, s?.accumulatedMs, store.currentIndex, store.progress.settled,
+      s?.workout.notes, s?.workout.exercises.length, trainingState.exerciseTypes.length, trainingState.sessionNotification,
+      trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled];
+    untrack(() => {
+      if (!liveTimerAvailable()) return;
+      const cur = store.currentSlot;
+      const info = s ? {
+        name: s.workout.notes || 'Session',
+        exercise: cur ? slotTypeName(cur, trainingState.exerciseTypes) : undefined,
+        done: store.progress.settled,
+        total: store.progress.total,
+        running: !store.isPaused,
+        elapsedMs: store.elapsedMs,
+      } : null;
+      const config = composeLive(live.timerPlan, info, { sessionNotification: trainingState.sessionNotification }, Date.now());
+      if (config) {
+        notificationSent = true;
+        void sendLiveTimer(config, trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled).then((ok) => { live.serviceOk = ok; });
+      } else if (notificationSent && !(live.timerFinished && s)) {
+        notificationSent = false;
+        void stopLiveTimer();
+      }
+    });
+  });
+  // Pause / Resume session pressed in the notification.
+  $effect(() => onLiveAction((action) => {
+    if (action.kind === 'sessionPause') store.pause();
+    else if (action.kind === 'sessionResume') store.resume();
+  }));
+
+  /** The session timer, so the exercise card's Timer button can open it. */
+  let timer = $state<ReturnType<typeof TimerWidget> | undefined>(undefined);
+
+  // Back (phone key or browser): the add/edit screen returns to the
+  // session; the session itself minimises to the bubble - it keeps running.
+  const sessionOpen = $derived(!!session && store.isModalOpen);
+  const formOpen = $derived(isAddingExercise || editingSlotId !== null);
+  backWhile(() => sessionOpen, () => store.minimize());
+  backWhile(() => formOpen, () => { isAddingExercise = false; editingSlotId = null; });
   const exercises = $derived(store.exercises);
   const progress = $derived(store.progress);
   const current = $derived(store.currentSlot);
@@ -50,6 +101,30 @@
   const elapsed = $derived(store.elapsedMinutes);
 
   const loggingSlot = $derived(exercises.find((e) => e.id === loggingSlotId) ?? null);
+
+  /**
+   * Opens the finish sheet. For an exercise that records a duration, the
+   * time actually spent on it (its own clock, which stops with the session
+   * pause) is prefilled - rounded to whole minutes, and only once there is
+   * at least half a minute of it, so a quick tick-off keeps the planned value.
+   */
+  function openFinish(slot: ExerciseSlot) {
+    const ms = store.slotElapsedMs(slot.id);
+    const params = slot.activeParameters ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? [];
+    if (!intervalSeed && params.includes('duration') && ms >= 30_000) {
+      intervalSeed = { ...slotValues(slot), duration: Math.max(1, Math.round(ms / 60_000)) };
+    }
+    loggingSlotId = slot.id;
+  }
+
+  /** "4:05", or "1:02:40" past an hour. */
+  function clock(ms: number): string {
+    const total = Math.floor(ms / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const sec = String(total % 60).padStart(2, '0');
+    return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+  }
   const editingSlot = $derived(exercises.find((e) => e.id === editingSlotId) ?? null);
 
   const overrun = $derived(expected > 0 && elapsed > expected);
@@ -206,7 +281,7 @@
             onfinalize={handleDnd}
           >
             {#each exercises as slot (slot.id)}
-              <div animate:flip={{ duration: 200 }} class="p-3 bg-surface/60 border border-border rounded-card flex items-center gap-2.5">
+              <div animate:flip={{ duration: motionMs(200) }} class="p-3 bg-surface/60 border border-border rounded-card flex items-center gap-2.5">
                 <Icon icon="ic:baseline-drag-indicator" class="text-xl text-content-subtle shrink-0 cursor-grab active:cursor-grabbing" />
                 <div class="min-w-0 flex-1">
                   <p class="text-body font-bold text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</p>
@@ -271,6 +346,21 @@
                   </p>
                 </button>
 
+                {#if isCurrent && status === 'pending'}
+                  <!-- This exercise's own clock: stops with the session pause,
+                       and carries on from here if you come back to it. -->
+                  <span
+                    class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-control text-caption tabular-nums {store.isPaused ? 'bg-surface-elevated text-content-subtle' : 'bg-primary/10 text-primary'}"
+                    title="Time on this exercise"
+                    aria-label="Time on this exercise: {clock(store.slotElapsedMs(slot.id))}"
+                  >
+                    <Icon icon={store.isPaused ? 'ic:baseline-pause' : 'ic:baseline-timer'} class="text-sm" />
+                    {clock(store.slotElapsedMs(slot.id))}
+                  </span>
+                {:else if store.slotElapsedMs(slot.id) >= 60_000}
+                  <span class="shrink-0 text-caption text-content-subtle tabular-nums" title="Time spent on this exercise">{Math.round(store.slotElapsedMs(slot.id) / 60_000)} min</span>
+                {/if}
+
                 {#if status !== 'pending'}
                   <button
                     onclick={() => store.unfinishExercise(slot.id)}
@@ -295,8 +385,22 @@
                     >
                       Skip
                     </button>
+                    {#if hasIntervalTiming(slotValues(slot))}
+                      <!-- Opens the timer that fits: the interval protocol
+                           for timed work (hangs), the set timer with rests
+                           for strength sets. The floating pill below also
+                           offers stopwatch and countdown for anything else. -->
+                      <button
+                        onclick={() => timer?.openForExercise()}
+                        class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5"
+                        aria-label="Open the timer for this exercise"
+                      >
+                        <Icon icon="ic:baseline-timer" class="text-base" />
+                        Timer
+                      </button>
+                    {/if}
                     <button
-                      onclick={() => loggingSlotId = slot.id}
+                      onclick={() => openFinish(slot)}
                       class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                     >
                       <Icon icon="ic:baseline-check" class="text-base" />
@@ -356,6 +460,7 @@
        and `visible` still keeps it off screen exactly when the session
        modal is, so it never competes with the session bubble. -->
   <TimerWidget
+    bind:this={timer}
     currentSlot={current ?? null}
     bottomClass="bottom-[80px]"
     visible={store.isModalOpen}

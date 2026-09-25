@@ -8,6 +8,7 @@
   import { missedWorkouts } from '../../../lib/planning/weekStatus';
   import { joinParts } from './format';
   import SectionHeader from './SectionHeader.svelte';
+  import ListRow from '../../common/ListRow.svelte';
   import Icon from '@iconify/svelte';
 
   let { data }: { data: HomeData } = $props();
@@ -27,62 +28,49 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-3">
-  <SectionHeader icon="ic:baseline-today" label="Today" subtitle={todaysWorkouts.length > 0 ? `${todaysWorkouts.length} session${todaysWorkouts.length === 1 ? '' : 's'} planned` : undefined} />
+<div class="card space-y-1">
+  <SectionHeader label="Today" subtitle={todaysWorkouts.length > 0 ? `${todaysWorkouts.length} session${todaysWorkouts.length === 1 ? '' : 's'} planned` : undefined} />
+  <div class="divide-y divide-border">
   {#each todaysWorkouts as workout}
     {@const isThisRunning = trainingState.sessionStore.isRunning(workout.id)}
     {@const summary = summarizeSession(workout, trainingState.exerciseTypes)}
     {@const showTime = trainingState.homeDetails['today.time']}
     {@const showLoad = trainingState.homeDetails['today.load'] && summary.plannedLoad > 0}
-    <div class="flex items-center justify-between p-3.5 rounded-control {workout.provisional ? 'bg-surface-elevated/20 border border-dashed border-border-strong/60' : 'bg-surface-elevated/50 border border-border-strong/50'}">
-      <div
-        class="min-w-0 flex-1 cursor-pointer"
-        role="button"
-        tabindex="0"
-        onclick={() => openWorkout(workout)}
-        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openWorkout(workout); } }}
-      >
-        <p class="text-body font-bold text-content truncate">{workout.notes}</p>
-        <p class="text-caption text-content-subtle flex items-center gap-1">
-          {#if workout.provisional}
-            <Icon icon="ic:outline-cloud-queue" class="text-xs text-primary/70 shrink-0" />
-          {/if}
-          <span class="truncate">
-            {joinParts(
-              showTime && summary.startTime,
-              showTime && `${summary.estimated ? '~' : ''}${summary.minutes} min`,
-              `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
-              showLoad && `load ${summary.plannedLoad}`,
-            )}
-          </span>
-        </p>
-        {#if trainingState.homeDetails['today.exercises'] && summary.exerciseNames.length > 0}
-          <p class="text-caption text-content-subtle truncate mt-0.5">
-            {summary.exerciseNames.join(' · ')}{summary.moreExercises > 0 ? ` +${summary.moreExercises} more` : ''}
-          </p>
-        {/if}
-      </div>
-      <!-- Start goes live: it begins the session and opens the session
-           modal, rather than opening the workout in the planning form.
-           While a session is running, the only session that can be
-           opened from here is that one. -->
-      <button
-        onclick={() => trainingState.startSession(workout)}
-        disabled={trainingState.isSessionActive && !isThisRunning}
-        title={trainingState.isSessionActive && !isThisRunning ? 'Finish or discard the running session first' : undefined}
-        class="flex items-center gap-1 px-3 py-1.5 text-white text-label font-bold rounded-control shrink-0 ml-3 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed {isThisRunning
-          ? 'bg-success hover:bg-success-hover'
-          : 'bg-primary hover:bg-primary-hover shadow-[0_4px_14px_-4px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]'}"
-      >
-        <Icon icon="ic:baseline-play-arrow" class="text-sm" /> {isThisRunning ? 'Resume' : 'Start'}
-      </button>
-    </div>
+    <ListRow
+      title={workout.notes || 'Session'}
+      meta={joinParts(
+        showTime && summary.startTime,
+        showTime && `${summary.estimated ? '~' : ''}${summary.minutes} min`,
+        `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
+        showLoad && `load ${summary.plannedLoad}`,
+      )}
+      detail={trainingState.homeDetails['today.exercises'] && summary.exerciseNames.length > 0
+        ? `${summary.exerciseNames.join(' · ')}${summary.moreExercises > 0 ? ` +${summary.moreExercises} more` : ''}`
+        : undefined}
+      muted={workout.provisional}
+      onclick={() => openWorkout(workout)}
+    >
+      {#snippet trailing()}
+        <!-- Start goes live: it begins the session and opens the session
+             modal. While a session is running, only that one can be
+             resumed from here. -->
+        <button
+          onclick={() => trainingState.startSession(workout)}
+          disabled={trainingState.isSessionActive && !isThisRunning}
+          title={trainingState.isSessionActive && !isThisRunning ? 'Finish or discard the running session first' : undefined}
+          class="flex items-center gap-1 px-3.5 py-2 text-white text-label font-bold rounded-control shrink-0 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed {isThisRunning ? 'bg-success hover:bg-success-hover' : 'bg-primary hover:bg-primary-hover'}"
+        >
+          <Icon icon="ic:baseline-play-arrow" class="text-sm" /> {isThisRunning ? 'Resume' : 'Start'}
+        </button>
+      {/snippet}
+    </ListRow>
   {:else}
     <div class="flex items-center justify-between gap-3">
       <p class="text-caption text-content-subtle italic">Nothing planned for today.</p>
       <button onclick={() => trainingState.navigate('add')} class="text-label text-primary shrink-0">Start a session</button>
     </div>
   {/each}
+  </div>
   {#if trainingState.homeDetails['today.missed'] && missed.length > 0}
     <div class="pt-1 border-t border-border/60">
       <button onclick={() => showMissed = !showMissed} class="w-full flex items-center gap-1 pt-2 text-label text-content-muted hover:text-content" aria-expanded={showMissed}>
@@ -90,9 +78,9 @@
         Missed this week ({missed.length})
       </button>
       {#if showMissed}
-        <div class="space-y-1.5 mt-2">
+        <div class="divide-y divide-border mt-1">
           {#each missed as workout (workout.id)}
-            <div class="flex items-center gap-2 p-2.5 rounded-control bg-surface-elevated/30 border border-border-strong/40">
+            <div class="flex items-center gap-2 py-1.5">
               <div class="min-w-0 flex-1">
                 <p class="text-label text-content truncate">{workout.notes || 'Session'}</p>
                 <p class="text-caption text-content-subtle">{workout.dayOfWeek}</p>

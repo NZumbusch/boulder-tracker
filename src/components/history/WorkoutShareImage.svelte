@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * The shareable session card.
    *
@@ -101,6 +102,9 @@
       busy = null;
     }
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onClose());
 </script>
 
 <div class="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in overflow-y-auto no-scrollbar">

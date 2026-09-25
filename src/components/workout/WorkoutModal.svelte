@@ -9,8 +9,12 @@
   import { workoutModal, closeWorkout } from '../../lib/workoutModal.svelte';
   import WorkoutView from './WorkoutView.svelte';
   import WorkoutEditor from './WorkoutEditor.svelte';
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
 
   const workout = $derived(workoutModal.workout);
+  // Back closes the viewer (the editor registers its own back, which runs first).
+  const isOpen = $derived(!!workoutModal.workout);
+  backWhile(() => isOpen, closeWorkout);
 </script>
 
 <svelte:window onkeydown={(e) => { if (workout && workoutModal.mode === 'view' && e.key === 'Escape') closeWorkout(); }} />

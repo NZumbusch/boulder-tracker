@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * The plan's one AI entry point, full screen like the session's "Ask AI".
    *
@@ -180,6 +181,9 @@
       applying = false;
     }
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onClose());
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onClose(); }} />

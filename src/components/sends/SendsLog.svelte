@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ListRow from '../common/ListRow.svelte';
   /**
    * History's Sends tab: every outdoor send, grouped under the trip that
    * covers it (with that trip's projects ticked) or by month. Add and edit
@@ -46,38 +47,39 @@
 
 {#snippet sendRow(send: OutdoorAscent, project: boolean)}
   {#if editingId === send.id}
-    <div class="p-3 rounded-control border border-primary/30 bg-surface-elevated/40">
+    <div class="py-3">
       <SendForm ascent={send} onDone={() => editingId = null} />
     </div>
   {:else}
-    <button onclick={() => editingId = send.id} class="w-full flex items-center gap-3 p-2.5 rounded-control bg-surface-elevated/40 border border-border-strong/40 text-left hover:border-border-strong transition-colors">
-      <div class="min-w-0 flex-1">
-        <p class="text-label text-content truncate">
-          {send.name || 'Unnamed'} <span class="text-primary tabular-nums">{G(send.grade)}</span>{send.style ? ` · ${send.style}` : ''}
-        </p>
-        <p class="text-caption text-content-subtle truncate">{formatDate(send.date)}{send.crag ? ` · ${send.crag}` : ''}</p>
-      </div>
-      {#if project}<Icon icon="ic:baseline-star" class="text-primary shrink-0" aria-label="Trip project" />{/if}
-    </button>
+    <ListRow
+      title={send.name || 'Unnamed'}
+      meta={[formatDate(send.date), send.style, send.crag].filter(Boolean).join(' · ')}
+      value={G(send.grade)}
+      onclick={() => editingId = send.id}
+    >
+      {#snippet trailing()}
+        {#if project}<Icon icon="ic:baseline-star" class="text-primary shrink-0" aria-label="Trip project" />{/if}
+      {/snippet}
+    </ListRow>
   {/if}
 {/snippet}
 
 <div class="space-y-4">
   <div class="flex gap-2">
-    <button onclick={() => mode = mode === 'add' ? 'list' : 'add'} class="flex-1 py-2.5 rounded-control text-label font-bold flex items-center justify-center gap-1.5 {mode === 'add' ? 'bg-primary text-white' : 'bg-surface-elevated/60 text-content border border-border-strong/50'}">
-      <Icon icon="ic:baseline-plus" /> Add send
+    <button onclick={() => mode = mode === 'add' ? 'list' : 'add'} aria-pressed={mode === 'add'} class="chip transition-colors {mode === 'add' ? 'border-primary bg-primary/15 text-content' : 'text-primary hover:border-primary/40'}">
+      <Icon icon="ic:baseline-plus" class="text-sm" /> Add send
     </button>
-    <button onclick={() => mode = mode === 'import' ? 'list' : 'import'} class="flex-1 py-2.5 rounded-control text-label font-bold flex items-center justify-center gap-1.5 {mode === 'import' ? 'bg-primary text-white' : 'bg-surface-elevated/60 text-content border border-border-strong/50'}">
-      <Icon icon="ic:baseline-upload-file" /> Import 8a.nu
+    <button onclick={() => mode = mode === 'import' ? 'list' : 'import'} aria-pressed={mode === 'import'} class="chip transition-colors {mode === 'import' ? 'border-primary bg-primary/15 text-content' : 'text-content-muted hover:text-content'}">
+      <Icon icon="ic:baseline-upload-file" class="text-sm" /> Import 8a.nu
     </button>
   </div>
 
   {#if mode === 'add'}
-    <div class="p-4 rounded-card border border-primary/30 bg-surface/50">
+    <div class="card">
       <SendForm onDone={() => mode = 'list'} />
     </div>
   {:else if mode === 'import'}
-    <div class="p-4 rounded-card border border-primary/30 bg-surface/50">
+    <div class="card">
       <SendImport onDone={() => mode = 'list'} />
     </div>
   {/if}
@@ -87,7 +89,7 @@
     {#if selectedGrade}
       <div class="flex items-center gap-2 px-1">
         <span class="text-label text-content">Showing {selectedGrade} sends{period === 'year' ? ' from the last 12 months' : ''}</span>
-        <button onclick={() => selectedGrade = null} class="px-2 py-0.5 rounded-full border border-border-strong/60 text-caption text-content-subtle hover:text-content flex items-center gap-1">
+        <button onclick={() => selectedGrade = null} class="chip text-content-subtle hover:text-content">
           <Icon icon="ic:baseline-close" class="text-xs" /> Clear
         </button>
       </div>
@@ -95,26 +97,26 @@
   {/if}
 
   {#each groups as group (group.key)}
-    <div class="space-y-1.5">
+    <div class="card space-y-1">
       {#if group.kind === 'trip'}
         {@const summary = tripSummary(group.trip, trainingState.outdoorAscents)}
         {@const projectSendIds = new Set(summary.projects.filter((p) => p.send).map((p) => p.send!.id))}
-        <div class="flex items-center gap-2 px-1 pt-1">
+        <div class="flex items-center gap-2">
           <Icon icon="ic:baseline-terrain" class="text-primary shrink-0" />
-          <p class="text-label text-content truncate flex-1">{group.trip.name} <span class="text-content-subtle">· {formatGoalDates(group.trip)}</span></p>
+          <p class="text-section uppercase text-content-muted truncate flex-1">{group.trip.name} <span class="normal-case tracking-normal font-normal text-content-subtle">{` · ${formatGoalDates(group.trip)}`}</span></p>
           <span class="text-caption text-content-subtle shrink-0">
             {group.sends.length} send{group.sends.length === 1 ? '' : 's'}{summary.projects.length ? ` · ${summary.projectsDone}/${summary.projects.length} projects` : ''}
           </span>
         </div>
-        {#each group.sends as send (send.id)}{@render sendRow(send, projectSendIds.has(send.id))}{/each}
+        <div class="divide-y divide-border">{#each group.sends as send (send.id)}{@render sendRow(send, projectSendIds.has(send.id))}{/each}</div>
       {:else}
-        <p class="text-section uppercase text-content-subtle px-1 pt-1">{monthLabel(group.month)}</p>
-        {#each group.sends as send (send.id)}{@render sendRow(send, false)}{/each}
+        <p class="text-section uppercase text-content-muted">{monthLabel(group.month)}</p>
+        <div class="divide-y divide-border">{#each group.sends as send (send.id)}{@render sendRow(send, false)}{/each}</div>
       {/if}
     </div>
   {:else}
     {#if mode === 'list'}
-      <div class="p-6 text-center rounded-card border border-dashed border-border">
+      <div class="py-8 text-center">
         <p class="text-caption text-content-subtle italic">
           {filtered && trainingState.outdoorAscents.length > 0 ? 'No sends match the filters.' : selectedGrade ? `No ${selectedGrade} sends${period === 'year' ? ' in the last 12 months' : ''} yet.` : period === 'year' && trainingState.outdoorAscents.length > 0 ? 'No sends in the last 12 months.' : 'No outdoor sends yet - add one, or import your 8a.nu log.'}
         </p>

@@ -29,14 +29,15 @@
 </script>
 
 {#if trainingState.crags.length > 0}
-  <div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
-    <SectionHeader icon="ic:baseline-landscape" label="Crags" />
+  <div class="card space-y-1">
+    <SectionHeader label="Crags" />
+    <div class="divide-y divide-border">
     {#each trainingState.crags as crag, i (crag.name)}
       {@const state = trainingState.cragWeather[i]}
       {@const snap = state?.snapshot}
-      <div class="rounded-control bg-surface-elevated/40 border border-border-strong/30">
-        <button onclick={() => openCrag = openCrag === i ? null : i} class="w-full flex items-center gap-3 p-2.5 text-left" aria-expanded={openCrag === i}>
-          <span class="text-label text-content flex-1 truncate">{crag.name}</span>
+      <div>
+        <button onclick={() => openCrag = openCrag === i ? null : i} class="w-full flex items-center gap-3 py-2.5 text-left" aria-expanded={openCrag === i}>
+          <span class="text-body font-semibold text-content flex-1 truncate">{crag.name}</span>
           {#if snap}
             {@const f = currentFriction(snap)}
             <span class="text-label text-content tabular-nums">{T(snap.currentTempC)}</span>
@@ -53,7 +54,7 @@
           <Icon icon="ic:baseline-chevron-right" class="text-content-subtle transition-transform {openCrag === i ? 'rotate-90' : ''}" />
         </button>
         {#if openCrag === i && snap}
-          <div class="px-2.5 pb-2.5 space-y-2">
+          <div class="pb-2.5 space-y-2">
             {#if snap.recentRain && snap.recentRain.last72hMm > 0}
               <p class="text-caption text-content-subtle tabular-nums">{snap.recentRain.last72hMm} mm rain in the last 3 days{snap.recentRain.hoursSinceRain !== undefined ? ` · last ${snap.recentRain.hoursSinceRain} h ago` : ''}</p>
             {/if}
@@ -80,6 +81,7 @@
         {/if}
       </div>
     {/each}
+    </div>
     {#if cragSuggestion && trainingState.homeDetails['crags.suggestion']}
       {@const when = cragSuggestion.date === todayIso ? 'Today' : new Date(`${cragSuggestion.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'long' })}
       <p class="text-caption text-content-muted flex items-start gap-1.5 pt-1">

@@ -27,13 +27,21 @@ describe('defaultPreferences', () => {
       homeLocation: null,
       crags: [],
       fatigueChartStyle: 'bars',
-      chartDensity: 'auto',
+      analyticsRange: '3m',
       timerVibrateEnabled: true,
       timerBeepEnabled: true,
       timerKeepAwakeEnabled: false,
+      timerBackgroundAlerts: true,
+      timerCountdownTicks: true,
+      timerWarnBeforeEnd: false,
+      timerPillHidden: false,
+      sessionNotification: true,
       homeSections: DEFAULT_HOME_SECTIONS,
       homeDetails: defaultHomeDetails(),
       sendsChartCounts: true,
+      recoveryChartMode: 'overlay',
+      fingerCategoryIds: null,
+      benchmarkTotalTypeIds: [],
       tunables: defaultTunables(),
       units: { temperature: 'C', weight: 'kg', wind: 'kmh', grades: 'font' },
       analyticsSections: ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })),
@@ -85,13 +93,21 @@ describe('migratePreferences', () => {
       homeLocation: { name: 'Munich, DE', latitude: 48.1374, longitude: 11.5755 },
       crags: [],
       fatigueChartStyle: 'radar' as const,
-      chartDensity: 'compact' as const,
+      analyticsRange: '1y' as const,
       timerVibrateEnabled: false,
       timerBeepEnabled: false,
       timerKeepAwakeEnabled: true,
+      timerBackgroundAlerts: false,
+      timerCountdownTicks: false,
+      timerWarnBeforeEnd: true,
+      timerPillHidden: true,
+      sessionNotification: false,
       homeSections: [...DEFAULT_HOME_SECTIONS.slice(1), DEFAULT_HOME_SECTIONS[0]],
       homeDetails: { ...defaultHomeDetails(), 'weather.forecast': false },
       sendsChartCounts: false,
+      recoveryChartMode: 'lanes' as const,
+      fingerCategoryIds: ['cat-3'],
+      benchmarkTotalTypeIds: ['bm-1'],
       tunables: { ...defaultTunables(), 'fatigue.halfLifeDays': 4 },
       units: { temperature: 'F' as const, weight: 'lb' as const, wind: 'mph' as const, grades: 'v' as const },
       analyticsSections: [...ANALYTICS_SECTION_IDS].reverse().map((id, i) => ({ id, visible: i % 2 === 0 })),
@@ -104,21 +120,21 @@ describe('migratePreferences', () => {
     expect(migratePreferences(valid)).toEqual(valid);
   });
 
-  it('defaults chartDensity for a blob written before the setting existed, keeping every other field', () => {
+  it('defaults analyticsRange for a blob written before the setting existed, keeping every other field', () => {
     const result = migratePreferences({
       version: CURRENT_PREFERENCES_VERSION,
       textScale: 'lg',
       motion: 'reduced',
       fatigueChartStyle: 'radar',
     });
-    expect(result.chartDensity).toBe('auto');
+    expect(result.analyticsRange).toBe('3m');
     expect(result.textScale).toBe('lg');
     expect(result.fatigueChartStyle).toBe('radar');
   });
 
-  it('rejects an unknown chartDensity rather than storing it', () => {
-    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, chartDensity: 'enormous' });
-    expect(result.chartDensity).toBe('auto');
+  it('rejects an unknown analyticsRange rather than storing it', () => {
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, analyticsRange: 'decade' });
+    expect(result.analyticsRange).toBe('3m');
   });
 
   it('drops unknown extra keys', () => {
@@ -160,7 +176,7 @@ describe('migratePreferences', () => {
     expect(result.dailyMetricsReminderEnabled).toBe(true);
     expect(result.dailyMetricsReminderTime).toBe('20:00');
     expect(result.fatigueChartStyle).toBe('bars');
-    expect(result.chartDensity).toBe('auto');
+    expect(result.analyticsRange).toBe('3m');
     expect(result.timerVibrateEnabled).toBe(true);
     expect(result.timerBeepEnabled).toBe(true);
     expect(result.timerKeepAwakeEnabled).toBe(false);
@@ -185,7 +201,7 @@ describe('migratePreferences', () => {
     expect(result.dailyMetricsReminderEnabled).toBe(true);
     expect(result.dailyMetricsReminderTime).toBe('20:00');
     expect(result.fatigueChartStyle).toBe('bars');
-    expect(result.chartDensity).toBe('auto');
+    expect(result.analyticsRange).toBe('3m');
     expect(result.timerVibrateEnabled).toBe(true);
     expect(result.timerBeepEnabled).toBe(true);
     expect(result.timerKeepAwakeEnabled).toBe(false);

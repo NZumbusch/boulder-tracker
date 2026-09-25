@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * The "stop the session" fork: save what happened, or throw it away.
    *
@@ -20,6 +21,9 @@
   } = $props();
 
   const pending = $derived(progress.total - progress.settled);
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onCancel());
 </script>
 
 <div

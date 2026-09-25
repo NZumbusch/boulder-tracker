@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * "Ask AI" for the one session open in the editor, as three steps:
    * say what you want and copy the prompt, paste the reply, review exactly
@@ -139,6 +140,9 @@
       committing = false;
     }
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onClose());
 </script>
 
 {#snippet modeSwitch()}

@@ -13,6 +13,17 @@ export const RATING_AXES = [
 ] as const;
 
 /**
+ * One colour per fatigue axis, shared by every fatigue display (Home's
+ * bars, Analytics' trend chart) so an axis looks the same everywhere.
+ */
+export const FATIGUE_AXIS_COLORS: Record<(typeof RATING_AXES)[number]["key"], string> = {
+  fingers: "var(--color-warning)",
+  arms: "var(--color-tertiary)",
+  core: "var(--color-success)",
+  systemic: "var(--color-primary)",
+};
+
+/**
  * Current data model version for exports and migrations.
  */
 export const DATA_EXPORT_VERSION = "3.29";

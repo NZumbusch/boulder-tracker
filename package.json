@@ -31,11 +31,13 @@
     "vitest": "^5.0.1"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.4.0",
     "@capacitor/dialog": "^8.0.1",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.1",
+    "capacitor-timer-service": "file:plugins/timer-service",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",
     "localforage": "^1.10.0",

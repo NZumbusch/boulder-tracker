@@ -25,8 +25,8 @@
   const blockTrendMax = $derived(Math.max(1, ...blockTrend.map((b) => Math.max(b.planned, b.actual))));
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 shadow-card space-y-2">
-  <SectionHeader icon="ic:baseline-view-week" label="Training Block"
+<div class="card space-y-3">
+  <SectionHeader label="Training Block"
   note={dominantBlock && trainingState.homeDetails['trainingBlock.note'] ? { has: !!dominantBlock.notes, open: () => noteOpen = true, what: 'block' } : undefined} />
   {#if dominantBlock}
     <p class="text-body text-content font-bold">{dominantBlock.name}{currentPhaseName ? ` · ${currentPhaseName}` : ''}</p>
@@ -35,7 +35,7 @@
         <span class="text-caption text-content-subtle shrink-0">Week {blockWeekPosition.week} of {blockWeekPosition.of}</span>
         <div class="flex gap-1 flex-1">
           {#each Array(blockWeekPosition.of) as _, i}
-            <div class="flex-1 h-1.5 rounded-control {i < blockWeekPosition.week ? 'bg-primary' : 'bg-surface-elevated border border-border-strong/50'}"></div>
+            <div class="flex-1 h-1.5 rounded-full {i < blockWeekPosition.week ? 'bg-primary' : 'bg-surface-elevated'}"></div>
           {/each}
         </div>
       </div>

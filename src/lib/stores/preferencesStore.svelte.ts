@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type ChartDensity, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -21,13 +21,21 @@ export class PreferencesStore {
   homeLocation = $state<WeatherLocation | null>(null);
   crags = $state<WeatherLocation[]>([]);
   fatigueChartStyle = $state<FatigueChartStyle>('bars');
-  chartDensity = $state<ChartDensity>('auto');
+  analyticsRange = $state<AnalyticsRange>('3m');
   timerVibrateEnabled = $state(true);
   timerBeepEnabled = $state(true);
   timerKeepAwakeEnabled = $state(false);
+  timerBackgroundAlerts = $state(true);
+  timerCountdownTicks = $state(true);
+  timerWarnBeforeEnd = $state(false);
+  timerPillHidden = $state(false);
+  sessionNotification = $state(true);
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
   homeDetails = $state<HomeDetails>(defaultHomeDetails());
   sendsChartCounts = $state(true);
+  recoveryChartMode = $state<RecoveryChartMode>('overlay');
+  fingerCategoryIds = $state<string[] | null>(null);
+  benchmarkTotalTypeIds = $state<string[]>([]);
   tunables = $state<Tunables>(defaultTunables());
   units = $state<Units>({ ...DEFAULT_UNITS });
   analyticsSections = $state<OrderedToggle<AnalyticsSectionId>[]>(ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })));
@@ -61,13 +69,21 @@ export class PreferencesStore {
     this.homeLocation = prefs.homeLocation;
     this.crags = prefs.crags;
     this.fatigueChartStyle = prefs.fatigueChartStyle;
-    this.chartDensity = prefs.chartDensity;
+    this.analyticsRange = prefs.analyticsRange;
     this.timerVibrateEnabled = prefs.timerVibrateEnabled;
     this.timerBeepEnabled = prefs.timerBeepEnabled;
     this.timerKeepAwakeEnabled = prefs.timerKeepAwakeEnabled;
+    this.timerBackgroundAlerts = prefs.timerBackgroundAlerts;
+    this.timerCountdownTicks = prefs.timerCountdownTicks;
+    this.timerWarnBeforeEnd = prefs.timerWarnBeforeEnd;
+    this.timerPillHidden = prefs.timerPillHidden;
+    this.sessionNotification = prefs.sessionNotification;
     this.homeSections = prefs.homeSections;
     this.homeDetails = prefs.homeDetails;
     this.sendsChartCounts = prefs.sendsChartCounts;
+    this.recoveryChartMode = prefs.recoveryChartMode;
+    this.fingerCategoryIds = prefs.fingerCategoryIds;
+    this.benchmarkTotalTypeIds = prefs.benchmarkTotalTypeIds;
     this.tunables = prefs.tunables;
     this.units = prefs.units;
     this.analyticsSections = prefs.analyticsSections;
@@ -120,8 +136,8 @@ export class PreferencesStore {
     this.persist();
   }
 
-  setChartDensity(density: ChartDensity) {
-    this.chartDensity = density;
+  setAnalyticsRange(range: AnalyticsRange) {
+    this.analyticsRange = range;
     this.persist();
   }
 
@@ -137,6 +153,31 @@ export class PreferencesStore {
 
   setTimerKeepAwakeEnabled(enabled: boolean) {
     this.timerKeepAwakeEnabled = enabled;
+    this.persist();
+  }
+
+  setTimerBackgroundAlerts(enabled: boolean) {
+    this.timerBackgroundAlerts = enabled;
+    this.persist();
+  }
+
+  setTimerCountdownTicks(enabled: boolean) {
+    this.timerCountdownTicks = enabled;
+    this.persist();
+  }
+
+  setTimerWarnBeforeEnd(enabled: boolean) {
+    this.timerWarnBeforeEnd = enabled;
+    this.persist();
+  }
+
+  setTimerPillHidden(hidden: boolean) {
+    this.timerPillHidden = hidden;
+    this.persist();
+  }
+
+  setSessionNotification(enabled: boolean) {
+    this.sessionNotification = enabled;
     this.persist();
   }
 
@@ -192,6 +233,21 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setRecoveryChartMode(mode: RecoveryChartMode) {
+    this.recoveryChartMode = mode;
+    this.persist();
+  }
+
+  setFingerCategoryIds(ids: string[] | null) {
+    this.fingerCategoryIds = ids;
+    this.persist();
+  }
+
+  setBenchmarkTotalTypeIds(ids: string[]) {
+    this.benchmarkTotalTypeIds = ids;
+    this.persist();
+  }
+
   setHomeDetail(id: string, enabled: boolean) {
     this.homeDetails = { ...this.homeDetails, [id]: enabled };
     this.persist();
@@ -236,13 +292,21 @@ export class PreferencesStore {
       homeLocation: this.homeLocation,
       crags: this.crags,
       fatigueChartStyle: this.fatigueChartStyle,
-      chartDensity: this.chartDensity,
+      analyticsRange: this.analyticsRange,
       timerVibrateEnabled: this.timerVibrateEnabled,
       timerBeepEnabled: this.timerBeepEnabled,
       timerKeepAwakeEnabled: this.timerKeepAwakeEnabled,
+      timerBackgroundAlerts: this.timerBackgroundAlerts,
+      timerCountdownTicks: this.timerCountdownTicks,
+      timerWarnBeforeEnd: this.timerWarnBeforeEnd,
+      timerPillHidden: this.timerPillHidden,
+      sessionNotification: this.sessionNotification,
       homeSections: this.homeSections,
       homeDetails: this.homeDetails,
       sendsChartCounts: this.sendsChartCounts,
+      recoveryChartMode: this.recoveryChartMode,
+      fingerCategoryIds: this.fingerCategoryIds,
+      benchmarkTotalTypeIds: this.benchmarkTotalTypeIds,
       tunables: this.tunables,
       units: this.units,
       analyticsSections: this.analyticsSections,

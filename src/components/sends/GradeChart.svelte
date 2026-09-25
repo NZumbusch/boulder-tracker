@@ -51,7 +51,7 @@
   const PLOT_HEIGHT = 112;
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-4 shadow-card space-y-3">
+<div class="card space-y-3">
   <div class="flex items-center justify-between gap-3">
     <div class="min-w-0">
       <h3 class="text-section uppercase text-content-muted">Sends by grade</h3>
@@ -59,11 +59,11 @@
         {total} send{total === 1 ? '' : 's'}{histogram.unplotted ? ` · ${histogram.unplotted} with other grades not shown` : ''}
       </p>
     </div>
-    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0">
+    <div class="seg shrink-0">
       {#each [['all', 'All time'], ['year', '12 months']] as [id, label]}
         <button
           onclick={() => { period = id as SendPeriod; selectedGrade = null; }}
-          class="px-2.5 py-1 text-caption rounded-control transition-colors {period === id ? 'bg-primary text-white' : 'text-content-muted hover:text-content'}"
+          class="seg-item {period === id ? 'seg-on' : 'hover:text-content'}"
           aria-pressed={period === id}
         >{label}</button>
       {/each}

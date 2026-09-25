@@ -103,7 +103,7 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card">
+<div class="card space-y-4">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Training Phases</h3>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">The macrocycle blocks (e.g. "Strength", "Deload") you assign to weeks on the Training Plan calendar. Tap a phase below to edit the default workouts it generates when assigned to a week.</p>
@@ -124,10 +124,10 @@
       <div class="flex gap-2 pt-2"><button onclick={savePhase} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control">Save</button><button onclick={() => isAddingPhase = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
     </div>
   {:else}
-    <div class="space-y-2">
+    <div class="divide-y divide-border">
       {#each sortedPhaseDefs as phase, index}
-        <div class="bg-surface-elevated/30 border border-border-strong/50 rounded-card transition-all overflow-hidden">
-          <div class="flex items-center justify-between p-3.5 group hover:bg-surface-elevated/50">
+        <div>
+          <div class="flex items-center justify-between py-3 group">
             <button
               onclick={() => togglePhaseExpanded(phase.id)}
               class="flex items-center gap-3 flex-1 min-w-0 text-left"
@@ -146,18 +146,18 @@
             </div>
           </div>
           {#if expandedPhaseId === phase.id}
-            <div class="px-3.5 pb-3.5 border-t border-border-strong/50 animate-in fade-in">
+            <div class="pb-3.5 animate-in fade-in">
               <PhaseTemplateEditor bind:templates phaseId={phase.id} />
             </div>
           {/if}
         </div>
       {/each}
-      <button onclick={startAddPhase} class="w-full py-3.5 border-2 border-dashed border-border hover:border-border-strong rounded-card flex items-center justify-center gap-2 text-content-subtle hover:text-content-muted transition-all"><Icon icon="ic:baseline-plus" /><span class="text-label">Add Phase</span></button>
+      <button onclick={startAddPhase} class="w-full py-3 rounded-control hover:bg-surface-elevated/50 flex items-center justify-center gap-2 text-primary transition-colors"><Icon icon="ic:baseline-plus" /><span class="text-label">Add Phase</span></button>
     </div>
   {/if}
 
   <div class="pt-2 border-t border-border space-y-3">
-    <button onclick={() => showStarterLibrary = !showStarterLibrary} class="w-full flex items-center justify-between p-3.5 bg-surface-elevated/30 hover:bg-surface-elevated/50 border border-border-strong/50 rounded-card transition-all">
+    <button onclick={() => showStarterLibrary = !showStarterLibrary} class="w-full flex items-center justify-between py-2 text-left group">
       <div class="flex items-center gap-3">
         <Icon icon="ic:baseline-library-books" class="text-lg text-content-subtle" />
         <div class="text-left">
@@ -169,9 +169,9 @@
     </button>
 
     {#if showStarterLibrary}
-      <div class="space-y-2 animate-in fade-in">
+      <div class="divide-y divide-border animate-in fade-in">
         {#each DEFAULT_TEMPLATE_LIBRARY as set}
-          <div class="flex items-center justify-between p-3 bg-surface-elevated/30 border border-border-strong/50 rounded-card">
+          <div class="flex items-center justify-between py-3">
             <div class="min-w-0 flex-1 pr-3">
               <p class="text-body font-bold text-content truncate">{set.name}</p>
               {#if set.description}<p class="text-caption text-content-subtle mt-0.5 leading-relaxed">{set.description}</p>{/if}

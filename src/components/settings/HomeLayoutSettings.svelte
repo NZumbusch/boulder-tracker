@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { motionMs } from '../../lib/motion';
   /**
    * Appearance -> Home: the Fatigue card's chart style, and Home section
    * visibility + reorder. Split out of the old single
@@ -61,21 +62,21 @@
   }
 </script>
 
-<div class="bg-surface border border-border rounded-card p-5 space-y-5 backdrop-blur-sm shadow-card animate-in fade-in">
+<div class="card space-y-5 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Home sections</h3>
     <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide. Open a section to choose what it shows.</p>
     <div
-      class="space-y-1.5"
-      use:dragHandleZone={{ items, flipDurationMs: 150, dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
+      class="divide-y divide-border"
+      use:dragHandleZone={{ items, flipDurationMs: motionMs(150), dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
       onconsider={handleConsider}
       onfinalize={handleFinalize}
     >
       {#each items as section (section.id)}
         {@const details = HOME_SECTION_DETAILS[section.id]}
         {@const isOpen = expanded.has(section.id)}
-        <div class="rounded-control border border-border-strong/50 bg-surface-elevated/30">
-          <div class="flex items-center gap-2 p-2.5">
+        <div>
+          <div class="flex items-center gap-2 py-2">
             <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle touch-none p-1" aria-label="Drag to reorder {SECTION_LABELS[section.id]}">
               <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
             </div>
@@ -101,7 +102,7 @@
             />
           </div>
           {#if isOpen}
-            <div class="pl-11 pr-2.5 pb-2.5 space-y-2 {section.visible ? '' : 'opacity-50'}">
+            <div class="pl-9 pb-3 space-y-2 {section.visible ? '' : 'opacity-50'}">
               {#each details as detail (detail.id)}
                 <label class="flex items-center gap-3 cursor-pointer">
                   <div class="flex-1 min-w-0">
@@ -124,7 +125,7 @@
   </div>
 </div>
 
-<div class="bg-surface border border-border rounded-card p-5 space-y-3 backdrop-blur-sm shadow-card animate-in fade-in">
+<div class="card space-y-3 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Fatigue card</h3>
     <p class="text-caption text-content-subtle px-1">How the Fatigue card on Home draws the four axes.</p>

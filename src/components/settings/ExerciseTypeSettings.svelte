@@ -105,9 +105,9 @@
     <div class="flex gap-2 pt-2"><button onclick={saveType} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control">Save</button><button onclick={() => isAddingType = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
   </div>
 {:else}
-  <div class="space-y-2">
+  <div class="divide-y divide-border">
     {#each exerciseTypes as type}
-      <div class="flex items-center justify-between p-3.5 bg-surface-elevated/30 border border-border-strong/50 rounded-card group transition-all hover:bg-surface-elevated/50">
+      <div class="flex items-center justify-between py-3 group">
         <div><p class="text-body font-bold text-content">{type.name}</p><p class="text-caption text-content-subtle">{type.category}</p></div>
         <div class="flex items-center gap-1">
           <button onclick={() => { editingType = { ...type }; isAddingType = true; }} class="p-2 text-content-subtle hover:text-content transition-colors" aria-label="Edit Modality"><Icon icon="ic:baseline-edit" /></button>
@@ -115,6 +115,6 @@
         </div>
       </div>
     {/each}
-    <button onclick={startAddType} class="w-full py-3.5 border-2 border-dashed border-border hover:border-border-strong rounded-card flex items-center justify-center gap-2 text-content-subtle hover:text-content-muted transition-all"><Icon icon="ic:baseline-plus" /><span class="text-label">Add New Modality</span></button>
+    <button onclick={startAddType} class="w-full py-3 rounded-control hover:bg-surface-elevated/50 flex items-center justify-center gap-2 text-primary transition-colors"><Icon icon="ic:baseline-plus" /><span class="text-label">Add New Modality</span></button>
   </div>
 {/if}

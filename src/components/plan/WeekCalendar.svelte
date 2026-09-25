@@ -54,7 +54,7 @@
   }
 </script>
 
-<div class="bg-surface/50 border border-border p-5 rounded-card backdrop-blur-sm relative">
+<div class="card relative">
   <!-- No min-width: a floor wider than the card's inner width made the
        whole page scroll sideways on a narrow phone. The cells are
        aspect-square and simply get smaller instead. -->

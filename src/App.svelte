@@ -8,7 +8,21 @@
   import Toast from './components/common/Toast.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
+  import { onMount } from 'svelte';
+  import { installAndroidBack } from './lib/navigation/backStack.svelte';
+  import type { ViewType } from './lib/types';
   import Icon from "@iconify/svelte";
+
+  // Back navigation (see lib/navigation/backStack): the page loads as Home
+  // in history's base entry, then opens the tab its address names, so back
+  // from a reloaded #/plan still goes Home rather than leaving the app.
+  const VIEWS: ViewType[] = ['home', 'plan', 'add', 'history', 'settings', 'analytics'];
+  onMount(() => {
+    const requested = window.location.hash.match(/^#\/(\w+)/)?.[1] as ViewType | undefined;
+    window.history.replaceState(null, '', '#/home');
+    if (requested && requested !== 'home' && VIEWS.includes(requested)) trainingState.navigate(requested);
+    void installAndroidBack();
+  });
 
   // --- Derived State ---
   const plannedThisWeek = $derived(trainingState.getPlannedWorkoutsForWeek(trainingState.currentWeekId));
@@ -16,6 +30,16 @@
   $effect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.setAttribute('data-theme', trainingState.theme);
+      // The browser/PWA chrome (address bar, task switcher) takes the
+      // app background's colour, so light mode isn't framed in black.
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--theme-app-bg').trim();
+      let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'theme-color';
+        document.head.appendChild(meta);
+      }
+      if (bg) meta.content = bg;
     }
   });
 

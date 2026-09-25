@@ -7,7 +7,7 @@
     { id: 'home', label: 'Home', hint: 'Cards and their details, quick log, list lengths, reminders', icon: 'ic:baseline-home' },
     { id: 'plan', label: 'Plan', hint: 'Week view', icon: 'ic:baseline-calendar-month' },
     { id: 'sessions', label: 'Sessions & Timer', hint: 'Live sessions, timer sounds and screen', icon: 'ic:baseline-timer' },
-    { id: 'charts', label: 'History & Analytics', hint: 'Analytics cards, chart density, sends chart', icon: 'ic:baseline-bar-chart' },
+    { id: 'charts', label: 'History & Analytics', hint: 'Analytics cards, recovery chart, sends chart', icon: 'ic:baseline-bar-chart' },
     { id: 'model', label: 'Training model', hint: 'Readiness, ACWR zones, fatigue recovery, rest-day alert', icon: 'ic:baseline-tune' },
     { id: 'weather', label: 'Weather & outdoor', hint: 'Locations, crags, conditions, trips', icon: 'ic:baseline-cloud' },
     { id: 'notifications', label: 'Notifications', hint: 'Reminders', icon: 'ic:baseline-notifications' },
@@ -32,6 +32,7 @@
   import TunablesSettings from './TunablesSettings.svelte';
   import UnitsSettings from './UnitsSettings.svelte';
   import OrderedListSettings from './OrderedListSettings.svelte';
+  import NavRow from '../common/NavRow.svelte';
   import Icon from "@iconify/svelte";
   import { Capacitor } from '@capacitor/core';
 
@@ -44,76 +45,31 @@
 
 <div class="space-y-4">
   {#if topic === null}
-    <div class="space-y-2 animate-in fade-in">
+    <div class="card py-1 divide-y divide-border animate-in fade-in">
       {#each topics as t (t.id)}
-        <button onclick={() => topic = t.id} class="w-full flex items-center justify-between p-4 bg-surface/50 hover:bg-surface-elevated border border-border rounded-card transition-all group shadow-card">
-          <div class="flex items-center gap-3.5 min-w-0">
-            <div class="p-2 bg-primary-hover/10 rounded-control text-primary shrink-0"><Icon icon={t.icon} class="text-xl" /></div>
-            <div class="text-left min-w-0">
-              <p class="text-body font-bold text-content">{t.label}</p>
-              <p class="text-caption text-content-subtle mt-0.5 truncate">{t.hint}</p>
-            </div>
-          </div>
-          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle group-hover:text-content text-xl shrink-0" />
-        </button>
+        <NavRow icon={t.icon} title={t.label} hint={t.hint} onclick={() => topic = t.id} />
       {/each}
     </div>
   {:else if topic === 'general'}
-  <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+  <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Theme</h3>
-      <p class="text-caption text-content-subtle px-1 leading-relaxed">Configure interface themes and high-contrast settings to optimize visibility across diverse lighting conditions.</p>
+      <p class="text-caption text-content-subtle px-1 leading-relaxed">High contrast is pure black and white - easiest to read outdoors in bright sun.</p>
     </div>
-    <div class="space-y-3">
-      <button
-        onclick={() => trainingState.setTheme('dark')}
-        class="w-full flex items-center justify-between p-4 rounded-card border transition-all {trainingState.theme === 'dark' ? 'bg-primary/10 border-primary text-primary' : 'bg-surface-elevated/30 border-border-strong/50 text-content'}"
-      >
-        <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-dark-mode" class="text-xl" />
-          <div class="text-left">
-            <p class="text-body font-bold">Dark Theme (Default)</p>
-          </div>
-        </div>
-        {#if trainingState.theme === 'dark'}
-          <Icon icon="ic:baseline-check-circle" class="text-xl" />
-        {/if}
-      </button>
-
-      <button
-        onclick={() => trainingState.setTheme('light')}
-        class="w-full flex items-center justify-between p-4 rounded-card border transition-all {trainingState.theme === 'light' ? 'bg-primary/10 border-primary text-primary' : 'bg-surface-elevated/30 border-border-strong/50 text-content'}"
-      >
-        <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-light-mode" class="text-xl" />
-          <div class="text-left">
-            <p class="text-body font-bold">Light Theme</p>
-          </div>
-        </div>
-        {#if trainingState.theme === 'light'}
-          <Icon icon="ic:baseline-check-circle" class="text-xl" />
-        {/if}
-      </button>
-
-      <button
-        onclick={() => trainingState.setTheme('contrast')}
-        class="w-full flex items-center justify-between p-4 rounded-card border transition-all {trainingState.theme === 'contrast' ? 'bg-primary/10 border-primary text-primary' : 'bg-surface-elevated/30 border-border-strong/50 text-content'}"
-      >
-        <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-contrast" class="text-xl" />
-          <div class="text-left">
-            <p class="text-body font-bold">High Contrast</p>
-            <p class="text-caption opacity-80 mt-1">Maximized contrast ratio for optimal outdoor readability.</p>
-          </div>
-        </div>
-        {#if trainingState.theme === 'contrast'}
-          <Icon icon="ic:baseline-check-circle" class="text-xl" />
-        {/if}
-      </button>
+    <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+      {#each [['dark', 'Dark', 'ic:baseline-dark-mode'], ['light', 'Light', 'ic:baseline-light-mode'], ['contrast', 'Contrast', 'ic:baseline-contrast']] as [id, label, icon]}
+        <button
+          onclick={() => trainingState.setTheme(id as 'dark' | 'light' | 'contrast')}
+          aria-pressed={trainingState.theme === id}
+          class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-label rounded-control transition-all {trainingState.theme === id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+        >
+          <Icon {icon} class="text-base" />{label}
+        </button>
+      {/each}
     </div>
   </div>
 
-    <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+    <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Text Size</h3>
     </div>
@@ -124,7 +80,7 @@
     </div>
   </div>
 
-    <div class="bg-surface border border-border rounded-card p-5 space-y-4 backdrop-blur-sm shadow-card animate-in fade-in">
+    <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Motion</h3>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">"System" follows your device's reduced-motion setting automatically.</p>
@@ -156,7 +112,7 @@
       list="analyticsSections"
       title="Analytics cards"
       hint="Drag to reorder; untick to hide."
-      labels={{ load: 'Rolling Load & ACWR', mix: 'Training Mix', fatigue: 'Fatigue', adherence: 'Adherence', recovery: 'Recovery Warnings', outdoor: 'Outdoor Ascents', bodyweight: 'Bodyweight Trend', benchmarks: 'Benchmark Progress' }}
+      labels={{ load: 'Rolling Load & ACWR', strain: 'Monotony & Strain', fingerLoad: 'Finger Load', heatmap: 'Training Calendar', mix: 'Training Mix', fatigue: 'Fatigue', recoveryTrend: 'Recovery (HRV · Sleep · RHR · weight)', pain: 'Pain', outdoor: 'Outdoor Ascents', benchmarks: 'Benchmark Progress', benchmarkOverview: 'All Benchmarks' }}
     />
     <ChartSettings />
   {:else if topic === 'model'}

@@ -158,9 +158,9 @@
       <div class="flex gap-2 pt-2"><button onclick={saveAnalyticsCategory} class="flex-1 py-3 bg-tertiary text-white text-sm font-bold rounded-control">Save</button><button onclick={() => isAddingAnalyticsCategory = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
     </div>
   {:else}
-    <div class="space-y-2">
+    <div class="divide-y divide-border">
       {#each analyticsCategories as cat, index}
-        <div class="flex items-center justify-between p-3.5 bg-surface-elevated/30 border border-border-strong/50 rounded-card group transition-all hover:bg-surface-elevated/50">
+        <div class="flex items-center justify-between py-3 group">
           <div class="flex items-center gap-3"><div class="w-3 h-3 rounded-full {cat.color}"></div><div><p class="text-body font-bold text-content">{cat.name}</p></div></div>
           <div class="flex items-center gap-0.5">
             <button onclick={() => moveAnalyticsCategoryUp(index)} disabled={index === 0} class="p-1.5 text-content-subtle hover:text-content disabled:opacity-30 disabled:hover:text-content-subtle transition-colors" aria-label="Move Up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" /></button>
@@ -170,7 +170,7 @@
           </div>
         </div>
       {/each}
-      <button onclick={startAddAnalyticsCategory} class="w-full py-3.5 border-2 border-dashed border-border hover:border-border-strong rounded-card flex items-center justify-center gap-2 text-content-subtle hover:text-content-muted transition-all"><Icon icon="ic:baseline-plus" /><span class="text-label">Add Category</span></button>
+      <button onclick={startAddAnalyticsCategory} class="w-full py-3 rounded-control hover:bg-surface-elevated/50 flex items-center justify-center gap-2 text-primary transition-colors"><Icon icon="ic:baseline-plus" /><span class="text-label">Add Category</span></button>
     </div>
   {/if}
 

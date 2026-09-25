@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { motionMs } from '../../lib/motion';
   import { WEEK_DAYS } from '../../lib/constants';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
@@ -196,7 +197,7 @@
           onfinalize={(e) => handleTemplateDndFinalize(wIndex, e)}
         >
           {#each workout.exercises || [] as exercise, eIndex (exercise.id)}
-            <div animate:flip={{duration: 200}} class="flex items-center justify-between p-2 bg-surface/50 rounded-control border border-border transition-all hover:border-border-strong group/ex">
+            <div animate:flip={{ duration: motionMs(200) }} class="flex items-center justify-between p-2 bg-surface/50 rounded-control border border-border transition-all hover:border-border-strong group/ex">
               <div class="flex items-center gap-2">
                 <div class="flex flex-col items-center justify-center gap-0 opacity-40 group-hover/ex:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
                   <Icon icon="ic:baseline-drag-indicator" class="text-[16px]" />

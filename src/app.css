@@ -234,6 +234,34 @@
   }
 }
 
+/* The shared building blocks of the app's design language (the Analytics
+   cards and the live session set it): one flat card, quiet segmented
+   controls and chips. Every screen uses these rather than restating the
+   classes, so they can't drift apart again. */
+@utility card {
+  @apply bg-surface/50 border border-border rounded-card p-4 shadow-card;
+}
+/* Segmented control: `seg` is the track, `seg-item` each option, and
+   `seg-on` marks the selected one. This quiet version is for switching a
+   *view* (a chart's mode, a tab). Choosing a *setting* - a full-width
+   row of options, as in Settings and the live session - keeps the filled
+   primary segment (`bg-primary text-white`), so a choice that changes
+   behaviour reads stronger than one that changes what you look at. */
+@utility seg {
+  @apply flex bg-surface-elevated/50 p-0.5 rounded-control;
+}
+@utility seg-item {
+  @apply px-2.5 py-1 text-caption rounded-control transition-colors text-content-subtle;
+}
+@utility seg-on {
+  @apply bg-surface text-content shadow-sm;
+}
+/* A small bordered pill - legend entries, filters, pickers. Tall enough
+   (28px) to tap reliably. */
+@utility chip {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control border border-border text-caption;
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -252,9 +280,15 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  /* Native controls (selects, date pickers, checkboxes, scrollbars)
+     follow the theme - light mode used to get dark date pickers. */
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
