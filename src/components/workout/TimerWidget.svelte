@@ -45,7 +45,6 @@
     specFromExercise,
     loggedValuesFor,
     workPhaseLabel,
-    phaseLabel,
     clampSpec,
   } from "../../lib/timer/intervalTimer";
   import IntervalTimerView from "./IntervalTimerView.svelte";
@@ -59,6 +58,9 @@
   import { live, onLiveAction, collectLiveActions } from "../../lib/native/liveNotification.svelte";
   import { slotTypeName } from "../../lib/exerciseSlot";
   import SetRunView from "./SetRunView.svelte";
+  import IntervalPillReadout from "./IntervalPillReadout.svelte";
+  import { CueSound, type CueKind } from "../../lib/timer/cueSound";
+  import { ScreenWakeLock } from "../../lib/timer/screenWakeLock";
   import {
     type SetRunState,
     type SetTimingMode,
@@ -187,64 +189,11 @@
 
   // --- Audio cues -------------------------------------------------------
 
-  // Synthesized rather than bundled audio files, and created lazily on a
-  // real user gesture (tapping play) - that is the unlock browsers require
-  // for Web Audio, obtained naturally rather than with a dedicated tap.
-  let audioContext: AudioContext | null = null;
+  // The tones and vibrations themselves: lib/timer/cueSound.
+  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled });
+  /** Every control that can begin a run calls this synchronously first - Web Audio's unlock (see CueSound.unlock). */
+  const unlockAudio = () => sound.unlock();
 
-  /**
-   * Creates (or resumes) the AudioContext from inside a real click.
-   *
-   * Cues fire from an `$effect`, which runs after the gesture has already
-   * ended - a context first created there starts suspended and never makes
-   * a sound. Every control that can begin a run calls this synchronously
-   * first, which is the unlock browsers actually require.
-   */
-  function unlockAudio() {
-    if (!trainingState.timerBeepEnabled) return;
-    try {
-      audioContext ??= new AudioContext();
-      if (audioContext.state === 'suspended') void audioContext.resume();
-    } catch {
-      // Same silent degrade as `tone` itself.
-    }
-  }
-
-  function tone(frequency: number, durationMs: number, delayMs = 0, gain = 0.2) {
-    if (!trainingState.timerBeepEnabled) return;
-    try {
-      audioContext ??= new AudioContext();
-      const ctx = audioContext;
-      const start = ctx.currentTime + delayMs / 1000;
-      const osc = ctx.createOscillator();
-      const amp = ctx.createGain();
-      osc.frequency.value = frequency;
-      amp.gain.setValueAtTime(gain, start);
-      amp.gain.exponentialRampToValueAtTime(0.001, start + durationMs / 1000);
-      osc.connect(amp).connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + durationMs / 1000);
-    } catch {
-      // Web Audio unavailable or blocked - degrade silently, same
-      // discipline as vibrate and keep-awake below.
-    }
-  }
-
-  function buzz(pattern: number | number[]) {
-    if (!trainingState.timerVibrateEnabled) return;
-    if (typeof navigator === 'undefined' || !navigator.vibrate) return;
-    try {
-      navigator.vibrate(pattern);
-    } catch {
-      // Same silent degrade.
-    }
-  }
-
-  /**
-   * One cue per event, each distinguishable without looking: a rising pair
-   * to go, a single tone to come off, a falling triple for the long rest,
-   * and a rising triple when the whole protocol is done.
-   */
   /**
    * `immediate` marks a cue that answers a tap (finishing a set) rather
    * than a moment on the clock. Clock cues are played by the Android timer
@@ -252,42 +201,13 @@
    * the phone is locked), so the page stays quiet for them to avoid double
    * beeps; tap cues always come from the page.
    */
-  function cue(kind: 'work' | 'rest' | 'setRest' | 'leadIn' | 'done' | 'tick' | 'warn', immediate = false) {
+  function cue(kind: CueKind, immediate = false) {
     // Hidden (locked, backgrounded): the service or a scheduled
     // notification speaks for the timer, so a late beep would double it.
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     if (liveActive && !immediate) return;
     if (kind === 'tick' && !trainingState.timerCountdownTicks) return;
-    switch (kind) {
-      case 'warn':
-        tone(740, 90); tone(740, 90, 160);
-        buzz([80, 80, 80]);
-        break;
-      case 'work':
-        tone(880, 120); tone(1320, 220, 120);
-        buzz([120, 60, 220]);
-        break;
-      case 'rest':
-        tone(660, 260);
-        buzz(180);
-        break;
-      case 'setRest':
-        tone(660, 180); tone(520, 180, 190); tone(400, 320, 380);
-        buzz([160, 80, 160, 80, 260]);
-        break;
-      case 'leadIn':
-        tone(520, 200);
-        buzz(100);
-        break;
-      case 'done':
-        tone(660, 180); tone(880, 180, 190); tone(1320, 420, 380);
-        buzz([200, 100, 200, 100, 400]);
-        break;
-      case 'tick':
-        tone(1000, 70, 0, 0.12);
-        buzz(40);
-        break;
-    }
+    sound.play(kind);
   }
 
   // Fires cues off the derived position. Writing `lastStepIndex` /
@@ -369,29 +289,13 @@
   });
 
   // --- Keep screen awake ------------------------------------------------
-  // The standard Web Wake Lock API rather than a native plugin: Capacitor
-  // renders in a system WebView, and modern Android/iOS WebViews support
-  // `navigator.wakeLock`. Held for a whole interval run, not just one
-  // countdown, so the screen doesn't sleep during a three-minute set rest.
-  // Gated on the Settings toggle, and degrades silently when unsupported.
-  let wakeLock: WakeLockSentinel | null = null;
-  async function acquireWakeLock() {
-    if (!trainingState.timerKeepAwakeEnabled) return;
-    if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
-    if (wakeLock) return;
-    try {
-      wakeLock = await navigator.wakeLock.request('screen');
-      // The OS drops the lock whenever the page is hidden; clear our
-      // handle so the next acquire actually re-requests one.
-      wakeLock.addEventListener?.('release', () => { wakeLock = null; });
-    } catch {
-      wakeLock = null;
-    }
+  // Held for a whole interval run, not just one countdown, so the screen
+  // doesn't sleep during a three-minute set rest. Gated on the Settings toggle.
+  const screenLock = new ScreenWakeLock();
+  function acquireWakeLock() {
+    if (trainingState.timerKeepAwakeEnabled) void screenLock.acquire();
   }
-  function releaseWakeLock() {
-    wakeLock?.release().catch(() => {});
-    wakeLock = null;
-  }
+  const releaseWakeLock = () => screenLock.release();
   onDestroy(() => {
     releaseWakeLock();
     if (interval) clearInterval(interval);
@@ -986,61 +890,19 @@
       </button>
     </div>
 
-    {#if mode === 'interval' && selfPaced}
-      <!-- Minimised self-paced run: which set, and how long you have
-           rested. Tapping goes back to the big view, where the only
-           action - finishing a set - actually lives. -->
-      <button onclick={() => expanded = true} class="flex items-center gap-3 pr-1 text-left">
-        <div class="min-w-0">
-          <p class="text-label font-bold text-content leading-tight tabular-nums whitespace-nowrap">
-            {#if setRun.done}
-              Done
-            {:else if setRunPhase(setRun) === 'leadIn'}
-              Ready {Math.ceil(setRun.leadInRemainingMs / 1000)}s
-            {:else if isResting(setRun)}
-              {restRemainingSeconds(setRun, spec) <= 0 ? 'Rest over' : 'Rest'}
-              <span class="text-content-subtle">{formatTime(Math.abs(Math.round(restRemainingSeconds(setRun, spec))))}</span>
-            {:else}
-              Set {setRun.currentSet}
-            {/if}
-          </p>
-          <p class="text-caption text-content-subtle tabular-nums leading-tight whitespace-nowrap">
-            {setRun.completed.length}/{spec.sets} sets done
-          </p>
-        </div>
-        <Icon icon="ic:baseline-open-in-full" class="text-sm text-content-subtle shrink-0" />
-      </button>
-
-      <button
-        onclick={() => expanded = true}
-        class="w-10 h-10 rounded-full flex items-center justify-center bg-success text-app-bg hover:opacity-90 transition-all shadow-lg active:scale-90"
-        aria-label="Open the set timer"
-      >
-        <Icon icon="ic:baseline-check-circle" class="text-2xl" />
-      </button>
-    {:else if mode === 'interval'}
-      <!-- Minimised interval: enough to know where you are, and a tap to
-           get the big view back. -->
-      <button onclick={() => expanded = true} class="flex items-center gap-3 pr-1 text-left">
-        <div class="min-w-0">
-          <p class="text-label font-bold text-content leading-tight tabular-nums whitespace-nowrap">
-            {intervalFinished ? 'Done' : phaseLabel(position.step?.phase ?? 'leadIn', workLabel)}
-            {#if !intervalFinished}<span class="text-content-subtle"> {position.remaining}s</span>{/if}
-          </p>
-          <p class="text-caption text-content-subtle tabular-nums leading-tight whitespace-nowrap">
-            S{progress.currentSet}/{spec.sets} &middot; R{progress.currentRep}/{spec.reps}
-          </p>
-        </div>
-        <Icon icon="ic:baseline-open-in-full" class="text-sm text-content-subtle shrink-0" />
-      </button>
-
-      <button
-        onclick={toggleInterval}
-        class="w-10 h-10 rounded-full flex items-center justify-center {intervalRunning ? 'bg-danger text-white' : 'bg-success text-app-bg'} hover:opacity-90 transition-all shadow-lg active:scale-90"
-        aria-label={intervalRunning ? 'Pause' : 'Start'}
-      >
-        <Icon icon={intervalRunning ? "ic:baseline-pause" : "ic:baseline-play-arrow"} class="text-2xl" />
-      </button>
+    {#if mode === 'interval'}
+      <IntervalPillReadout
+        {selfPaced}
+        {setRun}
+        {spec}
+        {position}
+        {progress}
+        {workLabel}
+        finished={intervalFinished}
+        running={intervalRunning}
+        onExpand={() => expanded = true}
+        onToggle={toggleInterval}
+      />
     {:else}
       <div class="w-16 text-center text-metric text-content tabular-nums">
         {formatTime(time)}
