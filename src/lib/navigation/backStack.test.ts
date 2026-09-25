@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { registerBack, backDepth, _resetBackStackForTests } from "./backStack.svelte";
+import { registerBack, backDepth, closeTop, _resetBackStackForTests } from "./backStack.svelte";
 
 /**
  * A minimal browser history: pushState adds an entry after the current
@@ -104,5 +104,35 @@ describe("back stack", () => {
     const release = registerBack(() => {});
     expect(backDepth()).toBe(0);
     expect(() => release()).not.toThrow();
+  });
+});
+
+describe("back stack in the native app", () => {
+  beforeEach(() => _resetBackStackForTests(true));
+
+  it("closes the top thing directly and never touches history", async () => {
+    const closed: string[] = [];
+    registerBack(() => closed.push("tab"));
+    const releaseSheet = registerBack(() => closed.push("sheet"));
+    registerBack(() => closed.push("modal"));
+    expect(win.history.index).toBe(0);
+    expect(await closeTop()).toBe(true);
+    expect(closed).toEqual(["modal"]);
+    releaseSheet();
+    expect(backDepth()).toBe(1);
+    expect(await closeTop()).toBe(true);
+    expect(closed).toEqual(["modal", "tab"]);
+    expect(await closeTop()).toBe(false);
+    expect(win.history.index).toBe(0);
+  });
+
+  it("re-arms when the thing stays open", async () => {
+    let open = true;
+    registerBack(() => {}, () => open);
+    await closeTop();
+    expect(backDepth()).toBe(1);
+    open = false;
+    await closeTop();
+    expect(backDepth()).toBe(0);
   });
 });

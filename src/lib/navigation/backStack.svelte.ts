@@ -16,11 +16,16 @@
  * which holds even when a release's `history.back()` and a new
  * registration's `pushState` race each other.
  *
- * On Android, `@capacitor/app`'s back-button event is routed into the same
- * history (`installAndroidBack`); with nothing registered, back minimises
- * the app instead of closing it, so a running session survives.
+ * On Android, history is not used at all. The hardware back key arrives
+ * through `@capacitor/app`, and closes the top registration directly
+ * (`installAndroidBack`); with nothing registered, back minimises the app
+ * instead of closing it, so a running session survives. (The first version
+ * routed the key into the WebView's history too - if the two ever fell
+ * out of step, every press asked for a "back" the WebView didn't have and
+ * the key did nothing at all, which is what a Samsung phone showed.)
  */
 import { tick } from "svelte";
+import { Capacitor } from "@capacitor/core";
 
 interface Entry {
   close: () => unknown;
@@ -32,6 +37,8 @@ const stack: Entry[] = [];
 /** popstate events we caused ourselves (releases), to be ignored. */
 let ignorePops = 0;
 let installed = false;
+/** Native app: the back key closes entries directly, and history is left alone. */
+let nativeMode = Capacitor.isNativePlatform();
 
 function hasWindow(): boolean {
   return typeof window !== "undefined" && typeof window.history !== "undefined";
@@ -39,7 +46,7 @@ function hasWindow(): boolean {
 
 function pushEntry(entry: Entry) {
   stack.push(entry);
-  window.history.pushState({ backDepth: stack.length }, "");
+  if (!nativeMode) window.history.pushState({ backDepth: stack.length }, "");
 }
 
 async function onPopState() {
@@ -55,7 +62,7 @@ async function onPopState() {
 }
 
 function install() {
-  if (installed || !hasWindow()) return;
+  if (installed || !hasWindow() || nativeMode) return;
   installed = true;
   window.addEventListener("popstate", () => void onPopState());
 }
@@ -78,6 +85,7 @@ export function registerBack(close: () => unknown, alive: () => boolean = () => 
     const i = stack.indexOf(entry);
     if (i === -1) return;
     stack.splice(i, 1);
+    if (nativeMode) return;
     ignorePops++;
     window.history.back();
   };
@@ -104,23 +112,46 @@ export function backWhile(active: () => boolean, close: () => unknown) {
 }
 
 /**
- * Android: routes the hardware back key into history. At the root (nothing
- * open, on Home) it minimises rather than exits, so the app - and a live
- * session - keep running in the background, as Android apps do.
+ * Closes the top registration, as the back key does in the native app.
+ * Returns false when there was nothing to close.
+ */
+export async function closeTop(): Promise<boolean> {
+  const entry = stack.pop();
+  if (!entry) return false;
+  await entry.close();
+  await tick();
+  if (entry.alive()) pushEntry(entry);
+  return true;
+}
+
+let closing = false;
+
+/**
+ * Android: the hardware back key closes the top registration directly. At
+ * the root (nothing open, on Home) it minimises rather than exits, so the
+ * app - and a live session - keep running in the background, as Android
+ * apps do. Presses while a close is still running are ignored, so a double
+ * tap can't skip past a "discard changes?" question.
  */
 export async function installAndroidBack() {
-  const { Capacitor } = await import("@capacitor/core");
   if (!Capacitor.isNativePlatform()) return;
   const { App } = await import("@capacitor/app");
-  await App.addListener("backButton", () => {
-    if (backDepth() > 0) window.history.back();
-    else void App.minimizeApp();
+  await App.addListener("backButton", async () => {
+    if (closing) return;
+    closing = true;
+    try {
+      if (!(await closeTop())) void App.minimizeApp();
+    } finally {
+      closing = false;
+    }
   });
 }
 
 /** Test hook: forget everything (the module is a singleton). */
-export function _resetBackStackForTests() {
+export function _resetBackStackForTests(native = false) {
   stack.length = 0;
   ignorePops = 0;
   installed = false;
+  nativeMode = native;
+  closing = false;
 }
