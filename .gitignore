@@ -11,8 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
-# The generated Capacitor project only - plugins/*/android is source.
-/android
+# android/ is tracked: MainActivity, the manifest, the widget and shortcuts
+# are hand-written. Its own .gitignore keeps build output and the copied
+# web assets out.
 
 # Editor directories and files
 .vscode/*
