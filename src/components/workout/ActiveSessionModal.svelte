@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { motionMs } from '../../lib/motion';
   /**
    * The running session, full screen.
@@ -44,6 +45,13 @@
   let intervalSeed = $state<ExerciseValues | null>(null);
 
   const session = $derived(store.session);
+
+  // Back (phone key or browser): the add/edit screen returns to the
+  // session; the session itself minimises to the bubble - it keeps running.
+  const sessionOpen = $derived(!!session && store.isModalOpen);
+  const formOpen = $derived(isAddingExercise || editingSlotId !== null);
+  backWhile(() => sessionOpen, () => store.minimize());
+  backWhile(() => formOpen, () => { isAddingExercise = false; editingSlotId = null; });
   const exercises = $derived(store.exercises);
   const progress = $derived(store.progress);
   const current = $derived(store.currentSlot);

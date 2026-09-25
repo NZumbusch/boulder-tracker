@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * The interval timer, full screen.
    *
@@ -95,6 +96,9 @@
     { key: 'setRestSeconds', label: 'Set rest', unit: 's', min: 0, step: 5 },
     { key: 'leadInSeconds', label: 'Get ready', unit: 's', min: 0, step: 5 },
   ]);
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onMinimize());
 </script>
 
 <div class="fixed inset-0 z-[70] bg-app-bg flex flex-col">

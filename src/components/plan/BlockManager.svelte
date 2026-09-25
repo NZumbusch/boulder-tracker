@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * CRUD for multi-week `TrainingBlock`s - concurrent training emphases
    * that can span (and overlap) more than one week. The
@@ -76,6 +77,9 @@
     showBrowser = false;
     startEdit(block);
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onClose());
 </script>
 
 <div class="fixed inset-0 bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * The self-paced set timer, full screen.
    *
@@ -117,6 +118,9 @@
     { value: 'selfPaced', label: 'Self-paced' },
     { value: 'timed', label: 'Counted' },
   ];
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onMinimize());
 </script>
 
 <div class="fixed inset-0 z-[70] bg-app-bg flex flex-col">

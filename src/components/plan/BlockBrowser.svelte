@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * Full-screen browser for every training block - past, current and
    * future - paged in chronological order and opening on the page that
@@ -91,6 +92,9 @@
   function go(direction: -1 | 1) {
     page = clampPage(page + direction, blocks.length, PAGE_SIZE);
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onClose());
 </script>
 
 <div class="fixed inset-0 z-[110] bg-app-bg flex flex-col">

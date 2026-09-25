@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * "What did you actually do?" - the step between finishing an exercise
    * and moving to the next one.
@@ -149,6 +150,9 @@
     const n = Number(raw);
     return Number.isFinite(n) ? n : undefined;
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => onCancel());
 </script>
 
 <div

@@ -3,6 +3,7 @@ import type { PermissionState } from '@capacitor/core';
 import type { Workout, ViewType } from '../types';
 import { showConfirm } from '../utils';
 import { requestNotificationPermission, cancelAllReminders } from '../notifications/shared';
+import { registerBack } from '../navigation/backStack.svelte';
 
 const NOTIFICATIONS_ENABLED_KEY = 'boulder_tracker_notifications_enabled';
 const NOTIFICATIONS_PROMPTED_KEY = 'boulder_tracker_notifications_prompted';
@@ -35,11 +36,36 @@ export class UiStore {
     }
   }
 
+  /**
+   * Back from any tab but Home goes to Home (one history entry for "not on
+   * Home", replaced rather than stacked as you move between tabs - back
+   * doesn't replay every tab you visited). See `navigation/backStack`.
+   */
+  #tabRelease: (() => void) | null = null;
+
   /** Switches the main view. Workouts open in the workout modal (`lib/workoutModal.svelte.ts`), not through here. */
   navigate(view: ViewType) {
     this.view = view;
     this.showFatigue = false;
     this.activeWorkout = null;
+    if (view === 'home') {
+      const release = this.#tabRelease;
+      this.#tabRelease = null;
+      release?.();
+    } else if (!this.#tabRelease) {
+      this.#tabRelease = registerBack(() => {
+        this.#tabRelease = null;
+        this.view = 'home';
+        this.#syncAddress();
+      });
+    }
+    this.#syncAddress();
+  }
+
+  /** Keeps the address as `#/plan` etc., so a reload (or a shared link, in a browser) lands on the same tab. */
+  #syncAddress() {
+    if (typeof window === 'undefined' || !window.history?.replaceState) return;
+    window.history.replaceState(window.history.state, '', `#/${this.view}`);
   }
 
   /**

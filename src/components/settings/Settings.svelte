@@ -11,6 +11,7 @@
   import AISharingSettings from './AISharingSettings.svelte';
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import NavRow from '../common/NavRow.svelte';
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import Icon from "@iconify/svelte";
 
   // --- Props ---
@@ -31,6 +32,12 @@
     if (currentTab === 'design' && appearanceTopic) appearanceTopic = null;
     else currentTab = 'overview';
   }
+  // Back (phone key or browser) walks the same way: topic -> Appearance ->
+  // Settings -> Home (the last step is the tab-level back, in uiStore).
+  const inSection = $derived(currentTab !== 'overview');
+  const inTopic = $derived(currentTab === 'design' && appearanceTopic !== null);
+  backWhile(() => inSection, () => { currentTab = 'overview'; });
+  backWhile(() => inTopic, () => { appearanceTopic = null; });
 
   // --- State: local editable copies of every catalog, saved as you edit ---
   let templates = $state<Record<string, WorkoutTemplate[]>>({});

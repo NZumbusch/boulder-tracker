@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { motionMs } from '../../lib/motion';
   import { WEEK_DAYS } from '../../lib/constants';
   /**
@@ -105,6 +106,9 @@
       isSaving = false;
     }
   }
+
+  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  backWhile(() => true, () => cancel());
 </script>
 
 <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
