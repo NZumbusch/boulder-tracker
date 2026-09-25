@@ -9,6 +9,7 @@
   import { upcomingGoals, pastGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates } from '../../lib/goals/goals';
   import GoalForm from './GoalForm.svelte';
   import NoteSheet from '../common/NoteSheet.svelte';
+  import ListRow from '../common/ListRow.svelte';
   import Icon from "@iconify/svelte";
 
   const todayIso = new Date().toISOString().split('T')[0];
@@ -36,48 +37,45 @@
   {#if editingId === goal.id}
     <GoalForm {goal} kind={goal.kind} onDone={() => editingId = null} />
   {:else}
-    <div class="flex items-center justify-between p-3 bg-surface-elevated/50 rounded-control border border-border-strong/50">
-      <div class="flex items-center gap-2.5 min-w-0 flex-1">
-        <Icon icon={goal.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-flag'} class="text-primary text-base flex-shrink-0" />
-        <div class="min-w-0 flex-1">
-          <p class="text-body font-bold text-content truncate">{goal.name}</p>
-          <p class="text-caption text-content-subtle mt-0.5 truncate">
-            {formatGoalDates(goal)}{goal.location ? ` · ${goal.location.name}` : ''}{goal.projects?.length ? ` · ${goal.projects.length} project${goal.projects.length === 1 ? '' : 's'}` : ''}
-          </p>
-        </div>
-      </div>
-      <div class="flex items-center gap-0.5 flex-shrink-0">
+    <ListRow
+      title={goal.name}
+      meta={`${formatGoalDates(goal)}${goal.location ? ` · ${goal.location.name}` : ''}${goal.projects?.length ? ` · ${goal.projects.length} project${goal.projects.length === 1 ? '' : 's'}` : ''}`}
+      onclick={() => editingId = goal.id}
+    >
+      {#snippet leading()}
+        <Icon icon={goal.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-flag'} class="text-primary text-lg shrink-0" />
+      {/snippet}
+      {#snippet trailing()}
         <button onclick={() => noteGoal = goal} class="p-1.5 transition-colors {goal.notes ? 'text-primary' : 'text-content-subtle hover:text-content'}" aria-label="{goal.notes ? 'Open' : 'Add'} note">
-          <Icon icon={goal.notes ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-sm" />
+          <Icon icon={goal.notes ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-base" />
         </button>
-        <button onclick={() => editingId = goal.id} class="p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
-        <button onclick={() => trainingState.deleteGoal(goal.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
-      </div>
-    </div>
+        <button onclick={() => trainingState.deleteGoal(goal.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete"><Icon icon="ic:baseline-delete" class="text-base" /></button>
+      {/snippet}
+    </ListRow>
   {/if}
 {/snippet}
 
-<div class="bg-surface/50 border border-border p-5 rounded-card backdrop-blur-sm space-y-4 shadow-card">
+<div class="card space-y-3">
   <div class="flex items-center justify-between">
     <div class="min-w-0">
       <h3 class="text-section uppercase text-content-muted">Goals</h3>
       {#if next}
-        <p class="text-caption text-primary mt-0.5 font-bold truncate">{headline(next)}</p>
+        <p class="text-caption text-content-subtle mt-0.5 truncate">{headline(next)}</p>
       {:else}
         <p class="text-caption text-content-subtle mt-0.5">Competitions and outdoor trips to peak for</p>
       {/if}
     </div>
-    <button onclick={() => { chooseKind = !chooseKind; adding = null; }} class="bg-surface-elevated hover:bg-surface-elevated-hover text-content p-1.5 rounded-control transition-colors" aria-label="Add a goal" aria-expanded={chooseKind}>
-      <Icon icon="ic:baseline-plus" class="text-sm" />
+    <button onclick={() => { chooseKind = !chooseKind; adding = null; }} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a goal" aria-expanded={chooseKind}>
+      <Icon icon="ic:baseline-plus" class="text-lg" />
     </button>
   </div>
 
   {#if chooseKind}
-    <div class="grid grid-cols-2 gap-2 animate-in fade-in">
-      <button onclick={() => { adding = 'competition'; chooseKind = false; }} class="p-3 rounded-control border border-border-strong/50 bg-surface-elevated/40 hover:border-primary/40 flex items-center gap-2 text-label text-content">
+    <div class="flex gap-2 animate-in fade-in">
+      <button onclick={() => { adding = 'competition'; chooseKind = false; }} class="chip text-content hover:border-primary/40 transition-colors">
         <Icon icon="ic:baseline-flag" class="text-primary" /> Competition
       </button>
-      <button onclick={() => { adding = 'trip'; chooseKind = false; }} class="p-3 rounded-control border border-border-strong/50 bg-surface-elevated/40 hover:border-primary/40 flex items-center gap-2 text-label text-content">
+      <button onclick={() => { adding = 'trip'; chooseKind = false; }} class="chip text-content hover:border-primary/40 transition-colors">
         <Icon icon="ic:baseline-terrain" class="text-primary" /> Outdoor trip
       </button>
     </div>
@@ -87,12 +85,12 @@
     <GoalForm kind={adding} onDone={() => adding = null} />
   {/if}
 
-  <div class="space-y-2">
+  <div class="divide-y divide-border">
     {#each upcoming as goal (goal.id)}
       {@render goalRow(goal)}
     {:else}
       {#if !adding}
-        <div class="p-4 bg-surface-elevated/20 rounded-control border border-dashed border-border text-center"><p class="text-caption text-content-subtle italic">Nothing planned yet</p></div>
+        <p class="text-caption text-content-subtle italic py-1">Nothing planned yet</p>
       {/if}
     {/each}
   </div>
@@ -104,7 +102,7 @@
         Past goals ({past.length})
       </button>
       {#if showPast}
-        <div class="space-y-2 mt-2">
+        <div class="divide-y divide-border mt-1">
           {#each past as goal (goal.id)}
             {@render goalRow(goal)}
           {/each}
