@@ -30,7 +30,7 @@
 
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Sends by grade</h3>
-    <label class="flex items-center justify-between gap-3 p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 cursor-pointer">
+    <label class="flex items-center justify-between gap-3 py-2 px-1 cursor-pointer">
       <div class="min-w-0">
         <p class="text-body text-content">Show counts on the bars</p>
         <p class="text-caption text-content-subtle">History → Sends. Tapping a bar always shows its count.</p>

@@ -35,23 +35,24 @@
 
     <button
       onclick={toggleNotifications}
-      class="w-full flex items-center justify-between p-4 rounded-card border transition-all {trainingState.notificationsEnabled ? 'bg-primary/10 border-primary text-primary' : 'bg-surface-elevated/30 border-border-strong/50 text-content'}"
+      aria-pressed={trainingState.notificationsEnabled}
+      class="w-full flex items-center justify-between py-2 text-left"
     >
       <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-notifications-active" class="text-xl" />
+        <Icon icon="ic:baseline-notifications-active" class="text-xl text-content-muted" />
         <div class="text-left">
-          <p class="text-body font-bold">Allow Notifications</p>
-          <p class="text-caption opacity-80 mt-1">{trainingState.notificationsEnabled ? 'Enabled' : 'Disabled'}</p>
+          <p class="text-body font-semibold text-content">Allow notifications</p>
+          <p class="text-caption text-content-subtle">{trainingState.notificationsEnabled ? 'On' : 'Off'}</p>
         </div>
       </div>
-      {#if trainingState.notificationsEnabled}
-        <Icon icon="ic:baseline-check-circle" class="text-xl" />
-      {/if}
+      <span class="w-10 h-6 rounded-full p-0.5 transition-colors shrink-0 {trainingState.notificationsEnabled ? 'bg-primary' : 'bg-surface-elevated'}">
+        <span class="block w-5 h-5 rounded-full bg-white shadow transition-transform {trainingState.notificationsEnabled ? 'translate-x-4' : ''}"></span>
+      </span>
     </button>
 
     {#if trainingState.notificationsEnabled}
-      <div class="space-y-3 pt-2 border-t border-border/50 animate-in fade-in">
-        <div class="flex items-center justify-between p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30">
+      <div class="divide-y divide-border border-t border-border animate-in fade-in">
+        <div class="flex items-center justify-between py-3">
           <div class="min-w-0">
             <p class="text-body text-content">Fatigue Log Reminders</p>
             <p class="text-caption text-content-subtle mt-0.5">After a planned session's scheduled time has passed.</p>
@@ -59,7 +60,7 @@
           <span class="text-label text-success shrink-0 ml-3">On</span>
         </div>
 
-        <div class="p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 space-y-3">
+        <div class="py-3 space-y-3">
           <label class="flex items-center justify-between cursor-pointer">
             <div class="min-w-0">
               <p class="text-body text-content">Daily Metrics Reminder</p>

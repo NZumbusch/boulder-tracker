@@ -17,8 +17,8 @@
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Behaviour of the floating rest/stopwatch timer during a workout.</p>
   </div>
 
-  <div class="space-y-2.5">
-    <label class="w-full flex items-center justify-between p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 cursor-pointer">
+  <div class="divide-y divide-border">
+    <label class="w-full flex items-center justify-between py-3 cursor-pointer">
       <div class="flex items-center gap-3">
         <Icon icon="ic:baseline-vibration" class="text-lg text-content-muted" />
         <span class="text-body text-content">Vibrate on finish</span>
@@ -31,7 +31,7 @@
       />
     </label>
 
-    <label class="w-full flex items-center justify-between p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 cursor-pointer">
+    <label class="w-full flex items-center justify-between py-3 cursor-pointer">
       <div class="flex items-center gap-3">
         <Icon icon="ic:baseline-volume-up" class="text-lg text-content-muted" />
         <span class="text-body text-content">Audible beep</span>
@@ -45,7 +45,7 @@
     </label>
 
     {#if wakeLockSupported}
-      <label class="w-full flex items-center justify-between p-3.5 rounded-control border border-border-strong/50 bg-surface-elevated/30 cursor-pointer">
+      <label class="w-full flex items-center justify-between py-3 cursor-pointer">
         <div class="flex items-center gap-3">
           <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted" />
           <span class="text-body text-content">Keep screen awake</span>

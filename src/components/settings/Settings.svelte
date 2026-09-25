@@ -10,6 +10,7 @@
   import BackupSettings from './BackupSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
+  import NavRow from '../common/NavRow.svelte';
   import Icon from "@iconify/svelte";
 
   // --- Props ---
@@ -138,21 +139,11 @@
   </div>
 
   {#if currentTab === 'overview'}
-    {#snippet navRow(icon: string, title: string, subtitle: string, onclick: () => void)}
-      <button {onclick} class="w-full flex items-center gap-3 py-3.5 text-left group">
-        <Icon {icon} class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" />
-        <span class="min-w-0 flex-1">
-          <span class="block text-body font-semibold text-content group-hover:text-primary transition-colors">{title}</span>
-          <span class="block text-caption text-content-subtle">{subtitle}</span>
-        </span>
-        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl shrink-0" />
-      </button>
-    {/snippet}
     <div class="card py-1 divide-y divide-border">
-      {@render navRow('ic:baseline-tune', 'Customization', 'Exercises, categories, training phases, templates & benchmarks', () => currentTab = 'customization')}
-      {@render navRow('ic:baseline-color-lens', 'Appearance & Behaviour', 'Theme, layout, timer, weather & notifications', () => { currentTab = 'design'; appearanceTopic = null; })}
-      {@render navRow('ic:baseline-sync', 'Data & Exports', 'Backups, calendar/PDF export & AI sharing', () => currentTab = 'integration')}
-      {@render navRow('ic:baseline-info', 'About & Impressum', 'Application details and legal information', () => currentTab = 'about')}
+      <NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} />
+      <NavRow icon="ic:baseline-color-lens" title="Appearance & Behaviour" hint="Theme, layout, timer, weather & notifications" onclick={() => { currentTab = 'design'; appearanceTopic = null; }} />
+      <NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Backups, calendar/PDF export & AI sharing" onclick={() => currentTab = 'integration'} />
+      <NavRow icon="ic:baseline-info" title="About & Impressum" hint="Application details and legal information" onclick={() => currentTab = 'about'} />
     </div>
   {:else if currentTab === 'customization'}
     <div class="space-y-4">

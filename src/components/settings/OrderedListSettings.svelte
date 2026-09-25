@@ -40,13 +40,13 @@
     {#if hint}<p class="text-caption text-content-subtle px-1">{hint}</p>{/if}
   </div>
   <div
-    class="space-y-1.5"
+    class="divide-y divide-border"
     use:dragHandleZone={{ items, flipDurationMs: motionMs(150), dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
     onconsider={consider}
     onfinalize={finalize}
   >
     {#each items as item (item.id)}
-      <div class="flex items-center gap-2 p-2.5 rounded-control border border-border-strong/50 bg-surface-elevated/30">
+      <div class="flex items-center gap-2 py-2">
         <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle touch-none p-1" aria-label="Drag to reorder {labels[item.id]}">
           <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
         </div>

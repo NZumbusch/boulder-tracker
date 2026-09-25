@@ -30,7 +30,7 @@
     </p>
   </div>
 
-  <div class="space-y-3">
+  <div class="divide-y divide-border">
     <LocationEditor
       label="Home location"
       location={trainingState.homeLocation}

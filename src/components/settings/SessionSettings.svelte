@@ -37,23 +37,20 @@
     </p>
   </div>
 
-  <div class="space-y-3">
+  <div class="divide-y divide-border">
     {#each OPTIONS as option}
       {@const selected = trainingState.addedExerciseTarget === option.value}
       <button
         onclick={() => trainingState.setAddedExerciseTarget(option.value)}
-        class="w-full flex items-start justify-between gap-3 p-4 rounded-card border transition-all text-left {selected
-          ? 'bg-primary/10 border-primary text-primary'
-          : 'bg-surface-elevated/30 border-border-strong/50 text-content'}"
+        aria-pressed={selected}
+        class="w-full flex items-start justify-between gap-3 py-3 text-left transition-colors {selected ? 'text-primary' : 'text-content'}"
       >
         <Icon icon={option.icon} class="text-xl shrink-0 mt-0.5" />
         <div class="min-w-0 flex-1">
           <p class="text-body font-bold">{option.title}</p>
-          <p class="text-caption opacity-80 mt-1 leading-relaxed">{option.detail}</p>
+          <p class="text-caption text-content-subtle mt-0.5 leading-relaxed">{option.detail}</p>
         </div>
-        {#if selected}
-          <Icon icon="ic:baseline-check-circle" class="text-xl shrink-0 mt-0.5" />
-        {/if}
+        <Icon icon={selected ? 'ic:baseline-radio-button-checked' : 'ic:baseline-radio-button-unchecked'} class="text-xl shrink-0 mt-0.5 {selected ? '' : 'text-content-subtle'}" />
       </button>
     {/each}
   </div>

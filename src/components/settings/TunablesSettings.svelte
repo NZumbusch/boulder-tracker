@@ -51,11 +51,11 @@
   </div>
 
   {#each groups as { group, defs: items }}
-    <div class="space-y-2">
-      <p class="text-label text-content-subtle px-1">{group}</p>
+    <div class="divide-y divide-border">
+      <p class="text-label text-content-subtle pb-1">{group}</p>
       {#each items as def (def.id)}
         {#if def.kind === 'boolean'}
-          <label class="flex items-center justify-between gap-3 p-3 rounded-control border border-border-strong/50 bg-surface-elevated/30 cursor-pointer">
+          <label class="flex items-center justify-between gap-3 py-3 cursor-pointer">
             <div class="min-w-0">
               <p class="text-body text-content">{def.label}</p>
               {#if def.hint}<p class="text-caption text-content-subtle">{def.hint}</p>{/if}
@@ -69,7 +69,7 @@
           </label>
         {:else}
           {@const value = shown(def)}
-          <div class="flex items-center justify-between gap-3 p-3 rounded-control border border-border-strong/50 bg-surface-elevated/30">
+          <div class="flex items-center justify-between gap-3 py-3">
             <div class="min-w-0">
               <p class="text-body text-content">{def.label}</p>
               {#if def.hint}<p class="text-caption text-content-subtle">{def.hint}</p>{/if}
