@@ -9,7 +9,7 @@ export const APP_INFO = {
   developer: "Nathan Zumbusch",
   email: "info@nathanzumbusch.de",
   homepage: "https://nathanzumbusch.de",
-  siteUrl: "https://nzumbusch.github.io/climbing-tracker/",
-  privacyUrl: "https://nzumbusch.github.io/climbing-tracker/privacy.html",
-  aboutUrl: "https://nzumbusch.github.io/climbing-tracker/about.html",
+  siteUrl: "https://nzumbusch.github.io/boulder-tracker/",
+  privacyUrl: "https://nzumbusch.github.io/boulder-tracker/privacy.html",
+  aboutUrl: "https://nzumbusch.github.io/boulder-tracker/about.html",
 } as const;

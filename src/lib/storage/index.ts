@@ -656,7 +656,7 @@ export const storage = {
       exportVersion: DATA_EXPORT_VERSION,
     };
 
-    const fileName = `climbing-tracker-backup-${new Date().toISOString().split("T")[0]}.json`;
+    const fileName = `boulder-tracker-backup-${new Date().toISOString().split("T")[0]}.json`;
     const jsonString = JSON.stringify(data, null, 2);
 
     if (Capacitor.isNativePlatform()) {

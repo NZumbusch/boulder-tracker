@@ -5,8 +5,8 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 export default defineConfig({
   plugins: [svelte()],
   // Relative, so one build serves both targets: GitHub Pages hosts the app
-  // under /climbing-tracker/, while the Capacitor WebView serves it from the
-  // root of https://localhost. An absolute '/climbing-tracker/' base makes
+  // under /boulder-tracker/, while the Capacitor WebView serves it from the
+  // root of https://localhost. An absolute '/boulder-tracker/' base makes
   // every asset 404 inside the APK - a silent white screen.
   base: './',
   optimizeDeps: {
