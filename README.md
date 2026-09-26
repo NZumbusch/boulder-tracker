@@ -1,6 +1,6 @@
 # Boulder Tracker
 
-A training planner and log for bouldering and climbing, built with Svelte 5 and Vite. It runs in the browser and as an Android app (Capacitor). All data stays on the device.
+A training planner and log for bouldering and climbing, built with Svelte 5 and Vite. It runs in the browser, installs as a web app (iPhone: Safari → Share → Add to Home Screen) and as an Android app (Capacitor). All data stays on the device.
 
 ## What it does
 
@@ -10,6 +10,7 @@ A training planner and log for bouldering and climbing, built with Svelte 5 and 
 - **History and sends**: completed sessions and outdoor sends (8a.nu CSV import) with shared filters, and a grade chart.
 - **Analytics**: rolling load with the acute:chronic ratio, training mix, fatigue, adherence, recovery warnings, outdoor grades, bodyweight and benchmarks.
 - **AI coach**: builds a prompt with your plan and history to paste into any AI chat (ChatGPT, Claude, Gemini…), then imports its reply as a reviewable list of changes. The same flow fills or logs a single session.
+- **First run**: a short welcome (training level, units, home location; on iPhone Safari the install steps first), then an optional tour of every screen on example data (`src/lib/tour/`, steps in `steps.ts`). Replay from Settings → About & Help.
 - **Data**: JSON backup and restore, CSV / PDF / calendar export, and on Android local notifications (post-session rating, daily metrics).
 
 ## Development
@@ -49,7 +50,13 @@ No client ID goes into the code - Play services matches the app by package name 
 
 ## Deployment
 
-Pushing to `main` builds the app and deploys it to GitHub Pages (`.github/workflows/deploy.yml`). The build uses a relative base path, so the same `dist/` works on Pages and inside the Android app.
+Pushing to `main` builds the app and deploys it to GitHub Pages (`.github/workflows/deploy.yml`), served at https://bouldertracker.nathanzumbusch.de/. The build uses a relative base path, so the same `dist/` works on Pages and inside the Android app.
+
+### Web app (PWA)
+
+`vite-plugin-pwa` (in `vite.config.js`) writes the manifest and a service worker that precaches the whole build, so the installed app opens offline. A new deploy shows a "Reload" toast rather than switching under a running session (`src/lib/pwa/pwa.ts`); the service worker is not registered inside the Android app. Home-screen icons are PNGs in `public/icons/`, rendered by `node scripts/generate-pwa-icons.mjs`.
+
+What the web app can't do, on iOS in particular: scheduled reminders, timer beeps with the screen locked (keep the screen on - Settings → Sessions & Timer), Drive sync, widgets and shortcuts (Android only). On iPhone the Home Screen app has its own storage, separate from Safari's.
 
 ## Where things live
 
