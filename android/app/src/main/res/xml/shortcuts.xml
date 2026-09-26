@@ -13,8 +13,8 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:data="bouldertracker://session"
-            android:targetPackage="com.example.bouldertracker"
-            android:targetClass="com.example.bouldertracker.MainActivity" />
+            android:targetPackage="com.nzumbusch.bouldertracker"
+            android:targetClass="com.nzumbusch.bouldertracker.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="quicklog"
@@ -25,8 +25,8 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:data="bouldertracker://quicklog"
-            android:targetPackage="com.example.bouldertracker"
-            android:targetClass="com.example.bouldertracker.MainActivity" />
+            android:targetPackage="com.nzumbusch.bouldertracker"
+            android:targetClass="com.nzumbusch.bouldertracker.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="metrics"
@@ -37,7 +37,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:data="bouldertracker://metrics"
-            android:targetPackage="com.example.bouldertracker"
-            android:targetClass="com.example.bouldertracker.MainActivity" />
+            android:targetPackage="com.nzumbusch.bouldertracker"
+            android:targetClass="com.nzumbusch.bouldertracker.MainActivity" />
     </shortcut>
 </shortcuts>

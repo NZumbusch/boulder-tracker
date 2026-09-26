@@ -2,8 +2,8 @@
 <resources>
     <string name="app_name">Boulder Tracker</string>
     <string name="title_activity_main">Boulder Tracker</string>
-    <string name="package_name">com.example.bouldertracker</string>
-    <string name="custom_url_scheme">com.example.bouldertracker</string>
+    <string name="package_name">com.nzumbusch.bouldertracker</string>
+    <string name="custom_url_scheme">com.nzumbusch.bouldertracker</string>
     <string name="shortcut_session_short">Session</string>
     <string name="shortcut_session_long">Start or resume a session</string>
     <string name="shortcut_quicklog_short">Quick log</string>

@@ -1,4 +1,4 @@
-package com.example.bouldertracker;
+package com.nzumbusch.bouldertracker;
 
 import com.getcapacitor.BridgeActivity;
 
