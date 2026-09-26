@@ -1,5 +1,6 @@
 import type { Workout, DayOfWeek } from './types';
 import { estimateSessionDuration } from './planning/sessionDuration';
+import { saveFile } from './share/saveFile';
 
 // Helper to get the starting date of a week given a weekId like "2026-W25"
 export function getDateFromWeekId(weekId: string, dayOfWeek?: DayOfWeek): Date {
@@ -106,12 +107,10 @@ export function generateICS(workouts: Workout[]): string {
 
 export function exportWorkoutsToICS(workouts: Workout[]) {
   const icsData = generateICS(workouts);
-  const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `boulder-tracker-workouts-${new Date().toISOString().split('T')[0]}.ics`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  void saveFile({
+    content: icsData,
+    fileName: `boulder-tracker-workouts-${new Date().toISOString().split('T')[0]}.ics`,
+    mimeType: 'text/calendar',
+    title: 'Boulder Tracker calendar',
+  });
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { saveFile } from '../../lib/share/saveFile';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { formatWeight } from '../../lib/units';
   import { trainingState } from '../../lib/state.svelte';
@@ -117,7 +118,11 @@
       printContainer.style.display = 'block';
       // Loaded on export only: it's most of Settings' download otherwise.
       const { default: html2pdf } = await import('html2pdf.js');
-      await html2pdf().set(opt).from(printContainer).save();
+      // As a blob rather than html2pdf's own save(): its download link
+      // does nothing in the Android app or an installed iPhone app.
+      const pdf: Blob = await html2pdf().set(opt).from(printContainer).outputPdf('blob');
+      const outcome = await saveFile({ content: pdf, fileName: opt.filename, mimeType: 'application/pdf', title: 'Training plan (PDF)' });
+      if (outcome === 'failed') throw new Error('The PDF could not be saved.');
     } catch (err: any) {
       console.error(err);
       await showAlert('Export Failed', 'An error occurred while generating the PDF: ' + err.message);

@@ -1,6 +1,3 @@
-import { Share } from "@capacitor/share";
-import { Capacitor } from "@capacitor/core";
-import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import type {
   Workout,
   WorkoutTemplate,
@@ -25,6 +22,8 @@ import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
 import { toStoredWorkout } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
+import { saveFile } from "../share/saveFile";
+import type { ShareOutcome } from "../share/imageShare";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
 
 /** The tables a bulk plan change (AI change set, copied week) can touch - what its undo snapshot holds. */
@@ -649,44 +648,19 @@ export const storage = {
     await this._saveBenchmarks(filteredBenchmarks);
   },
 
-  async exportData(): Promise<void> {
+  /** Hands a JSON backup to `saveFile` (share sheet or download) and says how that went. */
+  async exportData(): Promise<ShareOutcome> {
     await initDB();
     const data = {
       ..._dbState,
       exportVersion: DATA_EXPORT_VERSION,
     };
-
-    const fileName = `boulder-tracker-backup-${new Date().toISOString().split("T")[0]}.json`;
-    const jsonString = JSON.stringify(data, null, 2);
-
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const result = await Filesystem.writeFile({
-          path: fileName,
-          data: jsonString,
-          directory: Directory.Cache,
-          encoding: Encoding.UTF8,
-        });
-
-        await Share.share({
-          title: "Export Training Data",
-          text: "Backup of your climbing tracker data",
-          url: result.uri,
-          dialogTitle: "Save or Share Data",
-        });
-      } catch (err) {
-        console.error("Native export failed:", err);
-        throw new Error("Failed to export data to device storage.");
-      }
-    } else {
-      const blob = new Blob([jsonString], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
+    return saveFile({
+      content: JSON.stringify(data, null, 2),
+      fileName: `boulder-tracker-backup-${new Date().toISOString().split("T")[0]}.json`,
+      mimeType: "application/json",
+      title: "Boulder Tracker backup",
+    });
   },
 
   async importData(file: File, onProgress: (label: string, fraction: number) => void = () => {}): Promise<void> {

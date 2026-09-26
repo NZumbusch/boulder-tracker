@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { autoBackupDue, writeAutoBackup } from '../storage/autoBackup';
 import type { Workout, TrainingBlock, ExerciseTypeDef, PhaseDef } from '../types';
 import { showAlert } from '../utils';
+import { saveFile } from '../share/saveFile';
 import { slotValues, slotTypeName } from '../exerciseSlot';
 import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
@@ -63,8 +64,10 @@ export class BackupStore {
    */
   async exportData() {
     try {
-      await storage.exportData();
-      this.markBackedUp(new Date().toISOString());
+      const outcome = await storage.exportData();
+      if (outcome === 'failed') throw new Error('The backup file could not be saved.');
+      // Closing the share sheet saved nothing, so it isn't a backup.
+      if (outcome !== 'dismissed') this.markBackedUp(new Date().toISOString());
     } catch (err) {
       await showAlert('Export Error', err instanceof Error ? err.message : 'Export failed');
     }
@@ -144,13 +147,11 @@ export class BackupStore {
     });
 
     const csvContent = rows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `boulder-tracker-data-${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    void saveFile({
+      content: csvContent,
+      fileName: `boulder-tracker-data-${new Date().toISOString().split('T')[0]}.csv`,
+      mimeType: 'text/csv',
+      title: 'Boulder Tracker sessions (CSV)',
+    });
   }
 }
