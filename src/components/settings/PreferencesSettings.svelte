@@ -83,6 +83,17 @@
 
     <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
+      <h3 class="text-section uppercase text-content-muted px-1">Bottom Bar</h3>
+      <p class="text-caption text-content-subtle px-1 leading-relaxed">Show the tab names under the icons.</p>
+    </div>
+    <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+      <button onclick={() => trainingState.setNavLabels(false)} class="flex-1 py-2.5 text-label rounded-control transition-all {!trainingState.navLabels ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}">Icons only</button>
+      <button onclick={() => trainingState.setNavLabels(true)} class="flex-1 py-2.5 text-label rounded-control transition-all {trainingState.navLabels ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}">Icons + labels</button>
+    </div>
+  </div>
+
+    <div class="card space-y-4 animate-in fade-in">
+    <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Motion</h3>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">"System" follows your device's reduced-motion setting automatically.</p>
     </div>

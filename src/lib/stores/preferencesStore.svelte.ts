@@ -44,6 +44,8 @@ export class PreferencesStore {
   aiHistory = $state<AIHistoryWindow>(defaultPreferences().aiHistory);
   autoBackup = $state(defaultPreferences().autoBackup);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
+  navLabels = $state(false);
+  welcomeDone = $state(true);
 
   constructor() {
     if (typeof localStorage === 'undefined') return;
@@ -92,6 +94,8 @@ export class PreferencesStore {
     this.aiHistory = prefs.aiHistory;
     this.autoBackup = prefs.autoBackup;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
+    this.navLabels = prefs.navLabels;
+    this.welcomeDone = prefs.welcomeDone;
 
     // Persist immediately so the fold (or a version migration) only ever
     // has to happen once, and so a fresh install's defaults are recorded
@@ -273,6 +277,16 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setNavLabels(on: boolean) {
+    this.navLabels = on;
+    this.persist();
+  }
+
+  setWelcomeDone(done: boolean) {
+    this.welcomeDone = done;
+    this.persist();
+  }
+
   /**
    * Re-reads the legacy theme/notification keys at persist time (rather
    * than trusting a value captured at construction) so this blob's copies
@@ -315,6 +329,8 @@ export class PreferencesStore {
       aiHistory: this.aiHistory,
       autoBackup: this.autoBackup,
       addedExerciseTarget: this.addedExerciseTarget,
+      navLabels: this.navLabels,
+      welcomeDone: this.welcomeDone,
       theme: (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'contrast')
         ? legacyTheme
         : defaultPreferences().theme,

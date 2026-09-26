@@ -128,49 +128,37 @@
   <nav
     class="w-full h-[calc(75px+env(safe-area-inset-bottom))] pb-safe border-t flex justify-evenly items-center shrink-0 select-none bg-surface border-border"
   >
-    <button
-      onclick={() => trainingState.navigate('home')}
-      class="flex flex-col items-center justify-center w-16 h-full cursor-pointer transition-all duration-300 {trainingState.view === 'home' ? 'text-success scale-105' : 'text-content-subtle scale-100'}"
-      aria-label="Home"
-    >
-      <Icon icon="ic:baseline-home" class="text-[24px]" />
-      <div class="w-1 h-1 mt-1 rounded-full transition-all duration-300 {trainingState.view === 'home' ? 'bg-success scale-100' : 'bg-transparent scale-0'}"></div>
-    </button>
+    {#snippet tab(view: ViewType, icon: string, label: string)}
+      {@const active = trainingState.view === view}
+      <button
+        onclick={() => trainingState.navigate(view)}
+        class="flex flex-col items-center justify-center w-16 h-full cursor-pointer transition-all duration-300 {active ? 'text-success scale-105' : 'text-content-subtle scale-100'}"
+        aria-label={label}
+        data-tour="nav-{view}"
+      >
+        <Icon {icon} class="text-[24px]" />
+        {#if trainingState.navLabels}
+          <span class="mt-0.5 text-[10px] font-semibold leading-none">{label}</span>
+        {:else}
+          <div class="w-1 h-1 mt-1 rounded-full transition-all duration-300 {active ? 'bg-success scale-100' : 'bg-transparent scale-0'}"></div>
+        {/if}
+      </button>
+    {/snippet}
 
-    <button
-      onclick={() => trainingState.navigate('plan')}
-      class="flex flex-col items-center justify-center w-16 h-full cursor-pointer transition-all duration-300 {trainingState.view === 'plan' ? 'text-success scale-105' : 'text-content-subtle scale-100'}"
-      aria-label="Plan"
-    >
-      <Icon icon="ic:baseline-calendar-month" class="text-[24px]" />
-      <div class="w-1 h-1 mt-1 rounded-full transition-all duration-300 {trainingState.view === 'plan' ? 'bg-success scale-100' : 'bg-transparent scale-0'}"></div>
-    </button>
+    {@render tab('home', 'ic:baseline-home', 'Home')}
+    {@render tab('plan', 'ic:baseline-calendar-month', 'Plan')}
 
     <button
       onclick={() => trainingState.navigate('add')}
       class="flex items-center justify-center w-12 h-12 rounded-full cursor-pointer transition-all duration-300 active:scale-90 {trainingState.view === 'add' ? 'bg-success text-app-bg shadow-[0_0_20px_var(--color-success)]' : 'bg-surface-elevated text-content-muted'}"
       aria-label="Log a workout"
+      data-tour="nav-add"
     >
       <Icon icon="ic:baseline-plus" class="text-[34px]" />
     </button>
 
-    <button
-      onclick={() => trainingState.navigate('history')}
-      class="flex flex-col items-center justify-center w-16 h-full cursor-pointer transition-all duration-300 {trainingState.view === 'history' ? 'text-success scale-105' : 'text-content-subtle scale-100'}"
-      aria-label="History"
-    >
-      <Icon icon="ic:baseline-content-paste" class="text-[24px]" />
-      <div class="w-1 h-1 mt-1 rounded-full transition-all duration-300 {trainingState.view === 'history' ? 'bg-success scale-100' : 'bg-transparent scale-0'}"></div>
-    </button>
-
-    <button
-      onclick={() => trainingState.navigate('analytics')}
-      class="flex flex-col items-center justify-center w-16 h-full cursor-pointer transition-all duration-300 {trainingState.view === 'analytics' ? 'text-success scale-105' : 'text-content-subtle scale-100'}"
-      aria-label="Analytics"
-    >
-      <Icon icon="ic:baseline-show-chart" class="text-[24px]" />
-      <div class="w-1 h-1 mt-1 rounded-full transition-all duration-300 {trainingState.view === 'analytics' ? 'bg-success scale-100' : 'bg-transparent scale-0'}"></div>
-    </button>
+    {@render tab('history', 'ic:baseline-content-paste', 'History')}
+    {@render tab('analytics', 'ic:baseline-show-chart', 'Analytics')}
   </nav>
 
   <!-- The live session and its minimised bubble are mounted here, outside

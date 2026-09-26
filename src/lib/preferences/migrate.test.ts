@@ -22,6 +22,8 @@ describe('defaultPreferences', () => {
       theme: 'dark',
       notificationsEnabled: false,
       addedExerciseTarget: 'none',
+      navLabels: false,
+      welcomeDone: false,
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
       homeLocation: null,
@@ -116,6 +118,8 @@ describe('migratePreferences', () => {
       aiHistory: { fullWeeks: 4, summaryWeeks: 16 },
       autoBackup: false,
       addedExerciseTarget: 'mirror' as const,
+      navLabels: true,
+      welcomeDone: true,
     };
     expect(migratePreferences(valid)).toEqual(valid);
   });
@@ -501,5 +505,26 @@ describe('aiHistory', () => {
     const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiHistory: { fullWeeks: 5, summaryWeeks: 12 } });
     expect(result.aiHistory).toEqual({ fullWeeks: 2, summaryWeeks: 12 });
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiHistory: 'x' }).aiHistory).toEqual({ fullWeeks: 2, summaryWeeks: 8 });
+  });
+});
+
+describe('navLabels and welcomeDone', () => {
+  it('a fresh install gets no labels and the welcome screens', () => {
+    const result = migratePreferences(undefined);
+    expect(result.navLabels).toBe(false);
+    expect(result.welcomeDone).toBe(false);
+  });
+
+  it('a blob saved before welcomeDone existed is a returning user, never welcomed again', () => {
+    const { welcomeDone: _w, navLabels: _n, ...older } = defaultPreferences();
+    const result = migratePreferences(older);
+    expect(result.welcomeDone).toBe(true);
+    expect(result.navLabels).toBe(false);
+  });
+
+  it('keeps an explicit choice', () => {
+    const result = migratePreferences({ ...defaultPreferences(), navLabels: true, welcomeDone: false });
+    expect(result.navLabels).toBe(true);
+    expect(result.welcomeDone).toBe(false);
   });
 });

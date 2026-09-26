@@ -136,6 +136,14 @@ export interface Preferences {
    * added while *planning* is prescribed by definition.
    */
   addedExerciseTarget: AddedExerciseTarget;
+  /** Text under the bottom-nav icons. Off by default (the icon-only look); both are real options. */
+  navLabels: boolean;
+  /**
+   * The welcome screens (level, units, location, install) have been seen.
+   * False only on a fresh install: a blob saved before this key existed is
+   * a returning user, who never needs welcoming.
+   */
+  welcomeDone: boolean;
 }
 
 /** See `Preferences.addedExerciseTarget`. */
@@ -266,6 +274,8 @@ export function defaultPreferences(): Preferences {
     tunables: defaultTunables(),
     units: { ...DEFAULT_UNITS },
     addedExerciseTarget: 'none',
+    navLabels: false,
+    welcomeDone: false,
     aiHistory: { ...DEFAULT_AI_HISTORY },
     autoBackup: true,
     aiSharing: {
@@ -482,5 +492,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'
       ? candidate.addedExerciseTarget
       : defaults.addedExerciseTarget,
+    navLabels: typeof candidate.navLabels === 'boolean' ? candidate.navLabels : defaults.navLabels,
+    welcomeDone: typeof candidate.welcomeDone === 'boolean' ? candidate.welcomeDone : true,
   };
 }

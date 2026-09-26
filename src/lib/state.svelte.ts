@@ -274,6 +274,14 @@ class TrainingState {
     this.preferencesStore.setAddedExerciseTarget(target);
   }
 
+  /** Text labels under the bottom-nav icons (a preference, off by default). */
+  get navLabels() { return this.preferencesStore.navLabels; }
+  setNavLabels(on: boolean) { this.preferencesStore.setNavLabels(on); }
+
+  /** Whether the first-run welcome has been seen on this device. */
+  get welcomeDone() { return this.preferencesStore.welcomeDone; }
+  setWelcomeDone(done: boolean) { this.preferencesStore.setWelcomeDone(done); }
+
   /**
    * Refreshes all data from storage.
    */
