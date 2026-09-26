@@ -4,6 +4,7 @@ import { copySessionsToWeek } from './planning/copyWeek';
 import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
 import { isDemoMode } from './storage/persistence';
+import type { ThemePreference } from './preferences/theme';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
@@ -102,6 +103,8 @@ class TrainingState {
   get activeWorkout() { return this.uiStore.activeWorkout; }
   get showFatigue() { return this.uiStore.showFatigue; }
   get theme() { return this.uiStore.theme; }
+  /** The theme on screen - `theme` with "system" resolved against the phone's setting. */
+  get resolvedTheme() { return this.uiStore.resolvedTheme; }
   get notificationsEnabled() { return this.uiStore.notificationsEnabled; }
   get notificationPermission() { return this.uiStore.notificationPermission; }
 
@@ -581,7 +584,7 @@ class TrainingState {
   /**
    * Updates the theme mode and persists to localStorage
    */
-  setTheme(newTheme: 'dark' | 'light' | 'contrast') {
+  setTheme(newTheme: ThemePreference) {
     this.uiStore.setTheme(newTheme);
   }
 

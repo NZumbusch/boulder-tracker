@@ -39,7 +39,7 @@
 
   $effect(() => {
     if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-theme', trainingState.theme);
+      document.documentElement.setAttribute('data-theme', trainingState.resolvedTheme);
       // The browser/PWA chrome (address bar, task switcher) takes the
       // app background's colour, so light mode isn't framed in black.
       const bg = getComputedStyle(document.documentElement).getPropertyValue('--theme-app-bg').trim();

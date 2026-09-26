@@ -19,7 +19,7 @@ describe('defaultPreferences', () => {
       version: CURRENT_PREFERENCES_VERSION,
       textScale: 'md',
       motion: 'system',
-      theme: 'dark',
+      theme: 'system',
       notificationsEnabled: false,
       addedExerciseTarget: 'none',
       navLabels: false,
@@ -80,7 +80,7 @@ describe('migratePreferences', () => {
 
   it('ignores an invalid legacy theme rather than folding it in', () => {
     const result = migratePreferences(undefined, { theme: 'neon' as any });
-    expect(result.theme).toBe('dark');
+    expect(result.theme).toBe('system');
   });
 
   it('round-trips a valid current-version blob unchanged', () => {
@@ -175,7 +175,7 @@ describe('migratePreferences', () => {
     const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, textScale: 'lg' });
     expect(result.textScale).toBe('lg');
     expect(result.motion).toBe('system');
-    expect(result.theme).toBe('dark');
+    expect(result.theme).toBe('system');
     expect(result.notificationsEnabled).toBe(false);
     expect(result.dailyMetricsReminderEnabled).toBe(true);
     expect(result.dailyMetricsReminderTime).toBe('20:00');

@@ -18,6 +18,16 @@
     <meta name="apple-mobile-web-app-title" content="Boulder Tracker" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <title>Boulder Tracker</title>
+    <!-- The theme before anything paints, so a phone in light mode doesn't
+         flash the dark loading screen first. Same rule as
+         src/lib/preferences/theme.ts, which takes over once the app runs. -->
+    <script>
+      try {
+        var t = localStorage.getItem('boulder_tracker_theme');
+        if (t !== 'light' && t !== 'dark' && t !== 'contrast') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app"></div>

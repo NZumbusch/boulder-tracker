@@ -15,6 +15,7 @@
 </script>
 
 <script lang="ts">
+  import type { ThemePreference } from '../../lib/preferences/theme';
   /**
    * "Appearance & Behaviour" tab, grouped by the part of the app each
    * setting affects: a short topic list, each opening its own page. The
@@ -55,12 +56,12 @@
   <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Theme</h3>
-      <p class="text-caption text-content-subtle px-1 leading-relaxed">High contrast is pure black and white - easiest to read outdoors in bright sun.</p>
+      <p class="text-caption text-content-subtle px-1 leading-relaxed">Auto follows your phone's light or dark mode. High contrast is pure black and white - easiest to read outdoors in bright sun.</p>
     </div>
     <div class="flex bg-surface-elevated/50 p-1 rounded-control">
-      {#each [['dark', 'Dark', 'ic:baseline-dark-mode'], ['light', 'Light', 'ic:baseline-light-mode'], ['contrast', 'Contrast', 'ic:baseline-contrast']] as [id, label, icon]}
+      {#each [['system', 'Auto', 'ic:baseline-brightness-auto'], ['light', 'Light', 'ic:baseline-light-mode'], ['dark', 'Dark', 'ic:baseline-dark-mode'], ['contrast', 'Contrast', 'ic:baseline-contrast']] as [id, label, icon]}
         <button
-          onclick={() => trainingState.setTheme(id as 'dark' | 'light' | 'contrast')}
+          onclick={() => trainingState.setTheme(id as ThemePreference)}
           aria-pressed={trainingState.theme === id}
           class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-label rounded-control transition-all {trainingState.theme === id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
         >

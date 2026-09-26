@@ -26,7 +26,8 @@ export const CURRENT_PREFERENCES_VERSION = 1;
 
 export type TextScale = 'sm' | 'md' | 'lg';
 export type MotionPreference = 'system' | 'full' | 'reduced';
-export type ThemePreference = 'dark' | 'light' | 'contrast';
+import { DEFAULT_THEME, THEMES, type ThemePreference } from './theme';
+export type { ThemePreference } from './theme';
 
 export interface Preferences {
   version: number;
@@ -247,7 +248,7 @@ export function defaultPreferences(): Preferences {
     version: CURRENT_PREFERENCES_VERSION,
     textScale: 'md',
     motion: 'system',
-    theme: 'dark',
+    theme: DEFAULT_THEME,
     notificationsEnabled: false,
     dailyMetricsReminderEnabled: true,
     dailyMetricsReminderTime: DEFAULT_DAILY_METRICS_REMINDER_TIME,
@@ -291,7 +292,6 @@ export function defaultPreferences(): Preferences {
 
 const TEXT_SCALES: TextScale[] = ['sm', 'md', 'lg'];
 const MOTION_PREFS: MotionPreference[] = ['system', 'full', 'reduced'];
-const THEMES: ThemePreference[] = ['dark', 'light', 'contrast'];
 const FATIGUE_CHART_STYLES: FatigueChartStyle[] = ['bars', 'radar'];
 export type RecoveryChartMode = 'overlay' | 'lanes';
 function isStringArray(value: unknown): value is string[] {

@@ -2,6 +2,7 @@ import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SEC
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
+import { parseTheme } from '../preferences/theme';
 
 const PREFERENCES_KEY = 'boulder_tracker_preferences';
 const LEGACY_THEME_KEY = 'boulder_tracker_theme';
@@ -57,9 +58,7 @@ export class PreferencesStore {
     const prefs = migratePreferences(
       rawStored ? safeParse(rawStored) : undefined,
       {
-        theme: (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'contrast')
-          ? legacyTheme
-          : undefined,
+        theme: legacyTheme === null ? undefined : parseTheme(legacyTheme),
         notificationsEnabled: legacyNotifications === null ? undefined : legacyNotifications === 'true',
       },
     );
@@ -331,9 +330,7 @@ export class PreferencesStore {
       addedExerciseTarget: this.addedExerciseTarget,
       navLabels: this.navLabels,
       welcomeDone: this.welcomeDone,
-      theme: (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'contrast')
-        ? legacyTheme
-        : defaultPreferences().theme,
+      theme: parseTheme(legacyTheme),
       notificationsEnabled: legacyNotifications === null ? defaultPreferences().notificationsEnabled : legacyNotifications === 'true',
     };
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(toWrite));

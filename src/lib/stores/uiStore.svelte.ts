@@ -1,3 +1,4 @@
+import { DEFAULT_THEME, parseTheme, resolveTheme, type ResolvedTheme, type ThemePreference } from '../preferences/theme';
 import { Capacitor } from '@capacitor/core';
 import type { PermissionState } from '@capacitor/core';
 import type { Workout, ViewType } from '../types';
@@ -24,18 +25,27 @@ export class UiStore {
   historyTab = $state<'sessions' | 'sends'>('sessions');
   /** Something a shortcut or the widget asked Home to open (see `navigation/deepLink`); Home clears it once handled. */
   homeRequest = $state<'quickLog' | 'metrics' | null>(null);
-  theme = $state<'dark' | 'light' | 'contrast'>('dark');
+  theme = $state<ThemePreference>(DEFAULT_THEME);
+  /** The phone's own dark-mode setting, kept live for the "system" theme. */
+  systemDark = $state(false);
   notificationsEnabled = $state(false);
   notificationPermission = $state<PermissionState>('prompt');
 
   constructor() {
     if (typeof localStorage !== 'undefined') {
-      const savedTheme = localStorage.getItem('boulder_tracker_theme');
-      if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'contrast') {
-        this.theme = savedTheme;
-      }
+      this.theme = parseTheme(localStorage.getItem('boulder_tracker_theme'));
       this.notificationsEnabled = localStorage.getItem(NOTIFICATIONS_ENABLED_KEY) === 'true';
     }
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const query = window.matchMedia('(prefers-color-scheme: dark)');
+      this.systemDark = query.matches;
+      query.addEventListener('change', (e) => (this.systemDark = e.matches));
+    }
+  }
+
+  /** What the screen actually shows: the choice, with "system" resolved. */
+  get resolvedTheme(): ResolvedTheme {
+    return resolveTheme(this.theme, this.systemDark);
   }
 
   /**
@@ -89,7 +99,7 @@ export class UiStore {
   /**
    * Updates the theme mode and persists to localStorage
    */
-  setTheme(newTheme: 'dark' | 'light' | 'contrast') {
+  setTheme(newTheme: ThemePreference) {
     this.theme = newTheme;
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('boulder_tracker_theme', newTheme);
