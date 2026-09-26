@@ -46,6 +46,7 @@ export class HomeData {
       fatigue: { fingers: this.fatigueDecay.fingers, core: this.fatigueDecay.core, systemic: this.fatigueDecay.systemic },
       acwr: this.acwr,
       sleep: this.todaysMetric('sleep-score')?.value,
+      sleepHours: this.todaysMetric('sleep-duration')?.value,
       hrv: this.todaysMetric('hrv')?.value,
       hrvBaseline: this.hrvBaseline,
     }, trainingState.readinessConfig),

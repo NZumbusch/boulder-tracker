@@ -51,6 +51,7 @@ export const TUNABLES: TunableDef[] = [
   { id: "readiness.useSleep", topic: "model", group: "Readiness score", label: "Count sleep", kind: "boolean", default: true },
   { id: "readiness.useHrv", topic: "model", group: "Readiness score", label: "Count HRV", kind: "boolean", default: true },
   { id: "readiness.sleepLow", topic: "model", group: "Readiness score", label: "Low sleep score", hint: "Below this, sleep starts costing points", kind: "number", default: 60, min: 20, max: 95, step: 5, unit: "pts" },
+  { id: "readiness.sleepShortHours", topic: "model", group: "Readiness score", label: "Short sleep", hint: "Used when there's no sleep score for the day (e.g. sleep from Health Connect): less than this starts costing points", kind: "number", default: 7, min: 4, max: 10, step: 0.5, unit: "h" },
   { id: "readiness.hrvDip", topic: "model", group: "Readiness score", label: "HRV dip that counts", hint: "How far below your 14-day baseline before HRV costs points", kind: "number", default: 0.1, min: 0.02, max: 0.4, step: 0.01, percent: true },
   { id: "acwr.sweetMin", topic: "model", group: "ACWR zones", label: "Sweet spot from", hint: "Below this counts as low load", kind: "number", default: 0.8, min: 0.5, max: 1.2, step: 0.05 },
   { id: "acwr.caution", topic: "model", group: "ACWR zones", label: "Caution from", kind: "number", default: 1.3, min: 1.0, max: 1.8, step: 0.05 },

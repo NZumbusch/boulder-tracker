@@ -106,6 +106,12 @@ export interface ReadinessInputs {
   acwr: RollingAcwrResult;
   /** Today's `sleep-score` DailyMetricEntry value, assumed 0-100 ("pts") - see SLEEP_SCORE_LOW_THRESHOLD's doc comment for why that range is this stage's own assumption. */
   sleep?: number;
+  /**
+   * Hours asleep last night (`sleep-duration`, from Health Connect). Only
+   * used when there's no sleep score for the day - the score, where a
+   * wearable gives one, already weighs duration and quality.
+   */
+  sleepHours?: number;
   /** Today's `hrv` DailyMetricEntry value (ms). */
   hrv?: number;
   /** `computeHrvBaseline`'s output - required alongside `hrv` for the HRV signal to be usable at all. */
@@ -140,6 +146,9 @@ export const MAX_ACWR_PENALTY = 25;
 /** Sleep score costs up to this many points, scaled linearly from SLEEP_SCORE_LOW_THRESHOLD (0 cost) down to 0 (max cost). No UI wrote the `sleep-score` metric before Home's quick-entry, so this 0-100 range is that feature's own assumption (matching common wearable sleep-score scales), not a pre-existing app convention. */
 export const MAX_SLEEP_PENALTY = 15;
 export const SLEEP_SCORE_LOW_THRESHOLD = 60;
+/** Without a score, sleep shorter than this costs points, up to MAX_SLEEP_PENALTY at SLEEP_SHORT_RANGE_HOURS less. */
+export const SLEEP_SHORT_HOURS = 7;
+export const SLEEP_SHORT_RANGE_HOURS = 3;
 /** HRV costs up to this many points once its dip below the 14-day baseline exceeds HRV_DIP_THRESHOLD_PCT, scaling to max cost at a 100% dip. */
 export const MAX_HRV_PENALTY = 15;
 export const HRV_DIP_THRESHOLD_PCT = 0.1;
@@ -154,6 +163,8 @@ export interface ReadinessConfig {
   /** Inputs switched off never feed the score and aren't reported as missing. */
   use: { fatigue: boolean; acwr: boolean; sleep: boolean; hrv: boolean };
   sleepLow: number;
+  /** Sleep duration below which sleep costs points, when there's no score. */
+  sleepShortHours: number;
   /** As a fraction: 0.1 = 10% below baseline. */
   hrvDip: number;
   /** The ACWR ratio at which the load penalty reaches its maximum. */
@@ -163,6 +174,7 @@ export interface ReadinessConfig {
 export const DEFAULT_READINESS_CONFIG: ReadinessConfig = {
   use: { fatigue: true, acwr: true, sleep: true, hrv: true },
   sleepLow: SLEEP_SCORE_LOW_THRESHOLD,
+  sleepShortHours: SLEEP_SHORT_HOURS,
   hrvDip: HRV_DIP_THRESHOLD_PCT,
   acwrHighRisk: ACWR_HIGH_RISK_RATIO,
 };
@@ -202,6 +214,7 @@ function buildAdvice(config: ReadinessConfig, args: {
   acwr: RollingAcwrResult;
   sleepUsed: boolean;
   sleep: number | undefined;
+  sleepHours: number | undefined;
   hrvUsed: boolean;
   hrvDipPct: number;
 }): string {
@@ -219,8 +232,10 @@ function buildAdvice(config: ReadinessConfig, args: {
     clauses.push("acute load is well below your chronic baseline");
   }
 
-  if (args.sleepUsed && args.sleep! < config.sleepLow) {
+  if (args.sleepUsed && args.sleep !== undefined && args.sleep < config.sleepLow) {
     clauses.push("sleep score is below usual");
+  } else if (args.sleepUsed && args.sleep === undefined && args.sleepHours! < config.sleepShortHours) {
+    clauses.push(`sleep was short (${args.sleepHours!.toFixed(1)} h)`);
   }
 
   if (args.hrvUsed && args.hrvDipPct > config.hrvDip) {
@@ -279,8 +294,9 @@ function readinessStatus(score: number): ReadinessStatus {
  * the UI never presents a partially-informed score as complete.
  */
 export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfig = DEFAULT_READINESS_CONFIG): ReadinessResult {
-  const { fatigue, acwr, sleep, hrv, hrvBaseline } = inputs;
+  const { fatigue, acwr, sleep, sleepHours, hrv, hrvBaseline } = inputs;
   const { use, sleepLow, hrvDip, acwrHighRisk } = config;
+  const sleepShortHours = config.sleepShortHours ?? SLEEP_SHORT_HOURS;
 
   const fatigueComposite = use.fatigue ? compositeFatigue(fatigue) : undefined;
   const fatigueUsed = fatigueComposite !== undefined;
@@ -291,11 +307,13 @@ export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfi
     ? clamp((acwr.ratio! - 1) / (acwrHighRisk - 1), 0, 1) * MAX_ACWR_PENALTY
     : 0;
 
-  const sleepUsed = use.sleep && sleep !== undefined;
-  const sleepPenalty =
-    sleepUsed && sleep! < sleepLow
-      ? ((sleepLow - sleep!) / sleepLow) * MAX_SLEEP_PENALTY
-      : 0;
+  // A sleep score when there is one, else hours asleep.
+  const sleepUsed = use.sleep && (sleep !== undefined || sleepHours !== undefined);
+  const sleepPenalty = !sleepUsed
+    ? 0
+    : sleep !== undefined
+      ? sleep < sleepLow ? ((sleepLow - sleep) / sleepLow) * MAX_SLEEP_PENALTY : 0
+      : clamp((sleepShortHours - sleepHours!) / SLEEP_SHORT_RANGE_HOURS, 0, 1) * MAX_SLEEP_PENALTY;
 
   const hrvUsed = use.hrv && hrv !== undefined && hrvBaseline !== undefined && hrvBaseline > 0;
   const hrvDipPct = hrvUsed ? (hrvBaseline! - hrv!) / hrvBaseline! : 0;
@@ -324,7 +342,7 @@ export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfi
   return {
     score,
     status: readinessStatus(score),
-    advice: buildAdvice(config, { fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, hrvUsed, hrvDipPct }),
+    advice: buildAdvice({ ...config, sleepShortHours }, { fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, sleepHours, hrvUsed, hrvDipPct }),
     inputsUsed,
     confidence: buildConfidence(inputsUsed, acwr, use),
     penalties,

@@ -325,3 +325,24 @@ describe("computeReadiness with a custom config", () => {
     expect(lenient.penalties.acwr).toBeLessThan(computeReadiness(base).penalties.acwr);
   });
 });
+
+describe("sleep duration (Health Connect) when there's no sleep score", () => {
+  const acwr = { acuteLoad: 0, chronicLoad: 0, ratio: undefined, sufficient: false } as never;
+
+  it("costs nothing at or above the short-sleep line, the full sleep penalty three hours under it", () => {
+    expect(computeReadiness({ fatigue: {}, acwr, sleepHours: 7.5 }).penalties.sleep).toBe(0);
+    expect(computeReadiness({ fatigue: {}, acwr, sleepHours: 5.5 }).penalties.sleep).toBeCloseTo(MAX_SLEEP_PENALTY / 2);
+    expect(computeReadiness({ fatigue: {}, acwr, sleepHours: 3 }).penalties.sleep).toBe(MAX_SLEEP_PENALTY);
+  });
+
+  it("counts as the sleep input and says the night was short", () => {
+    const r = computeReadiness({ fatigue: {}, acwr, sleepHours: 5.5 });
+    expect(r.inputsUsed.sleep).toBe(true);
+    expect(r.advice.toLowerCase()).toContain("sleep was short (5.5 h)");
+  });
+
+  it("a sleep score, when there is one, is used instead", () => {
+    const r = computeReadiness({ fatigue: {}, acwr, sleep: 80, sleepHours: 4 });
+    expect(r.penalties.sleep).toBe(0);
+  });
+});

@@ -379,6 +379,7 @@ export function buildReadinessSnapshot(
     fatigue: { fingers: fatigueDecay.fingers, core: fatigueDecay.core, systemic: fatigueDecay.systemic },
     acwr,
     sleep: todaysMetric("sleep-score"),
+    sleepHours: todaysMetric("sleep-duration"),
     hrv: todaysMetric("hrv"),
     hrvBaseline,
   }, model.readiness);
