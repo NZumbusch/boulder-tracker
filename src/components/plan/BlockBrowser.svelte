@@ -97,7 +97,7 @@
   backWhile(() => true, () => onClose());
 </script>
 
-<div class="fixed inset-0 z-[110] bg-app-bg flex flex-col">
+<div class="fixed inset-0 z-[110] safe-y bg-app-bg flex flex-col">
   <header class="shrink-0 border-b border-border px-4 py-3 flex items-center justify-between gap-3">
     <div class="min-w-0">
       <h3 class="text-title text-content truncate">All Training Blocks</h3>

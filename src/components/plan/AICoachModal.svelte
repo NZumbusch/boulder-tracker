@@ -202,7 +202,7 @@
   </ol>
 {/snippet}
 
-<div class="fixed inset-0 z-[130] bg-app-bg flex flex-col animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-label="AI Coach">
+<div class="fixed inset-0 z-[130] safe-y bg-app-bg flex flex-col animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-label="AI Coach">
   <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
     <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 space-y-3">
       <div class="flex items-start gap-3">

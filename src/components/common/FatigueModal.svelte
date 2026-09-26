@@ -104,7 +104,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
 </script>
 
 {#if trainingState.showFatigue}
-  <div class="fixed inset-0 bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[115] backdrop-blur-md transition-all duration-300">
+  <div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[115] backdrop-blur-md transition-all duration-300">
     <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
       <div class="w-10 h-1 bg-surface-elevated rounded-full mx-auto mb-6 sm:hidden"></div>
       

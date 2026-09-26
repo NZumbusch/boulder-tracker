@@ -268,7 +268,7 @@
 </footer>
 
 {#if formSlot}
-  <div class="fixed inset-0 z-[120] bg-app-bg overflow-y-auto no-scrollbar">
+  <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
       <button onclick={() => formSlot = null} class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1">
         <Icon icon="ic:baseline-arrow-back" class="text-sm" />

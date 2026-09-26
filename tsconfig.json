@@ -10,7 +10,7 @@
     "noEmit": true,
     "sourceMap": true,
     "esModuleInterop": true,
-    "types": ["vite/client", "node"],
+    "types": ["vite/client", "node", "vite-plugin-pwa/client"],
     "skipLibCheck": true,
     "strict": true,
     "allowJs": true,

@@ -3,7 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the app draw under the notch and home
+         indicator; the nav and headers pad themselves with
+         env(safe-area-inset-*) (app.css). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <!-- iOS: home-screen icon (PNG only) and full-screen launch. The status
+         bar stays a solid black strip above the app ("black", not
+         "black-translucent"): translucent always draws white clock text,
+         which disappears over the light theme. -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Boulder Tracker" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <title>Boulder Tracker</title>
   </head>
   <body>

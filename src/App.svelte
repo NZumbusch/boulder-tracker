@@ -80,7 +80,7 @@
   });
 </script>
 
-<main class="flex flex-col h-screen overflow-hidden bg-app-bg text-content font-sans">
+<main class="flex flex-col h-dvh pt-safe overflow-hidden bg-app-bg text-content font-sans">
   <!-- `overflow-x-hidden` is a guard, not a layout tool: several charts
        hang absolutely-positioned nowrap tooltips off their data points,
        and one on a right-edge point reaches past the viewport, which made
@@ -126,7 +126,7 @@
   </div>
 
   <nav
-    class="w-full h-[75px] border-t flex justify-evenly items-center shrink-0 select-none bg-surface border-border"
+    class="w-full h-[calc(75px+env(safe-area-inset-bottom))] pb-safe border-t flex justify-evenly items-center shrink-0 select-none bg-surface border-border"
   >
     <button
       onclick={() => trainingState.navigate('home')}

@@ -196,7 +196,7 @@
 </script>
 
 {#if session && store.isModalOpen}
-  <div class="fixed inset-0 z-[110] bg-app-bg flex flex-col animate-in fade-in duration-200">
+  <div class="fixed inset-0 z-[110] safe-y bg-app-bg flex flex-col animate-in fade-in duration-200">
     <!-- Header: identity, clock, and the two ways out -->
     <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
       <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 space-y-3">
@@ -479,7 +479,7 @@
 {/if}
 
 {#if isAddingExercise || editingSlot}
-  <div class="fixed inset-0 z-[120] bg-app-bg overflow-y-auto no-scrollbar">
+  <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
       <button
         onclick={() => { isAddingExercise = false; editingSlotId = null; }}

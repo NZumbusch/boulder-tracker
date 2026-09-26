@@ -262,6 +262,21 @@
   @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control border border-border text-caption;
 }
 
+/* Safe areas (notch, home indicator) - non-zero only on phones that have
+   them, with index.html's viewport-fit=cover. `safe-y` goes on every
+   full-screen overlay, `pb-safe` on bottom sheets, `pt-safe` on the app shell, so their first header
+   and last button stay clear of the system UI. */
+@utility safe-y {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;

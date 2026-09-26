@@ -156,7 +156,7 @@
 </script>
 
 <div
-  class="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md"
+  class="fixed inset-0 pb-safe z-[120] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md"
   role="presentation"
   onclick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
 >

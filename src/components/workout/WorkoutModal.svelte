@@ -20,7 +20,7 @@
 <svelte:window onkeydown={(e) => { if (workout && workoutModal.mode === 'view' && e.key === 'Escape') closeWorkout(); }} />
 
 {#if workout}
-  <div class="fixed inset-0 z-[110] bg-app-bg flex flex-col animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-label={workout.notes || 'Session'}>
+  <div class="fixed inset-0 z-[110] safe-y bg-app-bg flex flex-col animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-label={workout.notes || 'Session'}>
     {#if workoutModal.mode === 'edit'}
       {#key workout.id}
         <WorkoutEditor
