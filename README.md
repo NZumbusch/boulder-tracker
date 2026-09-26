@@ -1,4 +1,4 @@
-# Climbing Tracker
+# Boulder Tracker
 
 A training planner and log for bouldering and climbing, built with Svelte 5 and Vite. It runs in the browser and as an Android app (Capacitor). All data stays on the device.
 

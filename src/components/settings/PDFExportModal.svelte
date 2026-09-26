@@ -185,7 +185,7 @@
   <div style="width: 750px; background-color: #ffffff; color: #000000; box-sizing: border-box;" bind:this={printContainer}>
   <div class="p-10 font-sans" style="background-color: #ffffff; color: #000000;">
     <div class="mb-8 border-b-2 pb-4 text-center" style="border-color: #000000;">
-      <h1 class="text-4xl font-black uppercase tracking-widest">Climbing Tracker</h1>
+      <h1 class="text-4xl font-black uppercase tracking-widest">Boulder Tracker</h1>
       <p class="text-sm mt-2 font-bold" style="color: #4b5563;">Training Plan: {startWeek} to {endWeek}</p>
     </div>
 

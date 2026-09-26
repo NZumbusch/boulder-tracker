@@ -11,7 +11,7 @@
 
   async function add(kind: 'today' | 'readiness') {
     if (!(await pinWidget(kind))) {
-      toast.show('This launcher can\'t add it from here - long-press the home screen → Widgets → Climbing Tracker', { durationMs: 6000 });
+      toast.show('This launcher can\'t add it from here - long-press the home screen → Widgets → Boulder Tracker', { durationMs: 6000 });
     }
   }
 </script>

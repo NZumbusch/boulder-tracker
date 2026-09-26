@@ -12,6 +12,7 @@
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import NavRow from '../common/NavRow.svelte';
   import SyncSettings from './SyncSettings.svelte';
+  import { APP_INFO } from '../../lib/appInfo';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import Icon from "@iconify/svelte";
 
@@ -151,7 +152,7 @@
       <NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} />
       <NavRow icon="ic:baseline-color-lens" title="Appearance & Behaviour" hint="Theme, layout, timer, weather & notifications" onclick={() => { currentTab = 'design'; appearanceTopic = null; }} />
       <NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Sync, backups, calendar/PDF export & AI sharing" onclick={() => currentTab = 'integration'} />
-      <NavRow icon="ic:baseline-info" title="About & Impressum" hint="Application details and legal information" onclick={() => currentTab = 'about'} />
+      <NavRow icon="ic:baseline-info" title="About & Impressum" hint="Contact, privacy policy and credits" onclick={() => currentTab = 'about'} />
     </div>
   {:else if currentTab === 'customization'}
     <div class="space-y-4">
@@ -182,34 +183,34 @@
         <div class="space-y-4">
           <div class="text-center py-4">
             <Icon icon="ic:baseline-terrain" class="text-6xl text-primary mx-auto mb-2" />
-            <h3 class="text-title text-content">Climbing Tracker</h3>
-            <p class="text-body text-content-subtle mt-1">Version 1.0.0</p>
+            <h3 class="text-title text-content">{APP_INFO.name}</h3>
+            <p class="text-body text-content-subtle mt-1">Version {APP_INFO.version}</p>
           </div>
 
           <div class="space-y-2 pt-4 border-t border-border">
             <h4 class="text-section uppercase text-content-muted">Impressum</h4>
             <p class="text-caption text-content-muted leading-relaxed">
-              Developer: Climbing Tracker Team<br/>
-              Contact: support@climbingtracker.app<br/>
-              <br/>
-              Created with passion for the climbing community.
+              {APP_INFO.developer}<br/>
+              <a href="mailto:{APP_INFO.email}" class="text-primary">{APP_INFO.email}</a><br/>
+              <a href={APP_INFO.homepage} target="_blank" rel="noopener" class="text-primary">{APP_INFO.homepage.replace('https://', '')}</a>
             </p>
           </div>
 
           <div class="space-y-2 pt-4 border-t border-border">
-            <h4 class="text-section uppercase text-content-muted">Credits & Dependencies</h4>
-            <ul class="text-caption text-content-muted space-y-1 list-disc list-inside">
-              <li>Built with Svelte & Capacitor</li>
-              <li>Icons by Iconify (Material Icons)</li>
-              <li>Charts powered by Chart.js</li>
-            </ul>
-          </div>
-
-          <div class="space-y-2 pt-4 border-t border-border">
-            <h4 class="text-section uppercase text-content-muted">License</h4>
+            <h4 class="text-section uppercase text-content-muted">Privacy</h4>
             <p class="text-caption text-content-muted leading-relaxed">
-              MIT License. See full terms online.
+              No account, no server, no ads, no tracking - your data stays on this device, and in your own Google Drive if you turn on sync.
+              <a href={APP_INFO.privacyUrl} target="_blank" rel="noopener" class="text-primary">Privacy policy</a>
             </p>
+          </div>
+
+          <div class="space-y-2 pt-4 border-t border-border">
+            <h4 class="text-section uppercase text-content-muted">Credits</h4>
+            <ul class="text-caption text-content-muted space-y-1 list-disc list-inside">
+              <li>Built with Svelte and Capacitor</li>
+              <li>Icons: Material Icons, via Iconify</li>
+              <li>Weather data by <a href="https://open-meteo.com" target="_blank" rel="noopener" class="text-primary">Open-Meteo.com</a> (CC BY 4.0)</li>
+            </ul>
           </div>
         </div>
       </div>
