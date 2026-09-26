@@ -392,6 +392,22 @@ export const storage = {
     await this._saveDailyMetrics(entries);
   },
 
+  /** Upsert-by-id for many entries in one write (a Health Connect import can bring years of days). */
+  async upsertDailyMetrics(incoming: DailyMetricEntry[]): Promise<void> {
+    const entries = await this._getDailyMetrics();
+    const index = new Map(entries.map((e, i) => [e.id, i]));
+    for (const entry of incoming) {
+      const at = index.get(entry.id);
+      if (at === undefined) {
+        index.set(entry.id, entries.length);
+        entries.push(entry);
+      } else {
+        entries[at] = entry;
+      }
+    }
+    await this._saveDailyMetrics(entries);
+  },
+
   /** Upsert-by-id, mirroring the existing savePainLog pattern. */
   async saveDailyMetric(entry: DailyMetricEntry): Promise<void> {
     const entries = await this._getDailyMetrics();

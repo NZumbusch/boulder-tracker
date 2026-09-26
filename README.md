@@ -35,7 +35,11 @@ Needs Android Studio.
 ./run_android.sh     # afterwards: builds, syncs and opens Android Studio
 ```
 
-`android/` is tracked in git (manifest, `MainActivity`, launcher shortcuts in `res/xml/shortcuts.xml`, the widget); local Capacitor plugins live in `plugins/` (`timer-service`, `drive-sync`).
+`android/` is tracked in git (manifest, `MainActivity`, launcher shortcuts in `res/xml/shortcuts.xml`, the widget); local Capacitor plugins live in `plugins/` (`timer-service`, `drive-sync`, `home-widget`, `health-connect`). The app needs Android 8 (API 26) or newer, for Health Connect's client library. The project builds with JDK 21 (Android Studio's own, `/opt/android-studio/jbr`).
+
+### Health Connect
+
+Settings → Data & Exports → Health Connect reads resting heart rate, weight and sleep (read-only) and stores one value per day: `rhr`, `bodyweight` and `sleep-duration` (hours). Values typed by hand win; imported entries carry `source: "health-connect"` and fixed ids, so a second importing device doesn't duplicate them through sync. Logic: `src/lib/health/` (tested); native side: `plugins/health-connect` (Kotlin). Health Connect requires a privacy policy to grant access - the plugin's rationale screen opens `privacy.html#health-connect`.
 
 ### Google Drive sync - one-time setup
 

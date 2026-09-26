@@ -16,6 +16,7 @@
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
   import { installDeepLinks } from './lib/native/deepLinks';
   import { driveSync } from './lib/sync/driveSync.svelte';
+  import { healthConnect } from './lib/health/healthConnect.svelte';
   import { startWidgetSync } from './lib/widget/widgetSync.svelte';
   import type { ViewType } from './lib/types';
   import Icon from "@iconify/svelte";
@@ -31,6 +32,7 @@
     void installAndroidBack();
     void installDeepLinks();
     void driveSync.init();
+    void healthConnect.init();
     startWidgetSync();
   });
 

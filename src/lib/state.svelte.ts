@@ -242,6 +242,7 @@ class TrainingState {
     return {
       use: { fatigue: flag(t, 'readiness.useFatigue'), acwr: flag(t, 'readiness.useAcwr'), sleep: flag(t, 'readiness.useSleep'), hrv: flag(t, 'readiness.useHrv') },
       sleepLow: num(t, 'readiness.sleepLow'),
+      sleepShortHours: num(t, 'readiness.sleepShortHours'),
       hrvDip: num(t, 'readiness.hrvDip'),
       acwrHighRisk: num(t, 'acwr.highRisk'),
     };
@@ -948,6 +949,13 @@ class TrainingState {
   async saveDailyMetric(entry: DailyMetricEntry, def: MetricDef) {
     await this.metricsStore.ensureMetricDef(def);
     await this.metricsStore.saveDailyMetric(entry);
+    await this.refresh();
+  }
+
+  /** Saves a batch of imported daily metrics (Health Connect) in one write, then refreshes once. */
+  async importDailyMetrics(entries: DailyMetricEntry[], defs: MetricDef[]) {
+    for (const def of defs) await this.metricsStore.ensureMetricDef(def);
+    await storage.upsertDailyMetrics(entries);
     await this.refresh();
   }
 

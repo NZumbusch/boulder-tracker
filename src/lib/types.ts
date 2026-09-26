@@ -417,6 +417,12 @@ export interface DailyMetricEntry {
   date: string;
   value: number;
   note?: string;
+  /**
+   * Set on values imported from Health Connect (`lib/health/`). Editing
+   * one by hand saves it without this, which makes it yours: the import
+   * never overwrites a value that isn't marked as its own.
+   */
+  source?: "health-connect";
 }
 
 /**

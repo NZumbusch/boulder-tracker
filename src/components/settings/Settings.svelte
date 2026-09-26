@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tour } from '../../lib/tour/tour.svelte';
+  import HealthConnectSettings from './HealthConnectSettings.svelte';
   import IOSInstallSteps from '../onboarding/IOSInstallSteps.svelte';
   import { readBrowserInfo, shouldOfferIOSInstall } from '../../lib/pwa/platform';
   import { Capacitor } from '@capacitor/core';
@@ -156,7 +157,7 @@
     <div class="card py-1 divide-y divide-border">
       <div data-tour="settings-customization"><NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} /></div>
       <NavRow icon="ic:baseline-color-lens" title="Appearance & Behaviour" hint="Theme, layout, timer, weather & notifications" onclick={() => { currentTab = 'design'; appearanceTopic = null; }} />
-      <div data-tour="settings-data"><NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Sync, backups, calendar/PDF export & AI sharing" onclick={() => currentTab = 'integration'} /></div>
+      <div data-tour="settings-data"><NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Sync, Health Connect, backups, exports & AI sharing" onclick={() => currentTab = 'integration'} /></div>
       <NavRow icon="ic:baseline-info" title="About & Help" hint="Tour, install on iPhone, contact, privacy policy" onclick={() => currentTab = 'about'} />
     </div>
   {:else if currentTab === 'customization'}
@@ -179,6 +180,7 @@
   {:else if currentTab === 'integration'}
     <div class="space-y-4">
       <SyncSettings />
+      <HealthConnectSettings />
       <BackupSettings {onExport} {onImport} />
       <AISharingSettings />
     </div>

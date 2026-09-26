@@ -50,6 +50,9 @@ export const BODYWEIGHT_METRIC_ID = "bodyweight";
  * `3.17->3.18` migration step is left untouched (migration steps are
  * frozen once shipped) for existing installs that go through it.
  */
+/** Hours asleep, from Health Connect (no sleep score there). Created by the first import that has sleep, not on every install. */
+export const SLEEP_DURATION_METRIC: MetricDef = { id: "sleep-duration", name: "Sleep Duration", unit: "h" };
+
 export const DEFAULT_METRIC_DEFS: MetricDef[] = [
   { id: "sleep-score", name: "Sleep Score", unit: "pts" },
   { id: "hrv", name: "HRV", unit: "ms" },
