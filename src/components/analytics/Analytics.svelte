@@ -359,8 +359,48 @@
   // phone; this drives the tap path. See `lib/analytics/chartTips.svelte.ts`.
   const tips = new ChartTips();
   $effect(() => tips.listen());
+
+  // Nothing logged of any kind yet: every chart would be a row of zeros,
+  // so the screen says what will appear instead (decided 2026-09-26).
+  const hasAnyData = $derived(
+    trainingState.completedWorkouts.length > 0 ||
+    trainingState.benchmarks.length > 0 ||
+    trainingState.dailyMetrics.length > 0 ||
+    trainingState.painLogs.length > 0 ||
+    trainingState.outdoorAscents.length > 0
+  );
+
+  const UNLOCKS: [string, string, string][] = [
+    ['ic:baseline-show-chart', 'Load & training mix', 'after your first completed sessions'],
+    ['ic:baseline-battery-charging-full', 'Fatigue & recovery', 'when you rate how a session felt'],
+    ['ic:baseline-monitor-heart', 'Body', 'when you log sleep, HRV, bodyweight or pain'],
+    ['ic:baseline-emoji-events', 'Performance', 'from benchmarks and outdoor sends'],
+  ];
 </script>
 
+{#if !hasAnyData}
+<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
+  <h2 class="text-title text-content px-1">Analytics</h2>
+  <div class="card space-y-4" data-tour="analytics-empty">
+    <div class="space-y-1">
+      <p class="text-body font-bold text-content">Your charts appear here</p>
+      <p class="text-caption text-content-subtle leading-relaxed">Nothing is logged yet. Each part fills in as you use the app:</p>
+    </div>
+    <ul class="space-y-3">
+      {#each UNLOCKS as [icon, title, when]}
+        <li class="flex items-start gap-3">
+          <Icon {icon} class="text-lg text-content-subtle shrink-0 mt-0.5" />
+          <div>
+            <p class="text-label text-content">{title}</p>
+            <p class="text-caption text-content-subtle">{when}</p>
+          </div>
+        </li>
+      {/each}
+    </ul>
+    <button onclick={() => trainingState.navigate('add')} class="w-full py-2.5 bg-primary text-white text-label rounded-control">Log a session</button>
+  </div>
+</div>
+{:else}
 <div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <div class="flex flex-col gap-2.5">
     <div class="flex items-center justify-between px-1">
@@ -504,17 +544,11 @@
         </p>
       {/if}
 
-      {#if trainingState.completedWorkouts.length === 0}
-        <div class="py-12 text-center bg-surface-elevated/20 rounded-card border border-dashed border-border">
-          <Icon icon="ic:baseline-insights" class="text-3xl text-content-subtle mx-auto mb-3" />
-          <p class="text-caption text-content-subtle italic px-8 leading-relaxed">
-            Complete some sessions to unlock detailed training analytics
-          </p>
-        </div>
-      {/if}
     </div>
   </div>
 </div>
+
+{/if}
 
 {#if selectedIndex !== null && buckets[selectedIndex]}
   <WeekDetailSheet bucket={buckets[selectedIndex]} acwr={acwrResults[selectedIndex]} onClose={() => (selectedIndex = null)} />
