@@ -99,7 +99,7 @@
     if (!confirmed) return;
     templates = { ...templates, ...JSON.parse(JSON.stringify(set.templates)) };
     showStarterLibrary = false;
-    showAlert('Starter Set Loaded', `"${set.name}" has been loaded. Review and Save All to keep it.`);
+    showAlert('Starter Set Loaded', `The phases now use the "${set.name}" sessions. Weeks you already changed keep theirs.`);
   }
 </script>
 
@@ -161,8 +161,8 @@
       <div class="flex items-center gap-3">
         <Icon icon="ic:baseline-library-books" class="text-lg text-content-subtle" />
         <div class="text-left">
-          <p class="text-body font-bold text-content">Starter Template Library</p>
-          <p class="text-caption text-content-subtle">Load a pre-built set of sessions into one or more phases above</p>
+          <p class="text-body font-bold text-content">Starter sets by level</p>
+          <p class="text-caption text-content-subtle">Replace the phases' sessions with a ready-made set for your level</p>
         </div>
       </div>
       <Icon icon="ic:baseline-expand-more" class="text-content-subtle text-lg transition-transform {showStarterLibrary ? 'rotate-180' : ''}" />

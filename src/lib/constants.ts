@@ -112,15 +112,20 @@ export const DEFAULT_PHASE_DEFS: PhaseDef[] = defaults.phaseDefs as PhaseDef[];
 export const DEFAULT_BENCHMARK_TYPES: BenchmarkTypeDef[] = defaults.benchmarkTypes as BenchmarkTypeDef[];
 
 /**
- * A small library of selectable starter template sets, distinct from the
- * user's own customized `templates`. **Placeholder
- * content only** - seeded with one obviously-fake set (decided with the
- * user 2026-09-16) pending real training-science content.
+ * Starter template sets, one per training level, that replace the
+ * user's phase templates in one go (welcome screen, Settings → Phases).
+ * "Getting started" is the fresh-install default (`DEFAULT_TEMPLATES`);
+ * the others live in defaults.json's `templateLibrary`. Decided with the
+ * user 2026-09-26: the shipped defaults were an experienced climber's
+ * plan (max hangs, campus), too much for a friend trying the app; that
+ * set is kept as "Advanced".
  */
-export interface TemplateLibrarySet {
-  id: string;
-  name: string;
-  description?: string;
-  templates: Record<string, WorkoutTemplate[]>;
-}
-export const DEFAULT_TEMPLATE_LIBRARY: TemplateLibrarySet[] = defaults.templateLibrary as unknown as TemplateLibrarySet[];
+export const DEFAULT_TEMPLATE_LIBRARY: TemplateLibrarySet[] = [
+  {
+    id: "getting-started",
+    name: "Getting started",
+    description: "Two or three sessions a week built around bouldering, with core and mobility. No hangboard or campus board.",
+    templates: DEFAULT_TEMPLATES,
+  },
+  ...(defaults.templateLibrary as unknown as TemplateLibrarySet[]),
+];

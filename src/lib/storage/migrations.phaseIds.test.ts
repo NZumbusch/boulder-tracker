@@ -179,7 +179,7 @@ describe("fresh-install/reset-to-default-library shape", () => {
   });
 });
 
-describe("starter template library (placeholder content only)", () => {
+describe("starter template library", () => {
   it("has at least one set, and every set's exercises resolve against DEFAULT_EXERCISE_TYPES", () => {
     expect(DEFAULT_TEMPLATE_LIBRARY.length).toBeGreaterThan(0);
     const knownTypeIds = new Set(DEFAULT_EXERCISE_TYPES.map((t) => t.id));
