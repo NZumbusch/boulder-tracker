@@ -15,7 +15,7 @@
 import localforage from "localforage";
 import { trainingState } from "../state.svelte";
 import { toast } from "../toast.svelte";
-import { _dbState, flushDB, initDB, setFlushListener, TABLES, type TableName } from "../storage/persistence";
+import { _dbState, flushDB, initDB, isDemoMode, setFlushListener, TABLES, type TableName } from "../storage/persistence";
 import { runDataMigrations } from "../storage/migrations";
 import { writeAutoBackup } from "../storage/autoBackup";
 import { DriveClient, driveErrorCode, driveSyncAvailable } from "../native/driveClient";
@@ -261,7 +261,8 @@ class DriveSync {
 
   /** Runs a sync now; if one is running, another follows it. */
   syncNow(): Promise<void> {
-    if (!this.#settings?.connected) return Promise.resolve();
+    // The tour's example data must never reach Drive.
+    if (!this.#settings?.connected || isDemoMode()) return Promise.resolve();
     clearTimeout(this.#timer);
     if (this.#running) {
       this.#again = true;

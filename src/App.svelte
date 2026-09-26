@@ -7,6 +7,9 @@
   import WorkoutModal from './components/workout/WorkoutModal.svelte';
   import Toast from './components/common/Toast.svelte';
   import InfoSheet from './components/common/InfoSheet.svelte';
+  import Welcome from './components/onboarding/Welcome.svelte';
+  import TourOverlay from './components/tour/TourOverlay.svelte';
+  import { tour } from './lib/tour/tour.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import { onMount } from 'svelte';
@@ -172,6 +175,12 @@
   <WorkoutModal />
   <Toast />
   <InfoSheet />
+  <TourOverlay />
+  <!-- First run only: a fresh install that hasn't been welcomed and has no
+       sessions (a restored or synced install skips it). -->
+  {#if !trainingState.isLoading && !trainingState.welcomeDone && !tour.active && trainingState.workouts.length === 0}
+    <Welcome />
+  {/if}
 
   {#if trainingState.importProgress}
     {@const p = trainingState.importProgress}

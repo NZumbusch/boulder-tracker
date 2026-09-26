@@ -194,6 +194,7 @@
       onclick={() => showFilters = !showFilters}
       class="relative p-1.5 rounded-control transition-colors hover:bg-surface-elevated {showFilters || activeFilterCount > 0 ? 'text-primary' : 'text-content-subtle hover:text-content'}"
       aria-label="Toggle Filters"
+      data-tour="history-filters"
       aria-expanded={showFilters}
     >
       <Icon icon="ic:baseline-filter-list" class="text-lg" />
@@ -204,7 +205,7 @@
     </div>
   </div>
 
-  <div class="seg p-1">
+  <div class="seg p-1" data-tour="history-tabs">
     {#each [['sessions', 'Sessions'], ['sends', 'Sends']] as [id, label]}
       <button
         onclick={() => trainingState.uiStore.historyTab = id as 'sessions' | 'sends'}
@@ -318,7 +319,7 @@
   {:else}
 
 
-  <div class="space-y-4">
+  <div class="space-y-4" data-tour="history-list">
     {#each groupedWorkouts as group (group.key)}
       <!-- One card per month: its totals as the header, then a row per
            session (the same row as Home's Recent Activity). Tapping a row

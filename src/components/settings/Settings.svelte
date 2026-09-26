@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { tour } from '../../lib/tour/tour.svelte';
+  import IOSInstallSteps from '../onboarding/IOSInstallSteps.svelte';
+  import { readBrowserInfo, shouldOfferIOSInstall } from '../../lib/pwa/platform';
+  import { Capacitor } from '@capacitor/core';
   import { trainingState } from '../../lib/state.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { storage } from '../../lib/storage';
@@ -122,6 +126,7 @@
     // Already saved by the reset - don't write it again.
     if (lastSaved) lastSaved.templates = current().templates;
   }
+  const offerInstall = shouldOfferIOSInstall(readBrowserInfo(Capacitor.isNativePlatform()));
 </script>
 
 <div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
@@ -136,7 +141,7 @@
           {#if currentTab === 'customization'}Customization
           {:else if currentTab === 'design'}{APPEARANCE_TOPICS.find((t) => t.id === appearanceTopic)?.label ?? 'Appearance & Behaviour'}
           {:else if currentTab === 'integration'}Data & Exports
-          {:else if currentTab === 'about'}About & Impressum{/if}
+          {:else if currentTab === 'about'}About & Help{/if}
         </h2>
       {/if}
     </div>
@@ -149,10 +154,10 @@
 
   {#if currentTab === 'overview'}
     <div class="card py-1 divide-y divide-border">
-      <NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} />
+      <div data-tour="settings-customization"><NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} /></div>
       <NavRow icon="ic:baseline-color-lens" title="Appearance & Behaviour" hint="Theme, layout, timer, weather & notifications" onclick={() => { currentTab = 'design'; appearanceTopic = null; }} />
-      <NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Sync, backups, calendar/PDF export & AI sharing" onclick={() => currentTab = 'integration'} />
-      <NavRow icon="ic:baseline-info" title="About & Impressum" hint="Contact, privacy policy and credits" onclick={() => currentTab = 'about'} />
+      <div data-tour="settings-data"><NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Sync, backups, calendar/PDF export & AI sharing" onclick={() => currentTab = 'integration'} /></div>
+      <NavRow icon="ic:baseline-info" title="About & Help" hint="Tour, install on iPhone, contact, privacy policy" onclick={() => currentTab = 'about'} />
     </div>
   {:else if currentTab === 'customization'}
     <div class="space-y-4">
@@ -179,6 +184,30 @@
     </div>
   {:else if currentTab === 'about'}
     <div class="space-y-4">
+      <div class="card space-y-3 animate-in fade-in">
+        <h4 class="text-section uppercase text-content-muted px-1">Help</h4>
+        <button
+          onclick={() => tour.start()}
+          disabled={trainingState.isSessionActive}
+          class="w-full flex items-center justify-between py-2 group disabled:opacity-50"
+        >
+          <span class="flex items-center gap-3">
+            <Icon icon="ic:baseline-tour" class="text-xl text-content-subtle group-hover:text-primary transition-colors" />
+            <span class="text-left">
+              <span class="block text-body font-semibold text-content group-hover:text-primary transition-colors">Take the tour</span>
+              <span class="block text-caption text-content-subtle">{trainingState.isSessionActive ? 'Finish your running session first' : 'Every screen, on example data. Nothing is saved.'}</span>
+            </span>
+          </span>
+          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
+        </button>
+        {#if offerInstall}
+          <div class="pt-3 border-t border-border space-y-3">
+            <p class="text-body font-semibold text-content">Add to your Home Screen</p>
+            <p class="text-caption text-content-subtle leading-relaxed">Opens full screen, works offline, and keeps Safari from clearing your data. The Home Screen app has its own data, so export a backup here first and import it there.</p>
+            <IOSInstallSteps />
+          </div>
+        {/if}
+      </div>
       <div class="card space-y-4 animate-in fade-in">
         <div class="space-y-4">
           <div class="text-center py-4">

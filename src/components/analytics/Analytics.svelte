@@ -440,7 +440,7 @@
 
     <!-- Range preset, and what it covers in dates. -->
     <div class="flex items-center justify-between gap-3 px-1">
-      <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Range">
+      <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Range" data-tour="analytics-range">
         {#each ANALYTICS_RANGES as r}
           <button
             role="radio"
@@ -461,7 +461,7 @@
   <div class="space-y-4 touch-pan-y" bind:this={panelsEl} use:swipePaging={(d) => navigate(d)}>
     <SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} logged={summaryLogged} />
 
-    <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="tablist">
+    <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="tablist" data-tour="analytics-tabs">
       {#each TABS as t}
         <button
           role="tab"

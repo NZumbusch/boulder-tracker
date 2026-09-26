@@ -54,6 +54,19 @@ const NATIVE_DB_FILE = "boulder_tracker_db.json";
 export let _dbState: any = null;
 
 /**
+ * While the tour shows example data (`lib/tour`), `_dbState` holds that
+ * data, and nothing may reach the disk, Drive, a backup, a reminder or the
+ * widget. Everything that writes or exports checks this.
+ */
+let demoMode = false;
+export function isDemoMode(): boolean {
+  return demoMode;
+}
+export function setDemoMode(on: boolean): void {
+  demoMode = on;
+}
+
+/**
  * Deep-copies a value into plain, structured-cloneable data.
  *
  * Everything written into `_dbState` goes through this, because `flushDB`
@@ -217,7 +230,7 @@ export function setFlushListener(listener: ((tables: readonly TableName[]) => vo
 }
 
 export async function flushDB(tables?: TableName[]) {
-  if (!_dbState) return;
+  if (!_dbState || demoMode) return;
   flushListener?.(tables ?? TABLES);
 
   if (Capacitor.isNativePlatform()) {
@@ -245,6 +258,7 @@ const MIGRATION_BACKUP_KEY = "backup_pre_migration";
 const MIGRATION_BACKUP_FILE = "boulder_tracker_db.backup.json";
 
 export async function writeMigrationBackup(fromVersion: string, data: any): Promise<void> {
+  if (demoMode) return;
   const payload = { fromVersion, backedUpAt: new Date().toISOString(), data };
   try {
     if (Capacitor.isNativePlatform()) {
@@ -271,6 +285,7 @@ const PLAN_UNDO_KEY = "plan_undo";
 const PLAN_UNDO_FILE = "boulder_tracker_plan_undo.json";
 
 export async function writePlanUndo(record: unknown | null): Promise<void> {
+  if (demoMode) return;
   try {
     if (Capacitor.isNativePlatform()) {
       if (record === null) await Filesystem.deleteFile({ path: PLAN_UNDO_FILE, directory: Directory.Data }).catch(() => {});

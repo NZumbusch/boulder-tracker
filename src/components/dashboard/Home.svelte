@@ -66,6 +66,7 @@
           onclick={() => showQuickLog = true}
           class="p-2 rounded-control text-primary hover:bg-surface-elevated transition-colors"
           aria-label="Quick log: pain, bodyweight, send or benchmark"
+          data-tour="home-quicklog"
           title="Quick log"
         >
           <Icon icon="ic:baseline-plus" class="text-xl" />
@@ -85,6 +86,7 @@
        ones. The header above isn't part of this list - always shown, first. -->
   {#each trainingState.homeSections as section (section.id)}
     {#if section.visible}
+      <div data-tour="home-{section.id}" class="empty:hidden">
       {#if section.id === 'readiness'}<ReadinessCard {data} />
       {:else if section.id === 'alerts'}<AlertsCard {data} />
       {:else if section.id === 'progress'}<ProgressCard {data} />
@@ -99,6 +101,7 @@
       {:else if section.id === 'recentActivity'}<RecentActivityCard />
       {:else if section.id === 'weather'}<WeatherCard />
       {/if}
+      </div>
     {/if}
   {/each}
 </div>

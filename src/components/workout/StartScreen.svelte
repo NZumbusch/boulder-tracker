@@ -83,6 +83,7 @@
     {:else}
       <button
         onclick={handleStartNow}
+        data-tour="add-start"
         class="w-full p-4 bg-primary hover:bg-primary-hover text-white rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3 shadow-[0_4px_18px_-6px_color-mix(in_srgb,var(--color-primary)_70%,transparent)]"
       >
         <Icon icon="ic:baseline-play-circle" class="text-2xl shrink-0" />
@@ -96,6 +97,7 @@
     <div class="grid grid-cols-2 gap-2.5">
       <button
         onclick={handlePlanNew}
+        data-tour="add-plan"
         class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card border border-border-strong/50 transition-all active:scale-[0.98] text-left flex flex-col gap-2"
       >
         <Icon icon="ic:baseline-edit-calendar" class="text-lg text-content-muted" />
@@ -107,6 +109,7 @@
 
       <button
         onclick={handleAddBenchmark}
+        data-tour="add-benchmark"
         class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card border border-border-strong/50 transition-all active:scale-[0.98] text-left flex flex-col gap-2"
       >
         <Icon icon="ic:baseline-insights" class="text-lg text-content-muted" />

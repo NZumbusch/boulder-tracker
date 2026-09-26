@@ -339,6 +339,7 @@
           onclick={() => showBlockManager = true}
           class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
           aria-label="Manage training blocks"
+          data-tour="plan-blocks"
           title="Training blocks"
         >
           <Icon icon="ic:baseline-view-week" class="text-lg" />
@@ -347,6 +348,7 @@
           onclick={() => showAICoach = true}
           class="p-1.5 text-primary hover:text-primary-hover rounded-control hover:bg-surface-elevated transition-colors"
           aria-label="AI Coach"
+          data-tour="plan-ai"
           title="AI Coach: change the plan, analyze, or share context"
         >
           <Icon icon="ic:baseline-auto-awesome" class="text-lg" />
@@ -373,11 +375,13 @@
       {/each}
     </div>
 
+    <div data-tour="plan-calendar">
     <WeekCalendar
       weeks={calendarWeeks}
       selectedWeekId={trainingState.selectedWeekId}
       onSelectWeek={(weekId) => { trainingState.selectedWeekId = weekId; showPhaseDropdown = false; }}
     />
+    </div>
   </div>
 
   {#if trainingState.selectedWeekId && selectedWeekData}
@@ -386,7 +390,7 @@
         <div class="flex-1 min-w-[11rem] relative">
           <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : `Week ${selectedWeekData.id.split('-W')[1]}`}<span class="normal-case tracking-normal font-normal text-content-subtle">{` · ${getWeekDateRange(selectedWeekData.id)}`}</span></span>
           <div class="flex items-center gap-2 flex-wrap">
-            <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-2">
+            <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-2" data-tour="plan-phase">
               <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(selectedWeekData.phaseId) ?? 'No Phase'}</h3>
               <span class="text-content-subtle group-hover:text-primary-hover transition-colors"><Icon icon="ic:baseline-arrow-drop-down" class="text-xl" /></span>
             </button>
@@ -547,7 +551,7 @@
         {/each}
       </div>
 
-      <div class="space-y-2">
+      <div class="space-y-2" data-tour="plan-sessions">
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0">
             <h4 class="text-section uppercase text-content-muted">Sessions</h4>
@@ -671,7 +675,7 @@
     </div>
   {/if}
 
-  <GoalsCalendar />
+  <div data-tour="plan-goals"><GoalsCalendar /></div>
 </div>
 
 {#if sharingWeek && trainingState.selectedWeekId}

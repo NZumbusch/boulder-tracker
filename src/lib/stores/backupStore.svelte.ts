@@ -1,6 +1,7 @@
 import { storage } from '../storage';
 import { Capacitor } from '@capacitor/core';
 import { autoBackupDue, writeAutoBackup } from '../storage/autoBackup';
+import { isDemoMode } from '../storage/persistence';
 import type { Workout, TrainingBlock, ExerciseTypeDef, PhaseDef } from '../types';
 import { showAlert } from '../utils';
 import { saveFile } from '../share/saveFile';
@@ -46,7 +47,7 @@ export class BackupStore {
    * and tried again next start, and the app carries on.
    */
   async runAutoBackupIfDue(enabled: boolean, now = new Date()) {
-    if (!enabled || !Capacitor.isNativePlatform() || !autoBackupDue(this.lastAutoBackup?.at, now)) return;
+    if (!enabled || isDemoMode() || !Capacitor.isNativePlatform() || !autoBackupDue(this.lastAutoBackup?.at, now)) return;
     try {
       const where = await writeAutoBackup(now);
       const at = now.toISOString();

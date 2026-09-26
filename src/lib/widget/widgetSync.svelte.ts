@@ -78,7 +78,7 @@ export function startWidgetSync(): void {
 
   $effect.root(() => {
     $effect(() => {
-      if (trainingState.isLoading) return;
+      if (trainingState.isLoading || trainingState.demoActive) return;
       const snap = currentSnapshot();
       const key = JSON.stringify({ ...snap, updatedAt: 0, active: snap.active && { ...snap.active, elapsedMs: 0 } });
       if (key === latestKey) return;
@@ -90,7 +90,7 @@ export function startWidgetSync(): void {
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "hidden") return;
+    if (document.visibilityState !== "hidden" || trainingState.demoActive) return;
     // Fresh numbers on the way out (the session clock, today's date).
     latest = JSON.stringify(currentSnapshot());
     sent = "";

@@ -2,6 +2,8 @@ import { openWorkout } from './workoutModal.svelte';
 import { toast, showUndo } from './toast.svelte';
 import { copySessionsToWeek } from './planning/copyWeek';
 import { storage } from './storage';
+import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
+import { isDemoMode } from './storage/persistence';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
 import { getWeekId } from './dateUtils';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
@@ -67,6 +69,8 @@ class TrainingState {
   importProgress = $state<{ label: string; fraction: number } | null>(null);
   /** Bumped whenever the AI undo snapshot changes, so views re-read `getPlanUndo`. */
   planUndoVersion = $state(0);
+  /** The tour is showing example data (see lib/tour); nothing is saved meanwhile. */
+  demoActive = $state(false);
   private hasLoaded = false;
 
   constructor() {
@@ -313,7 +317,8 @@ class TrainingState {
         console.error('Failed to materialize past provisional weeks:', err);
       }
 
-      if (this.uiStore.notificationsEnabled) {
+      // Not from the tour's example data.
+      if (this.uiStore.notificationsEnabled && !isDemoMode()) {
         try {
           await syncFatigueReminders(this.workoutStore.workouts);
         } catch (err) {
@@ -1000,6 +1005,14 @@ class TrainingState {
    */
   async resetTemplates() {
     await this.planningStore.resetTemplates();
+    await this.refresh();
+  }
+
+  /** Replaces the phases' sessions with a starter set's (welcome screen's level choice). */
+  async applyStarterSet(setId: string) {
+    const set = DEFAULT_TEMPLATE_LIBRARY.find((s) => s.id === setId);
+    if (!set) return;
+    await storage.saveTemplates({ ...$state.snapshot(this.templates), ...structuredClone(set.templates) });
     await this.refresh();
   }
 }
