@@ -48,6 +48,9 @@ localforage.config({
   storeName: "training_data_v2",
 });
 
+/** The training data on Android: one JSON file in the app's private storage. */
+const NATIVE_DB_FILE = "boulder_tracker_db.json";
+
 export let _dbState: any = null;
 
 /**
@@ -89,7 +92,7 @@ export async function initDB() {
   if (usingNative) {
     try {
       const res = await Filesystem.readFile({
-        path: "boulder_tracker_db.json",
+        path: NATIVE_DB_FILE,
         directory: Directory.Data,
         encoding: Encoding.UTF8,
       });
@@ -175,7 +178,7 @@ function writeNativeFile(): Promise<void> {
 async function startNativeWrite(): Promise<void> {
   try {
     await Filesystem.writeFile({
-      path: "boulder_tracker_db.json",
+      path: NATIVE_DB_FILE,
       data: JSON.stringify(_dbState),
       directory: Directory.Data,
       encoding: Encoding.UTF8,
@@ -292,4 +295,23 @@ export async function readPlanUndo<T>(): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * "Delete all data": everything this app keeps on the device - the
+ * training data, its migration backup and plan undo, sync bookkeeping and
+ * every preference - so the next start is a fresh install. The caller
+ * saves a backup first and reloads afterwards. The weekly auto-backups in
+ * Documents/ are left alone: they're the user's files, and the safety net.
+ */
+export async function wipeAllLocalData(): Promise<void> {
+  // First, so a write still queued from before can't recreate the file.
+  _dbState = null;
+  if (Capacitor.isNativePlatform()) {
+    for (const path of [NATIVE_DB_FILE, MIGRATION_BACKUP_FILE, PLAN_UNDO_FILE]) {
+      await Filesystem.deleteFile({ path, directory: Directory.Data }).catch(() => {});
+    }
+  }
+  await localforage.clear();
+  localStorage.clear();
 }

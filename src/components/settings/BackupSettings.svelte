@@ -7,6 +7,9 @@
   import PDFExportModal from './PDFExportModal.svelte';
   import { driveSync } from '../../lib/sync/driveSync.svelte';
   import Icon from "@iconify/svelte";
+  import { storage } from '../../lib/storage';
+  import { wipeAllLocalData } from '../../lib/storage/persistence';
+  import { cancelAllReminders } from '../../lib/notifications/shared';
 
   let {
     onExport,
@@ -29,6 +32,28 @@
     if (confirmed) {
       fileInput?.click();
     }
+  }
+
+  /**
+   * Wipes this device back to a fresh install (welcome screens included),
+   * saving a backup file first. Sync is disconnected before the wipe, or
+   * the next sync would pull everything straight back from Drive.
+   */
+  async function deleteAllData() {
+    const confirmed = await showConfirm(
+      'Delete all data?',
+      'This removes every session, plan, goal, log and setting from this device. A backup file is saved first.'
+    );
+    if (!confirmed) return;
+    const outcome = await storage.exportData().catch(() => 'failed' as const);
+    if (outcome === 'failed' || outcome === 'dismissed') {
+      const anyway = await showConfirm('No backup was saved', 'Delete everything anyway? This cannot be undone.');
+      if (!anyway) return;
+    }
+    if (driveSync.connected) await driveSync.disconnect();
+    await cancelAllReminders().catch(() => {});
+    await wipeAllLocalData();
+    window.location.replace(window.location.pathname);
   }
 </script>
 
@@ -98,6 +123,11 @@
         />
       </label>
     {/if}
+  </div>
+
+  <div class="card space-y-3 animate-in fade-in">
+    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Start Over</h3><p class="text-caption text-content-subtle px-1">Remove everything from this device and begin again from the welcome screen. A backup file is saved first.{#if driveSync.connected} Sync is switched off; your copy in Google Drive stays.{/if}</p></div>
+    <button onclick={deleteAllData} class="w-full py-2.5 text-label text-danger border border-danger/40 rounded-control hover:bg-danger/10 transition-colors">Delete all data</button>
   </div>
 </div>
 
