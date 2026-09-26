@@ -1,4 +1,6 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
+  import { showInfo } from '../../lib/help/infoSheet.svelte';
   import { motionMs, scrollBehavior } from '../../lib/motion';
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
@@ -388,14 +390,16 @@
               <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(selectedWeekData.phaseId) ?? 'No Phase'}</h3>
               <span class="text-content-subtle group-hover:text-primary-hover transition-colors"><Icon icon="ic:baseline-arrow-drop-down" class="text-xl" /></span>
             </button>
+            <InfoButton term="phases" />
             {#if isProvisionalWeek}
-              <span
+              <button
+                onclick={() => showInfo('notSaved')}
                 class="flex items-center gap-1 px-1.5 py-0.5 rounded-control border border-dashed border-primary/40 text-caption text-primary/80 leading-none"
-                title="These sessions come from the phase's templates and aren't saved into this week yet. They save themselves as soon as you log or change anything here, when the week ends, or when you tap Lock In Plan."
+                aria-label="Not saved yet - what does this mean?"
               >
                 <Icon icon="ic:outline-cloud-queue" class="text-xs" />
                 Not saved yet
-              </span>
+              </button>
             {/if}
           </div>
 
@@ -548,7 +552,7 @@
           <div class="min-w-0">
             <h4 class="text-section uppercase text-content-muted">Sessions</h4>
             {#if weekWorkouts.length > 0}
-              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {weekWorkouts.length} done{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal}` : ''}</p>
+              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {weekWorkouts.length} done{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal} pts` : ''}{#if plannedLoadTotal > 0} <InfoButton term="load" />{/if}</p>
             {/if}
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
@@ -587,7 +591,7 @@
                     meta={[
                       summary.startTime,
                       `${summary.estimated ? '~' : ''}${summary.minutes} min`,
-                      summary.plannedLoad > 0 ? `load ${summary.plannedLoad}` : `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
+                      summary.plannedLoad > 0 ? `load ${summary.plannedLoad} pts` : `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
                       workout.provisional ? 'not saved yet' : undefined,
                     ].filter(Boolean).join(' · ')}
                     muted={workout.provisional}

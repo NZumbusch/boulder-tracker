@@ -6,6 +6,7 @@
   import ActiveSessionModal from './components/workout/ActiveSessionModal.svelte';
   import WorkoutModal from './components/workout/WorkoutModal.svelte';
   import Toast from './components/common/Toast.svelte';
+  import InfoSheet from './components/common/InfoSheet.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import { onMount } from 'svelte';
@@ -170,6 +171,7 @@
   <SessionBubble />
   <WorkoutModal />
   <Toast />
+  <InfoSheet />
 
   {#if trainingState.importProgress}
     {@const p = trainingState.importProgress}

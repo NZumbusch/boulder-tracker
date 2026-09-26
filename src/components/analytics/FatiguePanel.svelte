@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
   import { RATING_AXES, FATIGUE_AXIS_COLORS } from '../../lib/constants';
   /**
    * Analytics' Fatigue panel. Home already shows fatigue "as of now" -
@@ -95,7 +96,7 @@
 
 <div class="card space-y-3">
   <div>
-    <h3 class="text-section uppercase text-content-muted">Fatigue</h3>
+    <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Fatigue <InfoButton term="fatigue" /></h3>
     <p class="text-caption text-content-subtle mt-0.5">Decayed rating per area (0–10) · shaded: {HIGH}+</p>
   </div>
 

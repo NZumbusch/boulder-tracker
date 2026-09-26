@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
   /**
    * Monotony & strain (Foster): strain as bars, monotony as a line with
    * Foster's warning level. High load is fine; high load with no easy days
@@ -49,7 +50,7 @@
 <div id="section-strain" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div>
-      <h3 class="text-section uppercase text-content-muted">Monotony & Strain</h3>
+      <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Monotony & Strain <InfoButton term="monotony" /></h3>
       <p class="text-caption text-content-subtle mt-0.5">Too few easy days shows as monotony above {MONOTONY_WARNING}{monthly ? ' · mean week per month' : ''}</p>
     </div>
     <!-- Always there ("–" when empty) so the header doesn't reflow between windows. -->

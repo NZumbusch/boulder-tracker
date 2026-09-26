@@ -27,7 +27,7 @@
       if (workout.date) parts.push(new Date(workout.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }));
       const mins = sessionDuration(workout);
       if (mins > 0) parts.push(formatMinutes(mins));
-      if (workout.loadFactor) parts.push(`load ${Math.round(workout.loadFactor)}`);
+      if (workout.loadFactor) parts.push(`load ${Math.round(workout.loadFactor)} pts`);
     } else {
       if (workout.dayOfWeek) parts.push(workout.dayOfWeek);
       if (workout.startTime) parts.push(workout.startTime);

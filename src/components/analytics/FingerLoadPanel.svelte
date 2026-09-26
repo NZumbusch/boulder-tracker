@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
   /**
    * Finger load: completed load from finger-intensive categories per
    * column, with its share of total load and a flag on sharp increases -
@@ -53,7 +54,7 @@
 <div id="section-fingerLoad" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div>
-      <h3 class="text-section uppercase text-content-muted">Finger Load</h3>
+      <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Finger Load <InfoButton term="fingerLoad" /></h3>
       <p class="text-caption text-content-subtle mt-0.5">
         {windowShare !== undefined ? `${windowShare}% of this window's load` : 'Load from finger-intensive exercises'}
       </p>

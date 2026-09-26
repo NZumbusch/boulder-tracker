@@ -5,17 +5,22 @@
    * subtitle only (the Analytics cards' style).
    */
   import Icon from '@iconify/svelte';
+  import InfoButton from '../../common/InfoButton.svelte';
+  import type { TermId } from '../../../lib/help/glossary';
 
-  let { label, subtitle, note }: {
+  let { label, subtitle, note, info }: {
     label: string;
     subtitle?: string;
     note?: { has: boolean; open: () => void; what: string };
+    /** A glossary term explained by a (?) next to the label. */
+    info?: TermId;
   } = $props();
 </script>
 
 <div class="min-w-0">
   <div class="flex items-center gap-1.5">
     <span class="text-section uppercase text-content-muted">{label}</span>
+    {#if info}<InfoButton term={info} />{/if}
     {#if note}
       <button
         onclick={note.open}

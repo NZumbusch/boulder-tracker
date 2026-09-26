@@ -50,7 +50,7 @@
 
     {#if recap.done > 0}
       <p class="text-caption text-content-subtle tabular-nums flex items-center gap-1.5">
-        <span>{joinParts(`load ${Math.round(recap.load)}`, recap.minutes > 0 && formatMinutes(recap.minutes))}</span>
+        <span>{joinParts(`load ${Math.round(recap.load)} pts`, recap.minutes > 0 && formatMinutes(recap.minutes))}</span>
         {#if trainingState.homeDetails['weekRecap.compare'] && loadChange !== undefined && Math.abs(loadChange) >= 0.05}
           <span class="flex items-center text-content-muted">
             <Icon icon={loadChange > 0 ? 'ic:baseline-arrow-upward' : 'ic:baseline-arrow-downward'} class="text-xs" />

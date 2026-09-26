@@ -38,7 +38,7 @@
 </script>
 
 <div class="card space-y-3">
-  <SectionHeader label="This Week" subtitle="Actual vs planned load"
+  <SectionHeader label="This Week" subtitle="Actual vs planned load" info="load"
   note={trainingState.homeDetails['thisWeek.note'] ? { has: !!weekNote, open: () => noteOpen = true, what: 'week' } : undefined} />
   {#if trainingState.homeDetails['thisWeek.strip']}
     <div class="grid grid-cols-7 gap-1">
@@ -69,7 +69,7 @@
   {#if weeklyAdherence.plannedLoad > 0 || weeklyAdherence.actualLoad > 0}
     {@const percent = weeklyAdherence.plannedLoad > 0 ? Math.min(100, (weeklyAdherence.actualLoad / weeklyAdherence.plannedLoad) * 100) : 100}
     <div class="flex items-baseline justify-between gap-2">
-      <p class="text-metric text-content tabular-nums">{Math.round(weeklyAdherence.actualLoad)} <span class="text-caption text-content-subtle font-normal">{weeklyAdherence.plannedLoad > 0 ? `of ${Math.round(weeklyAdherence.plannedLoad)} load` : 'load'}</span></p>
+      <p class="text-metric text-content tabular-nums">{Math.round(weeklyAdherence.actualLoad)} <span class="text-caption text-content-subtle font-normal">{weeklyAdherence.plannedLoad > 0 ? `of ${Math.round(weeklyAdherence.plannedLoad)} load pts` : 'load pts'}</span></p>
       <div class="flex items-center gap-2 shrink-0">
         {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
           <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums {acwrZone.class}" title="Acute:chronic workload ratio - last 7 days vs the 28-day average">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>

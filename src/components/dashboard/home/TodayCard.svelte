@@ -42,7 +42,7 @@
         showTime && summary.startTime,
         showTime && `${summary.estimated ? '~' : ''}${summary.minutes} min`,
         `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
-        showLoad && `load ${summary.plannedLoad}`,
+        showLoad && `load ${summary.plannedLoad} pts`,
       )}
       detail={trainingState.homeDetails['today.exercises'] && summary.exerciseNames.length > 0
         ? `${summary.exerciseNames.join(' · ')}${summary.moreExercises > 0 ? ` +${summary.moreExercises} more` : ''}`

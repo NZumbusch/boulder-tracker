@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
   /**
    * Rolling Load: weekly actual load as bars, the target as a dashed line,
    * and the acute:chronic ratio (with its zone bands and ramp-rate spikes)
@@ -98,7 +99,7 @@
 
 <div id="section-load" class="scroll-mt-4 card space-y-3 relative">
   <div class="relative z-10">
-    <h3 class="text-section uppercase text-content-muted">Rolling Load</h3>
+    <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Rolling Load <InfoButton term="load" /></h3>
     <p class="text-caption text-content-subtle mt-0.5">Target vs actual, with acute:chronic ratio · tap a column for details</p>
   </div>
 
@@ -263,7 +264,7 @@
     </div>
     <div class="flex items-center gap-1.5">
       <div class="w-1.5 h-1.5 rounded-full border" style="border-color: var(--color-status-good);"></div>
-      <span class="text-caption text-content-subtle">ACWR</span>
+      <span class="text-caption text-content-subtle">ACWR</span> <InfoButton term="acwr" />
     </div>
   </div>
 

@@ -326,7 +326,7 @@
       <div class="card space-y-1">
         <div class="flex items-baseline justify-between gap-3">
           <span class="text-section uppercase text-content-muted">{group.label}</span>
-          <span class="text-caption text-content-subtle tabular-nums">{group.workouts.length} session{group.workouts.length === 1 ? '' : 's'} · {Math.round(group.totalLoad)} load</span>
+          <span class="text-caption text-content-subtle tabular-nums">{group.workouts.length} session{group.workouts.length === 1 ? '' : 's'} · {Math.round(group.totalLoad)} load pts</span>
         </div>
         <div class="divide-y divide-border">
           {#each group.workouts as workout (workout.id)}

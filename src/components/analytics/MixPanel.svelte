@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
   /**
    * Training Mix: minutes per analytics category - the whole window as one
    * share bar on top (where the time actually went), then each column
@@ -59,7 +60,7 @@
 <div id="section-mix" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div class="min-w-0">
-      <h3 class="text-section uppercase text-content-muted">Training Mix</h3>
+      <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Training Mix <InfoButton term="mix" /></h3>
       <p class="text-caption text-content-subtle mt-0.5">{windowTotal > 0 ? `${hours(windowTotal)} in this window` : 'Time by category'}</p>
     </div>
     <div class="flex flex-col items-end gap-1 shrink-0">
