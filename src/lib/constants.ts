@@ -120,6 +120,12 @@ export const DEFAULT_BENCHMARK_TYPES: BenchmarkTypeDef[] = defaults.benchmarkTyp
  * plan (max hangs, campus), too much for a friend trying the app; that
  * set is kept as "Advanced".
  */
+export interface TemplateLibrarySet {
+  id: string;
+  name: string;
+  description?: string;
+  templates: Record<string, WorkoutTemplate[]>;
+}
 export const DEFAULT_TEMPLATE_LIBRARY: TemplateLibrarySet[] = [
   {
     id: "getting-started",
