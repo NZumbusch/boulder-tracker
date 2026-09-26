@@ -39,6 +39,7 @@
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.1",
     "capacitor-drive-sync": "file:plugins/drive-sync",
+    "capacitor-health-connect": "file:plugins/health-connect",
     "capacitor-home-widget": "file:plugins/home-widget",
     "capacitor-timer-service": "file:plugins/timer-service",
     "html2canvas": "^1.4.1",

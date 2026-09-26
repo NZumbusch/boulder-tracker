@@ -15,6 +15,7 @@ dependencies {
     implementation project(':capacitor-local-notifications')
     implementation project(':capacitor-share')
     implementation project(':capacitor-drive-sync')
+    implementation project(':capacitor-health-connect')
     implementation project(':capacitor-home-widget')
     implementation project(':capacitor-timer-service')
 

@@ -20,6 +20,9 @@ project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/sh
 include ':capacitor-drive-sync'
 project(':capacitor-drive-sync').projectDir = new File('../plugins/drive-sync/android')
 
+include ':capacitor-health-connect'
+project(':capacitor-health-connect').projectDir = new File('../plugins/health-connect/android')
+
 include ':capacitor-home-widget'
 project(':capacitor-home-widget').projectDir = new File('../plugins/home-widget/android')
 
