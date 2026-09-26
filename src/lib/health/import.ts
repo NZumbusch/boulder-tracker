@@ -1,5 +1,5 @@
 import type { DailyMetricEntry } from "../types";
-import { BODYWEIGHT_METRIC_ID, SLEEP_DURATION_METRIC } from "../constants";
+import { BODYWEIGHT_METRIC_ID, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC } from "../constants";
 
 /**
  * Health Connect readings → one value per metric per day → what to store.
@@ -7,8 +7,12 @@ import { BODYWEIGHT_METRIC_ID, SLEEP_DURATION_METRIC } from "../constants";
  * already carrying the local day it belongs to.
  *
  * Rules (decided with the user 2026-09-26):
- * - Resting HR: the day's average. Weight: the day's last reading. Sleep:
- *   hours asleep over every session ending that day (a nap adds to it).
+ * - Resting HR: the day's average. Weight: the day's last reading.
+ * - Sleep belongs to the day you wake up on. The longest sleep ending that
+ *   day is the night (`sleep-duration`); any others are naps, stored as the
+ *   day's total apart (`nap-duration`) so they boost readiness without
+ *   changing the night's number. Overlapping sessions (one night written by
+ *   the watch's app and another app) count once, as the longer record.
  * - A value typed by hand is never overwritten: any entry for that metric
  *   and day without `source: "health-connect"` wins.
  * - Imported entries have fixed ids (`hc-<metric>-<day>`), so two devices
@@ -18,7 +22,8 @@ import { BODYWEIGHT_METRIC_ID, SLEEP_DURATION_METRIC } from "../constants";
 export interface HealthReadings {
   restingHeartRate: { date: string; bpm: number }[];
   weight: { date: string; kg: number }[];
-  sleep: { date: string; asleepMinutes: number }[];
+  /** `start`/`time` are ISO instants: when the sleep began and ended. */
+  sleep: { date: string; start: string; time: string; asleepMinutes: number }[];
 }
 
 export interface DailyValue {
@@ -50,11 +55,29 @@ export function dailyValues(readings: HealthReadings): DailyValue[] {
   for (const [date, list] of byDay(readings.weight)) {
     out.push({ metricId: BODYWEIGHT_METRIC_ID, date, value: round(list[list.length - 1].kg, 1) });
   }
-  for (const [date, list] of byDay(readings.sleep)) {
-    const minutes = list.reduce((s, r) => s + Math.max(0, r.asleepMinutes), 0);
-    if (minutes > 0) out.push({ metricId: SLEEP_DURATION_METRIC.id, date, value: round(minutes / 60, 1) });
+  for (const [date, sleeps] of byDay(distinctSleeps(readings.sleep))) {
+    const [night, ...naps] = sleeps.sort((a, b) => b.asleepMinutes - a.asleepMinutes);
+    out.push({ metricId: SLEEP_DURATION_METRIC.id, date, value: round(night.asleepMinutes / 60, 1) });
+    const napMinutes = naps.reduce((s, n) => s + n.asleepMinutes, 0);
+    if (napMinutes > 0) out.push({ metricId: NAP_DURATION_METRIC.id, date, value: round(napMinutes / 60, 1) });
   }
   return out;
+}
+
+/** One record per real sleep: sessions that overlap in time are the same sleep, and the one with the most time asleep stands for it. */
+function distinctSleeps(sessions: HealthReadings["sleep"]): HealthReadings["sleep"] {
+  const sorted = sessions.filter((s) => s.asleepMinutes > 0).sort((a, b) => a.start.localeCompare(b.start));
+  const out: { best: HealthReadings["sleep"][number]; end: string }[] = [];
+  for (const s of sorted) {
+    const last = out[out.length - 1];
+    if (last && s.start < last.end) {
+      if (s.asleepMinutes > last.best.asleepMinutes) last.best = s;
+      if (s.time > last.end) last.end = s.time;
+    } else {
+      out.push({ best: s, end: s.time });
+    }
+  }
+  return out.map((c) => c.best);
 }
 
 export function importedEntryId(metricId: string, date: string): string {

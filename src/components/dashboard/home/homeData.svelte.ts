@@ -47,6 +47,7 @@ export class HomeData {
       acwr: this.acwr,
       sleep: this.todaysMetric('sleep-score')?.value,
       sleepHours: this.todaysMetric('sleep-duration')?.value,
+      napHours: this.todaysMetric('nap-duration')?.value,
       hrv: this.todaysMetric('hrv')?.value,
       hrvBaseline: this.hrvBaseline,
     }, trainingState.readinessConfig),

@@ -167,9 +167,12 @@ class HealthConnectPlugin : Plugin() {
                             .filter { it.stage in AWAKE_STAGES }
                             .sumOf { it.endTime.toEpochMilli() - it.startTime.toEpochMilli() }
                         val totalMs = r.endTime.toEpochMilli() - r.startTime.toEpochMilli()
-                        // A night belongs to the day you wake up on.
+                        // A sleep belongs to the day you wake up on. The start is
+                        // there so the same night written by two apps can be
+                        // recognised as one (src/lib/health/import.ts).
                         sleep.put(
                             reading(r.endTime, r.endZoneOffset)
+                                .put("start", r.startTime.toString())
                                 .put("asleepMinutes", ((totalMs - awakeMs) / 60000.0))
                                 .put("source", r.metadata.dataOrigin.packageName)
                         )

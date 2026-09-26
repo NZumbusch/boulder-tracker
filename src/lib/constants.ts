@@ -52,6 +52,8 @@ export const BODYWEIGHT_METRIC_ID = "bodyweight";
  */
 /** Hours asleep, from Health Connect (no sleep score there). Created by the first import that has sleep, not on every install. */
 export const SLEEP_DURATION_METRIC: MetricDef = { id: "sleep-duration", name: "Sleep Duration", unit: "h" };
+/** Hours of naps that day, from Health Connect: a readiness boost on top of the night, not part of it. */
+export const NAP_DURATION_METRIC: MetricDef = { id: "nap-duration", name: "Naps", unit: "h" };
 
 export const DEFAULT_METRIC_DEFS: MetricDef[] = [
   { id: "sleep-score", name: "Sleep Score", unit: "pts" },

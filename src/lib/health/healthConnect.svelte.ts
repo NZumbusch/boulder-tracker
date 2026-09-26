@@ -10,7 +10,7 @@ import { App } from "@capacitor/app";
 import { trainingState } from "../state.svelte";
 import { storage } from "../storage";
 import { isDemoMode } from "../storage/persistence";
-import { BODYWEIGHT_METRIC_ID, DEFAULT_METRIC_DEFS, SLEEP_DURATION_METRIC } from "../constants";
+import { BODYWEIGHT_METRIC_ID, DEFAULT_METRIC_DEFS, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC } from "../constants";
 import { HealthConnect, healthConnectSupported, type HealthConnectAvailability, type HealthKind } from "../native/healthConnect";
 import { dailyValues, planImport, RHR_METRIC_ID } from "./import";
 
@@ -115,6 +115,7 @@ class HealthConnectImport {
           DEFAULT_METRIC_DEFS.find((d) => d.id === RHR_METRIC_ID)!,
           DEFAULT_METRIC_DEFS.find((d) => d.id === BODYWEIGHT_METRIC_ID)!,
           SLEEP_DURATION_METRIC,
+          NAP_DURATION_METRIC,
         ].filter((d) => plan.upserts.some((u) => u.metricId === d.id));
         await trainingState.importDailyMetrics(plan.upserts, defs);
       }

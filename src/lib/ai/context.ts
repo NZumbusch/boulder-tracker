@@ -334,6 +334,8 @@ export interface ReadinessSnapshot {
   confidence: string;
   advice: string;
   sleepTrend: MetricTrendPoint[];
+  /** Hours asleep per night (Health Connect), next to the score - a different unit, so its own series. */
+  sleepHoursTrend: MetricTrendPoint[];
   hrvTrend: MetricTrendPoint[];
   rhrTrend: MetricTrendPoint[];
   bodyweightTrend: MetricTrendPoint[];
@@ -380,6 +382,7 @@ export function buildReadinessSnapshot(
     acwr,
     sleep: todaysMetric("sleep-score"),
     sleepHours: todaysMetric("sleep-duration"),
+    napHours: todaysMetric("nap-duration"),
     hrv: todaysMetric("hrv"),
     hrvBaseline,
   }, model.readiness);
@@ -389,6 +392,7 @@ export function buildReadinessSnapshot(
     confidence: readiness.confidence,
     advice: readiness.advice,
     sleepTrend: trendFor(dailyMetrics, "sleep-score", asOf),
+    sleepHoursTrend: trendFor(dailyMetrics, "sleep-duration", asOf),
     hrvTrend: trendFor(dailyMetrics, "hrv", asOf),
     rhrTrend: trendFor(dailyMetrics, "rhr", asOf),
     bodyweightTrend: trendFor(dailyMetrics, BODYWEIGHT_METRIC_ID, asOf),

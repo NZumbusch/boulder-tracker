@@ -346,3 +346,21 @@ describe("sleep duration (Health Connect) when there's no sleep score", () => {
     expect(r.penalties.sleep).toBe(0);
   });
 });
+
+describe("naps boost sleep duration", () => {
+  const acwr = { acuteLoad: 0, chronicLoad: 0, ratio: undefined, sufficient: false } as never;
+
+  it("add to the night's hours", () => {
+    const night = computeReadiness({ fatigue: {}, acwr, sleepHours: 5.5 });
+    const napped = computeReadiness({ fatigue: {}, acwr, sleepHours: 5.5, napHours: 1 });
+    expect(napped.penalties.sleep).toBeCloseTo(MAX_SLEEP_PENALTY / 6);
+    expect(napped.penalties.sleep).toBeLessThan(night.penalties.sleep);
+    expect(napped.advice.toLowerCase()).toContain("sleep was short (6.5 h with naps)");
+  });
+
+  it("don't count without a night to add to, or when there's a sleep score", () => {
+    expect(computeReadiness({ fatigue: {}, acwr, napHours: 1 }).inputsUsed.sleep).toBe(false);
+    expect(computeReadiness({ fatigue: {}, acwr, sleep: 50, napHours: 3 }).penalties.sleep)
+      .toBe(computeReadiness({ fatigue: {}, acwr, sleep: 50 }).penalties.sleep);
+  });
+});

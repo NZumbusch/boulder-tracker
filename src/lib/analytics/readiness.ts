@@ -112,6 +112,12 @@ export interface ReadinessInputs {
    * wearable gives one, already weighs duration and quality.
    */
   sleepHours?: number;
+  /**
+   * Hours of naps today (`nap-duration`). A boost on top of `sleepHours`:
+   * a nap between two sessions lifts readiness for the second. Only with a
+   * night to add to, and not when there's a sleep score.
+   */
+  napHours?: number;
   /** Today's `hrv` DailyMetricEntry value (ms). */
   hrv?: number;
   /** `computeHrvBaseline`'s output - required alongside `hrv` for the HRV signal to be usable at all. */
@@ -215,6 +221,7 @@ function buildAdvice(config: ReadinessConfig, args: {
   sleepUsed: boolean;
   sleep: number | undefined;
   sleepHours: number | undefined;
+  napHours: number;
   hrvUsed: boolean;
   hrvDipPct: number;
 }): string {
@@ -235,7 +242,7 @@ function buildAdvice(config: ReadinessConfig, args: {
   if (args.sleepUsed && args.sleep !== undefined && args.sleep < config.sleepLow) {
     clauses.push("sleep score is below usual");
   } else if (args.sleepUsed && args.sleep === undefined && args.sleepHours! < config.sleepShortHours) {
-    clauses.push(`sleep was short (${args.sleepHours!.toFixed(1)} h)`);
+    clauses.push(`sleep was short (${args.sleepHours!.toFixed(1)} h${args.napHours > 0 ? " with naps" : ""})`);
   }
 
   if (args.hrvUsed && args.hrvDipPct > config.hrvDip) {
@@ -294,7 +301,9 @@ function readinessStatus(score: number): ReadinessStatus {
  * the UI never presents a partially-informed score as complete.
  */
 export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfig = DEFAULT_READINESS_CONFIG): ReadinessResult {
-  const { fatigue, acwr, sleep, sleepHours, hrv, hrvBaseline } = inputs;
+  const { fatigue, acwr, sleep, hrv, hrvBaseline } = inputs;
+  const napHours = inputs.sleepHours !== undefined ? Math.max(0, inputs.napHours ?? 0) : 0;
+  const sleepHours = inputs.sleepHours !== undefined ? inputs.sleepHours + napHours : undefined;
   const { use, sleepLow, hrvDip, acwrHighRisk } = config;
   const sleepShortHours = config.sleepShortHours ?? SLEEP_SHORT_HOURS;
 
@@ -342,7 +351,7 @@ export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfi
   return {
     score,
     status: readinessStatus(score),
-    advice: buildAdvice({ ...config, sleepShortHours }, { fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, sleepHours, hrvUsed, hrvDipPct }),
+    advice: buildAdvice({ ...config, sleepShortHours }, { fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, sleepHours, napHours, hrvUsed, hrvDipPct }),
     inputsUsed,
     confidence: buildConfidence(inputsUsed, acwr, use),
     penalties,
