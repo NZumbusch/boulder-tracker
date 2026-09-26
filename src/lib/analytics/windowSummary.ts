@@ -20,6 +20,8 @@ export interface WindowStats {
   hrv?: number;
   rhr?: number;
   sleep?: number;
+  /** Mean hours asleep (Health Connect) - the Sleep tile's fallback when there are no scores. */
+  sleepHours?: number;
   sends: number;
 }
 
@@ -51,6 +53,7 @@ export function windowStats(
     hrv: meanOf("hrv"),
     rhr: meanOf("rhr"),
     sleep: meanOf("sleep-score"),
+    sleepHours: meanOf("sleep-duration"),
     sends: outdoorAscents.filter((a) => inSpan(a.date)).length,
   };
 }

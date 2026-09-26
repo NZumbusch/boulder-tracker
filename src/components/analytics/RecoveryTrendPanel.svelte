@@ -19,7 +19,8 @@
   import { TapTracker } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import {
-    RECOVERY_METRICS,
+    recoveryMetrics,
+    readingsByDay,
     buildRecoverySeries,
     dailyLoadByDay,
     readinessByDay,
@@ -30,7 +31,7 @@
   import type { TimelineSegment, TimelineGoal } from '../../lib/analytics/timeline';
   import PhaseBand from './PhaseBand.svelte';
   import { formatWeight } from '../../lib/units';
-  import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
+  import { BODYWEIGHT_METRIC_ID, SLEEP_DURATION_METRIC } from '../../lib/constants';
   import Icon from "@iconify/svelte";
   import ChartEmpty from './ChartEmpty.svelte';
 
@@ -47,6 +48,8 @@
   const STYLE: Record<string, { short: string; color: string }> = {
     hrv: { short: 'HRV', color: 'var(--color-primary)' },
     'sleep-score': { short: 'Sleep', color: 'var(--color-tertiary)' },
+    // The same slot, in hours, when the window has no sleep scores (Health Connect).
+    'sleep-duration': { short: 'Sleep', color: 'var(--color-tertiary)' },
     rhr: { short: 'RHR', color: 'var(--color-warning)' },
   };
 
@@ -65,13 +68,13 @@
     return ((day - firstDay + 0.5) / dayCount) * 100;
   }
 
-  const metrics = $derived(RECOVERY_METRICS.map((spec) => {
+  const metrics = $derived(recoveryMetrics(trainingState.dailyMetrics, firstDay, drawnLast).map((spec) => {
     const def = trainingState.metricDefs.find((d) => d.id === spec.id);
     return {
       ...spec,
       short: STYLE[spec.id].short,
       color: STYLE[spec.id].color,
-      unit: def?.unit ?? '',
+      unit: def?.unit ?? (spec.id === SLEEP_DURATION_METRIC.id ? SLEEP_DURATION_METRIC.unit : ''),
       series: drawnLast >= firstDay ? buildRecoverySeries(trainingState.dailyMetrics, spec, firstDay, drawnLast) : [],
     };
   }));
@@ -248,9 +251,12 @@
     const r = Math.round(pct);
     return `${r > 0 ? '+' : r < 0 ? '−' : '±'}${Math.abs(r)}%`;
   }
-  function formatValue(v: number | undefined): string {
-    return v === undefined ? '–' : String(Math.round(v));
+  /** Whole numbers, except hours (7.2 h). */
+  function formatValue(v: number | undefined, unit = ''): string {
+    if (v === undefined) return '–';
+    return unit === 'h' ? v.toFixed(1) : String(Math.round(v));
   }
+  const napsByDay = $derived(readingsByDay(trainingState.dailyMetrics, 'nap-duration'));
   const readout = $derived.by(() => {
     if (readoutDay === null) return null;
     const i = readoutDay - firstDay;
@@ -332,7 +338,8 @@
           {#if !hidden.has(m.id)}
             <span>
               <span style="color: {m.color}">●</span>
-              <span class="text-content">{formatValue(m.day?.value)}</span><span class="text-content-subtle">{m.day?.value !== undefined ? ` ${m.unit}` : ''}</span>
+              <span class="text-content">{formatValue(m.day?.value, m.unit)}</span><span class="text-content-subtle">{m.day?.value !== undefined ? ` ${m.unit}` : ''}</span>
+              {#if m.id === 'sleep-duration' && readoutDay !== null && napsByDay.get(readoutDay)}<span class="text-content-subtle"> +{formatValue(napsByDay.get(readoutDay), 'h')} h nap</span>{/if}
               {#if m.day?.deviation !== undefined}<span class="text-content-subtle"> {formatPct(m.day.deviation)}</span>{/if}
             </span>
           {/if}
@@ -390,7 +397,7 @@
                 </svg>
                 {#if latest?.avg !== undefined}
                   <span class="absolute right-0 -top-1 text-caption leading-none text-content-subtle tabular-nums bg-surface/70 px-1 rounded">
-                    7d {Math.round(latest.avg)} {lane.unit}
+                    7d {formatValue(latest.avg, lane.unit)} {lane.unit}
                   </span>
                 {/if}
                 {#if readoutDay !== null}

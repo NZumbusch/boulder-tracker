@@ -26,6 +26,30 @@ export const RECOVERY_METRICS: readonly RecoveryMetricSpec[] = [
   { id: "rhr", higherIsBetter: false },
 ];
 
+/**
+ * Which metric fills the charts' single "Sleep" slot over a window: the
+ * sleep score if any is logged in it, else hours asleep (Health Connect has
+ * no score). One slot rather than two lines, so a wearable user and a
+ * score-typing user each see one Sleep line in their own unit.
+ */
+export function sleepMetricId(entries: DailyMetricEntry[], firstDay: number, lastDay: number): "sleep-score" | "sleep-duration" {
+  let hasHours = false;
+  for (const e of loggedMetrics(entries)) {
+    if (e.metricId !== "sleep-score" && e.metricId !== "sleep-duration") continue;
+    const day = toUtcDayIndex(e.date);
+    if (day < firstDay || day > lastDay) continue;
+    if (e.metricId === "sleep-score") return "sleep-score";
+    hasHours = true;
+  }
+  return hasHours ? "sleep-duration" : "sleep-score";
+}
+
+/** `RECOVERY_METRICS` for a window, with the Sleep slot resolved (`sleepMetricId`). */
+export function recoveryMetrics(entries: DailyMetricEntry[], firstDay: number, lastDay: number): RecoveryMetricSpec[] {
+  const sleepId = sleepMetricId(entries, firstDay, lastDay);
+  return RECOVERY_METRICS.map((spec) => (spec.id === "sleep-score" ? { ...spec, id: sleepId } : spec));
+}
+
 /** The baseline is the mean of this many days *before* each day - the day itself never moves its own baseline. */
 export const BASELINE_DAYS = 28;
 /** Fewer readings than this in the baseline window and there is no baseline yet - a mean of two nights is not "normal". */
@@ -163,6 +187,8 @@ export function readinessByDay(
     .map((w) => ({ w, day: toUtcDayIndex(w.date!) }))
     .sort((a, b) => a.day - b.day);
   const sleep = readingsByDay(entries, "sleep-score");
+  const sleepHours = readingsByDay(entries, "sleep-duration");
+  const napHours = readingsByDay(entries, "nap-duration");
   const hrv = readingsByDay(entries, "hrv");
 
   const scores = new Map<number, number>();
@@ -177,6 +203,8 @@ export function readinessByDay(
         fatigue: { fingers: fatigue.fingers, core: fatigue.core, systemic: fatigue.systemic },
         acwr: calculateRollingAcwr(seen, asOf),
         sleep: sleep.get(day),
+        sleepHours: sleepHours.get(day),
+        napHours: napHours.get(day),
         hrv: hrv.get(day),
         hrvBaseline: computeHrvBaseline(entries, asOf),
       },
@@ -221,7 +249,7 @@ export function loadRecoveryInsights(entries: DailyMetricEntry[], workouts: Work
   const hardThreshold = trainingLoads[Math.min(trainingLoads.length - 1, Math.floor(trainingLoads.length * HARD_DAY_QUANTILE))];
 
   const insights: RecoveryInsight[] = [];
-  for (const metric of RECOVERY_METRICS) {
+  for (const metric of recoveryMetrics(entries, firstDay, lastDay)) {
     const series = buildRecoverySeries(entries, metric, firstDay, lastDay);
     const deviationOn = new Map(series.map((d) => [d.day, d.deviation]));
     const hard: number[] = [];

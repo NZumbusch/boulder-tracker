@@ -95,7 +95,9 @@
   <div class="divide-y divide-border">
   {#each QUICK_METRICS as def}
     {@const entry = todaysMetric(def.id)}
-    {@const spark = entriesFor(def.id).slice(-7)}
+    {@const own = entriesFor(def.id).slice(-7)}
+    <!-- The Sleep row falls back to hours asleep (Health Connect) for its sparkline when no scores are logged. -->
+    {@const spark = def.id === 'sleep-score' && own.length < 2 ? entriesFor('sleep-duration').slice(-7) : own}
     <div class="flex items-center justify-between gap-3 py-2.5">
       <div class="min-w-0">
         <p class="text-caption text-content-muted">{def.name}</p>
@@ -113,6 +115,11 @@
         {#if def.id === 'hrv' && hrvDelta !== undefined && hrvBaseline !== undefined && trainingState.homeDetails['metrics.hrvBaseline']}
           <p class="text-caption tabular-nums {hrvDelta < -trainingState.readinessConfig.hrvDip ? 'text-status-caution' : 'text-content-subtle'}">
             {hrvDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(hrvDelta * 100))}% vs 14-day baseline ({Math.round(hrvBaseline)})
+          </p>
+        {:else if def.id === 'sleep-score' && todaysMetric('sleep-duration')}
+          {@const naps = todaysMetric('nap-duration')?.value}
+          <p class="text-caption text-content-subtle tabular-nums">
+            {todaysMetric('sleep-duration')!.value.toFixed(1)} h asleep{naps ? ` · +${naps.toFixed(1)} h nap` : ''}
           </p>
         {:else if def.id === BODYWEIGHT_METRIC_ID && bodyweightAvg !== undefined}
           {@const diff = bodyweightPrevAvg !== undefined ? bodyweightAvg - bodyweightPrevAvg : undefined}

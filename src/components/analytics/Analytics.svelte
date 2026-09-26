@@ -164,7 +164,7 @@
   });
   const summaryLogged = $derived.by(() => {
     const ids = new Set(trainingState.dailyMetrics.map((m) => m.metricId));
-    return { hrv: ids.has('hrv'), rhr: ids.has('rhr'), sleep: ids.has('sleep-score'), sends: trainingState.outdoorAscents.length > 0 };
+    return { hrv: ids.has('hrv'), rhr: ids.has('rhr'), sleep: ids.has('sleep-score') || ids.has('sleep-duration'), sends: trainingState.outdoorAscents.length > 0 };
   });
   const RANGE_WORDS: Record<typeof range, string> = { '4w': '4 weeks', '3m': '3 months', '6m': '6 months', '1y': 'year' };
   const comparisonLabel = $derived(

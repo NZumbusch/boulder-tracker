@@ -39,7 +39,12 @@
     const mean = (v: number | undefined) => (v === undefined ? '–' : `${Math.round(v)}`);
     if (logged.hrv) t.push({ label: 'HRV', value: mean(current.hrv), delta: percentChange(current.hrv, previous?.hrv), sense: 'higher' });
     if (logged.rhr) t.push({ label: 'RHR', value: mean(current.rhr), delta: percentChange(current.rhr, previous?.rhr), sense: 'lower' });
-    if (logged.sleep) t.push({ label: 'Sleep', value: mean(current.sleep), delta: percentChange(current.sleep, previous?.sleep), sense: 'higher' });
+    // One Sleep tile: the score where there are scores, else hours asleep.
+    if (logged.sleep && (current.sleep !== undefined || current.sleepHours === undefined)) {
+      t.push({ label: 'Sleep', value: mean(current.sleep), delta: percentChange(current.sleep, previous?.sleep), sense: 'higher' });
+    } else if (logged.sleep) {
+      t.push({ label: 'Sleep', value: `${current.sleepHours!.toFixed(1)} h`, delta: percentChange(current.sleepHours, previous?.sleepHours), sense: 'higher' });
+    }
     if (logged.sends) t.push({ label: 'Sends', value: String(current.sends), delta: percentChange(current.sends, previous?.sends), sense: 'neutral' });
     return t;
   });

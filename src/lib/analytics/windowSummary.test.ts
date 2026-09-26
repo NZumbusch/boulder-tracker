@@ -67,3 +67,17 @@ describe("percentChange", () => {
     expect(percentChange(undefined, 5)).toBeUndefined();
   });
 });
+
+describe("sleep hours next to the score", () => {
+  it("averages Health Connect hours separately from the score", () => {
+    const stats = windowStats(
+      { workouts: [], dailyMetrics: [
+        { id: "a", metricId: "sleep-duration", date: "2026-03-02", value: 7 },
+        { id: "b", metricId: "sleep-duration", date: "2026-03-03", value: 8 },
+      ], outdoorAscents: [] },
+      { startDay: toUtcDayIndex("2026-03-01"), endDay: toUtcDayIndex("2026-03-07") },
+    );
+    expect(stats.sleepHours).toBe(7.5);
+    expect(stats.sleep).toBeUndefined();
+  });
+});

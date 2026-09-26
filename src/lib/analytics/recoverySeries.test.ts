@@ -9,6 +9,7 @@ import {
   loadRecoveryInsights,
   dailyLoadByDay,
   MIN_BASELINE_READINGS,
+  sleepMetricId,
 } from "./recoverySeries";
 import { toUtcDayIndex } from "../dateUtils";
 
@@ -111,5 +112,28 @@ describe("loadRecoveryInsights", () => {
 
   it("says nothing without enough data", () => {
     expect(loadRecoveryInsights([entry("hrv", DAY0, 60)], [workout(DAY0, 100)], DAY0 + 1)).toEqual([]);
+  });
+});
+
+describe("the Sleep slot: score where there are scores, else hours", () => {
+  it("uses the sleep score when the window has any", () => {
+    expect(sleepMetricId([entry("sleep-score", DAY0, 80), entry("sleep-duration", DAY0 + 1, 7)], DAY0, DAY0 + 6)).toBe("sleep-score");
+  });
+
+  it("falls back to hours asleep when there are no scores in the window", () => {
+    expect(sleepMetricId([entry("sleep-score", DAY0 - 30, 80), entry("sleep-duration", DAY0 + 1, 7)], DAY0, DAY0 + 6)).toBe("sleep-duration");
+  });
+
+  it("is the score when there's neither, so empty charts stay as they were", () => {
+    expect(sleepMetricId([], DAY0, DAY0 + 6)).toBe("sleep-score");
+  });
+});
+
+describe("readinessByDay with Health Connect sleep", () => {
+  it("counts a short night and lets that day's naps soften it", () => {
+    const short = readinessByDay([], [entry("sleep-duration", DAY0, 4)], DAY0, DAY0).get(DAY0)!;
+    const napped = readinessByDay([], [entry("sleep-duration", DAY0, 4), entry("nap-duration", DAY0, 1.5)], DAY0, DAY0).get(DAY0)!;
+    expect(short).toBeLessThan(100);
+    expect(napped).toBeGreaterThan(short);
   });
 });
