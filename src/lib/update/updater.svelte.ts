@@ -8,23 +8,26 @@
 import { App } from "@capacitor/app";
 import { trainingState } from "../state.svelte";
 import { AppUpdater, appUpdaterSupported } from "../native/appUpdater";
-import { parseManifest, isNewer, changesSince, apkUrl, UPDATE_MANIFEST_URL, type UpdateManifest } from "./appUpdate";
+import { parseManifest, isNewer, changesSince, apkUrl, manifestUrlFor, type UpdateManifest, type UpdateChannel } from "./appUpdate";
 
 const SETTINGS_KEY = "boulder_tracker_app_updates";
 const CHECK_EVERY_MS = 6 * 3_600_000;
 
 interface Settings {
   auto: boolean;
+  channel: UpdateChannel;
   lastCheckedAt: number | null;
   /** The build whose "Update available" card was closed - it stays out of the way until a newer one. */
   dismissedCode: number | null;
 }
 
 function loadSettings(): Settings {
-  const fallback: Settings = { auto: true, lastCheckedAt: null, dismissedCode: null };
+  const fallback: Settings = { auto: true, channel: "stable", lastCheckedAt: null, dismissedCode: null };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { ...fallback, ...JSON.parse(raw) };
+    // Settings saved before channels existed came from a build installed
+    // off the testing channel (the only one there was) - stay on it.
+    if (raw) return { ...fallback, channel: "testing", ...JSON.parse(raw) };
   } catch { /* fall through */ }
   return fallback;
 }
@@ -35,6 +38,9 @@ class Updater {
   installedCode = $state<number | null>(null);
   installedName = $state<string | null>(null);
   auto = $state(true);
+  channel = $state<UpdateChannel>("stable");
+  /** The channel's newest build, even when it isn't newer than this one - for "you're ahead of stable". */
+  latestOnChannel = $state<UpdateManifest | null>(null);
   lastCheckedAt = $state<number | null>(null);
   dismissedCode = $state<number | null>(null);
   /** The published build, when it's newer than this one. */
@@ -68,6 +74,7 @@ class Updater {
     this.#started = true;
     const s = loadSettings();
     this.auto = s.auto;
+    this.channel = s.channel;
     this.lastCheckedAt = s.lastCheckedAt;
     this.dismissedCode = s.dismissedCode;
     try {
@@ -83,7 +90,7 @@ class Updater {
 
   #save() {
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ auto: this.auto, lastCheckedAt: this.lastCheckedAt, dismissedCode: this.dismissedCode } satisfies Settings));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ auto: this.auto, channel: this.channel, lastCheckedAt: this.lastCheckedAt, dismissedCode: this.dismissedCode } satisfies Settings));
     } catch { /* not critical */ }
   }
 
@@ -91,6 +98,21 @@ class Updater {
     this.auto = on;
     this.#save();
     if (on) void this.check();
+  }
+
+  /** Switches channel and checks it straight away. */
+  setChannel(channel: UpdateChannel) {
+    if (channel === this.channel) return;
+    this.channel = channel;
+    this.available = null;
+    this.latestOnChannel = null;
+    this.#save();
+    void this.check(true);
+  }
+
+  /** This build is newer than anything on the chosen channel (a test build, now on Stable). */
+  get aheadOfChannel(): boolean {
+    return !!this.latestOnChannel && this.installedCode !== null && this.installedCode > this.latestOnChannel.versionCode;
   }
 
   dismiss() {
@@ -106,14 +128,24 @@ class Updater {
     this.error = null;
     this.upToDate = false;
     try {
-      const response = await fetch(`${UPDATE_MANIFEST_URL}?t=${Date.now()}`, { cache: "no-store" });
+      const response = await fetch(`${manifestUrlFor(this.channel)}?t=${Date.now()}`, { cache: "no-store" });
+      if (response.status === 404 && this.channel === "stable") {
+        // Nothing has been promoted to stable yet.
+        this.latestOnChannel = null;
+        this.available = null;
+        this.lastCheckedAt = Date.now();
+        this.#save();
+        if (manual) this.error = "Nothing on the stable channel yet.";
+        return;
+      }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const manifest = parseManifest(await response.json());
       if (!manifest) throw new Error("The version file looks wrong");
       this.lastCheckedAt = Date.now();
       this.#save();
+      this.latestOnChannel = manifest;
       this.available = isNewer(manifest, this.installedCode) ? manifest : null;
-      this.upToDate = manual && !this.available;
+      this.upToDate = manual && !this.available && !this.aheadOfChannel;
     } catch (e) {
       if (manual) this.error = `Couldn't check for updates (${e instanceof Error ? e.message : String(e)}).`;
     } finally {
@@ -125,7 +157,7 @@ class Updater {
   async install(): Promise<void> {
     const manifest = this.available;
     if (!manifest || this.status !== "idle") return;
-    const url = apkUrl(manifest);
+    const url = apkUrl(manifest, manifestUrlFor(this.channel));
     if (!url) {
       this.error = "The update's download address isn't secure - not installing it.";
       return;

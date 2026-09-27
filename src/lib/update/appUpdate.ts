@@ -8,8 +8,20 @@ import { APP_INFO } from "../appInfo";
  * plugin. This module is the pure part: reading the file and deciding.
  */
 
-/** Where CI publishes the version file (same site as the web app). */
-export const UPDATE_MANIFEST_URL = `${APP_INFO.siteUrl}android/version.json`;
+/**
+ * Two channels. Testing gets every push to main; Stable only builds that
+ * were promoted (the "promote" run of the deploy workflow copies the test
+ * build, byte for byte, to the stable channel). Testing keeps the original
+ * address, so builds from before channels existed keep finding updates.
+ */
+export type UpdateChannel = "stable" | "testing";
+
+export function manifestUrlFor(channel: UpdateChannel): string {
+  return channel === "stable" ? `${APP_INFO.siteUrl}android/stable/version.json` : `${APP_INFO.siteUrl}android/version.json`;
+}
+
+/** The testing channel's version file. */
+export const UPDATE_MANIFEST_URL = manifestUrlFor("testing");
 
 export interface UpdateChange {
   /** The build number this change first shipped in. */
@@ -62,7 +74,7 @@ export function changesSince(manifest: UpdateManifest, installedCode: number, li
 }
 
 /** The APK's absolute URL - only https, since the plugin refuses anything else. */
-export function apkUrl(manifest: UpdateManifest, manifestUrl: string = UPDATE_MANIFEST_URL): string | null {
+export function apkUrl(manifest: UpdateManifest, manifestUrl: string): string | null {
   try {
     const url = new URL(manifest.apk, manifestUrl);
     return url.protocol === "https:" ? url.href : null;

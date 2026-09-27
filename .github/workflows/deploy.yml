@@ -1,8 +1,16 @@
 name: Deploy web app and Android update to Pages
 
-# One site: the web app (PWA) at the root, and the signed Android APK plus
-# the version file the app's updater reads under /android/ (see
-# src/lib/update/). Runs on every push to main.
+# One site: the web app (PWA) at the root, and the Android app's two
+# update channels (see src/lib/update/):
+#
+#   /android/          Testing - a signed APK built from every push to main
+#   /android/stable/   Stable  - only builds that were promoted
+#
+# Promote: Actions -> this workflow -> "Run workflow" -> mode "promote".
+# That takes the test build that is live right now - the same file testers
+# installed, not a rebuild - and makes it the stable one. Stable builds are
+# kept as the assets of the GitHub release "stable-channel", so every later
+# deploy (which replaces the whole site) puts them back.
 #
 # The signing key never leaves GitHub's secrets: it is decoded into the
 # runner's temp directory (outside the checkout, so it can't end up in the
@@ -13,15 +21,25 @@ on:
   push:
     branches: ["main", "master"]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "deploy = build and publish as usual; promote = make the current test build the stable one"
+        type: choice
+        options: [deploy, promote]
+        default: deploy
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: false
+
+env:
+  SITE_URL: https://bouldertracker.nathanzumbusch.de
+  STABLE_RELEASE: stable-channel
 
 jobs:
   deploy:
@@ -31,6 +49,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      PROMOTE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'promote' }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -51,7 +71,7 @@ jobs:
         run: npm run build
 
       - name: Setup Java (Android build)
-        if: env.HAS_KEYSTORE == 'true'
+        if: env.HAS_KEYSTORE == 'true' && env.PROMOTE != 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -60,7 +80,7 @@ jobs:
 
       - name: Build signed APK
         id: apk
-        if: env.HAS_KEYSTORE == 'true'
+        if: env.HAS_KEYSTORE == 'true' && env.PROMOTE != 'true'
         # A broken APK build must not keep the web app from deploying - the
         # last step fails the run afterwards, so it still shows up red.
         continue-on-error: true
@@ -97,6 +117,40 @@ jobs:
       - name: Remove signing key
         if: always()
         run: rm -f "$RUNNER_TEMP/signing.keystore"
+
+      - name: Promote the live test build to stable
+        if: env.PROMOTE == 'true'
+        run: |
+          set -euo pipefail
+          # The test build as published right now (cache-busted), checked
+          # against its own checksum before anything is promoted.
+          mkdir -p dist/android
+          curl -fsSL "$SITE_URL/android/version.json?t=$(date +%s)" -o dist/android/version.json
+          curl -fsSL "$SITE_URL/android/boulder-tracker.apk?t=$(date +%s)" -o dist/android/boulder-tracker.apk
+          expected=$(node -p "require('./dist/android/version.json').sha256")
+          actual=$(sha256sum dist/android/boulder-tracker.apk | cut -d' ' -f1)
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::The live test APK doesn't match its version file (a deploy may still be in progress) - try again in a few minutes."
+            exit 1
+          fi
+          build=$(node -p "require('./dist/android/version.json').versionCode")
+          commit=$(node -p "require('./dist/android/version.json').commit || ''")
+          if ! gh release view "$STABLE_RELEASE" > /dev/null 2>&1; then
+            gh release create "$STABLE_RELEASE" --title "Stable Android build" --notes "Created by the deploy workflow." ${commit:+--target "$commit"}
+          fi
+          gh release upload "$STABLE_RELEASE" dist/android/version.json dist/android/boulder-tracker.apk --clobber
+          gh release edit "$STABLE_RELEASE" --notes "Build $build${commit:+ (commit $commit)}, promoted $(date -u +%Y-%m-%d). The app's stable update channel serves these two files."
+          echo "Promoted build $build to stable."
+
+      - name: Include the stable build
+        run: |
+          mkdir -p dist/android/stable
+          if gh release download "$STABLE_RELEASE" -D dist/android/stable -p version.json -p boulder-tracker.apk --clobber; then
+            echo "Stable: build $(node -p "require('./dist/android/stable/version.json').versionCode")"
+          else
+            echo "Nothing promoted to stable yet."
+            rm -rf dist/android/stable
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

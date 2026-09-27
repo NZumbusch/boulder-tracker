@@ -18,6 +18,26 @@
       </p>
     </div>
 
+    <div class="space-y-1.5 px-1">
+      <p class="text-body text-content">Channel</p>
+      <!-- A setting, so the filled segment. -->
+      <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="group" aria-label="Update channel">
+        {#each [['stable', 'Stable'], ['testing', 'Testing']] as [id, label]}
+          <button
+            onclick={() => updater.setChannel(id as 'stable' | 'testing')}
+            aria-pressed={updater.channel === id}
+            class="flex-1 py-2 text-label rounded-control transition-all {updater.channel === id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+          >{label}</button>
+        {/each}
+      </div>
+      <p class="text-caption text-content-subtle">
+        {updater.channel === 'stable' ? 'Builds that were tried out and promoted.' : 'Every new build, as soon as it\'s pushed - may have rough edges.'}
+      </p>
+      {#if updater.aheadOfChannel}
+        <p class="text-caption text-content-subtle">You're on a newer build ({updater.installedCode}) than stable ({updater.latestOnChannel?.versionCode}). Android can't go back to an older version - the next stable build newer than yours will update you.</p>
+      {/if}
+    </div>
+
     <label class="flex items-center justify-between cursor-pointer px-1">
       <div class="min-w-0">
         <p class="text-body text-content">Check automatically</p>

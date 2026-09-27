@@ -66,6 +66,8 @@ What the web app can't do, on iOS in particular: scheduled reminders, timer beep
 
 The same workflow builds a signed release APK and publishes it with `android/version.json` under https://bouldertracker.nathanzumbusch.de/android/. The app checks that file on start (Settings → About → App updates), offers newer builds on Home, downloads the APK, checks its SHA-256 and opens Android's installer (`plugins/app-updater`, `src/lib/update/`). The build number is the commit count on `main`, so CI builds and Android Studio builds of the same commit match.
 
+Two channels, chosen in the app (Settings → About → App updates): **Testing** gets every push to `main` (`/android/`); **Stable** only promoted builds (`/android/stable/`). To promote: Actions → "Deploy web app and Android update to Pages" → Run workflow → mode `promote`. It takes the test build that's live - the exact APK, checked against its SHA-256 - and stores it as the assets of the `stable-channel` release, which every deploy copies back into the site. New installs default to Stable; a device switched to Stable while ahead of it waits for the next stable build newer than its own (Android can't downgrade).
+
 Signing needs four repository secrets (Settings → Secrets and variables → Actions); without them only the web app deploys:
 
 | Secret | Value |

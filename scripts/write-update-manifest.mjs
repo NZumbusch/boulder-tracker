@@ -7,8 +7,8 @@
  *
  * The version file holds only what the updater needs: the build number
  * (commit count, same as the APK's versionCode), the APK's SHA-256 and
- * size, and recent commit subjects as "what's new". No author names,
- * emails or anything else from git.
+ * size, the commit it was built from, and recent commit subjects as
+ * "what's new". No author names, emails or anything else from git.
  */
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -40,6 +40,7 @@ const manifest = {
   apk: "boulder-tracker.apk",
   sha256: createHash("sha256").update(bytes).digest("hex"),
   size: statSync(apk).size,
+  commit: git("rev-parse", "HEAD"),
   publishedAt: new Date().toISOString(),
   changes,
 };
