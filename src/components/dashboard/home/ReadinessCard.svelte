@@ -4,6 +4,10 @@
   import type { HomeData } from './homeData.svelte';
   import { MAX_FATIGUE_PENALTY, MAX_ACWR_PENALTY, MAX_SLEEP_PENALTY, MAX_HRV_PENALTY, type ReadinessStatus } from '../../../lib/analytics/readiness';
   import Icon from '@iconify/svelte';
+  import { untrack } from 'svelte';
+  import { slide } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { motionMs } from '../../../lib/motion';
 
   let { data }: { data: HomeData } = $props();
   const readiness = $derived(data.readiness);
@@ -58,7 +62,30 @@
   ]);
   const RING_RADIUS = 44;
   const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-  const ringOffset = $derived(RING_CIRCUMFERENCE * (1 - (readiness.score ?? 0) / 100));
+
+  // Opening Home draws the ring in from empty and counts the number up;
+  // a later change (sleep logged, a session rated) glides from the old
+  // score to the new one. Instant with reduced motion.
+  // A plain frame loop rather than svelte/motion's Tween: that only runs
+  // where Svelte's build flags say "browser", and it stood still here.
+  let displayed = $state(0);
+  $effect(() => {
+    const target = readiness.score ?? 0;
+    const from = untrack(() => displayed);
+    const duration = motionMs(900);
+    if (duration === 0 || from === target) {
+      displayed = target;
+      return;
+    }
+    const start = performance.now();
+    let frame = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - start) / duration);
+      displayed = from + (target - from) * cubicOut(t);
+      if (t < 1) frame = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(frame);
+  });
+  const ringOffset = $derived(RING_CIRCUMFERENCE * (1 - displayed / 100));
   const canBreakDown = $derived(trainingState.homeDetails['readiness.breakdown'] && readiness.score !== undefined);
 </script>
 
@@ -83,12 +110,11 @@
           stroke="currentColor"
           stroke-dasharray={RING_CIRCUMFERENCE}
           stroke-dashoffset={ringOffset}
-          style="transition: stroke-dashoffset 700ms ease-out;"
         />
       {/if}
     </svg>
     <div class="absolute inset-0 flex flex-col items-center justify-center">
-      <span class="text-display text-content tabular-nums leading-none">{readiness.score !== undefined ? Math.round(readiness.score) : '—'}</span>
+      <span class="text-display text-content tabular-nums leading-none">{readiness.score !== undefined ? Math.round(displayed) : '—'}</span>
     </div>
     <div class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-surface border-2 border-app-bg shadow-card flex items-center justify-center {STATUS_COLOR[readiness.status]}">
       <Icon icon={STATUS_ICON[readiness.status]} class="text-base" />
@@ -97,7 +123,8 @@
   <div class="min-w-0 space-y-1.5">
     <span class="text-section uppercase {STATUS_COLOR[readiness.status]}">{readiness.status}</span>
     <p class="text-body text-content leading-snug">{readiness.advice}</p>
-    {#if trainingState.homeDetails['readiness.confidence'] && !(canBreakDown && showBreakdown)}
+    <!-- Stays put when the breakdown opens: hiding it made the card jump. -->
+    {#if trainingState.homeDetails['readiness.confidence']}
       <p class="text-caption text-content-subtle flex items-start gap-1">
         <Icon icon="ic:baseline-insights" class="text-content-subtle text-sm mt-0.5 shrink-0" />
         <span>{readiness.confidence}</span>
@@ -106,19 +133,32 @@
   </div>
  </div>
   {#if canBreakDown && showBreakdown}
-    <div class="mt-4 pt-3 border-t border-border/60 space-y-2">
+    <div class="mt-4 pt-3 border-t border-border/60 space-y-2" transition:slide={{ duration: motionMs(260), easing: cubicOut }}>
       {#each BREAKDOWN_ROWS as row}
         <div class="flex items-center gap-3">
           <span class="w-14 text-label text-content-subtle shrink-0">{row.label}</span>
           <div class="flex-1 h-1.5 bg-surface-elevated rounded-control overflow-hidden border border-border-strong/30">
-            <div class="h-full rounded-control {STATUS_BAR[readiness.status]}" style="width: {Math.min(100, (row.penalty / row.max) * 100)}%"></div>
+            <div class="h-full rounded-control origin-left {STATUS_BAR[readiness.status]} breakdown-bar" style="width: {Math.min(100, (row.penalty / row.max) * 100)}%"></div>
           </div>
           <span class="w-12 text-right text-label tabular-nums shrink-0 {row.used ? 'text-content' : 'text-content-subtle'}">
             {row.used ? (Math.round(row.penalty) > 0 ? `−${Math.round(row.penalty)}` : '0') : 'no data'}
           </span>
         </div>
       {/each}
-      <p class="text-caption text-content-subtle">Points taken off 100. {readiness.confidence}</p>
+      <p class="text-caption text-content-subtle">Points taken off 100.</p>
     </div>
   {/if}
 </div>
+
+<style>
+  /* The breakdown's bars grow in as it slides open. */
+  .breakdown-bar {
+    animation: grow 420ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  }
+  @keyframes grow {
+    from { transform: scaleX(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .breakdown-bar { animation: none; }
+  }
+</style>
