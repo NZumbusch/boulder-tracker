@@ -60,8 +60,11 @@
   }
 
   async function remove() {
+    // Taken before closing: the sheet's props read through to state that
+    // closing clears (the same trap as the session viewer's Delete).
+    const id = alt.id;
     onClose();
-    await trainingState.deletePlanB(alt.id);
+    await trainingState.deletePlanB(id);
   }
 
   backWhile(() => true, () => onClose());
