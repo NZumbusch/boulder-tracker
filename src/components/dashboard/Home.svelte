@@ -25,6 +25,10 @@
   import RecentActivityCard from './home/RecentActivityCard.svelte';
   import WeatherCard from './home/WeatherCard.svelte';
   import Icon from "@iconify/svelte";
+  import PullToRefresh from '../common/PullToRefresh.svelte';
+  import { driveSync } from '../../lib/sync/driveSync.svelte';
+  import { healthConnect } from '../../lib/health/healthConnect.svelte';
+  import { toast } from '../../lib/toast.svelte';
 
   const data = new HomeData();
 
@@ -34,6 +38,28 @@
   onMount(() => {
     trainingState.refreshWeather();
   });
+
+  /**
+   * Pull down on Home: everything that comes from outside the app, at once -
+   * Drive sync, Health Connect, weather, app updates. Each reports its own
+   * errors; this says what ran.
+   */
+  async function pullRefresh() {
+    const ran: string[] = [];
+    const tasks: Promise<unknown>[] = [trainingState.refreshWeather()];
+    if (driveSync.connected) {
+      ran.push('synced');
+      tasks.push(driveSync.syncNow());
+    }
+    if (healthConnect.supported && healthConnect.enabled) {
+      ran.push('Health Connect imported');
+      tasks.push(healthConnect.importNow({ quiet: true }));
+    }
+    if (updater.supported && updater.auto) tasks.push(updater.check());
+    await Promise.allSettled(tasks);
+    const failed = driveSync.connected && driveSync.status === 'error';
+    toast.show(failed ? `Sync failed${driveSync.error ? `: ${driveSync.error}` : ''}` : ran.length ? `Up to date - ${ran.join(', ')}` : 'Weather refreshed');
+  }
 
   let showQuickLog = $state(false);
 
@@ -51,6 +77,7 @@
 </script>
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-24">
+  <PullToRefresh onRefresh={pullRefresh} label={driveSync.connected ? 'Pull to sync' : 'Pull to refresh'} />
   <div class="flex items-center justify-between px-1">
     <div>
       <p class="text-caption text-content-subtle">{data.todayLabel}</p>
