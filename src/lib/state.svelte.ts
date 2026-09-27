@@ -3,10 +3,10 @@ import { toast, showUndo } from './toast.svelte';
 import { copySessionsToWeek } from './planning/copyWeek';
 import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
-import { isDemoMode } from './storage/persistence';
+import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek } from './types';
-import { getWeekId } from './dateUtils';
+import { getWeekId, localIsoDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
@@ -204,7 +204,7 @@ class TrainingState {
 
   /** Re-fetches whichever locations are currently set - called from Home on mount, not on every `refresh()` (a network call on every save would be excessive for data that changes over hours, not seconds). */
   async refreshWeather() {
-    const todayIso = new Date().toISOString().split('T')[0];
+    const todayIso = localIsoDate();
     await Promise.all([
       this.weatherStore.loadHome(this.homeLocation),
       this.weatherStore.loadCrags(this.crags),
@@ -362,6 +362,10 @@ class TrainingState {
         this.metricsStore.load(),
         this.outdoorAscentStore.load(),
       ]);
+
+      // The database file was damaged and got restored (storage/persistence.ts) - say so, once.
+      const recovery = takeRecoveryNotice();
+      if (recovery) void showAlert('Data restored', recovery);
 
       // Any provisional week that has since finished is written out now, so
       // history records what was planned at the time rather than whatever

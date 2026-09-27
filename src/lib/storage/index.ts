@@ -17,6 +17,7 @@ import type {
   OutdoorAscent,
 } from "../types";
 import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
+import { localIsoDate } from "../dateUtils";
 import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
@@ -695,7 +696,7 @@ export const storage = {
     };
     return saveFile({
       content: JSON.stringify(data, null, 2),
-      fileName: `boulder-tracker-backup-${new Date().toISOString().split("T")[0]}.json`,
+      fileName: `boulder-tracker-backup-${localIsoDate()}.json`,
       mimeType: "application/json",
       title: "Boulder Tracker backup",
     });

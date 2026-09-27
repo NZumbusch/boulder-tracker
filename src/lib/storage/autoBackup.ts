@@ -1,5 +1,6 @@
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
-import { initDB, _dbState } from "./persistence";
+import { localIsoDate } from "../dateUtils";
+import { initDB, _dbState, AUTO_BACKUP_FOLDER, AUTO_BACKUP_PREFIX } from "./persistence";
 import { DATA_EXPORT_VERSION } from "../constants";
 
 /**
@@ -11,8 +12,8 @@ import { DATA_EXPORT_VERSION } from "../constants";
  * app write there, it uses the app's own external storage instead.
  */
 
-const FOLDER = "ClimbingTracker";
-const PREFIX = "auto-backup-";
+const FOLDER = AUTO_BACKUP_FOLDER;
+const PREFIX = AUTO_BACKUP_PREFIX;
 export const AUTO_BACKUP_KEEP = 4;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -31,7 +32,7 @@ export function backupsToPrune(names: string[], keep: number): string[] {
 export async function writeAutoBackup(now: Date = new Date()): Promise<string> {
   await initDB();
   const data = JSON.stringify({ ..._dbState, exportVersion: DATA_EXPORT_VERSION });
-  const name = `${PREFIX}${now.toISOString().slice(0, 10)}.json`;
+  const name = `${PREFIX}${localIsoDate(now)}.json`;
   const targets = [
     { directory: Directory.Documents, label: `Documents/${FOLDER}` },
     { directory: Directory.External, label: "app storage" },

@@ -9,7 +9,11 @@ vi.mock("@capacitor/filesystem", () => ({
   Encoding: { UTF8: "utf8" },
   Filesystem: {
     readFile: vi.fn(async () => { throw new Error("no file yet"); }),
+    // Only the (slow, controlled) write of the save itself is tracked; the
+    // swap into place after it is instant.
     writeFile: vi.fn(({ data }: { data: string }) => new Promise<void>((done) => writes.push({ data, done }))),
+    deleteFile: vi.fn(async () => {}),
+    rename: vi.fn(async () => {}),
   },
 }));
 vi.mock("localforage", () => ({ default: { config: vi.fn(), getItem: vi.fn(async () => null), setItem: vi.fn() } }));

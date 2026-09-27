@@ -50,6 +50,68 @@ localforage.config({
 
 /** The training data on Android: one JSON file in the app's private storage. */
 const NATIVE_DB_FILE = "boulder_tracker_db.json";
+/**
+ * Where a save is written first. Only a complete write gets swapped in as
+ * `NATIVE_DB_FILE`, so the app being killed mid-save (Android does that)
+ * can't leave the real file half-written.
+ */
+const NATIVE_DB_TMP = "boulder_tracker_db.json.tmp";
+
+/** The weekly automatic backups (`autoBackup.ts`) - also what a damaged database is restored from. */
+export const AUTO_BACKUP_FOLDER = "ClimbingTracker";
+export const AUTO_BACKUP_PREFIX = "auto-backup-";
+
+type NativeRead = { status: "missing" } | { status: "ok"; data: any } | { status: "damaged"; text: string };
+
+async function readNativeJson(path: string, directory: Directory = Directory.Data): Promise<NativeRead> {
+  let text: string;
+  try {
+    text = (await Filesystem.readFile({ path, directory, encoding: Encoding.UTF8 })).data as string;
+  } catch {
+    return { status: "missing" };
+  }
+  try {
+    const data = JSON.parse(text);
+    return data && typeof data === "object" ? { status: "ok", data } : { status: "damaged", text };
+  } catch {
+    return { status: "damaged", text };
+  }
+}
+
+/** The newest automatic backup that reads cleanly, or the pre-migration backup - for restoring a damaged database. */
+async function readNewestBackup(): Promise<{ data: any; label: string } | null> {
+  for (const directory of [Directory.Documents, Directory.External]) {
+    let names: string[] = [];
+    try {
+      names = (await Filesystem.readdir({ path: AUTO_BACKUP_FOLDER, directory })).files.map((f) => (typeof f === "string" ? f : f.name));
+    } catch {
+      continue;
+    }
+    const backups = names.filter((n) => n.startsWith(AUTO_BACKUP_PREFIX) && n.endsWith(".json")).sort().reverse();
+    for (const name of backups) {
+      const read = await readNativeJson(`${AUTO_BACKUP_FOLDER}/${name}`, directory);
+      if (read.status === "ok" && Array.isArray(read.data.workouts)) {
+        return { data: read.data, label: `the automatic backup of ${name.slice(AUTO_BACKUP_PREFIX.length, -".json".length)}` };
+      }
+    }
+  }
+  const migration = await readNativeJson(MIGRATION_BACKUP_FILE);
+  if (migration.status === "ok" && Array.isArray(migration.data?.data?.workouts)) {
+    return { data: migration.data.data, label: `the backup taken before the ${migration.data.fromVersion ?? "last"} update (${String(migration.data.backedUpAt ?? "").slice(0, 10)})` };
+  }
+  return null;
+}
+
+/**
+ * Set when loading found the database damaged, for a one-time message on
+ * start (see `takeRecoveryNotice`).
+ */
+let recoveryNotice: string | null = null;
+export function takeRecoveryNotice(): string | null {
+  const notice = recoveryNotice;
+  recoveryNotice = null;
+  return notice;
+}
 
 export let _dbState: any = null;
 
@@ -101,17 +163,44 @@ export async function initDB() {
 
   let rawData: any = null;
   let usingNative = Capacitor.isNativePlatform();
+  /** What was loaded isn't what's on disk as the database - write it out once loaded. */
+  let rewrite = false;
 
   if (usingNative) {
-    try {
-      const res = await Filesystem.readFile({
-        path: NATIVE_DB_FILE,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
-      });
-      rawData = JSON.parse(res.data as string);
-    } catch (e) {
-      // File doesn't exist yet
+    const main = await readNativeJson(NATIVE_DB_FILE);
+    if (main.status === "ok") {
+      rawData = main.data;
+    } else {
+      // A complete save that was about to be swapped in when the app died.
+      const tmp = await readNativeJson(NATIVE_DB_TMP);
+      if (tmp.status === "ok") {
+        rawData = tmp.data;
+        rewrite = true;
+      } else if (main.status === "damaged" || tmp.status === "damaged") {
+        // A database exists but can't be read. Never start empty over it:
+        // that used to happen, and the next save then overwrote the damaged
+        // file - which may still have been recoverable - for good. Keep its
+        // bytes, and restore the newest backup.
+        const damaged = main.status === "damaged" ? main.text : (tmp as { text: string }).text;
+        const kept = `boulder_tracker_db.damaged-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+        try {
+          await Filesystem.writeFile({ path: kept, data: damaged, directory: Directory.Data, encoding: Encoding.UTF8 });
+        } catch (err) {
+          console.error("Could not keep a copy of the damaged database", err);
+        }
+        const backup = await readNewestBackup();
+        if (backup) {
+          rawData = backup.data;
+          recoveryNotice = `Your training data file was damaged (most likely the app was closed in the middle of saving), so it was restored from ${backup.label}. Anything logged after that backup is missing. A copy of the damaged file was kept in the app's storage (${kept}).`;
+        } else {
+          // Current version: the defaults are current-shape, and a missing
+          // version would run the whole migration chain over them (see
+          // `resolveInitialExportVersion`).
+          rawData = { workouts: [], exportVersion: DATA_EXPORT_VERSION };
+          recoveryNotice = `Your training data file was damaged (most likely the app was closed in the middle of saving) and no automatic backup was found to restore. A copy of the damaged file was kept in the app's storage (${kept}). If you have an exported backup, import it in Settings → Data.`;
+        }
+        rewrite = true;
+      }
     }
   }
 
@@ -161,6 +250,7 @@ export async function initDB() {
     outdoorAscents: rawData.outdoorAscents || [],
     exportVersion: resolveInitialExportVersion(rawData),
   };
+  if (rewrite && !demoMode) await writeNativeFile();
 }
 
 export function setDbState(next: any) {
@@ -192,12 +282,24 @@ function writeNativeFile(): Promise<void> {
 
 async function startNativeWrite(): Promise<void> {
   try {
-    await Filesystem.writeFile({
-      path: NATIVE_DB_FILE,
-      data: JSON.stringify(_dbState),
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-    });
+    // Write the whole file aside, then swap it in: at every moment either
+    // the old or the new database is complete on disk (and `initDB` knows
+    // to look at the temporary one if the swap didn't finish).
+    const data = JSON.stringify(_dbState);
+    await Filesystem.writeFile({ path: NATIVE_DB_TMP, data, directory: Directory.Data, encoding: Encoding.UTF8 });
+    try {
+      await Filesystem.deleteFile({ path: NATIVE_DB_FILE, directory: Directory.Data });
+    } catch {
+      // Not there yet (first save) - nothing to replace.
+    }
+    try {
+      await Filesystem.rename({ from: NATIVE_DB_TMP, to: NATIVE_DB_FILE, directory: Directory.Data, toDirectory: Directory.Data });
+    } catch (err) {
+      // The swap failed: write the real file directly rather than leave the
+      // save only in the temporary one.
+      console.error("Swapping in the saved database failed - writing it directly", err);
+      await Filesystem.writeFile({ path: NATIVE_DB_FILE, data, directory: Directory.Data, encoding: Encoding.UTF8 });
+    }
   } catch (err) {
     console.error("Failed to write to native Filesystem", err);
   } finally {
