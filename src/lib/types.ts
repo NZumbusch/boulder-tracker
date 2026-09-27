@@ -225,6 +225,11 @@ export interface Workout {
    * (`toStoredWorkout`); a workout read back from storage never has it.
    */
   provisional?: true;
+  /**
+   * **Transient, never persisted.** Set on a session that only one side of
+   * a Plan B has - see `PlanAlternative`. `toStoredWorkout` strips it.
+   */
+  planB?: PlanBTag;
 
   // Fatigue Metrics (Perceived Exertion after completion)
   fingers?: number; // 1-10
@@ -346,6 +351,88 @@ export interface WeekOverride {
 export interface WeekNote {
   weekId: string;
   text: string;
+}
+
+export type PlanSide = "A" | "B";
+
+/**
+ * One difference between Plan A and Plan B on one day of an uncertain
+ * stretch. Plan A is whatever the week shows anyway (its phase's sessions or
+ * its stored ones); a change says what Plan B does instead.
+ *
+ *  - `replaces` + `session`: Plan B swaps that Plan A session for this one
+ *  - `replaces` alone:       Plan B drops that Plan A session
+ *  - `session` alone:        Plan B adds a session
+ */
+export interface PlanBChange {
+  id: string;
+  /** Days after the stretch's first day (0 = the first day). */
+  offset: number;
+  /**
+   * The Plan A session this change is about - by name on that day, and by
+   * id when it was picked from a known session. The name is what keeps a
+   * repeating Plan B working in weeks whose sessions have other ids.
+   */
+  replaces?: { name: string; id?: string };
+  /** Plan B's session that day. Its `dayOfWeek` is ignored - `offset` decides. */
+  session?: WorkoutTemplate;
+}
+
+/** Per-occurrence state of a Plan B, keyed by the week the occurrence starts in. */
+export interface PlanBOccurrence {
+  /** Overrides the Plan B's own `likely` for this occurrence. */
+  likely?: PlanSide;
+  /** Picked by hand. Logging a session that only one plan has decides too, without this. */
+  chosen?: PlanSide;
+  /** A repeating Plan B that doesn't apply this time. */
+  skipped?: true;
+}
+
+/**
+ * An uncertain stretch of days with two versions of the plan: "outdoor on
+ * Saturday if it's dry (then rest Sunday), otherwise board on Saturday and
+ * outdoor Sunday".
+ *
+ * Stored as a rule and applied when a week is read
+ * (`lib/planning/planB.ts`), never written into weeks: Plan A is whatever
+ * the week shows - projected from its phase or stored - and Plan B is only
+ * the differences on top. So a Plan B never materialises a week, crosses
+ * week and phase boundaries freely, and keeps working when the phase under
+ * it changes later; a change whose Plan A session is gone is flagged, not
+ * silently dropped.
+ */
+export interface PlanAlternative {
+  id: string;
+  /** "Outdoor if dry". */
+  label?: string;
+  /** Where the (first) stretch starts. */
+  startWeekId: string;
+  startDay: DayOfWeek;
+  /** How many days the stretch covers, 1-14. */
+  days: number;
+  /** Repeats every week up to and including this week (the week an occurrence starts in). Absent = once. */
+  repeatUntilWeekId?: string;
+  changes: PlanBChange[];
+  /** The plan the numbers (load, adherence, reminders) use until one is chosen. Default A. */
+  likely?: PlanSide;
+  /** Which plan is the outdoor one - gets the weather hint and the evening-before reminder. */
+  outdoor?: PlanSide;
+  /** Keyed by the week an occurrence starts in. */
+  occurrences?: Record<string, PlanBOccurrence>;
+}
+
+/** Transient marker on a session that belongs to one side of a Plan B (see `lib/planning/planB.ts`). Never persisted. */
+export interface PlanBTag {
+  altId: string;
+  /** The occurrence's key - the week it starts in. */
+  occurrence: string;
+  side: PlanSide;
+  /** This side is the one that counts right now (chosen, or likely while undecided). */
+  active: boolean;
+  /** One side has been chosen (by hand or by logging a session only one side has). */
+  decided: boolean;
+  /** A Plan B change whose Plan A session isn't there any more. */
+  stale?: true;
 }
 
 /**
@@ -470,6 +557,7 @@ export interface TrainingData {
   trainingBlocks: TrainingBlock[];
   weekOverrides: WeekOverride[];
   weekNotes: WeekNote[];
+  planAlternatives: PlanAlternative[];
   goals: GoalEvent[];
   exerciseTypes: ExerciseTypeDef[];
   templates: Record<string, WorkoutTemplate[]>;

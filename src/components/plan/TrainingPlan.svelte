@@ -25,6 +25,12 @@
   import { summarizeSession } from '../../lib/planning/sessionSummary';
   import { weekStartDay } from '../../lib/analytics/range';
   import { localDayIndex } from '../../lib/analytics/recoverySeries';
+  import PlanBStretch from './PlanBStretch.svelte';
+  import PlanBSheet from './PlanBSheet.svelte';
+  import { occurrencesTouchingWeek, dayIndexOf, occurrenceDaysLabel } from '../../lib/planning/planB';
+  import type { PlanAlternative } from '../../lib/types';
+  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import { onDestroy } from 'svelte';
 
   // --- Theme ---
   const FALLBACK_PHASE_COLOR = 'bg-status-neutral';
@@ -165,11 +171,58 @@
   // Ordering lives in `sortWorkoutsBySchedule` (day, then start time, then
   // id) so this view and the "+" screen's planned list share exactly one
   // comparator rather than two copies that can drift.
-  const weekWorkouts = $derived(
-    sortWorkoutsBySchedule(
-      trainingState.selectedWeekId ? trainingState.getWorkoutsForWeek(trainingState.selectedWeekId) : [],
-    ),
-  );
+  //
+  // The list shows both sides of any Plan B (see lib/planning/planB.ts);
+  // the side that doesn't count right now is faded and left out of the
+  // week's numbers. In Plan B mode, the Plan B being edited shows as Plan B
+  // sees it - its own sessions count, Plan A's replaced ones are faded.
+  const planView = $derived(trainingState.selectedWeekId ? trainingState.getWeekPlanView(trainingState.selectedWeekId) : null);
+  const weekWorkouts = $derived(sortWorkoutsBySchedule(planView?.shown ?? []));
+  const editingPlanB = $derived(trainingState.planBEditing);
+  function isEditedPlanB(w: Workout): boolean {
+    return !!w.planB && editingPlanB?.altId === w.planB.altId && editingPlanB?.key === w.planB.occurrence;
+  }
+  /** Whether a listed session counts toward the week (and reads at full strength). */
+  function counts(w: Workout): boolean {
+    if (!w.planB) return true;
+    return isEditedPlanB(w) ? w.planB.side === 'B' : w.planB.active;
+  }
+  const countedWorkouts = $derived(weekWorkouts.filter(counts));
+  /** "Plan B", "Plan A · not chosen", "only in Plan A" - what a tagged row says about itself. */
+  function planBMeta(w: Workout): string | undefined {
+    if (!w.planB) return undefined;
+    if (isEditedPlanB(w)) return w.planB.side === 'A' ? 'only in Plan A' : 'Plan B';
+    if (w.planB.decided && !w.planB.active) return `Plan ${w.planB.side} · not chosen`;
+    return `Plan ${w.planB.side}`;
+  }
+
+  // --- Plan B mode and settings ---
+  const inPlanBMode = $derived(!!trainingState.planBEditing);
+  backWhile(() => inPlanBMode, () => trainingState.finishPlanBEditing());
+  onDestroy(() => { if (trainingState.planBEditing) void trainingState.finishPlanBEditing(); });
+  let planBSettings = $state<{ alt: PlanAlternative; key: string } | null>(null);
+  const editedPlanB = $derived(editingPlanB?.altId ? trainingState.getPlanB(editingPlanB.altId) : undefined);
+  /** Repeating Plan Bs skipped this week - listed so they can be brought back. */
+  const skippedHere = $derived.by(() => {
+    const weekId = trainingState.selectedWeekId;
+    if (!weekId) return [];
+    return trainingState.planAlternatives.flatMap((alt) =>
+      occurrencesTouchingWeek([{ ...alt, occurrences: {} }], weekId)
+        .filter(({ key }) => alt.occurrences?.[key]?.skipped)
+        .map(({ key }) => ({ alt, key })),
+    );
+  });
+  /** Days of the selected week inside a Plan B stretch. */
+  const planBDays = $derived.by(() => {
+    const weekId = trainingState.selectedWeekId;
+    const days = new Set<number>();
+    if (!weekId || !planView) return days;
+    const monday = dayIndexOf(weekId, 'Monday');
+    for (const occ of planView.occurrences) {
+      for (let d = occ.firstDay; d <= occ.lastDay; d++) if (d >= monday && d < monday + 7) days.add(d - monday);
+    }
+    return days;
+  });
 
   // A provisional week shows sessions projected from its phase's templates
   // rather than stored rows - see lib/planning/weekProjection.ts. Nothing
@@ -299,11 +352,12 @@
       date: start !== undefined ? new Date((start + i) * 86400000).getUTCDate() : undefined,
       isToday: start !== undefined && start + i === today,
       sessions: dayGroups[day],
+      planB: planBDays.has(i),
     }));
   });
-  const doneCount = $derived(weekWorkouts.filter((w) => w.status === 'completed').length);
+  const doneCount = $derived(countedWorkouts.filter((w) => w.status === 'completed').length);
   const plannedLoadTotal = $derived(
-    weekWorkouts.reduce((sum, w) => sum + summarizeSession(w, trainingState.exerciseTypes).plannedLoad, 0),
+    countedWorkouts.reduce((sum, w) => sum + summarizeSession(w, trainingState.exerciseTypes).plannedLoad, 0),
   );
   /** Tapping a day in the strip: jump to its sessions, or start a new one on an empty day. */
   function onStripDay(day: DayOfWeek, hasSessions: boolean) {
@@ -511,6 +565,16 @@
           </div>
           <p class="text-caption text-content-subtle">Replaces the planned sessions there; completed ones stay. You can undo it.</p>
           <button
+            onclick={() => { showCopy = false; trainingState.editPlanBAt(trainingState.selectedWeekId!); }}
+            class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
+          >
+            <Icon icon="ic:baseline-call-split" class="text-base text-primary shrink-0" />
+            <span class="min-w-0 flex-1">
+              <span class="block text-label text-content group-hover:text-primary transition-colors">Plan B for uncertain days</span>
+              <span class="block text-caption text-content-subtle">A second version of some days, e.g. outdoor if it's dry</span>
+            </span>
+          </button>
+          <button
             onclick={() => { showCopy = false; sharingWeek = true; }}
             disabled={weekWorkouts.length === 0}
             class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left disabled:opacity-40 disabled:cursor-not-allowed group"
@@ -531,6 +595,31 @@
         </div>
       {/each}
 
+      {#if editingPlanB}
+        <div class="flex items-start gap-2 p-3 rounded-control border border-primary/40 bg-primary/10">
+          <Icon icon="ic:baseline-call-split" class="text-primary text-lg shrink-0 mt-0.5" />
+          <div class="min-w-0 flex-1">
+            <p class="text-label font-semibold text-content">Editing {editedPlanB?.label || 'Plan B'}{editedPlanB && editingPlanB.key ? ` · ${occurrenceDaysLabel(editedPlanB, editingPlanB.key)}` : ''}</p>
+            <p class="text-caption text-content-muted">Change, add or remove sessions - it all goes into Plan B only. Plan A stays as it is.{editedPlanB?.repeatUntilWeekId ? ' Applies to every week it repeats.' : ''}</p>
+          </div>
+          {#if editedPlanB && editingPlanB.key}
+            <button onclick={() => planBSettings = { alt: editedPlanB, key: editingPlanB.key! }} class="p-1 text-content-subtle hover:text-content" aria-label="Plan B settings"><Icon icon="ic:baseline-tune" class="text-lg" /></button>
+          {/if}
+          <button onclick={() => trainingState.finishPlanBEditing()} class="px-3 py-1.5 rounded-control bg-primary text-white text-label font-bold shrink-0">Done</button>
+        </div>
+      {/if}
+
+      {#each planView?.occurrences ?? [] as occ (`${occ.alt.id}:${occ.key}`)}
+        <PlanBStretch {occ} onSettings={() => planBSettings = { alt: occ.alt, key: occ.key }} />
+      {/each}
+      {#each skippedHere as { alt, key } (`${alt.id}:${key}`)}
+        <p class="flex items-center gap-2 text-caption text-content-subtle px-1">
+          <Icon icon="ic:baseline-call-split" class="text-sm shrink-0" />
+          <span class="flex-1 min-w-0 truncate">{alt.label || 'Plan B'} is skipped this week</span>
+          <button onclick={() => trainingState.setPlanBOccurrence(alt.id, key, { skipped: undefined })} class="text-primary shrink-0">Use it again</button>
+        </p>
+      {/each}
+
       <!-- The week at a glance: tap a day to jump to it, or to plan a
            session on an empty one. -->
       <div class="grid grid-cols-7 gap-1">
@@ -538,15 +627,17 @@
           <button
             onclick={() => onStripDay(cell.day, cell.sessions.length > 0)}
             class="flex flex-col items-center gap-1 py-1.5 rounded-control hover:bg-surface-elevated/60 transition-colors"
-            aria-label="{cell.day}{cell.sessions.length ? `: ${cell.sessions.map((w) => w.notes || 'Session').join(', ')}` : ': add a session'}"
+            aria-label="{cell.day}{cell.sessions.length ? `: ${cell.sessions.map((w) => w.notes || 'Session').join(', ')}` : ': add a session'}{cell.planB ? ' (Plan B stretch)' : ''}"
           >
             <span class="text-caption {cell.isToday ? 'text-primary font-bold' : 'text-content-subtle'}">{cell.day.slice(0, 1)}</span>
             <span class="text-label tabular-nums {cell.isToday ? 'text-primary font-bold' : 'text-content'}">{cell.date ?? ''}</span>
             <span class="flex gap-0.5 h-1.5">
               {#each cell.sessions.slice(0, 3) as w (w.id)}
-                <span class="w-1.5 h-1.5 rounded-full {w.status === 'completed' ? 'bg-success' : w.provisional ? 'border border-dashed border-primary' : 'border border-primary'}"></span>
+                <span class="w-1.5 h-1.5 rounded-full {w.status === 'completed' ? 'bg-success' : w.provisional ? 'border border-dashed border-primary' : 'border border-primary'} {counts(w) ? '' : 'opacity-35'}"></span>
               {/each}
             </span>
+            <!-- Inside a Plan B stretch. -->
+            <span class="h-0.5 w-5 rounded-full {cell.planB ? 'bg-primary/60' : 'bg-transparent'}"></span>
           </button>
         {/each}
       </div>
@@ -556,7 +647,7 @@
           <div class="min-w-0">
             <h4 class="text-section uppercase text-content-muted">Sessions</h4>
             {#if weekWorkouts.length > 0}
-              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {weekWorkouts.length} done{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal} pts` : ''}{#if plannedLoadTotal > 0} <InfoButton term="load" />{/if}</p>
+              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {countedWorkouts.length} done{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal} pts` : ''}{#if plannedLoadTotal > 0} <InfoButton term="load" />{/if}</p>
             {/if}
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
@@ -596,9 +687,10 @@
                       summary.startTime,
                       `${summary.estimated ? '~' : ''}${summary.minutes} min`,
                       summary.plannedLoad > 0 ? `load ${summary.plannedLoad} pts` : `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
+                      planBMeta(workout),
                       workout.provisional ? 'not saved yet' : undefined,
                     ].filter(Boolean).join(' · ')}
-                    muted={workout.provisional}
+                    muted={workout.provisional || !counts(workout)}
                     onclick={arranging ? undefined : () => openWorkout(workout)}
                   >
                     {#snippet leading()}
@@ -684,6 +776,10 @@
 
 {#if showAICoach}
   <AICoachModal onClose={() => showAICoach = false} />
+{/if}
+
+{#if planBSettings}
+  <PlanBSheet alt={planBSettings.alt} occurrence={planBSettings.key} onClose={() => planBSettings = null} />
 {/if}
 
 {#if showBlockManager}

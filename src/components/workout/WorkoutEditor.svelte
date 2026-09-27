@@ -99,9 +99,9 @@
   async function save() {
     isSaving = true;
     try {
-      const saved = $state.snapshot(workout) as Workout;
-      await trainingState.saveWorkout(saved);
-      onSaved(saved);
+      // A Plan B edit comes back as Plan B's own copy; null = refused (stay here).
+      const saved = await trainingState.saveWorkout($state.snapshot(workout) as Workout);
+      if (saved) onSaved(saved);
     } finally {
       isSaving = false;
     }

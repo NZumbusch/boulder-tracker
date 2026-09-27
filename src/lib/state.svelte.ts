@@ -5,8 +5,9 @@ import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
 import { isDemoMode } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek } from './types';
 import { getWeekId } from './dateUtils';
+import { getDominantBlockForWeek } from './planning/trainingBlocks';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
 import { tripInForecast } from './goals/goals';
@@ -25,7 +26,27 @@ import {
   isProvisionalId,
   type WeekProjectionContext,
 } from './planning/weekProjection';
-import { showAlert, showConfirm } from './utils';
+import {
+  applyPlanBsToWeek,
+  occurrenceFirstDay,
+  isoOfDay,
+  sideDates,
+  resolveOccurrence,
+  occurrenceKeys,
+  occurrenceOnDay,
+  parsePlanBSessionId,
+  planBSessionId,
+  dayIndexOf,
+  newPlanB,
+  saveInPlanB,
+  deleteInPlanB,
+  revertInPlanB,
+  setOccurrence,
+  MAX_PLAN_B_DAYS,
+  type PlanBContext,
+  type PlanBWeek,
+} from './planning/planB';
+import { showAlert, showConfirm, generateId } from './utils';
 import { WorkoutStore } from './stores/workoutStore.svelte';
 import { PlanningStore } from './stores/planningStore.svelte';
 import { CatalogStore } from './stores/catalogStore.svelte';
@@ -39,10 +60,13 @@ import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { WeatherStore } from './stores/weatherStore.svelte';
 import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
+import type { CragForecast } from './weather/suggestion';
 import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
 import { syncDailyMetricsReminder } from './notifications/dailyMetricsReminder';
 import { cancelRemindersOfType } from './notifications/shared';
+import { syncPlanBReminders, type PlanBReminderInput } from './notifications/planBReminder';
+import { outdoorDayHints, hintText } from './weather/planBHint';
 
 /**
  * Global reactive state for the application, composed from the domain
@@ -84,6 +108,8 @@ class TrainingState {
   get trainingBlocks() { return this.planningStore.trainingBlocks; }
   get weekOverrides() { return this.planningStore.weekOverrides; }
   get weekNotes() { return this.planningStore.weekNotes; }
+  /** Plan Bs for uncertain days - see `PlanAlternative` and `lib/planning/planB.ts`. */
+  get planAlternatives() { return this.planningStore.planAlternatives; }
   /** Competitions and outdoor trips - see `GoalEvent`. */
   get goals() { return this.planningStore.goals; }
   get templates() { return this.planningStore.templates; }
@@ -137,6 +163,18 @@ class TrainingState {
     }
   }
   /** No-ops if the reminder itself is currently disabled - nothing to reschedule. */
+  get planBReminderEnabled() { return this.preferencesStore.planBReminderEnabled; }
+  get planBReminderTime() { return this.preferencesStore.planBReminderTime; }
+  async setPlanBReminderEnabled(enabled: boolean) {
+    this.preferencesStore.setPlanBReminderEnabled(enabled);
+    if (enabled) await syncPlanBReminders(this.upcomingPlanBs(), this.planBReminderTime);
+    else await cancelRemindersOfType('planB');
+  }
+  async setPlanBReminderTime(time: string) {
+    this.preferencesStore.setPlanBReminderTime(time);
+    if (this.planBReminderEnabled) await syncPlanBReminders(this.upcomingPlanBs(), time);
+  }
+
   async setDailyMetricsReminderTime(time: string) {
     this.preferencesStore.setDailyMetricsReminderTime(time);
     if (this.dailyMetricsReminderEnabled) {
@@ -176,6 +214,16 @@ class TrainingState {
 
   /** Conditions at the next trip's place, once it's within the forecast - see `tripInForecast`. */
   get goalWeather() { return this.weatherStore.goal; }
+
+  /** Forecasts an outdoor Plan B is judged by: the saved crags, or home when there are none. */
+  get outdoorForecasts(): CragForecast[] {
+    const crags = this.crags
+      .map((c, i) => ({ name: c.name, days: this.cragWeather[i]?.snapshot?.daily ?? [] }))
+      .filter((c) => c.days.length > 0);
+    if (crags.length) return crags;
+    const home = this.homeWeather.snapshot?.daily ?? [];
+    return home.length ? [{ name: this.homeLocation?.name ?? 'Home', days: home }] : [];
+  }
 
   /** City name -> candidate locations, for the Settings location picker (raw lat/lon entry bypasses this entirely). */
   async geocodeCity(query: string) {
@@ -324,7 +372,7 @@ class TrainingState {
       // Not from the tour's example data.
       if (this.uiStore.notificationsEnabled && !isDemoMode()) {
         try {
-          await syncFatigueReminders(this.workoutStore.workouts);
+          await syncFatigueReminders(this.remindableWorkouts);
         } catch (err) {
           console.error('Failed to sync fatigue-reminder notifications:', err);
         }
@@ -333,6 +381,13 @@ class TrainingState {
             await syncDailyMetricsReminder(this.metricsStore.dailyMetrics, this.preferencesStore.dailyMetricsReminderTime);
           } catch (err) {
             console.error('Failed to sync daily-metrics reminder notification:', err);
+          }
+        }
+        if (this.preferencesStore.planBReminderEnabled) {
+          try {
+            await syncPlanBReminders(this.upcomingPlanBs(), this.preferencesStore.planBReminderTime);
+          } catch (err) {
+            console.error('Failed to sync Plan B reminder notifications:', err);
           }
         }
       }
@@ -385,14 +440,36 @@ class TrainingState {
     return templatesForWeek(this.projectionContext, weekId).length > 0;
   }
 
+  /** What Plan B resolution needs: the Plan Bs, and each week as it is without them. */
+  private get planBContext(): PlanBContext {
+    const projection = this.projectionContext;
+    const blocks = this.planningStore.trainingBlocks;
+    return {
+      alternatives: this.planningStore.planAlternatives,
+      baseWeek: (weekId) => effectiveWorkoutsForWeek(projection, weekId),
+      blockIdForWeek: (weekId) => getDominantBlockForWeek(blocks, weekId)?.id,
+    };
+  }
+
   /**
-   * A week's sessions as the app should show them: its stored workouts, or
-   * its projected ones while it is still provisional. Every screen that
-   * lists a week's sessions reads through this, so a provisional week looks
-   * and behaves like a planned one everywhere.
+   * A week's sessions as they count: its stored workouts, or its projected
+   * ones while it is still provisional - with every Plan B applied, keeping
+   * only the side that counts (chosen, else likely). Every screen that
+   * lists or adds up a week's sessions reads through this, so a provisional
+   * week and an undecided Plan B look and behave like a plain plan
+   * everywhere.
    */
   getWorkoutsForWeek(weekId: string) {
-    return effectiveWorkoutsForWeek(this.projectionContext, weekId);
+    return applyPlanBsToWeek(this.planBContext, weekId).active;
+  }
+
+  /**
+   * The Plan screen's view of a week: every session including the side of
+   * each Plan B that doesn't count right now (tagged `planB`), plus the Plan
+   * B stretches touching the week.
+   */
+  getWeekPlanView(weekId: string): PlanBWeek {
+    return applyPlanBsToWeek(this.planBContext, weekId);
   }
 
   getPlannedWorkoutsForWeek(weekId: string) {
@@ -469,6 +546,221 @@ class TrainingState {
 
   getDominantBlockForWeek(weekId: string) {
     return this.planningStore.getDominantBlockForWeek(weekId);
+  }
+
+  // --- Plan B (lib/planning/planB.ts) ---
+
+  /**
+   * Plan B mode: while set, adding, editing, copying or deleting a planned
+   * session changes this Plan B instead of the week. No `altId` = a new
+   * Plan B, created by the first edit (starting on that session's day).
+   */
+  planBEditing = $state<{ altId?: string; key?: string } | null>(null);
+
+  getPlanB(altId: string): PlanAlternative | undefined {
+    return this.planningStore.planAlternatives.find((a) => a.id === altId);
+  }
+
+  /** Whether `workoutId` is a session Plan B `alt` replaces or drops in occurrence `key` - i.e. Plan A's own version. */
+  private isPlanAOnly(alt: PlanAlternative, key: string, workoutId: string): boolean {
+    return resolveOccurrence(this.planBContext, alt, key).aOnly.some((w) => w.id === workoutId);
+  }
+
+  /**
+   * Where a save lands when a Plan B is involved: a planned Plan B session,
+   * or any planned session saved in Plan B mode, changes the Plan B rule
+   * instead of a week. Returns the saved session's id then, `'refused'`
+   * when it can't join the stretch, or `null` for an ordinary save.
+   *
+   * Something logged or skipped is what happened rather than a plan, so it
+   * is stored like any other session - under its Plan B id, which is how a
+   * logged Plan B session decides the Plan B. Plan A's own version of a
+   * swapped session (shown faded in Plan B mode) is edited as Plan A.
+   */
+  private async saveThroughPlanB(workout: Workout, into?: { alt: PlanAlternative; key: string }): Promise<{ id: string } | 'refused' | null> {
+    if (workout.status !== 'planned') return null;
+    if (workout.exercises.some((e) => e.logged || e.skipped)) return null;
+    const own = parsePlanBSessionId(workout.id);
+    let alt: PlanAlternative | undefined = into?.alt;
+    let key: string | undefined = into?.key;
+    let original: Workout | undefined;
+    if (!alt && own) {
+      if (this.workoutStore.workouts.some((w) => w.id === workout.id)) return null;
+      alt = this.getPlanB(own.altId);
+      key = own.occurrence;
+      if (!alt) return null;
+    } else if (!alt && this.planBEditing) {
+      original = this.getWorkoutById(workout.id);
+      if (original?.status === 'completed') return null;
+      if (!workout.dayOfWeek) {
+        toast.show('Give the session a day to add it to Plan B');
+        return 'refused';
+      }
+      if (this.planBEditing.altId) {
+        alt = this.getPlanB(this.planBEditing.altId);
+        key = this.planBEditing.key;
+      }
+      if (alt && key && original && this.isPlanAOnly(alt, key, original.id)) return null;
+      if (!alt || !key) {
+        alt = newPlanB(generateId(), workout.weekId, workout.dayOfWeek);
+        key = alt.startWeekId;
+      }
+    }
+    if (!alt || !key) return null;
+    const result = saveInPlanB($state.snapshot(alt) as PlanAlternative, key, workout, original, generateId);
+    if (!result) {
+      toast.show(`That day is too far away - a Plan B covers at most ${MAX_PLAN_B_DAYS} days`);
+      return 'refused';
+    }
+    await storage.savePlanAlternative(result.alt);
+    this.followPlanBEdit(result.alt.id, result.key);
+    const changeId = own && own.altId === result.alt.id ? own.changeId : result.alt.changes[result.alt.changes.length - 1].id;
+    return { id: planBSessionId(result.alt.id, result.key, changeId) };
+  }
+
+  /** Keeps Plan B mode pointing at the Plan B it's editing (a first edit creates it; growing backwards can move its key). */
+  private followPlanBEdit(altId: string, key: string) {
+    if (this.planBEditing && (!this.planBEditing.altId || this.planBEditing.altId === altId)) {
+      this.planBEditing = { altId, key };
+    }
+  }
+
+  /** Delete's counterpart of `saveThroughPlanB`. True when it handled the delete. */
+  private async deleteThroughPlanB(workout: Workout): Promise<boolean> {
+    if (workout.status !== 'planned') return false;
+    const own = parsePlanBSessionId(workout.id);
+    const isStored = this.workoutStore.workouts.some((w) => w.id === workout.id);
+    let alt: PlanAlternative | undefined;
+    let key: string | undefined;
+    if (own && !isStored) {
+      alt = this.getPlanB(own.altId);
+      key = own.occurrence;
+    } else if (this.planBEditing && !own) {
+      if (!workout.dayOfWeek) return false;
+      if (this.planBEditing.altId) {
+        alt = this.getPlanB(this.planBEditing.altId);
+        key = this.planBEditing.key;
+        if (alt && key && this.isPlanAOnly(alt, key, workout.id)) return false;
+      } else {
+        alt = newPlanB(generateId(), workout.weekId, workout.dayOfWeek);
+        key = alt.startWeekId;
+      }
+    }
+    if (!alt || !key) return false;
+    const before = this.getPlanB(alt.id);
+    const beforeCopy = before ? ($state.snapshot(before) as PlanAlternative) : undefined;
+    const next = deleteInPlanB($state.snapshot(alt) as PlanAlternative, key, workout, generateId);
+    await storage.savePlanAlternative(next);
+    this.followPlanBEdit(next.id, next.startWeekId === alt.startWeekId ? key : this.planBEditing?.key ?? key);
+    await this.refresh();
+    showUndo(`"${workout.notes || 'Session'}" taken out of Plan B`, async () => {
+      if (beforeCopy) await storage.savePlanAlternative(beforeCopy);
+      else await storage.deletePlanAlternative(next.id);
+      await this.refresh();
+    });
+    return true;
+  }
+
+  /**
+   * Enters Plan B mode on the Plan screen for the stretch covering
+   * `weekId`/`day` - or, when there's none, for a new Plan B that starts
+   * with the first change made.
+   */
+  editPlanBAt(weekId: string, day?: DayOfWeek) {
+    const hit = day ? occurrenceOnDay(this.planningStore.planAlternatives, dayIndexOf(weekId, day)) : undefined;
+    this.planBEditing = hit ? { altId: hit.alt.id, key: hit.key } : {};
+    this.uiStore.selectedWeekId = weekId;
+    if (this.uiStore.view !== 'plan') this.uiStore.navigate('plan');
+  }
+
+  /** Leaves Plan B mode. A Plan B that ended up with no differences is dropped. */
+  async finishPlanBEditing() {
+    const editing = this.planBEditing;
+    this.planBEditing = null;
+    const alt = editing?.altId ? this.getPlanB(editing.altId) : undefined;
+    if (alt && alt.changes.length === 0) {
+      await storage.deletePlanAlternative(alt.id);
+      await this.planningStore.load();
+    }
+  }
+
+  /** Label, outdoor side, likely side, repeat - anything on the Plan B itself. */
+  async savePlanB(alt: PlanAlternative) {
+    await storage.savePlanAlternative($state.snapshot(alt) as PlanAlternative);
+    await this.refresh();
+  }
+
+  /** Sets one occurrence's likely side (the numbers follow it), its choice, or skips it. `undefined` clears a field. */
+  async setPlanBOccurrence(altId: string, key: string, patch: { likely?: PlanSide; chosen?: PlanSide; skipped?: true }) {
+    const alt = this.getPlanB(altId);
+    if (!alt) return;
+    await this.savePlanB(setOccurrence($state.snapshot(alt) as PlanAlternative, key, patch));
+  }
+
+  /** Takes one session's Plan B difference back out: it's the same in both plans again. */
+  async revertPlanBSession(altId: string, workout: Workout) {
+    const alt = this.getPlanB(altId);
+    if (!alt) return;
+    await this.savePlanB(revertInPlanB($state.snapshot(alt) as PlanAlternative, workout));
+  }
+
+  /** Deletes a whole Plan B (every week it repeats), with Undo. Plan A stays; logged sessions stay. */
+  async deletePlanB(altId: string) {
+    const alt = this.getPlanB(altId);
+    if (!alt) return;
+    const copy = $state.snapshot(alt) as PlanAlternative;
+    const every = copy.repeatUntilWeekId ? ', every week it repeats' : '';
+    const ok = await showConfirm('Delete Plan B', `Delete "${copy.label || 'Plan B'}"${every}? Plan A stays as it is, and sessions you logged are kept.`);
+    if (!ok) return;
+    if (this.planBEditing?.altId === altId) this.planBEditing = null;
+    await storage.deletePlanAlternative(altId);
+    await this.refresh();
+    showUndo('Plan B deleted', async () => {
+      await storage.savePlanAlternative(copy);
+      await this.refresh();
+    });
+  }
+
+  /**
+   * Ids of stored sessions on the side of a Plan B that doesn't count right
+   * now - left out of reminders, which would otherwise nag about a session
+   * you aren't going to do.
+   */
+  private inactivePlanBIds(): Set<string> {
+    const ids = new Set<string>();
+    const ctx = this.planBContext;
+    const since = getWeekId(new Date(Date.now() - 14 * 86400000));
+    for (const alt of ctx.alternatives) {
+      for (const key of occurrenceKeys(alt)) {
+        if (key < since) continue;
+        const occ = resolveOccurrence(ctx, alt, key);
+        for (const w of [...occ.aOnly, ...occ.bOnly]) if (w.planB && !w.planB.active) ids.add(w.id);
+      }
+    }
+    return ids;
+  }
+
+  /** Plan B occurrences starting in the next week and a bit, for the evening-before reminder. */
+  private upcomingPlanBs(): PlanBReminderInput[] {
+    const ctx = this.planBContext;
+    const today = Math.floor(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) / 86400000);
+    const inputs: PlanBReminderInput[] = [];
+    for (const alt of ctx.alternatives) {
+      for (const key of occurrenceKeys(alt)) {
+        const first = occurrenceFirstDay(alt, key);
+        if (first <= today || first > today + 8) continue;
+        const occ = resolveOccurrence(ctx, alt, key);
+        const hint = alt.outdoor ? outdoorDayHints(sideDates(occ, alt.outdoor), this.outdoorForecasts, this.frictionConfig)[0] : undefined;
+        inputs.push({ altId: alt.id, key, label: alt.label, firstDate: isoOfDay(first), decided: !!occ.decided, hint: hint ? hintText(hint) : undefined });
+      }
+    }
+    return inputs;
+  }
+
+  /** Stored sessions minus the Plan B side that doesn't count - what reminders are scheduled from. */
+  private get remindableWorkouts(): Workout[] {
+    const inactive = this.inactivePlanBIds();
+    return inactive.size ? this.workoutStore.workouts.filter((w) => !inactive.has(w.id)) : this.workoutStore.workouts;
   }
 
   // --- Actions ---
@@ -660,9 +952,24 @@ class TrainingState {
   }
 
   /**
-   * Saves a workout to storage and refreshes local state.
+   * Saves a workout to storage and refreshes local state. Returns the
+   * session as it now is - for a Plan B edit that's Plan B's own copy, with
+   * its own id - or `null` if the save was refused (a Plan B edit on a day
+   * too far from its stretch).
    */
-  async saveWorkout(workout: Workout) {
+  async saveWorkout(workout: Workout): Promise<Workout | null> {
+    const routed = await this.saveThroughPlanB(workout);
+    if (routed === 'refused') return null;
+    if (routed) {
+      await this.refresh();
+      return this.getWorkoutById(routed.id) ?? workout;
+    }
+    await this.storeWorkout(workout);
+    return workout;
+  }
+
+  /** The plain save: into its week, materialising it first. */
+  private async storeWorkout(workout: Workout) {
     await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.saveWorkout(workout);
     await this.refresh();
@@ -684,12 +991,18 @@ class TrainingState {
    * not silently drop.
    */
   async saveWorkoutQuiet(workout: Workout) {
+    const routed = await this.saveThroughPlanB(workout);
+    if (routed === 'refused') return;
+    if (routed) {
+      await this.planningStore.load();
+      return;
+    }
     await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.saveWorkout(workout);
     await this.workoutStore.load();
     if (this.uiStore.notificationsEnabled) {
       try {
-        await syncFatigueReminders(this.workoutStore.workouts);
+        await syncFatigueReminders(this.remindableWorkouts);
       } catch (err) {
         console.error('Failed to sync fatigue-reminder notifications:', err);
       }
@@ -703,12 +1016,14 @@ class TrainingState {
     const workout = this.getWorkoutById(id);
     if (!workout) return;
     const copy = $state.snapshot(workout) as Workout;
+    if (await this.deleteThroughPlanB(copy)) return;
     // Materialise the week first: a projected session has no stored row to
     // delete until the week is real.
     await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.deleteWorkout(id);
     await this.refresh();
-    showUndo(`"${copy.notes || 'Session'}" deleted`, () => this.saveWorkout(copy));
+    // Straight back into the week - never through Plan B mode.
+    showUndo(`"${copy.notes || 'Session'}" deleted`, () => this.storeWorkout(copy));
   }
 
   /**
@@ -719,6 +1034,11 @@ class TrainingState {
   getWorkoutById(id: string): Workout | undefined {
     const stored = this.workoutStore.workouts.find((w) => w.id === id);
     if (stored) return stored;
+    const planB = parsePlanBSessionId(id);
+    if (planB) {
+      const alt = this.planningStore.planAlternatives.find((a) => a.id === planB.altId);
+      return alt ? resolveOccurrence(this.planBContext, alt, planB.occurrence).bOnly.find((w) => w.id === id) : undefined;
+    }
     if (!isProvisionalId(id)) return undefined;
     for (const weekId of coveredWeekIds(this.planningStore.trainingBlocks)) {
       const hit = projectWeekWorkouts(this.projectionContext, weekId).find((w) => w.id === id);
@@ -731,6 +1051,19 @@ class TrainingState {
    * Duplicates an existing workout.
    */
   async duplicateWorkout(workout: Workout) {
+    // A Plan B session, or anything copied in Plan B mode, is copied within Plan B.
+    const planB = parsePlanBSessionId(workout.id);
+    const isStored = this.workoutStore.workouts.some((w) => w.id === workout.id);
+    if ((planB && !isStored) || (this.planBEditing && workout.status === 'planned')) {
+      const snapshot = $state.snapshot(workout) as Workout;
+      const alt = planB ? this.getPlanB(planB.altId) : undefined;
+      const routed = await this.saveThroughPlanB({ ...snapshot, id: generateId() }, alt && planB ? { alt, key: planB.occurrence } : undefined);
+      if (routed && routed !== 'refused') {
+        await this.refresh();
+        toast.show('Copied within Plan B');
+      }
+      return;
+    }
     await this.materializeWeekIfProvisional(workout.weekId);
     await this.workoutStore.duplicateWorkout(workout);
     await this.refresh();

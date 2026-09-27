@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate } from '../types';
+import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate, PlanAlternative } from '../types';
 import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
@@ -11,20 +11,24 @@ export class PlanningStore {
   trainingBlocks = $state<TrainingBlock[]>([]);
   weekOverrides = $state<WeekOverride[]>([]);
   weekNotes = $state<WeekNote[]>([]);
+  /** Plan Bs for uncertain days - see `PlanAlternative`. */
+  planAlternatives = $state<PlanAlternative[]>([]);
   goals = $state<GoalEvent[]>([]);
   templates = $state<Record<string, WorkoutTemplate[]>>({});
 
   async load() {
-    const [trainingBlocks, weekOverrides, weekNotes, goals, templates] = await Promise.all([
+    const [trainingBlocks, weekOverrides, weekNotes, planAlternatives, goals, templates] = await Promise.all([
       storage.getTrainingBlocks(),
       storage.getWeekOverrides(),
       storage.getWeekNotes(),
+      storage.getPlanAlternatives(),
       storage.getGoals(),
       storage.getTemplates(),
     ]);
     this.trainingBlocks = trainingBlocks;
     this.weekOverrides = weekOverrides;
     this.weekNotes = weekNotes;
+    this.planAlternatives = planAlternatives;
     this.goals = goals;
     this.templates = templates;
   }

@@ -121,6 +121,7 @@ export async function initDB() {
       trainingBlocks: await localforage.getItem("trainingBlocks"),
       weekOverrides: await localforage.getItem("weekOverrides"),
       weekNotes: await localforage.getItem("weekNotes"),
+      planAlternatives: await localforage.getItem("planAlternatives"),
       // Pre-3.29 key, read so the startup migration can move it into `goals`.
       competitionEvents: await localforage.getItem("competitionEvents"),
       goals: await localforage.getItem("goals"),
@@ -143,6 +144,7 @@ export async function initDB() {
     trainingBlocks: rawData.trainingBlocks || [],
     weekOverrides: rawData.weekOverrides || [],
     weekNotes: rawData.weekNotes || [],
+    planAlternatives: rawData.planAlternatives || [],
     ...(rawData.competitionEvents ? { competitionEvents: rawData.competitionEvents } : {}),
     goals: rawData.goals || [],
     templates: rawData.templates || DEFAULT_TEMPLATES,
@@ -205,7 +207,7 @@ async function startNativeWrite(): Promise<void> {
 
 /** Every table stored under its own localforage key on the web. */
 export const TABLES = [
-  "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "goals", "templates", "phaseDefs",
+  "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "planAlternatives", "goals", "templates", "phaseDefs",
   "exerciseTypes", "benchmarks", "benchmarkTypes", "analyticsCategories", "metricDefs",
   "dailyMetrics", "painLogs", "outdoorAscents",
 ] as const;

@@ -47,6 +47,10 @@ export interface Preferences {
   dailyMetricsReminderEnabled: boolean;
   /** "HH:mm", 24-hour, local time. Default 20:00. */
   dailyMetricsReminderTime: string;
+  /** The evening before an undecided Plan B: "Plan A or Plan B?" (with the outdoor forecast). Inert until notifications are on. */
+  planBReminderEnabled: boolean;
+  /** "HH:mm", 24-hour, local time, on the evening before. Default 19:00. */
+  planBReminderTime: string;
   /**
    * Weather - `null` by default, meaning the weather card
    * is off until the user sets a location.
@@ -252,6 +256,8 @@ export function defaultPreferences(): Preferences {
     notificationsEnabled: false,
     dailyMetricsReminderEnabled: true,
     dailyMetricsReminderTime: DEFAULT_DAILY_METRICS_REMINDER_TIME,
+    planBReminderEnabled: true,
+    planBReminderTime: '19:00',
     homeLocation: null,
     crags: [],
     fatigueChartStyle: 'bars',
@@ -445,6 +451,10 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     dailyMetricsReminderEnabled: typeof candidate.dailyMetricsReminderEnabled === 'boolean'
       ? candidate.dailyMetricsReminderEnabled
       : defaults.dailyMetricsReminderEnabled,
+    planBReminderEnabled: typeof candidate.planBReminderEnabled === 'boolean' ? candidate.planBReminderEnabled : defaults.planBReminderEnabled,
+    planBReminderTime: typeof candidate.planBReminderTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(candidate.planBReminderTime)
+      ? candidate.planBReminderTime
+      : defaults.planBReminderTime,
     dailyMetricsReminderTime: typeof candidate.dailyMetricsReminderTime === 'string'
       && /^([01]\d|2[0-3]):[0-5]\d$/.test(candidate.dailyMetricsReminderTime)
       ? candidate.dailyMetricsReminderTime

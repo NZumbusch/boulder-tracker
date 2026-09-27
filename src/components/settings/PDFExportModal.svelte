@@ -66,7 +66,8 @@
     // Group workouts by week
     const grouped: Record<string, any> = {};
     for (const w of targetWeekIds) {
-      grouped[w] = trainingState.workouts.filter(wo => wo.weekId === w).sort((a, b) => {
+      // Through the week reader, so a projected week and a Plan B show as they count.
+      grouped[w] = trainingState.getWorkoutsForWeek(w).slice().sort((a, b) => {
         const orderA = a.dayOfWeek ? { 'Monday':0, 'Tuesday':1, 'Wednesday':2, 'Thursday':3, 'Friday':4, 'Saturday':5, 'Sunday':6 }[a.dayOfWeek] ?? 99 : 99;
         const orderB = b.dayOfWeek ? { 'Monday':0, 'Tuesday':1, 'Wednesday':2, 'Thursday':3, 'Friday':4, 'Saturday':5, 'Sunday':6 }[b.dayOfWeek] ?? 99 : 99;
         return orderA - orderB;

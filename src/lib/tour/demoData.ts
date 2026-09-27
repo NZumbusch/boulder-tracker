@@ -196,6 +196,7 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     trainingBlocks,
     weekOverrides: [],
     weekNotes: [{ weekId: getWeekId(mondayOf(today, -1)), text: "Deload: kept it easy after the strength block." }],
+    planAlternatives: [],
     goals,
     exerciseTypes: structuredClone(DEFAULT_EXERCISE_TYPES),
     templates,

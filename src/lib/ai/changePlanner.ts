@@ -26,6 +26,7 @@ import type {
   ExerciseTypeDef,
   ExerciseValues,
   PhaseDef,
+  PlanAlternative,
   TrainingBlock,
   WeekNote,
   WeekOverride,
@@ -87,6 +88,8 @@ export interface PlanWrites {
   phaseDefs?: PhaseDef[];
   templates?: Record<string, WorkoutTemplate[]>;
   trainingBlocks?: TrainingBlock[];
+  /** The whole Plan B list, when it changed. */
+  planAlternatives?: PlanAlternative[];
   weeks: WeekWrite[];
   weekNotes: WeekNote[];
 }

@@ -86,6 +86,33 @@
             </div>
           {/if}
         </div>
+
+        <div class="py-3 space-y-3">
+          <label class="flex items-center justify-between cursor-pointer">
+            <div class="min-w-0">
+              <p class="text-body text-content">Plan B Reminder</p>
+              <p class="text-caption text-content-subtle mt-0.5">The evening before an undecided Plan B, with the outdoor forecast.</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={trainingState.planBReminderEnabled}
+              onchange={(e) => trainingState.setPlanBReminderEnabled(e.currentTarget.checked)}
+              class="w-5 h-5 rounded accent-primary shrink-0 ml-3"
+            />
+          </label>
+          {#if trainingState.planBReminderEnabled}
+            <div class="flex items-center justify-between gap-3 animate-in fade-in">
+              <label for="plan-b-time" class="text-label text-content-subtle">Reminder time</label>
+              <input
+                id="plan-b-time"
+                type="time"
+                value={trainingState.planBReminderTime}
+                onchange={(e) => trainingState.setPlanBReminderTime(e.currentTarget.value)}
+                class="bg-surface-elevated text-content px-3 py-1.5 rounded-control border border-border-strong text-sm outline-none"
+              />
+            </div>
+          {/if}
+        </div>
       </div>
     {/if}
   </div>

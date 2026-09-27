@@ -6,6 +6,7 @@
   import { openWorkout } from '../../../lib/workoutModal.svelte';
   import { summarizeSession } from '../../../lib/planning/sessionSummary';
   import { missedWorkouts } from '../../../lib/planning/weekStatus';
+  import { sortWorkoutsBySchedule } from '../../../lib/planning/sortWorkouts';
   import { joinParts } from './format';
   import SectionHeader from './SectionHeader.svelte';
   import ListRow from '../../common/ListRow.svelte';
@@ -13,9 +14,16 @@
 
   let { data }: { data: HomeData } = $props();
 
+  // An undecided Plan B offers both plans today - whichever you start or
+  // log decides it. A decided one shows only the chosen plan.
   const todaysWorkouts = $derived(
-    trainingState.getPlannedWorkoutsForWeek(data.currentWeekId).filter((w) => w.dayOfWeek === data.todayName),
+    sortWorkoutsBySchedule(
+      trainingState.getWeekPlanView(data.currentWeekId).shown.filter(
+        (w) => w.status === 'planned' && w.dayOfWeek === data.todayName && (!w.planB || w.planB.active || !w.planB.decided),
+      ),
+    ),
   );
+  const undecidedToday = $derived(todaysWorkouts.some((w) => w.planB && !w.planB.decided));
   // Earlier sessions this week that were neither logged nor skipped.
   const missed = $derived(missedWorkouts(data.weekWorkouts, data.todayName));
   let showMissed = $state(false);
@@ -29,7 +37,10 @@
 </script>
 
 <div class="card space-y-1">
-  <SectionHeader label="Today" subtitle={todaysWorkouts.length > 0 ? `${todaysWorkouts.length} session${todaysWorkouts.length === 1 ? '' : 's'} planned` : undefined} />
+  <SectionHeader
+    label="Today"
+    subtitle={undecidedToday ? 'Plan A or Plan B - start either one' : todaysWorkouts.length > 0 ? `${todaysWorkouts.length} session${todaysWorkouts.length === 1 ? '' : 's'} planned` : undefined}
+  />
   <div class="divide-y divide-border">
   {#each todaysWorkouts as workout}
     {@const isThisRunning = trainingState.sessionStore.isRunning(workout.id)}
@@ -39,6 +50,7 @@
     <ListRow
       title={workout.notes || 'Session'}
       meta={joinParts(
+        workout.planB && `Plan ${workout.planB.side}`,
         showTime && summary.startTime,
         showTime && `${summary.estimated ? '~' : ''}${summary.minutes} min`,
         `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
@@ -47,7 +59,7 @@
       detail={trainingState.homeDetails['today.exercises'] && summary.exerciseNames.length > 0
         ? `${summary.exerciseNames.join(' · ')}${summary.moreExercises > 0 ? ` +${summary.moreExercises} more` : ''}`
         : undefined}
-      muted={workout.provisional}
+      muted={workout.provisional || (!!workout.planB && !workout.planB.active)}
       onclick={() => openWorkout(workout)}
     >
       {#snippet trailing()}

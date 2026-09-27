@@ -26,7 +26,7 @@ export const FATIGUE_AXIS_COLORS: Record<(typeof RATING_AXES)[number]["key"], st
 /**
  * Current data model version for exports and migrations.
  */
-export const DATA_EXPORT_VERSION = "3.29";
+export const DATA_EXPORT_VERSION = "3.30";
 
 /**
  * Well-known `MetricDef.id` for bodyweight - fixed/stable, same

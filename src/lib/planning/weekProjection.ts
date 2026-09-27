@@ -123,9 +123,9 @@ export function effectiveWorkoutsForWeek(ctx: WeekProjectionContext, weekId: str
   return stored.length > 0 ? stored : projectWeekWorkouts(ctx, weekId);
 }
 
-/** Strips the transient projection flag - what actually gets persisted. */
+/** Strips the transient flags (projection, Plan B side) - what actually gets persisted. */
 export function toStoredWorkout(workout: Workout): Workout {
-  const { provisional: _provisional, ...stored } = workout;
+  const { provisional: _provisional, planB: _planB, ...stored } = workout;
   return stored as Workout;
 }
 

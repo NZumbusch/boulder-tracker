@@ -18,6 +18,8 @@ export class PreferencesStore {
   textScale = $state<TextScale>('md');
   motion = $state<MotionPreference>('system');
   dailyMetricsReminderEnabled = $state(true);
+  planBReminderEnabled = $state(true);
+  planBReminderTime = $state('19:00');
   dailyMetricsReminderTime = $state('20:00');
   homeLocation = $state<WeatherLocation | null>(null);
   crags = $state<WeatherLocation[]>([]);
@@ -66,6 +68,8 @@ export class PreferencesStore {
     this.textScale = prefs.textScale;
     this.motion = prefs.motion;
     this.dailyMetricsReminderEnabled = prefs.dailyMetricsReminderEnabled;
+    this.planBReminderEnabled = prefs.planBReminderEnabled;
+    this.planBReminderTime = prefs.planBReminderTime;
     this.dailyMetricsReminderTime = prefs.dailyMetricsReminderTime;
     this.homeLocation = prefs.homeLocation;
     this.crags = prefs.crags;
@@ -121,6 +125,16 @@ export class PreferencesStore {
 
   setDailyMetricsReminderTime(time: string) {
     this.dailyMetricsReminderTime = time;
+    this.persist();
+  }
+
+  setPlanBReminderEnabled(enabled: boolean) {
+    this.planBReminderEnabled = enabled;
+    this.persist();
+  }
+
+  setPlanBReminderTime(time: string) {
+    this.planBReminderTime = time;
     this.persist();
   }
 
@@ -301,6 +315,8 @@ export class PreferencesStore {
       textScale: this.textScale,
       motion: this.motion,
       dailyMetricsReminderEnabled: this.dailyMetricsReminderEnabled,
+      planBReminderEnabled: this.planBReminderEnabled,
+      planBReminderTime: this.planBReminderTime,
       dailyMetricsReminderTime: this.dailyMetricsReminderTime,
       homeLocation: this.homeLocation,
       crags: this.crags,

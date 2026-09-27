@@ -271,6 +271,7 @@ const TABLE_NOUN: Record<string, string> = {
   trainingBlocks: "Training block",
   weekOverrides: "Week plan",
   weekNotes: "Week note",
+  planAlternatives: "Plan B",
   goals: "Goal",
   templates: "Phase templates",
   phaseDefs: "Phase",

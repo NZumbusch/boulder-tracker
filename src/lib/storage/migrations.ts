@@ -1109,6 +1109,14 @@ const MIGRATIONS: MigrationStep[] = [
       delete data.competitionEvents;
     },
   },
+  {
+    from: "3.29",
+    to: "3.30",
+    describe: "Add planAlternatives - Plan Bs for uncertain days (empty by default, purely additive)",
+    migrate: (data: any) => {
+      data.planAlternatives = data.planAlternatives || [];
+    },
+  },
 ];
 
 /**

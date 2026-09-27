@@ -4,6 +4,7 @@ import type {
   TrainingBlock,
   WeekOverride,
   WeekNote,
+  PlanAlternative,
   GoalEvent,
   ExerciseTypeDef,
   PhaseDef,
@@ -27,7 +28,7 @@ import type { ShareOutcome } from "../share/imageShare";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
 
 /** The tables a bulk plan change (AI change set, copied week) can touch - what its undo snapshot holds. */
-const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes"] as const;
+const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes", "planAlternatives"] as const;
 type PlanTables = Record<(typeof PLAN_TABLE_NAMES)[number], unknown>;
 interface PlanUndoRecord {
   /** What made the change: an AI change set, or copying a week in the planner. */
@@ -54,6 +55,7 @@ export const storage = {
   async _getTrainingBlocks(): Promise<TrainingBlock[]> { await initDB(); return _dbState.trainingBlocks; },
   async _getWeekOverrides(): Promise<WeekOverride[]> { await initDB(); return _dbState.weekOverrides; },
   async _getWeekNotes(): Promise<WeekNote[]> { await initDB(); return _dbState.weekNotes; },
+  async _getPlanAlternatives(): Promise<PlanAlternative[]> { await initDB(); return _dbState.planAlternatives; },
   async _getGoals(): Promise<GoalEvent[]> { await initDB(); return _dbState.goals; },
   async _getBenchmarks(): Promise<Benchmark[]> { await initDB(); return _dbState.benchmarks; },
   async _getBenchmarkTypes(): Promise<BenchmarkTypeDef[]> { await initDB(); return _dbState.benchmarkTypes; },
@@ -70,6 +72,7 @@ export const storage = {
   async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(["trainingBlocks"]); },
   async _saveWeekOverrides(overrides: WeekOverride[]): Promise<void> { await initDB(); _dbState.weekOverrides = toPlain(overrides); await flushDB(["weekOverrides"]); },
   async _saveWeekNotes(notes: WeekNote[]): Promise<void> { await initDB(); _dbState.weekNotes = toPlain(notes); await flushDB(["weekNotes"]); },
+  async _savePlanAlternatives(alts: PlanAlternative[]): Promise<void> { await initDB(); _dbState.planAlternatives = toPlain(alts); await flushDB(["planAlternatives"]); },
   async _saveGoals(goals: GoalEvent[]): Promise<void> { await initDB(); _dbState.goals = toPlain(goals); await flushDB(["goals"]); },
   async _saveBenchmarks(benchmarks: Benchmark[]): Promise<void> { await initDB(); _dbState.benchmarks = toPlain(benchmarks); await flushDB(["benchmarks"]); },
   async _saveBenchmarkTypes(types: BenchmarkTypeDef[]): Promise<void> { await initDB(); _dbState.benchmarkTypes = toPlain(types); await flushDB(["benchmarkTypes"]); },
@@ -243,6 +246,7 @@ export const storage = {
     if (writes.phaseDefs) db.phaseDefs = toPlain(writes.phaseDefs);
     if (writes.templates) db.templates = toPlain(writes.templates);
     if (writes.trainingBlocks) db.trainingBlocks = toPlain(writes.trainingBlocks);
+    if (writes.planAlternatives) db.planAlternatives = toPlain(writes.planAlternatives);
     if (writes.weeks.length) {
       const touched = new Set(writes.weeks.map((w) => w.weekId));
       const kept = (db.workouts as Workout[]).filter((w) => !(touched.has(w.weekId) && w.status === "planned"));
@@ -320,6 +324,24 @@ export const storage = {
 
   async getGoals(): Promise<GoalEvent[]> {
     return this._getGoals();
+  },
+
+  async getPlanAlternatives(): Promise<PlanAlternative[]> {
+    return this._getPlanAlternatives();
+  },
+
+  /** Creates or replaces one Plan B (see `PlanAlternative`). */
+  async savePlanAlternative(alt: PlanAlternative): Promise<void> {
+    const alts = [...(await this._getPlanAlternatives())];
+    const index = alts.findIndex((a) => a.id === alt.id);
+    if (index !== -1) alts[index] = alt;
+    else alts.push(alt);
+    await this._savePlanAlternatives(alts);
+  },
+
+  async deletePlanAlternative(id: string): Promise<void> {
+    const alts = await this._getPlanAlternatives();
+    await this._savePlanAlternatives(alts.filter((a) => a.id !== id));
   },
 
   async saveGoal(event: GoalEvent): Promise<void> {
@@ -699,6 +721,7 @@ export const storage = {
           if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
           if (data.weekOverrides) _dbState.weekOverrides = data.weekOverrides;
           if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
+          if (data.planAlternatives) _dbState.planAlternatives = data.planAlternatives;
           if (data.goals) _dbState.goals = data.goals;
           if (data.templates) _dbState.templates = data.templates;
           if (data.phaseDefs) _dbState.phaseDefs = data.phaseDefs;

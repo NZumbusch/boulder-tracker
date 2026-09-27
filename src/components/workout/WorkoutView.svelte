@@ -12,6 +12,7 @@
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import { loggedDateFor } from '../../lib/planning/scheduledDate';
   import ExerciseCard from './ExerciseCard.svelte';
+  import { occurrenceOnDay, dayIndexOf } from '../../lib/planning/planB';
   import WorkoutShareImage from '../history/WorkoutShareImage.svelte';
   import Icon from '@iconify/svelte';
 
@@ -38,6 +39,24 @@
   });
 
   let menuOpen = $state(false);
+
+  // --- Plan B ---
+  /** The Plan B stretch this session's day is in, if any. */
+  const planBHere = $derived(
+    workout.dayOfWeek ? occurrenceOnDay(trainingState.planAlternatives, dayIndexOf(workout.weekId, workout.dayOfWeek)) : undefined,
+  );
+  const canPlanB = $derived(!isCompleted && !!workout.dayOfWeek && !trainingState.planBEditing);
+  function planB() {
+    menuOpen = false;
+    onClose();
+    trainingState.editPlanBAt(workout.weekId, workout.dayOfWeek);
+  }
+  async function sameAsPlanA() {
+    menuOpen = false;
+    if (!workout.planB) return;
+    onClose();
+    await trainingState.revertPlanBSession(workout.planB.altId, workout);
+  }
   let sharing = $state(false);
 
   async function duplicate() {
@@ -81,6 +100,9 @@
         <p class="text-caption uppercase text-primary flex items-center gap-1">
           {#if workout.provisional}<Icon icon="ic:outline-cloud-queue" class="text-sm" />{/if}
           Planned
+          {#if workout.planB}
+            <span class="flex items-center gap-0.5 normal-case text-content-subtle">· <Icon icon="ic:baseline-call-split" class="text-sm" />Plan {workout.planB.side}{workout.planB.decided && !workout.planB.active ? ', not chosen' : ''}</span>
+          {/if}
         </p>
       {/if}
       <h2 class="text-title text-content break-words">{workout.notes || 'Session'}</h2>
@@ -94,10 +116,20 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="fixed inset-0 z-10" onclick={() => menuOpen = false}></div>
-        <div class="absolute right-0 top-full mt-1 z-20 w-40 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
+        <div class="absolute right-0 top-full mt-1 z-20 w-44 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
           <button onclick={duplicate} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
             <Icon icon="ic:baseline-content-copy" class="text-sm" /> Duplicate
           </button>
+          {#if canPlanB}
+            <button onclick={planB} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+              <Icon icon="ic:baseline-call-split" class="text-sm" /> {planBHere ? 'Edit Plan B' : 'Make a Plan B'}
+            </button>
+          {/if}
+          {#if workout.planB?.side === 'B' && !isCompleted}
+            <button onclick={sameAsPlanA} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+              <Icon icon="ic:baseline-undo" class="text-sm" /> Same as Plan A
+            </button>
+          {/if}
           {#if isCompleted}
             <button onclick={() => { menuOpen = false; sharing = true; }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
               <Icon icon="ic:baseline-share" class="text-sm" /> Share
