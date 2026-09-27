@@ -17,6 +17,8 @@
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import NavRow from '../common/NavRow.svelte';
   import SyncSettings from './SyncSettings.svelte';
+  import AppUpdateSettings from '../update/AppUpdateSettings.svelte';
+  import { updater } from '../../lib/update/updater.svelte';
   import { APP_INFO } from '../../lib/appInfo';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import Icon from "@iconify/svelte";
@@ -186,6 +188,7 @@
     </div>
   {:else if currentTab === 'about'}
     <div class="space-y-4">
+      <AppUpdateSettings />
       <div class="card space-y-3 animate-in fade-in">
         <h4 class="text-section uppercase text-content-muted px-1">Help</h4>
         <button
@@ -215,7 +218,7 @@
           <div class="text-center py-4">
             <Icon icon="ic:baseline-terrain" class="text-6xl text-primary mx-auto mb-2" />
             <h3 class="text-title text-content">{APP_INFO.name}</h3>
-            <p class="text-body text-content-subtle mt-1">Version {APP_INFO.version}</p>
+            <p class="text-body text-content-subtle mt-1">Version {updater.installedName ?? APP_INFO.version}</p>
           </div>
 
           <div class="space-y-2 pt-4 border-t border-border">

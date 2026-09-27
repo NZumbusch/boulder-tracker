@@ -62,6 +62,21 @@ Pushing to `main` builds the app and deploys it to GitHub Pages (`.github/workfl
 
 What the web app can't do, on iOS in particular: scheduled reminders, timer beeps with the screen locked (keep the screen on - Settings → Appearance & Behaviour → Sessions & Timer), Drive sync, widgets and shortcuts (Android only). On iPhone the Home Screen app has its own storage, separate from Safari's.
 
+### Android app updates
+
+The same workflow builds a signed release APK and publishes it with `android/version.json` under https://bouldertracker.nathanzumbusch.de/android/. The app checks that file on start (Settings → About → App updates), offers newer builds on Home, downloads the APK, checks its SHA-256 and opens Android's installer (`plugins/app-updater`, `src/lib/update/`). The build number is the commit count on `main`, so CI builds and Android Studio builds of the same commit match.
+
+Signing needs four repository secrets (Settings → Secrets and variables → Actions); without them only the web app deploys:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 ~/.android/debug.keystore` (the key the installed app is signed with) |
+| `ANDROID_KEYSTORE_PASSWORD` | `android` for the debug keystore |
+| `ANDROID_KEY_ALIAS` | `androiddebugkey` |
+| `ANDROID_KEY_PASSWORD` | `android` |
+
+It must stay the same key: Android only installs an update signed like the installed app, and the Drive OAuth client is registered for that key's SHA-1. Locally, release builds without these variables are signed with the debug key too.
+
 ## Where things live
 
 ```

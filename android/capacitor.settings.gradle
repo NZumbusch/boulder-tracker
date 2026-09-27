@@ -17,6 +17,9 @@ project(':capacitor-local-notifications').projectDir = new File('../node_modules
 include ':capacitor-share'
 project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/share/android')
 
+include ':capacitor-app-updater'
+project(':capacitor-app-updater').projectDir = new File('../plugins/app-updater/android')
+
 include ':capacitor-drive-sync'
 project(':capacitor-drive-sync').projectDir = new File('../plugins/drive-sync/android')
 

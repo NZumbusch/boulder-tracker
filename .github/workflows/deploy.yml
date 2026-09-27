@@ -1,4 +1,13 @@
-name: Deploy static content to Pages
+name: Deploy web app and Android update to Pages
+
+# One site: the web app (PWA) at the root, and the signed Android APK plus
+# the version file the app's updater reads under /android/ (see
+# src/lib/update/). Runs on every push to main.
+#
+# The signing key never leaves GitHub's secrets: it is decoded into the
+# runner's temp directory (outside the checkout, so it can't end up in the
+# uploaded site), used by Gradle, and deleted again even if the build fails.
+# Without the secrets set, only the web app deploys.
 
 on:
   push:
@@ -20,30 +29,65 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+        with:
+          # The build number is the commit count - needs the whole history.
+          fetch-depth: 0
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-          
+
       - name: Install dependencies
         run: npm ci
-        
-      - name: Build
+
+      - name: Build web app
         run: npm run build
-        
+
+      - name: Setup Java (Android build)
+        if: env.HAS_KEYSTORE == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Build signed APK
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/signing.keystore"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          cd ..
+          node scripts/write-update-manifest.mjs android/app/build/outputs/apk/release/app-release.apk dist/android
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/signing.keystore"
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
-          
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

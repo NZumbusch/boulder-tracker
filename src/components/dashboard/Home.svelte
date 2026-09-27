@@ -1,4 +1,6 @@
 <script lang="ts">
+  import UpdateCard from '../update/UpdateCard.svelte';
+  import { updater } from '../../lib/update/updater.svelte';
   /**
    * Home: a header (date, phase and block week, quick log, settings) and
    * the cards, in the order and with the visibility set in Settings. Each
@@ -84,6 +86,8 @@
 
   <!-- Each section in `trainingState.homeSections`' order, skipping hidden
        ones. The header above isn't part of this list - always shown, first. -->
+  {#if updater.showBanner}<UpdateCard compact />{/if}
+
   {#each trainingState.homeSections as section (section.id)}
     {#if section.visible}
       <div data-tour="home-{section.id}" class="empty:hidden">
