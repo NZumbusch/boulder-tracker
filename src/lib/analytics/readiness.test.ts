@@ -115,10 +115,19 @@ describe("computeHrvBaseline", () => {
   it("excludes entries older than the window and entries for other metrics", () => {
     const entries: DailyMetricEntry[] = [
       { id: "1", metricId: "hrv", date: "2026-03-28", value: 60 },
+      { id: "1b", metricId: "hrv", date: "2026-03-26", value: 60 },
+      { id: "1c", metricId: "hrv", date: "2026-03-24", value: 60 },
       { id: "2", metricId: "hrv", date: "2026-03-01", value: 999 }, // >14 days back
       { id: "3", metricId: "sleep-score", date: "2026-03-28", value: 1 },
     ];
     expect(computeHrvBaseline(entries, asOf)).toBeCloseTo(60, 10);
+  });
+
+  it("after a break, uses the last readings before it rather than today's alone", () => {
+    const before = Array.from({ length: 20 }, (_, i) => ({ id: `b${i}`, metricId: "hrv", date: `2026-01-${String(i + 1).padStart(2, "0")}`, value: 70 }));
+    const back: DailyMetricEntry = { id: "t", metricId: "hrv", date: "2026-03-28", value: 56 };
+    // The last 14 readings: 13 old at 70, today at 56.
+    expect(computeHrvBaseline([...before, back], asOf)).toBeCloseTo((13 * 70 + 56) / 14, 6);
   });
 
   it("ignores zero entries (a dead tracker, not an HRV of 0)", () => {

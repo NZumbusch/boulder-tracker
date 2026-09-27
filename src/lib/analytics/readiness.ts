@@ -85,16 +85,22 @@ export function computeFatigueDecay(workouts: Workout[], asOf: Date, halfLifeDay
  * were logged in that window - readiness treats "no baseline yet" as a
  * missing input, not a 0. Zero entries are not readings (`isLoggedMetricValue`)
  * and are skipped, so a week without a tracker leaves the baseline alone.
+ *
+ * After a break - fewer than `HRV_BREAK_MIN_READINGS` in the window - the
+ * baseline is the last `days` readings instead, from at most a year back:
+ * otherwise the first reading back is its own baseline, every day reads
+ * "±0 %", and a real dip never costs readiness anything.
  */
+export const HRV_BREAK_MIN_READINGS = 3;
 export function computeHrvBaseline(dailyMetrics: DailyMetricEntry[], asOf: Date, days = 14): number | undefined {
   const asOfDay = toUtcDayIndex(asOf.toISOString());
-  const values = loggedMetrics(dailyMetrics)
+  const readings = loggedMetrics(dailyMetrics)
     .filter((m) => m.metricId === "hrv")
-    .filter((m) => {
-      const day = toUtcDayIndex(m.date);
-      return day <= asOfDay && asOfDay - day < days;
-    })
-    .map((m) => m.value);
+    .map((m) => ({ day: toUtcDayIndex(m.date), value: m.value }))
+    .filter((r) => r.day <= asOfDay && asOfDay - r.day < 365)
+    .sort((a, b) => a.day - b.day);
+  let values = readings.filter((r) => asOfDay - r.day < days).map((r) => r.value);
+  if (values.length < HRV_BREAK_MIN_READINGS) values = readings.slice(-days).map((r) => r.value);
   if (values.length === 0) return undefined;
   return values.reduce((a, b) => a + b, 0) / values.length;
 }

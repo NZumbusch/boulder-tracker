@@ -114,7 +114,7 @@
         {/if}
         {#if def.id === 'hrv' && hrvDelta !== undefined && hrvBaseline !== undefined && trainingState.homeDetails['metrics.hrvBaseline']}
           <p class="text-caption tabular-nums {hrvDelta < -trainingState.readinessConfig.hrvDip ? 'text-status-caution' : 'text-content-subtle'}">
-            {hrvDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(hrvDelta * 100))}% vs 14-day baseline ({Math.round(hrvBaseline)})
+            {hrvDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(hrvDelta * 100))}% vs your baseline ({Math.round(hrvBaseline)})
           </p>
         {:else if def.id === 'sleep-score' && todaysMetric('sleep-duration')}
           {@const naps = todaysMetric('nap-duration')?.value}

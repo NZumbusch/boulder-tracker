@@ -38,6 +38,15 @@
     if (run.length > 1) runs.push(`M ${run.join(' L ')}`);
     return runs.join(' ');
   });
+  // A week between two gaps has no neighbour to draw a line to - it gets a
+  // dot, or it would vanish (after a break, often the newest week).
+  const lonePoints = $derived(
+    columns
+      .map((c, i) => ({ c, i }))
+      .filter(({ c, i }) => c.monotony !== undefined && columns[i - 1]?.monotony === undefined && columns[i + 1]?.monotony === undefined)
+      .map(({ c, i }) => `M ${((i + 0.5) / columns.length) * 100},${monoY(c.monotony!)} h 0`)
+      .join(' '),
+  );
   const latest = $derived([...columns].reverse().find((c) => c.monotony !== undefined));
 
   // Tap (or hover) a column: its values print in the readout line, which
@@ -92,6 +101,7 @@
       {/each}
       <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
         <path d={line} fill="none" stroke="var(--color-content-muted)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+        <path d={lonePoints} fill="none" stroke="var(--color-content-muted)" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke" />
       </svg>
       {#if !columns.some((c) => c.load > 0)}<ChartEmpty>No training logged in this window</ChartEmpty>{/if}
     </div>
