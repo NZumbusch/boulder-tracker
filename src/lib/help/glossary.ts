@@ -26,6 +26,7 @@ export const GLOSSARY: Record<TermId, Term> = {
       "Load is a score for how hard a session was, in points. It grows with time and, faster than linearly, with intensity: minutes × intensity^1.2, where intensity is on a 1–10 scale.",
       "Planned load uses each exercise's planned time and intensity. A completed session's load uses how hard it felt: the fingers, systemic and core ratings you give after the session.",
       "As a guide: an hour at a moderate 5/10 is about 400 points, an hour at 8/10 about 730. The number only means something compared with your own other weeks.",
+      "Because the two come from different inputs, the app never puts one against the other. \"% of the plan\" compares like with like: the logged exercises against the planned ones.",
     ],
   },
   acwr: {

@@ -50,7 +50,7 @@
           </div>
         {/each}
       </div>
-      <p class="text-caption text-content-subtle">Weekly load: logged (filled) vs planned (outline)</p>
+      <p class="text-caption text-content-subtle">Work vs plan each week: logged (filled), planned (outline)</p>
     {/if}
   {:else}
     <p class="text-caption text-content-subtle italic">No training block covers this week.</p>

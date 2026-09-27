@@ -12,12 +12,12 @@
   import {
     calculateAcwrForBuckets,
     calculateAcwrForWeeks,
-    calculateWorkoutAdherence,
     correlatePainWithLoadSpikes,
   } from '../../lib/analytics/loadAnalytics';
   import { computeFatigueDecay } from '../../lib/analytics/readiness';
   import { labelStep } from '../../lib/analytics/chartWindow';
   import { parseFontGrade } from '../../lib/analytics/grades';
+  import { planProgress } from '../../lib/planning/weekRecap';
   import { toUtcDayIndex } from '../../lib/dateUtils';
   import { buildBuckets, bucketOfDay, dayToX, ANALYTICS_RANGES, RANGE_LABELS } from '../../lib/analytics/range';
   import { windowStats, comparisonSpans } from '../../lib/analytics/windowSummary';
@@ -196,7 +196,7 @@
     const columns = buckets.map((bucket) => {
       const column = {
         load: 0,
-        plannedLoad: 0,
+        workouts: [] as Workout[],
         categories: Object.fromEntries(categories.map((c) => [c.name, 0])) as Record<string, number>,
         completedCategories: Object.fromEntries(categories.map((c) => [c.name, 0])) as Record<string, number>,
       };
@@ -208,7 +208,7 @@
       // would make the target path drop to zero for every
       // not-yet-materialised week.
       bucket.weekIds.flatMap((id) => trainingState.getWorkoutsForWeek(id)).forEach((w: Workout) => {
-        column.plannedLoad += (w.plannedLoad || 0);
+        column.workouts.push(w);
         if (w.status === 'completed') column.load += (w.loadFactor || 0);
 
         // Count exercises for both planned and completed to show Training Mix
@@ -242,14 +242,14 @@
       return column;
     });
 
-    const maxLoad = Math.max(...columns.map((c) => Math.max(c.load, c.plannedLoad)), 100) * 1.15;
+    const maxLoad = Math.max(...columns.map((c) => c.load), 100) * 1.15;
 
     return {
       weeks: buckets.map((bucket, i) => ({
         id: bucket.id,
         label: bucket.label,
         totalLoad: columns[i].load,
-        totalPlannedLoad: columns[i].plannedLoad,
+        planProgress: planProgress(columns[i].workouts),
         categories: columns[i].categories,
         completedCategories: columns[i].completedCategories,
         totalDuration: Object.values(columns[i].categories).reduce((a, b) => a + b, 0),
@@ -264,23 +264,15 @@
   const allWeekIds = $derived(buckets.flatMap((b) => b.weekIds));
   const weekLabels = $derived(Object.fromEntries(buckets.map((b) => [b.id, b.label])));
   const acwrResults = $derived(calculateAcwrForBuckets(trainingState.workouts, buckets));
-  // Adherence (share of planned exercises logged in completed sessions),
-  // shown on the Load chart rather than as its own card.
-  const adherence = $derived.by(() => {
+  // How much of the plan is done, per column and over the window so far -
+  // logged vs planned work, both from the exercises (see `planProgress`),
+  // the same measure as Home's This Week. Weeks still ahead are left out of
+  // the window figure, or a plan running into the future would pull it down.
+  const planDone = $derived.by(() => {
     const perColumn: Record<string, number> = {};
-    let slots = 0;
-    let logged = 0;
-    for (const b of buckets) {
-      const results = trainingState.workouts
-        .filter((w) => w.status === 'completed' && b.weekIds.includes(w.weekId))
-        .map(calculateWorkoutAdherence);
-      const total = results.reduce((sum, r) => sum + r.totalSlots, 0);
-      const done = results.reduce((sum, r) => sum + r.loggedSlots, 0);
-      if (total > 0) perColumn[b.id] = done / total;
-      slots += total;
-      logged += done;
-    }
-    return { perColumn, window: slots > 0 ? logged / slots : undefined };
+    for (const w of chartData.weeks) if (w.planProgress !== undefined) perColumn[w.id] = w.planProgress;
+    const soFar = buckets.flatMap((b) => b.weekIds).filter((id) => id <= trainingState.currentWeekId);
+    return { perColumn, window: planProgress(soFar.flatMap((id) => trainingState.getWorkoutsForWeek(id))) };
   });
 
   // --- Pain timeline: rows per body part, ringed where a load spike was
@@ -476,7 +468,7 @@
 
     <div class="space-y-5">
       {#snippet loadSection()}
-      <LoadPanel {chartData} {acwrResults} {axisStep} {tips} {timeline} xOfDay={(day) => dayToX(buckets, day)} onSelect={(i) => (selectedIndex = i)} adherence={adherence.perColumn} windowAdherence={adherence.window} bind:chartWidth />
+      <LoadPanel {chartData} {acwrResults} {axisStep} {tips} {timeline} xOfDay={(day) => dayToX(buckets, day)} onSelect={(i) => (selectedIndex = i)} planDone={planDone.perColumn} windowPlanDone={planDone.window} bind:chartWidth />
       {/snippet}
 
       {#snippet strainSection()}

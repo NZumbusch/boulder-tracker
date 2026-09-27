@@ -35,7 +35,13 @@
   );
   const doneCount = $derived(workouts.filter((w) => w.status === 'completed').length);
   const minutes = $derived(workouts.reduce((sum, w) => sum + sessionDuration(w), 0));
-  const load = $derived(Math.round(workouts.reduce((sum, w) => sum + (w.status === 'completed' ? w.loadFactor || 0 : w.plannedLoad || 0), 0)));
+  // One scale per number: the rated load of what's done once anything is,
+  // otherwise the plan's own estimate - never the two added together.
+  const load = $derived(
+    doneCount > 0
+      ? { value: Math.round(workouts.reduce((sum, w) => sum + (w.status === 'completed' ? w.loadFactor || 0 : 0), 0)), label: 'Load' }
+      : { value: Math.round(workouts.reduce((sum, w) => sum + (w.plannedLoad || 0), 0)), label: 'Planned load' },
+  );
 
   function exercisesLine(w: Workout): string {
     const names = w.exercises.map((e) => slotTypeName(e, trainingState.exerciseTypes));
@@ -127,10 +133,10 @@
             <p class="text-3xl font-black text-white tracking-tighter leading-none">{formatMinutes(minutes)}</p>
             <p class="text-[8px] font-black uppercase text-[#71717a] tracking-[0.2em] mt-1.5">Time</p>
           </div>
-          {#if load > 0}
+          {#if load.value > 0}
             <div>
-              <p class="text-3xl font-black text-white tracking-tighter leading-none">{load}</p>
-              <p class="text-[8px] font-black uppercase text-[#71717a] tracking-[0.2em] mt-1.5">Load</p>
+              <p class="text-3xl font-black text-white tracking-tighter leading-none">{load.value}</p>
+              <p class="text-[8px] font-black uppercase text-[#71717a] tracking-[0.2em] mt-1.5">{load.label}</p>
             </div>
           {/if}
         </div>

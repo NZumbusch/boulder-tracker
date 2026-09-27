@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { planProgress } from '../../lib/planning/weekRecap';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * Tap a column on the Load chart: everything about that week (or month,
@@ -63,7 +64,8 @@
     bucket.weekIds.flatMap((id) => trainingState.getWorkoutsForWeek(id)).slice().sort((a, b) => orderOf(a) - orderOf(b)),
   );
   const done = $derived(sessions.filter((w) => w.status === 'completed'));
-  const plannedLoad = $derived(sessions.reduce((sum, w) => sum + (w.plannedLoad || 0), 0));
+  /** Logged vs planned work (from the exercises) - like Home's This Week, not rated load against a plan estimate. */
+  const progress = $derived(planProgress(sessions));
 
   const stats = $derived(windowStats({ workouts: trainingState.workouts, dailyMetrics: trainingState.dailyMetrics, outdoorAscents: trainingState.outdoorAscents }, span));
   const bodyweight = $derived.by(() => {
@@ -116,8 +118,8 @@
         <p class="text-caption text-content-subtle">sessions</p>
       </div>
       <div class="p-2 rounded-control bg-surface-elevated/40">
-        <p class="text-body font-semibold text-content tabular-nums">{Math.round(stats.load)}<span class="text-content-subtle font-normal">/{Math.round(plannedLoad)}</span></p>
-        <p class="text-caption text-content-subtle">load / target</p>
+        <p class="text-body font-semibold text-content tabular-nums">{Math.round(stats.load)}{#if progress !== undefined}<span class="text-content-subtle font-normal"> · {Math.round(progress * 100)}%</span>{/if}</p>
+        <p class="text-caption text-content-subtle">load{progress !== undefined ? ' · of plan' : ''}</p>
       </div>
       <div class="p-2 rounded-control bg-surface-elevated/40">
         <p class="text-body font-semibold text-content tabular-nums">{(stats.minutes / 60).toFixed(1)}</p>

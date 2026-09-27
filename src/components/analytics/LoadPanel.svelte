@@ -1,8 +1,8 @@
 <script lang="ts">
   import InfoButton from '../common/InfoButton.svelte';
   /**
-   * Rolling Load: weekly actual load as bars, the target as a dashed line,
-   * and the acute:chronic ratio (with its zone bands and ramp-rate spikes)
+   * Rolling Load: weekly rated load as bars and the acute:chronic ratio
+   * (with its zone bands and ramp-rate spikes)
    * on top, and the training blocks and goals as a band above. Tapping a
    * column opens its detail sheet; its plot's measured width sets how far
    * the x-axis labels are thinned - see `chartWidth` in Analytics.svelte.
@@ -24,8 +24,8 @@
     timeline,
     xOfDay,
     onSelect,
-    adherence,
-    windowAdherence,
+    planDone,
+    windowPlanDone,
     chartWidth = $bindable(0),
   }: {
     chartData: ChartData;
@@ -38,10 +38,16 @@
     xOfDay: (day: number) => number;
     /** A column was tapped - Analytics opens its detail sheet. */
     onSelect: (index: number) => void;
-    /** Share of planned exercises logged, per column id (only columns with completed sessions). */
-    adherence: Record<string, number>;
-    /** The same over the whole window, if anything was completed in it. */
-    windowAdherence?: number;
+    /**
+     * How much of each column's plan is done, per column id - logged vs
+     * planned work from the exercises, like Home's This Week. There is no
+     * target line: the bars are rated load, a different scale from the
+     * plan's estimate, and drawing one against the other made a week done
+     * in full look ~25 % short.
+     */
+    planDone: Record<string, number>;
+    /** The same over the window so far. */
+    windowPlanDone?: number;
     chartWidth?: number;
   } = $props();
 
@@ -100,7 +106,7 @@
 <div id="section-load" class="scroll-mt-4 card space-y-3 relative" data-tour="analytics-load">
   <div class="relative z-10">
     <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Rolling Load <InfoButton term="load" /></h3>
-    <p class="text-caption text-content-subtle mt-0.5">Target vs actual, with acute:chronic ratio · tap a column for details</p>
+    <p class="text-caption text-content-subtle mt-0.5">Load per week, with acute:chronic ratio · tap a column for details</p>
   </div>
 
   <div class="relative z-10">
@@ -126,37 +132,6 @@
         <rect x="0" y={ratioToY(acwrZones.caution)} width="100" height={Math.max(ratioToY(acwrZones.sweetMin) - ratioToY(acwrZones.caution), 0)} fill="var(--color-status-good)" opacity="0.06" />
       </svg>
 
-      <!-- Planned Load Line (SVG) -->
-      <svg
-        class="absolute inset-0 w-full h-full overflow-visible pointer-events-none"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-      >
-        {#if chartData.weeks.length > 1}
-          {@const planPoints = chartData.weeks.map((w, i) => ({
-            x: ((i + 0.5) / chartData.weeks.length) * 100,
-            y: 100 - (w.totalPlannedLoad / chartData.maxLoad) * 100,
-            val: w.totalPlannedLoad
-          }))}
-
-          {@const connectedPoints = planPoints.filter(p => p.val > 0)}
-
-          {#if connectedPoints.length > 1}
-            <path
-              d="M {connectedPoints.map(p => `${p.x} ${p.y}`).join(' L ')}"
-              fill="none"
-              stroke="var(--color-success)"
-              stroke-width="1.5"
-              stroke-dasharray="3 3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              vector-effect="non-scaling-stroke"
-              opacity="0.85"
-            />
-          {/if}
-        {/if}
-      </svg>
-
       {#each chartData.weeks as week, wi}
         <button
           type="button"
@@ -173,8 +148,8 @@
             style="height: {(week.totalLoad / chartData.maxLoad) * 100}%"
           >
             <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-              <span class="block">{week.label} · {Math.round(week.totalLoad)} actual</span>
-              <span class="block text-content-subtle">{Math.round(week.totalPlannedLoad)} target{adherence[week.id] !== undefined ? ` · ${Math.round(adherence[week.id] * 100)}% of exercises done` : ''}</span>
+              <span class="block">{week.label} · {Math.round(week.totalLoad)} load</span>
+              {#if planDone[week.id] !== undefined}<span class="block text-content-subtle">{Math.round(planDone[week.id] * 100)}% of the plan</span>{/if}
             </div>
           </div>
         </button>
@@ -256,11 +231,7 @@
   <div class="flex items-center gap-x-4 gap-y-1.5 pt-1 relative z-10 flex-wrap">
     <div class="flex items-center gap-1.5">
       <div class="w-2 h-2 rounded-[2px] bg-primary"></div>
-      <span class="text-caption text-content-subtle">Actual</span>
-    </div>
-    <div class="flex items-center gap-1.5">
-      <div class="w-3.5 h-0 border-t border-dashed border-success"></div>
-      <span class="text-caption text-content-subtle">Target</span>
+      <span class="text-caption text-content-subtle">Load</span>
     </div>
     <div class="flex items-center gap-1.5">
       <div class="w-1.5 h-1.5 rounded-full border" style="border-color: var(--color-status-good);"></div>
@@ -270,7 +241,7 @@
 
   <!-- Always there ("–" with nothing completed) so the card keeps its height while paging. -->
   <p class="text-caption text-content-subtle relative z-10">
-    Adherence: <span class="text-content tabular-nums">{windowAdherence !== undefined ? `${Math.round(windowAdherence * 100)}%` : '–'}</span> of planned exercises logged in completed sessions
+    Plan: <span class="text-content tabular-nums">{windowPlanDone !== undefined ? `${Math.round(windowPlanDone * 100)}%` : '–'}</span> of the planned work done so far
   </p>
 
   {#if acwrResults.length === 0}
