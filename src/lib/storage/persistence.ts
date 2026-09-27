@@ -58,7 +58,13 @@ const NATIVE_DB_FILE = "boulder_tracker_db.json";
 const NATIVE_DB_TMP = "boulder_tracker_db.json.tmp";
 
 /** The weekly automatic backups (`autoBackup.ts`) - also what a damaged database is restored from. */
-export const AUTO_BACKUP_FOLDER = "ClimbingTracker";
+export const AUTO_BACKUP_FOLDER = "BoulderTracker";
+/**
+ * Where backups went before the app was renamed (it was "Climbing
+ * Tracker"). Nothing is written there any more, but a damaged database is
+ * still restored from there if that's where the newest backup is.
+ */
+export const LEGACY_BACKUP_FOLDERS = ["ClimbingTracker"];
 export const AUTO_BACKUP_PREFIX = "auto-backup-";
 
 type NativeRead = { status: "missing" } | { status: "ok"; data: any } | { status: "damaged"; text: string };
@@ -80,19 +86,24 @@ async function readNativeJson(path: string, directory: Directory = Directory.Dat
 
 /** The newest automatic backup that reads cleanly, or the pre-migration backup - for restoring a damaged database. */
 async function readNewestBackup(): Promise<{ data: any; label: string } | null> {
+  // Every automatic backup in the current and the old folder, newest first
+  // (the date is in the name).
+  const candidates: { directory: Directory; folder: string; name: string }[] = [];
   for (const directory of [Directory.Documents, Directory.External]) {
-    let names: string[] = [];
-    try {
-      names = (await Filesystem.readdir({ path: AUTO_BACKUP_FOLDER, directory })).files.map((f) => (typeof f === "string" ? f : f.name));
-    } catch {
-      continue;
-    }
-    const backups = names.filter((n) => n.startsWith(AUTO_BACKUP_PREFIX) && n.endsWith(".json")).sort().reverse();
-    for (const name of backups) {
-      const read = await readNativeJson(`${AUTO_BACKUP_FOLDER}/${name}`, directory);
-      if (read.status === "ok" && Array.isArray(read.data.workouts)) {
-        return { data: read.data, label: `the automatic backup of ${name.slice(AUTO_BACKUP_PREFIX.length, -".json".length)}` };
+    for (const folder of [AUTO_BACKUP_FOLDER, ...LEGACY_BACKUP_FOLDERS]) {
+      try {
+        const names = (await Filesystem.readdir({ path: folder, directory })).files.map((f) => (typeof f === "string" ? f : f.name));
+        for (const name of names) if (name.startsWith(AUTO_BACKUP_PREFIX) && name.endsWith(".json")) candidates.push({ directory, folder, name });
+      } catch {
+        // No such folder.
       }
+    }
+  }
+  candidates.sort((a, b) => b.name.localeCompare(a.name));
+  for (const { directory, folder, name } of candidates) {
+    const read = await readNativeJson(`${folder}/${name}`, directory);
+    if (read.status === "ok" && Array.isArray(read.data.workouts)) {
+      return { data: read.data, label: `the automatic backup of ${name.slice(AUTO_BACKUP_PREFIX.length, -".json".length)}` };
     }
   }
   const migration = await readNativeJson(MIGRATION_BACKUP_FILE);

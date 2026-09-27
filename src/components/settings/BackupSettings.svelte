@@ -6,7 +6,9 @@
   import { driveSync } from '../../lib/sync/driveSync.svelte';
   import Icon from "@iconify/svelte";
   import { storage } from '../../lib/storage';
-  import { wipeAllLocalData } from '../../lib/storage/persistence';
+  import { wipeAllLocalData, AUTO_BACKUP_FOLDER, LEGACY_BACKUP_FOLDERS } from '../../lib/storage/persistence';
+  import { Filesystem, Directory } from '@capacitor/filesystem';
+  import { onMount } from 'svelte';
   import { cancelAllReminders } from '../../lib/notifications/shared';
 
   let {
@@ -18,6 +20,23 @@
   } = $props();
 
   const isNative = Capacitor.isNativePlatform();
+
+  /** Backups from before the rename, if this phone has any - only then is the old folder mentioned. */
+  let legacyFolder = $state<string | null>(null);
+  onMount(async () => {
+    if (!isNative) return;
+    for (const folder of LEGACY_BACKUP_FOLDERS) {
+      try {
+        const { files } = await Filesystem.readdir({ path: folder, directory: Directory.Documents });
+        if (files.length > 0) {
+          legacyFolder = folder;
+          return;
+        }
+      } catch {
+        // Not there.
+      }
+    }
+  });
   let fileInput = $state<HTMLInputElement>();
 
   async function handleImportClick() {
@@ -69,9 +88,12 @@
         <div class="min-w-0">
           <p class="text-body text-content">Automatic weekly backup</p>
           <p class="text-caption text-content-subtle mt-0.5">
-            Once a week, to Documents/ClimbingTracker, keeping the last {AUTO_BACKUP_KEEP}.
+            Once a week, to Documents/{AUTO_BACKUP_FOLDER}, keeping the last {AUTO_BACKUP_KEEP}.
             {#if trainingState.lastAutoBackup}
-              Last: {new Date(trainingState.lastAutoBackup.at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{trainingState.lastAutoBackup.where !== 'Documents/ClimbingTracker' ? ` (in ${trainingState.lastAutoBackup.where})` : ''}.
+              Last: {new Date(trainingState.lastAutoBackup.at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{trainingState.lastAutoBackup.where !== `Documents/${AUTO_BACKUP_FOLDER}` && !trainingState.lastAutoBackup.where.startsWith('Documents/') ? ` (in ${trainingState.lastAutoBackup.where})` : ''}.
+            {/if}
+            {#if legacyFolder}
+              Older backups, from before the app was renamed, are in Documents/{legacyFolder} - you can delete that folder once there are backups in the new one.
             {/if}
           </p>
         </div>

@@ -48,17 +48,17 @@ describe("writeAutoBackup", () => {
     setDbState({ workouts: [{ id: "w1" }], exportVersion: "3.29" });
   });
 
-  it("writes today's backup to Documents/ClimbingTracker and prunes old ones", async () => {
-    for (const d of ["2026-08-01", "2026-08-15", "2026-09-01", "2026-09-15"]) files.set(`DOCUMENTS/ClimbingTracker/auto-backup-${d}.json`, "{}");
+  it("writes today's backup to Documents/BoulderTracker and prunes old ones", async () => {
+    for (const d of ["2026-08-01", "2026-08-15", "2026-09-01", "2026-09-15"]) files.set(`DOCUMENTS/BoulderTracker/auto-backup-${d}.json`, "{}");
     const where = await writeAutoBackup(new Date("2026-09-23T10:00:00Z"));
-    expect(where).toBe("Documents/ClimbingTracker");
-    const saved = JSON.parse(files.get("DOCUMENTS/ClimbingTracker/auto-backup-2026-09-23.json")!);
+    expect(where).toBe("Documents/BoulderTracker");
+    const saved = JSON.parse(files.get("DOCUMENTS/BoulderTracker/auto-backup-2026-09-23.json")!);
     expect(saved.workouts).toEqual([{ id: "w1" }]);
     expect([...files.keys()].sort()).toEqual([
-      "DOCUMENTS/ClimbingTracker/auto-backup-2026-08-15.json",
-      "DOCUMENTS/ClimbingTracker/auto-backup-2026-09-01.json",
-      "DOCUMENTS/ClimbingTracker/auto-backup-2026-09-15.json",
-      "DOCUMENTS/ClimbingTracker/auto-backup-2026-09-23.json",
+      "DOCUMENTS/BoulderTracker/auto-backup-2026-08-15.json",
+      "DOCUMENTS/BoulderTracker/auto-backup-2026-09-01.json",
+      "DOCUMENTS/BoulderTracker/auto-backup-2026-09-15.json",
+      "DOCUMENTS/BoulderTracker/auto-backup-2026-09-23.json",
     ]);
   });
 
@@ -66,6 +66,6 @@ describe("writeAutoBackup", () => {
     docsFail.on = true;
     const where = await writeAutoBackup(new Date("2026-09-23T10:00:00Z"));
     expect(where).toBe("app storage");
-    expect(files.has("EXTERNAL/ClimbingTracker/auto-backup-2026-09-23.json")).toBe(true);
+    expect(files.has("EXTERNAL/BoulderTracker/auto-backup-2026-09-23.json")).toBe(true);
   });
 });

@@ -58,7 +58,7 @@
       {updater.status === 'backing-up' ? 'Backing up your data…' : updater.status === 'downloading' ? `Downloading ${Math.round(updater.progress * 100)}%` : updater.status === 'installing' ? 'Opening installer…' : 'Install'}
     </button>
     {#if !compact}
-      <p class="text-caption text-content-subtle">A backup of your data goes to Documents/ClimbingTracker first. Android then asks you to confirm; your data stays - it's an update, not a reinstall.</p>
+      <p class="text-caption text-content-subtle">A backup of your data goes to Documents/BoulderTracker first. Android then asks you to confirm; your data stays - it's an update, not a reinstall.</p>
     {/if}
   </div>
 {/if}

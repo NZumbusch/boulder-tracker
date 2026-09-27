@@ -164,7 +164,7 @@ class Updater {
     }
     this.error = null;
     // A safety backup first - the same file the weekly automatic backup
-    // writes to Documents/ClimbingTracker, outside the app. An update keeps
+    // writes to Documents/BoulderTracker, outside the app. An update keeps
     // the app's data anyway; this is for a new version that turns out bad.
     if (!this.#skipBackup) {
       this.status = "backing-up";

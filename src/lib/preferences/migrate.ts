@@ -124,7 +124,7 @@ export interface Preferences {
   aiSharing: AISharingPreferences;
   /** How much training history AI prompts carry by default - see `AIHistoryWindow`. */
   aiHistory: AIHistoryWindow;
-  /** Android: write a backup to Documents/ClimbingTracker once a week (`lib/storage/autoBackup.ts`). */
+  /** Android: write a backup to Documents/BoulderTracker once a week (`lib/storage/autoBackup.ts`). */
   autoBackup: boolean;
   /**
    * What `prescribed` an exercise added *during* a live session gets.

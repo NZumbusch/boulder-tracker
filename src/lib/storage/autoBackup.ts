@@ -6,7 +6,7 @@ import { DATA_EXPORT_VERSION } from "../constants";
 /**
  * Android's automatic weekly backup. The database lives in the app's
  * private storage; a manual export has to be remembered. This writes the
- * same JSON a manual export does into Documents/ClimbingTracker - outside
+ * same JSON a manual export does into Documents/BoulderTracker - outside
  * the app, so it survives an uninstall and shows up in the phone's file
  * manager - once a week, keeping the newest few. If Android won't let the
  * app write there, it uses the app's own external storage instead.

@@ -98,8 +98,8 @@ describe("saving on Android", () => {
 describe("a damaged database", () => {
   it("is never replaced by an empty start: it's kept aside and the newest automatic backup is restored", async () => {
     files.set(DB, db(9).slice(0, 20)); // half-written
-    files.set("DOCUMENTS/ClimbingTracker/auto-backup-2026-09-13.json", db(3));
-    files.set("DOCUMENTS/ClimbingTracker/auto-backup-2026-09-20.json", db(4));
+    files.set("DOCUMENTS/BoulderTracker/auto-backup-2026-09-13.json", db(3));
+    files.set("DOCUMENTS/BoulderTracker/auto-backup-2026-09-20.json", db(4));
     await reload();
     expect(loadedIds()).toEqual(["w4"]);
     // The restored data is the database now...
@@ -112,8 +112,8 @@ describe("a damaged database", () => {
 
   it("skips a backup that is damaged too", async () => {
     files.set(DB, "{ not json");
-    files.set("DOCUMENTS/ClimbingTracker/auto-backup-2026-09-13.json", db(3));
-    files.set("DOCUMENTS/ClimbingTracker/auto-backup-2026-09-20.json", "{ also broken");
+    files.set("DOCUMENTS/BoulderTracker/auto-backup-2026-09-13.json", db(3));
+    files.set("DOCUMENTS/BoulderTracker/auto-backup-2026-09-20.json", "{ also broken");
     await reload();
     expect(loadedIds()).toEqual(["w3"]);
   });
@@ -130,5 +130,17 @@ describe("a damaged database", () => {
     await reload();
     expect(loadedIds()).toEqual([]);
     expect(takeRecoveryNotice()).toBeNull();
+  });
+
+  it("also finds backups in the folder from before the rename, and takes the newest across both", async () => {
+    files.set(DB, "{ not json");
+    files.set("DOCUMENTS/ClimbingTracker/auto-backup-2026-09-20.json", db(5));
+    files.set("DOCUMENTS/BoulderTracker/auto-backup-2026-09-13.json", db(3));
+    await reload();
+    expect(loadedIds()).toEqual(["w5"]);
+    files.set(DB, "{ not json");
+    files.set("DOCUMENTS/BoulderTracker/auto-backup-2026-09-27.json", db(6));
+    await reload();
+    expect(loadedIds()).toEqual(["w6"]);
   });
 });
