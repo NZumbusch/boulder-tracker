@@ -13,6 +13,7 @@
   import PhaseSettings from './PhaseSettings.svelte';
   import BenchmarkTypeSettings from './BenchmarkTypeSettings.svelte';
   import BackupSettings from './BackupSettings.svelte';
+  import ExportSettings from './ExportSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import NavRow from '../common/NavRow.svelte';
@@ -33,7 +34,7 @@
   }>();
 
   // --- State: Tabs ---
-  type SettingsTab = 'overview' | 'customization' | 'design' | 'integration' | 'about';
+  type SettingsTab = 'overview' | 'customization' | 'design' | 'backup' | 'connections' | 'about';
   let currentTab = $state<SettingsTab>('overview');
   /** The open Appearance topic, if any - back returns to the topic list first. */
   let appearanceTopic = $state<AppearanceTopic | null>(null);
@@ -143,7 +144,8 @@
         <h2 class="text-title text-content">
           {#if currentTab === 'customization'}Customization
           {:else if currentTab === 'design'}{APPEARANCE_TOPICS.find((t) => t.id === appearanceTopic)?.label ?? 'Appearance & Behaviour'}
-          {:else if currentTab === 'integration'}Data & Exports
+          {:else if currentTab === 'backup'}Sync & Backup
+          {:else if currentTab === 'connections'}Connections & Exports
           {:else if currentTab === 'about'}About & Help{/if}
         </h2>
       {/if}
@@ -159,7 +161,8 @@
     <div class="card py-1 divide-y divide-border">
       <div data-tour="settings-customization"><NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} /></div>
       <NavRow icon="ic:baseline-color-lens" title="Appearance & Behaviour" hint="Theme, layout, timer, weather & notifications" onclick={() => { currentTab = 'design'; appearanceTopic = null; }} />
-      <div data-tour="settings-data"><NavRow icon="ic:baseline-sync" title="Data & Exports" hint="Sync, Health Connect, backups, exports & AI sharing" onclick={() => currentTab = 'integration'} /></div>
+      <div data-tour="settings-data"><NavRow icon="ic:baseline-cloud-sync" title="Sync & Backup" hint="Keep your data safe: Google Drive sync, backups, start over" onclick={() => currentTab = 'backup'} /></div>
+      <NavRow icon="ic:baseline-swap-horiz" title="Connections & Exports" hint="Health Connect, calendar & PDF exports, AI sharing" onclick={() => currentTab = 'connections'} />
       <NavRow icon="ic:baseline-info" title="About & Help" hint="Tour, install on iPhone, contact, privacy policy" onclick={() => currentTab = 'about'} />
     </div>
   {:else if currentTab === 'customization'}
@@ -179,11 +182,15 @@
     </div>
   {:else if currentTab === 'design'}
     <PreferencesSettings bind:topic={appearanceTopic} />
-  {:else if currentTab === 'integration'}
+  {:else if currentTab === 'backup'}
     <div class="space-y-4">
       <SyncSettings />
-      <HealthConnectSettings />
       <BackupSettings {onExport} {onImport} />
+    </div>
+  {:else if currentTab === 'connections'}
+    <div class="space-y-4">
+      <HealthConnectSettings />
+      <ExportSettings />
       <AISharingSettings />
     </div>
   {:else if currentTab === 'about'}

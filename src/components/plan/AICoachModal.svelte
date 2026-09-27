@@ -372,7 +372,7 @@
 
         <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
           <Icon icon="ic:baseline-info" class="text-sm shrink-0 mt-px" />
-          What's shared (blocks, readiness, pain logs…) is set in Settings → Data & Exports → AI Sharing.
+          What's shared (blocks, readiness, pain logs…) is set in Settings → Connections & Exports → AI Sharing.
         </p>
 
       {:else if step === 'paste'}

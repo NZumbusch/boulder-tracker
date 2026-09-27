@@ -1,10 +1,8 @@
 <script lang="ts">
   import { trainingState } from '../../lib/state.svelte';
   import { showConfirm } from '../../lib/utils';
-  import { exportWorkoutsToICS } from '../../lib/ics';
   import { Capacitor } from '@capacitor/core';
   import { AUTO_BACKUP_KEEP } from '../../lib/storage/autoBackup';
-  import PDFExportModal from './PDFExportModal.svelte';
   import { driveSync } from '../../lib/sync/driveSync.svelte';
   import Icon from "@iconify/svelte";
   import { storage } from '../../lib/storage';
@@ -19,7 +17,6 @@
     onImport: (e: Event) => void;
   } = $props();
 
-  let showPDFExport = $state(false);
   const isNative = Capacitor.isNativePlatform();
   let fileInput = $state<HTMLInputElement>();
 
@@ -59,48 +56,11 @@
 
 <div class="space-y-4">
   <div class="card space-y-4 animate-in fade-in">
-    <div class="space-y-2">
-      <h3 class="text-section uppercase text-content-muted px-1">Calendar Integration</h3>
-      <p class="text-caption text-content-subtle px-1 leading-relaxed">Export training history as an ICS file for integration with standard calendar applications.</p>
-    </div>
-    <button
-      onclick={() => exportWorkoutsToICS(trainingState.workouts)}
-      class="w-full flex items-center justify-between py-2 transition-colors group"
-    >
-      <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-calendar-today" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" />
-        <div class="text-left">
-          <p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Export Calendar (.ics)</p>
-          <p class="text-caption text-content-subtle">Download all sessions</p>
-        </div>
-      </div>
-      <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
-    </button>
-  </div>
-
-  <div class="card space-y-4 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Printable Training Plan</h3><p class="text-caption text-content-subtle px-1 leading-relaxed">Generate a PDF of your workouts for any week range.</p></div>
-    <button
-      onclick={() => showPDFExport = true}
-      class="w-full flex items-center justify-between py-2 transition-colors group"
-    >
-      <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-picture-as-pdf" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" />
-        <div class="text-left">
-          <p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Export PDF</p>
-          <p class="text-caption text-content-subtle">Select week range</p>
-        </div>
-      </div>
-      <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
-    </button>
-  </div>
-
-  <div class="card space-y-4 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">JSON Backups</h3><p class="text-caption text-content-subtle px-1">Ensure your data is safe by exporting a local JSON backup.</p></div>
+    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Backup</h3><p class="text-caption text-content-subtle px-1">One file with everything - to keep, move to another phone, or restore from.</p></div>
     <div class="divide-y divide-border">
-      <button onclick={onExport} class="w-full flex items-center justify-between py-3 transition-colors group"><div class="flex items-center gap-3"><Icon icon="ic:baseline-download" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" /><div class="text-left"><p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Export</p><p class="text-caption text-content-subtle">Save to local JSON</p></div></div><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" /></button>
+      <button onclick={onExport} class="w-full flex items-center justify-between py-3 transition-colors group"><div class="flex items-center gap-3"><Icon icon="ic:baseline-download" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" /><div class="text-left"><p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Save a backup file</p><p class="text-caption text-content-subtle">Everything, as one .json file</p></div></div><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" /></button>
       <div class="relative">
-        <button onclick={handleImportClick} class="w-full flex items-center justify-between py-3 transition-colors group cursor-pointer"><div class="flex items-center gap-3"><Icon icon="ic:baseline-upload" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" /><div class="text-left"><p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Import</p><p class="text-caption text-content-subtle">Restore from backup</p></div></div><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" /></button>
+        <button onclick={handleImportClick} class="w-full flex items-center justify-between py-3 transition-colors group cursor-pointer"><div class="flex items-center gap-3"><Icon icon="ic:baseline-upload" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" /><div class="text-left"><p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Restore from a backup file</p><p class="text-caption text-content-subtle">Replaces what's on this device</p></div></div><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" /></button>
         <input bind:this={fileInput} type="file" accept=".json" class="hidden" onchange={onImport} />
       </div>
     </div>
@@ -131,6 +91,4 @@
   </div>
 </div>
 
-{#if showPDFExport}
-  <PDFExportModal onClose={() => showPDFExport = false} />
-{/if}
+

@@ -7,7 +7,7 @@
    * togglable; a disabled one is simply omitted from the generated prompt,
    * never sent-but-redacted (`src/lib/ai/context.ts`).
    *
-   * Placed under Settings' "Data & Exports" tab, next to backups/calendar
+   * Placed under Settings' "Connections & Exports" page, next to the calendar
    * export - the app's other "what leaves this device" surface - rather
    * than a new top-level tab, same reasoning as nesting
    * Notifications into Appearance & Behaviour instead of promoting it.

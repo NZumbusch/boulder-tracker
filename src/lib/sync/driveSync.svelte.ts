@@ -401,7 +401,7 @@ class DriveSync {
     this.conflicts = [...found, ...this.conflicts].slice(0, MAX_CONFLICTS);
     await localforage.setItem(CONFLICTS_KEY, $state.snapshot(this.conflicts));
     const other = found.length === 1 ? `"${found[0].label}"` : `${found.length} records`;
-    toast.show(`Sync: ${other} changed on two devices - kept the newer edit. The other is under Settings → Data & Exports.`, { durationMs: 7000 });
+    toast.show(`Sync: ${other} changed on two devices - kept the newer edit. The other is under Settings → Sync & Backup.`, { durationMs: 7000 });
   }
 
   /** Puts the losing version back (as a new edit, so it syncs out and wins everywhere). */
