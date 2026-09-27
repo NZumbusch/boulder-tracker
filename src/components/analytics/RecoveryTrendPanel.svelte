@@ -80,11 +80,14 @@
   }));
   const shown = $derived(metrics.filter((m) => !hidden.has(m.id)));
 
-  // What the % view can't draw, said out loud rather than left blank: a
-  // reading only becomes a % once there's a baseline (7 readings before it).
+  // A metric the % view can't draw at all yet, said out loud rather than
+  // left blank: a reading only becomes a % once there are 7 readings before
+  // it. (Every metric's own first week has none either - that's not worth
+  // a note, so only metrics with no % point at all are named.)
   const noPercentYet = $derived(
     shown
-      .map((m) => ({ short: m.short, count: m.series.filter((d) => d.value !== undefined && d.deviation === undefined).length }))
+      .filter((m) => !m.series.some((d) => d.deviation !== undefined))
+      .map((m) => ({ short: m.short, count: m.series.filter((d) => d.value !== undefined).length }))
       .filter((m) => m.count > 0),
   );
   const afterBreak = $derived(shown.some((m) => m.series.some((d) => d.baselineAfterBreak && d.value !== undefined)));
