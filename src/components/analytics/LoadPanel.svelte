@@ -67,15 +67,24 @@
     if (r.ratio >= acwrZones.caution) return 'caution';
     return 'good';
   }
-  // A fixed ratio axis, 0 to ACWR_AXIS_MAX, the same for every window: it
-  // used to stretch to the window's highest ratio, so one outlier (a 4.0
-  // after a break, not even counted) moved every dot and squashed the zone
-  // bands, and the same week sat at a different height in 4W and 6M.
-  // Higher ratios sit on the top edge; the tip gives the real value.
-  const ACWR_AXIS_MAX = 2;
+  // A fixed ratio axis, the same for every window: it used to stretch to
+  // the window's highest ratio, so one outlier (a 4.0 after a break, not
+  // even counted) moved every dot and squashed the zone bands, and the
+  // same week sat at a different height in 4W and 6M. 0-ACWR_LINEAR_MAX is
+  // linear over the lower ACWR_LINEAR_SHARE of the plot (where the zones
+  // live); above it, up to ACWR_AXIS_MAX, is squeezed into the rest, below
+  // a little headroom so the top dot doesn't sit on the card's edge.
+  // Higher still gets an arrow at the top; the tip gives the real value.
+  const ACWR_LINEAR_MAX = 2;
+  const ACWR_AXIS_MAX = 5;
+  const ACWR_LINEAR_SHARE = 80;
+  const ACWR_HEADROOM = 6;
   const acwrMaxRatio = ACWR_AXIS_MAX;
   function ratioToY(ratio: number): number {
-    return 100 - (Math.min(ratio, ACWR_AXIS_MAX) / ACWR_AXIS_MAX) * 100;
+    const r = Math.max(0, Math.min(ratio, ACWR_AXIS_MAX));
+    if (r <= ACWR_LINEAR_MAX) return 100 - (r / ACWR_LINEAR_MAX) * ACWR_LINEAR_SHARE;
+    const squeezed = 100 - ACWR_LINEAR_SHARE - ACWR_HEADROOM;
+    return 100 - ACWR_LINEAR_SHARE - ((r - ACWR_LINEAR_MAX) / (ACWR_AXIS_MAX - ACWR_LINEAR_MAX)) * squeezed;
   }
   /** Weeks after the current one haven't happened: no ratio to show. */
   const currentIndex = $derived(chartData.weeks.findIndex((w) => w.isCurrent));
@@ -119,13 +128,14 @@
     <p class="text-caption text-content-subtle mt-0.5">Load per week, with acute:chronic ratio · tap a column for details</p>
   </div>
 
-  <div class="relative z-10">
+  <!-- pr-5 everywhere below: room for the ratio axis labels right of the plot. -->
+  <div class="relative z-10 pr-5">
     <PhaseBand segments={timeline.segments} goals={timeline.goals} xOf={xOfDay} />
   </div>
 
   <!-- The plot area's measured width decides how far every chart's
        x-axis labels are thinned - see `chartWidth`. -->
-  <div class="h-48 flex flex-col gap-2 relative z-10">
+  <div class="h-48 flex flex-col gap-2 relative z-10 pr-5">
     <div class="flex-1 relative flex items-end justify-between gap-px" bind:clientWidth={chartWidth}>
       <!-- Hairline gridlines: three, at 10% opacity. Enough to read a
            height against, quiet enough to disappear behind the data. -->
@@ -201,7 +211,7 @@
               style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);"
             >
               {#if p.offScale}
-                <!-- Above the axis: an arrow on the top edge rather than a dot pretending to be at 2.0. -->
+                <!-- Above the axis: an arrow at the top rather than a dot pretending to be at the maximum. -->
                 <Icon icon="ic:baseline-arrow-drop-up" class="text-base -my-1.5" style="color: {RATIO_STATUS_VAR[p.status]}; opacity: {p.sufficient ? 1 : 0.6};" />
               {:else}
                 <div
