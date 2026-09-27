@@ -67,17 +67,26 @@
     if (r.ratio >= acwrZones.caution) return 'caution';
     return 'good';
   }
-  const acwrDefinedRatios = $derived(acwrResults.filter((r) => r.ratio !== undefined).map((r) => r.ratio as number));
-  const acwrMaxRatio = $derived(Math.max(...acwrDefinedRatios, acwrZones.highRisk) * 1.15);
+  // A fixed ratio axis, 0 to ACWR_AXIS_MAX, the same for every window: it
+  // used to stretch to the window's highest ratio, so one outlier (a 4.0
+  // after a break, not even counted) moved every dot and squashed the zone
+  // bands, and the same week sat at a different height in 4W and 6M.
+  // Higher ratios sit on the top edge; the tip gives the real value.
+  const ACWR_AXIS_MAX = 2;
+  const acwrMaxRatio = ACWR_AXIS_MAX;
   function ratioToY(ratio: number): number {
-    return 100 - (ratio / acwrMaxRatio) * 100;
+    return 100 - (Math.min(ratio, ACWR_AXIS_MAX) / ACWR_AXIS_MAX) * 100;
   }
+  /** Weeks after the current one haven't happened: no ratio to show. */
+  const currentIndex = $derived(chartData.weeks.findIndex((w) => w.isCurrent));
   const acwrOverlayPoints = $derived(acwrResults.map((r, i) => {
     const week = chartData.weeks[i];
+    const future = currentIndex >= 0 && i > currentIndex;
     return {
       weekId: r.weekId,
       x: ((i + 0.5) / Math.max(acwrResults.length, 1)) * 100,
-      ratioY: r.ratio !== undefined ? ratioToY(r.ratio) : null,
+      ratioY: r.ratio !== undefined && !future ? ratioToY(r.ratio) : null,
+      offScale: r.ratio !== undefined && r.ratio > ACWR_AXIS_MAX,
       ratio: r.ratio,
       sufficient: r.sufficient,
       insufficientReason: r.insufficientReason,
@@ -132,6 +141,12 @@
         <rect x="0" y={ratioToY(acwrZones.highRisk)} width="100" height={Math.max(ratioToY(acwrZones.caution) - ratioToY(acwrZones.highRisk), 0)} fill="var(--color-status-caution)" opacity="0.06" />
         <rect x="0" y={ratioToY(acwrZones.caution)} width="100" height={Math.max(ratioToY(acwrZones.sweetMin) - ratioToY(acwrZones.caution), 0)} fill="var(--color-status-good)" opacity="0.06" />
       </svg>
+      <!-- The ratio axis: its zone edges, just outside the plot so no bar hides them. -->
+      <div class="absolute inset-y-0 right-0 pointer-events-none" aria-hidden="true">
+        {#each [acwrZones.sweetMin, acwrZones.caution, acwrZones.highRisk] as edge (edge)}
+          <span class="absolute right-0 translate-x-full -translate-y-1/2 pl-1 text-[9px] leading-none text-content-subtle/70 tabular-nums" style="top: {ratioToY(edge)}%;">{edge.toFixed(1)}</span>
+        {/each}
+      </div>
 
       {#each chartData.weeks as week, wi}
         <button
@@ -185,10 +200,15 @@
               class="absolute pointer-events-auto group hover:z-40 {tips.isOpen(`acwr-${pi}`) ? 'z-40' : 'z-20'}"
               style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);"
             >
-              <div
-                class="w-1.5 h-1.5 rounded-full border transition-transform group-hover:scale-150"
-                style="background: {p.sufficient ? RATIO_STATUS_VAR[p.status] : 'transparent'}; border-color: {RATIO_STATUS_VAR[p.status]};"
-              ></div>
+              {#if p.offScale}
+                <!-- Above the axis: an arrow on the top edge rather than a dot pretending to be at 2.0. -->
+                <Icon icon="ic:baseline-arrow-drop-up" class="text-base -my-1.5" style="color: {RATIO_STATUS_VAR[p.status]}; opacity: {p.sufficient ? 1 : 0.6};" />
+              {:else}
+                <div
+                  class="w-1.5 h-1.5 rounded-full border transition-transform group-hover:scale-150"
+                  style="background: {p.sufficient ? RATIO_STATUS_VAR[p.status] : 'transparent'}; border-color: {RATIO_STATUS_VAR[p.status]};"
+                ></div>
+              {/if}
               <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
                 ACWR {p.ratio?.toFixed(2)}{!p.sufficient ? (p.insufficientReason === 'break' ? ' · after a break, not counted' : ' · building history') : ''}
               </div>
