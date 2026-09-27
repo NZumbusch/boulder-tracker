@@ -33,15 +33,15 @@ jobs:
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # The build number is the commit count - needs the whole history.
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -52,14 +52,18 @@ jobs:
 
       - name: Setup Java (Android build)
         if: env.HAS_KEYSTORE == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
           cache: gradle
 
       - name: Build signed APK
+        id: apk
         if: env.HAS_KEYSTORE == 'true'
+        # A broken APK build must not keep the web app from deploying - the
+        # last step fails the run afterwards, so it still shows up red.
+        continue-on-error: true
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -68,7 +72,21 @@ jobs:
         run: |
           set -euo pipefail
           export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/signing.keystore"
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          # Pasted secrets often pick up spaces or line breaks - drop them.
+          if ! printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$ANDROID_KEYSTORE_PATH" 2>/dev/null; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 isn't valid base64. Copy it again with: base64 -w0 ~/.android/debug.keystore"
+            exit 1
+          fi
+          for name in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then echo "::error::The secret $name is missing or empty."; exit 1; fi
+          done
+          if ! keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error::The keystore doesn't open with ANDROID_KEYSTORE_PASSWORD, or has no key called ANDROID_KEY_ALIAS (for the debug keystore: android / androiddebugkey)."
+            exit 1
+          fi
+          # The certificate fingerprint is public (every APK carries it) - compare it with your local one.
+          echo "Signing with certificate:"
+          keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" | grep -E "SHA1:"
           npx cap sync android
           cd android
           chmod +x gradlew
@@ -91,3 +109,9 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Fail if the APK didn't build
+        if: steps.apk.outcome == 'failure'
+        run: |
+          echo "::error::The web app deployed, but the Android APK didn't build - see the 'Build signed APK' step."
+          exit 1
