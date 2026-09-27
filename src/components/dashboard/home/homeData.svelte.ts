@@ -1,7 +1,7 @@
 import { trainingState } from '../../../lib/state.svelte';
 import { formatDate, getWeekIdRange, getWeekId, getWeekDates } from '../../../lib/dateUtils';
 import { computeFatigueDecay, computeHrvBaseline, computeReadiness } from '../../../lib/analytics/readiness';
-import { calculateRollingAcwr, calculateWeeklyAdherence } from '../../../lib/analytics/loadAnalytics';
+import { calculateRollingAcwr } from '../../../lib/analytics/loadAnalytics';
 import { isLoggedMetricValue } from '../../../lib/analytics/metricValues';
 import { upcomingGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates, coversDate } from '../../../lib/goals/goals';
 import { sessionsDuringTrip } from '../../../lib/goals/tripConflicts';
@@ -65,7 +65,6 @@ export class HomeData {
 
   // --- This week ---
   weekWorkouts = $derived(trainingState.getWorkoutsForWeek(this.currentWeekId));
-  weeklyAdherence = $derived(calculateWeeklyAdherence(trainingState.workouts, this.currentWeekId));
   /** For each day of this week (Mon-Sun), the trip covering it, if any. */
   weekTripDays = $derived.by(() => {
     const start = getWeekDates(this.currentWeekId)?.start;

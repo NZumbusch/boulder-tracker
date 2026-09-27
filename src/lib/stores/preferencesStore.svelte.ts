@@ -48,6 +48,7 @@ export class PreferencesStore {
   autoBackup = $state(defaultPreferences().autoBackup);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
   navLabels = $state(false);
+  helpButtons = $state(true);
   welcomeDone = $state(true);
 
   constructor() {
@@ -98,6 +99,7 @@ export class PreferencesStore {
     this.autoBackup = prefs.autoBackup;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
     this.navLabels = prefs.navLabels;
+    this.helpButtons = prefs.helpButtons;
     this.welcomeDone = prefs.welcomeDone;
 
     // Persist immediately so the fold (or a version migration) only ever
@@ -295,6 +297,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setHelpButtons(on: boolean) {
+    this.helpButtons = on;
+    this.persist();
+  }
+
   setWelcomeDone(done: boolean) {
     this.welcomeDone = done;
     this.persist();
@@ -345,6 +352,7 @@ export class PreferencesStore {
       autoBackup: this.autoBackup,
       addedExerciseTarget: this.addedExerciseTarget,
       navLabels: this.navLabels,
+      helpButtons: this.helpButtons,
       welcomeDone: this.welcomeDone,
       theme: parseTheme(legacyTheme),
       notificationsEnabled: legacyNotifications === null ? defaultPreferences().notificationsEnabled : legacyNotifications === 'true',

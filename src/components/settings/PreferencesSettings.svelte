@@ -95,6 +95,17 @@
 
     <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
+      <h3 class="text-section uppercase text-content-muted px-1">Help Buttons</h3>
+      <p class="text-caption text-content-subtle px-1 leading-relaxed">The (?) next to terms like load, ACWR and phases - tap one for what it means.</p>
+    </div>
+    <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+      <button onclick={() => trainingState.setHelpButtons(true)} class="flex-1 py-2.5 text-label rounded-control transition-all {trainingState.helpButtons ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}">Show</button>
+      <button onclick={() => trainingState.setHelpButtons(false)} class="flex-1 py-2.5 text-label rounded-control transition-all {!trainingState.helpButtons ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}">Hide</button>
+    </div>
+  </div>
+
+    <div class="card space-y-4 animate-in fade-in">
+    <div class="space-y-2">
       <h3 class="text-section uppercase text-content-muted px-1">Motion</h3>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">"System" follows your device's reduced-motion setting automatically.</p>
     </div>

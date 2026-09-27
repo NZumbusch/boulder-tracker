@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnalyticsCategory, ExerciseTypeDef, OutdoorAscent, PainLog, Workout } from "../types";
-import { recapWeekId, buildWeekRecap } from "./weekRecap";
+import { recapWeekId, buildWeekRecap, planProgress } from "./weekRecap";
 
 const types: ExerciseTypeDef[] = [
   { id: "hb", name: "Hangboard", category: "cat-f", parameters: [] },
@@ -17,11 +17,30 @@ const planned = (id: string, weekId: string, day: Workout["dayOfWeek"], skipped 
 });
 
 describe("recapWeekId", () => {
-  it("recaps this week at the weekend, last week on weekdays", () => {
-    expect(recapWeekId(new Date(2026, 8, 19, 12))).toBe("2026-W38"); // Saturday
-    expect(recapWeekId(new Date(2026, 8, 20, 12))).toBe("2026-W38"); // Sunday
-    expect(recapWeekId(new Date(2026, 8, 21, 12))).toBe("2026-W38"); // Monday -> last week
-    expect(recapWeekId(new Date(2026, 8, 25, 12))).toBe("2026-W38"); // Friday -> last week
+  it("always recaps the last finished week - the running one is This Week's", () => {
+    expect(recapWeekId(new Date(2026, 8, 19, 12))).toBe("2026-W37"); // Saturday
+    expect(recapWeekId(new Date(2026, 8, 20, 12))).toBe("2026-W37"); // Sunday
+    expect(recapWeekId(new Date(2026, 8, 21, 12))).toBe("2026-W38"); // Monday
+    expect(recapWeekId(new Date(2026, 8, 25, 12))).toBe("2026-W38"); // Friday
+  });
+});
+
+describe("planProgress", () => {
+  const slot = (prescribed: object, logged?: object) => ({ id: "s", typeId: "hb", prescribed, ...(logged ? { logged } : {}) });
+  const w = (status: Workout["status"], exercises: object[]): Workout =>
+    ({ id: "x", status, date: null, weekId: "2026-W38", loadFactor: 0, exercises }) as unknown as Workout;
+
+  it("compares logged work with the whole week's plan, on the same scale", () => {
+    const week = [
+      w("completed", [slot({ duration: 60, plannedLoad: 5 }, { duration: 90, plannedLoad: 5 })]),
+      w("planned", [slot({ duration: 60, plannedLoad: 5 })]),
+    ];
+    // Logged 90 min of a planned 60 + 60: 75 % of the week's plan.
+    expect(planProgress(week)).toBeCloseTo(0.75, 2);
+  });
+
+  it("is undefined with nothing planned", () => {
+    expect(planProgress([])).toBeUndefined();
   });
 });
 

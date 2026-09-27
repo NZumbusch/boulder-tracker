@@ -334,6 +334,10 @@ class TrainingState {
   get navLabels() { return this.preferencesStore.navLabels; }
   setNavLabels(on: boolean) { this.preferencesStore.setNavLabels(on); }
 
+  /** The (?) glossary buttons (a preference, on by default). */
+  get helpButtons() { return this.preferencesStore.helpButtons; }
+  setHelpButtons(on: boolean) { this.preferencesStore.setHelpButtons(on); }
+
   /** Whether the first-run welcome has been seen on this device. */
   get welcomeDone() { return this.preferencesStore.welcomeDone; }
   setWelcomeDone(done: boolean) { this.preferencesStore.setWelcomeDone(done); }

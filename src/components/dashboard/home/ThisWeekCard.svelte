@@ -1,10 +1,18 @@
 <script lang="ts">
-  /** This week: the day strip, logged vs planned load, ACWR zone, and the week note. */
+  /**
+   * This week: the day strip, the week's load (rated, like everywhere else),
+   * how much of the plan is done, ACWR, the training mix, and the week note.
+   * Last week's look back is Week Recap.
+   */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
   import { weekDayStrip, type DayStatus } from '../../../lib/planning/weekStatus';
   import { WEEK_DAYS } from '../../../lib/constants';
   import NoteSheet from '../../common/NoteSheet.svelte';
+  import { buildWeekRecap, planProgress } from '../../../lib/planning/weekRecap';
+  import { decrementWeekId } from '../../../lib/dateUtils';
+  import { formatMinutes } from '../../../lib/session/formatSession';
+  import { joinParts } from './format';
   import SectionHeader from './SectionHeader.svelte';
   import Icon from '@iconify/svelte';
 
@@ -12,7 +20,19 @@
 
   const currentWeekId = $derived(data.currentWeekId);
   const acwr = $derived(data.acwr);
-  const weeklyAdherence = $derived(data.weeklyAdherence);
+  const recap = $derived(buildWeekRecap({
+    weekId: currentWeekId,
+    workouts: data.weekWorkouts,
+    prevWorkouts: trainingState.getWorkoutsForWeek(decrementWeekId(currentWeekId)),
+    ascents: trainingState.outdoorAscents,
+    painLogs: trainingState.painLogs,
+    exerciseTypes: trainingState.exerciseTypes,
+    analyticsCategories: trainingState.analyticsCategories,
+    asOf: data.asOf,
+  }));
+  const progress = $derived(planProgress(data.weekWorkouts));
+  const mixTotal = $derived(recap.mix.reduce((sum, m) => sum + m.minutes, 0));
+  const categoryColor = (name: string) => trainingState.analyticsCategories.find((c) => c.name === name)?.color ?? 'bg-primary';
   const weekTripDays = $derived(data.weekTripDays);
   const weekNote = $derived(trainingState.getWeekNote(currentWeekId));
   let noteOpen = $state(false);
@@ -38,7 +58,7 @@
 </script>
 
 <div class="card space-y-3">
-  <SectionHeader label="This Week" subtitle="Actual vs planned load" info="load"
+  <SectionHeader label="This Week" subtitle="W{currentWeekId.split('-W')[1]}" info="load"
   note={trainingState.homeDetails['thisWeek.note'] ? { has: !!weekNote, open: () => noteOpen = true, what: 'week' } : undefined} />
   {#if trainingState.homeDetails['thisWeek.strip']}
     <div class="grid grid-cols-7 gap-1">
@@ -66,28 +86,48 @@
       </p>
     {/if}
   {/if}
-  {#if weeklyAdherence.plannedLoad > 0 || weeklyAdherence.actualLoad > 0}
-    {@const percent = weeklyAdherence.plannedLoad > 0 ? Math.min(100, (weeklyAdherence.actualLoad / weeklyAdherence.plannedLoad) * 100) : 100}
-    <div class="flex items-baseline justify-between gap-2">
-      <p class="text-metric text-content tabular-nums">{Math.round(weeklyAdherence.actualLoad)} <span class="text-caption text-content-subtle font-normal">{weeklyAdherence.plannedLoad > 0 ? `of ${Math.round(weeklyAdherence.plannedLoad)} load pts` : 'load pts'}</span></p>
-      <div class="flex items-center gap-2 shrink-0">
-        {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
-          <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums {acwrZone.class}" title="Acute:chronic workload ratio - last 7 days vs the 28-day average">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>
-        {/if}
-        <span class="text-caption text-content-subtle tabular-nums">{Math.round(weeklyAdherence.completionRate * 100)}% logged</span>
-      </div>
-    </div>
-    {#if weeklyAdherence.plannedLoad > 0}
-      <div class="h-1.5 bg-surface-elevated rounded-full overflow-hidden">
-        <div class="h-full bg-success rounded-full transition-all duration-700" style="width: {percent}%"></div>
-      </div>
+  <!-- The week's load is the rated session load, the same number History,
+       Analytics and ACWR use. How much of the plan is done is a separate
+       percentage, on the plan's own (exercise-based) scale. -->
+  <div class="flex items-center justify-between gap-2 flex-wrap">
+    <p class="text-body text-content tabular-nums">
+      <span class="text-metric">{Math.round(recap.load)}</span>
+      <span class="text-caption text-content-subtle">load pts{recap.minutes > 0 ? ` · ${formatMinutes(recap.minutes)}` : ''}</span>
+    </p>
+    {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
+      <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums shrink-0 {acwrZone.class}" title="Acute:chronic workload ratio - last 7 days vs the 28-day average">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>
     {/if}
-  {:else}
-    <div class="flex items-center justify-between gap-2">
-      <p class="text-caption text-content-subtle italic">No load logged yet this week.</p>
-      {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
-        <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums shrink-0 {acwrZone.class}">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>
+  </div>
+
+  {#if recap.planned > 0}
+    <div class="space-y-1.5">
+      <p class="text-caption text-content-subtle tabular-nums">
+        {joinParts(
+          `${recap.done} of ${recap.planned} session${recap.planned === 1 ? '' : 's'} done`,
+          progress !== undefined && `${Math.round(progress * 100)}% of the plan`,
+          recap.missed > 0 && `${recap.missed} missed`,
+        )}
+      </p>
+      {#if progress !== undefined}
+        <div class="h-1.5 bg-surface-elevated rounded-full overflow-hidden" aria-hidden="true">
+          <div class="h-full bg-success rounded-full transition-all duration-700" style="width: {Math.min(100, progress * 100)}%"></div>
+        </div>
       {/if}
+    </div>
+  {:else if recap.done === 0}
+    <p class="text-caption text-content-subtle italic">Nothing planned this week.</p>
+  {/if}
+
+  {#if trainingState.homeDetails['thisWeek.mix'] && mixTotal > 0}
+    <div class="space-y-1.5">
+      <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px]" aria-hidden="true">
+        {#each recap.mix as m}
+          <div class={categoryColor(m.name)} style="width: {(m.minutes / mixTotal) * 100}%"></div>
+        {/each}
+      </div>
+      <p class="text-caption text-content-subtle">
+        {recap.mix.slice(0, 3).map((m) => `${m.name} ${formatMinutes(m.minutes)}`).join(' · ')}{recap.mix.length > 3 ? ` · +${recap.mix.length - 3} more` : ''}
+      </p>
     </div>
   {/if}
 </div>

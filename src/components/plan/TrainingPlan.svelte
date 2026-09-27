@@ -440,11 +440,13 @@
 
   {#if trainingState.selectedWeekId && selectedWeekData}
     <div class="card space-y-4 relative {showPhaseDropdown ? 'z-30' : ''}">
-      <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-        <div class="flex-1 min-w-[11rem] relative">
-          <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : `Week ${selectedWeekData.id.split('-W')[1]}`}<span class="normal-case tracking-normal font-normal text-content-subtle">{` · ${getWeekDateRange(selectedWeekData.id)}`}</span></span>
-          <div class="flex items-center gap-2 flex-wrap">
-            <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-2" data-tour="plan-phase">
+      <!-- Title column and the week's actions side by side on every width -
+           the actions used to drop onto their own row, leaving a gap. -->
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex-1 min-w-0 relative">
+          <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : `Week ${selectedWeekData.id.split('-W')[1]}`} <span class="normal-case tracking-normal font-normal text-content-subtle whitespace-nowrap">· {getWeekDateRange(selectedWeekData.id)}</span></span>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-0.5" data-tour="plan-phase">
               <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(selectedWeekData.phaseId) ?? 'No Phase'}</h3>
               <span class="text-content-subtle group-hover:text-primary-hover transition-colors"><Icon icon="ic:baseline-arrow-drop-down" class="text-xl" /></span>
             </button>
@@ -484,15 +486,12 @@
           {/if}
         </div>
 
-        <!-- Sits top-right beside the phase title, and drops onto its own
-             line only when the title column can no longer hold its 11rem
-             minimum - i.e. on very narrow screens. -->
-        <div class="flex items-center gap-0.5 shrink-0 ml-auto">
+        <div class="flex items-center shrink-0 -mr-1.5 -mt-1">
           <!-- Filled when the week has a note, outline when not. Opening it
                never materialises the week - see WeekNote. -->
           <button
             onclick={() => showWeekNote = true}
-            class="p-2 rounded-control transition-colors hover:bg-surface-elevated {selectedWeekNote ? 'text-primary' : 'text-content-subtle hover:text-content'}"
+            class="p-1.5 rounded-control transition-colors hover:bg-surface-elevated {selectedWeekNote ? 'text-primary' : 'text-content-subtle hover:text-content'}"
             title={selectedWeekNote ? 'Week note' : 'Add a week note'}
             aria-label={selectedWeekNote ? 'Open week note' : 'Add a week note'}
           >
@@ -510,7 +509,7 @@
           {:else if canResetWeek}
             <button
               onclick={() => trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!)}
-              class="p-2 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
+              class="p-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
               title="Discard this week's planned sessions and follow the phase templates again"
               aria-label="Reset week to its phase"
             >
@@ -519,7 +518,7 @@
           {/if}
           <button
             onclick={() => trainingState.clearWeek(trainingState.selectedWeekId!)}
-            class="p-2 rounded-control text-content-subtle hover:text-danger hover:bg-danger/10 transition-colors"
+            class="p-1.5 rounded-control text-content-subtle hover:text-danger hover:bg-danger/10 transition-colors"
             title="Clear all data for this week"
             aria-label="Clear week"
           >
@@ -527,7 +526,7 @@
           </button>
           <button
             onclick={() => showCopy = !showCopy}
-            class="p-2 rounded-control transition-colors hover:bg-surface-elevated {showCopy ? 'text-primary bg-surface-elevated' : 'text-content-subtle hover:text-content'}"
+            class="p-1.5 rounded-control transition-colors hover:bg-surface-elevated {showCopy ? 'text-primary bg-surface-elevated' : 'text-content-subtle hover:text-content'}"
             title="Copy, repeat or share this week"
             aria-label="Copy, repeat or share this week"
             aria-expanded={showCopy}

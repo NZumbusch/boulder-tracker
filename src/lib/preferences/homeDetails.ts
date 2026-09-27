@@ -51,6 +51,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'thisWeek.note', label: 'Week note button', hint: 'Opens this week\'s note; filled when there is one', defaultOn: true },
     { id: 'thisWeek.strip', label: 'Day strip', hint: 'Monday to Sunday: done, missed, today, rest', defaultOn: true },
     { id: 'thisWeek.acwr', label: 'ACWR', hint: 'Acute:chronic load ratio and its zone', defaultOn: true },
+    { id: 'thisWeek.mix', label: 'Training mix', hint: 'Minutes per category so far', defaultOn: true },
     { id: 'thisWeek.tripDays', label: 'Trip days', hint: 'Mark days of an outdoor trip in the day strip', defaultOn: true },
   ],
   trainingBlock: [
@@ -89,6 +90,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'weather.window', label: 'Best window & sunset', hint: 'The best dry 3 hours left today', defaultOn: true },
     { id: 'weather.forecast', label: 'Week ahead', defaultOn: true },
     { id: 'weather.dayFriction', label: 'Conditions per forecast day', defaultOn: true },
+    { id: 'weather.rainChance', label: 'Rain chance per forecast day', hint: 'Shown for every day; highlighted from 20 %', defaultOn: true },
   ],
   crags: [
     { id: 'crags.suggestion', label: 'Plan suggestion', hint: 'When a crag looks prime on a day you have a session planned', defaultOn: true },

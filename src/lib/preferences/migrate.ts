@@ -143,6 +143,8 @@ export interface Preferences {
   addedExerciseTarget: AddedExerciseTarget;
   /** Text under the bottom-nav icons. Off by default (the icon-only look); both are real options. */
   navLabels: boolean;
+  /** The (?) buttons next to terms like load, ACWR and phases. On by default. */
+  helpButtons: boolean;
   /**
    * The welcome screens (level, units, location, install) have been seen.
    * False only on a fresh install: a blob saved before this key existed is
@@ -282,6 +284,7 @@ export function defaultPreferences(): Preferences {
     units: { ...DEFAULT_UNITS },
     addedExerciseTarget: 'none',
     navLabels: false,
+    helpButtons: true,
     welcomeDone: false,
     aiHistory: { ...DEFAULT_AI_HISTORY },
     autoBackup: true,
@@ -503,6 +506,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
       ? candidate.addedExerciseTarget
       : defaults.addedExerciseTarget,
     navLabels: typeof candidate.navLabels === 'boolean' ? candidate.navLabels : defaults.navLabels,
+    helpButtons: typeof candidate.helpButtons === 'boolean' ? candidate.helpButtons : defaults.helpButtons,
     welcomeDone: typeof candidate.welcomeDone === 'boolean' ? candidate.welcomeDone : true,
   };
 }

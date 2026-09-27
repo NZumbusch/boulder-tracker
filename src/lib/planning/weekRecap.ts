@@ -3,18 +3,35 @@ import { decrementWeekId, getWeekDates, getWeekId } from "../dateUtils";
 import { buildWeeklyHistory } from "../analytics/weekSummary";
 import { isSkippedWorkout, missedWorkouts } from "./weekStatus";
 import { parseFontGrade } from "../analytics/grades";
+import { workoutPlannedLoad, slotActualLoad } from "../analytics/load";
 
 const DAY_NAMES: DayOfWeek[] = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /**
- * The week Home's recap is about: at the weekend, the week that's ending;
- * on a weekday, the one that just ended - Monday morning is when you look
- * back, and by Friday it's still the most recent full week.
+ * The week Home's recap is about: always the last finished week. The
+ * running week is Home's This Week card - showing it in both (as the recap
+ * used to at the weekend) put two different-looking week summaries side
+ * by side.
  */
 export function recapWeekId(asOf: Date): string {
-  const day = asOf.getDay();
-  const thisWeek = getWeekId(asOf);
-  return day === 0 || day === 6 ? thisWeek : decrementWeekId(thisWeek);
+  return decrementWeekId(getWeekId(asOf));
+}
+
+/**
+ * How much of a week's planned work is done, 0-1+ (above 1 = more than
+ * planned). Both sides use the exercise-based estimate (duration x planned
+ * intensity): what the completed sessions logged, against what every
+ * session of the week planned - so it's a fair comparison, unlike the
+ * rated session load, which comes from after-session ratings. `undefined`
+ * when nothing is planned.
+ */
+export function planProgress(workouts: Workout[]): number | undefined {
+  const planned = workouts.reduce((sum, w) => sum + workoutPlannedLoad(w.exercises), 0);
+  if (planned <= 0) return undefined;
+  const done = workouts
+    .filter((w) => w.status === "completed")
+    .reduce((sum, w) => sum + w.exercises.reduce((s, e) => s + slotActualLoad(e), 0), 0);
+  return done / planned;
 }
 
 export interface WeekRecap {

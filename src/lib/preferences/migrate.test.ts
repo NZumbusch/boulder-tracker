@@ -23,6 +23,7 @@ describe('defaultPreferences', () => {
       notificationsEnabled: false,
       addedExerciseTarget: 'none',
       navLabels: false,
+      helpButtons: true,
       welcomeDone: false,
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
@@ -123,6 +124,7 @@ describe('migratePreferences', () => {
       autoBackup: false,
       addedExerciseTarget: 'mirror' as const,
       navLabels: true,
+      helpButtons: false,
       welcomeDone: true,
     };
     expect(migratePreferences(valid)).toEqual(valid);

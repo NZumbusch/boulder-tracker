@@ -388,21 +388,23 @@
           {#each lanePaths as lane (lane.id)}
             {@const latest = [...lane.series].reverse().find((d) => d.avg !== undefined)}
             <div class="flex gap-2">
-              <div class="w-8 shrink-0 text-caption leading-tight text-right" style="color: {lane.color}">{lane.short}</div>
-              <div class="flex-1 min-w-0 h-14 relative">
-                <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-                  <path d={lane.band} fill={lane.color} fill-opacity="0.1" />
-                  <path d={lane.dots} stroke={lane.color} stroke-opacity="0.4" stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
-                  <path d={lane.line} stroke={lane.color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
-                </svg>
-                {#if latest?.avg !== undefined}
-                  <span class="absolute right-0 -top-1 text-caption leading-none text-content-subtle tabular-nums bg-surface/70 px-1 rounded">
-                    7d {formatValue(latest.avg, lane.unit)} {lane.unit}
-                  </span>
-                {/if}
-                {#if readoutDay !== null}
-                  <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(readoutDay)}%"></div>
-                {/if}
+              <div class="w-8 shrink-0 text-caption leading-tight text-right pt-4" style="color: {lane.color}">{lane.short}</div>
+              <div class="flex-1 min-w-0">
+                <!-- The 7-day value on its own line above the lane: inside the
+                     plot it sat on top of the newest days and hid them. -->
+                <p class="h-4 text-right text-caption leading-none text-content-subtle tabular-nums">
+                  {#if latest?.avg !== undefined}7d {formatValue(latest.avg, lane.unit)} {lane.unit}{/if}
+                </p>
+                <div class="h-14 relative">
+                  <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                    <path d={lane.band} fill={lane.color} fill-opacity="0.1" />
+                    <path d={lane.dots} stroke={lane.color} stroke-opacity="0.4" stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
+                    <path d={lane.line} stroke={lane.color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
+                  </svg>
+                  {#if readoutDay !== null}
+                    <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(readoutDay)}%"></div>
+                  {/if}
+                </div>
               </div>
             </div>
           {/each}
@@ -423,18 +425,20 @@
       </div>
       {#if bodyweight || everWeighed}
         <div class="flex gap-2 mt-2">
-          <div class="w-8 shrink-0 text-caption leading-tight text-right text-content-subtle">Weight</div>
-          <div class="flex-1 min-w-0 h-10 relative">
-            <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <path d={bodyweight?.dots} stroke="var(--color-content-muted)" stroke-opacity="0.5" stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
-              <path d={bodyweight?.line} stroke="var(--color-content-muted)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
-            </svg>
-            {#if bodyweight?.latest !== undefined}
-              <span class="absolute right-0 -top-1 text-caption leading-none text-content-subtle tabular-nums bg-surface/70 px-1 rounded">{formatWeight(bodyweight.latest, trainingState.units.weight)}</span>
-            {/if}
-            {#if readoutDay !== null}
-              <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(readoutDay)}%"></div>
-            {/if}
+          <div class="w-8 shrink-0 text-caption leading-tight text-right text-content-subtle pt-4">Weight</div>
+          <div class="flex-1 min-w-0">
+            <p class="h-4 text-right text-caption leading-none text-content-subtle tabular-nums">
+              {#if bodyweight?.latest !== undefined}{formatWeight(bodyweight.latest, trainingState.units.weight)}{/if}
+            </p>
+            <div class="h-10 relative">
+              <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                <path d={bodyweight?.dots} stroke="var(--color-content-muted)" stroke-opacity="0.5" stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
+                <path d={bodyweight?.line} stroke="var(--color-content-muted)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
+              </svg>
+              {#if readoutDay !== null}
+                <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(readoutDay)}%"></div>
+              {/if}
+            </div>
           </div>
         </div>
       {/if}

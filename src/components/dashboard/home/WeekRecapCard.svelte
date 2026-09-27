@@ -2,7 +2,7 @@
   /**
    * A look back at a week: sessions done against the plan, load against the
    * week before, time trained, the training mix, sends and pain. At the
-   * weekend it's this week so far; on weekdays, last week (`recapWeekId`).
+   * always the last finished week (`recapWeekId`) - the running one is This Week.
    */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';

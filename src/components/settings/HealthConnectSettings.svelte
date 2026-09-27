@@ -75,7 +75,7 @@
           {healthConnect.importing ? 'Importing…' : 'Import now'}
         </button>
         <button onclick={() => HealthConnect.openSettings()} class="px-3.5 py-2 border border-border-strong text-label text-content rounded-control hover:bg-surface-elevated">Permissions</button>
-        <button onclick={() => healthConnect.disconnect()} class="px-3 py-2 text-label text-content-subtle hover:text-danger">Stop importing</button>
+        <button onclick={() => healthConnect.disconnect()} class="px-3.5 py-2 rounded-control border border-danger/40 text-label font-semibold text-danger hover:bg-danger/10 transition-colors">Stop importing</button>
       </div>
     {/if}
 

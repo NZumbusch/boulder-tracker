@@ -91,7 +91,9 @@
             <p class="text-caption text-content-muted">Account</p>
             <p class="text-body text-content truncate">{driveSync.account ?? 'Google account'}</p>
           </div>
-          <button onclick={disconnect} class="text-label text-content-subtle hover:text-status-risk shrink-0">Disconnect</button>
+          <button onclick={disconnect} class="flex items-center gap-1 px-3 py-1.5 rounded-control border border-danger/40 text-label font-semibold text-danger hover:bg-danger/10 transition-colors shrink-0">
+            <Icon icon="ic:baseline-link-off" class="text-base" /> Disconnect
+          </button>
         </div>
         <div class="flex items-center justify-between gap-3 py-2.5">
           <div class="min-w-0">

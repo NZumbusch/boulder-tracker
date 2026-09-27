@@ -122,8 +122,10 @@
             <span title={dayCode.label} class="flex"><Icon icon={dayCode.icon} class="text-lg text-primary" aria-label={dayCode.label} /></span>
             <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
             <span class="text-caption text-content-subtle tabular-nums">{T(day.tempMinC)}</span>
-            {#if day.precipitationChance !== undefined && day.precipitationChance >= 20}
-              <span class="text-caption text-primary/80 tabular-nums leading-none">{Math.round(day.precipitationChance)}%</span>
+            <!-- Every day or none (a setting), so the rows line up. -->
+            {#if trainingState.homeDetails['weather.rainChance']}
+              {@const chance = day.precipitationChance}
+              <span class="text-caption tabular-nums leading-none {chance !== undefined && chance >= 20 ? 'text-primary/80' : 'text-content-subtle/70'}" title="Chance of rain">{chance !== undefined ? `${Math.round(chance)}%` : '–'}</span>
             {/if}
             {#if trainingState.homeDetails['weather.dayFriction']}
               {@const df = dayFriction(day)}
