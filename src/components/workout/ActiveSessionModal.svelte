@@ -252,7 +252,7 @@
                 {formatClock(store.elapsedMs)}
               </span>
               <span class="text-caption text-content-subtle tabular-nums">
-                {#if expected > 0}of ~{formatMinutes(expected)} &middot; {/if}{progress.settled}/{progress.total} done
+                {expected > 0 ? `of ~${formatMinutes(expected)} · ` : ''}{progress.settled}/{progress.total} done
               </span>
             </div>
             <div class="h-1.5 bg-surface-elevated rounded-control overflow-hidden">
