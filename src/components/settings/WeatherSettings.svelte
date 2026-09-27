@@ -9,6 +9,7 @@
   import type { WeatherLocation } from '../../lib/preferences/migrate';
   import LocationEditor from './LocationEditor.svelte';
   import Icon from '@iconify/svelte';
+  import { toast } from '../../lib/toast.svelte';
 
   function setCrag(index: number, location: WeatherLocation) {
     const next = [...trainingState.crags];
@@ -27,6 +28,12 @@
     trainingState.setCrags(next);
   }
   function addCrag(location: WeatherLocation) {
+    // The same place twice would only show the same forecast twice (and
+    // the weather cache is keyed by name).
+    if (trainingState.crags.some((c) => c.name === location.name)) {
+      toast.show(`${location.name} is already one of your crags`);
+      return;
+    }
     trainingState.setCrags([...trainingState.crags, location]);
   }
 </script>
@@ -46,7 +53,7 @@
       onSet={(loc: WeatherLocation) => trainingState.setHomeLocation(loc)}
       onClear={() => trainingState.setHomeLocation(null)}
     />
-    {#each trainingState.crags as crag, i (crag.name)}
+    {#each trainingState.crags as crag, i (`${i}:${crag.name}`)}
       <div class="flex items-start gap-1">
         <div class="min-w-0 flex-1">
           <LocationEditor

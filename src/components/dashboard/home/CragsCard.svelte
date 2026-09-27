@@ -32,7 +32,7 @@
   <div class="card space-y-1">
     <SectionHeader label="Crags" />
     <div class="divide-y divide-border">
-    {#each trainingState.crags as crag, i (crag.name)}
+    {#each trainingState.crags as crag, i (`${i}:${crag.name}`)}
       {@const state = trainingState.cragWeather[i]}
       {@const snap = state?.snapshot}
       <div>
