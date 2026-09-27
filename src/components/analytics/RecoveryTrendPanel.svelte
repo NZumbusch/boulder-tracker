@@ -80,6 +80,15 @@
   }));
   const shown = $derived(metrics.filter((m) => !hidden.has(m.id)));
 
+  // What the % view can't draw, said out loud rather than left blank: a
+  // reading only becomes a % once there's a baseline (7 readings before it).
+  const noPercentYet = $derived(
+    shown
+      .map((m) => ({ short: m.short, count: m.series.filter((d) => d.value !== undefined && d.deviation === undefined).length }))
+      .filter((m) => m.count > 0),
+  );
+  const afterBreak = $derived(shown.some((m) => m.series.some((d) => d.baselineAfterBreak && d.value !== undefined)));
+
   const loadByDay = $derived(dailyLoadByDay(trainingState.workouts));
   const maxLoad = $derived(Math.max(1, ...Array.from({ length: dayCount }, (_, i) => loadByDay.get(firstDay + i) ?? 0)));
   const readiness = $derived(
@@ -383,6 +392,18 @@
             {/if}
           </div>
         </div>
+        {#if noPercentYet.length || afterBreak}
+          <div class="ml-10 mt-1 space-y-0.5">
+            {#if noPercentYet.length}
+              <p class="text-caption text-content-subtle">
+                Not in % yet: {noPercentYet.map((m) => `${m.short} (${m.count} reading${m.count === 1 ? '' : 's'})`).join(', ')} - a % needs 7 earlier readings to compare with. The rows view shows them.
+              </p>
+            {/if}
+            {#if afterBreak}
+              <p class="text-caption text-content-subtle">After a break, % is against your readings from before it.</p>
+            {/if}
+          </div>
+        {/if}
       {:else}
         <div class="space-y-2">
           {#each lanePaths as lane (lane.id)}

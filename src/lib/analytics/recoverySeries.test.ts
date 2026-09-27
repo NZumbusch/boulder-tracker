@@ -71,6 +71,25 @@ describe("buildRecoverySeries", () => {
     expect(buildRecoverySeries(data, RHR, DAY0 + 10, DAY0 + 10)[0].deviation).toBeCloseTo(-10);
   });
 
+  it("after a break, measures against the last readings before it instead of dropping the day", () => {
+    // Four weeks of readings, a two-month break, then two new readings.
+    const back = DAY0 + 28 + 60;
+    const data = [...steady, entry("hrv", back, 66), entry("hrv", back + 1, 54)];
+    const [first, second] = buildRecoverySeries(data, HRV, back, back + 1);
+    expect(first.baseline).toBe(60);
+    expect(first.deviation).toBeCloseTo(10);
+    expect(first.baselineAfterBreak).toBe(true);
+    // The new readings join the fallback baseline as they come in.
+    expect(second.deviation).toBeDefined();
+  });
+
+  it("still has no baseline with fewer than the minimum readings ever, and only looks back a year", () => {
+    const few = Array.from({ length: MIN_BASELINE_READINGS - 1 }, (_, i) => entry("rhr", DAY0 + i, 50));
+    expect(buildRecoverySeries([...few, entry("rhr", DAY0 + 40, 55)], RHR, DAY0 + 40, DAY0 + 40)[0].deviation).toBeUndefined();
+    const longAgo = DAY0 + 28 + 400;
+    expect(buildRecoverySeries([...steady, entry("hrv", longAgo, 60)], HRV, longAgo, longAgo)[0].baseline).toBeUndefined();
+  });
+
   it("smooths with a rolling average once two readings are in range", () => {
     const series = buildRecoverySeries([entry("hrv", DAY0, 50), entry("hrv", DAY0 + 2, 70)], HRV, DAY0, DAY0 + 2);
     expect(series[0].avg).toBeUndefined();

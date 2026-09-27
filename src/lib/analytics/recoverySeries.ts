@@ -56,6 +56,14 @@ export const BASELINE_DAYS = 28;
 export const MIN_BASELINE_READINGS = 7;
 /** The smoothed line: mean of the readings in the last seven days, today included. */
 export const ROLLING_AVG_DAYS = 7;
+/**
+ * After a break (fewer than `MIN_BASELINE_READINGS` in the last
+ * `BASELINE_DAYS`), the baseline is the last readings before the day - up
+ * to `BASELINE_DAYS` of them, from at most this far back. Without it the %
+ * view dropped every reading after a break while the lanes still showed
+ * them.
+ */
+export const BREAK_LOOKBACK_DAYS = 365;
 export const MIN_AVG_READINGS = 2;
 
 export interface RecoveryDay {
@@ -72,6 +80,8 @@ export interface RecoveryDay {
   deviation?: number;
   /** `avg` as % away from baseline, signed the same way. */
   avgDeviation?: number;
+  /** The baseline is the readings before a break, not the last 28 days (see `BREAK_LOOKBACK_DAYS`). */
+  baselineAfterBreak?: true;
 }
 
 /** A local calendar date as a day index - Monday 00:00 in Berlin is still Monday, not Sunday 22:00 UTC. */
@@ -140,7 +150,14 @@ export function buildRecoverySeries(
     const recent = valuesBetween(byDay, day - ROLLING_AVG_DAYS + 1, day);
     if (recent.length >= MIN_AVG_READINGS) entry.avg = mean(recent);
 
-    const history = valuesBetween(byDay, day - BASELINE_DAYS, day - 1);
+    let history = valuesBetween(byDay, day - BASELINE_DAYS, day - 1);
+    if (history.length < MIN_BASELINE_READINGS) {
+      const before = valuesBetween(byDay, day - BREAK_LOOKBACK_DAYS, day - 1).slice(-BASELINE_DAYS);
+      if (before.length >= MIN_BASELINE_READINGS) {
+        history = before;
+        entry.baselineAfterBreak = true;
+      }
+    }
     if (history.length >= MIN_BASELINE_READINGS) {
       const baseline = mean(history);
       entry.baseline = baseline;
