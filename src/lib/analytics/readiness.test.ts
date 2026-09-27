@@ -161,6 +161,7 @@ describe("computeReadiness", () => {
     ratio,
     daysCovered: 28,
     sufficient: true,
+    activeWeeks: 4,
   });
   const insufficientAcwr = (ratio: number | undefined): RollingAcwrResult => ({
     acuteLoad: 0,
@@ -168,6 +169,7 @@ describe("computeReadiness", () => {
     ratio,
     daysCovered: 5,
     sufficient: false,
+    activeWeeks: 0,
   });
 
   it("no inputs at all -> undefined score, neutral status, nothing marked as used", () => {
@@ -288,7 +290,7 @@ describe("computeReadiness", () => {
 });
 
 describe("computeReadiness penalties (the breakdown behind the score)", () => {
-  const acwr = (ratio: number): RollingAcwrResult => ({ acuteLoad: 0, chronicLoad: 0, ratio, daysCovered: 28, sufficient: true });
+  const acwr = (ratio: number): RollingAcwrResult => ({ acuteLoad: 0, chronicLoad: 0, ratio, daysCovered: 28, sufficient: true, activeWeeks: 4 });
 
   it("reports what each input took off, and they add up to 100 - score", () => {
     const r = computeReadiness({
@@ -313,7 +315,7 @@ describe("computeReadiness penalties (the breakdown behind the score)", () => {
 });
 
 describe("computeReadiness with a custom config", () => {
-  const acwr = (ratio: number): RollingAcwrResult => ({ acuteLoad: 0, chronicLoad: 0, ratio, daysCovered: 28, sufficient: true });
+  const acwr = (ratio: number): RollingAcwrResult => ({ acuteLoad: 0, chronicLoad: 0, ratio, daysCovered: 28, sufficient: true, activeWeeks: 4 });
   const base = { fatigue: { fingers: 6, core: 4, systemic: 6 }, acwr: acwr(1.3), sleep: 55, hrv: 50, hrvBaseline: 60 };
 
   it("leaves out inputs that are switched off", () => {
@@ -336,7 +338,7 @@ describe("computeReadiness with a custom config", () => {
 });
 
 describe("sleep duration (Health Connect) when there's no sleep score", () => {
-  const acwr = { acuteLoad: 0, chronicLoad: 0, ratio: undefined, sufficient: false } as never;
+  const acwr = { acuteLoad: 0, chronicLoad: 0, ratio: undefined, sufficient: false, activeWeeks: 0 } as never;
 
   it("costs nothing at or above the short-sleep line, the full sleep penalty three hours under it", () => {
     expect(computeReadiness({ fatigue: {}, acwr, sleepHours: 7.5 }).penalties.sleep).toBe(0);
@@ -357,7 +359,7 @@ describe("sleep duration (Health Connect) when there's no sleep score", () => {
 });
 
 describe("naps boost sleep duration", () => {
-  const acwr = { acuteLoad: 0, chronicLoad: 0, ratio: undefined, sufficient: false } as never;
+  const acwr = { acuteLoad: 0, chronicLoad: 0, ratio: undefined, sufficient: false, activeWeeks: 0 } as never;
 
   it("add to the night's hours", () => {
     const night = computeReadiness({ fatigue: {}, acwr, sleepHours: 5.5 });

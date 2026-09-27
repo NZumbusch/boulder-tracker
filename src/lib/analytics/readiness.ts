@@ -275,7 +275,9 @@ function buildConfidence(
 
   if (inputsUsed.acwr) present.push("load (ACWR)");
   else if (!use.acwr) { /* off */ }
-  else if (acwr.ratio !== undefined && !acwr.sufficient) missing.push("load (still building a 28-day history)");
+  else if (acwr.ratio !== undefined && !acwr.sufficient) {
+    missing.push(acwr.insufficientReason === "break" ? "load (building up again after a break - needs 3 of the last 4 weeks logged)" : "load (still building a 28-day history)");
+  }
   else missing.push("load");
 
   if (inputsUsed.sleep) present.push("sleep");

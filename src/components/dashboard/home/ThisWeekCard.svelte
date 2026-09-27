@@ -96,6 +96,11 @@
     </p>
     {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
       <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums shrink-0 {acwrZone.class}" title="Acute:chronic workload ratio - last 7 days vs the 28-day average">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>
+    {:else if trainingState.homeDetails['thisWeek.acwr'] && acwr.insufficientReason}
+      <!-- Said, not just hidden: ACWR needs a real 4-week baseline. -->
+      <span class="text-caption text-content-subtle shrink-0" title="ACWR compares this week with the last four - it needs training logged in at least 3 of them">
+        {acwr.insufficientReason === 'break' ? `ACWR after a break · ${acwr.activeWeeks}/3 weeks` : 'ACWR from 4 weeks in'}
+      </span>
     {/if}
   </div>
 

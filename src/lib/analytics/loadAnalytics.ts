@@ -72,6 +72,27 @@ export interface RollingAcwrResult {
    * and `ratio: undefined` (literally zero load in the current window).
    */
   sufficient: boolean;
+  /**
+   * How many of the weeks in the chronic window (acute-length blocks, the
+   * latest ending on `asOf` - four 7-day weeks by default) have at least
+   * one logged session.
+   */
+  activeWeeks: number;
+  /** Why it isn't `sufficient`: too little history ("new"), or weeks without training in it ("break"). */
+  insufficientReason?: "new" | "break";
+}
+
+/**
+ * ACWR only means something when the 28-day baseline is real training.
+ * After a break (or with sessions not logged), the chronic load is tiny,
+ * the ratio explodes and readiness lost points for coming back. So a
+ * baseline needs sessions in at least this many of the last four weeks -
+ * one holiday week doesn't switch it off, a real break does.
+ */
+export const ACWR_MIN_ACTIVE_WEEKS = 3;
+/** The same rule for any window: all but one of its weeks. */
+function minActiveWeeks(blocks: number): number {
+  return blocks === 4 ? ACWR_MIN_ACTIVE_WEEKS : Math.max(1, blocks - 1);
 }
 
 /**
@@ -88,7 +109,7 @@ export function calculateRollingAcwr(
 ): RollingAcwrResult {
   const completed = workouts.filter((w) => w.status === "completed" && w.date);
   if (completed.length === 0) {
-    return { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false };
+    return { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false, activeWeeks: 0, insufficientReason: "new" };
   }
 
   const asOfDay = toUtcDayIndex(asOf.toISOString());
@@ -110,8 +131,28 @@ export function calculateRollingAcwr(
   const chronicLoad = sumWindow(chronicDays) / (chronicDays / acuteDays);
   const ratio = chronicLoad > 0 ? acuteLoad / chronicLoad : undefined;
   const daysCovered = asOfDay - earliestDay + 1;
-
-  return { acuteLoad, chronicLoad, ratio, daysCovered, sufficient: daysCovered >= chronicDays };
+  const blocks = Math.ceil(chronicDays / acuteDays);
+  let activeWeeks = 0;
+  for (let week = 0; week < blocks; week++) {
+    const end = asOfDay - week * acuteDays;
+    for (let d = end - acuteDays + 1; d <= end; d++) {
+      if (loadByDay.has(d)) {
+        activeWeeks++;
+        break;
+      }
+    }
+  }
+  const enoughHistory = daysCovered >= chronicDays;
+  const sufficient = enoughHistory && activeWeeks >= minActiveWeeks(blocks);
+  return {
+    acuteLoad,
+    chronicLoad,
+    ratio,
+    daysCovered,
+    sufficient,
+    activeWeeks,
+    ...(sufficient ? {} : { insufficientReason: enoughHistory ? ("break" as const) : ("new" as const) }),
+  };
 }
 
 export interface RollingAcwrPoint extends RollingAcwrResult {
@@ -127,7 +168,7 @@ export function calculateRollingAcwrSeries(workouts: Workout[], sampleDates: Dat
 /** `calculateRollingAcwr` sampled at `weekId`'s UTC end date (Sunday), or zeroed fields for a malformed id rather than a nondeterministic "now" fallback. */
 function rollingAcwrAtWeekEnd(workouts: Workout[], weekId: string): RollingAcwrResult {
   const dates = getWeekDates(weekId);
-  if (!dates) return { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false };
+  if (!dates) return { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false, activeWeeks: 0, insufficientReason: "new" };
   return calculateRollingAcwr(workouts, dates.end);
 }
 
@@ -141,6 +182,8 @@ export interface AcwrResult {
   ratio: number | undefined;
   /** Whether the rolling window above is backed by enough history to trust - see `RollingAcwrResult.sufficient`. */
   sufficient: boolean;
+  /** Why not, when it isn't - see `RollingAcwrResult.insufficientReason`. */
+  insufficientReason?: "new" | "break";
   /** Week-over-week % change in this week's *bucketed* completed load vs the previous week - a deliberately different, still week-bucketed metric from the rolling ratio above - a different metric from ACWR, not a bucketed version of it. 0 if there's no previous week or it had no load. */
   rampRate: number;
   /** rampRate exceeds RAMP_RATE_SPIKE_THRESHOLD. */
@@ -168,6 +211,7 @@ export function calculateAcwrForWeeks(workouts: Workout[], orderedWeekIds: strin
       chronicLoad: rolling.chronicLoad,
       ratio: rolling.ratio,
       sufficient: rolling.sufficient,
+      ...(rolling.insufficientReason ? { insufficientReason: rolling.insufficientReason } : {}),
       rampRate,
       spike: rampRate > RAMP_RATE_SPIKE_THRESHOLD,
     };
@@ -196,6 +240,7 @@ export function calculateAcwrForBuckets(
       chronicLoad: rolling.chronicLoad,
       ratio: rolling.ratio,
       sufficient: rolling.sufficient,
+      ...(rolling.insufficientReason ? { insufficientReason: rolling.insufficientReason } : {}),
       rampRate,
       spike: rampRate > RAMP_RATE_SPIKE_THRESHOLD,
     };

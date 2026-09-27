@@ -80,6 +80,7 @@
       ratioY: r.ratio !== undefined ? ratioToY(r.ratio) : null,
       ratio: r.ratio,
       sufficient: r.sufficient,
+      insufficientReason: r.insufficientReason,
       status: ratioStatus(r),
       spike: r.spike,
       rampRate: r.rampRate,
@@ -189,7 +190,7 @@
                 style="background: {p.sufficient ? RATIO_STATUS_VAR[p.status] : 'transparent'}; border-color: {RATIO_STATUS_VAR[p.status]};"
               ></div>
               <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
-                ACWR {p.ratio?.toFixed(2)}{!p.sufficient ? ' · building history' : ''}
+                ACWR {p.ratio?.toFixed(2)}{!p.sufficient ? (p.insufficientReason === 'break' ? ' · after a break, not counted' : ' · building history') : ''}
               </div>
             </button>
           {/if}

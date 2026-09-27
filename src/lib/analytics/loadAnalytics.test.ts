@@ -62,6 +62,8 @@ describe("calculateRollingAcwr (rolling 7-day acute / 28-day chronic window, rep
       ratio: undefined,
       daysCovered: 0,
       sufficient: false,
+      activeWeeks: 0,
+      insufficientReason: "new",
     });
   });
 
@@ -90,10 +92,21 @@ describe("calculateRollingAcwr (rolling 7-day acute / 28-day chronic window, rep
     expect(r.sufficient).toBe(true);
   });
 
-  it("earliest workout exactly 27 days before asOf (28-day inclusive span) -> sufficient", () => {
-    const workouts = [makeWorkout({ status: "completed", date: new Date(asOf.getTime() - 27 * 86400000).toISOString().split("T")[0], loadFactor: 10 })];
-    expect(calculateRollingAcwr(workouts, asOf).daysCovered).toBe(28);
-    expect(calculateRollingAcwr(workouts, asOf).sufficient).toBe(true);
+  it("28 days of history with sessions in 3 of the 4 weeks -> sufficient", () => {
+    const daysAgo = (n: number) => makeWorkout({ status: "completed", date: new Date(asOf.getTime() - n * 86400000).toISOString().split("T")[0], loadFactor: 10 });
+    const workouts = [daysAgo(27), daysAgo(15), daysAgo(3)];
+    const r = calculateRollingAcwr(workouts, asOf);
+    expect(r.daysCovered).toBe(28);
+    expect(r.activeWeeks).toBe(3);
+    expect(r.sufficient).toBe(true);
+  });
+
+  it("28 days of history but training in only 2 of the 4 weeks (a break) -> not sufficient, reason 'break'", () => {
+    const daysAgo = (n: number) => makeWorkout({ status: "completed", date: new Date(asOf.getTime() - n * 86400000).toISOString().split("T")[0], loadFactor: 10 });
+    const r = calculateRollingAcwr([daysAgo(27), daysAgo(2)], asOf);
+    expect(r.activeWeeks).toBe(2);
+    expect(r.sufficient).toBe(false);
+    expect(r.insufficientReason).toBe("break");
   });
 
   it("earliest workout 26 days before asOf (27-day inclusive span) -> not sufficient", () => {
@@ -102,14 +115,15 @@ describe("calculateRollingAcwr (rolling 7-day acute / 28-day chronic window, rep
     expect(calculateRollingAcwr(workouts, asOf).sufficient).toBe(false);
   });
 
-  it("history exists but nothing in the last 28 days -> sufficient can be true while ratio stays undefined (chronicLoad is 0, not 'no history')", () => {
+  it("history exists but nothing in the last 28 days -> ratio undefined, and not sufficient (a break, not a baseline)", () => {
     const oldDate = new Date(asOf.getTime() - 40 * 86400000).toISOString().split("T")[0];
     const workouts = [makeWorkout({ status: "completed", date: oldDate, loadFactor: 10 })];
     const r = calculateRollingAcwr(workouts, asOf);
     expect(r.acuteLoad).toBe(0);
     expect(r.chronicLoad).toBe(0);
     expect(r.ratio).toBeUndefined();
-    expect(r.sufficient).toBe(true);
+    expect(r.sufficient).toBe(false);
+    expect(r.insufficientReason).toBe("break");
   });
 
   it("respects custom acuteDays/chronicDays", () => {
