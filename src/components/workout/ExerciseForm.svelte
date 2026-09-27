@@ -222,13 +222,16 @@
 
     if (!isValid) return;
 
-    const cleanDuration = Math.max(0, duration);
+    // An emptied number field comes back as null (or NaN): store "not set",
+    // never null - null used to be saved and shown as "null", or read as 0.
+    const n = (v: number | null | undefined): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+    const cleanDuration = Math.max(0, n(duration) ?? 0);
     // Typed in the chosen unit, stored in kg. Can be negative (assisted).
-    const cleanWeight = Math.round(toKg(weight, trainingState.units.weight) * 100) / 100;
-    const cleanSize = Math.max(0, holdSize);
+    const cleanWeight = n(weight) === undefined ? undefined : Math.round(toKg(n(weight)!, trainingState.units.weight) * 100) / 100;
+    const cleanSize = Math.max(0, n(holdSize) ?? 0);
 
     const values: ExerciseValues = {
-      plannedLoad: Number(plannedLoad),
+      plannedLoad: n(Number(plannedLoad)),
       notes: notes
     };
 
@@ -243,30 +246,30 @@
       values.minGrade = minGrade;
       values.maxGrade = maxGrade;
     }
-    if (params.includes('cadence')) values.cadence = cadence;
+    if (params.includes('cadence')) values.cadence = n(cadence);
     if (params.includes('climbingStyle')) values.climbingStyle = climbingStyle;
     if (params.includes('boardType')) values.boardType = boardType;
     if (params.includes('boardAngle')) values.boardAngle = boardAngle;
-    if (params.includes('sets')) values.sets = sets;
+    if (params.includes('sets')) values.sets = n(sets);
     if (params.includes('reps')) {
-      values.reps = !repsEdited && Array.isArray(originalReps) ? originalReps : reps;
+      values.reps = !repsEdited && Array.isArray(originalReps) ? originalReps : n(reps);
     }
-    if (params.includes('movesPerRoute')) values.movesPerRoute = movesPerRoute;
+    if (params.includes('movesPerRoute')) values.movesPerRoute = n(movesPerRoute);
 
     if (params.includes('holdType')) values.holdType = holdType;
-    if (params.includes('timeOn')) values.timeOn = timeOn;
-    if (params.includes('timeOff')) values.timeOff = timeOff;
-    if (params.includes('restTime')) values.timeBetweenSets = timeBetweenSets;
+    if (params.includes('timeOn')) values.timeOn = n(timeOn);
+    if (params.includes('timeOff')) values.timeOff = n(timeOff);
+    if (params.includes('restTime')) values.timeBetweenSets = n(timeBetweenSets);
     if (params.includes('holdSize')) values.holdSize = cleanSize;
     if (params.includes('weight')) values.weight = cleanWeight;
-    if (params.includes('distance')) values.distance = distance;
+    if (params.includes('distance')) values.distance = n(distance);
     if (params.includes('campusStyle')) values.campusType = campusType;
     if (params.includes('mobilityType')) values.mobilityType = mobilityType;
     if (params.includes('leadStyle')) values.leadStyle = leadStyle;
-    if (params.includes('difficulty')) values.difficulty = difficulty;
+    if (params.includes('difficulty')) values.difficulty = n(difficulty);
     if (params.includes('routeDifficulty')) values.routeDifficulty = routeDifficulty;
-    if (params.includes('bodyweightPercent')) values.bodyweightPercent = bodyweightPercent;
-    if (params.includes('maxWeightPercent')) values.maxWeightPercent = maxWeightPercent;
+    if (params.includes('bodyweightPercent')) values.bodyweightPercent = n(bodyweightPercent);
+    if (params.includes('maxWeightPercent')) values.maxWeightPercent = n(maxWeightPercent);
 
     onSave({
       typeId: activeTypeDef.id,
