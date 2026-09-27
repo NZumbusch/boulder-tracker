@@ -1,4 +1,6 @@
 <script lang="ts">
+  let renaming = $state(false);
+  let nameDraft = $state('');
   /**
    * Google Drive sync (Android): connect, status, the other devices, and
    * conflicts - versions that lost to a newer edit on another device, kept
@@ -89,7 +91,8 @@
         <div class="flex items-center justify-between gap-3 py-2.5">
           <div class="min-w-0">
             <p class="text-caption text-content-muted">Account</p>
-            <p class="text-body text-content truncate">{driveSync.account ?? 'Google account'}</p>
+            <p class="text-body text-content truncate">{driveSync.accountName ?? driveSync.account ?? 'Google account'}</p>
+            {#if driveSync.accountName && driveSync.account}<p class="text-caption text-content-subtle truncate">{driveSync.account}</p>{/if}
           </div>
           <button onclick={disconnect} class="flex items-center gap-1 px-3 py-1.5 rounded-control border border-danger/40 text-label font-semibold text-danger hover:bg-danger/10 transition-colors shrink-0">
             <Icon icon="ic:baseline-link-off" class="text-base" /> Disconnect
@@ -110,7 +113,25 @@
         </div>
         <div class="py-2.5">
           <p class="text-caption text-content-muted">Devices</p>
-          <p class="text-body text-content">{driveSync.deviceName} <span class="text-caption text-content-subtle">(this one)</span></p>
+          {#if renaming}
+            <form class="flex items-center gap-2 py-1" onsubmit={(e) => { e.preventDefault(); driveSync.renameDevice(nameDraft); renaming = false; }}>
+              <!-- svelte-ignore a11y_autofocus -->
+              <input bind:value={nameDraft} autofocus placeholder="e.g. Phone" maxlength="30" class="flex-1 min-w-0 px-2.5 py-1.5 bg-surface-elevated text-content rounded-control border border-border-strong text-body outline-none focus:border-primary/60" />
+              <button type="submit" class="px-3 py-1.5 rounded-control bg-primary text-white text-label font-semibold">Save</button>
+              <button type="button" onclick={() => renaming = false} class="px-2 py-1.5 text-label text-content-subtle">Cancel</button>
+            </form>
+            <p class="text-caption text-content-subtle">Other devices see it as "{nameDraft.trim() ? `${nameDraft.trim()} (${driveSync.deviceModel})` : driveSync.deviceModel}".</p>
+          {:else}
+            <div class="flex items-center gap-2">
+              <p class="text-body text-content min-w-0 truncate">
+                {driveSync.deviceLabel ?? driveSync.deviceModel}{#if driveSync.deviceLabel} <span class="text-content-subtle">({driveSync.deviceModel})</span>{/if}
+                <span class="text-caption text-content-subtle">· this one</span>
+              </p>
+              <button onclick={() => { nameDraft = driveSync.deviceLabel ?? ''; renaming = true; }} class="p-1 text-content-subtle hover:text-content shrink-0" aria-label="Name this device" title="Name this device">
+                <Icon icon="ic:baseline-edit" class="text-sm" />
+              </button>
+            </div>
+          {/if}
           {#each driveSync.devices as d (d.deviceId)}
             <p class="text-body text-content">{d.deviceName} <span class="text-caption text-content-subtle">· last upload {ago(d.writtenAt)}</span></p>
           {/each}

@@ -33,8 +33,15 @@ const RESUME_AFTER_MS = 60_000;
 interface Settings {
   connected: boolean;
   deviceId: string;
+  /** What other devices see: "<your name> (<model>)", or just the model. */
   deviceName: string;
+  /** The phone's model, from Android (e.g. "Samsung SM-S911B"). Absent in settings from before naming - `deviceName` was the model then. */
+  deviceModel?: string;
+  /** The name you gave this device ("Phone"). */
+  deviceLabel?: string;
   account?: string;
+  /** The Google account's display name (from Drive), for showing who's signed in. */
+  accountName?: string;
   /** null until the first sync has run (it adopts what's already on Drive). */
   lastSyncAt: number | null;
   devices: DeviceInfo[];
@@ -49,6 +56,11 @@ function loadSettings(): Settings | null {
   } catch {
     return null;
   }
+}
+
+/** What a device is called on the others: your name for it with the model in brackets, or the model. */
+export function publishedDeviceName(label: string | undefined, model: string): string {
+  return label ? `${label} (${model})` : model;
 }
 
 function randomId(): string {
@@ -78,7 +90,10 @@ class DriveSync {
   /** The error needs the user to sign in again (the grant was revoked or expired). */
   needsSignIn = $state(false);
   account = $state<string | undefined>(undefined);
+  accountName = $state<string | undefined>(undefined);
   deviceName = $state("");
+  deviceModel = $state("");
+  deviceLabel = $state<string | undefined>(undefined);
   lastSyncAt = $state<number | null>(null);
   devices = $state<DeviceInfo[]>([]);
   conflicts = $state<SyncConflict[]>([]);
@@ -108,9 +123,13 @@ class DriveSync {
     const settings = loadSettings();
     if (!settings?.connected) return;
     await initDB();
+    settings.deviceModel ??= settings.deviceName;
     this.#settings = settings;
     this.#client.email = settings.account;
     this.account = settings.account;
+    this.accountName = settings.accountName;
+    this.deviceModel = settings.deviceModel;
+    this.deviceLabel = settings.deviceLabel;
     this.deviceName = settings.deviceName;
     this.lastSyncAt = settings.lastSyncAt;
     this.devices = settings.devices ?? [];
@@ -175,8 +194,13 @@ class DriveSync {
       await initDB();
       const { email } = await this.#client.authorize(true);
       const deviceId = loadSettings()?.deviceId ?? randomId();
-      this.#settings = { connected: false, deviceId, deviceName: await DriveClient.deviceName(), account: email, lastSyncAt: null, devices: [] };
+      const previous = loadSettings();
+      const model = await DriveClient.deviceName();
+      const label = previous?.deviceLabel;
+      this.#settings = { connected: false, deviceId, deviceName: publishedDeviceName(label, model), deviceModel: model, ...(label ? { deviceLabel: label } : {}), account: email, lastSyncAt: null, devices: [] };
       this.account = email;
+      this.deviceModel = model;
+      this.deviceLabel = label;
       this.deviceName = this.#settings.deviceName;
       const others = (await this.#client.list()).filter((f) => f.name !== `device-${deviceId}.json`);
       if (others.length > 0 && hasOwnData()) {
@@ -223,6 +247,7 @@ class DriveSync {
     this.choosing = false;
     this.#settings = null;
     this.account = undefined;
+    this.accountName = undefined;
   }
 
   async disconnect(): Promise<void> {
@@ -238,6 +263,7 @@ class DriveSync {
     this.#ledger = {};
     this.status = "off";
     this.account = undefined;
+    this.accountName = undefined;
     this.lastSyncAt = null;
     this.devices = [];
     this.error = null;
@@ -308,6 +334,7 @@ class DriveSync {
       });
       settings.lastSyncAt = outcome.syncedAt;
       settings.devices = outcome.devices;
+      if (!settings.accountName) await this.#loadAccount(settings);
       this.#saveSettings();
       this.lastSyncAt = outcome.syncedAt;
       this.devices = outcome.devices;
@@ -319,6 +346,34 @@ class DriveSync {
     } catch (err) {
       this.#fail(err);
     }
+  }
+
+  /** Who's signed in, as Drive knows it - the sign-in result often has no account at all. Best effort. */
+  async #loadAccount(settings: Settings) {
+    try {
+      const { name, email } = await this.#client.about();
+      if (name) settings.accountName = this.accountName = name;
+      if (email) {
+        settings.account = this.account = email;
+        this.#client.email = email;
+      }
+    } catch (err) {
+      console.error("Couldn't read the Google account's name", err);
+    }
+  }
+
+  /** Names this device ("Phone"); other devices see it with the model in brackets. Blank = just the model. */
+  renameDevice(label: string) {
+    if (!this.#settings) return;
+    const trimmed = label.trim() || undefined;
+    const model = this.#settings.deviceModel ?? this.#settings.deviceName;
+    this.#settings.deviceLabel = trimmed;
+    if (!trimmed) delete this.#settings.deviceLabel;
+    this.#settings.deviceName = publishedDeviceName(trimmed, model);
+    this.deviceLabel = trimmed;
+    this.deviceName = this.#settings.deviceName;
+    this.#saveSettings();
+    this.schedule(0);
   }
 
   #fail(err: unknown) {

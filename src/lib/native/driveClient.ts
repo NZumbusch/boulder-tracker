@@ -17,6 +17,7 @@ interface DriveSyncPlugin {
   clearToken(options: { token: string }): Promise<void>;
   revoke(options: { email?: string }): Promise<void>;
   deviceName(): Promise<{ name: string }>;
+  about(options: { token: string }): Promise<{ name?: string; email?: string }>;
 }
 
 const DriveSync = registerPlugin<DriveSyncPlugin>("DriveSync");
@@ -64,6 +65,11 @@ export class DriveClient implements SyncTransport {
 
   write(name: string, content: string, fileId?: string): Promise<DriveFile> {
     return this.withToken((token) => DriveSync.write({ token, name, content, ...(fileId ? { fileId } : {}) }));
+  }
+
+  /** The account's name and email as Drive knows them. */
+  about(): Promise<{ name?: string; email?: string }> {
+    return this.withToken((token) => DriveSync.about({ token }));
   }
 
   async revoke(): Promise<void> {

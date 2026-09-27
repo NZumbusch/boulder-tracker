@@ -218,6 +218,34 @@ public class DriveSyncPlugin extends Plugin {
             .addOnCompleteListener(task -> call.resolve());
     }
 
+    /**
+     * `about({token})`: the signed-in account's display name and email, from
+     * Drive itself - the authorization result often carries no account, so
+     * the app had nothing to show but "Google account". `about.get` is
+     * allowed with the app-folder scope the app already has.
+     */
+    @PluginMethod
+    public void about(PluginCall call) {
+        String token = call.getString("token");
+        io.execute(() -> {
+            try {
+                String url = "https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress)";
+                JSONObject body = new JSONObject(new String(request("GET", url, token, null, null), StandardCharsets.UTF_8));
+                JSONObject user = body.optJSONObject("user");
+                JSObject result = new JSObject();
+                if (user != null) {
+                    if (user.has("displayName")) result.put("name", user.optString("displayName"));
+                    if (user.has("emailAddress")) result.put("email", user.optString("emailAddress"));
+                }
+                call.resolve(result);
+            } catch (HttpError e) {
+                call.reject(e.getMessage(), e.code);
+            } catch (Exception e) {
+                call.reject(e.getMessage(), "network");
+            }
+        });
+    }
+
     @PluginMethod
     public void deviceName(PluginCall call) {
         String maker = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER;
