@@ -3,7 +3,7 @@
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { formatWeight } from '../../lib/units';
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekDateRange, formatDate } from '../../lib/dateUtils';
+  import { getWeekId, getWeekDateRange, formatDate, getWeekIdRange } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
   import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
   import { getDominantBlockForWeek } from '../../lib/planning/trainingBlocks';
@@ -37,30 +37,8 @@
     return opts;
   });
 
-  const targetWeekIds = $derived.by(() => {
-    const weekIds: string[] = [];
-    const [startYearStr, startWeekStr] = startWeek.split('-W');
-    let currentYear = parseInt(startYearStr);
-    let currentWeek = parseInt(startWeekStr);
-
-    const [endYearStr, endWeekStr] = endWeek.split('-W');
-    const targetEndYear = parseInt(endYearStr);
-    const targetEndWeek = parseInt(endWeekStr);
-
-    if (currentYear > targetEndYear || (currentYear === targetEndYear && currentWeek > targetEndWeek)) {
-      return []; // Invalid range
-    }
-
-    while (currentYear < targetEndYear || (currentYear === targetEndYear && currentWeek <= targetEndWeek)) {
-      weekIds.push(`${currentYear}-W${currentWeek.toString().padStart(2, '0')}`);
-      currentWeek++;
-      if (currentWeek > 52) {
-        currentWeek = 1;
-        currentYear++;
-      }
-    }
-    return weekIds;
-  });
+  // The shared helper, so a 53-week year (2026) doesn't lose its last week.
+  const targetWeekIds = $derived(getWeekIdRange(startWeek, endWeek));
 
   const selectedWorkouts = $derived.by(() => {
     // Group workouts by week

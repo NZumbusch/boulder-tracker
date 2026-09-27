@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate } from "./dateUtils";
+import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange } from "./dateUtils";
 
 describe("getWeekDates", () => {
   it("returns the UTC Monday-start/Sunday-end for a mid-year week", () => {
@@ -84,5 +84,30 @@ describe("localIsoDate", () => {
   it("is the local calendar date, also just after midnight", () => {
     expect(localIsoDate(new Date(2026, 8, 28, 0, 30))).toBe("2026-09-28");
     expect(localIsoDate(new Date(2026, 0, 5, 23, 59))).toBe("2026-01-05");
+  });
+});
+
+describe("53-week years", () => {
+  it("knows which years have a week 53", () => {
+    expect([2020, 2026, 2032].map(isoWeeksInYear)).toEqual([53, 53, 53]);
+    expect([2024, 2025, 2027].map(isoWeeksInYear)).toEqual([52, 52, 52]);
+  });
+
+  it("steps through 2026-W53 in both directions", () => {
+    expect(incrementWeekId("2026-W52")).toBe("2026-W53");
+    expect(incrementWeekId("2026-W53")).toBe("2027-W01");
+    expect(decrementWeekId("2027-W01")).toBe("2026-W53");
+    expect(getWeekIdRange("2026-W52", "2027-W01")).toEqual(["2026-W52", "2026-W53", "2027-W01"]);
+  });
+
+  it("agrees with the calendar for ten years of weeks", () => {
+    let week = "2024-W01";
+    for (let i = 0; i < 520; i++) {
+      const start = getWeekDates(week)!.start;
+      const oneWeekLater = getWeekId(new Date(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 7, 12));
+      expect(incrementWeekId(week)).toBe(oneWeekLater);
+      expect(decrementWeekId(oneWeekLater)).toBe(week);
+      week = oneWeekLater;
+    }
   });
 });

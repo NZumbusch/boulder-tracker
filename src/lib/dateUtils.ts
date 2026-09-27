@@ -25,41 +25,41 @@ export function getWeekId(date: Date): string {
 }
 
 /**
- * Returns the week id immediately following `weekId`. Approximates every
- * year as 52 weeks (matches the pre-existing week-range loop this was
- * extracted from in the old AI prompt modal) rather than
- * computing true ISO week counts (52 or 53 depending on the year): a 53-week
- * year can produce one extra, slightly-early rollover to next year. Low-risk
- * here - only used for week-range generation/grouping, not for `getWeekId`
- * itself (which is exact).
+ * How many ISO weeks a year has: 52, or 53 when it starts on a Thursday
+ * (or is a leap year starting on a Wednesday) - 2026 is one. 28 December
+ * always falls in a year's last week.
+ */
+export function isoWeeksInYear(year: number): number {
+  return parseInt(getWeekId(new Date(year, 11, 28, 12)).split('-W')[1], 10);
+}
+
+/**
+ * Returns the week id immediately following `weekId`, with true ISO week
+ * counts. It used to assume 52 weeks a year, which skipped 2026-W53
+ * entirely - a plan or block over New Year 2027 would have had a week
+ * with nothing in it, and a weekly Plan B would have missed it.
  */
 export function incrementWeekId(weekId: string): string {
   const match = weekId.match(/^(\d{4})-W(\d{2})$/);
   if (!match) return weekId;
   let year = parseInt(match[1], 10);
   let week = parseInt(match[2], 10) + 1;
-  if (week > 52) {
+  if (week > isoWeeksInYear(year)) {
     week = 1;
     year++;
   }
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
-/**
- * Returns the week id immediately preceding `weekId` - `incrementWeekId`'s
- * mirror image, same 52-weeks-per-year approximation and same low-risk
- * caveat (only used for windowing/grouping, never `getWeekId` itself).
- * Added for the AI context builder (`src/lib/ai/context.ts`), which
- * needs to expand a target week range backward as well as forward.
- */
+/** Returns the week id immediately preceding `weekId` - `incrementWeekId`'s mirror image (2027-W01 -> 2026-W53). */
 export function decrementWeekId(weekId: string): string {
   const match = weekId.match(/^(\d{4})-W(\d{2})$/);
   if (!match) return weekId;
   let year = parseInt(match[1], 10);
   let week = parseInt(match[2], 10) - 1;
   if (week < 1) {
-    week = 52;
     year--;
+    week = isoWeeksInYear(year);
   }
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
