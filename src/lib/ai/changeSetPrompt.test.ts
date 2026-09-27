@@ -7,7 +7,7 @@ describe("the change-set prompt documents every capability", () => {
   const p = AI_CHANGESET_INSTRUCTIONS;
 
   it("names every section, action and key the validator accepts", () => {
-    for (const key of ['"exerciseTypes"', '"phases"', '"weeks"', '"summary"', '"sessionChanges"', '"exerciseChanges"', '"match"', '"set"', '"occurrence"', '"position"', '"rename"', '"categoryName"', '"parameters"', '"from"', '"to"', '"week"', '"phase"', '"blockNotes"', '"notes"', '"startTime"', '"plannedDuration"', '"dayOfWeek"', '"planB"', '"start"', '"end"', '"day"', '"changes"', '"label"', '"outdoor"', '"likely"', '"repeatUntil"']) {
+    for (const key of ['"exerciseTypes"', '"phases"', '"weeks"', '"summary"', '"sessionChanges"', '"exerciseChanges"', '"match"', '"set"', '"occurrence"', '"position"', '"rename"', '"categoryName"', '"parameters"', '"from"', '"to"', '"week"', '"phase"', '"blockNotes"', '"notes"', '"startTime"', '"plannedDuration"', '"dayOfWeek"', '"planB"', '"start"', '"end"', '"day"', '"changes"', '"label"', '"outdoor"', '"likely"', '"repeatUntil"', '"coachNotes"', '"id"', '"text"']) {
       expect(p, key).toContain(key);
     }
     for (const action of ['"add"', '"edit"', '"remove"', '"archive"', '"delete"']) expect(p, action).toContain(`"action": ${action}`);

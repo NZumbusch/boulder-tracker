@@ -61,5 +61,5 @@ export function legacyPlanToChangeSet(plan: AIPlanOutput, current: { exerciseTyp
       weeks.push({ weekIds: [week.weekId], phase: week.phaseName, sessions: week.workouts.map(toSession), ...(week.notes ? { notes: week.notes } : {}) });
     }
   }
-  return { exerciseTypes, phases, weeks: weeks.filter((w) => w.weekIds.length > 0), planB: [] };
+  return { exerciseTypes, phases, weeks: weeks.filter((w) => w.weekIds.length > 0), planB: [], coachNotes: [] };
 }

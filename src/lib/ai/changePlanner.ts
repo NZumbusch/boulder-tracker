@@ -28,6 +28,7 @@ import type {
   ExerciseValues,
   PhaseDef,
   PlanAlternative,
+  CoachNote,
   TrainingBlock,
   WeekNote,
   WeekOverride,
@@ -45,6 +46,7 @@ import { PARAMETER_BLOCKS, type AIChangeSet, type CSExerciseChange, type CSSessi
 import type { AIExercise } from "./schema";
 import { slotValues } from "../exerciseSlot";
 import { dayIndexOf, weekAndDayOf, occurrenceOnDay, describeChanges, templateFromWorkout, MAX_PLAN_B_DAYS } from "../planning/planB";
+import { applyCoachNoteChange, newCoachNoteId } from "./coachNotes";
 
 // --- Inputs and outputs -----------------------------------------------------
 
@@ -60,11 +62,14 @@ export interface PlannerState {
   weekNotes: WeekNote[];
   /** Existing Plan Bs. */
   planAlternatives?: PlanAlternative[];
+  /** The coaching memory, and today ("YYYY-MM-DD") for dating new notes. */
+  coachNotes?: CoachNote[];
+  today?: string;
   /** For "this is in the past" warnings. */
   currentWeekId: string;
 }
 
-export type ChangeSection = "exercise" | "phase" | "week" | "planB";
+export type ChangeSection = "exercise" | "phase" | "week" | "planB" | "coach";
 
 export interface ChangeItem {
   id: string;
@@ -94,6 +99,8 @@ export interface PlanWrites {
   trainingBlocks?: TrainingBlock[];
   /** The whole Plan B list, when it changed. */
   planAlternatives?: PlanAlternative[];
+  /** The whole coach-notes list, when it changed. */
+  coachNotes?: CoachNote[];
   weeks: WeekWrite[];
   weekNotes: WeekNote[];
 }
@@ -837,6 +844,29 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     }
   });
 
+  // --- 5. Coach notes: one tickable item per change, applied in order ---
+  let coachNotes = [...(state.coachNotes ?? [])];
+  let coachNotesChanged = false;
+  const today = state.today ?? new Date().toISOString().slice(0, 10);
+  set.coachNotes.forEach((change, i) => {
+    const id = `coach-${i}`;
+    const outcome = applyCoachNoteChange(coachNotes, change, today, () => newCoachNoteId(coachNotes));
+    const item: ChangeItem = {
+      id,
+      section: "coach",
+      title: change.action === "add" ? "New coach note" : change.action === "edit" ? "Coach note changed" : "Coach note removed",
+      details: [outcome.line],
+      warnings: outcome.warnings,
+      errors: outcome.error ? [outcome.error] : [],
+      dependsOn: [],
+    };
+    items.push(item);
+    if (isOn(id) && !outcome.error) {
+      coachNotes = outcome.notes;
+      coachNotesChanged = true;
+    }
+  });
+
   // New exercise types with no tracked fields: infer them from what the plan uses.
   if (newTypeIds.length) {
     const used = new Map<string, Set<string>>();
@@ -859,6 +889,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     ...(ctx.changed.templates ? { templates: ctx.templates } : {}),
     ...(ctx.changed.blocks ? { trainingBlocks: ctx.blocks } : {}),
     ...(alternativesChanged ? { planAlternatives: alternatives } : {}),
+    ...(coachNotesChanged ? { coachNotes } : {}),
     weeks: [...ctx.weekState.entries()].map(([weekId, w]) => ({ weekId, planned: w.planned, customized: w.customized })),
     weekNotes: [...noteWrites.entries()].map(([weekId, text]) => ({ weekId, text })),
   };
@@ -925,6 +956,7 @@ export function allItemIds(set: AIChangeSet): Set<string> {
     ...set.phases.map((_, i) => `phase-${i}`),
     ...set.weeks.map((_, i) => `week-${i}`),
     ...set.planB.map((_, i) => `planb-${i}`),
+    ...set.coachNotes.map((_, i) => `coach-${i}`),
   ]);
 }
 

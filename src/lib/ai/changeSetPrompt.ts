@@ -1,5 +1,6 @@
 import { AI_VALUES_CONTRACT } from "./schema";
 import { PARAMETER_BLOCKS } from "./changeSet";
+import { COACH_NOTES_INSTRUCTIONS } from "./coachNotes";
 
 /**
  * What the AI is told about the change-set contract - every capability,
@@ -15,9 +16,10 @@ THE SHAPE (every section is optional; use the ones you need):
   "exerciseTypes": [ ...exercise list changes... ],
   "phases": [ ...phase changes... ],
   "weeks": [ ...week changes... ],
-  "planB": [ ...Plan B entries... ]
+  "planB": [ ...Plan B entries... ],
+  "coachNotes": [ ...coaching memory changes... ]
 }
-The app applies "exerciseTypes" first, then "phases", then "weeks", then "planB" - so a later section may use a new exercise or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
+The app applies "exerciseTypes" first, then "phases", then "weeks", then "planB", then "coachNotes" - so a later section may use a new exercise or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
 
 1) "exerciseTypes" - the exercise list (the Custom Exercise Modalities above)
   { "action": "add", "name": "Max Hangs 7s", "categoryName": "Fingers", "parameters": ["sets", "timeOn", "timeBetweenSets", "weight", "holdSize"] }
@@ -57,6 +59,8 @@ The app applies "exerciseTypes" first, then "phases", then "weeks", then "planB"
   - "outdoor": which plan ("A" or "B") is the outdoor one - the athlete gets a weather hint for it. "likely": the plan that counts until they decide (default "A"); pick the more probable one.
   - Plan both versions so that EITHER one works with the rest of the week - no hard session the day before a likely hard outdoor day, recovery after it in that plan only.
   - Only add a Plan B where there is real uncertainty (the athlete names such days, or a trip/outdoor season makes it likely). Keep Plan A the plan you'd pick without the uncertainty.
+
+${COACH_NOTES_INSTRUCTIONS}
 
 SESSION (used in "sessions" and in an "add" session change):
   { "name": "Limit bouldering", "dayOfWeek": "Tuesday", "startTime": "18:00", "plannedDuration": 90, "notes": "About the session as a whole", "exercises": [ EXERCISE, ... ] }

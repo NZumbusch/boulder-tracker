@@ -26,6 +26,7 @@
     { id: 'painLogs', label: 'Pain Logs', description: 'Recent pain/discomfort entries. Health data - off by default.' },
     { id: 'outdoorAscents', label: 'Outdoor Ascents', description: 'Recent outdoor grade history.' },
     { id: 'notes', label: 'Block & Week Notes', description: 'Your notes on training blocks, and week notes within four weeks of the prompt\'s weeks.' },
+    { id: 'coachNotes', label: 'Coach Notes & About Me', description: 'Your About me, standing goal and the coach notes (Settings → Coach notes) - so you don\'t have to repeat them.' },
   ];
 
   // What the defaults cost: a "Change plan" prompt for the next four weeks,
@@ -56,7 +57,7 @@
         </div>
         <input
           type="checkbox"
-          checked={trainingState.aiSharing[category.id]}
+          checked={trainingState.aiSharing[category.id] !== false}
           onchange={(e) => trainingState.setAiSharing(category.id, e.currentTarget.checked)}
           class="w-5 h-5 rounded accent-primary shrink-0"
         />

@@ -8,6 +8,7 @@
  *                   out, or edit what's already there; plus notes
  *   planB         - uncertain days: what Plan B does differently from the
  *                   plan the sections above produced (see `PlanAlternative`)
+ *   coachNotes    - the coaching memory every future AI reads (`coachNotes.ts`)
  *
  * This module is structure only: shapes, types, repairs. Whether a named
  * phase, session or exercise actually exists is the planner's job
@@ -18,6 +19,7 @@ import type { DayOfWeek, ExerciseValues, ParameterBlock, PlanSide } from "../typ
 import { PARAMETER_LABELS } from "../constants";
 import { getWeekIdRange } from "../dateUtils";
 import { resolveValueFieldName } from "./valueSpec";
+import { MAX_COACH_NOTE_LENGTH, type CoachNoteChange } from "./coachNotes";
 import {
   isPlainObject,
   pushRepair,
@@ -154,6 +156,7 @@ export interface AIChangeSet {
   phases: CSPhaseChange[];
   weeks: CSWeekChange[];
   planB: CSPlanB[];
+  coachNotes: CoachNoteChange[];
 }
 
 // --- Validation -----------------------------------------------------------
@@ -545,6 +548,40 @@ function validatePlanB(raw: unknown, path: string, issues: Issues): CSPlanB | nu
   };
 }
 
+function validateCoachNoteChange(raw: unknown, path: string, issues: Issues): CoachNoteChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a coach note change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const text = (): string | null => {
+    const t = requireString(raw.text, `${path}.text`, issues);
+    if (!t) return null;
+    if (t.length > MAX_COACH_NOTE_LENGTH) {
+      pushRepair(issues, `${path}.text`, `Longer than ${MAX_COACH_NOTE_LENGTH} characters - shortened.`);
+      return `${t.slice(0, MAX_COACH_NOTE_LENGTH - 1).trimEnd()}…`;
+    }
+    return t;
+  };
+  switch (raw.action) {
+    case "add": {
+      const t = text();
+      return t ? { action: "add", text: t } : null;
+    }
+    case "edit": {
+      const id = requireString(raw.id, `${path}.id`, issues);
+      const t = text();
+      return id && t ? { action: "edit", id, text: t } : null;
+    }
+    case "remove": {
+      const id = requireString(raw.id, `${path}.id`, issues);
+      return id ? { action: "remove", id } : null;
+    }
+    default:
+      issues.push({ path: `${path}.action`, message: `Expected "add", "edit" or "remove", got ${JSON.stringify(raw.action)}.` });
+      return null;
+  }
+}
+
 function validateList<T>(raw: unknown, path: string, issues: Issues, one: (r: unknown, p: string, i: Issues) => T | null): T[] {
   if (raw === undefined) return [];
   if (!Array.isArray(raw)) {
@@ -572,9 +609,10 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
     phases: validateList(raw.phases, "phases", issues, validatePhaseChange),
     weeks: validateList(raw.weeks, "weeks", issues, validateWeekChange),
     planB: validateList(raw.planB, "planB", issues, validatePlanB),
+    coachNotes: validateList(raw.coachNotes, "coachNotes", issues, validateCoachNoteChange),
   };
-  if (!issues.some(isError) && set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length === 0) {
-    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "exerciseTypes", "phases", "weeks" or "planB".' });
+  if (!issues.some(isError) && set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length === 0) {
+    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "exerciseTypes", "phases", "weeks", "planB" or "coachNotes".' });
   }
   return split(issues.some(isError) ? null : set, issues);
 }
@@ -582,7 +620,7 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
 /** True if a parsed document looks like a change set rather than the older weekly/phase plan formats. */
 export function isChangeSetShape(raw: unknown): boolean {
   if (!isPlainObject(raw)) return false;
-  if (raw.exerciseTypes !== undefined || raw.planB !== undefined) return true;
+  if (raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined) return true;
   const phases = Array.isArray(raw.phases) ? raw.phases : [];
   const weeks = Array.isArray(raw.weeks) ? raw.weeks : [];
   if (phases.some((p) => isPlainObject(p) && "action" in p)) return true;

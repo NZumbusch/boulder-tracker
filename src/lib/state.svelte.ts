@@ -5,7 +5,8 @@ import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote } from './types';
+import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
@@ -110,6 +111,9 @@ class TrainingState {
   get weekNotes() { return this.planningStore.weekNotes; }
   /** Plan Bs for uncertain days - see `PlanAlternative` and `lib/planning/planB.ts`. */
   get planAlternatives() { return this.planningStore.planAlternatives; }
+  /** The AI coach's About me and memory - see `lib/ai/coachNotes.ts`. */
+  get athleteProfile() { return this.planningStore.athleteProfile; }
+  get coachNotes() { return this.planningStore.coachNotes; }
   /** Competitions and outdoor trips - see `GoalEvent`. */
   get goals() { return this.planningStore.goals; }
   get templates() { return this.planningStore.templates; }
@@ -1209,6 +1213,8 @@ class TrainingState {
       weekOverrides: this.weekOverrides,
       weekNotes: this.weekNotes,
       planAlternatives: this.planAlternatives,
+      coachNotes: this.coachNotes,
+      today: localIsoDate(),
       currentWeekId: this.currentWeekId,
     };
   }
@@ -1226,6 +1232,47 @@ class TrainingState {
   async saveWeekNote(weekId: string, text: string) {
     await this.planningStore.saveWeekNote(weekId, text);
     await this.refresh();
+  }
+
+  // --- Coach notes (lib/ai/coachNotes.ts) ---
+
+  async saveAthleteProfile(profile: AthleteProfile) {
+    await storage.saveAthleteProfile($state.snapshot(profile) as AthleteProfile);
+    await this.refresh();
+  }
+
+  /**
+   * Adds or changes a note by hand. Editing one the AI wrote makes it yours
+   * ("me"), so later AI coaches leave it alone unless asked.
+   */
+  async saveCoachNote(text: string, id?: string): Promise<boolean> {
+    const trimmed = text.trim().slice(0, MAX_COACH_NOTE_LENGTH);
+    if (!trimmed) return false;
+    const notes = $state.snapshot(this.coachNotes) as CoachNote[];
+    const today = localIsoDate();
+    if (id) {
+      await storage.saveCoachNotes(notes.map((n) => (n.id === id ? { ...n, text: trimmed, source: 'me' as const, updatedOn: today } : n)));
+    } else {
+      if (notes.length >= MAX_COACH_NOTES) {
+        toast.show(`${MAX_COACH_NOTES} notes is the most - remove one first`);
+        return false;
+      }
+      await storage.saveCoachNotes([...notes, { id: newCoachNoteId(notes), text: trimmed, source: 'me', addedOn: today }]);
+    }
+    await this.refresh();
+    return true;
+  }
+
+  async deleteCoachNote(id: string) {
+    const before = $state.snapshot(this.coachNotes) as CoachNote[];
+    const removed = before.find((n) => n.id === id);
+    if (!removed) return;
+    await storage.saveCoachNotes(before.filter((n) => n.id !== id));
+    await this.refresh();
+    showUndo('Coach note removed', async () => {
+      await storage.saveCoachNotes(before);
+      await this.refresh();
+    });
   }
 
   /** Sets a block's note (blank clears it). */

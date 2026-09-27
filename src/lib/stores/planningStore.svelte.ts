@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate, PlanAlternative } from '../types';
+import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate, PlanAlternative, AthleteProfile, CoachNote } from '../types';
 import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
@@ -13,15 +13,20 @@ export class PlanningStore {
   weekNotes = $state<WeekNote[]>([]);
   /** Plan Bs for uncertain days - see `PlanAlternative`. */
   planAlternatives = $state<PlanAlternative[]>([]);
+  /** The AI coach's About me and memory - see `lib/ai/coachNotes.ts`. */
+  athleteProfile = $state<AthleteProfile | undefined>(undefined);
+  coachNotes = $state<CoachNote[]>([]);
   goals = $state<GoalEvent[]>([]);
   templates = $state<Record<string, WorkoutTemplate[]>>({});
 
   async load() {
-    const [trainingBlocks, weekOverrides, weekNotes, planAlternatives, goals, templates] = await Promise.all([
+    const [trainingBlocks, weekOverrides, weekNotes, planAlternatives, athleteProfile, coachNotes, goals, templates] = await Promise.all([
       storage.getTrainingBlocks(),
       storage.getWeekOverrides(),
       storage.getWeekNotes(),
       storage.getPlanAlternatives(),
+      storage.getAthleteProfile(),
+      storage.getCoachNotes(),
       storage.getGoals(),
       storage.getTemplates(),
     ]);
@@ -29,6 +34,8 @@ export class PlanningStore {
     this.weekOverrides = weekOverrides;
     this.weekNotes = weekNotes;
     this.planAlternatives = planAlternatives;
+    this.athleteProfile = athleteProfile;
+    this.coachNotes = coachNotes;
     this.goals = goals;
     this.templates = templates;
   }

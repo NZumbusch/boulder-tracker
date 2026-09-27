@@ -26,6 +26,7 @@
   import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
   import Icon from '@iconify/svelte';
   import { WEEK_DAYS } from '../../lib/constants';
+  import { hasProfile } from '../../lib/ai/coachNotes';
   import type { DayOfWeek } from '../../lib/types';
 
   let { onClose }: { onClose: () => void } = $props();
@@ -78,6 +79,18 @@
   const historyIsDefault = $derived(
     history.fullWeeks === trainingState.aiHistory.fullWeeks && history.summaryWeeks === trainingState.aiHistory.summaryWeeks,
   );
+
+  /** What of the coaching memory this prompt carries, for the line under the request box. */
+  const memoryParts = $derived.by(() => {
+    if (trainingState.aiSharing.coachNotes === false) return [];
+    const p = trainingState.athleteProfile;
+    const parts: string[] = [];
+    if (p?.standingGoal?.trim()) parts.push('your standing goal');
+    if (p && hasProfile({ ...p, standingGoal: undefined })) parts.push('About me');
+    const n = trainingState.coachNotes.length;
+    if (n) parts.push(`${n} coach note${n === 1 ? '' : 's'}`);
+    return parts;
+  });
 
   /** Days that may go either way every week (e.g. outdoor if dry) - the AI is asked to give them a Plan B. */
   let uncertainDays = $state<DayOfWeek[]>([]);
@@ -147,6 +160,7 @@
     { id: 'phase', label: 'Phases', icon: 'ic:baseline-view-week' },
     { id: 'week', label: 'Weeks', icon: 'ic:baseline-calendar-month' },
     { id: 'planB', label: 'Plan B', icon: 'ic:baseline-call-split' },
+    { id: 'coach', label: 'Coach notes', icon: 'ic:baseline-psychology' },
   ];
 
   function toggle(id: string) {
@@ -283,6 +297,13 @@
               class="w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-y placeholder:text-content-subtle"
             ></textarea>
           </label>
+          {#if memoryParts.length}
+            <!-- The coaching memory goes along with every prompt - no need to retype it. -->
+            <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
+              <Icon icon="ic:baseline-psychology" class="text-sm shrink-0 mt-0.5" />
+              <span>Sent along: {memoryParts.join(' · ')} <span class="text-content-subtle/70">(Settings → Coach notes)</span></span>
+            </p>
+          {/if}
 
           {#if mode === 'generate'}
             <div class="space-y-1.5">

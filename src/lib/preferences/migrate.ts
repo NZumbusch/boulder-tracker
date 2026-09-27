@@ -178,6 +178,12 @@ export interface AISharingPreferences {
    * toggle, since a note can mention an injury.
    */
   notes: boolean;
+  /**
+   * About me, the standing goal and the coach notes (`lib/ai/coachNotes.ts`).
+   * Default on: written for the coach. Optional, as older saved
+   * preferences don't have it (read as on).
+   */
+  coachNotes?: boolean;
 }
 
 /**
@@ -398,6 +404,7 @@ function validateAISharing(raw: unknown): AISharingPreferences {
     painLogs: typeof c.painLogs === 'boolean' ? c.painLogs : defaults.painLogs,
     outdoorAscents: typeof c.outdoorAscents === 'boolean' ? c.outdoorAscents : defaults.outdoorAscents,
     notes: typeof c.notes === 'boolean' ? c.notes : defaults.notes,
+    ...(typeof c.coachNotes === 'boolean' ? { coachNotes: c.coachNotes } : {}),
   };
 }
 

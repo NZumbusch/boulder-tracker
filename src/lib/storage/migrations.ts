@@ -1117,6 +1117,15 @@ const MIGRATIONS: MigrationStep[] = [
       data.planAlternatives = data.planAlternatives || [];
     },
   },
+  {
+    from: "3.30",
+    to: "3.31",
+    describe: "Add athleteProfile and coachNotes - the AI coach's About me and memory (empty by default, purely additive)",
+    migrate: (data: any) => {
+      data.athleteProfile = data.athleteProfile || [];
+      data.coachNotes = data.coachNotes || [];
+    },
+  },
 ];
 
 /**

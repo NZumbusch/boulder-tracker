@@ -5,6 +5,8 @@ import type {
   WeekOverride,
   WeekNote,
   PlanAlternative,
+  AthleteProfile,
+  CoachNote,
   GoalEvent,
   ExerciseTypeDef,
   PhaseDef,
@@ -29,7 +31,7 @@ import type { ShareOutcome } from "../share/imageShare";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
 
 /** The tables a bulk plan change (AI change set, copied week) can touch - what its undo snapshot holds. */
-const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes", "planAlternatives"] as const;
+const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes", "planAlternatives", "coachNotes"] as const;
 type PlanTables = Record<(typeof PLAN_TABLE_NAMES)[number], unknown>;
 interface PlanUndoRecord {
   /** What made the change: an AI change set, or copying a week in the planner. */
@@ -56,6 +58,8 @@ export const storage = {
   async _getTrainingBlocks(): Promise<TrainingBlock[]> { await initDB(); return _dbState.trainingBlocks; },
   async _getWeekOverrides(): Promise<WeekOverride[]> { await initDB(); return _dbState.weekOverrides; },
   async _getWeekNotes(): Promise<WeekNote[]> { await initDB(); return _dbState.weekNotes; },
+  async _getAthleteProfile(): Promise<AthleteProfile[]> { await initDB(); return _dbState.athleteProfile; },
+  async _getCoachNotes(): Promise<CoachNote[]> { await initDB(); return _dbState.coachNotes; },
   async _getPlanAlternatives(): Promise<PlanAlternative[]> { await initDB(); return _dbState.planAlternatives; },
   async _getGoals(): Promise<GoalEvent[]> { await initDB(); return _dbState.goals; },
   async _getBenchmarks(): Promise<Benchmark[]> { await initDB(); return _dbState.benchmarks; },
@@ -73,6 +77,8 @@ export const storage = {
   async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(["trainingBlocks"]); },
   async _saveWeekOverrides(overrides: WeekOverride[]): Promise<void> { await initDB(); _dbState.weekOverrides = toPlain(overrides); await flushDB(["weekOverrides"]); },
   async _saveWeekNotes(notes: WeekNote[]): Promise<void> { await initDB(); _dbState.weekNotes = toPlain(notes); await flushDB(["weekNotes"]); },
+  async _saveAthleteProfile(p: AthleteProfile[]): Promise<void> { await initDB(); _dbState.athleteProfile = toPlain(p); await flushDB(["athleteProfile"]); },
+  async _saveCoachNotes(notes: CoachNote[]): Promise<void> { await initDB(); _dbState.coachNotes = toPlain(notes); await flushDB(["coachNotes"]); },
   async _savePlanAlternatives(alts: PlanAlternative[]): Promise<void> { await initDB(); _dbState.planAlternatives = toPlain(alts); await flushDB(["planAlternatives"]); },
   async _saveGoals(goals: GoalEvent[]): Promise<void> { await initDB(); _dbState.goals = toPlain(goals); await flushDB(["goals"]); },
   async _saveBenchmarks(benchmarks: Benchmark[]): Promise<void> { await initDB(); _dbState.benchmarks = toPlain(benchmarks); await flushDB(["benchmarks"]); },
@@ -248,6 +254,7 @@ export const storage = {
     if (writes.templates) db.templates = toPlain(writes.templates);
     if (writes.trainingBlocks) db.trainingBlocks = toPlain(writes.trainingBlocks);
     if (writes.planAlternatives) db.planAlternatives = toPlain(writes.planAlternatives);
+    if (writes.coachNotes) db.coachNotes = toPlain(writes.coachNotes);
     if (writes.weeks.length) {
       const touched = new Set(writes.weeks.map((w) => w.weekId));
       const kept = (db.workouts as Workout[]).filter((w) => !(touched.has(w.weekId) && w.status === "planned"));
@@ -325,6 +332,22 @@ export const storage = {
 
   async getGoals(): Promise<GoalEvent[]> {
     return this._getGoals();
+  },
+
+  async getAthleteProfile(): Promise<AthleteProfile | undefined> {
+    return (await this._getAthleteProfile())[0];
+  },
+
+  async saveAthleteProfile(profile: AthleteProfile): Promise<void> {
+    await this._saveAthleteProfile([profile]);
+  },
+
+  async getCoachNotes(): Promise<CoachNote[]> {
+    return this._getCoachNotes();
+  },
+
+  async saveCoachNotes(notes: CoachNote[]): Promise<void> {
+    await this._saveCoachNotes(notes);
   },
 
   async getPlanAlternatives(): Promise<PlanAlternative[]> {
@@ -723,6 +746,8 @@ export const storage = {
           if (data.weekOverrides) _dbState.weekOverrides = data.weekOverrides;
           if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
           if (data.planAlternatives) _dbState.planAlternatives = data.planAlternatives;
+          if (data.athleteProfile) _dbState.athleteProfile = data.athleteProfile;
+          if (data.coachNotes) _dbState.coachNotes = data.coachNotes;
           if (data.goals) _dbState.goals = data.goals;
           if (data.templates) _dbState.templates = data.templates;
           if (data.phaseDefs) _dbState.phaseDefs = data.phaseDefs;

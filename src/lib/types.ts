@@ -353,6 +353,51 @@ export interface WeekNote {
   text: string;
 }
 
+/**
+ * About me, for the AI coach: what stays true about the athlete and isn't
+ * in the logged data - so it isn't restated in every AI chat. One record
+ * (id "me"), written by the athlete in Settings -> Coach notes, sent with
+ * every AI prompt while the "Coach notes" sharing switch is on.
+ */
+export interface AthleteProfile {
+  id: "me";
+  heightCm?: number;
+  /** Arm span minus height, cm (can be negative). */
+  apeIndexCm?: number;
+  /** The year they started climbing. */
+  climbingSince?: number;
+  maxBoulderIndoor?: string;
+  maxBoulderOutdoor?: string;
+  /** "Kilter 40°: 7A, Moonboard 2016: 6C+". */
+  boardLevels?: string;
+  /** Old and current injuries, things to be careful with. */
+  injuries?: string;
+  /** Days per week, when, where, equipment at home. */
+  availability?: string;
+  longTermGoals?: string;
+  /** What the AI coach should work towards unless told otherwise in a request. */
+  standingGoal?: string;
+  /** Anything else worth knowing. */
+  other?: string;
+}
+
+/**
+ * One coach note: memory that carries from one AI coaching chat to the
+ * next, in any AI app. An AI proposes them in its change set (the athlete
+ * ticks each one in the review), or the athlete writes them; at most
+ * `MAX_COACH_NOTES`. Sent with every AI prompt; see `lib/ai/coachNotes.ts`.
+ */
+export interface CoachNote {
+  /** Short and stable - the AI refers to notes by it ("k3x9"). */
+  id: string;
+  text: string;
+  /** Who wrote it. The AI is told not to change the athlete's own ones unless asked. */
+  source: "ai" | "me";
+  /** "YYYY-MM-DD" */
+  addedOn: string;
+  updatedOn?: string;
+}
+
 export type PlanSide = "A" | "B";
 
 /**
@@ -558,6 +603,8 @@ export interface TrainingData {
   weekOverrides: WeekOverride[];
   weekNotes: WeekNote[];
   planAlternatives: PlanAlternative[];
+  athleteProfile: AthleteProfile[];
+  coachNotes: CoachNote[];
   goals: GoalEvent[];
   exerciseTypes: ExerciseTypeDef[];
   templates: Record<string, WorkoutTemplate[]>;

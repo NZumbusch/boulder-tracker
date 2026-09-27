@@ -3,6 +3,8 @@ import { buildPlanContext, type PlanContextInput } from "./planContext";
 import type { AISharingPreferences } from "../preferences/migrate";
 import type { AIHistoryWindow } from "../preferences/migrate";
 import { AI_CHANGESET_INSTRUCTIONS } from "./changeSetPrompt";
+import { renderCoachMemory, COACH_MEMORY_READ_ONLY } from "./coachNotes";
+import type { AthleteProfile, CoachNote } from "../types";
 import type { DayOfWeek } from "../types";
 
 /**
@@ -91,14 +93,21 @@ export interface CoachPromptInput {
   planContext?: string;
   /** The history window the profile was built with, for the section labels. */
   history?: AIHistoryWindow;
+  /** About me, standing goal and coach notes (`renderCoachMemory`) - empty when there are none or sharing is off. */
+  coachMemory?: string;
 }
 
 export function buildCoachPrompt(input: CoachPromptInput): string {
-  const { mode, profile, targetWeekIds, goal, planContext, history } = input;
+  const { mode, profile, targetWeekIds, goal, planContext, history, coachMemory } = input;
   const profileText = renderProfileSections(profile, mode, history);
+  // The coaching memory comes first: it's what every AI coach should know
+  // before reading the data. Only a change set can update it.
+  const memory = coachMemory?.trim()
+    ? `My coaching memory:\n${coachMemory.trim()}\n${mode === "generate" ? 'Use it throughout. You may update the coach notes - see "coachNotes" below.' : COACH_MEMORY_READ_ONLY}\n\n`
+    : "";
 
   if (mode === "context") {
-    return `Here is my condensed training profile (no specific question attached - I'll ask you directly after pasting this):
+    return `${memory}Here is my condensed training profile (no specific question attached - I'll ask you directly after pasting this):
 
 ${profileText}`;
   }
@@ -108,7 +117,7 @@ ${profileText}`;
 
 Target Timeframe (the weeks you may change): ${targetWeekIds.join(", ")}
 
-My Goal & Notes for this cycle:
+${memory}My Goal & Notes for this cycle:
 ${goal.trim() || "No specific goals provided. Optimize for general climbing performance."}
 
 My training profile:
@@ -125,7 +134,7 @@ ${AI_CHANGESET_INSTRUCTIONS}`;
 Target Timeframe Analysed:
 ${targetWeekIds.join(", ")}
 
-My Goal & Notes for this cycle:
+${memory}My Goal & Notes for this cycle:
 ${goal.trim() || "No specific goals provided. Just tell me what I did well and what I should change."}
 
 Here is the data for the weeks in question:
@@ -141,6 +150,8 @@ Based on this data, please evaluate:
 /** Everything `buildCoachPromptFor` reads - `trainingState` satisfies it as is. */
 export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "targetWeekIds" | "uncertainDays"> & {
   aiSharing: AISharingPreferences;
+  athleteProfile?: AthleteProfile;
+  coachNotes?: CoachNote[];
   readinessConfig?: ModelOptions["readiness"];
   fatigueHalfLife?: number;
 };
@@ -181,5 +192,7 @@ export function buildCoachPromptFor(
         uncertainDays: opts.uncertainDays,
       })
     : undefined;
-  return buildCoachPrompt({ mode, profile, targetWeekIds, goal, planContext, history });
+  // "coachNotes" is a newer sharing switch - absent in older saved preferences means on.
+  const coachMemory = source.aiSharing.coachNotes !== false ? renderCoachMemory(source.athleteProfile, source.coachNotes ?? []) : "";
+  return buildCoachPrompt({ mode, profile, targetWeekIds, goal, planContext, history, coachMemory });
 }
