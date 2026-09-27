@@ -20,6 +20,7 @@
     "@tailwindcss/postcss": "^4.3.1",
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^22.20.3",
+    "@types/pdfmake": "^0.3.3",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.15",
     "svelte": "^5.55.5",
@@ -44,8 +45,8 @@
     "capacitor-home-widget": "file:plugins/home-widget",
     "capacitor-timer-service": "file:plugins/timer-service",
     "html2canvas": "^1.4.1",
-    "html2pdf.js": "^0.14.0",
     "localforage": "^1.10.0",
+    "pdfmake": "^0.3.11",
     "svelte-dnd-action": "^0.9.70"
   }
 }
