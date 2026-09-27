@@ -302,6 +302,7 @@ async function startNativeWrite(): Promise<void> {
     }
   } catch (err) {
     console.error("Failed to write to native Filesystem", err);
+    saveErrorListener?.(err);
   } finally {
     nativeWriting = null;
   }
@@ -329,6 +330,17 @@ export type TableName = (typeof TABLES)[number];
  * moment it's saved.
  */
 let flushListener: ((tables: readonly TableName[]) => void) | null = null;
+
+/**
+ * Told when a save didn't reach the disk (full storage, a revoked
+ * permission...). Saves used to fail silently - only the console knew,
+ * and the screen kept showing data that was never stored. The app shows a
+ * message (see main.ts).
+ */
+let saveErrorListener: ((err: unknown) => void) | null = null;
+export function setSaveErrorListener(listener: ((err: unknown) => void) | null) {
+  saveErrorListener = listener;
+}
 export function setFlushListener(listener: ((tables: readonly TableName[]) => void) | null) {
   flushListener = listener;
 }
@@ -342,8 +354,14 @@ export async function flushDB(tables?: TableName[]) {
     return;
   }
 
-  for (const table of tables ?? TABLES) {
-    await localforage.setItem(table, _dbState[table]);
+  try {
+    for (const table of tables ?? TABLES) {
+      await localforage.setItem(table, _dbState[table]);
+    }
+  } catch (err) {
+    console.error("Failed to save to browser storage", err);
+    saveErrorListener?.(err);
+    return;
   }
   if (tables) return;
   // The pre-3.29 key: once its events live in `goals` it would only be a
