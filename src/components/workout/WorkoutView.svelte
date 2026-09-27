@@ -46,16 +46,22 @@
     workout.dayOfWeek ? occurrenceOnDay(trainingState.planAlternatives, dayIndexOf(workout.weekId, workout.dayOfWeek)) : undefined,
   );
   const canPlanB = $derived(!isCompleted && !!workout.dayOfWeek && !trainingState.planBEditing);
+  // Every action that closes the viewer takes its copy of the session
+  // first: closing clears the modal's workout, and this component's
+  // `workout` prop reads straight through to it - after onClose() it is
+  // null, which made Delete (and these) throw before doing anything.
   function planB() {
     menuOpen = false;
+    const w = $state.snapshot(workout) as Workout;
     onClose();
-    trainingState.editPlanBAt(workout.weekId, workout.dayOfWeek);
+    trainingState.editPlanBAt(w.weekId, w.dayOfWeek);
   }
   async function sameAsPlanA() {
     menuOpen = false;
-    if (!workout.planB) return;
+    const w = $state.snapshot(workout) as Workout;
+    if (!w.planB) return;
     onClose();
-    await trainingState.revertPlanBSession(workout.planB.altId, workout);
+    await trainingState.revertPlanBSession(w.planB.altId, w);
   }
   let sharing = $state(false);
 
@@ -66,13 +72,15 @@
 
   async function remove() {
     menuOpen = false;
+    const id = workout.id;
     onClose();
-    await trainingState.deleteWorkout(workout.id);
+    await trainingState.deleteWorkout(id);
   }
 
   function start() {
+    const w = $state.snapshot(workout) as Workout;
     onClose();
-    trainingState.startSession(workout);
+    trainingState.startSession(w);
   }
 
   /** Marks a planned session done exactly as prescribed, then asks for the rating. */

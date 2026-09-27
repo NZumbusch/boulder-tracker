@@ -7,7 +7,7 @@
    */
   import Icon from '@iconify/svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { occurrenceDaysLabel, sideDates, type ResolvedOccurrence } from '../../lib/planning/planB';
+  import { occurrenceDaysLabel, sideDates, describeChanges, type ResolvedOccurrence } from '../../lib/planning/planB';
   import { outdoorDayHints, hintText, looksGood } from '../../lib/weather/planBHint';
   import type { PlanSide } from '../../lib/types';
 
@@ -45,17 +45,28 @@
         {/if}
       </p>
     </div>
-    <button
-      onclick={() => (editingThis ? trainingState.finishPlanBEditing() : (trainingState.planBEditing = { altId: alt.id, key: occ.key }))}
-      class="chip transition-colors {editingThis ? 'border-primary bg-primary/15 text-content' : 'text-content-subtle hover:text-content'}"
-      aria-pressed={editingThis}
-    >
-      <Icon icon="ic:baseline-edit" class="text-sm" />{editingThis ? 'Done' : 'Edit B'}
-    </button>
+    <!-- While editing, the banner above has the one Done button. -->
+    {#if !editingThis}
+      <button
+        onclick={() => (trainingState.planBEditing = { altId: alt.id, key: occ.key })}
+        class="chip transition-colors text-content-subtle hover:text-content"
+      >
+        <Icon icon="ic:baseline-edit" class="text-sm" />Edit B
+      </button>
+    {/if}
     <button onclick={onSettings} class="p-1 text-content-subtle hover:text-content transition-colors" aria-label="Plan B settings" title="Plan B settings">
       <Icon icon="ic:baseline-tune" class="text-lg" />
     </button>
   </div>
+
+  <!-- What Plan B actually does differently - the point of the whole card. -->
+  {#if alt.changes.length}
+    <ul class="text-caption text-content-muted space-y-0.5 pl-7">
+      {#each describeChanges(alt, occ.key) as line}<li>Plan B · {line}</li>{/each}
+    </ul>
+  {:else}
+    <p class="text-caption text-content-subtle pl-7">No differences yet - tap Edit B, then change, remove or add sessions.</p>
+  {/if}
 
   <div class="flex items-center gap-2">
     <!-- Which plan counts: a setting, so the filled segment. Once decided it only shows the choice. -->

@@ -599,7 +599,7 @@
           <Icon icon="ic:baseline-call-split" class="text-primary text-lg shrink-0 mt-0.5" />
           <div class="min-w-0 flex-1">
             <p class="text-label font-semibold text-content">Editing {editedPlanB?.label || 'Plan B'}{editedPlanB && editingPlanB.key ? ` · ${occurrenceDaysLabel(editedPlanB, editingPlanB.key)}` : ''}</p>
-            <p class="text-caption text-content-muted">Change, add or remove sessions - it all goes into Plan B only. Plan A stays as it is.{editedPlanB?.repeatUntilWeekId ? ' Applies to every week it repeats.' : ''}</p>
+            <p class="text-caption text-content-muted">Tap a session to change or remove it for Plan B, or + to add one. Plan A stays as it is.{editedPlanB?.repeatUntilWeekId ? ' Applies to every week it repeats.' : ''}</p>
           </div>
           {#if editedPlanB && editingPlanB.key}
             <button onclick={() => planBSettings = { alt: editedPlanB, key: editingPlanB.key! }} class="p-1 text-content-subtle hover:text-content" aria-label="Plan B settings"><Icon icon="ic:baseline-tune" class="text-lg" /></button>
@@ -686,12 +686,17 @@
                       summary.startTime,
                       `${summary.estimated ? '~' : ''}${summary.minutes} min`,
                       summary.plannedLoad > 0 ? `load ${summary.plannedLoad} pts` : `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
-                      planBMeta(workout),
                       workout.provisional ? 'not saved yet' : undefined,
                     ].filter(Boolean).join(' · ')}
                     muted={workout.provisional || !counts(workout)}
                     onclick={arranging ? undefined : () => openWorkout(workout)}
                   >
+                    {#snippet titleExtra()}
+                      {#if workout.planB}
+                        <!-- Which plan this session belongs to - only sessions the two plans don't share get one. -->
+                        <span class="inline-flex align-middle px-1.5 py-px rounded-full text-[10px] font-semibold uppercase tracking-wide {workout.planB.side === 'B' ? 'bg-primary/15 text-primary' : 'bg-surface-elevated text-content-muted'}">{planBMeta(workout)}</span>
+                      {/if}
+                    {/snippet}
                     {#snippet leading()}
                       {#if arranging}
                         <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle hover:text-content shrink-0 touch-none p-1 -ml-1" aria-label="Drag to another day">
