@@ -53,7 +53,7 @@ export function blockLoadTrend(weekIds: string[], workoutsForWeek: (weekId: stri
     const workouts = workoutsForWeek(weekId);
     return {
       weekId,
-      planned: Math.round(workouts.reduce((sum, w) => sum + workoutPlannedLoad(w.exercises), 0)),
+      planned: Math.round(workouts.reduce((sum, w) => sum + workoutPlannedLoad(w.exercises, w.groups), 0)),
       actual: Math.round(calculateWeeklyAdherence(workouts, weekId).actualLoad),
     };
   });

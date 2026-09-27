@@ -3,9 +3,9 @@
   import type { ExerciseSlot, ExerciseValues } from '../../lib/types';
   import { detailPairs } from '../../lib/session/slotDetails';
 
-  let { slot, values }: { slot: ExerciseSlot; values?: ExerciseValues } = $props();
+  let { slot, values, inGroup = false }: { slot: ExerciseSlot; values?: ExerciseValues; inGroup?: boolean } = $props();
 
-  const pairs = $derived(detailPairs(slot, values));
+  const pairs = $derived(detailPairs(slot, values, { inGroup }));
   const notes = $derived((values ?? slot.prescribed ?? slot.logged)?.notes);
 </script>
 

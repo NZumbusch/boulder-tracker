@@ -24,8 +24,9 @@ export function copySessionsToWeek(sessions: Workout[], targetWeekId: string, bl
       weekId: targetWeekId,
       loadFactor: 0,
       exercises,
-      plannedLoad: workoutPlannedLoad(exercises),
+      plannedLoad: workoutPlannedLoad(exercises, s.groups),
     };
+    if (s.groups?.length) copy.groups = s.groups.map((g) => ({ ...g }));
     if (s.dayOfWeek) copy.dayOfWeek = s.dayOfWeek;
     if (s.startTime) copy.startTime = s.startTime;
     if (s.notes) copy.notes = s.notes;

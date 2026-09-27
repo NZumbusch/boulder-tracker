@@ -47,7 +47,8 @@ export function generateWorkoutsFromTemplate(
     notes: t.name || "",
     ...(t.description ? { description: t.description } : {}),
     loadFactor: 0,
-    plannedLoad: workoutPlannedLoad(t.exercises ?? []),
+    plannedLoad: workoutPlannedLoad(t.exercises ?? [], t.groups),
     exercises: (t.exercises || []).map((e, slotIndex) => ({ ...e, id: ids.slotId(t, e, slotIndex) })),
+    ...(t.groups?.length ? { groups: t.groups.map((g) => ({ ...g })) } : {}),
   })) as Workout[];
 }

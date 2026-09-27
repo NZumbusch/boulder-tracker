@@ -1,6 +1,8 @@
 import type { ExerciseSlot, ExerciseValues, Workout } from "../types";
 import { slotValues } from "../exerciseSlot";
 import { repsPerSet } from "../exercise/reps";
+import { restSeconds } from "../exercise/rest";
+import { groupMinutes, workoutItems, type GroupMode } from "../exercise/groups";
 
 /** Re-exported: reps live in `lib/exercise/reps.ts`, the duration maths just uses them. */
 export { repsPerSet };
@@ -43,39 +45,6 @@ export const DEFAULT_EXERCISE_MINUTES = 30;
  * a length), and asserted by `fatigueReminder.test.ts`.
  */
 export const DEFAULT_SESSION_MINUTES = 60;
-
-/**
- * Which rest is which.
- *
- * `timeOff` is documented as rest *between reps* and `timeBetweenSets` as
- * rest between sets, but an exercise type only offers the fields it lists
- * in `parameters` - and `weighted-pullups` offers `timeOff` without
- * `restTime`, so a 180-second rest between *sets* gets recorded in
- * `timeOff` because there is nowhere else to put it.
- *
- * Taken literally that turned 4x6 pull-ups into a 60-minute exercise (five
- * three-minute rests inside every set). The rule that sorts it out: a rest
- * between reps only means anything if a rep has a duration. With no
- * `timeOn`, whatever rest is recorded is separating sets.
- */
-function restSeconds(values: ExerciseValues): { betweenReps: number; betweenSets: number } {
-  const timeOn = nonNegative(values.timeOn) ?? 0;
-  const timeOff = nonNegative(values.timeOff) ?? 0;
-  const explicitSetRest = nonNegative(values.timeBetweenSets) ?? 0;
-
-  // An explicit set rest settles it: `timeOff` is not doing double duty,
-  // so it means what it says even if the reps carry no duration.
-  if (explicitSetRest > 0) {
-    return { betweenReps: timeOff, betweenSets: explicitSetRest };
-  }
-  // Reps have a duration, so a rest between them is meaningful.
-  if (timeOn > 0) {
-    return { betweenReps: timeOff, betweenSets: 0 };
-  }
-  // Nothing distinguishes the two and the reps have no duration - the one
-  // rest that was recorded is separating sets.
-  return { betweenReps: 0, betweenSets: timeOff };
-}
 
 /**
  * Derives an exercise's length in minutes.
@@ -127,17 +96,14 @@ export function estimateSlotDuration(slot: ExerciseSlot): number | undefined {
  * travel, faffing). Otherwise the exercises are summed, each falling back
  * to `DEFAULT_EXERCISE_MINUTES` only when it offers nothing at all.
  */
-export function estimateSessionDuration(workout: Pick<Workout, "plannedDuration" | "exercises">): number {
+export function estimateSessionDuration(workout: Pick<Workout, "plannedDuration" | "exercises" | "groups">): number {
   const planned = positive(workout.plannedDuration);
   if (planned !== undefined) return planned;
 
   const exercises = workout.exercises ?? [];
   if (exercises.length === 0) return DEFAULT_SESSION_MINUTES;
 
-  return exercises.reduce(
-    (total, slot) => total + (estimateSlotDuration(slot) ?? DEFAULT_EXERCISE_MINUTES),
-    0,
-  );
+  return sumExercises(workout, "estimate", (slot) => estimateSlotDuration(slot) ?? DEFAULT_EXERCISE_MINUTES);
 }
 
 /**
@@ -154,12 +120,28 @@ export function sessionDuration(workout: Workout): number {
   const actual = positive(workout.actualDuration);
   if (actual !== undefined) return actual;
 
-  const logged = (workout.exercises ?? []).reduce((total, slot) => {
-    if (slot.skipped) return total;
-    return total + (estimateSlotDuration(slot) ?? 0);
-  }, 0);
+  const logged = sumExercises(workout, "actual", (slot) => (slot.skipped ? 0 : estimateSlotDuration(slot) ?? 0));
 
   return logged > 0 ? logged : estimateSessionDuration(workout);
+}
+
+/**
+ * Adds up a workout's exercises: ungrouped ones through `perSlot`, each
+ * circuit/superset once as a whole (see `lib/exercise/groups.ts`) - its
+ * rests counted once, not once per member - rounded up to a whole minute.
+ */
+function sumExercises(
+  workout: Pick<Workout, "exercises" | "groups">,
+  mode: GroupMode,
+  perSlot: (slot: ExerciseSlot) => number,
+): number {
+  const groups = groupMinutes(workout, mode);
+  let total = 0;
+  for (const item of workoutItems(workout)) {
+    if (item.kind === "slot") total += perSlot(item.slot);
+    else total += Math.ceil(groups.get(item.group.id) ?? 0);
+  }
+  return total;
 }
 
 /** A finite number strictly greater than zero, or `undefined` - guards against `null`, `NaN`, `""` and negatives alike. */

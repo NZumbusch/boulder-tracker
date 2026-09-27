@@ -20,6 +20,7 @@
     status = 'pending',
     onclick,
     actions,
+    inGroup = false,
   }: {
     slot: ExerciseSlot;
     index: number;
@@ -30,13 +31,15 @@
     /** Makes the name area tappable (edit mode opens the exercise form). */
     onclick?: () => void;
     actions?: Snippet;
+    /** A circuit member: drawn flatter, inside its group's card, without its own set rest. */
+    inGroup?: boolean;
   } = $props();
 
-  const pairs = $derived(detailPairs(slot, values));
+  const pairs = $derived(detailPairs(slot, values, { inGroup }));
   const notes = $derived((values ?? slot.prescribed ?? slot.logged)?.notes);
 </script>
 
-<div class="rounded-card border transition-colors {status === 'skipped' ? 'bg-surface/20 border-border/60' : 'bg-surface/40 border-border'} {onclick ? 'hover:border-border-strong' : ''}">
+<div class="rounded-card border transition-colors {status === 'skipped' ? 'bg-surface/20 border-border/60' : inGroup ? 'bg-surface/60 border-border/70' : 'bg-surface/40 border-border'} {onclick ? 'hover:border-border-strong' : ''}">
   <div class="flex items-center gap-3 p-3.5">
     <span class="shrink-0 w-8 h-8 rounded-full grid place-items-center text-caption font-bold {status === 'done' ? 'bg-success/15 text-success' : 'bg-surface-elevated text-content-subtle'}">
       {#if status === 'done'}
@@ -62,7 +65,7 @@
   </div>
   {#if status !== 'skipped' && (pairs.length > 0 || notes)}
     <div class="px-3.5 pb-3.5 space-y-2">
-      <ExerciseDetails {slot} {values} />
+      <ExerciseDetails {slot} {values} {inGroup} />
     </div>
   {/if}
 </div>

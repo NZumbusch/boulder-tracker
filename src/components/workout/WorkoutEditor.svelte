@@ -20,6 +20,14 @@
   import { flip } from 'svelte/animate';
   import { untrack } from 'svelte';
   import ExerciseCard from './ExerciseCard.svelte';
+  import GroupCard from './GroupCard.svelte';
+  import GroupSettings from './GroupSettings.svelte';
+  import {
+    workoutItems, groupMinutes, groupSlots, ungroup, updateGroup, takeOutOfGroup, addToGroup,
+    settleAfterMove, restComparison, normaliseGroups,
+  } from '../../lib/exercise/groups';
+  import { repsPerSet } from '../../lib/exercise/reps';
+  import type { ExerciseGroup } from '../../lib/types';
   import ExerciseForm from './ExerciseForm.svelte';
   import SessionAIModal from './SessionAIModal.svelte';
   import Icon from '@iconify/svelte';
@@ -45,8 +53,51 @@
 
   let openChip = $state<'day' | 'time' | 'duration' | null>(null);
   let isReordering = $state(false);
+  /** Picking exercises to make a circuit of. */
+  let isGrouping = $state(false);
+  let picked = $state<string[]>([]);
   /** The slot open in ExerciseForm, or 'new' while adding one. */
   let formSlot = $state<ExerciseSlot | 'new' | null>(null);
+  /** The group a new exercise joins, when it was added from inside one. */
+  let addingToGroup = $state<string | null>(null);
+
+  const items = $derived(workoutItems(workout));
+  const minutesByGroup = $derived(groupMinutes(workout, bucket === 'logged' ? 'actual' : 'estimate'));
+  const nameOf = (slotId: string) => {
+    const slot = workout.exercises.find((e) => e.id === slotId);
+    return slot ? slotTypeName(slot, trainingState.exerciseTypes) : '';
+  };
+  /** The group the open form's slot is in, for the hint above the form. */
+  const formGroup = $derived.by(() => {
+    const id = formSlot === 'new' ? addingToGroup : formSlot?.groupId;
+    return id ? workout.groups?.find((g) => g.id === id) : undefined;
+  });
+
+  function comparisonsFor(group: ExerciseGroup, members: { slot: ExerciseSlot }[]) {
+    return restComparison(group, members.map(({ slot }) => ({ slot, values: slot[bucket] ?? slot.prescribed ?? {} })));
+  }
+
+  /** Applies a grouping change to the local copy. */
+  function regroup(next: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }) {
+    workout.exercises = next.exercises;
+    workout.groups = next.groups;
+  }
+
+  function togglePick(id: string) {
+    picked = picked.includes(id) ? picked.filter((p) => p !== id) : [...picked, id];
+  }
+
+  /** Makes a circuit of the picked exercises: rounds from the most sets any of them has, else 3. */
+  function makeGroup() {
+    const chosen = workout.exercises.filter((e) => picked.includes(e.id));
+    const sets = Math.max(0, ...chosen.map((e) => {
+      const v = e[bucket] ?? e.prescribed;
+      return v?.sets || (Array.isArray(v?.reps) ? repsPerSet(v).length : 0);
+    }));
+    regroup(groupSlots(workout, picked, { id: generateId(), rounds: sets || 3, transition: 15, roundRest: 60 }));
+    picked = [];
+    isGrouping = false;
+  }
   let isImportingAI = $state(false);
   let isSaving = $state(false);
 
@@ -66,26 +117,37 @@
   function saveExercise(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues }) {
     const fields = { typeId: data.typeId, categoryId: data.categoryId, activeParameters: data.activeParameters, [bucket]: data.values };
     if (formSlot === 'new') {
-      workout.exercises = [...workout.exercises, { id: generateId(), ...fields }];
+      const slot = { id: generateId(), ...fields };
+      if (addingToGroup) regroup(addToGroup(workout, addingToGroup, slot));
+      else workout.exercises = [...workout.exercises, slot];
     } else if (formSlot) {
       const id = formSlot.id;
       workout.exercises = workout.exercises.map((e) => e.id === id ? { ...e, ...fields } : e);
     }
     formSlot = null;
+    addingToGroup = null;
   }
 
   async function removeExercise(slot: ExerciseSlot) {
     const confirmed = await showConfirm('Remove Exercise', `Remove ${slotTypeName(slot, trainingState.exerciseTypes)} from this session?`);
-    if (confirmed) workout.exercises = workout.exercises.filter((e) => e.id !== slot.id);
+    if (confirmed) regroup(normaliseGroups({ ...workout, exercises: workout.exercises.filter((e) => e.id !== slot.id) }));
   }
 
   function handleDnd(e: CustomEvent<DndEvent<ExerciseSlot>>) {
     workout.exercises = e.detail.items;
   }
 
+  /** On drop, an exercise landing inside a circuit joins it; a member dragged out leaves. */
+  function handleDndFinalize(e: CustomEvent<DndEvent<ExerciseSlot>>) {
+    regroup(normaliseGroups({ ...workout, exercises: settleAfterMove(e.detail.items) }));
+  }
+
+  const groupName = (id: string | undefined) => (id ? workout.groups?.find((g) => g.id === id)?.name || 'Circuit' : undefined);
+
   // Nothing to reorder once there's one card or none - don't strand the toggle on.
   $effect(() => {
     if (workout.exercises.length < 2 && isReordering) isReordering = false;
+    if (workout.exercises.length === 0 && isGrouping) isGrouping = false;
   });
 
   async function cancel() {
@@ -206,7 +268,7 @@
         class="space-y-2.5 outline-none"
         use:dndzone={{ items: workout.exercises, dropTargetStyle: {}, delayTouchStart: true }}
         onconsider={handleDnd}
-        onfinalize={handleDnd}
+        onfinalize={handleDndFinalize}
       >
         {#each workout.exercises as slot (slot.id)}
           <div animate:flip={{ duration: motionMs(200) }} class="p-3 bg-surface/60 border border-border rounded-card flex items-center gap-2.5">
@@ -215,22 +277,87 @@
               <p class="text-body font-bold text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</p>
               <p class="text-caption text-content-subtle truncate">{slotSummary(slot) || '—'}</p>
             </div>
+            {#if slot.groupId}
+              <span class="shrink-0 max-w-[40%] truncate px-2 py-0.5 rounded-full bg-surface-elevated text-caption text-content-subtle flex items-center gap-1">
+                <Icon icon="ic:baseline-repeat" class="text-sm shrink-0" /> {groupName(slot.groupId)}
+              </span>
+            {/if}
           </div>
         {/each}
       </section>
+    {:else if isGrouping}
+      <p class="px-1 text-caption text-content-subtle">Pick the exercises to do in rounds - a circuit, or a superset that fills one exercise's rest.</p>
+      {#each workout.exercises as slot (slot.id)}
+        {@const on = picked.includes(slot.id)}
+        <button
+          onclick={() => togglePick(slot.id)}
+          class="w-full p-3 rounded-card border flex items-center gap-2.5 text-left transition-colors {on ? 'bg-primary/10 border-primary/50' : 'bg-surface/60 border-border hover:border-border-strong'}"
+          aria-pressed={on}
+        >
+          <Icon icon={on ? 'ic:baseline-check-box' : 'ic:baseline-check-box-outline-blank'} class="text-xl shrink-0 {on ? 'text-primary' : 'text-content-subtle'}" />
+          <div class="min-w-0 flex-1">
+            <p class="text-body font-bold text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</p>
+            <p class="text-caption text-content-subtle truncate">{slotSummary(slot) || '—'}</p>
+          </div>
+          {#if slot.groupId}
+            <span class="shrink-0 max-w-[40%] truncate text-caption text-content-subtle">{groupName(slot.groupId)}</span>
+          {/if}
+        </button>
+      {/each}
     {:else}
-      {#each workout.exercises as slot, index (slot.id)}
-        <ExerciseCard {slot} {index} values={slot[bucket]} onclick={() => formSlot = slot}>
-          {#snippet actions()}
+      <!-- The wrapper keeps Svelte from reading `slot=` as a legacy slot name inside the snippet. -->
+      {#snippet card(exercise: ExerciseSlot, index: number)}
+        <div>
+          <ExerciseCard slot={exercise} {index} inGroup={!!exercise.groupId} values={exercise[bucket]} onclick={() => formSlot = exercise}>
+            {#snippet actions()}
+              {#if exercise.groupId}
+                <button
+                  onclick={() => regroup(takeOutOfGroup(workout, exercise.id))}
+                  class="shrink-0 p-2 text-content-subtle hover:text-content transition-colors"
+                  aria-label="Take out of the circuit"
+                  title="Take out of the circuit"
+                >
+                  <Icon icon="ic:baseline-logout" class="text-lg" />
+                </button>
+              {/if}
+              <button
+                onclick={() => removeExercise(exercise)}
+                class="shrink-0 p-2 -mr-1 text-content-subtle hover:text-danger transition-colors"
+                aria-label="Remove exercise"
+              >
+                <Icon icon="ic:baseline-close" class="text-lg" />
+              </button>
+            {/snippet}
+          </ExerciseCard>
+        </div>
+      {/snippet}
+      {#each items as item (item.kind === 'slot' ? item.slot.id : `group:${item.group.id}`)}
+        {#if item.kind === 'slot'}
+          {@render card(item.slot, item.index)}
+        {:else}
+          {@const group = item.group}
+          <GroupCard {group}>
+            {#snippet header()}
+              <GroupSettings
+                {group}
+                minutes={minutesByGroup.get(group.id)}
+                comparisons={comparisonsFor(group, item.members)}
+                {nameOf}
+                onchange={(g) => regroup(updateGroup(workout, g))}
+                onUngroup={() => regroup(ungroup(workout, group.id))}
+              />
+            {/snippet}
+            {#each item.members as m (m.slot.id)}
+              {@render card(m.slot, m.index)}
+            {/each}
             <button
-              onclick={() => removeExercise(slot)}
-              class="shrink-0 p-2 -mr-1 text-content-subtle hover:text-danger transition-colors"
-              aria-label="Remove exercise"
+              onclick={() => { addingToGroup = group.id; formSlot = 'new'; }}
+              class="w-full py-2.5 border border-dashed border-border rounded-card text-caption font-bold text-content-subtle hover:text-primary hover:border-primary/40 transition-colors flex items-center justify-center gap-1"
             >
-              <Icon icon="ic:baseline-close" class="text-lg" />
+              <Icon icon="ic:baseline-plus" class="text-sm" /> Add to {group.name || 'circuit'}
             </button>
-          {/snippet}
-        </ExerciseCard>
+          </GroupCard>
+        {/if}
       {/each}
 
       <div class="flex border-2 border-dashed border-border rounded-card overflow-hidden">
@@ -256,7 +383,26 @@
       <Icon icon={isReordering ? 'ic:baseline-check' : 'ic:baseline-swap-vert'} class="text-base" />
       {isReordering ? 'Done' : 'Reorder'}
     </button>
+    {#if !isReordering}
+      <button
+        onclick={() => { isGrouping = !isGrouping; picked = []; }}
+        disabled={workout.exercises.length === 0}
+        class="px-3 py-2.5 rounded-control text-label font-bold transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isGrouping ? 'bg-primary/15 text-primary' : 'text-content-subtle hover:text-content'}"
+      >
+        <Icon icon={isGrouping ? 'ic:baseline-close' : 'ic:baseline-repeat'} class="text-base" />
+        {isGrouping ? 'Cancel' : 'Circuit'}
+      </button>
+    {/if}
     <div class="flex-1"></div>
+    {#if isGrouping}
+      <button
+        onclick={makeGroup}
+        disabled={picked.length === 0}
+        class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+      >
+        <Icon icon="ic:baseline-repeat" class="text-base" /> Make circuit{picked.length ? ` (${picked.length})` : ''}
+      </button>
+    {:else}
     <button
       onclick={save}
       disabled={isSaving}
@@ -264,16 +410,23 @@
     >
       <Icon icon="ic:baseline-check" class="text-base" /> Save
     </button>
+    {/if}
   </div>
 </footer>
 
 {#if formSlot}
   <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
-      <button onclick={() => formSlot = null} class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1">
+      <button onclick={() => { formSlot = null; addingToGroup = null; }} class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1">
         <Icon icon="ic:baseline-arrow-back" class="text-sm" />
         Back to session
       </button>
+      {#if formGroup}
+        <p class="px-1 text-caption text-content-subtle flex items-start gap-1.5">
+          <Icon icon="ic:baseline-repeat" class="text-sm shrink-0 mt-0.5" />
+          <span>Part of <b class="text-content-muted">{formGroup.name || 'a circuit'}</b>: set up one set of it (a time, or reps). Rounds and rests come from the circuit; sets only matter if it should drop out early.</span>
+        </p>
+      {/if}
       <ExerciseForm initialSlot={formSlot === 'new' ? null : formSlot} mode={bucket} onSave={saveExercise} />
     </div>
   </div>
@@ -283,7 +436,8 @@
   <SessionAIModal
     {workout}
     onImport={(slots, mode) => {
-      workout.exercises = mode === 'replace' ? slots : [...workout.exercises, ...slots];
+      if (mode === 'replace') regroup({ exercises: slots, groups: undefined });
+      else workout.exercises = [...workout.exercises, ...slots];
       isImportingAI = false;
     }}
     onClose={() => isImportingAI = false}

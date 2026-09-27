@@ -25,6 +25,6 @@ export function summarizeSession(workout: Workout, exerciseTypes: ExerciseTypeDe
     estimated: !workout.plannedDuration,
     exerciseNames: names.slice(0, SUMMARY_EXERCISE_NAMES),
     moreExercises: Math.max(0, names.length - SUMMARY_EXERCISE_NAMES),
-    plannedLoad: Math.round(workoutPlannedLoad(workout.exercises)),
+    plannedLoad: Math.round(workoutPlannedLoad(workout.exercises, workout.groups)),
   };
 }

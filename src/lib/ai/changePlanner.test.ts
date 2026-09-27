@@ -196,3 +196,31 @@ describe("planWithSelection", () => {
     expect(r.writes.trainingBlocks).toBeDefined();
   });
 });
+
+describe("planChanges - circuits survive edits", () => {
+  function groupedPlan(doc: unknown) {
+    const s = state();
+    const volume = s.templates["p-cap"][1];
+    s.templates["p-cap"][1] = {
+      ...volume,
+      exercises: volume.exercises.map((e) => ({ ...e, groupId: "g1" })),
+      groups: [{ id: "g1", name: "Core circuit", rounds: 3, transition: 15 }],
+    };
+    const v = validateChangeSet(doc);
+    if (!v.valid) throw new Error(JSON.stringify(v.issues));
+    return planChanges(v.data!, s, undefined, ids);
+  }
+
+  it("keeps a template's groups when the session is edited", () => {
+    const r = groupedPlan({ phases: [{ action: "edit", name: "Capacity", sessionChanges: [{ action: "edit", match: { name: "Volume" }, set: { startTime: "07:00" } }] }] });
+    const volume = r.writes.templates!["p-cap"].find((t) => t.name === "Volume")!;
+    expect(volume.groups).toEqual([{ id: "g1", name: "Core circuit", rounds: 3, transition: 15 }]);
+    expect(volume.exercises.every((e) => e.groupId === "g1")).toBe(true);
+  });
+
+  it("puts an exercise added between two members into their group", () => {
+    const r = groupedPlan({ phases: [{ action: "edit", name: "Capacity", sessionChanges: [{ action: "edit", match: { name: "Volume" }, exerciseChanges: [{ action: "add", position: 2, exercise: { exerciseTypeName: "Hangboard", values: { sets: 3 } } }] }] }] });
+    const volume = r.writes.templates!["p-cap"].find((t) => t.name === "Volume")!;
+    expect(volume.exercises.map((e) => e.groupId)).toEqual(["g1", "g1", "g1"]);
+  });
+});

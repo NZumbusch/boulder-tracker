@@ -12,6 +12,8 @@
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import { loggedDateFor } from '../../lib/planning/scheduledDate';
   import ExerciseCard from './ExerciseCard.svelte';
+  import GroupCard from './GroupCard.svelte';
+  import { workoutItems, groupMinutes } from '../../lib/exercise/groups';
   import { occurrenceOnDay, dayIndexOf } from '../../lib/planning/planB';
   import WorkoutShareImage from '../history/WorkoutShareImage.svelte';
   import Icon from '@iconify/svelte';
@@ -39,6 +41,9 @@
   });
 
   let menuOpen = $state(false);
+
+  const items = $derived(workoutItems(workout));
+  const minutesByGroup = $derived(groupMinutes(workout, isCompleted ? 'actual' : 'estimate'));
 
   // --- Plan B ---
   /** The Plan B stretch this session's day is in, if any. */
@@ -175,13 +180,27 @@
       </div>
     {/if}
 
-    {#each workout.exercises as slot, index (slot.id)}
-      <ExerciseCard
-        {slot}
-        {index}
-        values={isCompleted ? slot.logged : undefined}
-        status={isCompleted ? (slot.logged ? 'done' : 'skipped') : 'pending'}
-      />
+    {#each items as item (item.kind === 'slot' ? item.slot.id : `group:${item.group.id}`)}
+      {#if item.kind === 'slot'}
+        <ExerciseCard
+          slot={item.slot}
+          index={item.index}
+          values={isCompleted ? item.slot.logged : undefined}
+          status={isCompleted ? (item.slot.logged ? 'done' : 'skipped') : 'pending'}
+        />
+      {:else}
+        <GroupCard group={item.group} minutes={minutesByGroup.get(item.group.id)}>
+          {#each item.members as m (m.slot.id)}
+            <ExerciseCard
+              slot={m.slot}
+              index={m.index}
+              inGroup
+              values={isCompleted ? m.slot.logged : undefined}
+              status={isCompleted ? (m.slot.logged ? 'done' : 'skipped') : 'pending'}
+            />
+          {/each}
+        </GroupCard>
+      {/if}
     {:else}
       <p class="py-12 border-2 border-dashed border-border rounded-card text-center text-caption text-content-subtle italic">No exercises in this session.</p>
     {/each}

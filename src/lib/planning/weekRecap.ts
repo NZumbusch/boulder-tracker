@@ -3,7 +3,7 @@ import { decrementWeekId, getWeekDates, getWeekId } from "../dateUtils";
 import { buildWeeklyHistory } from "../analytics/weekSummary";
 import { isSkippedWorkout, missedWorkouts } from "./weekStatus";
 import { parseFontGrade } from "../analytics/grades";
-import { workoutPlannedLoad, slotActualLoad } from "../analytics/load";
+import { workoutPlannedLoad, workoutActualLoad } from "../analytics/load";
 
 const DAY_NAMES: DayOfWeek[] = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -26,11 +26,11 @@ export function recapWeekId(asOf: Date): string {
  * when nothing is planned.
  */
 export function planProgress(workouts: Workout[]): number | undefined {
-  const planned = workouts.reduce((sum, w) => sum + workoutPlannedLoad(w.exercises), 0);
+  const planned = workouts.reduce((sum, w) => sum + workoutPlannedLoad(w.exercises, w.groups), 0);
   if (planned <= 0) return undefined;
   const done = workouts
     .filter((w) => w.status === "completed")
-    .reduce((sum, w) => sum + w.exercises.reduce((s, e) => s + slotActualLoad(e), 0), 0);
+    .reduce((sum, w) => sum + workoutActualLoad(w.exercises, w.groups), 0);
   return done / planned;
 }
 

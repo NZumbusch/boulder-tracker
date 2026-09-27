@@ -25,7 +25,7 @@ export class WorkoutStore {
     let changed = false;
     workouts.forEach(workout => {
       if ((!workout.plannedLoad || workout.plannedLoad === 0) && workout.exercises.length > 0) {
-        const recomputed = workoutPlannedLoad(workout.exercises);
+        const recomputed = workoutPlannedLoad(workout.exercises, workout.groups);
         if (recomputed !== (workout.plannedLoad ?? 0)) {
           workout.plannedLoad = recomputed;
           changed = true;
@@ -72,7 +72,7 @@ export class WorkoutStore {
     // storage (see `lib/planning/weekProjection.ts`).
     const data = toStoredWorkout($state.snapshot(workout));
 
-    data.plannedLoad = workoutPlannedLoad(data.exercises);
+    data.plannedLoad = workoutPlannedLoad(data.exercises, data.groups);
 
     await storage.saveWorkout(data);
   }

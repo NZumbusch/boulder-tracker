@@ -18,7 +18,7 @@
    * can't compete with the bubble's own elapsed readout.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
+  import type { ExerciseSlot, ExerciseValues, ParameterBlock, ExerciseGroup } from '../../lib/types';
   import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
   import { slotStatus } from '../../lib/session/activeSession';
   import { formatClock, formatMinutes } from '../../lib/session/formatSession';
@@ -32,6 +32,7 @@
   import SessionExitModal from './SessionExitModal.svelte';
   import TimerWidget from './TimerWidget.svelte';
   import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
+  import { workoutItems, groupSummary } from '../../lib/exercise/groups';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -95,6 +96,14 @@
   backWhile(() => sessionOpen, () => store.minimize());
   backWhile(() => formOpen, () => { isAddingExercise = false; editingSlotId = null; });
   const exercises = $derived(store.exercises);
+  /** Circuit headers in the list: which slot starts which group. Round-by-round running comes later. */
+  const groupStarts = $derived.by(() => {
+    const starts = new Map<string, ExerciseGroup>();
+    for (const item of workoutItems({ exercises, groups: store.workout?.groups })) {
+      if (item.kind === 'group') starts.set(item.members[0].slot.id, item.group);
+    }
+    return starts;
+  });
   const progress = $derived(store.progress);
   const current = $derived(store.currentSlot);
   const expected = $derived(store.expectedMinutes);
@@ -301,6 +310,14 @@
           {#each exercises as slot, index (slot.id)}
             {@const status = slotStatus(slot)}
             {@const isCurrent = index === store.currentIndex}
+            {@const groupStart = groupStarts.get(slot.id)}
+            {#if groupStart}
+              <p class="px-1 pt-1 text-caption text-content-subtle flex items-center gap-1 min-w-0">
+                <Icon icon="ic:baseline-repeat" class="text-sm shrink-0" />
+                <span class="font-bold text-content-muted truncate">{groupStart.name || 'Circuit'}</span>
+                <span class="truncate">· {groupSummary(groupStart)}</span>
+              </p>
+            {/if}
             <div
               class="rounded-card border transition-all {isCurrent
                 ? 'bg-surface border-primary/50 shadow-card'

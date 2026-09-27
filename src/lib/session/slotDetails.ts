@@ -4,6 +4,7 @@ import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../types';
 import { slotValues } from '../exerciseSlot';
 import { estimateSlotDuration } from '../planning/sessionDuration';
 import { PARAMETER_LABELS } from '../constants';
+import { restSeconds } from '../exercise/rest';
 
 /** A one-line summary of what a slot asks for, for the collapsed rows. */
 export function slotSummary(slot: ExerciseSlot): string {
@@ -21,9 +22,14 @@ export function slotSummary(slot: ExerciseSlot): string {
 /**
  * Everything an exercise asks for, as label/value pairs - the prescription
  * by default, or whichever `values` bucket is passed (a completed session
- * shows what was logged).
+ * shows what was logged). `inGroup` leaves out the rest between sets,
+ * which a circuit decides for its members.
  */
-export function detailPairs(slot: ExerciseSlot, values?: ExerciseValues): { label: string; value: string }[] {
+export function detailPairs(
+  slot: ExerciseSlot,
+  values?: ExerciseValues,
+  { inGroup = false }: { inGroup?: boolean } = {},
+): { label: string; value: string }[] {
   const v = values ?? slot.prescribed ?? slotValues(slot);
   const params = slot.activeParameters
     ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters
@@ -45,8 +51,11 @@ export function detailPairs(slot: ExerciseSlot, values?: ExerciseValues): { labe
   push('holdSize', v.holdSize, ' mm');
   push('holdType', v.holdType);
   push('timeOn', v.timeOn, ' s');
-  push('timeOff', v.timeOff, ' s');
-  push('restTime', v.timeBetweenSets, ' s');
+  // In a circuit/superset the group decides the rest between sets, so a
+  // member's own set rest is left out rather than shown as if it applied.
+  const setRestOnly = inGroup && restSeconds(v).betweenReps === 0;
+  if (!setRestOnly) push('timeOff', v.timeOff, ' s');
+  if (!inGroup) push('restTime', v.timeBetweenSets, ' s');
   push('cadence', v.cadence);
   push('distance', v.distance, ' km');
   push('boardType', v.boardType);

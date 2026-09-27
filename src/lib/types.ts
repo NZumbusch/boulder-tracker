@@ -167,6 +167,35 @@ export interface ExerciseSlot {
    * load. Skipping a slot never clears its `prescribed`.
    */
   skipped?: true;
+  /**
+   * -> `ExerciseGroup.id` on the same workout/template. Grouped slots sit
+   * next to each other; see `lib/exercise/groups.ts` for the rules.
+   */
+  groupId?: string;
+}
+
+/**
+ * Exercises done together in rounds - a circuit, or a superset that fills
+ * one exercise's rest with others.
+ *
+ * The one rule: each member says *what* (one set of it), the group says
+ * *when*. A round is one set of each member in list order, `transition`
+ * seconds apart, with `roundRest` after it. A member's own set rest is
+ * ignored inside a group. Local to the workout or template it sits on;
+ * members point at it through `ExerciseSlot.groupId`.
+ */
+export interface ExerciseGroup {
+  id: string;
+  /** "Core circuit A" */
+  name?: string;
+  /** How many rounds. A member with fewer `sets` drops out after its last one. */
+  rounds: number;
+  /** Seconds between exercises within a round. */
+  transition?: number;
+  /** Seconds after each round (none after the last). Falls back to `transition`. */
+  roundRest?: number;
+  /** The saved circuit this group was copied from, if any. */
+  circuitId?: string;
 }
 
 export type DayOfWeek =
@@ -216,6 +245,8 @@ export interface Workout {
   /** Pre-calculated planned stress score based on scheduled exercises */
   plannedLoad?: number;
   exercises: ExerciseSlot[];
+  /** Circuits/supersets among `exercises` - see `ExerciseGroup`. */
+  groups?: ExerciseGroup[];
   /** -> TrainingBlock.id. Set at creation time from whichever block covers this workout's weekId (if any), so block-level analytics are a direct filter instead of a per-query date-range recompute. */
   blockId?: string;
   /**
@@ -498,6 +529,8 @@ export interface WorkoutTemplate {
   description?: string;
   /** `logged` is always undefined on a template's slots - templates are pure plans. */
   exercises: ExerciseSlot[];
+  /** Circuits/supersets among `exercises` - see `ExerciseGroup`. */
+  groups?: ExerciseGroup[];
 }
 
 /**

@@ -276,6 +276,7 @@ export function templateFromWorkout(w: Workout, id: string): WorkoutTemplate {
     ...(w.plannedDuration ? { plannedDuration: w.plannedDuration } : {}),
     ...(w.description ? { description: w.description } : {}),
     exercises: w.exercises.map(({ logged: _logged, skipped: _skipped, ...slot }) => slot),
+    ...(w.groups?.length ? { groups: w.groups } : {}),
   };
 }
 

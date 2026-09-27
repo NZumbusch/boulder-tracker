@@ -5,7 +5,7 @@
  */
 import type { AnalyticsCategory, Benchmark, DailyMetricEntry, ExerciseSlot, ExerciseTypeDef, Workout } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
-import { slotActualLoad } from "./load";
+import { slotActualLoads } from "./load";
 import { loggedMetrics } from "./metricValues";
 import { weekStartDay } from "./range";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
@@ -92,8 +92,9 @@ export function fingerLoad(
   let total = 0;
   for (const w of workouts) {
     if (w.status !== "completed" || !weeks.has(w.weekId)) continue;
+    const loads = slotActualLoads(w.exercises ?? [], w.groups);
     for (const slot of w.exercises ?? []) {
-      const load = slotActualLoad(slot);
+      const load = loads.get(slot.id) ?? 0;
       total += load;
       const id = slotCategoryId(slot, typeById, categories);
       if (id && fingerIds.has(id)) finger += load;

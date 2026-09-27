@@ -1,4 +1,5 @@
 import type { TrainingBlock, WeekOverride, Workout, WorkoutTemplate } from "../types";
+import { normaliseGroups } from "../exercise/groups";
 import { getDominantBlockForWeek } from "./trainingBlocks";
 import { generateWorkoutsFromTemplate, type TemplateIdFactory } from "./generateWorkoutsFromTemplate";
 import { getWeekIdRange } from "../dateUtils";
@@ -123,10 +124,15 @@ export function effectiveWorkoutsForWeek(ctx: WeekProjectionContext, weekId: str
   return stored.length > 0 ? stored : projectWeekWorkouts(ctx, weekId);
 }
 
-/** Strips the transient flags (projection, Plan B side) - what actually gets persisted. */
+/**
+ * Strips the transient flags (projection, Plan B side) and tidies the
+ * grouping (`normaliseGroups`) - what actually gets persisted.
+ */
 export function toStoredWorkout(workout: Workout): Workout {
   const { provisional: _provisional, planB: _planB, ...stored } = workout;
-  return stored as Workout;
+  const tidy = normaliseGroups(stored as Workout);
+  if (tidy.groups === undefined && "groups" in tidy) delete tidy.groups;
+  return tidy;
 }
 
 /** Every week id any training block covers, deduplicated and in chronological order. */

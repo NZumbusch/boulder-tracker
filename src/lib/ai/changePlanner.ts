@@ -22,6 +22,7 @@
  * are flagged, not refused.
  */
 import type {
+  ExerciseGroup,
   AnalyticsCategory,
   ExerciseSlot,
   ExerciseTypeDef,
@@ -247,6 +248,7 @@ interface EditableSession {
   startTime?: string;
   plannedDuration?: number;
   exercises: ExerciseSlot[];
+  groups?: ExerciseGroup[];
 }
 
 function matchSessions<T extends EditableSession>(sessions: T[], match: CSSessionMatch): T[] {
@@ -292,6 +294,10 @@ function applyExerciseChanges(ctx: Ctx, slots: ExerciseSlot[], changes: CSExerci
       const slot = buildSlot(ctx, change.exercise, item);
       if (!slot) continue;
       const at = change.position ? Math.min(change.position - 1, result.length) : result.length;
+      // Added between two members of a group, it joins the group - an ungrouped
+      // slot there would split the circuit and drop its tail out of it.
+      const around = result[at - 1]?.groupId;
+      if (around !== undefined && result[at]?.groupId === around) slot.groupId = around;
       result.splice(at, 0, slot);
       lines.push(`+ ${typeName(ctx, slot.typeId)}${Object.keys(change.exercise.values).length ? ` (${Object.entries(change.exercise.values).filter(([k]) => k !== "notes").map(([k, v]) => `${k} ${show(v)}`).join(", ")})` : ""}`);
     } else if (change.action === "remove") {
@@ -670,7 +676,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
       } else if (change.sessionChanges) {
         const base = change.phase ? projected(ctx, weekId) : currentWeek(ctx, weekId).planned;
         const r = applySessionChanges(ctx, base, change.sessionChanges, item, weekRangeLabel([weekId]), (s) => workoutFromSession(ctx, weekId, s, item));
-        planned = r.sessions.map((w) => ({ ...w, blockId: getDominantBlockForWeek(ctx.blocks, weekId)?.id, plannedLoad: workoutPlannedLoad(w.exercises) }));
+        planned = r.sessions.map((w) => ({ ...w, blockId: getDominantBlockForWeek(ctx.blocks, weekId)?.id, plannedLoad: workoutPlannedLoad(w.exercises, w.groups) }));
         customized = true;
         lines.push(...r.lines);
       } else if (change.phase) {
@@ -917,7 +923,7 @@ function sessionLabelsDiff(before: Workout[], after: Workout[]): string[] {
 }
 
 function asEditable(templates: WorkoutTemplate[]): EditableSession[] {
-  return templates.map((t) => ({ id: t.id, notes: t.name, description: t.description, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, exercises: t.exercises }));
+  return templates.map((t) => ({ id: t.id, notes: t.name, description: t.description, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, exercises: t.exercises, ...(t.groups ? { groups: t.groups } : {}) }));
 }
 
 function fromEditable(sessions: EditableSession[]): WorkoutTemplate[] {
@@ -929,6 +935,7 @@ function fromEditable(sessions: EditableSession[]): WorkoutTemplate[] {
     plannedDuration: s.plannedDuration,
     ...(s.description ? { description: s.description } : {}),
     exercises: s.exercises,
+    ...(s.groups?.length ? { groups: s.groups } : {}),
   }));
 }
 

@@ -1,4 +1,5 @@
-import type { ExerciseSlot } from "../types";
+import type { ExerciseGroup, ExerciseSlot } from "../types";
+import { groupMemberMinutes } from "../exercise/groups";
 
 /**
  * The load formulas: a completed session's load from its length and
@@ -61,8 +62,8 @@ export function calculatePlannedLoad(exercise: {
  * inherit what you did" preference is on, they carry no `prescribed` at all
  * and must land as extra load on top of the plan, not as plan.
  */
-export function slotPlannedLoad(slot: ExerciseSlot): number {
-  return slot.prescribed ? calculatePlannedLoad(slot.prescribed) : 0;
+export function slotPlannedLoad(slot: ExerciseSlot, minutes?: number): number {
+  return slot.prescribed ? calculatePlannedLoad(withMinutes(slot.prescribed, minutes)) : 0;
 }
 
 /**
@@ -71,13 +72,36 @@ export function slotPlannedLoad(slot: ExerciseSlot): number {
  * logged. A skipped slot contributes nothing, and neither does one that is
  * neither planned nor logged.
  */
-export function slotActualLoad(slot: ExerciseSlot): number {
+export function slotActualLoad(slot: ExerciseSlot, minutes?: number): number {
   if (slot.skipped) return 0;
   const values = slot.logged ?? slot.prescribed;
-  return values ? calculatePlannedLoad(values) : 0;
+  return values ? calculatePlannedLoad(withMinutes(values, minutes)) : 0;
 }
 
-/** Sums `slotPlannedLoad` across a workout's slots - the one definition of a workout's planned load. */
-export function workoutPlannedLoad(exercises: ExerciseSlot[]): number {
-  return (exercises ?? []).reduce((sum, slot) => sum + slotPlannedLoad(slot), 0);
+/**
+ * Sums `slotPlannedLoad` across a workout's slots - the one definition of a
+ * workout's planned load. A circuit/superset member is timed by its share
+ * of the group (`groupMemberMinutes`), not by a duration of its own: it
+ * rarely has one, and the 60-minute default would count a five-exercise
+ * core circuit as five hours.
+ */
+export function workoutPlannedLoad(exercises: ExerciseSlot[], groups?: ExerciseGroup[]): number {
+  const minutes = groupMemberMinutes({ exercises: exercises ?? [], groups }, "planned");
+  return (exercises ?? []).reduce((sum, slot) => sum + slotPlannedLoad(slot, minutes.get(slot.id)), 0);
+}
+
+/** Sums `slotActualLoad` across a workout's slots, grouped members timed as in `workoutPlannedLoad`. */
+export function workoutActualLoad(exercises: ExerciseSlot[], groups?: ExerciseGroup[]): number {
+  const minutes = groupMemberMinutes({ exercises: exercises ?? [], groups }, "actual");
+  return (exercises ?? []).reduce((sum, slot) => sum + slotActualLoad(slot, minutes.get(slot.id)), 0);
+}
+
+/** Each slot's actual load by id, grouped members timed by their share of the group - for per-exercise breakdowns. */
+export function slotActualLoads(exercises: ExerciseSlot[], groups?: ExerciseGroup[]): Map<string, number> {
+  const minutes = groupMemberMinutes({ exercises: exercises ?? [], groups }, "actual");
+  return new Map((exercises ?? []).map((slot) => [slot.id, slotActualLoad(slot, minutes.get(slot.id))]));
+}
+
+function withMinutes<T extends { duration?: number }>(values: T, minutes: number | undefined): T {
+  return minutes === undefined ? values : { ...values, duration: minutes };
 }
