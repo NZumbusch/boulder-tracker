@@ -1,4 +1,5 @@
 import { storage } from '../storage';
+import { localIsoDate } from '../dateUtils';
 import { Capacitor } from '@capacitor/core';
 import { autoBackupDue, writeAutoBackup } from '../storage/autoBackup';
 import { isDemoMode } from '../storage/persistence';
@@ -160,7 +161,7 @@ export class BackupStore {
     const csvContent = rows.join('\n');
     void saveFile({
       content: csvContent,
-      fileName: `boulder-tracker-data-${new Date().toISOString().split('T')[0]}.csv`,
+      fileName: `boulder-tracker-data-${localIsoDate()}.csv`,
       mimeType: 'text/csv',
       title: 'Boulder Tracker sessions (CSV)',
     });

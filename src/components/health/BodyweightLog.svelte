@@ -6,14 +6,14 @@
   import { trainingState } from '../../lib/state.svelte';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import { generateId } from '../../lib/utils';
-  import { formatDate } from '../../lib/dateUtils';
+  import { formatDate, localIsoDate } from '../../lib/dateUtils';
   import { loggedMetrics } from '../../lib/analytics/metricValues';
   import { toKg, formatWeight } from '../../lib/units';
   import type { DailyMetricEntry } from '../../lib/types';
   import Icon from '@iconify/svelte';
 
   function todayIso(): string {
-    return new Date().toISOString().split('T')[0];
+    return localIsoDate();
   }
 
   let date = $state(todayIso());

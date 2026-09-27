@@ -1,5 +1,5 @@
 import { trainingState } from '../../../lib/state.svelte';
-import { formatDate, getWeekIdRange, getWeekId, getWeekDates } from '../../../lib/dateUtils';
+import { formatDate, getWeekIdRange, getWeekId, getWeekDates, localIsoDate } from '../../../lib/dateUtils';
 import { computeFatigueDecay, computeHrvBaseline, computeReadiness } from '../../../lib/analytics/readiness';
 import { calculateRollingAcwr } from '../../../lib/analytics/loadAnalytics';
 import { isLoggedMetricValue } from '../../../lib/analytics/metricValues';
@@ -19,7 +19,7 @@ const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thu
  */
 export class HomeData {
   readonly asOf = new Date();
-  readonly todayIso = this.asOf.toISOString().split('T')[0];
+  readonly todayIso = localIsoDate(this.asOf);
   readonly todayName: DayOfWeek = DAY_NAMES[this.asOf.getDay()];
   readonly todayLabel = formatDate(this.asOf.toISOString());
   readonly currentWeekId = trainingState.currentWeekId;

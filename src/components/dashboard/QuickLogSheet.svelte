@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { localIsoDate } from '../../lib/dateUtils';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * Home's header "+": one sheet for the quick things you log outside a
@@ -33,7 +34,7 @@
       .filter(Boolean),
   );
 
-  const todayIso = () => new Date().toISOString().split('T')[0];
+  const todayIso = () => localIsoDate();
 
   // --- Send: during a trip, its place is the default crag ---
   const ongoingTrip = $derived(

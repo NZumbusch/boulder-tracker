@@ -132,19 +132,33 @@ export function getWeekDateRange(weekId: string): string {
 }
 
 /**
- * Converts an ISO date or datetime string to a UTC calendar-day index (whole
- * days since the Unix epoch). Every `date` this codebase stores is either a
- * bare `YYYY-MM-DD` (parsed by JS as UTC midnight already) or a
- * `.toISOString()` output (always UTC, `Z`-suffixed) - so extracting UTC
- * calendar components here is safe and DST-proof for both shapes actually in
- * use. Exists specifically so day-window arithmetic (rolling ACWR, see
- * `loadAnalytics.ts`) can do plain integer day-index subtraction instead of
- * the `new Date(t - n * 86400000)` + `.toISOString().split('T')[0]` pattern
- * would drift across DST boundaries by mixing
- * local and UTC time.
+ * The local calendar date as "YYYY-MM-DD" - what "today" means to the
+ * person holding the phone. Not `toISOString().slice(0, 10)`: that's the
+ * UTC date, which in Switzerland is still yesterday until 1-2 am, so
+ * anything logged just after midnight landed on the day before.
+ */
+export function localIsoDate(date: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * Converts a stored date to a calendar-day index (whole days since the
+ * Unix epoch) - so day-window arithmetic (rolling ACWR, see
+ * `loadAnalytics.ts`) is plain integer subtraction, DST-proof.
+ *
+ * The two shapes stored:
+ *  - a bare "YYYY-MM-DD" (metrics, sends, goals) is that day as written;
+ *  - a full timestamp (a completed session's `date`, `toISOString()`, UTC)
+ *    is the LOCAL calendar day it happened on. Taking its UTC date instead
+ *    put a session that ended at 00:30 on the previous day in every chart,
+ *    while History (local) showed the right one.
  */
 export function toUtcDayIndex(isoDate: string): number {
   const d = new Date(isoDate);
-  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+  }
+  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
 }
 

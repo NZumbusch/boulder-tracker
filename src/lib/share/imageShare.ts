@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { localIsoDate } from "../dateUtils";
 import { Share } from "@capacitor/share";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 
@@ -37,9 +38,11 @@ export function shareImageFileName(date: string | null | undefined): string {
 /** The `YYYY-MM-DD` part of an ISO date, or `null` if it isn't a date. */
 function toIsoDay(value: string | null | undefined): string | null {
   if (!value) return null;
+  // A bare date is already the day - converting it would shift it by the timezone.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString().split("T")[0];
+  return localIsoDate(parsed);
 }
 
 /**

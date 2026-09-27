@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { localIsoDate } from '../dateUtils';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import type { DailyMetricEntry } from '../types';
 import { reminderId, checkNotificationPermission, cancelRemindersOfType } from './shared';
@@ -63,7 +64,7 @@ export async function syncDailyMetricsReminder(
 
   await cancelRemindersOfType('dailyMetrics');
 
-  const todayIso = asOf.toISOString().split('T')[0];
+  const todayIso = localIsoDate(asOf);
   if (!isDailyMetricsEntryMissing(dailyMetrics, todayIso)) return;
 
   const at = computeDailyMetricsReminderTime(asOf, timeHHMM);

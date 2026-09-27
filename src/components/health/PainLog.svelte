@@ -6,11 +6,11 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
-  import { formatDate, getWeekId } from '../../lib/dateUtils';
+  import { formatDate, getWeekId, localIsoDate } from '../../lib/dateUtils';
   import type { PainLog } from '../../lib/types';
   import Icon from '@iconify/svelte';
 
-  const todayIso = () => new Date().toISOString().split('T')[0];
+  const todayIso = () => localIsoDate();
 
   let editingId = $state<string | null>(null);
   let date = $state(todayIso());

@@ -1,4 +1,5 @@
 import type { Workout, DayOfWeek } from './types';
+import { localIsoDate } from './dateUtils';
 import { estimateSessionDuration } from './planning/sessionDuration';
 import { saveFile } from './share/saveFile';
 
@@ -109,7 +110,7 @@ export function exportWorkoutsToICS(workouts: Workout[]) {
   const icsData = generateICS(workouts);
   void saveFile({
     content: icsData,
-    fileName: `boulder-tracker-workouts-${new Date().toISOString().split('T')[0]}.ics`,
+    fileName: `boulder-tracker-workouts-${localIsoDate()}.ics`,
     mimeType: 'text/calendar',
     title: 'Boulder Tracker calendar',
   });

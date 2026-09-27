@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { localIsoDate } from '../../lib/dateUtils';
   /**
    * Add or edit one outdoor send. Shared by History's Sends tab and Home's
    * quick log. During a trip (or when `defaults` say so) the crag and date
@@ -15,7 +16,7 @@
     onDone: () => void;
   } = $props();
 
-  const todayIso = new Date().toISOString().split('T')[0];
+  const todayIso = localIsoDate();
   // Seeded once from the send being edited, or the defaults.
   // svelte-ignore state_referenced_locally
   let name = $state(ascent?.name ?? '');

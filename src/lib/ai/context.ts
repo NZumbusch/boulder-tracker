@@ -14,7 +14,7 @@ import type {
 } from "../types";
 import { slotTypeName, slotValues } from "../exerciseSlot";
 import { repsRepresentative } from "../exercise/reps";
-import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex } from "../dateUtils";
+import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
 import { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
 export { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
@@ -371,7 +371,7 @@ export function buildReadinessSnapshot(
   model: ModelOptions = {},
 ): ReadinessSnapshot {
   const dailyMetrics = loggedMetrics(allDailyMetrics);
-  const todayIso = asOf.toISOString().split("T")[0];
+  const todayIso = localIsoDate(asOf);
   const fatigueDecay = computeFatigueDecay(workouts, asOf, model.fatigueHalfLife);
   const acwr = calculateRollingAcwr(workouts, asOf);
   const hrvBaseline = computeHrvBaseline(dailyMetrics, asOf);

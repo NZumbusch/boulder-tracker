@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId } from "./dateUtils";
+import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate } from "./dateUtils";
 
 describe("getWeekDates", () => {
   it("returns the UTC Monday-start/Sunday-end for a mid-year week", () => {
@@ -47,9 +47,12 @@ describe("toUtcDayIndex", () => {
     expect(toUtcDayIndex("2026-03-02")).toBe(toUtcDayIndex("2026-03-02"));
   });
 
-  it("collapses a full ISO datetime to the same day index as its calendar date", () => {
-    expect(toUtcDayIndex("2026-03-02T23:59:59.999Z")).toBe(toUtcDayIndex("2026-03-02T00:00:00.000Z"));
-    expect(toUtcDayIndex("2026-03-02")).toBe(toUtcDayIndex("2026-03-02T00:00:00.000Z"));
+  it("puts a timestamp on the local calendar day it happened on - the same day as that bare date", () => {
+    // Built from local times, so this holds in any timezone: a session that
+    // ended at 00:30 counts on that day, not (via its UTC date) the one before.
+    const day = toUtcDayIndex("2026-03-02");
+    expect(toUtcDayIndex(new Date(2026, 2, 2, 0, 30).toISOString())).toBe(day);
+    expect(toUtcDayIndex(new Date(2026, 2, 2, 23, 59).toISOString())).toBe(day);
   });
 
   it("increases by exactly 1 per UTC calendar day, including across a month boundary", () => {
@@ -74,5 +77,12 @@ describe("decrementWeekId", () => {
 
   it("returns a malformed id unchanged", () => {
     expect(decrementWeekId("garbage")).toBe("garbage");
+  });
+});
+
+describe("localIsoDate", () => {
+  it("is the local calendar date, also just after midnight", () => {
+    expect(localIsoDate(new Date(2026, 8, 28, 0, 30))).toBe("2026-09-28");
+    expect(localIsoDate(new Date(2026, 0, 5, 23, 59))).toBe("2026-01-05");
   });
 });
