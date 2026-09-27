@@ -3,6 +3,7 @@ import { buildPlanContext, type PlanContextInput } from "./planContext";
 import type { AISharingPreferences } from "../preferences/migrate";
 import type { AIHistoryWindow } from "../preferences/migrate";
 import { AI_CHANGESET_INSTRUCTIONS } from "./changeSetPrompt";
+import type { DayOfWeek } from "../types";
 
 /**
  * The plan-level AI prompts, as text: "generate" (change the plan - the
@@ -138,7 +139,7 @@ Based on this data, please evaluate:
 }
 
 /** Everything `buildCoachPromptFor` reads - `trainingState` satisfies it as is. */
-export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "targetWeekIds"> & {
+export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "targetWeekIds" | "uncertainDays"> & {
   aiSharing: AISharingPreferences;
   readinessConfig?: ModelOptions["readiness"];
   fatigueHalfLife?: number;
@@ -151,7 +152,7 @@ export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "target
  */
 export function buildCoachPromptFor(
   source: CoachPromptSource,
-  opts: { mode: AIPromptMode; targetWeekIds: string[]; goal: string; history: AIHistoryWindow; asOf?: Date },
+  opts: { mode: AIPromptMode; targetWeekIds: string[]; goal: string; history: AIHistoryWindow; asOf?: Date; uncertainDays?: DayOfWeek[] },
 ): string {
   const { mode, goal, history } = opts;
   const targetWeekIds = mode === "context" ? [] : opts.targetWeekIds;
@@ -175,7 +176,9 @@ export function buildCoachPromptFor(
         workouts: source.workouts,
         weekOverrides: source.weekOverrides,
         weekNotes: source.weekNotes,
+        planAlternatives: source.planAlternatives,
         targetWeekIds,
+        uncertainDays: opts.uncertainDays,
       })
     : undefined;
   return buildCoachPrompt({ mode, profile, targetWeekIds, goal, planContext, history });

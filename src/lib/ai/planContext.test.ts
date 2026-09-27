@@ -32,4 +32,19 @@ describe("buildPlanContext", () => {
   it("lists the blocks around the target weeks with their notes", () => {
     expect(lines).toContain('{"block":"Base","phase":"Capacity","from":"2026-W38","to":"2026-W41","notes":"Build volume"}');
   });
+
+  it("lists Plan Bs touching the target weeks, and asks for Plan Bs on uncertain days", () => {
+    const withPlanB = buildPlanContext({
+      ...input,
+      planAlternatives: [
+        { id: "a", label: "Outdoor if dry", startWeekId: "2026-W41", startDay: "Saturday", days: 3, outdoor: "B", changes: [{ id: "c", offset: 0, session: { id: "t", name: "Outdoor", exercises: [] } }], occurrences: { "2026-W41": { chosen: "B" } } },
+        { id: "far", startWeekId: "2026-W50", startDay: "Saturday", days: 1, changes: [] },
+      ],
+      uncertainDays: ["Saturday", "Sunday"],
+    });
+    expect(withPlanB).toContain('{"label":"Outdoor if dry","start":{"week":"2026-W41","day":"Saturday"},"end":{"week":"2026-W42","day":"Monday"},"outdoor":"B","planB":["Sat: + Outdoor"],"decided":["2026-W41: Plan B"]}');
+    expect(withPlanB).not.toContain("2026-W50");
+    expect(withPlanB).toContain("UNCERTAIN DAYS: Saturday, Sunday in every target week");
+    expect(text).not.toContain("PLAN B");
+  });
 });

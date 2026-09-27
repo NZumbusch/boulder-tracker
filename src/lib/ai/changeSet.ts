@@ -1,18 +1,20 @@
 /**
  * The AI change-set contract: one JSON document that can create a whole
- * plan or adjust any single part of one. Three sections, applied in order:
+ * plan or adjust any single part of one. Four sections, applied in order:
  *
  *   exerciseTypes - add / edit / archive entries in the exercise list
  *   phases        - add / edit / delete phases and their typical week
  *   weeks         - per week (or range): follow a phase, spell the week
  *                   out, or edit what's already there; plus notes
+ *   planB         - uncertain days: what Plan B does differently from the
+ *                   plan the sections above produced (see `PlanAlternative`)
  *
  * This module is structure only: shapes, types, repairs. Whether a named
  * phase, session or exercise actually exists is the planner's job
  * (`changePlanner.ts`), because the answer depends on the user's data and
  * on the other changes in the same document.
  */
-import type { DayOfWeek, ExerciseValues, ParameterBlock } from "../types";
+import type { DayOfWeek, ExerciseValues, ParameterBlock, PlanSide } from "../types";
 import { PARAMETER_LABELS } from "../constants";
 import { getWeekIdRange } from "../dateUtils";
 import { resolveValueFieldName } from "./valueSpec";
@@ -120,12 +122,38 @@ export interface CSWeekChange {
   blockNotes?: string;
 }
 
+export interface CSDay {
+  weekId: string;
+  day: DayOfWeek;
+}
+
+/**
+ * A Plan B for an uncertain stretch of days. Its changes are ordinary
+ * session changes, applied per week to the plan as the earlier sections
+ * leave it - Plan A - and must stay on the stretch's days.
+ */
+export type CSPlanB =
+  | {
+      action: "add";
+      start: CSDay;
+      /** Last day, inclusive. Absent = one day. */
+      end?: CSDay;
+      label?: string;
+      likely?: PlanSide;
+      outdoor?: PlanSide;
+      /** Repeat every week, up to and including this week (the week an occurrence starts in). */
+      repeatUntil?: string;
+      changes: { weekId: string; sessionChanges: CSSessionChange[] }[];
+    }
+  | { action: "delete"; start: CSDay };
+
 export interface AIChangeSet {
   /** The AI's one-paragraph summary of what it changed and why. */
   summary?: string;
   exerciseTypes: CSExerciseTypeChange[];
   phases: CSPhaseChange[];
   weeks: CSWeekChange[];
+  planB: CSPlanB[];
 }
 
 // --- Validation -----------------------------------------------------------
@@ -452,6 +480,71 @@ function validateWeekChange(raw: unknown, path: string, issues: Issues): CSWeekC
   return change;
 }
 
+function validateDay(raw: unknown, path: string, issues: Issues): CSDay | null {
+  if (!isPlainObject(raw) || typeof raw.week !== "string" || !WEEK_ID.test(raw.week)) {
+    issues.push({ path, message: `Expected {"week": "2026-W43", "day": "Saturday"}, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const day = validateDayOfWeek(raw.day, `${path}.day`, issues);
+  if (!day) {
+    issues.push({ path: `${path}.day`, message: 'Needs a "day" (Monday ... Sunday).' });
+    return null;
+  }
+  return { weekId: raw.week, day };
+}
+
+function validateSide(raw: unknown, path: string, issues: Issues): PlanSide | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === "A" || raw === "B") return raw;
+  pushRepair(issues, path, `Expected "A" or "B", got ${JSON.stringify(raw)} - ignored.`);
+  return undefined;
+}
+
+function validatePlanB(raw: unknown, path: string, issues: Issues): CSPlanB | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a Plan B entry, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const start = validateDay(raw.start, `${path}.start`, issues);
+  if (!start) return null;
+  const action = raw.action ?? "add";
+  if (action === "delete") return { action: "delete", start };
+  if (action !== "add") {
+    issues.push({ path: `${path}.action`, message: `Expected "add" or "delete", got ${JSON.stringify(raw.action)}.` });
+    return null;
+  }
+  const end = raw.end === undefined ? undefined : validateDay(raw.end, `${path}.end`, issues) ?? undefined;
+  let repeatUntil: string | undefined;
+  if (raw.repeatUntil !== undefined) {
+    if (typeof raw.repeatUntil === "string" && WEEK_ID.test(raw.repeatUntil) && raw.repeatUntil >= start.weekId) repeatUntil = raw.repeatUntil;
+    else issues.push({ path: `${path}.repeatUntil`, message: `Expected a week id from ${start.weekId} on, got ${JSON.stringify(raw.repeatUntil)}.` });
+  }
+  if (!Array.isArray(raw.changes) || raw.changes.length === 0) {
+    issues.push({ path: `${path}.changes`, message: 'Needs "changes": [{ "week": ..., "sessionChanges": [...] }] - what Plan B does differently.' });
+    return null;
+  }
+  const changes: { weekId: string; sessionChanges: CSSessionChange[] }[] = [];
+  raw.changes.forEach((c, i) => {
+    const at = `${path}.changes[${i}]`;
+    if (!isPlainObject(c) || typeof c.week !== "string" || !WEEK_ID.test(c.week)) {
+      issues.push({ path: at, message: `Expected {"week": "2026-W43", "sessionChanges": [...]}, got ${JSON.stringify(c)}.` });
+      return;
+    }
+    const sessionChanges = validateSessionChanges(c.sessionChanges, `${at}.sessionChanges`, issues);
+    if (sessionChanges.length) changes.push({ weekId: c.week, sessionChanges });
+  });
+  return {
+    action: "add",
+    start,
+    ...(end ? { end } : {}),
+    label: validateOptionalString(raw.label, `${path}.label`, issues)?.trim() || undefined,
+    likely: validateSide(raw.likely, `${path}.likely`, issues),
+    outdoor: validateSide(raw.outdoor, `${path}.outdoor`, issues),
+    ...(repeatUntil ? { repeatUntil } : {}),
+    changes,
+  };
+}
+
 function validateList<T>(raw: unknown, path: string, issues: Issues, one: (r: unknown, p: string, i: Issues) => T | null): T[] {
   if (raw === undefined) return [];
   if (!Array.isArray(raw)) {
@@ -478,9 +571,10 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
     exerciseTypes: validateList(raw.exerciseTypes, "exerciseTypes", issues, validateExerciseTypeChange),
     phases: validateList(raw.phases, "phases", issues, validatePhaseChange),
     weeks: validateList(raw.weeks, "weeks", issues, validateWeekChange),
+    planB: validateList(raw.planB, "planB", issues, validatePlanB),
   };
-  if (!issues.some(isError) && set.exerciseTypes.length + set.phases.length + set.weeks.length === 0) {
-    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "exerciseTypes", "phases" or "weeks".' });
+  if (!issues.some(isError) && set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length === 0) {
+    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "exerciseTypes", "phases", "weeks" or "planB".' });
   }
   return split(issues.some(isError) ? null : set, issues);
 }
@@ -488,7 +582,7 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
 /** True if a parsed document looks like a change set rather than the older weekly/phase plan formats. */
 export function isChangeSetShape(raw: unknown): boolean {
   if (!isPlainObject(raw)) return false;
-  if (raw.exerciseTypes !== undefined) return true;
+  if (raw.exerciseTypes !== undefined || raw.planB !== undefined) return true;
   const phases = Array.isArray(raw.phases) ? raw.phases : [];
   const weeks = Array.isArray(raw.weeks) ? raw.weeks : [];
   if (phases.some((p) => isPlainObject(p) && "action" in p)) return true;

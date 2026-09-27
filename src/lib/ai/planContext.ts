@@ -9,7 +9,8 @@
  * exercises[{exerciseTypeName, values}]) so the AI can copy what it sees
  * into an edit. One compact JSON object per line keeps the prompt short.
  */
-import type { ExerciseSlot, ExerciseTypeDef, PhaseDef, TrainingBlock, WeekNote, WeekOverride, Workout, WorkoutTemplate } from "../types";
+import type { DayOfWeek, ExerciseSlot, ExerciseTypeDef, PhaseDef, PlanAlternative, TrainingBlock, WeekNote, WeekOverride, Workout, WorkoutTemplate } from "../types";
+import { allOccurrenceKeys, describeChanges, occurrenceFirstDay, weekAndDayOf } from "../planning/planB";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { sortWorkoutsBySchedule } from "../planning/sortWorkouts";
 import { weekNoteText } from "../planning/notes";
@@ -23,7 +24,11 @@ export interface PlanContextInput {
   workouts: Workout[];
   weekOverrides: WeekOverride[];
   weekNotes: WeekNote[];
+  /** Existing Plan Bs - the ones touching the target weeks are listed. */
+  planAlternatives?: PlanAlternative[];
   targetWeekIds: string[];
+  /** Days the athlete marked as uncertain in every target week - the AI is asked to give them a Plan B. */
+  uncertainDays?: DayOfWeek[];
 }
 
 type Session = {
@@ -94,6 +99,34 @@ export function buildPlanContext(input: PlanContextInput): string {
       completed: completed.map((w) => `${w.dayOfWeek ?? w.date?.slice(0, 10) ?? ""} ${w.notes ?? "Session"}`.trim()),
       note,
     })));
+  }
+  const first = targetWeekIds[0];
+  const last = targetWeekIds[targetWeekIds.length - 1];
+  const planBs = (input.planAlternatives ?? []).filter((alt) => {
+    if (!first) return false;
+    const keys = allOccurrenceKeys(alt);
+    const end = weekAndDayOf(occurrenceFirstDay(alt, keys[keys.length - 1]) + alt.days - 1).weekId;
+    return keys[0] <= last && end >= first;
+  });
+  if (planBs.length) {
+    lines.push("", "PLAN B - uncertain stretches already planned (each is what Plan B does differently from Plan A; delete one by its start day):");
+    for (const alt of planBs) {
+      const firstDay = occurrenceFirstDay(alt, alt.startWeekId);
+      const end = weekAndDayOf(firstDay + alt.days - 1);
+      lines.push(JSON.stringify(compact({
+        label: alt.label,
+        start: { week: alt.startWeekId, day: alt.startDay },
+        end: alt.days > 1 ? { week: end.weekId, day: end.day } : undefined,
+        repeatUntil: alt.repeatUntilWeekId,
+        outdoor: alt.outdoor,
+        likely: alt.likely,
+        planB: describeChanges(alt),
+        decided: Object.entries(alt.occurrences ?? {}).filter(([, o]) => o.chosen).map(([week, o]) => `${week}: Plan ${o.chosen}`),
+      })));
+    }
+  }
+  if (input.uncertainDays?.length) {
+    lines.push("", `UNCERTAIN DAYS: ${input.uncertainDays.join(", ")} in every target week may go either way (outdoor or not, depending on weather and plans). Give them a Plan B ("planB" section) - repeating weekly where the same Plan B fits - and plan the rest of each week so either version works.`);
   }
   return lines.join("\n");
 }

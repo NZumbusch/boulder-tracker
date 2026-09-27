@@ -25,6 +25,8 @@
   import { planWithSelection, allItemIds, type ChangeItem, type ChangeSection } from '../../lib/ai/changePlanner';
   import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
   import Icon from '@iconify/svelte';
+  import { WEEK_DAYS } from '../../lib/constants';
+  import type { DayOfWeek } from '../../lib/types';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -77,8 +79,14 @@
     history.fullWeeks === trainingState.aiHistory.fullWeeks && history.summaryWeeks === trainingState.aiHistory.summaryWeeks,
   );
 
+  /** Days that may go either way every week (e.g. outdoor if dry) - the AI is asked to give them a Plan B. */
+  let uncertainDays = $state<DayOfWeek[]>([]);
+  function toggleUncertain(day: DayOfWeek) {
+    uncertainDays = uncertainDays.includes(day) ? uncertainDays.filter((d) => d !== day) : WEEK_DAYS.filter((d) => d === day || uncertainDays.includes(d));
+  }
+
   /** The prompt exactly as it will be copied - also what the size shown is measured on. */
-  const prompt = $derived(buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history }));
+  const prompt = $derived(buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined }));
   const tokens = $derived(estimateTokens(prompt));
 
   async function copyPrompt() {
@@ -138,6 +146,7 @@
     { id: 'exercise', label: 'Exercises', icon: 'ic:baseline-fitness-center' },
     { id: 'phase', label: 'Phases', icon: 'ic:baseline-view-week' },
     { id: 'week', label: 'Weeks', icon: 'ic:baseline-calendar-month' },
+    { id: 'planB', label: 'Plan B', icon: 'ic:baseline-call-split' },
   ];
 
   function toggle(id: string) {
@@ -274,6 +283,22 @@
               class="w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-y placeholder:text-content-subtle"
             ></textarea>
           </label>
+
+          {#if mode === 'generate'}
+            <div class="space-y-1.5">
+              <span class="text-label text-content-subtle px-1 block">Uncertain days <span class="text-caption">(optional - they get a Plan B, e.g. outdoor if dry)</span></span>
+              <div class="grid grid-cols-7 gap-1" role="group" aria-label="Uncertain days">
+                {#each WEEK_DAYS as day}
+                  {@const on = uncertainDays.includes(day)}
+                  <button
+                    onclick={() => toggleUncertain(day)}
+                    aria-pressed={on}
+                    class="py-1.5 rounded-control text-label border transition-colors {on ? 'bg-primary text-white border-primary' : 'border-border text-content-subtle hover:text-content'}"
+                  >{day.slice(0, 2)}</button>
+                {/each}
+              </div>
+            </div>
+          {/if}
 
           <p class="text-caption text-content-subtle px-1 leading-relaxed">
             {#if mode === 'generate'}

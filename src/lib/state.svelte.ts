@@ -1200,6 +1200,7 @@ class TrainingState {
       workouts: this.workouts,
       weekOverrides: this.weekOverrides,
       weekNotes: this.weekNotes,
+      planAlternatives: this.planAlternatives,
       currentWeekId: this.currentWeekId,
     };
   }

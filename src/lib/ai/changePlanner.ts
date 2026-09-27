@@ -9,7 +9,8 @@
  * Order matters and follows the contract: exercise types first (so
  * sessions can use a type added in the same document), then phases (so
  * weeks can follow a phase added or edited here), then weeks - each week
- * entry building on the result of the ones before it.
+ * entry building on the result of the ones before it - and Plan Bs last,
+ * as differences from the plan the other sections leave behind.
  *
  * Week semantics (settled with the user):
  *  - phase only       -> the week follows that phase; its planned sessions
@@ -43,6 +44,7 @@ import { normalizeName, resolveNewExerciseTypeCategory } from "./planImport";
 import { PARAMETER_BLOCKS, type AIChangeSet, type CSExerciseChange, type CSSession, type CSSessionChange, type CSSessionMatch } from "./changeSet";
 import type { AIExercise } from "./schema";
 import { slotValues } from "../exerciseSlot";
+import { dayIndexOf, weekAndDayOf, occurrenceOnDay, describeChanges, templateFromWorkout, MAX_PLAN_B_DAYS } from "../planning/planB";
 
 // --- Inputs and outputs -----------------------------------------------------
 
@@ -56,11 +58,13 @@ export interface PlannerState {
   workouts: Workout[];
   weekOverrides: WeekOverride[];
   weekNotes: WeekNote[];
+  /** Existing Plan Bs. */
+  planAlternatives?: PlanAlternative[];
   /** For "this is in the past" warnings. */
   currentWeekId: string;
 }
 
-export type ChangeSection = "exercise" | "phase" | "week";
+export type ChangeSection = "exercise" | "phase" | "week" | "planB";
 
 export interface ChangeItem {
   id: string;
@@ -144,6 +148,8 @@ interface Ctx {
   blocks: TrainingBlock[];
   /** Weeks touched so far, with their resulting plan. */
   weekState: Map<string, { planned: Workout[] | null; customized: boolean }>;
+  /** Week id -> the week item that set it (for a Plan B's dependencies). */
+  weekOrigin: Map<string, string>;
   weekNotes: WeekNote[];
   changed: { types: boolean; phases: boolean; templates: boolean; blocks: boolean };
 }
@@ -438,6 +444,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     untickedPhaseNames: new Set(),
     blocks: state.trainingBlocks.map((b) => ({ ...b })),
     weekState: new Map(),
+    weekOrigin: new Map(),
     weekNotes: [...state.weekNotes],
     changed: { types: false, phases: false, templates: false, blocks: false },
   };
@@ -690,11 +697,143 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     }
     if (blocksAfter !== savedBlocks) ctx.changed.blocks = true;
     for (const w of perWeek) {
-      if (w.sessionsTouched) ctx.weekState.set(w.weekId, { planned: w.planned, customized: w.customized });
+      if (w.sessionsTouched) {
+        ctx.weekState.set(w.weekId, { planned: w.planned, customized: w.customized });
+        ctx.weekOrigin.set(w.weekId, id);
+      }
       if (change.notes) {
         const merged = appendAINote(noteWrites.get(w.weekId) ?? weekNoteText(state.weekNotes, w.weekId), change.notes);
         noteWrites.set(w.weekId, merged);
       }
+    }
+  });
+
+  // --- 4. Plan B ---
+  let alternatives = [...(state.planAlternatives ?? [])];
+  let alternativesChanged = false;
+  const currentMonday = dayIndexOf(state.currentWeekId, "Monday");
+  const dayShort = (d: number) => weekAndDayOf(d).day.slice(0, 3);
+  set.planB.forEach((change, i) => {
+    const id = `planb-${i}`;
+    const item: ChangeItem = { id, section: "planB", title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+    const startDay = dayIndexOf(change.start.weekId, change.start.day);
+
+    if (change.action === "delete") {
+      const hit = occurrenceOnDay(alternatives, startDay);
+      item.title = `delete Plan B · ${dayShort(startDay)} ${weekRangeLabel([change.start.weekId])}`;
+      if (!hit) {
+        item.errors.push(`No Plan B covers ${change.start.day} of ${change.start.weekId}.`);
+        return;
+      }
+      item.title = `delete ${hit.alt.label || "Plan B"} · ${dayShort(startDay)} ${weekRangeLabel([change.start.weekId])}`;
+      item.details.push(...describeChanges(hit.alt, hit.key));
+      if (hit.alt.repeatUntilWeekId) item.warnings.push("It repeats weekly - every week of it goes.");
+      if (on) {
+        alternatives = alternatives.filter((a) => a.id !== hit.alt.id);
+        alternativesChanged = true;
+      }
+      return;
+    }
+
+    const endDay = change.end ? dayIndexOf(change.end.weekId, change.end.day) : startDay;
+    const days = endDay - startDay + 1;
+    const lastWeek = weekAndDayOf(endDay).weekId;
+    item.title = `${change.label || "Plan B"} · ${dayShort(startDay)}${days > 1 ? `–${dayShort(endDay)}` : ""} ${weekRangeLabel(change.start.weekId === lastWeek ? [change.start.weekId] : [change.start.weekId, lastWeek])}`;
+    if (days < 1) {
+      item.errors.push('"end" is before "start".');
+      return;
+    }
+    if (days > MAX_PLAN_B_DAYS) {
+      item.errors.push(`A Plan B covers at most ${MAX_PLAN_B_DAYS} days - this one has ${days}.`);
+      return;
+    }
+    const alt: PlanAlternative = {
+      id: newId(),
+      startWeekId: change.start.weekId,
+      startDay: change.start.day,
+      days,
+      changes: [],
+      ...(change.label ? { label: change.label } : {}),
+      ...(change.likely && change.likely !== "A" ? { likely: change.likely } : {}),
+      ...(change.outdoor ? { outdoor: change.outdoor } : {}),
+      ...(change.repeatUntil ? { repeatUntilWeekId: change.repeatUntil } : {}),
+    };
+    const offsetOf = (w: Workout): number | undefined => {
+      if (!w.dayOfWeek) return undefined;
+      const d = dayIndexOf(w.weekId, w.dayOfWeek);
+      return d >= startDay && d <= endDay ? d - startDay : undefined;
+    };
+    const outside = (w: Workout) => item.errors.push(`${sessionLabel(w)} (${weekRangeLabel([w.weekId])}) is outside this Plan B's days.`);
+    const comparable = (w: Workout) => JSON.stringify([w.notes, w.description, w.dayOfWeek, w.startTime, w.plannedDuration, w.exercises.map((e) => [e.typeId, e.prescribed])]);
+
+    for (const { weekId, sessionChanges } of change.changes) {
+      const origin = ctx.weekOrigin.get(weekId);
+      if (origin && !item.dependsOn.includes(origin)) item.dependsOn.push(origin);
+      const phaseName = effectivePhaseName(ctx, ctx.blocks, weekId);
+      const phaseOrigin = phaseName ? ctx.phaseOrigin.get(normalizeName(phaseName)) : undefined;
+      if (phaseOrigin && !item.dependsOn.includes(phaseOrigin)) item.dependsOn.push(phaseOrigin);
+
+      // Plan A is the week as the sections above leave it. Projected
+      // sessions get fresh ids on every planning pass, so a change only
+      // remembers a Plan A session's id when the week is stored.
+      const week = currentWeek(ctx, weekId);
+      const before = week.planned;
+      const r = applySessionChanges(ctx, before, sessionChanges, item, `Plan B ${weekRangeLabel([weekId])}`, (s) => workoutFromSession(ctx, weekId, s, item));
+      const ref = (w: Workout) => ({ name: w.notes || "Session", ...(week.followsPhase ? {} : { id: w.id }) });
+      for (const b of before) {
+        const a = r.sessions.find((x) => x.id === b.id);
+        if (a && comparable(a) === comparable(b)) continue;
+        const from = offsetOf(b);
+        if (from === undefined) {
+          outside(b);
+          continue;
+        }
+        if (!a) {
+          alt.changes.push({ id: newId(), offset: from, replaces: ref(b) });
+          continue;
+        }
+        const to = offsetOf(a);
+        if (to === undefined) {
+          outside(a);
+          continue;
+        }
+        if (to === from) {
+          alt.changes.push({ id: newId(), offset: from, replaces: ref(b), session: templateFromWorkout(a, newId()) });
+        } else {
+          alt.changes.push({ id: newId(), offset: from, replaces: ref(b) }, { id: newId(), offset: to, session: templateFromWorkout(a, newId()) });
+        }
+      }
+      for (const a of r.sessions) {
+        if (before.some((b) => b.id === a.id)) continue;
+        const to = offsetOf(a);
+        if (to === undefined) {
+          outside(a);
+          continue;
+        }
+        alt.changes.push({ id: newId(), offset: to, session: templateFromWorkout(a, newId()) });
+      }
+    }
+
+    if (alt.changes.length === 0 && item.errors.length === 0) item.errors.push("Plan B would be the same as Plan A - it has no changes.");
+    item.details.push(...describeChanges(alt).map((l) => `Plan B ${l}`));
+    if (alt.repeatUntilWeekId) {
+      item.details.push(`every week through ${alt.repeatUntilWeekId}`);
+      item.warnings.push(`Worked out against ${change.start.weekId}; later weeks find their sessions by name.`);
+    }
+    if (alt.outdoor) item.details.push(`Plan ${alt.outdoor} is the outdoor one`);
+    if (alt.likely === "B") item.details.push("counts as Plan B until you decide");
+    if (!Number.isNaN(currentMonday) && startDay < currentMonday) item.warnings.push("Starts in the past.");
+    const overlapping = new Set<string>();
+    for (let d = startDay; d <= endDay; d++) {
+      const hit = occurrenceOnDay(alternatives, d);
+      if (hit) overlapping.add(hit.alt.label || "Plan B");
+    }
+    if (overlapping.size) item.warnings.push(`Overlaps ${[...overlapping].map((n) => `"${n}"`).join(", ")} - both would apply.`);
+    if (on && item.errors.length === 0) {
+      alternatives.push(alt);
+      alternativesChanged = true;
     }
   });
 
@@ -719,6 +858,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     ...(ctx.changed.phases ? { phaseDefs: ctx.phaseDefs } : {}),
     ...(ctx.changed.templates ? { templates: ctx.templates } : {}),
     ...(ctx.changed.blocks ? { trainingBlocks: ctx.blocks } : {}),
+    ...(alternativesChanged ? { planAlternatives: alternatives } : {}),
     weeks: [...ctx.weekState.entries()].map(([weekId, w]) => ({ weekId, planned: w.planned, customized: w.customized })),
     weekNotes: [...noteWrites.entries()].map(([weekId, text]) => ({ weekId, text })),
   };
@@ -784,6 +924,7 @@ export function allItemIds(set: AIChangeSet): Set<string> {
     ...set.exerciseTypes.map((_, i) => `exercise-${i}`),
     ...set.phases.map((_, i) => `phase-${i}`),
     ...set.weeks.map((_, i) => `week-${i}`),
+    ...set.planB.map((_, i) => `planb-${i}`),
   ]);
 }
 

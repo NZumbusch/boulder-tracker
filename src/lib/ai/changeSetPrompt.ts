@@ -14,9 +14,10 @@ THE SHAPE (every section is optional; use the ones you need):
   "summary": "One short paragraph: what you changed and why.",
   "exerciseTypes": [ ...exercise list changes... ],
   "phases": [ ...phase changes... ],
-  "weeks": [ ...week changes... ]
+  "weeks": [ ...week changes... ],
+  "planB": [ ...Plan B entries... ]
 }
-The app applies "exerciseTypes" first, then "phases", then "weeks" - so a later section may use a new exercise or phase from an earlier one. Entries within a section apply in order.
+The app applies "exerciseTypes" first, then "phases", then "weeks", then "planB" - so a later section may use a new exercise or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
 
 1) "exerciseTypes" - the exercise list (the Custom Exercise Modalities above)
   { "action": "add", "name": "Max Hangs 7s", "categoryName": "Fingers", "parameters": ["sets", "timeOn", "timeBetweenSets", "weight", "holdSize"] }
@@ -42,6 +43,20 @@ The app applies "exerciseTypes" first, then "phases", then "weeks" - so a later 
      Changes what the week has now (see TARGET WEEKS above - a week that "follows its phase" has its phase's typical week). Use for small differences: one extra session, a lighter day, a changed value. Add "phase" too to base the edits on a different phase's typical week.
   Any entry may also carry "notes" (a note for that week - applied to each week of a range). "blockNotes" needs "phase".
   Completed sessions are never changed. Don't include weeks you are not changing.
+
+4) "planB" - uncertain days: a second version of a few days (e.g. outdoor if the weather is good, otherwise indoor). Plan A is the normal plan from the sections above; a Plan B entry says only what Plan B does differently on those days. The athlete decides on the day (or earlier), and until then the plan counts one of the two.
+  { "start": { "week": "2026-W43", "day": "Saturday" }, "end": { "week": "2026-W44", "day": "Monday" }, "label": "Outdoor if dry", "outdoor": "B", "likely": "A",
+    "changes": [
+      { "week": "2026-W43", "sessionChanges": [ { "action": "edit", "match": { "dayOfWeek": "Saturday" }, "set": { "name": "Outdoor bouldering" }, "exercises": [ EXERCISE, ... ] } ] },
+      { "week": "2026-W44", "sessionChanges": [ { "action": "remove", "match": { "name": "Max hangs", "dayOfWeek": "Monday" } } ] }
+    ] }
+  { "start": { "week": "2026-W43", "day": "Saturday" }, "repeatUntil": "2026-W50", "changes": [ ... ] }   (the same Plan B every week through 2026-W50 - describe the first week; later weeks find their sessions by name)
+  { "action": "delete", "start": { "week": "2026-W45", "day": "Saturday" } }   (removes the Plan B covering that day - see PLAN B above)
+  - "start"/"end" (inclusive, "end" optional for one day, at most 14 days) are the uncertain days; they may cross weeks and phase changes. Every change must be on one of those days.
+  - "changes" are SESSION CHANGEs per week, applied to Plan A: edit a session into its Plan B version, "remove" what Plan B drops, "add" what Plan B adds. Put knock-on effects in the same Plan B (e.g. outdoor on Saturday, so Monday's hard fingers session becomes rest) - that is what it's for.
+  - "outdoor": which plan ("A" or "B") is the outdoor one - the athlete gets a weather hint for it. "likely": the plan that counts until they decide (default "A"); pick the more probable one.
+  - Plan both versions so that EITHER one works with the rest of the week - no hard session the day before a likely hard outdoor day, recovery after it in that plan only.
+  - Only add a Plan B where there is real uncertainty (the athlete names such days, or a trip/outdoor season makes it likely). Keep Plan A the plan you'd pick without the uncertainty.
 
 SESSION (used in "sessions" and in an "add" session change):
   { "name": "Limit bouldering", "dayOfWeek": "Tuesday", "startTime": "18:00", "plannedDuration": 90, "notes": "About the session as a whole", "exercises": [ EXERCISE, ... ] }

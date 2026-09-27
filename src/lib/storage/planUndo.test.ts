@@ -31,6 +31,7 @@ beforeEach(() => {
     trainingBlocks: [{ id: "old", name: "Old", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W42" }],
     weekOverrides: [],
     weekNotes: [],
+    planAlternatives: [],
     exerciseTypes: [],
     phaseDefs: [],
     templates: {},
@@ -68,5 +69,15 @@ describe("undoing the last AI plan change", () => {
     await storage.applyPlanWrites(plan);
     await storage.clearPlanUndo();
     expect(await storage.getPlanUndo()).toBeNull();
+  });
+});
+
+describe("Plan Bs from an AI change", () => {
+  it("are written with it and taken back by its undo", async () => {
+    const alt = { id: "pb", startWeekId: "2026-W40", startDay: "Saturday" as const, days: 1, changes: [{ id: "c", offset: 0, replaces: { name: "Board" } }] };
+    await storage.applyPlanWrites({ weeks: [], weekNotes: [], planAlternatives: [alt] });
+    expect(await storage.getPlanAlternatives()).toEqual([alt]);
+    await storage.undoPlanChange();
+    expect(await storage.getPlanAlternatives()).toEqual([]);
   });
 });
