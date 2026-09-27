@@ -81,14 +81,15 @@
 
 <div
   bind:this={anchor}
-  class="w-full flex items-end justify-center overflow-hidden -mb-4 {dragging || motionReduced() ? '' : 'transition-[height] duration-200 ease-out'}"
+  class="w-full flex items-center justify-center overflow-hidden mb-0 pointer-events-none {dragging || motionReduced() ? '' : 'transition-[height] duration-200 ease-out'}"
   style="height: {offset}px;"
   aria-hidden={offset === 0}
 >
-  {#if offset > 0}
-    <div class="mb-2 flex items-center gap-2 text-caption text-content-subtle" role="status">
+  <!-- Only once it fits whole: a half-clipped circle (and its shadow) read as a stray line at the top of the screen. -->
+  {#if offset >= 36}
+    <div class="flex items-center gap-2 text-caption text-content-subtle" role="status">
       <span
-        class="w-8 h-8 rounded-full bg-surface border border-border shadow-card flex items-center justify-center {progress >= 1 || refreshing ? 'text-primary' : ''}"
+        class="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center {progress >= 1 || refreshing ? 'text-primary' : ''}"
         style="opacity: {0.4 + progress * 0.6};"
       >
         <Icon icon="ic:baseline-sync" class="text-lg {refreshing ? 'animate-spin' : ''}" style="transform: rotate({refreshing ? 0 : progress * 270}deg);" />
