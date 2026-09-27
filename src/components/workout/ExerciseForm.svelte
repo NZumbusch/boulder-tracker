@@ -18,11 +18,14 @@
   let {
     initialSlot = null,
     mode = 'prescribed',
+    inGroup = false,
     onSave
   } = $props<{
     initialSlot?: ExerciseSlot | null,
     /** Which ExerciseValues bucket on the slot this form edits - "prescribed" (the plan) or "logged" (what happened). */
     mode?: 'prescribed' | 'logged',
+    /** The slot is (or joins) a circuit: one set of it is timed or counted, whatever its type usually tracks. */
+    inGroup?: boolean,
     onSave: (data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues }) => void
   }>();
 
@@ -151,9 +154,26 @@
     if (initialSlot?.activeParameters) {
       activeParams = initialSlot.activeParameters;
     } else if (activeTypeDef) {
-      activeParams = [...activeTypeDef.parameters];
+      activeParams = inGroup ? circuitDefaults(activeTypeDef.parameters) : [...activeTypeDef.parameters];
     }
   });
+
+  /** In a circuit, sets, reps and a time per set are always on offer, whatever the type lists. */
+  const CIRCUIT_PARAMS: ParameterBlock[] = ['sets', 'reps', 'timeOn'];
+  const customizable = $derived.by(() => {
+    const base = activeTypeDef?.possibleParameters || activeTypeDef?.parameters || [];
+    return inGroup ? [...base, ...CIRCUIT_PARAMS.filter((p) => !base.includes(p))] : base;
+  });
+
+  /**
+   * A new circuit member whose type tracks neither a time per set nor reps
+   * (Core Training tracks only a duration) starts with a time per set in
+   * place of the duration - a round is one set of it.
+   */
+  function circuitDefaults(params: ParameterBlock[]): ParameterBlock[] {
+    if (params.includes('timeOn') || params.includes('reps')) return [...params];
+    return [...params.filter((p) => p !== 'duration'), 'timeOn'];
+  }
 
   // Sync internal state with incoming props
   $effect(() => {
@@ -175,7 +195,8 @@
     reps = repsRepresentative(v.reps) ?? 1;
     movesPerRoute = v.movesPerRoute;
     holdType = v.holdType || 'Half Crimp';
-    timeOn = v.timeOn ?? 7;
+    // A circuit's timed exercise is usually a minute; a hang is usually 7 seconds.
+    timeOn = v.timeOn ?? (inGroup ? 60 : 7);
     timeOff = v.timeOff ?? 3;
     timeBetweenSets = v.timeBetweenSets ?? 180;
     weight = v.weight !== undefined ? toDisplayWeight(v.weight) : 0;
@@ -429,7 +450,7 @@
         <Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg group-open:rotate-180 transition-transform" />
       </summary>
       <div class="grid grid-cols-2 gap-2 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-        {#each activeTypeDef?.possibleParameters || activeTypeDef?.parameters || [] as id}
+        {#each customizable as id}
           <button
             type="button"
             onclick={() => {

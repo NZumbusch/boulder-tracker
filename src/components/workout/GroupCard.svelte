@@ -30,12 +30,18 @@
     {@render header()}
   {:else}
     <div class="px-1.5 pt-1">
-      <p class="text-caption uppercase text-content-subtle flex items-center gap-1">
-        <Icon icon="ic:baseline-repeat" class="text-sm" /> Circuit
-      </p>
-      <p class="text-body font-bold text-content break-words">{group.name || 'Circuit'}</p>
+      {#if group.name}
+        <p class="text-caption uppercase text-content-subtle flex items-center gap-1">
+          <Icon icon="ic:baseline-repeat" class="text-sm" /> Circuit
+        </p>
+        <p class="text-body font-bold text-content break-words">{group.name}</p>
+      {:else}
+        <p class="text-body font-bold text-content flex items-center gap-1.5">
+          <Icon icon="ic:baseline-repeat" class="text-base text-content-subtle" /> Circuit
+        </p>
+      {/if}
       <p class="text-caption text-content-subtle">
-        {groupSummary(group)}{#if minutes} · ~{formatMinutes(Math.ceil(minutes))}{/if}
+        {groupSummary(group)}{minutes ? ` · ~${formatMinutes(Math.ceil(minutes))}` : ''}
       </p>
     </div>
   {/if}

@@ -14,7 +14,9 @@ export function slotSummary(slot: ExerciseSlot): string {
   else if (v.reps) parts.push(`${v.reps} reps`);
   if (v.weight) parts.push(formatWeight(v.weight, trainingState.units.weight));
   if (v.minGrade) parts.push(v.maxGrade && v.maxGrade !== v.minGrade ? `${v.minGrade}–${v.maxGrade}` : v.minGrade);
-  const mins = estimateSlotDuration(slot);
+  // A circuit member's own estimate counts its own set rests, which the
+  // circuit replaces - its time only means something as part of the group.
+  const mins = slot.groupId ? undefined : estimateSlotDuration(slot);
   if (mins) parts.push(`${mins}m`);
   return parts.join(' · ');
 }

@@ -15,6 +15,7 @@
     group,
     minutes,
     comparisons = [],
+    dropouts = [],
     nameOf,
     onchange,
     onUngroup,
@@ -22,6 +23,8 @@
     group: ExerciseGroup;
     minutes?: number;
     comparisons?: RestComparison[];
+    /** Members that take part in fewer rounds than the group has (their sets). */
+    dropouts?: { slotId: string; rounds: number }[];
     /** A member's display name by slot id, for the rest comparison. */
     nameOf: (slotId: string) => string;
     onchange: (group: ExerciseGroup) => void;
@@ -85,6 +88,15 @@
     </label>
   </div>
 
+  {#if dropouts.length > 0}
+    <div class="space-y-0.5">
+      {#each dropouts as d (d.slotId)}
+        <p class="text-caption text-content-subtle">
+          <span class="text-content-muted">{nameOf(d.slotId)}</span> stops after round {d.rounds} (its sets)
+        </p>
+      {/each}
+    </div>
+  {/if}
   {#if comparisons.length > 0}
     <div class="space-y-0.5">
       {#each comparisons as c (c.slotId)}

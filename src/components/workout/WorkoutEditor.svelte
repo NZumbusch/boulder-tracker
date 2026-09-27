@@ -24,7 +24,7 @@
   import GroupSettings from './GroupSettings.svelte';
   import {
     workoutItems, groupMinutes, groupSlots, ungroup, updateGroup, takeOutOfGroup, addToGroup,
-    settleAfterMove, restComparison, normaliseGroups,
+    settleAfterMove, restComparison, normaliseGroups, memberRounds,
   } from '../../lib/exercise/groups';
   import { repsPerSet } from '../../lib/exercise/reps';
   import type { ExerciseGroup } from '../../lib/types';
@@ -72,6 +72,12 @@
     const id = formSlot === 'new' ? addingToGroup : formSlot?.groupId;
     return id ? workout.groups?.find((g) => g.id === id) : undefined;
   });
+
+  function dropoutsFor(group: ExerciseGroup, members: { slot: ExerciseSlot }[]) {
+    return members
+      .map(({ slot }) => ({ slotId: slot.id, rounds: memberRounds(slot[bucket] ?? slot.prescribed ?? {}, group) }))
+      .filter((d) => d.rounds < group.rounds);
+  }
 
   function comparisonsFor(group: ExerciseGroup, members: { slot: ExerciseSlot }[]) {
     return restComparison(group, members.map(({ slot }) => ({ slot, values: slot[bucket] ?? slot.prescribed ?? {} })));
@@ -342,6 +348,7 @@
                 {group}
                 minutes={minutesByGroup.get(group.id)}
                 comparisons={comparisonsFor(group, item.members)}
+                dropouts={dropoutsFor(group, item.members)}
                 {nameOf}
                 onchange={(g) => regroup(updateGroup(workout, g))}
                 onUngroup={() => regroup(ungroup(workout, group.id))}
@@ -427,7 +434,7 @@
           <span>Part of <b class="text-content-muted">{formGroup.name || 'a circuit'}</b>: set up one set of it (a time, or reps). Rounds and rests come from the circuit; sets only matter if it should drop out early.</span>
         </p>
       {/if}
-      <ExerciseForm initialSlot={formSlot === 'new' ? null : formSlot} mode={bucket} onSave={saveExercise} />
+      <ExerciseForm initialSlot={formSlot === 'new' ? null : formSlot} mode={bucket} inGroup={!!formGroup} onSave={saveExercise} />
     </div>
   </div>
 {/if}
