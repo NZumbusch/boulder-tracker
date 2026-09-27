@@ -108,7 +108,7 @@
   </div>
 
   <div class="card space-y-3 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Start Over</h3><p class="text-caption text-content-subtle px-1">Remove everything from this device and begin again from the welcome screen. A backup file is saved first.{#if driveSync.connected} Sync is switched off; your copy in Google Drive stays.{/if}</p></div>
+    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Start Over</h3><p class="text-caption text-content-subtle px-1">Remove everything from this device and begin again from the welcome screen. A backup file is saved first.{#if driveSync.connected}{' '}Sync is switched off; your copy in Google Drive stays.{/if}</p></div>
     <button onclick={deleteAllData} class="w-full py-2.5 text-label text-danger border border-danger/40 rounded-control hover:bg-danger/10 transition-colors">Delete all data</button>
   </div>
 </div>

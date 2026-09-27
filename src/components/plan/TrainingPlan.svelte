@@ -646,7 +646,7 @@
           <div class="min-w-0">
             <h4 class="text-section uppercase text-content-muted">Sessions</h4>
             {#if weekWorkouts.length > 0}
-              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {countedWorkouts.length} done{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal} pts` : ''}{#if plannedLoadTotal > 0} <InfoButton term="load" />{/if}</p>
+              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {countedWorkouts.length} done{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal} pts` : ''}{#if plannedLoadTotal > 0}{' '}<InfoButton term="load" />{/if}</p>
             {/if}
           </div>
           <div class="flex items-center gap-1.5 shrink-0">

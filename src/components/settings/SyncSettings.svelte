@@ -124,7 +124,7 @@
           {:else}
             <div class="flex items-center gap-2">
               <p class="text-body text-content min-w-0 truncate">
-                {driveSync.deviceLabel ?? driveSync.deviceModel}{#if driveSync.deviceLabel} <span class="text-content-subtle">({driveSync.deviceModel})</span>{/if}
+                {driveSync.deviceLabel ?? driveSync.deviceModel}{#if driveSync.deviceLabel}{' '}<span class="text-content-subtle">({driveSync.deviceModel})</span>{/if}
                 <span class="text-caption text-content-subtle">· this one</span>
               </p>
               <button onclick={() => { nameDraft = driveSync.deviceLabel ?? ''; renaming = true; }} class="p-1 text-content-subtle hover:text-content shrink-0" aria-label="Name this device" title="Name this device">
