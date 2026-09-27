@@ -49,15 +49,25 @@ export class BackupStore {
   async runAutoBackupIfDue(enabled: boolean, now = new Date()) {
     if (!enabled || isDemoMode() || !Capacitor.isNativePlatform() || !autoBackupDue(this.lastAutoBackup?.at, now)) return;
     try {
-      const where = await writeAutoBackup(now);
-      const at = now.toISOString();
-      this.lastAutoBackup = { at, where };
-      if (typeof localStorage !== 'undefined') localStorage.setItem(LAST_AUTO_BACKUP_KEY, JSON.stringify(this.lastAutoBackup));
-      // It's a real backup, so the backup-age alert should count it.
-      this.markBackedUp(at);
+      await this.writeBackupNow(now);
     } catch (err) {
       console.error('Automatic backup failed:', err);
     }
+  }
+
+  /**
+   * The automatic backup, right now, whether or not one is due - before an
+   * app update (lib/update/). Throws if it couldn't be written. Returns
+   * where it went.
+   */
+  async writeBackupNow(now = new Date()): Promise<string> {
+    const where = await writeAutoBackup(now);
+    const at = now.toISOString();
+    this.lastAutoBackup = { at, where };
+    if (typeof localStorage !== 'undefined') localStorage.setItem(LAST_AUTO_BACKUP_KEY, JSON.stringify(this.lastAutoBackup));
+    // It's a real backup, so the backup-age alert should count it.
+    this.markBackedUp(at);
+    return where;
   }
 
   /**

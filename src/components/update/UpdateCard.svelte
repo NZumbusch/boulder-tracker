@@ -10,7 +10,7 @@
 
   let { compact = false }: { compact?: boolean } = $props();
 
-  const busy = $derived(updater.status === 'downloading' || updater.status === 'installing');
+  const busy = $derived(updater.status === 'backing-up' || updater.status === 'downloading' || updater.status === 'installing');
   const changes = $derived(compact ? updater.changes.slice(0, 3) : updater.changes);
 </script>
 
@@ -42,6 +42,9 @@
         <div class="h-full bg-primary transition-[width] duration-150" style="width: {Math.round(updater.progress * 100)}%"></div>
       </div>
     {/if}
+    {#if updater.backedUpTo && updater.status !== 'backing-up'}
+      <p class="text-caption text-content-subtle flex items-center gap-1"><Icon icon="ic:baseline-check" class="text-sm text-success" />Backed up to {updater.backedUpTo}</p>
+    {/if}
     {#if updater.error}
       <p class="text-caption text-status-caution">{updater.error}</p>
     {/if}
@@ -52,10 +55,10 @@
       class="w-full py-2.5 rounded-control bg-primary hover:bg-primary-hover text-white text-label font-bold transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
     >
       <Icon icon="ic:baseline-download" class="text-base" />
-      {updater.status === 'downloading' ? `Downloading ${Math.round(updater.progress * 100)}%` : updater.status === 'installing' ? 'Opening installer…' : 'Install'}
+      {updater.status === 'backing-up' ? 'Backing up your data…' : updater.status === 'downloading' ? `Downloading ${Math.round(updater.progress * 100)}%` : updater.status === 'installing' ? 'Opening installer…' : 'Install'}
     </button>
     {#if !compact}
-      <p class="text-caption text-content-subtle">Android asks you to confirm. Your data stays - it's an update, not a reinstall.</p>
+      <p class="text-caption text-content-subtle">A backup of your data goes to Documents/ClimbingTracker first. Android then asks you to confirm; your data stays - it's an update, not a reinstall.</p>
     {/if}
   </div>
 {/if}

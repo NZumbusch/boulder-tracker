@@ -6,6 +6,7 @@
  * which asks to confirm.
  */
 import { App } from "@capacitor/app";
+import { trainingState } from "../state.svelte";
 import { AppUpdater, appUpdaterSupported } from "../native/appUpdater";
 import { parseManifest, isNewer, changesSince, apkUrl, UPDATE_MANIFEST_URL, type UpdateManifest } from "./appUpdate";
 
@@ -38,11 +39,15 @@ class Updater {
   dismissedCode = $state<number | null>(null);
   /** The published build, when it's newer than this one. */
   available = $state<UpdateManifest | null>(null);
-  status = $state<"idle" | "checking" | "downloading" | "installing">("idle");
+  status = $state<"idle" | "checking" | "backing-up" | "downloading" | "installing">("idle");
   progress = $state(0);
   error = $state<string | null>(null);
   /** After "Check now" found nothing. */
   upToDate = $state(false);
+  /** Where the safety backup before this update went. */
+  backedUpTo = $state<string | null>(null);
+  /** The safety backup failed; the next Install goes ahead without one. */
+  #skipBackup = false;
 
   #started = false;
   /** The build already downloaded and checked - "Install" again (after allowing installs) doesn't fetch it twice. */
@@ -126,6 +131,20 @@ class Updater {
       return;
     }
     this.error = null;
+    // A safety backup first - the same file the weekly automatic backup
+    // writes to Documents/ClimbingTracker, outside the app. An update keeps
+    // the app's data anyway; this is for a new version that turns out bad.
+    if (!this.#skipBackup) {
+      this.status = "backing-up";
+      try {
+        this.backedUpTo = await trainingState.backupStore.writeBackupNow();
+      } catch (e) {
+        this.status = "idle";
+        this.#skipBackup = true;
+        this.error = `Couldn't write a safety backup first (${e instanceof Error ? e.message : String(e)}). Export one in Settings → Backup, or tap Install again to update anyway.`;
+        return;
+      }
+    }
     this.status = "downloading";
     this.progress = 0;
     const listener = await AppUpdater.addListener("progress", (e) => { this.progress = e.fraction; });
