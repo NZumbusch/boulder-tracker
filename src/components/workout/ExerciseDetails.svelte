@@ -1,17 +1,21 @@
 <script lang="ts">
   /** What an exercise asks for (label/value grid) and its notes - shared by the workout modal's cards and the live session's current exercise. */
   import type { ExerciseSlot, ExerciseValues } from '../../lib/types';
-  import { detailPairs } from '../../lib/session/slotDetails';
+  import { detailPairs, valuesLine } from '../../lib/session/slotDetails';
+  import type { LastTime } from '../../lib/exercise/lastTime';
   import { trainingState } from '../../lib/state.svelte';
   import Icon from '@iconify/svelte';
 
-  let { slot, values, inGroup = false, showHowTo = false }: {
+  let { slot, values, inGroup = false, showHowTo = false, lastTime = null }: {
     slot: ExerciseSlot;
     values?: ExerciseValues;
     inGroup?: boolean;
     /** The exercise's library how-to, folded behind a tap (the live session shows it). */
     showHowTo?: boolean;
+    /** What was logged the last time this exercise was done (the live session passes it). */
+    lastTime?: LastTime | null;
   } = $props();
+  const lastLine = $derived(lastTime ? valuesLine(lastTime.values) : '');
 
   const pairs = $derived(detailPairs(slot, values, { inGroup }));
   const notes = $derived((values ?? slot.prescribed ?? slot.logged)?.notes);
@@ -28,6 +32,12 @@
       </div>
     {/each}
   </div>
+{/if}
+{#if lastTime && lastLine}
+  <p class="px-1 text-caption text-content-subtle flex items-center gap-1.5 min-w-0">
+    <Icon icon="ic:baseline-history" class="text-sm shrink-0" />
+    <span class="truncate">Last time <span class="tabular-nums">{new Date(lastTime.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>: <span class="text-content-muted font-bold">{lastLine}</span></span>
+  </p>
 {/if}
 {#if notes}
   <p class="text-caption text-content-muted italic px-1 whitespace-pre-wrap break-words">{notes}</p>

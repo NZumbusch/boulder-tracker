@@ -21,11 +21,15 @@
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { PARAMETER_LABELS } from '../../lib/constants';
   import TargetHint from './TargetHint.svelte';
+  import type { LastTime } from '../../lib/exercise/lastTime';
+  import { valuesLine } from '../../lib/session/slotDetails';
   import RangeSlider from '../common/RangeSlider.svelte';
   import Icon from '@iconify/svelte';
 
-  let { slot, seed: seedOverride = null, onSave, onCancel, onEditFull }: {
+  let { slot, seed: seedOverride = null, lastTime = null, onSave, onCancel, onEditFull }: {
     slot: ExerciseSlot;
+    /** What was logged the last time this exercise was done - one tap copies it in. */
+    lastTime?: LastTime | null;
     /**
      * Values to prefill instead of the slot's own - the interval timer
      * hands over the sets/reps it actually counted. Null for the normal
@@ -152,6 +156,35 @@
     return Number.isFinite(n) ? n : undefined;
   }
 
+  /**
+   * −/+ beside the numbers you change most mid-workout, so a one-off
+   * adjustment needs no keyboard. Weight moves by 2.5 kg (5 lb).
+   */
+  const STEPS: Partial<Record<keyof ExerciseValues, number>> = { sets: 1, reps: 1, duration: 5 };
+  function stepOf(key: keyof ExerciseValues): number | undefined {
+    if (key === 'weight') return trainingState.units.weight === 'lb' ? 5 : 2.5;
+    return STEPS[key];
+  }
+  function bump(key: keyof ExerciseValues, dir: 1 | -1) {
+    const step = stepOf(key)!;
+    const current = numberOrUndefined(key as string) ?? 0;
+    const next = Math.max(0, Math.round((current + dir * step) * 100) / 100);
+    draft[key as string] = String(next);
+  }
+
+  /** Fills the fields with what was logged last time (the fields this sheet shows, and difficulty). */
+  function useLastTime() {
+    if (!lastTime) return;
+    const next = { ...draft };
+    for (const field of fields) {
+      const value = lastTime.values[field.key];
+      if (typeof value === 'number') next[field.key] = String(field.key === 'weight' ? shownWeight(value) : value);
+    }
+    draft = next;
+    if (tracksDifficulty && typeof lastTime.values.difficulty === 'number') difficulty = lastTime.values.difficulty;
+  }
+  const lastLine = $derived(lastTime ? valuesLine(lastTime.values) : '');
+
   // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
   backWhile(() => true, () => onCancel());
 </script>
@@ -173,6 +206,15 @@
     </div>
 
     <div class="p-5 space-y-4">
+      {#if lastTime && lastLine}
+        <button type="button" onclick={useLastTime} class="w-full flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border-strong/40 text-left hover:border-primary/40 transition-colors">
+          <Icon icon="ic:baseline-history" class="text-base text-content-subtle shrink-0" />
+          <span class="min-w-0 flex-1 text-caption text-content-subtle truncate">
+            Last time <span class="tabular-nums">{new Date(lastTime.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>: <span class="text-content font-bold">{lastLine}</span>
+          </span>
+          <span class="shrink-0 text-caption font-bold text-primary">Use</span>
+        </button>
+      {/if}
       {#if fields.length === 0}
         <p class="text-caption text-content-subtle italic">
           This exercise tracks no numeric values &mdash; log it as done, or open the full editor to change what it tracks.
@@ -189,15 +231,27 @@
                   unit={field.key === 'weight' ? trainingState.units.weight : field.unit}
                 />
               </span>
-              <input
-                type="number"
-                inputmode="decimal"
-                step={field.step ?? 1}
-                value={draft[field.key] ?? ''}
-                oninput={(e) => draft[field.key] = e.currentTarget.value}
-                placeholder="—"
-                class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums"
-              />
+              <span class="flex items-stretch gap-1">
+                {#if stepOf(field.key)}
+                  <button type="button" onclick={() => bump(field.key, -1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="Less {PARAMETER_LABELS[field.param]}">
+                    <Icon icon="ic:baseline-remove" class="text-lg" />
+                  </button>
+                {/if}
+                <input
+                  type="number"
+                  inputmode="decimal"
+                  step={field.step ?? 1}
+                  value={draft[field.key] ?? ''}
+                  oninput={(e) => draft[field.key] = e.currentTarget.value}
+                  placeholder="—"
+                  class="w-full min-w-0 px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums {stepOf(field.key) ? 'text-center px-1' : ''}"
+                />
+                {#if stepOf(field.key)}
+                  <button type="button" onclick={() => bump(field.key, 1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="More {PARAMETER_LABELS[field.param]}">
+                    <Icon icon="ic:baseline-add" class="text-lg" />
+                  </button>
+                {/if}
+              </span>
             </label>
           {/each}
         </div>

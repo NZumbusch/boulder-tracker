@@ -80,3 +80,21 @@ export function detailPairs(
   }
   return pairs;
 }
+
+/** What was done, in one short line - "3×5 · 12 kg", "20 mm · 7 s · +15%" - for the "Last time" hint. */
+export function valuesLine(v: ExerciseValues): string {
+  const parts: string[] = [];
+  const reps = Array.isArray(v.reps) ? v.reps.join('/') : v.reps;
+  if (v.sets) parts.push(`${v.sets}${reps ? `×${reps}` : ' sets'}`);
+  else if (reps) parts.push(`${reps} reps`);
+  if (v.weight) parts.push(formatWeight(v.weight, trainingState.units.weight));
+  if (v.bodyweightPercent) parts.push(`${v.bodyweightPercent}% BW`);
+  if (v.maxWeightPercent) parts.push(`${v.maxWeightPercent}% max`);
+  if (v.holdSize) parts.push(`${v.holdSize} mm`);
+  if (v.timeOn) parts.push(`${v.timeOn} s`);
+  if (v.minGrade) parts.push(v.maxGrade && v.maxGrade !== v.minGrade ? `${v.minGrade}–${v.maxGrade}` : v.minGrade);
+  if (v.distance) parts.push(`${v.distance} km`);
+  if (v.duration && parts.length === 0) parts.push(`${v.duration} min`);
+  if (typeof v.difficulty === 'number') parts.push(`felt ${v.difficulty}/10`);
+  return parts.join(' · ');
+}

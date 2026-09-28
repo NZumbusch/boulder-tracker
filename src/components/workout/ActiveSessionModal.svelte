@@ -38,6 +38,7 @@
   import { reportError } from '../../lib/errorReporting';
   import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
   import { haptic } from '../../lib/native/haptics';
+  import { findLastLogged } from '../../lib/exercise/lastTime';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -200,6 +201,11 @@
   const elapsed = $derived(store.elapsedMinutes);
 
   const loggingSlot = $derived(exercises.find((e) => e.id === loggingSlotId) ?? null);
+
+  /** What was logged the last time this exercise was done - not counting this session. */
+  function lastTimeFor(slot: ExerciseSlot) {
+    return findLastLogged(slot.typeId, trainingState.workouts, session?.sourceWorkoutId ?? session?.workout.id);
+  }
 
   /**
    * Opens the finish sheet. For an exercise that records a duration, the
@@ -530,7 +536,7 @@
               <!-- The current exercise opens up: what to do, then the actions -->
               {#if isCurrent && status === 'pending'}
                 <div class="px-3.5 pb-3.5 space-y-3 animate-in fade-in duration-200">
-                  <ExerciseDetails {slot} showHowTo />
+                  <ExerciseDetails {slot} showHowTo lastTime={lastTimeFor(slot)} />
 
                   <div class="flex gap-2">
                     <button
@@ -667,6 +673,7 @@
       <ExerciseLogSheet
         slot={loggingSlot}
         seed={intervalSeed}
+        lastTime={lastTimeFor(loggingSlot)}
         onSave={handleLogged}
         onCancel={() => { loggingSlotId = null; seedFor = null; }}
         onEditFull={openFullEditor}
