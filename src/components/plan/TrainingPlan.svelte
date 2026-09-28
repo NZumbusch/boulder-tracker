@@ -3,6 +3,7 @@
   import { showInfo } from '../../lib/help/infoSheet.svelte';
   import { motionMs, motionReduced, scrollBehavior } from '../../lib/motion';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
+  import { openSessionActions } from '../../lib/sessionActions.svelte';
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -718,6 +719,7 @@
                     ].filter(Boolean).join(' · ')}
                     muted={workout.provisional || !counts(workout)}
                     onclick={arranging ? undefined : () => openWorkout(workout, 'view', false, listedDays.flatMap((k) => dayGroups[k]))}
+                    onlongpress={arranging ? null : () => openSessionActions(workout, listedDays.flatMap((k) => dayGroups[k]))}
                   >
                     {#snippet titleExtra()}
                       {#if workout.planB}

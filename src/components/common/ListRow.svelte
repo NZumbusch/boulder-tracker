@@ -9,8 +9,9 @@
    * card. The whole left side is the tap target when `onclick` is given.
    */
   import type { Snippet } from 'svelte';
+  import { longPress } from '../../lib/ui/longPress';
 
-  let { title, titleExtra, meta, detail, value, valueHint, muted = false, onclick, leading, trailing }: {
+  let { title, titleExtra, meta, detail, value, valueHint, muted = false, onclick, onlongpress = null, leading, trailing }: {
     title: string;
     /** Rendered right after the title, e.g. a grade. */
     titleExtra?: Snippet;
@@ -23,6 +24,8 @@
     /** Planned-but-not-real rows (provisional) read quieter. */
     muted?: boolean;
     onclick?: () => void;
+    /** Hold (or right-click) the row - quick actions. */
+    onlongpress?: (() => void) | null;
     leading?: Snippet;
     trailing?: Snippet;
   } = $props();
@@ -38,7 +41,7 @@
     {#if detail}<p class="text-caption text-content-subtle/70 truncate">{detail}</p>{/if}
   {/snippet}
   {#if onclick}
-    <button type="button" {onclick} class="min-w-0 flex-1 text-left group">{@render body()}</button>
+    <button type="button" {onclick} use:longPress={onlongpress} class="min-w-0 flex-1 text-left group select-none">{@render body()}</button>
   {:else}
     <div class="min-w-0 flex-1">{@render body()}</div>
   {/if}

@@ -13,6 +13,7 @@
   import TourOverlay from './components/tour/TourOverlay.svelte';
   import { tour } from './lib/tour/tour.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
+  import SessionActionsSheet from './components/workout/SessionActionsSheet.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import { onMount } from 'svelte';
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
@@ -177,6 +178,7 @@
        the modal is closed), so the modal's stopwatch never competes with
        the bubble's own elapsed readout. -->
   <ActiveSessionModal />
+  <SessionActionsSheet />
   <SessionBubble />
   <WorkoutModal />
   <Toast />

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openSessionActions } from '../../../lib/sessionActions.svelte';
   /** Today's planned sessions (tap to open, Start to go live), and this week's missed ones. */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
@@ -61,6 +62,7 @@
         : undefined}
       muted={workout.provisional || (!!workout.planB && !workout.planB.active)}
       onclick={() => openWorkout(workout, 'view', false, todaysWorkouts)}
+      onlongpress={() => openSessionActions(workout, todaysWorkouts)}
     >
       {#snippet trailing()}
         <!-- Start goes live: it begins the session and opens the session

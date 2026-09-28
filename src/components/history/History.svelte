@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openSessionActions } from '../../lib/sessionActions.svelte';
   import { RATING_AXES } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -349,6 +350,7 @@
                 value={Math.round(workout.loadFactor)}
                 valueHint="load"
                 onclick={() => openWorkout(workout, 'view', false, filteredWorkouts)}
+                onlongpress={() => openSessionActions(workout, filteredWorkouts)}
               />
             </div>
           {/each}
