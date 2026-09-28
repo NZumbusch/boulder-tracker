@@ -30,6 +30,7 @@
   import ExerciseDetails from './ExerciseDetails.svelte';
   import ExerciseLogSheet from './ExerciseLogSheet.svelte';
   import SessionExitModal from './SessionExitModal.svelte';
+  import SessionNotesSheet from './SessionNotesSheet.svelte';
   import TimerWidget from './TimerWidget.svelte';
   import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
   import { workoutItems, groupSummary } from '../../lib/exercise/groups';
@@ -46,6 +47,7 @@
   let editingSlotId = $state<string | null>(null);
   let isAddingExercise = $state(false);
   let isExiting = $state(false);
+  let showNotes = $state(false);
   /** The tucked-away "change the session" mode - reorder handles, remove, add. */
   let isEditingPlan = $state(false);
   /**
@@ -114,6 +116,7 @@
       isAddingExercise = false;
       isEditingPlan = false;
       isExiting = false;
+      showNotes = false;
     });
   });
   // --- The Android session notification (lib/native/liveNotification) ---
@@ -316,9 +319,19 @@
             </p>
             <h2 class="text-title text-content truncate">{session.workout.notes || 'Session'}</h2>
             {#if session.workout.description}
-              <p class="text-caption text-content-subtle mt-0.5 line-clamp-2 leading-snug">{session.workout.description}</p>
+              <button onclick={() => showNotes = true} class="block w-full text-left text-caption text-content-subtle hover:text-content mt-0.5 line-clamp-2 leading-snug" title="Read all notes">
+                {session.workout.description}
+              </button>
             {/if}
           </div>
+          <button
+            onclick={() => showNotes = true}
+            class="shrink-0 p-2 text-content-subtle hover:text-content transition-colors"
+            aria-label="Session notes"
+            title="Notes — the session's, the week's and each exercise's"
+          >
+            <Icon icon="ic:outline-sticky-note-2" class="text-xl" />
+          </button>
           <button
             onclick={() => isExiting = true}
             class="shrink-0 px-3 py-2 text-label font-bold text-danger hover:bg-danger/10 rounded-control transition-colors flex items-center gap-1.5"
@@ -687,6 +700,10 @@
       </svelte:boundary>
     </div>
   </div>
+{/if}
+
+{#if showNotes && session}
+  <SessionNotesSheet onClose={() => showNotes = false} />
 {/if}
 
 {#if isExiting && session}
