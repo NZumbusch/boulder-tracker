@@ -8,14 +8,19 @@
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import type { ExerciseTypeDef } from '../../lib/types';
-  import { exerciseGroup, groupTypes, searchTypes, typeUsage, recentTypes } from '../../lib/exercise/library';
+  import { exerciseGroup, groupTypes, groupNames, searchTypes, typeUsage, recentTypes } from '../../lib/exercise/library';
   import { localIsoDate } from '../../lib/dateUtils';
+  import { generateId } from '../../lib/utils';
+  import { reportError } from '../../lib/errorReporting';
+  import ExerciseTypeEditor from '../settings/ExerciseTypeEditor.svelte';
   import Icon from '@iconify/svelte';
 
-  let { types, selectedId, onPick, onClose }: {
+  let { types, selectedId, onPick, onCreated, onClose }: {
     types: ExerciseTypeDef[];
     selectedId: string;
     onPick: (id: string) => void;
+    /** A new (or restored) exercise was saved to the library - the host adds it to its list; `onPick` follows. */
+    onCreated: (type: ExerciseTypeDef) => void;
     onClose: () => void;
   } = $props();
 
@@ -38,6 +43,40 @@
     if (next.has(name)) next.delete(name);
     else next.add(name);
     open = next;
+  }
+
+  // --- Creating from the search -----------------------------------------
+  // A name with no exact match can be created on the spot (in the same
+  // editor the library uses); one that matches an archived exercise is
+  // offered back instead, so the same thing never ends up in the list twice.
+  const typed = $derived(query.trim());
+  const exact = $derived(typed ? types.find((t) => t.name.trim().toLowerCase() === typed.toLowerCase()) : undefined);
+  let creating = $state<ExerciseTypeDef | null>(null);
+  let saving = $state(false);
+
+  function startCreate() {
+    creating = {
+      id: generateId(),
+      name: typed,
+      category: trainingState.analyticsCategories.find((c) => !c.archived)?.name ?? 'Other',
+      parameters: ['duration'],
+    };
+  }
+
+  async function persist(type: ExerciseTypeDef) {
+    if (saving) return;
+    saving = true;
+    try {
+      const others = trainingState.exerciseTypes.filter((t) => t.id !== type.id);
+      await trainingState.updateExerciseTypes([...others, type]);
+      onCreated(type);
+      creating = null;
+      pick(type.id);
+    } catch (err) {
+      reportError(err, 'Create exercise');
+    } finally {
+      saving = false;
+    }
   }
 
   function pick(id: string) {
@@ -87,11 +126,26 @@
 
     <div class="flex-1 overflow-y-auto no-scrollbar px-5 py-2">
       {#if query.trim()}
+        {#if exact?.archived}
+          <button onclick={() => persist({ ...exact, archived: undefined })} disabled={saving} class="w-full my-2 p-3 rounded-control border border-dashed border-primary/40 text-left flex items-center gap-3 hover:bg-primary/5 transition-colors">
+            <Icon icon="ic:baseline-unarchive" class="text-xl text-primary shrink-0" />
+            <span class="min-w-0">
+              <span class="block text-body font-semibold text-primary truncate">Restore “{exact.name}”</span>
+              <span class="block text-caption text-content-subtle">It's in the archive - bring it back, with its history</span>
+            </span>
+          </button>
+        {:else if !exact}
+          <button onclick={startCreate} class="w-full my-2 p-3 rounded-control border border-dashed border-primary/40 text-left flex items-center gap-3 hover:bg-primary/5 transition-colors">
+            <Icon icon="ic:baseline-plus" class="text-xl text-primary shrink-0" />
+            <span class="min-w-0">
+              <span class="block text-body font-semibold text-primary truncate">Create “{typed}”</span>
+              <span class="block text-caption text-content-subtle">{results.length ? 'None of these - add it to your library' : 'Nothing matches - add it to your library'}</span>
+            </span>
+          </button>
+        {/if}
         <div class="divide-y divide-border">
           {#each results as t (t.id)}
             {@render row(t, true)}
-          {:else}
-            <p class="py-6 text-caption text-content-subtle italic text-center">Nothing matches “{query.trim()}”. New exercises are added in Settings → Customization → Exercises.</p>
           {/each}
         </div>
       {:else}
@@ -123,3 +177,16 @@
     </div>
   </div>
 </div>
+
+{#if creating}
+  <ExerciseTypeEditor
+    type={creating}
+    isNew
+    layer="z-[140]"
+    groups={groupNames(types)}
+    analyticsCategories={trainingState.analyticsCategories}
+    takenNames={new Set(types.map((t) => t.name.trim().toLowerCase()))}
+    onSave={persist}
+    onClose={() => creating = null}
+  />
+{/if}

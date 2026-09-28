@@ -5,7 +5,7 @@
   import { readBrowserInfo, shouldOfferIOSInstall } from '../../lib/pwa/platform';
   import { Capacitor } from '@capacitor/core';
   import { trainingState } from '../../lib/state.svelte';
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
   import { storage } from '../../lib/storage';
   import { showAlert, showConfirm } from '../../lib/utils';
   import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, BenchmarkTypeDef, AnalyticsCategory } from '../../lib/types';
@@ -94,6 +94,20 @@
     if ((Object.keys(now) as Catalog[]).every((k) => now[k] === lastSaved![k])) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(persist, 600);
+  });
+
+  // An exercise created from the picker inside a phase or circuit editor
+  // goes straight to the store. Take it in here, or the next autosave of
+  // this copy would write the list back without it. Only while this copy
+  // has no unsaved edits of its own - those win and are saved as usual.
+  $effect(() => {
+    const fromStore = JSON.stringify(trainingState.exerciseTypes);
+    untrack(() => {
+      if (!lastSaved || fromStore === lastSaved.exerciseTypes) return;
+      if (JSON.stringify($state.snapshot(exerciseTypes)) !== lastSaved.exerciseTypes) return;
+      exerciseTypes = JSON.parse(fromStore);
+      lastSaved.exerciseTypes = fromStore;
+    });
   });
 
   onDestroy(() => {

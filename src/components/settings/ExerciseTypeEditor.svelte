@@ -13,8 +13,10 @@
   import RangeSlider from '../common/RangeSlider.svelte';
   import Icon from '@iconify/svelte';
 
-  let { type, isNew = false, groups, analyticsCategories, takenNames, referenced, onSave, onArchive, onDelete, onClose }: {
+  let { type, isNew = false, groups, analyticsCategories, takenNames, referenced = false, onSave, onArchive = () => {}, onDelete = () => {}, onClose, layer = 'z-[100]' }: {
     type: ExerciseTypeDef;
+    /** Stacking class - the exercise picker opens it above itself. */
+    layer?: string;
     isNew?: boolean;
     /** Existing group names, for one-tap picking. */
     groups: string[];
@@ -22,10 +24,10 @@
     /** Other exercises' names, lower-cased - a name must be unique. */
     takenNames: Set<string>;
     /** Sessions, phases or circuits use it: it can be archived, not deleted. */
-    referenced: boolean;
+    referenced?: boolean;
     onSave: (type: ExerciseTypeDef) => void;
-    onArchive: (archived: boolean) => void;
-    onDelete: () => void;
+    onArchive?: (archived: boolean) => void;
+    onDelete?: () => void;
     onClose: () => void;
   } = $props();
 
@@ -72,7 +74,7 @@
   backWhile(() => true, () => onClose());
 </script>
 
-<div class="fixed inset-0 pb-safe z-[100] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+<div class="fixed inset-0 pb-safe {layer} flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
   <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200">
     <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
       <div class="min-w-0">

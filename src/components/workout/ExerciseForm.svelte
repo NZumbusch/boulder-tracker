@@ -486,6 +486,7 @@
     types={exerciseTypes}
     selectedId={selectedTypeId}
     onPick={(id) => selectedTypeId = id}
+    onCreated={(type) => exerciseTypes = [...exerciseTypes.filter((t) => t.id !== type.id), type]}
     onClose={() => pickerOpen = false}
   />
 {/if}
