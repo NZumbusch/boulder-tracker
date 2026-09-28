@@ -25,7 +25,58 @@ function describe(err: unknown): string {
   }
 }
 
-function report(err: unknown) {
+/**
+ * The last few errors, kept on the device (Settings -> About & Help) so a
+ * button that "did nothing" on the phone can be traced afterwards - the
+ * console is gone by the time anyone looks.
+ */
+export const ERROR_LOG_KEY = "boulder_tracker_error_log";
+const ERROR_LOG_MAX = 20;
+export interface LoggedError {
+  at: string;
+  where?: string;
+  message: string;
+  stack?: string;
+}
+
+export function readErrorLog(): LoggedError[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ERROR_LOG_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearErrorLog() {
+  try {
+    localStorage.removeItem(ERROR_LOG_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+function logError(err: unknown, where?: string) {
+  try {
+    const entry: LoggedError = {
+      at: new Date().toISOString(),
+      ...(where ? { where } : {}),
+      message: describe(err).slice(0, 300),
+      ...(err instanceof Error && err.stack ? { stack: err.stack.slice(0, 1200) } : {}),
+    };
+    localStorage.setItem(ERROR_LOG_KEY, JSON.stringify([entry, ...readErrorLog()].slice(0, ERROR_LOG_MAX)));
+  } catch {
+    // A full or unavailable localStorage must not turn one error into two.
+  }
+}
+
+/** Shows and logs an error something caught itself (an error boundary, a fallback path). */
+export function reportError(err: unknown, where?: string) {
+  report(err, where);
+}
+
+function report(err: unknown, where?: string) {
+  logError(err, where);
   const message = describe(err).slice(0, 140);
   const now = Date.now();
   if (now - lastShownAt < QUIET_MS && (message === lastMessage || now - lastShownAt < 1000)) return;

@@ -34,6 +34,7 @@
   import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
   import { workoutItems, groupSummary } from '../../lib/exercise/groups';
   import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
+  import { reportError } from '../../lib/errorReporting';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -47,8 +48,15 @@
   let isExiting = $state(false);
   /** The tucked-away "change the session" mode - reorder handles, remove, add. */
   let isEditingPlan = $state(false);
-  /** Values handed over by a finished interval run, seeding the finish sheet once. */
-  let intervalSeed = $state<ExerciseValues | null>(null);
+  /**
+   * Values handed over by a finished interval run (or the exercise's own
+   * clock), seeding the finish sheet once - only for the slot they were
+   * made for, so a leftover can never follow you to another exercise.
+   */
+  let seedFor = $state<{ slotId: string; values: ExerciseValues } | null>(null);
+  const intervalSeed = $derived(seedFor && seedFor.slotId === loggingSlotId ? seedFor.values : null);
+  /** Bumped on every open, so the finish sheet always mounts fresh. */
+  let sheetKey = $state(0);
 
   // --- Circuits (CircuitRunner) ---
   /** The group whose run is going (or waiting to be resumed after the app was closed). */
@@ -89,6 +97,25 @@
   }
 
   const session = $derived(store.session);
+
+  // A session ending (or a different one starting) resets everything this
+  // screen had open. Without it a sheet that failed to open left its slot
+  // id behind, and the same plan's next session - same slot ids - found
+  // Finish already "open" and did nothing, until the app was restarted.
+  let viewFor: string | null = null;
+  $effect(() => {
+    const key = session?.startedAt ?? null;
+    if (key === viewFor) return;
+    viewFor = key;
+    untrack(() => {
+      loggingSlotId = null;
+      seedFor = null;
+      editingSlotId = null;
+      isAddingExercise = false;
+      isEditingPlan = false;
+      isExiting = false;
+    });
+  });
   // --- The Android session notification (lib/native/liveNotification) ---
   // This is its one sender: the session (always, while one runs) plus the
   // timer's plan when a timer runs. Re-sent on every meaningful change.
@@ -159,10 +186,34 @@
   function openFinish(slot: ExerciseSlot) {
     const ms = store.slotElapsedMs(slot.id);
     const params = slot.activeParameters ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? [];
-    if (!intervalSeed && params.includes('duration') && ms >= 30_000) {
-      intervalSeed = { ...slotValues(slot), duration: Math.max(1, Math.round(ms / 60_000)) };
+    if (seedFor?.slotId !== slot.id) {
+      seedFor = Array.isArray(params) && params.includes('duration') && ms >= 30_000
+        ? { slotId: slot.id, values: { ...slotValues(slot), duration: Math.max(1, Math.round(ms / 60_000)) } }
+        : null;
     }
     loggingSlotId = slot.id;
+    sheetKey++;
+  }
+
+  /**
+   * The finish sheet failed to open. It says so (and keeps a record under
+   * Settings -> About & Help), closes cleanly so Finish works again, and
+   * offers the full editor instead - the exercise can still be logged.
+   */
+  function handleSheetError(err: unknown) {
+    const slotId = loggingSlotId;
+    reportError(err, 'Finish exercise sheet');
+    loggingSlotId = null;
+    seedFor = null;
+    if (slotId && !editorFailed) editingSlotId = slotId;
+  }
+  /** The full editor failed as well - don't bounce between the two. */
+  let editorFailed = false;
+  function handleEditorError(err: unknown) {
+    reportError(err, 'Session exercise editor');
+    editorFailed = true;
+    isAddingExercise = false;
+    editingSlotId = null;
   }
 
   /** "4:05", or "1:02:40" past an hour. */
@@ -182,7 +233,7 @@
   function handleLogged(values: ExerciseValues) {
     if (loggingSlotId) store.logExercise(loggingSlotId, values);
     loggingSlotId = null;
-    intervalSeed = null;
+    seedFor = null;
   }
 
   function openFullEditor() {
@@ -228,8 +279,9 @@
   function handleIntervalLogged(values: Partial<ExerciseValues>) {
     const slot = store.currentSlot;
     if (!slot) return;
-    intervalSeed = { ...slotValues(slot), ...values };
+    seedFor = { slotId: slot.id, values: { ...slotValues(slot), ...values } };
     loggingSlotId = slot.id;
+    sheetKey++;
   }
 
   function handleSaveAndFinish() {
@@ -558,13 +610,17 @@
 {/if}
 
 {#if loggingSlot}
-  <ExerciseLogSheet
-    slot={loggingSlot}
-    seed={intervalSeed}
-    onSave={handleLogged}
-    onCancel={() => { loggingSlotId = null; intervalSeed = null; }}
-    onEditFull={openFullEditor}
-  />
+  {#key sheetKey}
+    <svelte:boundary onerror={handleSheetError}>
+      <ExerciseLogSheet
+        slot={loggingSlot}
+        seed={intervalSeed}
+        onSave={handleLogged}
+        onCancel={() => { loggingSlotId = null; seedFor = null; }}
+        onEditFull={openFullEditor}
+      />
+    </svelte:boundary>
+  {/key}
 {/if}
 
 {#if isAddingExercise || editingSlot}
@@ -611,7 +667,9 @@
           </p>
         </div>
       {/if}
-      <ExerciseForm initialSlot={editingSlot} mode="logged" onSave={handleFormSave} />
+      <svelte:boundary onerror={handleEditorError}>
+        <ExerciseForm initialSlot={editingSlot} mode="logged" onSave={handleFormSave} />
+      </svelte:boundary>
     </div>
   </div>
 {/if}

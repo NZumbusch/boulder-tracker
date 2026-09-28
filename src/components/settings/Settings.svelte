@@ -21,6 +21,7 @@
   import NavRow from '../common/NavRow.svelte';
   import SyncSettings from './SyncSettings.svelte';
   import AppUpdateSettings from '../update/AppUpdateSettings.svelte';
+  import ErrorLogCard from './ErrorLogCard.svelte';
   import { updater } from '../../lib/update/updater.svelte';
   import { APP_INFO } from '../../lib/appInfo';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
@@ -203,6 +204,7 @@
   {:else if currentTab === 'about'}
     <div class="space-y-4">
       <AppUpdateSettings />
+      <ErrorLogCard />
       <div class="card space-y-3 animate-in fade-in">
         <h4 class="text-section uppercase text-content-muted px-1">Help</h4>
         <button
