@@ -329,6 +329,8 @@
    * talks to Android). Null when no timer runs.
    */
   function syncLive() {
+    // A running circuit owns the timer plan (CircuitRunner) - don't overwrite it.
+    if (live.circuitRunning) return;
     if (!useLive) {
       live.timerPlan = null;
       live.timerFinished = false;
@@ -359,7 +361,7 @@
     void [mode, targetTime, basic.bankedMs, basic.runningSince, spec, bankedMs, runningSince, timingMode, selfPaced,
       setRun.currentSet, setRun.completed.length, setRun.done, setRun.leadInRemainingMs > 0, currentSlot?.id,
       trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, trainingState.timerBeepEnabled,
-      trainingState.timerVibrateEnabled, useLive];
+      trainingState.timerVibrateEnabled, useLive, live.circuitRunning];
     untrack(syncLive);
   });
 

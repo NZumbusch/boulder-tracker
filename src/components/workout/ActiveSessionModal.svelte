@@ -33,6 +33,7 @@
   import TimerWidget from './TimerWidget.svelte';
   import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
   import { workoutItems, groupSummary } from '../../lib/exercise/groups';
+  import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -48,6 +49,44 @@
   let isEditingPlan = $state(false);
   /** Values handed over by a finished interval run, seeding the finish sheet once. */
   let intervalSeed = $state<ExerciseValues | null>(null);
+
+  // --- Circuits (CircuitRunner) ---
+  /** The group whose run is going (or waiting to be resumed after the app was closed). */
+  let circuitGroupId = $state<string | null>(storedCircuitGroupId(untrack(() => store.session?.startedAt)));
+  /** The runner is on screen (it keeps running when minimised). */
+  let circuitVisible = $state(false);
+  const circuitRun = $derived.by(() => {
+    if (!circuitGroupId) return null;
+    const item = workoutItems({ exercises: store.exercises, groups: store.workout?.groups }).find((i) => i.kind === 'group' && i.group.id === circuitGroupId);
+    return item && item.kind === 'group' ? { group: item.group, slots: item.members.map((m) => m.slot) } : null;
+  });
+  /** The group a slot is in, for its Circuit button. */
+  const groupIdOf = (slot: ExerciseSlot) => (slot.groupId && store.workout?.groups?.some((g) => g.id === slot.groupId) ? slot.groupId : null);
+
+  // The session ended (finished or discarded): a run in progress goes with it.
+  $effect(() => {
+    if (!session && circuitGroupId) {
+      forgetCircuitRun();
+      circuitGroupId = null;
+      circuitVisible = false;
+    }
+  });
+
+  function openCircuit(groupId: string) {
+    if (circuitGroupId && circuitGroupId !== groupId) return; // one at a time: resume or finish that one first
+    circuitGroupId = groupId;
+    circuitVisible = true;
+  }
+
+  /** A finished (or stopped) circuit: log what each member did; skip the ones never reached only if it ran to the end. */
+  function handleCircuitLogged(values: Record<string, ExerciseValues | undefined>, complete: boolean) {
+    for (const [slotId, v] of Object.entries(values)) {
+      if (v) store.logExercise(slotId, v);
+      else if (complete) store.skipExercise(slotId);
+    }
+    circuitGroupId = null;
+    circuitVisible = false;
+  }
 
   const session = $derived(store.session);
   // --- The Android session notification (lib/native/liveNotification) ---
@@ -315,7 +354,16 @@
               <p class="px-1 pt-1 text-caption text-content-subtle flex items-center gap-1 min-w-0">
                 <Icon icon="ic:baseline-repeat" class="text-sm shrink-0" />
                 <span class="font-bold text-content-muted truncate">{groupStart.name || 'Circuit'}</span>
-                <span class="truncate">· {groupSummary(groupStart)}</span>
+                <span class="truncate flex-1">· {groupSummary(groupStart)}</span>
+                {#if !store.isComplete}
+                  <button
+                    onclick={() => openCircuit(groupStart.id)}
+                    disabled={!!circuitGroupId && circuitGroupId !== groupStart.id}
+                    class="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold transition-colors disabled:opacity-40 {circuitGroupId === groupStart.id ? 'bg-primary text-white' : 'bg-primary/10 text-primary hover:bg-primary/20'} flex items-center gap-0.5"
+                  >
+                    <Icon icon="ic:baseline-play-arrow" class="text-sm" /> {circuitGroupId === groupStart.id ? 'Resume' : 'Start'}
+                  </button>
+                {/if}
               </p>
             {/if}
             <div
@@ -402,7 +450,17 @@
                     >
                       Skip
                     </button>
-                    {#if hasIntervalTiming(slotValues(slot))}
+                    {#if groupIdOf(slot)}
+                      <button
+                        onclick={() => openCircuit(groupIdOf(slot)!)}
+                        disabled={!!circuitGroupId && circuitGroupId !== slot.groupId}
+                        class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-40"
+                        aria-label="Run the circuit"
+                      >
+                        <Icon icon="ic:baseline-repeat" class="text-base" />
+                        {circuitGroupId === slot.groupId ? 'Resume' : 'Circuit'}
+                      </button>
+                    {:else if hasIntervalTiming(slotValues(slot))}
                       <!-- Opens the timer that fits: the interval protocol
                            for timed work (hangs), the set timer with rests
                            for strength sets. The floating pill below also
@@ -480,9 +538,23 @@
     bind:this={timer}
     currentSlot={current ?? null}
     bottomClass="bottom-[80px]"
-    visible={store.isModalOpen}
+    visible={store.isModalOpen && !circuitRun}
     onLogInterval={current ? handleIntervalLogged : null}
   />
+{/if}
+
+{#if session && circuitRun}
+  {#key circuitGroupId}
+    <CircuitRunner
+      sessionKey={session.startedAt}
+      group={circuitRun.group}
+      slots={circuitRun.slots}
+      visible={store.isModalOpen && circuitVisible}
+      onLog={handleCircuitLogged}
+      onClose={() => { circuitGroupId = null; circuitVisible = false; }}
+      onMinimize={() => (circuitVisible = false)}
+    />
+  {/key}
 {/if}
 
 {#if loggingSlot}

@@ -29,7 +29,9 @@ export const live = $state<{
   timerFinished: boolean;
   /** False when Android refused the service - the page then plays its own cues again. */
   serviceOk: boolean;
-}>({ timerPlan: null, timerFinished: false, serviceOk: true });
+  /** A circuit is running (`CircuitRunner`): it publishes the timer plan, and the timer widget stays out of it. */
+  circuitRunning: boolean;
+}>({ timerPlan: null, timerFinished: false, serviceOk: true, circuitRunning: false });
 
 type Handler = (action: LiveAction) => void;
 const handlers = new Set<Handler>();
