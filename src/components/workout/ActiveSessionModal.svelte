@@ -565,6 +565,20 @@
           Add
         </button>
         <div class="flex-1"></div>
+        {#if timer && trainingState.timerPillHidden && !circuitRun}
+          {@const t = timer.tucked()}
+          <!-- The timer, tucked away: it keeps running, shows its time
+               here, and a tap brings the whole thing back. -->
+          <button
+            onclick={() => trainingState.setTimerPillHidden(false)}
+            class="h-10 min-w-10 px-3 rounded-full flex items-center justify-center gap-1.5 border text-label font-bold tabular-nums transition-colors {t.running ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
+            aria-label="Show the timer"
+            title="Timer"
+          >
+            <Icon icon={t.icon} class="text-lg" />
+            {#if t.text}{t.text}{/if}
+          </button>
+        {/if}
         {#if store.isComplete}
           <button
             onclick={handleSaveAndFinish}
@@ -590,6 +604,7 @@
     bind:this={timer}
     currentSlot={current ?? null}
     bottomClass="bottom-[80px]"
+    docked
     visible={store.isModalOpen && !circuitRun}
     onLogInterval={current ? handleIntervalLogged : null}
   />

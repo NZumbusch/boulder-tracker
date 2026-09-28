@@ -81,6 +81,7 @@
     bottomClass = 'bottom-[91px]',
     onLogInterval = null,
     visible = true,
+    docked = false,
   }: {
     currentSlot?: ExerciseSlot | null;
     /**
@@ -90,6 +91,12 @@
      * still audible, just not on screen.
      */
     visible?: boolean;
+    /**
+     * The host shows the tucked-away button itself (the live session puts
+     * it in its bottom bar, reading `tucked()`), so the widget doesn't
+     * float its own over the list.
+     */
+    docked?: boolean;
     /**
      * Vertical placement, so the widget can clear whatever is beneath it.
      */
@@ -497,6 +504,16 @@
    * or the self-paced set run when it has timing, a stopwatch otherwise.
    * Called from the session's exercise card ("Timer").
    */
+  /** What the tucked-away button shows - for a host that docks it (`docked`). */
+  export function tucked(): { icon: string; running: boolean; text: string | null } {
+    const running = mode === 'interval' ? intervalRunning : isRunning;
+    return {
+      icon: mode === 'interval' ? 'ic:baseline-repeat' : mode === 'timer' ? 'ic:baseline-hourglass-empty' : 'ic:baseline-timer',
+      running,
+      text: running ? (mode === 'interval' ? (selfPaced ? `Set ${setRun.currentSet}` : `${position.remaining}s`) : formatTime(time)) : null,
+    };
+  }
+
   export function openForExercise() {
     trainingState.setTimerPillHidden(false);
     const values = currentSlot ? slotValues(currentSlot) : undefined;
@@ -834,7 +851,7 @@
      session's own sheets and the interval views. -->
 <!-- Tucked away: a small button at the side. It still shows a running
      timer's time, and a tap brings the whole timer back. -->
-{#if visible && trainingState.timerPillHidden && !(mode === 'interval' && expanded)}
+{#if visible && !docked && trainingState.timerPillHidden && !(mode === 'interval' && expanded)}
   {@const running = mode === 'interval' ? intervalRunning : isRunning}
   <button
     onclick={() => trainingState.setTimerPillHidden(false)}

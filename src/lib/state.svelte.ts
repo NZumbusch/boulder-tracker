@@ -863,7 +863,11 @@ class TrainingState {
       return false;
     }
     const started = this.sessionStore.start(workout, { sourceWorkoutId: workout.id });
-    if (started) this.uiStore.showFatigue = false;
+    if (started) {
+      this.uiStore.showFatigue = false;
+      // Every session starts with the timer tucked into its bottom bar.
+      this.preferencesStore.setTimerPillHidden(true);
+    }
     return started;
   }
 
