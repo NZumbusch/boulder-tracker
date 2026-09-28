@@ -186,6 +186,7 @@
               <input
                 bind:value={renaming.to}
                 autofocus
+                data-own-enter
                 onkeydown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') renaming = null; }}
                 class="flex-1 min-w-0 px-3 py-2 bg-surface-elevated text-content rounded-control border border-primary/40 text-sm outline-none"
               />

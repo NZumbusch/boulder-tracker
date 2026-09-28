@@ -132,8 +132,8 @@
         </div>
       {/each}
       <div class="flex gap-2">
-        <input bind:value={projectName} placeholder="Problem (optional)" class="{inputClass} flex-[2]" onkeydown={(e) => e.key === 'Enter' && addProject()} />
-        <input bind:value={projectGrade} placeholder={trainingState.units.grades === 'v' ? 'Grade, e.g. V6' : 'Grade, e.g. 7A'} class="{inputClass} flex-1" onkeydown={(e) => e.key === 'Enter' && addProject()} />
+        <input data-own-enter bind:value={projectName} placeholder="Problem (optional)" class="{inputClass} flex-[2]" onkeydown={(e) => e.key === 'Enter' && addProject()} />
+        <input data-own-enter bind:value={projectGrade} placeholder={trainingState.units.grades === 'v' ? 'Grade, e.g. V6' : 'Grade, e.g. 7A'} class="{inputClass} flex-1" onkeydown={(e) => e.key === 'Enter' && addProject()} />
         <button onclick={addProject} class="px-3 bg-surface text-primary rounded-control border border-border-strong" aria-label="Add project"><Icon icon="ic:baseline-plus" /></button>
       </div>
       {#if !projectName.trim() && projectGrade.trim()}

@@ -80,6 +80,7 @@
             bind:value={query}
             placeholder="Search city..."
             class="flex-1 bg-surface-elevated text-content p-2.5 rounded-control border border-border-strong outline-none text-sm"
+            data-own-enter
             onkeydown={(e) => e.key === 'Enter' && search()}
           />
           <button onclick={search} disabled={searching} class="px-3 py-2 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white text-sm font-bold rounded-control">
