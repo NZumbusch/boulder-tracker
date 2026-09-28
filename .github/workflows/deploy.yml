@@ -55,8 +55,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          # The build number is the commit count - needs the whole history.
+          # The build number is the commit count, and the version name counts
+          # from the last stable/<n> tag - needs the whole history and tags.
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -139,8 +141,18 @@ jobs:
             gh release create "$STABLE_RELEASE" --title "Stable Android build" --notes "Created by the deploy workflow." ${commit:+--target "$commit"}
           fi
           gh release upload "$STABLE_RELEASE" dist/android/version.json dist/android/boulder-tracker.apk --clobber
-          gh release edit "$STABLE_RELEASE" --notes "Build $build${commit:+ (commit $commit)}, promoted $(date -u +%Y-%m-%d). The app's stable update channel serves these two files."
-          echo "Promoted build $build to stable."
+          name=$(node -p "require('./dist/android/version.json').versionName")
+          gh release edit "$STABLE_RELEASE" --notes "$name (build $build${commit:+, commit $commit}), promoted $(date -u +%Y-%m-%d). The app's stable update channel serves these two files."
+          # Tag the promoted commit stable/<n>: version names count stable
+          # releases and the commits since the last one from these tags
+          # (scripts/app-version.mjs). Promoting the same build again adds none.
+          if [ -n "$commit" ] && [ -z "$(git tag --points-at "$commit" --list 'stable/*')" ]; then
+            n=$(( $(git tag --list 'stable/*' | wc -l) + 1 ))
+            git tag "stable/$n" "$commit"
+            git push origin "stable/$n"
+            echo "Tagged $commit as stable/$n."
+          fi
+          echo "Promoted $name (build $build) to stable."
 
       - name: Include the stable build
         run: |

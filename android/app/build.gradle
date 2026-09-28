@@ -14,6 +14,18 @@ def commitCount = {
 }
 def appVersionCode = project.hasProperty('versionCode') ? project.property('versionCode').toString().toInteger() : commitCount()
 
+// The name shown to people, "1.<stable release it heads to>.<commits since
+// the last stable>" - worked out by scripts/app-version.mjs, the same script
+// the update manifest and the web app use. `-PversionName` overrides it.
+def versionNameFromGit = {
+    try {
+        return providers.exec { commandLine 'node', "${rootDir}/../scripts/app-version.mjs"; workingDir "${rootDir}/.." }.standardOutput.asText.get().trim()
+    } catch (ignored) {
+        return "1.0.${appVersionCode}"
+    }
+}
+def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : versionNameFromGit()
+
 // Release signing comes from the environment (CI decodes the keystore from a
 // repository secret into a temp file). Without it, release builds are
 // signed with this machine's debug key, like debug builds. Either way it
@@ -29,7 +41,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode
-        versionName "1.0.${appVersionCode}"
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

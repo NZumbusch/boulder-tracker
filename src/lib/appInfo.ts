@@ -3,9 +3,12 @@
  * About screen, and the same facts the web pages (public/about.html,
  * public/privacy.html) and Google's consent screen show.
  */
+declare const __APP_VERSION__: string | undefined;
+
 export const APP_INFO = {
   name: "Boulder Tracker",
-  version: "1.0.0",
+  /** "1.2.9" - from git at build time (scripts/app-version.mjs). */
+  version: typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "dev",
   developer: "Nathan Zumbusch",
   email: "info@nathanzumbusch.de",
   homepage: "https://nathanzumbusch.de",

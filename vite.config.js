@@ -1,9 +1,19 @@
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
+import { appVersion } from './scripts/app-version.mjs'
+
+// "1.2.9" - see scripts/app-version.mjs. Outside a git checkout (a zip of
+// the source) there is nothing to count, so it says so.
+function versionName() {
+  try { return appVersion().versionName } catch { return 'dev' }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(versionName()),
+  },
   plugins: [
     svelte(),
     // Installable web app (iOS "Add to Home Screen", Android Chrome
