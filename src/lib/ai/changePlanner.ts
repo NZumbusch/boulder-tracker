@@ -44,7 +44,8 @@ import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
 import { appendAINote, weekNoteText } from "../planning/notes";
 import { normalizeName, resolveNewExerciseTypeCategory } from "./planImport";
-import { PARAMETER_BLOCKS, type AIChangeSet, type CSExerciseChange, type CSSession, type CSSessionChange, type CSSessionMatch } from "./changeSet";
+import { PARAMETER_BLOCKS, isCircuitItem, type AIChangeSet, type CSCircuit, type CSExerciseChange, type CSItem, type CSSession, type CSSessionChange, type CSSessionMatch } from "./changeSet";
+import { normaliseGroups } from "../exercise/groups";
 import type { AIExercise } from "./schema";
 import { slotValues } from "../exerciseSlot";
 import { dayIndexOf, weekAndDayOf, occurrenceOnDay, describeChanges, templateFromWorkout, MAX_PLAN_B_DAYS } from "../planning/planB";
@@ -66,12 +67,14 @@ export interface PlannerState {
   planAlternatives?: PlanAlternative[];
   /** The coaching memory, and today ("YYYY-MM-DD") for dating new notes. */
   coachNotes?: CoachNote[];
+  /** The saved-circuit library. */
+  circuits?: Circuit[];
   today?: string;
   /** For "this is in the past" warnings. */
   currentWeekId: string;
 }
 
-export type ChangeSection = "exercise" | "phase" | "week" | "planB" | "coach";
+export type ChangeSection = "exercise" | "circuit" | "phase" | "week" | "planB" | "coach";
 
 export interface ChangeItem {
   id: string;
@@ -162,7 +165,11 @@ interface Ctx {
   /** Week id -> the week item that set it (for a Plan B's dependencies). */
   weekOrigin: Map<string, string>;
   weekNotes: WeekNote[];
-  changed: { types: boolean; phases: boolean; templates: boolean; blocks: boolean };
+  /** Saved circuits as the change set leaves them so far. */
+  circuits: Circuit[];
+  circuitOrigin: Map<string, string>;
+  untickedCircuitNames: Set<string>;
+  changed: { types: boolean; phases: boolean; templates: boolean; blocks: boolean; circuits: boolean };
 }
 
 function findType(ctx: Ctx, name: string): ExerciseTypeDef | undefined {
@@ -208,7 +215,79 @@ function buildSlots(ctx: Ctx, exercises: AIExercise[], item: ChangeItem): Exerci
   return exercises.map((e) => buildSlot(ctx, e, item)).filter((s): s is ExerciseSlot => !!s);
 }
 
+type Built = { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] };
+
+function findCircuit(ctx: Ctx, name: string): Circuit | undefined {
+  const key = normalizeName(name);
+  return ctx.circuits.find((c) => normalizeName(c.name) === key);
+}
+
+/**
+ * A circuit item as a group and its member slots: a saved circuit copied in
+ * (re-timed if the item says so), or one spelled out. `undefined` when it
+ * can't be built - the reason is on the item.
+ */
+function buildCircuit(ctx: Ctx, it: CSCircuit, item: ChangeItem): { group: ExerciseGroup; slots: ExerciseSlot[] } | undefined {
+  const groupId = ctx.newId();
+  const timing = (base: { rounds: number; transition?: number; roundRest?: number }) => ({
+    rounds: it.rounds ?? base.rounds,
+    ...((it.transition ?? base.transition) !== undefined ? { transition: it.transition ?? base.transition } : {}),
+    ...((it.roundRest ?? base.roundRest) !== undefined ? { roundRest: it.roundRest ?? base.roundRest } : {}),
+  });
+  if (it.saved) {
+    const circuit = findCircuit(ctx, it.circuit);
+    if (!circuit) {
+      item.errors.push(
+        ctx.untickedCircuitNames.has(normalizeName(it.circuit))
+          ? `Uses the new circuit "${it.circuit}", which is unticked.`
+          : `No saved circuit called "${it.circuit}" - spell it out, or add it under "circuits".`,
+      );
+      return undefined;
+    }
+    const origin = ctx.circuitOrigin.get(normalizeName(circuit.name));
+    if (origin && !item.dependsOn.includes(origin)) item.dependsOn.push(origin);
+    const slots = circuit.exercises.map(({ logged: _l, skipped: _s, groupId: _g, ...slot }) => ({ ...slot, id: ctx.newId(), groupId, ...(slot.prescribed ? { prescribed: { ...slot.prescribed } } : {}) }));
+    return { group: { id: groupId, name: circuit.name, ...timing(circuit), circuitId: circuit.id }, slots };
+  }
+  const slots = buildSlots(ctx, it.exercises, item).map((slot) => ({ ...slot, groupId }));
+  if (slots.length === 0) return undefined;
+  return { group: { id: groupId, ...(it.circuit ? { name: it.circuit } : {}), ...timing({ rounds: it.rounds ?? 1 }) }, slots };
+}
+
+/** Puts one exercise or circuit into a session's list at `at` (0-based). */
+function insertItem(ctx: Ctx, built: Built, it: CSItem, at: number, item: ChangeItem): Built {
+  const exercises = [...built.exercises];
+  if (!isCircuitItem(it)) {
+    const slot = buildSlot(ctx, it, item);
+    if (!slot) return built;
+    // Added between two members of a group, it joins the group - an ungrouped
+    // slot there would split the circuit and drop its tail out of it.
+    const around = exercises[at - 1]?.groupId;
+    if (around !== undefined && exercises[at]?.groupId === around) slot.groupId = around;
+    exercises.splice(at, 0, slot);
+    return { ...built, exercises };
+  }
+  const circuit = buildCircuit(ctx, it, item);
+  if (!circuit) return built;
+  // Never inside another circuit: step past the one `at` would split.
+  let pos = at;
+  const inside = exercises[pos - 1]?.groupId;
+  while (inside !== undefined && exercises[pos]?.groupId === inside) pos++;
+  exercises.splice(pos, 0, ...circuit.slots);
+  return normaliseGroups({ exercises, groups: [...(built.groups ?? []), circuit.group] });
+}
+
+/** A session's exercise list, circuits included. */
+function buildItems(ctx: Ctx, items: CSItem[], item: ChangeItem): Built {
+  return items.reduce<Built>((built, it) => insertItem(ctx, built, it, built.exercises.length, item), { exercises: [] });
+}
+
+function circuitLabel(it: CSItem): string {
+  return isCircuitItem(it) ? `circuit ${it.circuit || "(unnamed)"}` : it.exerciseTypeName;
+}
+
 function templateFromSession(ctx: Ctx, s: CSSession, item: ChangeItem): WorkoutTemplate {
+  const built = buildItems(ctx, s.exercises, item);
   return {
     id: ctx.newId(),
     name: s.name,
@@ -216,12 +295,13 @@ function templateFromSession(ctx: Ctx, s: CSSession, item: ChangeItem): WorkoutT
     startTime: s.startTime,
     plannedDuration: s.plannedDuration,
     ...(s.notes ? { description: s.notes } : {}),
-    exercises: buildSlots(ctx, s.exercises, item),
+    exercises: built.exercises,
+    ...(built.groups?.length ? { groups: built.groups } : {}),
   };
 }
 
 function workoutFromSession(ctx: Ctx, weekId: string, s: CSSession, item: ChangeItem): Workout {
-  const exercises = buildSlots(ctx, s.exercises, item);
+  const { exercises, groups } = buildItems(ctx, s.exercises, item);
   return {
     id: ctx.newId(),
     status: "planned",
@@ -233,8 +313,9 @@ function workoutFromSession(ctx: Ctx, weekId: string, s: CSSession, item: Change
     notes: s.name,
     ...(s.notes ? { description: s.notes } : {}),
     loadFactor: 0,
-    plannedLoad: workoutPlannedLoad(exercises),
+    plannedLoad: workoutPlannedLoad(exercises, groups),
     exercises,
+    ...(groups?.length ? { groups } : {}),
   };
 }
 
@@ -266,8 +347,23 @@ function describeMatch(match: CSSessionMatch): string {
   return [match.dayOfWeek, match.name && `"${match.name}"`].filter(Boolean).join(" ");
 }
 
-function applyExerciseChanges(ctx: Ctx, slots: ExerciseSlot[], changes: CSExerciseChange[], item: ChangeItem, where: string): { slots: ExerciseSlot[]; lines: string[] } {
+function applyExerciseChanges(
+  ctx: Ctx,
+  slots: ExerciseSlot[],
+  groupsIn: ExerciseGroup[] | undefined,
+  changes: CSExerciseChange[],
+  item: ChangeItem,
+  where: string,
+): { slots: ExerciseSlot[]; groups?: ExerciseGroup[]; lines: string[] } {
   let result = slots.map((s) => ({ ...s }));
+  let groups = groupsIn?.map((g) => ({ ...g }));
+  const findGroup = (name: string): ExerciseGroup | undefined => {
+    const key = normalizeName(name);
+    const hits = (groups ?? []).filter((g) => normalizeName(g.name || "circuit") === key && result.some((s) => s.groupId === g.id));
+    if (hits.length === 0) item.errors.push(`${where}: no circuit "${name}" in this session.`);
+    else if (hits.length > 1) item.errors.push(`${where}: ${hits.length} circuits are called "${name}".`);
+    return hits.length === 1 ? hits[0] : undefined;
+  };
   const lines: string[] = [];
   const find = (name: string, occurrence?: number): number | undefined => {
     const type = findType(ctx, name);
@@ -294,15 +390,30 @@ function applyExerciseChanges(ctx: Ctx, slots: ExerciseSlot[], changes: CSExerci
   };
   for (const change of changes) {
     if (change.action === "add") {
-      const slot = buildSlot(ctx, change.exercise, item);
-      if (!slot) continue;
       const at = change.position ? Math.min(change.position - 1, result.length) : result.length;
-      // Added between two members of a group, it joins the group - an ungrouped
-      // slot there would split the circuit and drop its tail out of it.
-      const around = result[at - 1]?.groupId;
-      if (around !== undefined && result[at]?.groupId === around) slot.groupId = around;
-      result.splice(at, 0, slot);
-      lines.push(`+ ${typeName(ctx, slot.typeId)}${Object.keys(change.exercise.values).length ? ` (${Object.entries(change.exercise.values).filter(([k]) => k !== "notes").map(([k, v]) => `${k} ${show(v)}`).join(", ")})` : ""}`);
+      const before = result.length;
+      const built = insertItem(ctx, { exercises: result, groups }, change.exercise, at, item);
+      if (built.exercises.length === before) continue;
+      result = built.exercises;
+      groups = built.groups;
+      const it = change.exercise;
+      if (isCircuitItem(it)) lines.push(`+ ${circuitLabel(it)}${it.rounds ? ` (${it.rounds} rounds)` : ""}`);
+      else lines.push(`+ ${it.exerciseTypeName}${Object.keys(it.values).length ? ` (${Object.entries(it.values).filter(([k]) => k !== "notes").map(([k, v]) => `${k} ${show(v)}`).join(", ")})` : ""}`);
+    } else if (change.action === "editCircuit") {
+      const group = findGroup(change.circuit);
+      if (!group) continue;
+      const next: ExerciseGroup = { ...group, ...change.set };
+      const diff = (["name", "rounds", "transition", "roundRest"] as const)
+        .filter((k) => change.set[k] !== undefined && change.set[k] !== group[k])
+        .map((k) => `${k} ${show(group[k])} → ${show(change.set[k])}`);
+      groups = (groups ?? []).map((g) => (g.id === group.id ? next : g));
+      lines.push(`~ circuit ${group.name || "Circuit"}${diff.length ? `: ${diff.join(", ")}` : ""}`);
+    } else if (change.action === "removeCircuit") {
+      const group = findGroup(change.circuit);
+      if (!group) continue;
+      result = result.filter((s) => s.groupId !== group.id);
+      groups = (groups ?? []).filter((g) => g.id !== group.id);
+      lines.push(`− circuit ${group.name || "Circuit"}`);
     } else if (change.action === "remove") {
       const i = find(change.match.exerciseTypeName, change.match.occurrence);
       if (i === undefined) continue;
@@ -334,7 +445,8 @@ function applyExerciseChanges(ctx: Ctx, slots: ExerciseSlot[], changes: CSExerci
       lines.push(`~ ${label}${diff.length ? `: ${diff.join(", ")}` : ""}`);
     }
   }
-  return { slots: result, lines };
+  const tidy = normaliseGroups({ exercises: result, groups });
+  return { slots: tidy.exercises, groups: tidy.groups, lines };
 }
 
 /** Applies session changes to a list of sessions (template or workout shaped). */
@@ -384,11 +496,14 @@ function applySessionChanges<T extends EditableSession>(
     }
     const label = sessionLabel(target);
     if (change.exercises) {
-      next.exercises = buildSlots(ctx, change.exercises, item);
+      const built = buildItems(ctx, change.exercises, item);
+      next.exercises = built.exercises;
+      next.groups = built.groups;
       fieldLines.push(`exercises replaced (${target.exercises.length} → ${next.exercises.length})`);
     } else if (change.exerciseChanges) {
-      const r = applyExerciseChanges(ctx, target.exercises, change.exerciseChanges, item, `${where} ${label}`);
+      const r = applyExerciseChanges(ctx, target.exercises, target.groups, change.exerciseChanges, item, `${where} ${label}`);
       next.exercises = r.slots;
+      next.groups = r.groups;
       fieldLines.push(...r.lines);
     }
     result = result.map((s) => (s === target ? next : s));
@@ -462,7 +577,10 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     weekState: new Map(),
     weekOrigin: new Map(),
     weekNotes: [...state.weekNotes],
-    changed: { types: false, phases: false, templates: false, blocks: false },
+    circuits: (state.circuits ?? []).map((c) => ({ ...c })),
+    circuitOrigin: new Map(),
+    untickedCircuitNames: new Set(),
+    changed: { types: false, phases: false, templates: false, blocks: false, circuits: false },
   };
   const items: ChangeItem[] = [];
   const noteWrites = new Map<string, string>();
@@ -535,6 +653,82 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         ctx.untickedTypeNames.add(normalizeName(change.rename));
       }
     }
+  });
+
+  // --- 1b. Saved circuits (before phases and weeks, so their sessions can use them) ---
+  set.circuits.forEach((change, i) => {
+    const id = `circuit-${i}`;
+    const item: ChangeItem = { id, section: "circuit", title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+    const existing = findCircuit(ctx, change.name);
+    const timingLine = (c: { rounds?: number; transition?: number; roundRest?: number }) =>
+      [c.rounds !== undefined ? `${c.rounds} rounds` : undefined, c.transition !== undefined ? `${c.transition} s between` : undefined, c.roundRest !== undefined ? `${c.roundRest} s after each round` : undefined].filter(Boolean).join(" · ");
+    if (change.action === "add") {
+      item.title = `+ circuit ${change.name}`;
+      if (existing) {
+        item.errors.push(`A circuit called "${existing.name}" is already saved - use "edit" to change it.`);
+        return;
+      }
+      const exercises = buildSlots(ctx, change.exercises, item);
+      item.details.push(timingLine(change), exercises.map((s) => typeName(ctx, s.typeId)).join(" · "));
+      if (!on) {
+        ctx.untickedCircuitNames.add(normalizeName(change.name));
+        return;
+      }
+      if (item.errors.length) return;
+      ctx.circuits.push({
+        id: newId(), name: change.name, ...(change.description ? { description: change.description } : {}),
+        rounds: change.rounds ?? 1, ...(change.transition !== undefined ? { transition: change.transition } : {}), ...(change.roundRest !== undefined ? { roundRest: change.roundRest } : {}),
+        exercises,
+      });
+      ctx.circuitOrigin.set(normalizeName(change.name), id);
+      ctx.changed.circuits = true;
+      return;
+    }
+    item.title = `${change.action === "delete" ? "−" : "~"} circuit ${change.name}`;
+    if (!existing) {
+      item.errors.push(`No saved circuit called "${change.name}".`);
+      return;
+    }
+    if (change.action === "delete") {
+      item.details.push("Sessions that already have it keep their copy.");
+      if (on) {
+        ctx.circuits = ctx.circuits.filter((c) => c.id !== existing.id);
+        ctx.changed.circuits = true;
+      }
+      return;
+    }
+    const next: Circuit = { ...existing };
+    if (change.rename && change.rename !== existing.name) {
+      const clash = findCircuit(ctx, change.rename);
+      if (clash && clash.id !== existing.id) item.errors.push(`Can't rename to "${change.rename}" - that name is taken.`);
+      item.details.push(`name ${existing.name} → ${change.rename}`);
+      next.name = change.rename;
+    }
+    for (const k of ["rounds", "transition", "roundRest"] as const) {
+      if (change[k] !== undefined && change[k] !== existing[k]) {
+        item.details.push(`${k} ${show(existing[k])} → ${change[k]}`);
+        next[k] = change[k] as number;
+      }
+    }
+    if (change.description) {
+      item.details.push(`note → "${change.description}"`);
+      next.description = change.description;
+    }
+    if (change.exercises) {
+      next.exercises = buildSlots(ctx, change.exercises, item);
+      item.details.push(`exercises: ${next.exercises.map((s) => typeName(ctx, s.typeId)).join(" · ")}`);
+    }
+    item.details.push("Only sessions it's added to from now on get the new version.");
+    if (!on) {
+      if (change.rename) ctx.untickedCircuitNames.add(normalizeName(change.rename));
+      return;
+    }
+    if (item.errors.length) return;
+    ctx.circuits = ctx.circuits.map((c) => (c.id === existing.id ? next : c));
+    ctx.circuitOrigin.set(normalizeName(next.name), id);
+    ctx.changed.circuits = true;
   });
 
   // --- 2. Phases ---
@@ -899,6 +1093,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     ...(ctx.changed.blocks ? { trainingBlocks: ctx.blocks } : {}),
     ...(alternativesChanged ? { planAlternatives: alternatives } : {}),
     ...(coachNotesChanged ? { coachNotes } : {}),
+    ...(ctx.changed.circuits ? { circuits: ctx.circuits } : {}),
     weeks: [...ctx.weekState.entries()].map(([weekId, w]) => ({ weekId, planned: w.planned, customized: w.customized })),
     weekNotes: [...noteWrites.entries()].map(([weekId, text]) => ({ weekId, text })),
   };
@@ -963,6 +1158,7 @@ export function planWithSelection(set: AIChangeSet, state: PlannerState, request
 export function allItemIds(set: AIChangeSet): Set<string> {
   return new Set([
     ...set.exerciseTypes.map((_, i) => `exercise-${i}`),
+    ...set.circuits.map((_, i) => `circuit-${i}`),
     ...set.phases.map((_, i) => `phase-${i}`),
     ...set.weeks.map((_, i) => `week-${i}`),
     ...set.planB.map((_, i) => `planb-${i}`),

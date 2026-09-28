@@ -13,9 +13,9 @@
    * exception is a brand-new exercise type, which has to exist for the
    * slots to point at.
    */
-  import type { ExerciseSlot, Workout } from '../../lib/types';
+  import type { ExerciseGroup, ExerciseSlot, Workout } from '../../lib/types';
   import { trainingState } from '../../lib/state.svelte';
-  import { showAlert } from '../../lib/utils';
+  import { generateId, showAlert } from '../../lib/utils';
   import { parseAIWorkoutLogOutput } from '../../lib/ai/schema';
   import { normalizeName, type NameMapping } from '../../lib/ai/planImport';
   import { buildWorkoutLogCommit, buildWorkoutLogPreview } from '../../lib/ai/workoutLogImport';
@@ -30,7 +30,8 @@
     onClose,
   }: {
     workout: Workout;
-    onImport: (slots: ExerciseSlot[], mode: 'add' | 'replace') => void;
+    /** `circuits`: groups to make of the imported slots (by their ids), from the reply's "circuits". */
+    onImport: (slots: ExerciseSlot[], mode: 'add' | 'replace', circuits: { group: ExerciseGroup; slotIds: string[] }[]) => void;
     onClose: () => void;
   } = $props();
 
@@ -126,6 +127,20 @@
     setTimeout(() => { if (canReview) step = 'review'; }, 0);
   }
 
+  /** The reply's circuits as groups over the imported slots (slots follow the reply's exercises one to one, workout by workout). */
+  function circuitsFor(slots: ExerciseSlot[]): { group: ExerciseGroup; slotIds: string[] }[] {
+    const out: { group: ExerciseGroup; slotIds: string[] }[] = [];
+    let offset = 0;
+    for (const w of result?.data?.workouts ?? []) {
+      for (const c of w.circuits ?? []) {
+        const slotIds = c.exercises.map((p) => slots[offset + p - 1]?.id).filter((id): id is string => !!id);
+        if (slotIds.length) out.push({ group: { id: generateId(), ...(c.name ? { name: c.name } : {}), rounds: c.rounds, transition: c.transition, roundRest: c.roundRest }, slotIds });
+      }
+      offset += w.exercises.length;
+    }
+    return out;
+  }
+
   async function confirm() {
     if (!commit) return;
     committing = true;
@@ -133,7 +148,7 @@
       if (commit.newExerciseTypes.length) {
         await trainingState.updateExerciseTypes([...trainingState.exerciseTypes, ...commit.newExerciseTypes]);
       }
-      onImport(commit.slots, hasExercises ? mode : 'add');
+      onImport(commit.slots, hasExercises ? mode : 'add', circuitsFor(commit.slots));
     } catch (err: any) {
       await showAlert('Import failed', err?.message || 'Something went wrong adding the exercises.');
     } finally {

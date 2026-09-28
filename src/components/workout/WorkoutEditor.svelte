@@ -512,9 +512,11 @@
 {#if isImportingAI}
   <SessionAIModal
     {workout}
-    onImport={(slots, mode) => {
-      if (mode === 'replace') regroup({ exercises: slots, groups: undefined });
-      else workout.exercises = [...workout.exercises, ...slots];
+    onImport={(slots, mode, circuits) => {
+      let next: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] } =
+        mode === 'replace' ? { exercises: slots, groups: undefined } : { exercises: [...workout.exercises, ...slots], groups: workout.groups };
+      for (const c of circuits) next = groupSlots(next, c.slotIds, c.group);
+      regroup(next);
       isImportingAI = false;
     }}
     onClose={() => isImportingAI = false}

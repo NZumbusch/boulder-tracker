@@ -48,3 +48,23 @@ describe("buildPlanContext", () => {
     expect(text).not.toContain("PLAN B");
   });
 });
+
+describe("buildPlanContext - circuits", () => {
+  const types = [{ id: "c", name: "Core", category: "Core", parameters: ["timeOn"] as any }, { id: "p", name: "Pull-ups", category: "Strength", parameters: ["reps"] as any }];
+  const base = { exerciseTypes: types, trainingBlocks: [], workouts: [], weekOverrides: [], weekNotes: [], targetWeekIds: [] };
+
+  it("lists the saved circuits, and shows a session's circuit the way an edit would give it", () => {
+    const text = buildPlanContext({
+      ...base,
+      phaseDefs: [{ id: "ph", name: "Base", order: 1 }],
+      templates: { ph: [{ id: "t", name: "Pull", exercises: [
+        { id: "a", typeId: "p", prescribed: { reps: 6 }, groupId: "g" },
+        { id: "b", typeId: "c", prescribed: { timeOn: 45 }, groupId: "g" },
+      ], groups: [{ id: "g", name: "Pull superset", rounds: 4, roundRest: 60 }] }] },
+      circuits: [{ id: "x", name: "Core A", rounds: 3, transition: 15, exercises: [{ id: "s", typeId: "c", prescribed: { timeOn: 60 } }] }],
+    });
+    expect(text).toContain('SAVED CIRCUITS');
+    expect(text).toContain('{"name":"Core A","rounds":3,"transition":15,"exercises":[{"exerciseTypeName":"Core","values":{"timeOn":60}}]}');
+    expect(text).toContain('{"circuit":{"name":"Pull superset","rounds":4,"roundRest":60},"exercises":[{"exerciseTypeName":"Pull-ups","values":{"reps":6}},{"exerciseTypeName":"Core","values":{"timeOn":45}}]}');
+  });
+});

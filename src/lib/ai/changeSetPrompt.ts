@@ -14,12 +14,13 @@ THE SHAPE (every section is optional; use the ones you need):
 {
   "summary": "One short paragraph: what you changed and why.",
   "exerciseTypes": [ ...exercise list changes... ],
+  "circuits": [ ...saved circuit changes... ],
   "phases": [ ...phase changes... ],
   "weeks": [ ...week changes... ],
   "planB": [ ...Plan B entries... ],
   "coachNotes": [ ...coaching memory changes... ]
 }
-The app applies "exerciseTypes" first, then "phases", then "weeks", then "planB", then "coachNotes" - so a later section may use a new exercise or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
+The app applies "exerciseTypes" first, then "circuits", then "phases", then "weeks", then "planB", then "coachNotes" - so a later section may use a new exercise, circuit or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
 
 1) "exerciseTypes" - the exercise list (the Custom Exercise Modalities above)
   { "action": "add", "name": "Max Hangs 7s", "categoryName": "Fingers", "parameters": ["sets", "timeOn", "timeBetweenSets", "weight", "holdSize"] }
@@ -28,6 +29,13 @@ The app applies "exerciseTypes" first, then "phases", then "weeks", then "planB"
   - Add an exercise type BEFORE any session uses it. Every "exerciseTypeName" you use anywhere must be an existing name from the list above or one you add here.
   - "categoryName" must be one of the Analytics Categories listed above.
   - "parameters" = which fields this exercise tracks, from: ${PARAMETER_BLOCKS.join(", ")}. Omit it to let the app infer them from the values you use.
+
+1b) "circuits" - the athlete's saved circuits (see SAVED CIRCUITS above, if any): reusable circuits and supersets that sessions use by name.
+  { "action": "add", "name": "Core A", "description": "Anti-extension and rotation, strict form", "rounds": 3, "transition": 15, "roundRest": 60, "exercises": [ EXERCISE, ... ] }
+  { "action": "edit", "name": "Core A", "rename": "Core B", "rounds": 4, "exercises": [ EXERCISE, ... ] }   (give only what changes; "exercises" replaces them all)
+  { "action": "delete", "name": "Old circuit" }
+  - A session that uses a circuit gets its own copy, so editing or deleting a saved circuit only affects sessions it is added to from now on. To change a circuit inside sessions, edit those sessions ("editCircuit").
+  - Save a circuit when it will be reused across sessions or phases; a one-off can be spelled out in its session instead.
 
 2) "phases" - a phase is a named training emphasis plus its TYPICAL WEEK (the sessions every week following that phase gets). See PHASES above for each phase's current typical week.
   { "action": "add", "name": "Power", "sessions": [ SESSION, ... ] }   (empty "sessions" = a rest phase)
@@ -65,6 +73,12 @@ ${COACH_NOTES_INSTRUCTIONS}
 SESSION (used in "sessions" and in an "add" session change):
   { "name": "Limit bouldering", "dayOfWeek": "Tuesday", "startTime": "18:00", "plannedDuration": 90, "notes": "About the session as a whole", "exercises": [ EXERCISE, ... ] }
   EXERCISE: { "exerciseTypeName": "Limit Bouldering", "values": { ... } }
+  CIRCUIT (in a session's "exercises", like an EXERCISE):
+    { "circuit": "Core A" }   or   { "circuit": "Core A", "rounds": 4, "transition": 20, "roundRest": 45 }   (a saved circuit, optionally re-timed - how to progress it)
+    { "circuit": { "name": "Pull superset", "rounds": 4, "transition": 15, "roundRest": 60 }, "exercises": [ EXERCISE, ... ] }   (spelled out here)
+  - A circuit or superset is done in ROUNDS: one set of each of its exercises in order, "transition" seconds between them, "roundRest" seconds after each round (none after the last). "rounds" is required for a spelled-out circuit.
+  - Inside a circuit each exercise's "values" describe ONE SET: a time ("timeOn" seconds, e.g. 60 for a plank) or a count ("reps"), plus weight etc. Its own rest between sets ("timeBetweenSets"/"timeOff" as set rest) is ignored - the rest it really gets is everything else in the round plus the transitions and round rest. Give an exercise "sets" only if it should stop after that many rounds.
+  - Use a superset to fill a long rest efficiently: e.g. weighted pull-ups (4 x 6) with antagonist push work and a mobility drill between sets, rounds = the pull-up sets, and "roundRest" chosen so the pull-ups still get about the rest they need. Use circuits for core, prehab and conditioning blocks. Don't superset two hard finger or maximal-strength exercises with each other.
   - "name" required. "dayOfWeek" (Monday ... Sunday), "startTime" ("HH:mm", 24-hour), "plannedDuration" (whole minutes, the whole session incl. warm-up) optional.
 
 SESSION CHANGE (in "sessionChanges"):
@@ -79,6 +93,10 @@ EXERCISE CHANGE (in "exerciseChanges"):
   { "action": "add", "exercise": EXERCISE, "position": 1 }   ("position" 1-based, optional - default is at the end)
   { "action": "remove", "match": { "exerciseTypeName": "Core" } }
   { "action": "edit", "match": { "exerciseTypeName": "Hangboard", "occurrence": 2 }, "values": { "sets": 6, "weight": null }, "exerciseTypeName": "Max Hangs 7s" }
+  { "action": "add", "exercise": CIRCUIT, "position": 3 }   (a whole circuit; never placed inside another one)
+  { "action": "editCircuit", "circuit": "Core A", "set": { "rounds": 4, "transition": 10, "roundRest": 45, "name": "Core A+" } }   (re-time or rename a circuit already in the session - give only what changes)
+  { "action": "removeCircuit", "circuit": "Core A" }   (removes the circuit and all its exercises)
+  - Exercises inside a circuit are edited, added and removed like any other ("edit"/"remove" by "exerciseTypeName"); one added at a "position" between two of its exercises joins that circuit.
   - "values" in an edit are MERGED into the existing ones: give only fields that change; null removes a field. "exerciseTypeName" in an edit (optional) swaps the exercise type, keeping its values.
   - "occurrence" (1-based) is only needed when the same exercise appears more than once in the session.
 

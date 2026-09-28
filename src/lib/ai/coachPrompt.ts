@@ -188,6 +188,7 @@ export function buildCoachPromptFor(
         weekOverrides: source.weekOverrides,
         weekNotes: source.weekNotes,
         planAlternatives: source.planAlternatives,
+        circuits: source.circuits,
         targetWeekIds,
         uncertainDays: opts.uncertainDays,
       })

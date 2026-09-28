@@ -90,3 +90,40 @@ describe("isChangeSetShape", () => {
     expect(isChangeSetShape({ weeks: [{ weekId: "2026-W40", phaseName: "X", workouts: [] }] })).toBe(false);
   });
 });
+
+describe("validateChangeSet - circuits", () => {
+  const session = (exercises: unknown[]) => ({ weeks: [{ week: "2026-W40", sessions: [{ name: "S", exercises }] }] });
+
+  it("accepts a saved circuit by name (re-timed) and one spelled out", () => {
+    const r = validateChangeSet(session([
+      { circuit: "Core A", rounds: "4" },
+      { circuit: { name: "Pull", rounds: 3, roundRest: 90 }, exercises: [{ exerciseTypeName: "Pull-ups", values: { reps: 6 } }] },
+    ]));
+    expect(r.valid).toBe(true);
+    expect(r.data!.weeks[0].sessions![0].exercises).toEqual([
+      { circuit: "Core A", saved: true, exercises: [], rounds: 4 },
+      { circuit: "Pull", saved: false, rounds: 3, roundRest: 90, exercises: [expect.objectContaining({ exerciseTypeName: "Pull-ups" })] },
+    ]);
+  });
+
+  it("needs rounds and exercises for a spelled-out circuit, and sane numbers", () => {
+    expect(validateChangeSet(session([{ circuit: { name: "X" }, exercises: [{ exerciseTypeName: "A", values: {} }] }])).valid).toBe(false);
+    expect(validateChangeSet(session([{ circuit: { rounds: 3 }, exercises: [] }])).valid).toBe(false);
+    expect(validateChangeSet(session([{ circuit: "X", transition: -5 }])).valid).toBe(false);
+  });
+
+  it("takes circuit changes in sessions and a circuits section on its own", () => {
+    const r = validateChangeSet({
+      circuits: [{ action: "add", name: "Core A", rounds: 3, exercises: [{ exerciseTypeName: "Core", values: {} }] }, { action: "delete", name: "Old" }],
+      phases: [{ action: "edit", name: "P", sessionChanges: [{ action: "edit", match: { name: "S" }, exerciseChanges: [
+        { action: "editCircuit", circuit: "Core A", set: { rounds: 4 } },
+        { action: "removeCircuit", circuit: "Old one" },
+        { action: "add", exercise: { circuit: "Core A" }, position: 2 },
+      ] }] }],
+    });
+    expect(r.valid).toBe(true);
+    expect(r.data!.circuits).toHaveLength(2);
+    expect(validateChangeSet({ circuits: [{ action: "add", name: "Empty", rounds: 3, exercises: [] }] }).valid).toBe(false);
+    expect(validateChangeSet({ circuits: [{ action: "edit", name: "Core A" }] }).valid).toBe(false);
+  });
+});

@@ -73,6 +73,10 @@ Respond with ONLY one JSON object - no markdown fences, no text before or after 
 
 ${whatToReturn}
 
+CIRCUITS AND SUPERSETS (optional): exercises done in rounds go next to each other in "exercises", and the workout gets
+  "circuits": [ { "name": "Core A", "rounds": 3, "transition": 15, "roundRest": 60, "exercises": [2, 3, 4] } ]
+  where "exercises" are the 1-based positions of its exercises in this reply (consecutive). A round is one set of each, "transition" seconds apart, "roundRest" seconds after each round. Inside a circuit each exercise's "values" describe ONE SET (a time "timeOn" in seconds, or "reps"); its own rest between sets is ignored. Use a superset to fill a long rest (e.g. antagonist work between weighted pull-up sets, rounds = the pull-up sets).
+
 EXERCISE NAMES - use one of my existing exercises whenever it fits, spelled exactly as listed. Only invent a new name when nothing here fits; then also give "categoryName", chosen from the categories below.
 My exercises (name, category, tracked fields):
 ${buildExerciseModalities(exerciseTypes).map((m) => JSON.stringify(m)).join("\n")}

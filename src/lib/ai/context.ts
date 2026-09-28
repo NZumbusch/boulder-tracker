@@ -94,6 +94,8 @@ export function buildAnalyticsCategorySummaries(categories: AnalyticsCategory[])
 
 export interface RecentWorkoutExerciseSummary {
   name: string;
+  /** The circuit/superset it was done in, e.g. "Core A (3 rounds)". */
+  circuit?: string;
   duration?: number;
   sets?: number;
   reps?: number;
@@ -134,8 +136,10 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
     systemic: w.systemic,
     exercises: w.exercises.map((e) => {
       const v = slotValues(e);
+      const group = e.groupId ? w.groups?.find((g) => g.id === e.groupId) : undefined;
       return {
         name: slotTypeName(e, exerciseTypes),
+        ...(group ? { circuit: `${group.name || "circuit"} (${group.rounds} rounds)` } : {}),
         duration: v.duration,
         sets: v.sets,
         // Reps per set, as before - `sets` is sent beside it, so the total

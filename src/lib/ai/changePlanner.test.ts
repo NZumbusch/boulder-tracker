@@ -224,3 +224,78 @@ describe("planChanges - circuits survive edits", () => {
     expect(volume.exercises.map((e) => e.groupId)).toEqual(["g1", "g1", "g1"]);
   });
 });
+
+describe("planChanges - circuits", () => {
+  function withLibrary(doc: unknown) {
+    const s = state();
+    s.circuits = [{ id: "c-core", name: "Core A", rounds: 3, transition: 15, roundRest: 60, exercises: [{ id: "cs1", typeId: "core", prescribed: { sets: 1 } }] }];
+    const v = validateChangeSet(doc);
+    if (!v.valid) throw new Error(JSON.stringify(v.issues));
+    return planWithSelection(v.data!, s, allItemIds(v.data!), ids);
+  }
+  const week = (sessions: unknown) => ({ weeks: [{ week: "2026-W40", sessions }] });
+
+  it("spells a circuit out in a session as a group of its exercises", () => {
+    const r = withLibrary(week([{ name: "Strength", exercises: [
+      { exerciseTypeName: "Hangboard", values: { sets: 5 } },
+      { circuit: { name: "Antagonists", rounds: 4, transition: 15, roundRest: 90 }, exercises: [{ exerciseTypeName: "Core", values: {} }, { exerciseTypeName: "Limit Bouldering", values: {} }] },
+    ] }]));
+    const w = r.writes.weeks[0].planned![0];
+    expect(w.groups).toEqual([expect.objectContaining({ name: "Antagonists", rounds: 4, transition: 15, roundRest: 90 })]);
+    expect(w.exercises.map((e) => !!e.groupId)).toEqual([false, true, true]);
+  });
+
+  it("copies a saved circuit in by name, re-timed, and remembers where it came from", () => {
+    const r = withLibrary(week([{ name: "Core day", exercises: [{ circuit: "core a", rounds: 4 }] }]));
+    const w = r.writes.weeks[0].planned![0];
+    expect(w.groups![0]).toMatchObject({ name: "Core A", rounds: 4, transition: 15, roundRest: 60, circuitId: "c-core" });
+    expect(w.exercises[0].id).not.toBe("cs1");
+  });
+
+  it("reports a circuit that isn't saved", () => {
+    const r = withLibrary(week([{ name: "X", exercises: [{ circuit: "Nope" }] }]));
+    expect(r.items[0].errors[0]).toContain('No saved circuit called "Nope"');
+  });
+
+  it("adds a circuit to the library that sessions in the same change set can use - and unticks them with it", () => {
+    const doc = {
+      circuits: [{ action: "add", name: "Pull superset", rounds: 4, roundRest: 60, exercises: [{ exerciseTypeName: "Hangboard", values: { reps: 6 } }] }],
+      ...week([{ name: "Pull", exercises: [{ circuit: "Pull superset" }] }]),
+    };
+    const r = withLibrary(doc);
+    expect(r.writes.circuits!.map((c) => c.name)).toEqual(["Core A", "Pull superset"]);
+    expect(r.items.find((i) => i.id === "week-0")!.dependsOn).toEqual(["circuit-0"]);
+
+    const v = validateChangeSet(doc);
+    const s = state();
+    const unticked = planWithSelection(v.data!, s, new Set(["week-0"]), ids);
+    expect(unticked.selected.has("week-0")).toBe(false);
+  });
+
+  it("edits and removes circuits inside a session, and progresses one", () => {
+    const s = state();
+    const volume = s.templates["p-cap"][1];
+    s.templates["p-cap"][1] = { ...volume, exercises: volume.exercises.map((e) => ({ ...e, groupId: "g1" })), groups: [{ id: "g1", name: "Core circuit", rounds: 3 }] };
+    const run = (exerciseChanges: unknown[]) => {
+      const v = validateChangeSet({ phases: [{ action: "edit", name: "Capacity", sessionChanges: [{ action: "edit", match: { name: "Volume" }, exerciseChanges }] }] });
+      if (!v.valid) throw new Error(JSON.stringify(v.issues));
+      return planChanges(v.data!, s, undefined, ids);
+    };
+    const edited = run([{ action: "editCircuit", circuit: "core circuit", set: { rounds: 4, roundRest: 60 } }]);
+    const t = edited.writes.templates!["p-cap"].find((x) => x.name === "Volume")!;
+    expect(t.groups).toEqual([{ id: "g1", name: "Core circuit", rounds: 4, roundRest: 60 }]);
+    expect(edited.items[0].details.join("\n")).toContain("rounds 3 → 4");
+
+    const removed = run([{ action: "removeCircuit", circuit: "Core circuit" }]);
+    const r = removed.writes.templates!["p-cap"].find((x) => x.name === "Volume")!;
+    expect(r.exercises).toEqual([]);
+    expect(r.groups).toBeUndefined();
+  });
+
+  it("edits and deletes saved circuits", () => {
+    const r = withLibrary({ circuits: [{ action: "edit", name: "Core A", rounds: 4, rename: "Core B" }] });
+    expect(r.writes.circuits).toEqual([expect.objectContaining({ id: "c-core", name: "Core B", rounds: 4 })]);
+    const d = withLibrary({ circuits: [{ action: "delete", name: "Core A" }] });
+    expect(d.writes.circuits).toEqual([]);
+  });
+});

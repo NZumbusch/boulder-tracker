@@ -9,12 +9,13 @@
  * exercises[{exerciseTypeName, values}]) so the AI can copy what it sees
  * into an edit. One compact JSON object per line keeps the prompt short.
  */
-import type { DayOfWeek, ExerciseSlot, ExerciseTypeDef, PhaseDef, PlanAlternative, TrainingBlock, WeekNote, WeekOverride, Workout, WorkoutTemplate } from "../types";
+import type { Circuit, DayOfWeek, ExerciseGroup, ExerciseSlot, ExerciseTypeDef, PhaseDef, PlanAlternative, TrainingBlock, WeekNote, WeekOverride, Workout, WorkoutTemplate } from "../types";
 import { allOccurrenceKeys, describeChanges, occurrenceFirstDay, weekAndDayOf } from "../planning/planB";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { sortWorkoutsBySchedule } from "../planning/sortWorkouts";
 import { weekNoteText } from "../planning/notes";
 import { slotValues } from "../exerciseSlot";
+import { workoutItems } from "../exercise/groups";
 
 export interface PlanContextInput {
   exerciseTypes: ExerciseTypeDef[];
@@ -29,6 +30,8 @@ export interface PlanContextInput {
   targetWeekIds: string[];
   /** Days the athlete marked as uncertain in every target week - the AI is asked to give them a Plan B. */
   uncertainDays?: DayOfWeek[];
+  /** The saved-circuit library, listed so sessions can use a circuit by name. */
+  circuits?: Circuit[];
 }
 
 type Session = {
@@ -37,32 +40,54 @@ type Session = {
   startTime?: string;
   plannedDuration?: number;
   notes?: string;
-  exercises: { exerciseTypeName: string; values?: Record<string, unknown> }[];
+  exercises: (Exercise | { circuit: Record<string, unknown>; exercises: Exercise[] })[];
 };
+type Exercise = { exerciseTypeName: string; values?: Record<string, unknown> };
 
 /** Drops undefined/empty fields so the line stays short. */
 function compact<T extends Record<string, unknown>>(o: T): T {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0))) as T;
 }
 
-function exercisesOf(slots: ExerciseSlot[], types: ExerciseTypeDef[]): Session["exercises"] {
-  return slots.map((s) => {
-    const values = compact({ ...(s.prescribed ?? slotValues(s)) } as Record<string, unknown>);
-    return compact({ exerciseTypeName: types.find((t) => t.id === s.typeId)?.name ?? "Unknown", values: Object.keys(values).length ? values : undefined }) as Session["exercises"][number];
-  });
+function exerciseOf(s: ExerciseSlot, types: ExerciseTypeDef[]): Exercise {
+  const values = compact({ ...(s.prescribed ?? slotValues(s)) } as Record<string, unknown>);
+  return compact({ exerciseTypeName: types.find((t) => t.id === s.typeId)?.name ?? "Unknown", values: Object.keys(values).length ? values : undefined }) as Exercise;
+}
+
+/** A session's exercises in the change-set shape - a circuit spelled out the way an edit would give it. */
+function exercisesOf(w: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }, types: ExerciseTypeDef[]): Session["exercises"] {
+  return workoutItems(w).map((item) =>
+    item.kind === "slot"
+      ? exerciseOf(item.slot, types)
+      : {
+          circuit: compact({ name: item.group.name, rounds: item.group.rounds, transition: item.group.transition, roundRest: item.group.roundRest }),
+          exercises: item.members.map((m) => exerciseOf(m.slot, types)),
+        },
+  );
 }
 
 function templateSession(t: WorkoutTemplate, types: ExerciseTypeDef[]): Session {
-  return compact({ name: t.name, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, notes: t.description, exercises: exercisesOf(t.exercises ?? [], types) }) as Session;
+  return compact({ name: t.name, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, notes: t.description, exercises: exercisesOf({ exercises: t.exercises ?? [], groups: t.groups }, types) }) as Session;
 }
 
 function workoutSession(w: Workout, types: ExerciseTypeDef[]): Session {
-  return compact({ name: w.notes, dayOfWeek: w.dayOfWeek, startTime: w.startTime, plannedDuration: w.plannedDuration, notes: w.description, exercises: exercisesOf(w.exercises, types) }) as Session;
+  return compact({ name: w.notes, dayOfWeek: w.dayOfWeek, startTime: w.startTime, plannedDuration: w.plannedDuration, notes: w.description, exercises: exercisesOf(w, types) }) as Session;
 }
 
 export function buildPlanContext(input: PlanContextInput): string {
   const { exerciseTypes: types, phaseDefs, templates, trainingBlocks, workouts, weekOverrides, weekNotes, targetWeekIds } = input;
   const lines: string[] = [];
+
+  if (input.circuits?.length) {
+    lines.push('SAVED CIRCUITS - use one in a session as { "circuit": "<name>" } (add "rounds"/"transition"/"roundRest" to re-time it):');
+    for (const c of input.circuits) {
+      lines.push(JSON.stringify(compact({
+        name: c.name, description: c.description, rounds: c.rounds, transition: c.transition, roundRest: c.roundRest,
+        exercises: c.exercises.map((s) => exerciseOf(s, types)),
+      })));
+    }
+    lines.push("");
+  }
 
   lines.push("PHASES - each phase's typical week (what every week following that phase gets):");
   for (const phase of phaseDefs.filter((p) => !p.archived).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {

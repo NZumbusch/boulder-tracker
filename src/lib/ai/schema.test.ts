@@ -760,3 +760,18 @@ describe("notes in the plan contract", () => {
     expect(result.data!.weeks[0].notes).toBe("Travel week - hotel gym only");
   });
 });
+
+describe("validateAIWorkoutLogOutput - circuits", () => {
+  const ex = (n: string) => ({ exerciseTypeName: n, values: {} });
+  it("keeps a circuit over consecutive exercises and drops one that doesn't fit, importing the exercises anyway", () => {
+    const r = validateAIWorkoutLogOutput({ workouts: [{ exercises: [ex("A"), ex("B"), ex("C")], circuits: [
+      { name: "Core", rounds: 3, transition: 15, exercises: [2, 3] },
+      { rounds: 2, exercises: [1, 3] },
+      { rounds: 2, exercises: [3] },
+    ] }] });
+    expect(r.valid).toBe(true);
+    expect(r.data!.workouts[0].circuits).toEqual([{ name: "Core", rounds: 3, transition: 15, exercises: [2, 3] }]);
+    expect(r.data!.workouts[0].exercises).toHaveLength(3);
+    expect(r.repairs.length).toBe(2);
+  });
+});

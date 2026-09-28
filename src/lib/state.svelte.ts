@@ -1216,6 +1216,7 @@ class TrainingState {
       weekNotes: this.weekNotes,
       planAlternatives: this.planAlternatives,
       coachNotes: this.coachNotes,
+      circuits: this.circuits,
       today: localIsoDate(),
       currentWeekId: this.currentWeekId,
     };

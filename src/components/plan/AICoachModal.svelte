@@ -157,6 +157,7 @@
 
   const SECTIONS: { id: ChangeSection; label: string; icon: string }[] = [
     { id: 'exercise', label: 'Exercises', icon: 'ic:baseline-fitness-center' },
+    { id: 'circuit', label: 'Circuits', icon: 'ic:baseline-repeat' },
     { id: 'phase', label: 'Phases', icon: 'ic:baseline-view-week' },
     { id: 'week', label: 'Weeks', icon: 'ic:baseline-calendar-month' },
     { id: 'planB', label: 'Plan B', icon: 'ic:baseline-call-split' },

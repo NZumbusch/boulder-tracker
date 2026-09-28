@@ -135,6 +135,18 @@ export interface AIWorkoutLogWorkout {
   date?: string;
   name?: string;
   exercises: AIExercise[];
+  /** Circuits/supersets among `exercises` (session AI only). */
+  circuits?: AILogCircuit[];
+}
+
+/** A circuit in a one-session reply: its timing, and which of the workout's exercises are in it. */
+export interface AILogCircuit {
+  name?: string;
+  rounds: number;
+  transition?: number;
+  roundRest?: number;
+  /** 1-based positions in the workout's `exercises`, consecutive. */
+  exercises: number[];
 }
 
 export interface AIWorkoutLogOutput {
@@ -681,7 +693,42 @@ function validateWorkoutLogWorkout(raw: unknown, path: string, issues: Validatio
   }
   const name = validateOptionalString(raw.name, `${path}.name`, issues);
   const exercises = validateExercises(raw.exercises, `${path}.exercises`, issues);
-  return { date, name, exercises };
+  const circuits = raw.circuits === undefined ? [] : validateLogCircuits(raw.circuits, exercises.length, `${path}.circuits`, issues);
+  return { date, name, exercises, ...(circuits.length ? { circuits } : {}) };
+}
+
+/**
+ * The optional `circuits` of a one-session reply. A circuit that doesn't
+ * fit (positions out of range, not consecutive, overlapping another) is
+ * dropped as a repair - the exercises still import, just not grouped.
+ */
+function validateLogCircuits(raw: unknown, count: number, path: string, issues: ValidationIssue[]): AILogCircuit[] {
+  if (!Array.isArray(raw)) {
+    pushRepair(issues, path, "Not an array - circuits ignored.");
+    return [];
+  }
+  const taken = new Set<number>();
+  const out: AILogCircuit[] = [];
+  raw.forEach((c, i) => {
+    const at = `${path}[${i}]`;
+    const num = (v: unknown, min: number, max: number) => (typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : undefined);
+    if (!isPlainObject(c)) return pushRepair(issues, at, "Not a circuit object - ignored.");
+    const rounds = num(c.rounds, 1, 50);
+    const positions = Array.isArray(c.exercises) ? c.exercises.map((p) => num(p, 1, count)) : [];
+    const ok = rounds !== undefined && positions.length > 0 && positions.every((p, j) => p !== undefined && (j === 0 || p === positions[j - 1]! + 1) && !taken.has(p));
+    if (!ok) return pushRepair(issues, at, 'Needs "rounds" and "exercises": consecutive 1-based positions not in another circuit - ignored, the exercises import ungrouped.');
+    positions.forEach((p) => taken.add(p!));
+    const transition = num(c.transition, 0, 3600);
+    const roundRest = num(c.roundRest, 0, 3600);
+    out.push({
+      ...(typeof c.name === "string" && c.name.trim() ? { name: c.name.trim() } : {}),
+      rounds: rounds!,
+      ...(transition !== undefined ? { transition } : {}),
+      ...(roundRest !== undefined ? { roundRest } : {}),
+      exercises: positions as number[],
+    });
+  });
+  return out;
 }
 
 /**

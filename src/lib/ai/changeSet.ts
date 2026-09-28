@@ -9,6 +9,8 @@
  *   planB         - uncertain days: what Plan B does differently from the
  *                   plan the sections above produced (see `PlanAlternative`)
  *   coachNotes    - the coaching memory every future AI reads (`coachNotes.ts`)
+ *   circuits      - the saved-circuit library (`lib/exercise/circuits.ts`),
+ *                   applied right after exerciseTypes so sessions can use them
  *
  * This module is structure only: shapes, types, repairs. Whether a named
  * phase, session or exercise actually exists is the planner's job
@@ -43,6 +45,37 @@ export const PARAMETER_BLOCKS = Object.keys(PARAMETER_LABELS) as ParameterBlock[
 
 // --- Shapes ---------------------------------------------------------------
 
+export interface CSCircuitTiming {
+  rounds?: number;
+  /** Seconds between exercises within a round. */
+  transition?: number;
+  /** Seconds after each round. */
+  roundRest?: number;
+}
+
+/**
+ * A circuit or superset among a session's exercises: a saved one by name
+ * (`saved`, optionally re-timed - a progression), or one spelled out with
+ * its own exercises. Becomes an `ExerciseGroup` with its members.
+ */
+export interface CSCircuit extends CSCircuitTiming {
+  circuit: string;
+  saved: boolean;
+  exercises: AIExercise[];
+}
+
+/** One entry in a session's exercise list. */
+export type CSItem = AIExercise | CSCircuit;
+
+export function isCircuitItem(item: CSItem): item is CSCircuit {
+  return "circuit" in item;
+}
+
+export type CSCircuitChange =
+  | ({ action: "add"; name: string; description?: string; exercises: AIExercise[] } & CSCircuitTiming)
+  | ({ action: "edit"; name: string; rename?: string; description?: string; exercises?: AIExercise[] } & CSCircuitTiming)
+  | { action: "delete"; name: string };
+
 export interface CSSession {
   name: string;
   dayOfWeek?: DayOfWeek;
@@ -50,7 +83,7 @@ export interface CSSession {
   plannedDuration?: number;
   /** A note about the session as a whole (shown with the session, not on an exercise). */
   notes?: string;
-  exercises: AIExercise[];
+  exercises: CSItem[];
 }
 
 /** Picks one existing session: by name, by day, or both. */
@@ -66,7 +99,11 @@ export interface CSExerciseMatch {
 }
 
 export type CSExerciseChange =
-  | { action: "add"; exercise: AIExercise; /** 1-based; appended when absent. */ position?: number }
+  | { action: "add"; exercise: CSItem; /** 1-based; appended when absent. */ position?: number }
+  /** Re-times or renames a circuit already in the session, found by its name. */
+  | { action: "editCircuit"; circuit: string; set: CSCircuitTiming & { name?: string } }
+  /** Removes a circuit and all its exercises from the session. */
+  | { action: "removeCircuit"; circuit: string }
   | {
       action: "edit";
       match: CSExerciseMatch;
@@ -94,7 +131,7 @@ export type CSSessionChange =
       match: CSSessionMatch;
       set: CSSessionFields;
       /** Replace every exercise. Exclusive with `exerciseChanges`. */
-      exercises?: AIExercise[];
+      exercises?: CSItem[];
       exerciseChanges?: CSExerciseChange[];
     }
   | { action: "remove"; match: CSSessionMatch };
@@ -157,6 +194,7 @@ export interface AIChangeSet {
   weeks: CSWeekChange[];
   planB: CSPlanB[];
   coachNotes: CoachNoteChange[];
+  circuits: CSCircuitChange[];
 }
 
 // --- Validation -----------------------------------------------------------
@@ -188,6 +226,105 @@ function validateParameters(raw: unknown, path: string, issues: Issues): Paramet
   return result;
 }
 
+function wholeNumber(raw: unknown, path: string, issues: Issues, min: number, max: number, what: string): number | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const n = typeof raw === "string" ? Number(raw) : raw;
+  if (typeof n === "number" && Number.isFinite(n) && n >= min && n <= max) return Math.round(n);
+  issues.push({ path, message: `Expected ${what} (${min}-${max}), got ${JSON.stringify(raw)}.` });
+  return undefined;
+}
+
+function validateTiming(raw: Record<string, unknown>, path: string, issues: Issues): CSCircuitTiming {
+  const timing: CSCircuitTiming = {
+    rounds: wholeNumber(raw.rounds, `${path}.rounds`, issues, 1, 50, "a number of rounds"),
+    transition: wholeNumber(raw.transition, `${path}.transition`, issues, 0, 3600, "seconds"),
+    roundRest: wholeNumber(raw.roundRest, `${path}.roundRest`, issues, 0, 3600, "seconds"),
+  };
+  return Object.fromEntries(Object.entries(timing).filter(([, v]) => v !== undefined)) as CSCircuitTiming;
+}
+
+/**
+ * `{ "circuit": "Core A", "rounds": 4 }` - a saved circuit, maybe re-timed -
+ * or `{ "circuit": { "name": ..., "rounds": 3, ... }, "exercises": [...] }`,
+ * one spelled out here.
+ */
+function validateCircuitItem(raw: Record<string, unknown>, path: string, issues: Issues): CSCircuit | null {
+  if (typeof raw.circuit === "string") {
+    const name = raw.circuit.trim();
+    if (!name) {
+      issues.push({ path: `${path}.circuit`, message: "Name the saved circuit." });
+      return null;
+    }
+    if (raw.exercises !== undefined) pushRepair(issues, `${path}.exercises`, "A saved circuit brings its own exercises - ignored. Spell a circuit out with an object instead.");
+    return { circuit: name, saved: true, exercises: [], ...validateTiming(raw, path, issues) };
+  }
+  if (!isPlainObject(raw.circuit)) {
+    issues.push({ path: `${path}.circuit`, message: `Expected a saved circuit's name or { "name", "rounds", "transition", "roundRest" }, got ${JSON.stringify(raw.circuit)}.` });
+    return null;
+  }
+  const timing = validateTiming(raw.circuit, `${path}.circuit`, issues);
+  if (timing.rounds === undefined) {
+    issues.push({ path: `${path}.circuit.rounds`, message: 'A circuit needs "rounds".' });
+    return null;
+  }
+  const exercises = raw.exercises === undefined ? [] : validateExercises(raw.exercises, `${path}.exercises`, issues);
+  if (exercises.length === 0) {
+    issues.push({ path: `${path}.exercises`, message: "A circuit needs its exercises." });
+    return null;
+  }
+  const name = typeof raw.circuit.name === "string" ? raw.circuit.name.trim() : "";
+  return { circuit: name, saved: false, exercises, ...timing };
+}
+
+/** One entry of a session's exercise list: an exercise, or a circuit. */
+function validateItem(raw: unknown, path: string, issues: Issues): CSItem | null {
+  if (isPlainObject(raw) && "circuit" in raw) return validateCircuitItem(raw, path, issues);
+  return validateExercise(raw, path, issues);
+}
+
+function validateItems(raw: unknown, path: string, issues: Issues): CSItem[] {
+  if (!Array.isArray(raw)) {
+    issues.push({ path, message: `Expected an array, got ${JSON.stringify(raw)}.` });
+    return [];
+  }
+  return raw.map((e, i) => validateItem(e, `${path}[${i}]`, issues)).filter((e): e is CSItem => !!e);
+}
+
+function validateCircuitChange(raw: unknown, path: string, issues: Issues): CSCircuitChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a circuit change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  if (!name) return null;
+  const description = validateNote(raw.description, `${path}.description`, issues);
+  switch (raw.action) {
+    case "add": {
+      const timing = validateTiming(raw, path, issues);
+      const exercises = raw.exercises === undefined ? [] : validateExercises(raw.exercises, `${path}.exercises`, issues);
+      if (timing.rounds === undefined) issues.push({ path: `${path}.rounds`, message: 'A new circuit needs "rounds".' });
+      if (exercises.length === 0) issues.push({ path: `${path}.exercises`, message: "A new circuit needs its exercises." });
+      if (timing.rounds === undefined || exercises.length === 0) return null;
+      return { action: "add", name, ...(description ? { description } : {}), exercises, ...timing };
+    }
+    case "edit": {
+      const timing = validateTiming(raw, path, issues);
+      const rename = validateOptionalString(raw.rename, `${path}.rename`, issues)?.trim() || undefined;
+      const exercises = raw.exercises === undefined ? undefined : validateExercises(raw.exercises, `${path}.exercises`, issues);
+      if (!rename && !description && !exercises && Object.keys(timing).length === 0) {
+        issues.push({ path, message: 'A circuit "edit" needs something to change: "rename", "description", "rounds", "transition", "roundRest" or "exercises".' });
+        return null;
+      }
+      return { action: "edit", name, ...(rename ? { rename } : {}), ...(description ? { description } : {}), ...(exercises ? { exercises } : {}), ...timing };
+    }
+    case "delete":
+      return { action: "delete", name };
+    default:
+      issues.push({ path: `${path}.action`, message: `Expected "add", "edit" or "delete", got ${JSON.stringify(raw.action)}.` });
+      return null;
+  }
+}
+
 function validateSession(raw: unknown, path: string, issues: Issues): CSSession | null {
   if (!isPlainObject(raw)) {
     issues.push({ path, message: `Expected a session object, got ${JSON.stringify(raw)}.` });
@@ -200,7 +337,7 @@ function validateSession(raw: unknown, path: string, issues: Issues): CSSession 
     startTime: validateTimeOfDay(raw.startTime, `${path}.startTime`, issues),
     plannedDuration: validateDurationMinutes(raw.plannedDuration, `${path}.plannedDuration`, issues),
     notes: validateNote(raw.notes, `${path}.notes`, issues),
-    exercises: raw.exercises === undefined ? [] : validateExercises(raw.exercises, `${path}.exercises`, issues),
+    exercises: raw.exercises === undefined ? [] : validateItems(raw.exercises, `${path}.exercises`, issues),
   };
   return name ? session : null;
 }
@@ -270,8 +407,23 @@ function validateExerciseChange(raw: unknown, path: string, issues: Issues): CSE
     return null;
   }
   switch (raw.action) {
+    case "editCircuit": {
+      const circuit = requireString(raw.circuit, `${path}.circuit`, issues);
+      const set = isPlainObject(raw.set) ? raw.set : {};
+      const timing = validateTiming(set, `${path}.set`, issues);
+      const name = validateOptionalString(set.name, `${path}.set.name`, issues)?.trim() || undefined;
+      if (circuit && Object.keys(timing).length === 0 && !name) {
+        issues.push({ path: `${path}.set`, message: 'Needs "set" with "rounds", "transition", "roundRest" or "name".' });
+        return null;
+      }
+      return circuit ? { action: "editCircuit", circuit, set: { ...timing, ...(name ? { name } : {}) } } : null;
+    }
+    case "removeCircuit": {
+      const circuit = requireString(raw.circuit, `${path}.circuit`, issues);
+      return circuit ? { action: "removeCircuit", circuit } : null;
+    }
     case "add": {
-      const exercise = validateExercise(raw.exercise, `${path}.exercise`, issues);
+      const exercise = validateItem(raw.exercise, `${path}.exercise`, issues);
       let position: number | undefined;
       if (raw.position !== undefined) {
         if (typeof raw.position === "number" && Number.isInteger(raw.position) && raw.position >= 1) position = raw.position;
@@ -294,7 +446,7 @@ function validateExerciseChange(raw: unknown, path: string, issues: Issues): CSE
       return match ? { action: "remove", match } : null;
     }
     default:
-      issues.push({ path: `${path}.action`, message: `Expected "add", "edit" or "remove", got ${JSON.stringify(raw.action)}.` });
+      issues.push({ path: `${path}.action`, message: `Expected "add", "edit", "remove", "editCircuit" or "removeCircuit", got ${JSON.stringify(raw.action)}.` });
       return null;
   }
 }
@@ -331,7 +483,7 @@ function validateSessionChange(raw: unknown, path: string, issues: Issues): CSSe
         issues.push({ path, message: 'Use either "exercises" (replace all) or "exerciseChanges" (individual edits), not both.' });
         return null;
       }
-      const exercises = raw.exercises === undefined ? undefined : validateExercises(raw.exercises, `${path}.exercises`, issues);
+      const exercises = raw.exercises === undefined ? undefined : validateItems(raw.exercises, `${path}.exercises`, issues);
       let exerciseChanges: CSExerciseChange[] | undefined;
       if (raw.exerciseChanges !== undefined) {
         if (!Array.isArray(raw.exerciseChanges)) {
@@ -610,9 +762,10 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
     weeks: validateList(raw.weeks, "weeks", issues, validateWeekChange),
     planB: validateList(raw.planB, "planB", issues, validatePlanB),
     coachNotes: validateList(raw.coachNotes, "coachNotes", issues, validateCoachNoteChange),
+    circuits: validateList(raw.circuits, "circuits", issues, validateCircuitChange),
   };
-  if (!issues.some(isError) && set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length === 0) {
-    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "exerciseTypes", "phases", "weeks", "planB" or "coachNotes".' });
+  if (!issues.some(isError) && set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length + set.circuits.length === 0) {
+    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "exerciseTypes", "circuits", "phases", "weeks", "planB" or "coachNotes".' });
   }
   return split(issues.some(isError) ? null : set, issues);
 }
@@ -620,7 +773,7 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
 /** True if a parsed document looks like a change set rather than the older weekly/phase plan formats. */
 export function isChangeSetShape(raw: unknown): boolean {
   if (!isPlainObject(raw)) return false;
-  if (raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined) return true;
+  if (raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined || raw.circuits !== undefined) return true;
   const phases = Array.isArray(raw.phases) ? raw.phases : [];
   const weeks = Array.isArray(raw.weeks) ? raw.weeks : [];
   if (phases.some((p) => isPlainObject(p) && "action" in p)) return true;
