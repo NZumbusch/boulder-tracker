@@ -5,6 +5,7 @@
    * actually get inside the group, so a superset can be tuned by eye.
    * Used by the workout editor (and by the circuit library, later).
    */
+  import type { Snippet } from 'svelte';
   import type { ExerciseGroup } from '../../lib/types';
   import type { RestComparison } from '../../lib/exercise/groups';
   import { formatSeconds } from '../../lib/exercise/groups';
@@ -19,6 +20,8 @@
     nameOf,
     onchange,
     onUngroup,
+    actions,
+    namePlaceholder = 'Circuit',
   }: {
     group: ExerciseGroup;
     minutes?: number;
@@ -28,7 +31,11 @@
     /** A member's display name by slot id, for the rest comparison. */
     nameOf: (slotId: string) => string;
     onchange: (group: ExerciseGroup) => void;
-    onUngroup: () => void;
+    /** Extra buttons beside the name (Save as circuit). */
+    actions?: Snippet;
+    namePlaceholder?: string;
+    /** Leave out where a group can't be dissolved (the circuit library). */
+    onUngroup?: () => void;
   } = $props();
 
   const set = (patch: Partial<ExerciseGroup>) => onchange({ ...group, ...patch });
@@ -46,13 +53,16 @@
     <input
       value={group.name ?? ''}
       oninput={(e) => set({ name: e.currentTarget.value || undefined })}
-      placeholder="Circuit"
+      placeholder={namePlaceholder}
       class="min-w-0 flex-1 bg-transparent text-body font-bold text-content outline-none border-b border-dashed border-border-strong focus:border-primary/60 pb-0.5 transition-colors"
     />
     {#if minutes}<span class="text-caption text-content-subtle tabular-nums shrink-0">~{formatMinutes(Math.ceil(minutes))}</span>{/if}
-    <button onclick={onUngroup} class="shrink-0 px-2 py-1 text-caption font-bold text-content-subtle hover:text-content transition-colors" title="Turn back into separate exercises">
-      Ungroup
-    </button>
+    {@render actions?.()}
+    {#if onUngroup}
+      <button onclick={onUngroup} class="shrink-0 px-2 py-1 text-caption font-bold text-content-subtle hover:text-content transition-colors" title="Turn back into separate exercises">
+        Ungroup
+      </button>
+    {/if}
   </div>
 
   <div class="grid grid-cols-3 gap-2">

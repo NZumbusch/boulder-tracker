@@ -22,6 +22,7 @@
  * are flagged, not refused.
  */
 import type {
+  Circuit,
   ExerciseGroup,
   AnalyticsCategory,
   ExerciseSlot,
@@ -102,6 +103,8 @@ export interface PlanWrites {
   planAlternatives?: PlanAlternative[];
   /** The whole coach-notes list, when it changed. */
   coachNotes?: CoachNote[];
+  /** The whole saved-circuit list, when it changed. */
+  circuits?: Circuit[];
   weeks: WeekWrite[];
   weekNotes: WeekNote[];
 }

@@ -1126,6 +1126,14 @@ const MIGRATIONS: MigrationStep[] = [
       data.coachNotes = data.coachNotes || [];
     },
   },
+  {
+    from: "3.31",
+    to: "3.32",
+    describe: "Add circuits - saved circuits/supersets (empty by default, purely additive)",
+    migrate: (data: any) => {
+      data.circuits = data.circuits || [];
+    },
+  },
 ];
 
 /**

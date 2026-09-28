@@ -175,6 +175,26 @@ export interface ExerciseSlot {
 }
 
 /**
+ * A saved circuit: a reusable group with its exercises, kept in its own
+ * library (Settings -> Circuits). Adding one to a workout or template
+ * **copies** it in (the copy's group remembers `circuitId`), so editing
+ * the library never changes a session that already has it.
+ */
+export interface Circuit {
+  id: string;
+  name: string;
+  /** What it's for, how to do it - shown in the library and sent to the AI. */
+  description?: string;
+  rounds: number;
+  /** Seconds between exercises within a round. */
+  transition?: number;
+  /** Seconds after each round. */
+  roundRest?: number;
+  /** Plans only: `prescribed` values, no `logged`, no `groupId`. */
+  exercises: ExerciseSlot[];
+}
+
+/**
  * Exercises done together in rounds - a circuit, or a superset that fills
  * one exercise's rest with others.
  *
@@ -638,6 +658,7 @@ export interface TrainingData {
   planAlternatives: PlanAlternative[];
   athleteProfile: AthleteProfile[];
   coachNotes: CoachNote[];
+  circuits: Circuit[];
   goals: GoalEvent[];
   exerciseTypes: ExerciseTypeDef[];
   templates: Record<string, WorkoutTemplate[]>;

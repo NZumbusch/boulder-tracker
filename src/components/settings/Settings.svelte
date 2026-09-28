@@ -15,6 +15,7 @@
   import BackupSettings from './BackupSettings.svelte';
   import ExportSettings from './ExportSettings.svelte';
   import CoachNotesSettings from './CoachNotesSettings.svelte';
+  import CircuitSettings from './CircuitSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import NavRow from '../common/NavRow.svelte';
@@ -161,7 +162,7 @@
 
   {#if currentTab === 'overview'}
     <div class="card py-1 divide-y divide-border">
-      <div data-tour="settings-customization"><NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} /></div>
+      <div data-tour="settings-customization"><NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, circuits, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} /></div>
       <NavRow icon="ic:baseline-color-lens" title="Appearance & Behaviour" hint="Theme, layout, timer, weather & notifications" onclick={() => { currentTab = 'design'; appearanceTopic = null; }} />
       <NavRow icon="ic:baseline-psychology" title="Coach notes" hint="About me, standing goal and what the AI coach remembers" onclick={() => currentTab = 'coach'} />
       <div data-tour="settings-data"><NavRow icon="ic:baseline-cloud-sync" title="Sync & Backup" hint="Keep your data safe: Google Drive sync, backups, start over" onclick={() => currentTab = 'backup'} /></div>
@@ -180,6 +181,7 @@
         </p>
       </div>
       <ExerciseSettings bind:exerciseTypes bind:analyticsCategories {templates} />
+      <CircuitSettings />
       <PhaseSettings bind:phaseDefs bind:templates onResetAllTemplates={resetTemplates} />
       <BenchmarkTypeSettings bind:benchmarkTypes />
     </div>

@@ -274,6 +274,7 @@ const TABLE_NOUN: Record<string, string> = {
   planAlternatives: "Plan B",
   athleteProfile: "About me",
   coachNotes: "Coach note",
+  circuits: "Circuit",
   goals: "Goal",
   templates: "Phase templates",
   phaseDefs: "Phase",

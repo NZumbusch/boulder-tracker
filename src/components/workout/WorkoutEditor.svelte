@@ -27,7 +27,9 @@
     settleAfterMove, restComparison, normaliseGroups, memberRounds,
   } from '../../lib/exercise/groups';
   import { repsPerSet } from '../../lib/exercise/reps';
-  import type { ExerciseGroup } from '../../lib/types';
+  import { circuitFromGroup, insertCircuit } from '../../lib/exercise/circuits';
+  import { toast } from '../../lib/toast.svelte';
+  import type { ExerciseGroup, Circuit } from '../../lib/types';
   import ExerciseForm from './ExerciseForm.svelte';
   import SessionAIModal from './SessionAIModal.svelte';
   import Icon from '@iconify/svelte';
@@ -60,6 +62,31 @@
   let formSlot = $state<ExerciseSlot | 'new' | null>(null);
   /** The group a new exercise joins, when it was added from inside one. */
   let addingToGroup = $state<string | null>(null);
+  /** The circuit picker ("Add circuit") is open. */
+  let pickingCircuit = $state(false);
+  /** A group being saved to the library that already came from a circuit: update it, or save a new one? */
+  let savingGroup = $state<ExerciseGroup | null>(null);
+
+  /** Saves a group to the circuit library - replacing `into`, or as a new circuit - and links the group to it. */
+  async function saveGroupAsCircuit(group: ExerciseGroup, into?: Circuit) {
+    const circuit = circuitFromGroup(workout, group.id, into ? { id: into.id, name: group.name, description: into.description } : { id: generateId(), name: group.name }, generateId);
+    savingGroup = null;
+    if (!circuit) return;
+    await trainingState.saveCircuit(circuit);
+    regroup(updateGroup(workout, { ...group, name: circuit.name, circuitId: circuit.id }));
+    toast.show(into ? `${circuit.name} updated` : `${circuit.name} saved to your circuits`);
+  }
+
+  function onSaveCircuit(group: ExerciseGroup) {
+    const linked = group.circuitId ? trainingState.circuits.find((c) => c.id === group.circuitId) : undefined;
+    if (linked) savingGroup = group;
+    else saveGroupAsCircuit(group);
+  }
+
+  function addCircuit(circuit: Circuit) {
+    regroup(insertCircuit(workout, circuit, generateId));
+    pickingCircuit = false;
+  }
 
   const items = $derived(workoutItems(workout));
   const minutesByGroup = $derived(groupMinutes(workout, bucket === 'logged' ? 'actual' : 'estimate'));
@@ -352,7 +379,13 @@
                 {nameOf}
                 onchange={(g) => regroup(updateGroup(workout, g))}
                 onUngroup={() => regroup(ungroup(workout, group.id))}
-              />
+              >
+                {#snippet actions()}
+                  <button onclick={() => onSaveCircuit(group)} class="shrink-0 p-1 text-content-subtle hover:text-content transition-colors" aria-label="Save as circuit" title="Save as circuit">
+                    <Icon icon="ic:baseline-bookmark-add" class="text-lg" />
+                  </button>
+                {/snippet}
+              </GroupSettings>
             {/snippet}
             {#each item.members as m (m.slot.id)}
               {@render card(m.slot, m.index)}
@@ -371,6 +404,12 @@
         <button onclick={() => formSlot = 'new'} class="flex-1 py-3.5 text-label font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5">
           <Icon icon="ic:baseline-plus" class="text-base" /> Add exercise
         </button>
+        {#if trainingState.circuits.length > 0}
+          <div class="w-px bg-border"></div>
+          <button onclick={() => pickingCircuit = true} class="px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Add a saved circuit">
+            <Icon icon="ic:baseline-bookmarks" class="text-base" /> Circuit
+          </button>
+        {/if}
         <div class="w-px bg-border"></div>
         <button onclick={() => isImportingAI = true} class="px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Build or log this session with an AI chat">
           <Icon icon="ic:baseline-auto-awesome" class="text-base" /> Ask AI
@@ -397,7 +436,7 @@
         class="px-3 py-2.5 rounded-control text-label font-bold transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isGrouping ? 'bg-primary/15 text-primary' : 'text-content-subtle hover:text-content'}"
       >
         <Icon icon={isGrouping ? 'ic:baseline-close' : 'ic:baseline-repeat'} class="text-base" />
-        {isGrouping ? 'Cancel' : 'Circuit'}
+        {isGrouping ? 'Cancel' : 'Group'}
       </button>
     {/if}
     <div class="flex-1"></div>
@@ -435,6 +474,37 @@
         </p>
       {/if}
       <ExerciseForm initialSlot={formSlot === 'new' ? null : formSlot} mode={bucket} inGroup={!!formGroup} onSave={saveExercise} />
+    </div>
+  </div>
+{/if}
+
+{#if pickingCircuit}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="fixed inset-0 z-[120] bg-black/40 flex items-end justify-center" onclick={() => pickingCircuit = false}>
+    <div class="w-full max-w-lg max-h-[70vh] overflow-y-auto no-scrollbar bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
+      <p class="text-section uppercase text-content-muted px-1">Add a circuit</p>
+      {#each trainingState.circuits as c (c.id)}
+        <button onclick={() => addCircuit(c)} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
+          <p class="text-body font-bold text-content truncate">{c.name}</p>
+          <p class="text-caption text-content-subtle truncate">{c.exercises.map((s) => slotTypeName(s, trainingState.exerciseTypes)).join(' · ')}</p>
+        </button>
+      {/each}
+    </div>
+  </div>
+{/if}
+
+{#if savingGroup}
+  {@const group = savingGroup}
+  {@const linked = trainingState.circuits.find((c) => c.id === group.circuitId)}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="fixed inset-0 z-[120] bg-black/40 flex items-end justify-center" onclick={() => savingGroup = null}>
+    <div class="w-full max-w-lg bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
+      <p class="text-section uppercase text-content-muted px-1">Save as circuit</p>
+      <p class="text-caption text-content-subtle px-1">This came from <b class="text-content-muted">{linked?.name}</b>. Sessions that already have it keep their own copy either way.</p>
+      <button onclick={() => saveGroupAsCircuit(group, linked)} class="w-full py-3 rounded-control bg-primary hover:bg-primary-hover text-white text-label font-bold">Update {linked?.name}</button>
+      <button onclick={() => saveGroupAsCircuit(group)} class="w-full py-3 rounded-control bg-surface-elevated text-content text-label font-bold">Save as a new circuit</button>
     </div>
   </div>
 {/if}

@@ -5,7 +5,7 @@ import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
@@ -114,6 +114,8 @@ class TrainingState {
   /** The AI coach's About me and memory - see `lib/ai/coachNotes.ts`. */
   get athleteProfile() { return this.planningStore.athleteProfile; }
   get coachNotes() { return this.planningStore.coachNotes; }
+  /** Saved circuits - see `lib/exercise/circuits.ts`. */
+  get circuits() { return this.planningStore.circuits; }
   /** Competitions and outdoor trips - see `GoalEvent`. */
   get goals() { return this.planningStore.goals; }
   get templates() { return this.planningStore.templates; }
@@ -1232,6 +1234,30 @@ class TrainingState {
   async saveWeekNote(weekId: string, text: string) {
     await this.planningStore.saveWeekNote(weekId, text);
     await this.refresh();
+  }
+
+  // --- Saved circuits (lib/exercise/circuits.ts) ---
+
+  /** Adds a circuit to the library, or replaces the one with its id. */
+  async saveCircuit(circuit: Circuit) {
+    const all = $state.snapshot(this.circuits) as Circuit[];
+    const plain = $state.snapshot(circuit) as Circuit;
+    const exists = all.some((c) => c.id === plain.id);
+    await storage.saveCircuits(exists ? all.map((c) => (c.id === plain.id ? plain : c)) : [...all, plain]);
+    await this.refresh();
+  }
+
+  /** Removes a circuit from the library. Sessions that have a copy keep it. */
+  async deleteCircuit(id: string) {
+    const before = $state.snapshot(this.circuits) as Circuit[];
+    const removed = before.find((c) => c.id === id);
+    if (!removed) return;
+    await storage.saveCircuits(before.filter((c) => c.id !== id));
+    await this.refresh();
+    showUndo(`${removed.name} removed`, async () => {
+      await storage.saveCircuits(before);
+      await this.refresh();
+    });
   }
 
   // --- Coach notes (lib/ai/coachNotes.ts) ---

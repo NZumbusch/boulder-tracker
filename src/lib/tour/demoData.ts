@@ -199,6 +199,7 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     planAlternatives: [],
     athleteProfile: [],
     coachNotes: [],
+    circuits: [],
     goals,
     exerciseTypes: structuredClone(DEFAULT_EXERCISE_TYPES),
     templates,

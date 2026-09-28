@@ -5,6 +5,8 @@
   import { generateId } from '../../lib/utils';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import type { ExerciseSlot, ExerciseValues, ParameterBlock, WorkoutTemplate } from '../../lib/types';
+  import { normaliseGroups, settleAfterMove, groupSummary } from '../../lib/exercise/groups';
+  import { insertCircuit } from '../../lib/exercise/circuits';
   import ExerciseForm from '../workout/ExerciseForm.svelte';
   import Icon from "@iconify/svelte";
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
@@ -44,6 +46,7 @@
       const index = workout.exercises.findIndex((e) => e.id === editingExerciseId);
       if (index !== -1) {
         workout.exercises[index] = {
+          ...workout.exercises[index],
           id: editingExerciseId,
           typeId: data.typeId,
           categoryId: data.categoryId,
@@ -77,7 +80,9 @@
 
   function duplicateExerciseInTemplate(workoutIndex: number, exercise: ExerciseSlot) {
     const workout = templates[phaseId][workoutIndex];
-    const duplicated = { ...$state.snapshot(exercise), id: generateId() };
+    // A copy lands at the end, outside any circuit.
+    const { groupId: _groupId, ...rest } = $state.snapshot(exercise);
+    const duplicated = { ...rest, id: generateId() };
     workout.exercises = [...(workout.exercises || []), duplicated];
   }
 
@@ -86,7 +91,29 @@
   }
 
   function handleTemplateDndFinalize(workoutIndex: number, e: CustomEvent<DndEvent<ExerciseSlot>>) {
-    templates[phaseId][workoutIndex].exercises = e.detail.items;
+    // A row dropped inside a circuit joins it; a member dragged away leaves.
+    setGrouped(workoutIndex, { ...templates[phaseId][workoutIndex], exercises: settleAfterMove(e.detail.items) });
+  }
+
+  /** Writes a template back with its grouping tidied (see lib/exercise/groups.ts). */
+  function setGrouped(workoutIndex: number, next: WorkoutTemplate) {
+    const tidy = normaliseGroups(next);
+    const workout = templates[phaseId][workoutIndex];
+    workout.exercises = tidy.exercises;
+    workout.groups = tidy.groups;
+  }
+
+  function addCircuitToTemplate(workoutIndex: number, circuitId: string) {
+    const circuit = trainingState.circuits.find((c) => c.id === circuitId);
+    if (!circuit) return;
+    setGrouped(workoutIndex, insertCircuit($state.snapshot(templates[phaseId][workoutIndex]) as WorkoutTemplate, $state.snapshot(circuit), generateId));
+  }
+
+  /** The group a row starts, for its circuit label - only on a group's first member. */
+  function groupStartingAt(workout: WorkoutTemplate, index: number) {
+    const slot = workout.exercises[index];
+    if (!slot?.groupId || workout.exercises[index - 1]?.groupId === slot.groupId) return undefined;
+    return workout.groups?.find((g) => g.id === slot.groupId);
   }
 
   function editExerciseInTemplate(workoutIndex: number, exercise: ExerciseSlot) {
@@ -98,7 +125,7 @@
   function removeExerciseFromTemplate(workoutIndex: number, exerciseId: string) {
     const workout = templates[phaseId][workoutIndex];
     if (workout.exercises) {
-      workout.exercises = workout.exercises.filter((e) => e.id !== exerciseId);
+      setGrouped(workoutIndex, { ...workout, exercises: workout.exercises.filter((e) => e.id !== exerciseId) });
     }
   }
 </script>
@@ -197,12 +224,18 @@
           onfinalize={(e) => handleTemplateDndFinalize(wIndex, e)}
         >
           {#each workout.exercises || [] as exercise, eIndex (exercise.id)}
-            <div animate:flip={{ duration: motionMs(200) }} class="flex items-center justify-between p-2 bg-surface/50 rounded-control border border-border transition-all hover:border-border-strong group/ex">
-              <div class="flex items-center gap-2">
+            {@const startsGroup = groupStartingAt(workout, eIndex)}
+            <div animate:flip={{ duration: motionMs(200) }} class="flex items-center justify-between p-2 bg-surface/50 rounded-control border transition-all hover:border-border-strong group/ex {exercise.groupId ? 'border-l-2 border-l-content-subtle/40 border-border ml-2' : 'border-border'}">
+              <div class="flex items-center gap-2 min-w-0">
                 <div class="flex flex-col items-center justify-center gap-0 opacity-40 group-hover/ex:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
                   <Icon icon="ic:baseline-drag-indicator" class="text-[16px]" />
                 </div>
-                <span class="text-label text-content-muted truncate">{slotTypeName(exercise, trainingState.exerciseTypes)}</span>
+                <div class="min-w-0">
+                  {#if startsGroup}
+                    <p class="text-caption text-content-subtle truncate flex items-center gap-1"><Icon icon="ic:baseline-repeat" class="text-xs shrink-0" /> {startsGroup.name || 'Circuit'} · {groupSummary(startsGroup)}</p>
+                  {/if}
+                  <p class="text-label text-content-muted truncate">{slotTypeName(exercise, trainingState.exerciseTypes)}</p>
+                </div>
               </div>
               <div class="flex items-center gap-1 flex-shrink-0">
                 <button onclick={() => duplicateExerciseInTemplate(wIndex, exercise)} class="text-content-subtle hover:text-content transition-colors p-1" title="Duplicate Exercise"><Icon icon="ic:baseline-content-copy" class="text-xs" /></button>
@@ -217,12 +250,26 @@
             <ExerciseForm
               initialSlot={editingExerciseId ? workout.exercises?.find((e) => e.id === editingExerciseId) : null}
               mode="prescribed"
+              inGroup={!!(editingExerciseId && workout.exercises?.find((e) => e.id === editingExerciseId)?.groupId)}
               onSave={saveExerciseToTemplate}
             />
             <button onclick={() => { isAddingExercise = false; editingWorkoutIndex = null; editingExerciseId = null; }} class="w-full mt-3 py-2 text-label text-content-subtle hover:text-content">Cancel</button>
           </div>
         {:else}
-          <button onclick={() => { editingWorkoutIndex = wIndex; isAddingExercise = true; editingExerciseId = null; }} class="w-full py-2.5 border border-dashed border-border-strong rounded-control text-label text-content-subtle hover:border-border-strong hover:text-content-muted transition-all">Add Component</button>
+          <div class="flex gap-2">
+            <button onclick={() => { editingWorkoutIndex = wIndex; isAddingExercise = true; editingExerciseId = null; }} class="flex-1 py-2.5 border border-dashed border-border-strong rounded-control text-label text-content-subtle hover:border-border-strong hover:text-content-muted transition-all">Add Component</button>
+            {#if trainingState.circuits.length > 0}
+              <select
+                aria-label="Add a saved circuit"
+                value=""
+                onchange={(e) => { addCircuitToTemplate(wIndex, e.currentTarget.value); e.currentTarget.value = ''; }}
+                class="px-2.5 py-2.5 bg-transparent border border-dashed border-border-strong rounded-control text-label text-content-subtle outline-none cursor-pointer"
+              >
+                <option value="" disabled>+ Circuit</option>
+                {#each trainingState.circuits as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+              </select>
+            {/if}
+          </div>
         {/if}
       </div>
     </div>

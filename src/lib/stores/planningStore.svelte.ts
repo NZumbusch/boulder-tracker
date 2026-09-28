@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate, PlanAlternative, AthleteProfile, CoachNote } from '../types';
+import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate, PlanAlternative, AthleteProfile, CoachNote, Circuit } from '../types';
 import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
@@ -16,17 +16,20 @@ export class PlanningStore {
   /** The AI coach's About me and memory - see `lib/ai/coachNotes.ts`. */
   athleteProfile = $state<AthleteProfile | undefined>(undefined);
   coachNotes = $state<CoachNote[]>([]);
+  /** Saved circuits - see `Circuit`. */
+  circuits = $state<Circuit[]>([]);
   goals = $state<GoalEvent[]>([]);
   templates = $state<Record<string, WorkoutTemplate[]>>({});
 
   async load() {
-    const [trainingBlocks, weekOverrides, weekNotes, planAlternatives, athleteProfile, coachNotes, goals, templates] = await Promise.all([
+    const [trainingBlocks, weekOverrides, weekNotes, planAlternatives, athleteProfile, coachNotes, circuits, goals, templates] = await Promise.all([
       storage.getTrainingBlocks(),
       storage.getWeekOverrides(),
       storage.getWeekNotes(),
       storage.getPlanAlternatives(),
       storage.getAthleteProfile(),
       storage.getCoachNotes(),
+      storage.getCircuits(),
       storage.getGoals(),
       storage.getTemplates(),
     ]);
@@ -36,6 +39,7 @@ export class PlanningStore {
     this.planAlternatives = planAlternatives;
     this.athleteProfile = athleteProfile;
     this.coachNotes = coachNotes;
+    this.circuits = circuits;
     this.goals = goals;
     this.templates = templates;
   }
