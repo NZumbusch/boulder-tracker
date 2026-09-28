@@ -13,7 +13,7 @@ import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
 import { tripInForecast } from './goals/goals';
 import { num, flag, type TunableTopic } from './preferences/tunables';
-import type { ReadinessConfig } from './analytics/readiness';
+import type { ReadinessConfig, FatigueModel } from './analytics/readiness';
 import type { FrictionConfig } from './weather/friction';
 import type { Units } from './units';
 import type { PlanWrites, PlannerState } from './ai/changePlanner';
@@ -306,6 +306,11 @@ class TrainingState {
     return { sweetMin: num(t, 'acwr.sweetMin'), caution: num(t, 'acwr.caution'), highRisk: num(t, 'acwr.highRisk') };
   }
   get fatigueHalfLife() { return num(this.preferencesStore.tunables, 'fatigue.halfLifeDays'); }
+  /** Half-life and softening for accumulated fatigue - see `computeFatigueDecay`. */
+  get fatigueModel(): FatigueModel {
+    const t = this.preferencesStore.tunables;
+    return { halfLifeDays: num(t, 'fatigue.halfLifeDays'), soften: flag(t, 'fatigue.soften'), softKnee: num(t, 'fatigue.softKnee') };
+  }
   get frictionConfig(): FrictionConfig {
     const t = this.preferencesStore.tunables;
     return { idealMinC: num(t, 'friction.idealMinC'), idealMaxC: num(t, 'friction.idealMaxC'), wetRainMm: num(t, 'friction.wetRainMm') };

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Workout, DailyMetricEntry } from "../types";
 import {
   computeFatigueDecay,
+  fatigueReading,
   computeHrvBaseline,
   computeReadiness,
   READINESS_GOOD_THRESHOLD,
@@ -59,43 +60,80 @@ describe("computeFatigueDecay", () => {
     expect(r.coverage).toEqual({ total: 1, fingers: 1, arms: 0, core: 1, systemic: 0 });
   });
 
-  it("hand-computed 3-day-half-life weighting: a workout exactly one half-life ago weighs half as much as today's", () => {
-    // weight(today) = 1, weight(3 days ago) = 0.5 (half-life = 3 by default).
-    // fingers-weighted avg = (1*2 + 0.5*10) / (1 + 0.5) = 7 / 1.5.
+  it("sessions add up, each faded by the half-life (3 days by default)", () => {
+    // 2 today + 10 three days ago (one half-life -> 5) = 7, below the soft knee.
     const workouts = [
       makeWorkout({ status: "completed", date: "2026-03-28", fingers: 2 }),
-      makeWorkout({ status: "completed", date: "2026-03-25", fingers: 10 }),
+      makeWorkout({ status: "completed", date: "2026-03-25", fingers: 8 }),
     ];
     const r = computeFatigueDecay(workouts, asOf);
-    expect(r.fingers).toBeCloseTo(7 / 1.5, 10);
+    expect(r.fingers).toBeCloseTo(2 + 4, 10);
   });
 
-  it("an axis missing on some workouts is excluded from that axis's average, not imputed", () => {
+  it("rest brings it down: one session rated 8 halves after one half-life and is near zero after ten days", () => {
+    const one = [makeWorkout({ status: "completed", date: "2026-03-25", fingers: 8 })];
+    expect(computeFatigueDecay(one, asOf).fingers).toBeCloseTo(4, 10);
+    const old = [makeWorkout({ status: "completed", date: "2026-03-18", fingers: 8 })];
+    expect(computeFatigueDecay(old, asOf).fingers!).toBeLessThan(1);
+  });
+
+  it("an axis missing on some workouts adds nothing to it, and isn't imputed", () => {
     const workouts = [
-      makeWorkout({ status: "completed", date: "2026-03-28", fingers: 6, arms: 6 }),
+      makeWorkout({ status: "completed", date: "2026-03-28", fingers: 3, arms: 3 }),
       // No `arms` - e.g. a pre-arms-slider historical workout.
-      makeWorkout({ status: "completed", date: "2026-03-27", fingers: 2 }),
+      makeWorkout({ status: "completed", date: "2026-03-28", fingers: 2 }),
     ];
     const r = computeFatigueDecay(workouts, asOf);
-    // arms average is just the one workout that carries it, not diluted by the other's absence.
-    expect(r.arms).toBeCloseTo(6, 10);
+    expect(r.arms).toBeCloseTo(3, 10);
+    expect(r.fingers).toBeCloseTo(5, 10);
     expect(r.coverage).toEqual({ total: 2, fingers: 2, arms: 1, core: 0, systemic: 0 });
   });
 
-  it("respects a custom half-life", () => {
-    // half-life = 1: a workout 1 day ago weighs half as much as today's.
-    const workouts = [
-      makeWorkout({ status: "completed", date: "2026-03-28", fingers: 2 }),
-      makeWorkout({ status: "completed", date: "2026-03-27", fingers: 10 }),
-    ];
-    const r = computeFatigueDecay(workouts, asOf, 1);
-    expect(r.fingers).toBeCloseTo((1 * 2 + 0.5 * 10) / 1.5, 10);
+  it("respects a custom half-life (a plain number is the half-life)", () => {
+    const workouts = [makeWorkout({ status: "completed", date: "2026-03-27", fingers: 4 })];
+    expect(computeFatigueDecay(workouts, asOf, 1).fingers).toBeCloseTo(2, 10);
+    expect(computeFatigueDecay(workouts, asOf, { halfLifeDays: 1 }).fingers).toBeCloseTo(2, 10);
   });
 
   it("clamps a workout dated after asOf to full weight rather than a >1 weight", () => {
     const workouts = [makeWorkout({ status: "completed", date: "2026-04-05", fingers: 6 })];
     const r = computeFatigueDecay(workouts, asOf);
     expect(r.fingers).toBeCloseTo(6, 10);
+  });
+
+  it("without softening (the default), stacked sessions are capped at 10", () => {
+    const workouts = ["2026-03-26", "2026-03-27", "2026-03-28"].map((date) => makeWorkout({ status: "completed", date, fingers: 7 }));
+    expect(computeFatigueDecay(workouts, asOf).fingers).toBe(10);
+  });
+
+  it("with softening, stacked sessions approach 10 without reaching it, and more fatigue still reads higher", () => {
+    const days = (n: number) => Array.from({ length: n }, (_, i) => makeWorkout({ status: "completed", date: `2026-03-${28 - i}`, fingers: 7 }));
+    const two = computeFatigueDecay(days(2), asOf, { soften: true }).fingers!;
+    const three = computeFatigueDecay(days(3), asOf, { soften: true }).fingers!;
+    expect(two).toBeLessThan(10);
+    expect(three).toBeLessThan(10);
+    expect(three).toBeGreaterThan(two);
+  });
+});
+
+describe("fatigueReading", () => {
+  it("leaves readings up to the knee exactly as they are", () => {
+    expect(fatigueReading(5, { soften: true, softKnee: 6 })).toBe(5);
+    expect(fatigueReading(6, { soften: true, softKnee: 6 })).toBe(6);
+  });
+
+  it("bends smoothly above the knee: continuous, rising, and below 10", () => {
+    const m = { soften: true, softKnee: 6 };
+    expect(fatigueReading(6.0001, m)).toBeCloseTo(6, 3);
+    expect(fatigueReading(8, m)).toBeGreaterThan(7);
+    expect(fatigueReading(8, m)).toBeLessThan(8);
+    expect(fatigueReading(30, m)).toBeLessThan(10);
+    expect(fatigueReading(30, m)).toBeGreaterThan(fatigueReading(15, m));
+  });
+
+  it("never goes below zero", () => {
+    expect(fatigueReading(0)).toBe(0);
+    expect(fatigueReading(-3)).toBe(0);
   });
 });
 

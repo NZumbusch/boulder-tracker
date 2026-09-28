@@ -56,7 +56,9 @@ export const TUNABLES: TunableDef[] = [
   { id: "acwr.sweetMin", topic: "model", group: "ACWR zones", label: "Sweet spot from", hint: "Below this counts as low load", kind: "number", default: 0.8, min: 0.5, max: 1.2, step: 0.05 },
   { id: "acwr.caution", topic: "model", group: "ACWR zones", label: "Caution from", kind: "number", default: 1.3, min: 1.0, max: 1.8, step: 0.05 },
   { id: "acwr.highRisk", topic: "model", group: "ACWR zones", label: "High risk from", hint: "Also where the readiness load penalty is at its maximum", kind: "number", default: 1.5, min: 1.1, max: 2.5, step: 0.05 },
-  { id: "fatigue.halfLifeDays", topic: "model", group: "Fatigue", label: "Fatigue half-life", hint: "Days for logged fatigue to fade by half on the Fatigue card and in readiness", kind: "number", default: 3, min: 1, max: 10, step: 0.5, unit: "days" },
+  { id: "fatigue.halfLifeDays", topic: "model", group: "Fatigue", label: "Fatigue half-life", hint: "Each session's rating is what it added; it fades by half over this many days, and what's left of every session adds up (Fatigue card, readiness, Analytics, AI coach)", kind: "number", default: 3, min: 1, max: 10, step: 0.5, unit: "days" },
+  { id: "fatigue.soften", topic: "model", group: "Fatigue", label: "Soften stacked sessions", hint: "Off: the sum is capped at 10. On: readings above the point below bend smoothly towards 10 instead of hitting it", kind: "boolean", default: false },
+  { id: "fatigue.softKnee", topic: "model", group: "Fatigue", label: "Softening starts at", hint: "Readings up to this are left as they are; lower softens more", kind: "number", default: 6, min: 2, max: 9, step: 0.5, unit: "/10" },
   { id: "alerts.restDays", topic: "model", group: "Alerts", label: "Days without rest before warning", kind: "number", default: 6, min: 3, max: 14, step: 1, unit: "days" },
 
   // --- Outdoor ---

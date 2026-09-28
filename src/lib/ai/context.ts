@@ -23,6 +23,7 @@ import {
   computeHrvBaseline,
   computeReadiness,
   type ReadinessConfig,
+  type FatigueModel,
   type ReadinessStatus,
 } from "../analytics/readiness";
 import { calculateRollingAcwr } from "../analytics/loadAnalytics";
@@ -323,6 +324,8 @@ export function buildGoalContext(goals: GoalEvent[], asOf: Date, limit = COMPETI
 export interface ModelOptions {
   readiness?: ReadinessConfig;
   fatigueHalfLife?: number;
+  /** Half-life and softening together; wins over `fatigueHalfLife`. */
+  fatigueModel?: Partial<FatigueModel>;
 }
 
 // --- Readiness / daily metrics --------------------------------------------
@@ -376,7 +379,7 @@ export function buildReadinessSnapshot(
 ): ReadinessSnapshot {
   const dailyMetrics = loggedMetrics(allDailyMetrics);
   const todayIso = localIsoDate(asOf);
-  const fatigueDecay = computeFatigueDecay(workouts, asOf, model.fatigueHalfLife);
+  const fatigueDecay = computeFatigueDecay(workouts, asOf, model.fatigueModel ?? model.fatigueHalfLife);
   const acwr = calculateRollingAcwr(workouts, asOf);
   const hrvBaseline = computeHrvBaseline(dailyMetrics, asOf);
   const todaysMetric = (metricId: string): number | undefined =>

@@ -98,7 +98,7 @@
     drawnLast >= firstDay
       ? readinessByDay(trainingState.workouts, trainingState.dailyMetrics, firstDay, drawnLast, {
           config: trainingState.readinessConfig,
-          halfLife: trainingState.fatigueHalfLife,
+          halfLife: trainingState.fatigueModel,
         })
       : new Map<number, number>(),
   );

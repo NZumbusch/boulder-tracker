@@ -11,7 +11,7 @@
 </script>
 
 <div class="card space-y-3">
-  <SectionHeader label="Fatigue" subtitle="Now, per area · decays over the days after a session" info="fatigue" />
+  <SectionHeader label="Fatigue" subtitle="Now, per area · recent sessions added up, fading as you rest" info="fatigue" />
   {#if trainingState.fatigueChartStyle === 'radar'}
     <FatigueRadarChart fingers={fatigueDecay.fingers} arms={fatigueDecay.arms} core={fatigueDecay.core} systemic={fatigueDecay.systemic} />
   {:else}

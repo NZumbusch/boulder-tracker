@@ -54,8 +54,9 @@ export const GLOSSARY: Record<TermId, Term> = {
   fatigue: {
     title: "Fatigue",
     paragraphs: [
-      "After each session you rate how tired your fingers, arms, core and whole body are (0–10). The app lets that rating fade over the next days: by default it halves every 3 days.",
-      "So the fatigue shown today is what's left of your recent ratings. 7 or more means that area still needs rest. The fade speed is under Settings → Appearance & Behaviour → Training model.",
+      "After each session you rate how much that session took out of your fingers, arms, core and whole body (1–10) - what it added, not how you feel overall. Each rating fades over the next days: by default it halves every 3 days.",
+      "The fatigue shown today is what's left of every recent session, added up (at most 10). Rest days count as nothing, so it falls while you rest and climbs when sessions come close together. 7 or more means that area still needs rest.",
+      "The fade speed, and an option to soften how stacked sessions add up, are under Settings → Appearance & Behaviour → Training model.",
     ],
   },
   mix: {

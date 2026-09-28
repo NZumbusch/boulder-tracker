@@ -30,45 +30,78 @@ export interface FatigueDecayResult {
 }
 
 /**
- * Exponentially-decayed fatigue per axis. Each axis is a weighted average of
- * that axis's own logged values across completed workouts, weighted by
- * `0.5 ^ (daysAgo / halfLifeDays)` - a workout with no value for an axis
- * (arms is the common case for any workout logged before its slider
- * existed) is excluded from that axis's average
- * entirely, never imputed with a placeholder value. An axis with zero
- * workouts carrying it anywhere in `workouts` comes back `undefined`, not 0.
+ * How accumulated fatigue is turned into a 0-10 reading (Settings ->
+ * Training model -> Fatigue).
+ *
+ * `halfLifeDays` - every session's rating halves over this many days.
+ * `soften` / `softKnee` - stacked sessions add up, and without softening
+ * the sum is simply capped at 10. With it, readings up to `softKnee` are
+ * left exactly as they are and everything above bends smoothly towards 10
+ * (a hard session on its own reads about what you rated it; a third hard
+ * day in a row no longer slams into the ceiling).
+ */
+export interface FatigueModel {
+  halfLifeDays: number;
+  soften: boolean;
+  softKnee: number;
+}
+
+export const DEFAULT_FATIGUE_MODEL: FatigueModel = { halfLifeDays: 3, soften: false, softKnee: 6 };
+export const FATIGUE_MAX = 10;
+
+/** A decayed sum mapped onto 0-10: capped, or with the soft knee above. */
+export function fatigueReading(sum: number, model: Pick<FatigueModel, "soften" | "softKnee"> = DEFAULT_FATIGUE_MODEL): number {
+  if (sum <= 0) return 0;
+  if (!model.soften) return Math.min(FATIGUE_MAX, sum);
+  const knee = Math.min(FATIGUE_MAX - 0.5, Math.max(0, model.softKnee));
+  if (sum <= knee) return sum;
+  const room = FATIGUE_MAX - knee;
+  return knee + room * Math.tanh((sum - knee) / room);
+}
+
+/**
+ * Accumulated fatigue per axis, now. Each session's rating is what that
+ * session *added*; it fades by half every `halfLifeDays`, and the faded
+ * ratings add up - so rest days bring the reading down, and back-to-back
+ * sessions stack. The sum becomes a 0-10 reading through `fatigueReading`.
+ *
+ * (Until 2026-09-28 this was a decay-weighted *average* of the ratings,
+ * which rest never lowered: one session rated 8 still read 8 ten days
+ * later.)
+ *
+ * A workout with no value for an axis (arms is the common case for any
+ * workout logged before its slider existed) adds nothing to that axis. An
+ * axis with zero workouts carrying it anywhere in `workouts` comes back
+ * `undefined`, not 0 - "never rated" is not "fresh".
  *
  * `coverage` reports, out of the workouts actually passed in, how many
  * carried each axis - callers use this for a coverage note (e.g. "arms: 4
- * of 27 sessions") rather than
- * presenting a sparse axis as equally reliable. This function applies no
- * history window of its own for that count - the decay weighting alone
- * already makes old workouts' contribution negligible, so pass in whatever
- * window (recent N, or all-time) makes sense for the caller's own coverage
- * message.
+ * of 27 sessions"). A plain number for `model` is the half-life, with the
+ * default softening.
  */
-export function computeFatigueDecay(workouts: Workout[], asOf: Date, halfLifeDays = 3): FatigueDecayResult {
+export function computeFatigueDecay(workouts: Workout[], asOf: Date, model: number | Partial<FatigueModel> = DEFAULT_FATIGUE_MODEL): FatigueDecayResult {
+  const m: FatigueModel = typeof model === "number"
+    ? { ...DEFAULT_FATIGUE_MODEL, halfLifeDays: model }
+    : { ...DEFAULT_FATIGUE_MODEL, ...model };
   const completed = workouts.filter((w) => w.status === "completed" && w.date);
   const asOfDay = toUtcDayIndex(asOf.toISOString());
 
   const coverage: FatigueCoverage = { total: completed.length, fingers: 0, arms: 0, core: 0, systemic: 0 };
-  const weightedSum: Record<FatigueAxis, number> = { fingers: 0, arms: 0, core: 0, systemic: 0 };
-  const weightTotal: Record<FatigueAxis, number> = { fingers: 0, arms: 0, core: 0, systemic: 0 };
+  const sum: Record<FatigueAxis, number> = { fingers: 0, arms: 0, core: 0, systemic: 0 };
 
   for (const w of completed) {
     const daysAgo = Math.max(0, asOfDay - toUtcDayIndex(w.date!));
-    const weight = Math.pow(0.5, daysAgo / halfLifeDays);
+    const weight = Math.pow(0.5, daysAgo / m.halfLifeDays);
     for (const axis of FATIGUE_AXES) {
       const value = w[axis];
       if (value === undefined) continue;
       coverage[axis]++;
-      weightedSum[axis] += weight * value;
-      weightTotal[axis] += weight;
+      sum[axis] += weight * value;
     }
   }
 
   const axisValue = (axis: FatigueAxis): number | undefined =>
-    weightTotal[axis] > 0 ? weightedSum[axis] / weightTotal[axis] : undefined;
+    coverage[axis] > 0 ? fatigueReading(sum[axis], m) : undefined;
 
   return {
     fingers: axisValue("fingers"),
@@ -317,7 +350,9 @@ export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfi
 
   const fatigueComposite = use.fatigue ? compositeFatigue(fatigue) : undefined;
   const fatigueUsed = fatigueComposite !== undefined;
-  const fatiguePenalty = fatigueUsed ? ((fatigueComposite! - 1) / 9) * MAX_FATIGUE_PENALTY : 0;
+  // 1 is the lowest rating there is ("barely anything"), so fatigue at or
+  // below it costs nothing - and a fully faded reading can't give points back.
+  const fatiguePenalty = fatigueUsed ? clamp((fatigueComposite! - 1) / 9, 0, 1) * MAX_FATIGUE_PENALTY : 0;
 
   const acwrUsed = use.acwr && acwr.sufficient && acwr.ratio !== undefined;
   const acwrPenalty = acwrUsed

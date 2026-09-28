@@ -112,7 +112,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
       <div class="flex items-center justify-between mb-6 px-1">
         <div class="min-w-0 flex-1">
           <h3 class="text-title text-content">Post-Session</h3>
-          <p class="text-content-subtle text-caption mt-0.5">Rate Perceived Exertion</p>
+          <p class="text-content-subtle text-caption mt-0.5">What this session added, per area (1 = barely anything)</p>
         </div>
         <div class="bg-primary-hover/10 p-2.5 rounded-control flex-shrink-0 ml-4">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">

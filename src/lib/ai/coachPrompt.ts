@@ -154,6 +154,7 @@ export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "target
   coachNotes?: CoachNote[];
   readinessConfig?: ModelOptions["readiness"];
   fatigueHalfLife?: number;
+  fatigueModel?: ModelOptions["fatigueModel"];
 };
 
 /**
@@ -173,7 +174,7 @@ export function buildCoachPromptFor(
     source.aiSharing,
     opts.asOf ?? new Date(),
     mode === "context" ? undefined : targetWeekIds,
-    { readiness: source.readinessConfig, fatigueHalfLife: source.fatigueHalfLife },
+    { readiness: source.readinessConfig, fatigueHalfLife: source.fatigueHalfLife, fatigueModel: source.fatigueModel },
     history,
   );
   // Fields named one by one, never spread: `trainingState` exposes them as

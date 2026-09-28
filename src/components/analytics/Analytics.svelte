@@ -294,7 +294,7 @@
   const fatigueSamples = $derived(buckets.map((b) => {
     // Nothing to sample in a column that hasn't started yet.
     if (b.startDay > today) return { weekId: b.id };
-    const decay = computeFatigueDecay(trainingState.completedWorkouts, new Date(b.endDay * 86400000), trainingState.fatigueHalfLife);
+    const decay = computeFatigueDecay(trainingState.completedWorkouts, new Date(b.endDay * 86400000), trainingState.fatigueModel);
     return { weekId: b.id, fingers: decay.fingers, arms: decay.arms, core: decay.core, systemic: decay.systemic };
   }));
   const fatigueCoverage = $derived.by(() => {

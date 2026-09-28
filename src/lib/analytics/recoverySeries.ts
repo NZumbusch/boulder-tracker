@@ -1,7 +1,7 @@
 import type { DailyMetricEntry, Workout } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
 import { loggedMetrics } from "./metricValues";
-import { computeFatigueDecay, computeHrvBaseline, computeReadiness, DEFAULT_READINESS_CONFIG, type ReadinessConfig } from "./readiness";
+import { computeFatigueDecay, computeHrvBaseline, computeReadiness, DEFAULT_READINESS_CONFIG, type ReadinessConfig, type FatigueModel } from "./readiness";
 import { calculateRollingAcwr } from "./loadAnalytics";
 
 /**
@@ -197,7 +197,7 @@ export function readinessByDay(
   entries: DailyMetricEntry[],
   firstDay: number,
   lastDay: number,
-  { config = DEFAULT_READINESS_CONFIG, halfLife = 3 }: { config?: ReadinessConfig; halfLife?: number } = {},
+  { config = DEFAULT_READINESS_CONFIG, halfLife = 3 }: { config?: ReadinessConfig; halfLife?: number | Partial<FatigueModel> } = {},
 ): Map<number, number> {
   const completed = workouts
     .filter((w) => w.status === "completed" && w.date)
