@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { sheetDrag } from '../../lib/ui/sheetDrag';
   import { workoutPlannedLoad } from '../../lib/analytics/load';
   import { planProgress } from '../../lib/planning/weekRecap';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
@@ -102,7 +103,7 @@
 
 <div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
   <div class="absolute inset-0" onclick={onClose} onkeydown={(e) => e.key === 'Escape' && onClose()} role="button" tabindex="-1" aria-label="Close"></div>
-  <div class="relative bg-surface w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4">
+  <div class="relative bg-surface w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4" use:sheetDrag={() => onClose()}>
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
         <h3 class="text-title text-content">{title}</h3>

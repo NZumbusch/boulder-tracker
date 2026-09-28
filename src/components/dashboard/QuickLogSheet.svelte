@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { sheetDrag } from '../../lib/ui/sheetDrag';
   import { localIsoDate } from '../../lib/dateUtils';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
@@ -49,7 +50,7 @@
 
 <div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
   <div class="absolute inset-0" onclick={onClose} onkeydown={(e) => e.key === 'Escape' && onClose()} role="button" tabindex="-1" aria-label="Close"></div>
-  <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4">
+  <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4" use:sheetDrag={() => onClose()}>
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2 min-w-0">
         {#if kind}

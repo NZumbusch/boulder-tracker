@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { sheetDrag } from '../../lib/ui/sheetDrag';
   /**
    * Choosing an exercise for a slot, from a library that can be long:
    * search (names, groups, how-tos), your most recent ones up top, then
@@ -100,7 +101,7 @@
 {/snippet}
 
 <div class="fixed inset-0 pb-safe z-[130] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-  <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 duration-200">
+  <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onClose()}>
     <div class="shrink-0 border-b border-border px-5 pt-4 pb-3 space-y-3">
       <div class="flex items-center justify-between gap-3">
         <h3 class="text-title text-content">Choose an exercise</h3>

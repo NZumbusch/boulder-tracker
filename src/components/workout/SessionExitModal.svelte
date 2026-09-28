@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { sheetDrag } from '../../lib/ui/sheetDrag';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * The "stop the session" fork: save what happened, or throw it away.
@@ -31,7 +32,7 @@
   role="presentation"
   onclick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
 >
-  <div class="bg-surface w-full max-w-md rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card p-5 space-y-5 animate-in slide-in-from-bottom-4 duration-200">
+  <div class="bg-surface w-full max-w-md rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card p-5 space-y-5 animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onCancel()}>
     <div class="space-y-1">
       <h3 class="text-title text-content">End this session?</h3>
       <p class="text-caption text-content-subtle">
