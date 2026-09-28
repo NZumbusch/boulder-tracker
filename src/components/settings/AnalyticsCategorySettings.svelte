@@ -1,6 +1,7 @@
 <script lang="ts">
   import { trainingState } from '../../lib/state.svelte';
-  import { generateId, showAlert, showConfirm } from '../../lib/utils';
+  import { generateId, showAlert } from '../../lib/utils';
+  import { scopedUndo } from '../../lib/toast.svelte';
   import type { AnalyticsCategory, ExerciseSlot, WorkoutTemplate } from '../../lib/types';
   import Icon from "@iconify/svelte";
 
@@ -92,7 +93,8 @@
     isAddingAnalyticsCategory = false;
   }
 
-  async function deleteAnalyticsCategory(id: string) {
+  const undoable = scopedUndo();
+  function deleteAnalyticsCategory(id: string) {
     const catToDelete = analyticsCategories.find(c => c.id === id);
     if (!catToDelete) return;
 
@@ -119,13 +121,16 @@
       if (t.category === catToDelete.name) inUseModalities++;
     });
 
-    const msg = inUseCount > 0 || inUseModalities > 0
-      ? `Delete "${catToDelete.name}"? This will leave ${inUseCount} exercises and ${inUseModalities} modalities using a missing category (you can restore it later).`
-      : 'Delete this category?';
-
-    const confirmed = await showConfirm('Delete Category', msg);
-    if (!confirmed) return;
+    const index = analyticsCategories.findIndex(c => c.id === id);
+    const removed = $state.snapshot(catToDelete) as AnalyticsCategory;
     analyticsCategories = analyticsCategories.filter(c => c.id !== id);
+    const orphans = inUseCount + inUseModalities;
+    undoable(
+      orphans > 0 ? `${removed.name} deleted - ${orphans} exercise${orphans === 1 ? '' : 's'} now have no category` : `${removed.name} deleted`,
+      () => {
+        if (!analyticsCategories.some(c => c.id === removed.id)) analyticsCategories = [...analyticsCategories.slice(0, index), removed, ...analyticsCategories.slice(index)];
+      },
+    );
   }
 
   function moveAnalyticsCategoryUp(index: number) {

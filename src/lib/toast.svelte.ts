@@ -1,3 +1,4 @@
+import { onDestroy } from 'svelte';
 /**
  * One short message at the bottom of the screen, with an optional action -
  * mostly "Undo" after a delete, so deleting doesn't have to ask first.
@@ -19,7 +20,7 @@ class ToastStore {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private nextId = 1;
 
-  show(text: string, opts: { action?: ToastAction; durationMs?: number } = {}) {
+  show(text: string, opts: { action?: ToastAction; durationMs?: number } = {}): number {
     clearTimeout(this.timer);
     const id = this.nextId++;
     const action = opts.action && {
@@ -35,6 +36,7 @@ class ToastStore {
     this.timer = setTimeout(() => {
       if (this.current?.id === id) this.current = null;
     }, opts.durationMs ?? (action ? 6000 : 3000));
+    return id;
   }
 
   dismiss() {
@@ -46,6 +48,22 @@ class ToastStore {
 export const toast = new ToastStore();
 
 /** "Deleted" with an Undo that restores what was deleted. */
-export function showUndo(text: string, restore: () => Promise<void>) {
-  toast.show(text, { action: { label: 'Undo', run: restore } });
+export function showUndo(text: string, restore: () => void | Promise<void>): number {
+  return toast.show(text, { action: { label: 'Undo', run: restore } });
+}
+
+/**
+ * `showUndo` for a delete inside an editor that holds its own draft (a
+ * session being edited, Settings' copies of the catalogs): the Undo only
+ * makes sense while that editor is open, so its toast goes when the
+ * editor does. Call once from a component's script; use what it returns.
+ */
+export function scopedUndo(): (text: string, restore: () => void | Promise<void>) => void {
+  let id: number | null = null;
+  onDestroy(() => {
+    if (id !== null && toast.current?.id === id) toast.dismiss();
+  });
+  return (text, restore) => {
+    id = showUndo(text, restore);
+  };
 }

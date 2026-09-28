@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { generateId, showAlert, showConfirm } from '../../lib/utils';
+  import { scopedUndo } from '../../lib/toast.svelte';
+  import { generateId, showAlert } from '../../lib/utils';
   import type { BenchmarkTypeDef } from '../../lib/types';
   import Icon from "@iconify/svelte";
 
@@ -47,10 +48,16 @@
     isAddingBenchmark = false;
   }
 
-  async function deleteBenchmarkType(id: string) {
-    const confirmed = await showConfirm('Delete Benchmark Type', 'Delete this benchmark type? Historical progress data will remain but the type will be unlinked.');
-    if (!confirmed) return;
+  const undoable = scopedUndo();
+  /** Logged results stay; they're just unlinked until Undo puts the type back. */
+  function deleteBenchmarkType(id: string) {
+    const index = benchmarkTypes.findIndex(t => t.id === id);
+    if (index === -1) return;
+    const removed = $state.snapshot(benchmarkTypes[index]) as BenchmarkTypeDef;
     benchmarkTypes = benchmarkTypes.filter(t => t.id !== id);
+    undoable(`${removed.name} deleted`, () => {
+      if (!benchmarkTypes.some(t => t.id === removed.id)) benchmarkTypes = [...benchmarkTypes.slice(0, index), removed, ...benchmarkTypes.slice(index)];
+    });
   }
 </script>
 

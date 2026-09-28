@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scopedUndo } from '../../lib/toast.svelte';
   import { generateId, showAlert, showConfirm } from '../../lib/utils';
   import { DEFAULT_TEMPLATE_LIBRARY } from '../../lib/constants';
   import type { PhaseDef, WorkoutTemplate } from '../../lib/types';
@@ -69,11 +70,16 @@
     isAddingPhase = false;
   }
 
-  async function deletePhase(id: string) {
-    const confirmed = await showConfirm('Delete Phase', 'Delete this phase? Historical training blocks/templates referencing it may be affected.');
-    if (!confirmed) return;
+  const undoable = scopedUndo();
+  function deletePhase(id: string) {
+    const index = phaseDefs.findIndex(p => p.id === id);
+    if (index === -1) return;
+    const removed = $state.snapshot(phaseDefs[index]) as PhaseDef;
     phaseDefs = phaseDefs.filter(p => p.id !== id);
     if (expandedPhaseId === id) expandedPhaseId = null;
+    undoable(`${removed.name} deleted`, () => {
+      if (!phaseDefs.some(p => p.id === removed.id)) phaseDefs = [...phaseDefs.slice(0, index), removed, ...phaseDefs.slice(index)];
+    });
   }
 
   function movePhase(id: string, direction: 'up' | 'down') {

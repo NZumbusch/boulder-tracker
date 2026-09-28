@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scopedUndo } from '../../lib/toast.svelte';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { motionMs } from '../../lib/motion';
   import { WEEK_DAYS } from '../../lib/constants';
@@ -161,9 +162,11 @@
     addingToGroup = null;
   }
 
-  async function removeExercise(slot: ExerciseSlot) {
-    const confirmed = await showConfirm('Remove Exercise', `Remove ${slotTypeName(slot, trainingState.exerciseTypes)} from this session?`);
-    if (confirmed) regroup(normaliseGroups({ ...workout, exercises: workout.exercises.filter((e) => e.id !== slot.id) }));
+  const undoable = scopedUndo();
+  function removeExercise(slot: ExerciseSlot) {
+    const before = $state.snapshot({ exercises: workout.exercises, groups: workout.groups }) as { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] };
+    regroup(normaliseGroups({ ...workout, exercises: workout.exercises.filter((e) => e.id !== slot.id) }));
+    undoable(`${slotTypeName(slot, trainingState.exerciseTypes)} removed`, () => regroup(before));
   }
 
   function handleDnd(e: CustomEvent<DndEvent<ExerciseSlot>>) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { showUndo } from '../../lib/toast.svelte';
   /**
    * Edits one saved circuit: its name, a note, the group's timing and its
    * exercises. Full screen, like the workout editor, and built from the same
@@ -67,10 +68,12 @@
     onClose();
   }
 
+  /** Sessions that already have it keep their copy; Undo saves it back. */
   async function remove() {
-    if (!(await showConfirm('Delete Circuit', `Delete ${draft.name || 'this circuit'}? Sessions that already have it keep their copy.`))) return;
+    const saved = trainingState.circuits.find((c) => c.id === draft.id);
     await trainingState.deleteCircuit(draft.id);
     onClose();
+    if (saved) showUndo(`${saved.name} deleted`, () => trainingState.saveCircuit(saved));
   }
 
   backWhile(() => formSlot === null, () => close());
