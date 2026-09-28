@@ -2,6 +2,7 @@ import { trainingState } from "../state.svelte";
 import { _dbState, initDB, setDbState, setDemoMode } from "../storage/persistence";
 import { buildDemoData } from "./demoData";
 import { TOUR_STEPS, type TourStep } from "./steps";
+import { openWorkout, closeWorkout, workoutModal } from "../workoutModal.svelte";
 
 /**
  * Runs the launch tour (`TOUR_STEPS`, drawn by `TourOverlay.svelte`) on
@@ -17,6 +18,8 @@ class Tour {
   active = $state(false);
   index = $state(0);
   #real: unknown = null;
+  /** The tour opened the session viewer (a step's `openWorkout`) and closes it again. */
+  #openedWorkout = false;
 
   get step(): TourStep {
     return TOUR_STEPS[this.index];
@@ -43,6 +46,20 @@ class Tour {
     if (!this.active) return;
     this.index = Math.max(0, Math.min(index, TOUR_STEPS.length - 1));
     if (trainingState.view !== this.step.view) trainingState.navigate(this.step.view);
+    this.#syncWorkout();
+  }
+
+  /** Opens the step's session in the viewer, or closes the one an earlier step opened. */
+  #syncWorkout(): void {
+    const id = this.step.openWorkout;
+    const workout = id ? trainingState.workouts.find((w) => w.id === id) : undefined;
+    if (workout) {
+      if (workoutModal.workout?.id !== id) openWorkout(workout, "view");
+      this.#openedWorkout = true;
+    } else if (this.#openedWorkout) {
+      closeWorkout();
+      this.#openedWorkout = false;
+    }
   }
 
   next(): void {
@@ -57,6 +74,10 @@ class Tour {
   async end(): Promise<void> {
     if (!this.active) return;
     this.active = false;
+    if (this.#openedWorkout) {
+      closeWorkout();
+      this.#openedWorkout = false;
+    }
     setDbState(this.#real);
     this.#real = null;
     setDemoMode(false);

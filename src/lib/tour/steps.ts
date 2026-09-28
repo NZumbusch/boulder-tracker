@@ -1,4 +1,5 @@
 import type { ViewType } from "../types";
+import { DEMO_CIRCUIT_SESSION_ID } from "./demoData";
 
 /**
  * The launch tour, in order: one list of plain data, so adding, removing
@@ -13,6 +14,8 @@ import type { ViewType } from "../types";
 export interface TourStep {
   view: ViewType;
   target?: string;
+  /** A demo session to show in the session viewer for this step (closed again on the next). */
+  openWorkout?: string;
   title: string;
   body: string;
 }
@@ -67,6 +70,19 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     view: "plan",
+    target: "plan-planb",
+    title: "Plan B",
+    body: "For days that could go either way - outdoor if it's dry, otherwise the board. Plan B holds the other version of those days; pick one when you know, and until then the likely one counts. Make one from a session's menu or the week's ⋯ menu.",
+  },
+  {
+    view: "plan",
+    target: "workout-circuit",
+    openWorkout: DEMO_CIRCUIT_SESSION_ID,
+    title: "Circuits and supersets",
+    body: "Exercises done in rounds: a core circuit, or antagonist work in the rests between hard sets. Each exercise is one set; the circuit sets the rounds and rests. In a session a circuit runs on its own timer - holds count down, reps get a Done button. Group exercises in the editor, or save a circuit and reuse it.",
+  },
+  {
+    view: "plan",
     target: "plan-blocks",
     title: "Training blocks",
     body: "Plan several weeks at once: e.g. three weeks Strength, then a Deload week. The calendar above fills in from these.",
@@ -75,7 +91,7 @@ export const TOUR_STEPS: TourStep[] = [
     view: "plan",
     target: "plan-ai",
     title: "AI coach",
-    body: "Copies a prompt with your plan and history for ChatGPT, Claude or Gemini. Paste the reply back and you get a list of changes to tick through. Nothing is sent anywhere by the app itself.",
+    body: "Copies a prompt with your plan and history for ChatGPT, Claude or Gemini. Paste the reply back and you get a list of changes to tick through - phases, weeks, Plan Bs, circuits. Nothing is sent anywhere by the app itself.",
   },
   {
     view: "plan",
@@ -87,7 +103,7 @@ export const TOUR_STEPS: TourStep[] = [
     view: "add",
     target: "add-start",
     title: "Start a session",
-    body: "The + button in the middle starts a live session: add exercises as you go, with a stopwatch, rest timers and interval timers.",
+    body: "The + button in the middle starts a live session: add exercises as you go, with a stopwatch, rest timers, interval timers and a round-by-round timer for circuits.",
   },
   {
     view: "add",
@@ -129,13 +145,25 @@ export const TOUR_STEPS: TourStep[] = [
     view: "settings",
     target: "settings-customization",
     title: "Make it yours",
-    body: "Exercises, categories and the sessions each phase starts with - including switching between the Getting started and Advanced sets.",
+    body: "Exercises, saved circuits, categories and the sessions each phase starts with - including switching between the Getting started and Advanced sets.",
+  },
+  {
+    view: "settings",
+    target: "settings-coach",
+    title: "Coach notes",
+    body: "What the AI coach should know about you (height, injuries, goals) and a short memory it keeps between chats - AI-proposed notes are only saved once you tick them.",
   },
   {
     view: "settings",
     target: "settings-data",
     title: "Back up your data",
-    body: "Everything lives only on this device. Export a backup now and then (it's one file), or turn on sync on Android.",
+    body: "Everything lives only on this device. Export a backup now and then (it's one file), or turn on Google Drive sync on Android - then pull down on Home to sync.",
+  },
+  {
+    view: "settings",
+    target: "settings-connections",
+    title: "Connections & exports",
+    body: "Sleep, resting heart rate and weight from Health Connect (Android), your plan in your calendar, a PDF of the plan, and what the AI coach gets to see.",
   },
   {
     view: "home",

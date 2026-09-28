@@ -164,9 +164,9 @@
     <div class="card py-1 divide-y divide-border">
       <div data-tour="settings-customization"><NavRow icon="ic:baseline-tune" title="Customization" hint="Exercises, circuits, categories, training phases, templates & benchmarks" onclick={() => currentTab = 'customization'} /></div>
       <NavRow icon="ic:baseline-color-lens" title="Appearance & Behaviour" hint="Theme, layout, timer, weather & notifications" onclick={() => { currentTab = 'design'; appearanceTopic = null; }} />
-      <NavRow icon="ic:baseline-psychology" title="Coach notes" hint="About me, standing goal and what the AI coach remembers" onclick={() => currentTab = 'coach'} />
+      <div data-tour="settings-coach"><NavRow icon="ic:baseline-psychology" title="Coach notes" hint="About me, standing goal and what the AI coach remembers" onclick={() => currentTab = 'coach'} /></div>
       <div data-tour="settings-data"><NavRow icon="ic:baseline-cloud-sync" title="Sync & Backup" hint="Keep your data safe: Google Drive sync, backups, start over" onclick={() => currentTab = 'backup'} /></div>
-      <NavRow icon="ic:baseline-swap-horiz" title="Connections & Exports" hint="Health Connect, calendar & PDF exports, AI sharing" onclick={() => currentTab = 'connections'} />
+      <div data-tour="settings-connections"><NavRow icon="ic:baseline-swap-horiz" title="Connections & Exports" hint="Health Connect, calendar & PDF exports, AI sharing" onclick={() => currentTab = 'connections'} /></div>
       <NavRow icon="ic:baseline-info" title="About & Help" hint="Tour, install on iPhone, contact, privacy policy" onclick={() => currentTab = 'about'} />
     </div>
   {:else if currentTab === 'customization'}

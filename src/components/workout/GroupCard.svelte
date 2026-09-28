@@ -29,7 +29,7 @@
   {#if header}
     {@render header()}
   {:else}
-    <div class="px-1.5 pt-1">
+    <div class="px-1.5 pt-1" data-tour="workout-circuit">
       {#if group.name}
         <p class="text-caption uppercase text-content-subtle flex items-center gap-1">
           <Icon icon="ic:baseline-repeat" class="text-sm" /> Circuit

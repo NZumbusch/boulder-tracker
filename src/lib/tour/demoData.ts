@@ -1,5 +1,8 @@
 import type {
   Benchmark,
+  Circuit,
+  ExerciseGroup,
+  PlanAlternative,
   DailyMetricEntry,
   DayOfWeek,
   ExerciseSlot,
@@ -29,6 +32,9 @@ import { calculateLoadFactor, workoutPlannedLoad } from "../analytics/load";
  * (a Capacity → Strength → Deload block behind, Power now, a Font trip
  * ahead), with ratings, daily metrics, benchmarks and sends, so every
  * screen has something real to point at.
+ *
+ * This week's Saturday shows the newer planning tools too: its core work
+ * is a saved circuit ("Core A"), and the day has a Plan B (outdoor if dry).
  *
  * Built from the app's default catalog rather than the user's, so it looks
  * the same for everyone and never depends on what they renamed or deleted.
@@ -77,6 +83,43 @@ function dayIndex(day: DayOfWeek | undefined): number {
   return Math.max(0, DAYS.indexOf(day ?? "Monday"));
 }
 
+/** The session the tour opens to show a circuit - this week's Board Session. */
+export const DEMO_CIRCUIT_SESSION_ID = "demo-circuit-session";
+
+/** The example saved circuit: timed holds and a counted set, three rounds. */
+const CORE_A: Circuit = {
+  id: "demo-circuit-core-a",
+  name: "Core A",
+  description: "Anti-extension and rotation - slow and strict.",
+  rounds: 3,
+  transition: 15,
+  roundRest: 60,
+  exercises: [
+    { id: "demo-core-a-1", typeId: "core-training", activeParameters: ["timeOn"], prescribed: { timeOn: 45, notes: "Hollow hold" } },
+    { id: "demo-core-a-2", typeId: "core-training", activeParameters: ["timeOn"], prescribed: { timeOn: 45, notes: "Side plank, 20 s a side" } },
+    { id: "demo-core-a-3", typeId: "core-training", activeParameters: ["reps"], prescribed: { reps: 12, notes: "Hanging knee raises" } },
+  ],
+};
+
+/**
+ * Swaps this week's Board Session's single core exercise for a copy of
+ * Core A - what adding a saved circuit to a session does.
+ */
+function withCoreCircuit(w: Workout): Workout {
+  const coreAt = w.exercises.findIndex((e) => e.typeId === "core-training");
+  if (coreAt < 0) return w;
+  const done = w.status === "completed";
+  const group: ExerciseGroup = { id: "demo-group-core", name: CORE_A.name, rounds: CORE_A.rounds, transition: CORE_A.transition, roundRest: CORE_A.roundRest, circuitId: CORE_A.id };
+  const members = CORE_A.exercises.map((e, i) => ({
+    ...structuredClone(e),
+    id: `${w.id}-core-${i}`,
+    groupId: group.id,
+    ...(done ? { logged: structuredClone(e.prescribed) } : {}),
+  }));
+  const exercises = [...w.exercises.slice(0, coreAt), ...members, ...w.exercises.slice(coreAt + 1)];
+  return { ...w, exercises, groups: [group], plannedLoad: workoutPlannedLoad(exercises, [group]) };
+}
+
 export function buildDemoData(today: Date = new Date()): TrainingData & { exportVersion: string } {
   const rand = seeded(20260926);
   const jitter = (n: number) => Math.max(1, Math.min(10, n + Math.round(rand() * 2 - 1)));
@@ -118,8 +161,9 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
         }));
         const minutes = exercises.reduce((m, s) => m + (s.prescribed?.duration ?? 0), 0);
         const [fingers, arms, core, systemic] = FEEL[p.phaseId].map(jitter);
-        workouts.push({
-          id: `demo-${weekId}-${ti}`,
+        const circuitSession = offset === 0 && p.phaseId === "phase-power" && t.dayOfWeek === "Saturday";
+        const workout: Workout = {
+          id: circuitSession ? DEMO_CIRCUIT_SESSION_ID : `demo-${weekId}-${ti}`,
           status: done ? "completed" : "planned",
           date: done ? `${iso(day)}T18:30:00.000Z` : null,
           dayOfWeek: t.dayOfWeek,
@@ -131,7 +175,8 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
           loadFactor: done ? calculateLoadFactor(minutes, fingers, core, systemic) : 0,
           ...(done ? { actualDuration: minutes, fingers, arms, core, systemic } : {}),
           ...(t.description ? { description: t.description } : {}),
-        });
+        };
+        workouts.push(circuitSession ? withCoreCircuit(workout) : workout);
       });
     }
   }
@@ -186,6 +231,32 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     },
   ];
 
+  // This Saturday may go either way: the board at the gym, or outdoors if it's dry.
+  const planAlternatives: PlanAlternative[] = [
+    {
+      id: "demo-planb",
+      label: "Outdoor if dry",
+      startWeekId: getWeekId(today),
+      startDay: "Saturday",
+      days: 1,
+      outdoor: "B",
+      likely: "A",
+      changes: [
+        {
+          id: "demo-planb-sat",
+          offset: 0,
+          replaces: { name: "Board Session", id: DEMO_CIRCUIT_SESSION_ID },
+          session: {
+            id: "demo-planb-outdoor",
+            name: "Outdoor bouldering",
+            description: "Warm up on easy problems, then three tries each on two projects.",
+            exercises: [{ id: "demo-planb-ex", typeId: "free-bouldering", activeParameters: ["duration", "boulderingGrades"], prescribed: { duration: 180, minGrade: "6B", maxGrade: "7A" } }],
+          },
+        },
+      ],
+    },
+  ];
+
   const painDate = addDays(mondayOf(today, -3), 3);
   const painLogs: PainLog[] = [
     { id: "demo-pain-1", date: iso(painDate), weekId: getWeekId(painDate), bodyPart: "Left ring finger", severity: 3, notes: "Slight tweak on a crimp, gone after two days" },
@@ -196,10 +267,13 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     trainingBlocks,
     weekOverrides: [],
     weekNotes: [{ weekId: getWeekId(mondayOf(today, -1)), text: "Deload: kept it easy after the strength block." }],
-    planAlternatives: [],
-    athleteProfile: [],
-    coachNotes: [],
-    circuits: [],
+    planAlternatives,
+    athleteProfile: [{ id: "me", heightCm: 176, climbingSince: 2019, maxBoulderOutdoor: "7A", standingGoal: "Climb 7A+ in Fontainebleau this autumn" }],
+    coachNotes: [
+      { id: "d1k2", text: "Left ring finger gets tweaky on small crimps - keep max hangs on 20 mm or bigger.", source: "me", addedOn: iso(addDays(today, -20)) },
+      { id: "d7q4", text: "Recovers well from two hard days in a row; three in a row drops readiness for days.", source: "ai", addedOn: iso(addDays(today, -9)) },
+    ],
+    circuits: [structuredClone(CORE_A)],
     goals,
     exerciseTypes: structuredClone(DEFAULT_EXERCISE_TYPES),
     templates,

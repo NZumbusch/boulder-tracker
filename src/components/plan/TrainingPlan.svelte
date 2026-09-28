@@ -609,7 +609,9 @@
       {/if}
 
       {#each planView?.occurrences ?? [] as occ (`${occ.alt.id}:${occ.key}`)}
-        <PlanBStretch {occ} onSettings={() => planBSettings = { alt: occ.alt, key: occ.key }} />
+        <div data-tour="plan-planb">
+          <PlanBStretch {occ} onSettings={() => planBSettings = { alt: occ.alt, key: occ.key }} />
+        </div>
       {/each}
       {#each skippedHere as { alt, key } (`${alt.id}:${key}`)}
         <p class="flex items-center gap-2 text-caption text-content-subtle px-1">

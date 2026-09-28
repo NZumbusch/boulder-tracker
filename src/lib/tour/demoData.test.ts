@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDemoData } from "./demoData";
+import { buildDemoData, DEMO_CIRCUIT_SESSION_ID } from "./demoData";
 import { getWeekId } from "../dateUtils";
 import { assertMigrationInvariants } from "../storage/migrations";
 
@@ -44,6 +44,16 @@ describe("tour demo data", () => {
     data.trainingBlocks.forEach((b) => expect(phases.has(b.phaseId)).toBe(true));
     data.dailyMetrics.forEach((m) => expect(metrics.has(m.metricId)).toBe(true));
     data.benchmarks.forEach((b) => expect(benchmarks.has(b.typeId)).toBe(true));
+  });
+
+  it("shows the newer planning tools this week: a saved circuit in Saturday's session, and a Plan B for that day", () => {
+    const saturday = data.workouts.find((w) => w.id === DEMO_CIRCUIT_SESSION_ID)!;
+    expect(saturday.weekId).toBe(getWeekId(TODAY));
+    expect(saturday.groups).toEqual([expect.objectContaining({ name: "Core A", rounds: 3, circuitId: data.circuits[0].id })]);
+    expect(saturday.exercises.filter((e) => e.groupId)).toHaveLength(3);
+    expect(data.planAlternatives[0]).toMatchObject({ startWeekId: getWeekId(TODAY), startDay: "Saturday", outdoor: "B" });
+    expect(data.planAlternatives[0].changes[0].replaces).toEqual({ name: "Board Session", id: DEMO_CIRCUIT_SESSION_ID });
+    expect(data.coachNotes.length).toBeGreaterThan(0);
   });
 
   it("passes the same invariants real data must", () => {
