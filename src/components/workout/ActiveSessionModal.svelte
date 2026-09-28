@@ -39,6 +39,8 @@
   import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
   import { haptic } from '../../lib/native/haptics';
   import { findLastLogged } from '../../lib/exercise/lastTime';
+  import { swipeRow } from '../../lib/ui/swipeRow';
+  import { showUndo } from '../../lib/toast.svelte';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -269,6 +271,20 @@
     seedFor = null;
   }
 
+  // --- Swiping a row ---
+  function swipeDone(slot: ExerciseSlot) {
+    const name = slotTypeName(slot, trainingState.exerciseTypes);
+    store.logExercise(slot.id, { ...(slot.prescribed ?? slotValues(slot)) });
+    haptic(store.isComplete ? 'success' : 'tap');
+    showUndo(`${name} done as prescribed`, () => store.unfinishExercise(slot.id));
+  }
+  function swipeSkip(slot: ExerciseSlot) {
+    const name = slotTypeName(slot, trainingState.exerciseTypes);
+    store.skipExercise(slot.id);
+    haptic('tap');
+    showUndo(`${name} skipped`, () => store.unfinishExercise(slot.id));
+  }
+
   function openFullEditor() {
     editingSlotId = loggingSlotId;
     loggingSlotId = null;
@@ -461,122 +477,140 @@
                 {/if}
               </p>
             {/if}
-            <div
-              class="rounded-card border transition-all {isCurrent
-                ? 'bg-surface border-primary/50 shadow-card'
-                : status === 'pending'
-                  ? 'bg-surface/40 border-border'
-                  : 'bg-surface/20 border-border/60'}"
-            >
-              <div class="flex items-center gap-3 p-3.5">
-                <!-- Status pip doubles as the jump-to target -->
-                <button
-                  onclick={() => store.focusExercise(index)}
-                  class="shrink-0 w-8 h-8 rounded-full grid place-items-center text-caption font-bold transition-colors {status === 'done'
-                    ? 'bg-success/15 text-success'
-                    : status === 'skipped'
-                      ? 'bg-surface-elevated text-content-subtle'
-                      : isCurrent
-                        ? 'bg-primary text-white'
-                        : 'bg-surface-elevated text-content-subtle'}"
-                  aria-label="Go to exercise {index + 1}"
+            <!-- Swipe a pending exercise: right = done as prescribed,
+                 left = skip (both with Undo). The solid backing hides
+                 the coloured layer until the row slides off it. -->
+            <div class="relative">
+              <div
+                class="peer relative z-10 bg-app-bg rounded-card"
+                use:swipeRow={{ enabled: status === 'pending' && !store.isComplete, onRight: () => swipeDone(slot), onLeft: () => swipeSkip(slot) }}
+              >
+                <div
+                  class="rounded-card border transition-all {isCurrent
+                    ? 'bg-surface border-primary/50 shadow-card'
+                    : status === 'pending'
+                      ? 'bg-surface/40 border-border'
+                      : 'bg-surface/20 border-border/60'}"
                 >
-                  {#if status === 'done'}
-                    <Icon icon="ic:baseline-check" class="text-base" />
-                  {:else if status === 'skipped'}
-                    <Icon icon="ic:baseline-remove" class="text-base" />
-                  {:else}
-                    {index + 1}
-                  {/if}
-                </button>
-
-                <button onclick={() => store.focusExercise(index)} class="min-w-0 flex-1 text-left">
-                  <p class="text-body font-bold truncate {status === 'pending' ? 'text-content' : 'text-content-muted'}">
-                    {slotTypeName(slot, trainingState.exerciseTypes)}
-                  </p>
-                  <p class="text-caption text-content-subtle truncate flex items-center gap-1.5">
-                    {#if status === 'skipped'}
-                      <span class="text-content-subtle">Skipped</span>
-                    {:else if !slot.prescribed}
-                      <span class="text-primary/80">Extra</span>
-                      {#if slotSummary(slot)}&middot; {slotSummary(slot)}{/if}
-                    {:else}
-                      {slotSummary(slot) || '—'}
-                    {/if}
-                  </p>
-                </button>
-
-                {#if isCurrent && status === 'pending'}
-                  <!-- This exercise's own clock: stops with the session pause,
-                       and carries on from here if you come back to it. -->
-                  <span
-                    class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-control text-caption tabular-nums {store.isPaused ? 'bg-surface-elevated text-content-subtle' : 'bg-primary/10 text-primary'}"
-                    title="Time on this exercise"
-                    aria-label="Time on this exercise: {clock(store.slotElapsedMs(slot.id))}"
-                  >
-                    <Icon icon={store.isPaused ? 'ic:baseline-pause' : 'ic:baseline-timer'} class="text-sm" />
-                    {clock(store.slotElapsedMs(slot.id))}
-                  </span>
-                {:else if store.slotElapsedMs(slot.id) >= 60_000}
-                  <span class="shrink-0 text-caption text-content-subtle tabular-nums" title="Time spent on this exercise">{Math.round(store.slotElapsedMs(slot.id) / 60_000)} min</span>
-                {/if}
-
-                {#if status !== 'pending'}
-                  <button
-                    onclick={() => store.unfinishExercise(slot.id)}
-                    class="shrink-0 p-2 text-content-subtle hover:text-primary transition-colors"
-                    aria-label="Reopen this exercise"
-                    title="Reopen — correct what you logged"
-                  >
-                    <Icon icon="ic:baseline-undo" class="text-base" />
-                  </button>
-                {/if}
-              </div>
-
-              <!-- The current exercise opens up: what to do, then the actions -->
-              {#if isCurrent && status === 'pending'}
-                <div class="px-3.5 pb-3.5 space-y-3 animate-in fade-in duration-200">
-                  <ExerciseDetails {slot} showHowTo lastTime={lastTimeFor(slot)} />
-
-                  <div class="flex gap-2">
+                  <div class="flex items-center gap-3 p-3.5">
+                    <!-- Status pip doubles as the jump-to target -->
                     <button
-                      onclick={() => store.skipExercise(slot.id)}
-                      class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98]"
+                      onclick={() => store.focusExercise(index)}
+                      class="shrink-0 w-8 h-8 rounded-full grid place-items-center text-caption font-bold transition-colors {status === 'done'
+                        ? 'bg-success/15 text-success'
+                        : status === 'skipped'
+                          ? 'bg-surface-elevated text-content-subtle'
+                          : isCurrent
+                            ? 'bg-primary text-white'
+                            : 'bg-surface-elevated text-content-subtle'}"
+                      aria-label="Go to exercise {index + 1}"
                     >
-                      Skip
+                      {#if status === 'done'}
+                        <Icon icon="ic:baseline-check" class="text-base" />
+                      {:else if status === 'skipped'}
+                        <Icon icon="ic:baseline-remove" class="text-base" />
+                      {:else}
+                        {index + 1}
+                      {/if}
                     </button>
-                    {#if groupIdOf(slot)}
-                      <button
-                        onclick={() => openCircuit(groupIdOf(slot)!)}
-                        disabled={!!circuitGroupId && circuitGroupId !== slot.groupId}
-                        class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-40"
-                        aria-label="Run the circuit"
+
+                    <button onclick={() => store.focusExercise(index)} class="min-w-0 flex-1 text-left">
+                      <p class="text-body font-bold truncate {status === 'pending' ? 'text-content' : 'text-content-muted'}">
+                        {slotTypeName(slot, trainingState.exerciseTypes)}
+                      </p>
+                      <p class="text-caption text-content-subtle truncate flex items-center gap-1.5">
+                        {#if status === 'skipped'}
+                          <span class="text-content-subtle">Skipped</span>
+                        {:else if !slot.prescribed}
+                          <span class="text-primary/80">Extra</span>
+                          {#if slotSummary(slot)}&middot; {slotSummary(slot)}{/if}
+                        {:else}
+                          {slotSummary(slot) || '—'}
+                        {/if}
+                      </p>
+                    </button>
+
+                    {#if isCurrent && status === 'pending'}
+                      <!-- This exercise's own clock: stops with the session pause,
+                           and carries on from here if you come back to it. -->
+                      <span
+                        class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-control text-caption tabular-nums {store.isPaused ? 'bg-surface-elevated text-content-subtle' : 'bg-primary/10 text-primary'}"
+                        title="Time on this exercise"
+                        aria-label="Time on this exercise: {clock(store.slotElapsedMs(slot.id))}"
                       >
-                        <Icon icon="ic:baseline-repeat" class="text-base" />
-                        {circuitGroupId === slot.groupId ? 'Resume' : 'Circuit'}
-                      </button>
-                    {:else if hasIntervalTiming(slotValues(slot))}
-                      <!-- Opens the timer that fits: the interval protocol
-                           for timed work (hangs), the set timer with rests
-                           for strength sets. The floating pill below also
-                           offers stopwatch and countdown for anything else. -->
+                        <Icon icon={store.isPaused ? 'ic:baseline-pause' : 'ic:baseline-timer'} class="text-sm" />
+                        {clock(store.slotElapsedMs(slot.id))}
+                      </span>
+                    {:else if store.slotElapsedMs(slot.id) >= 60_000}
+                      <span class="shrink-0 text-caption text-content-subtle tabular-nums" title="Time spent on this exercise">{Math.round(store.slotElapsedMs(slot.id) / 60_000)} min</span>
+                    {/if}
+
+                    {#if status !== 'pending'}
                       <button
-                        onclick={() => timer?.openForExercise()}
-                        class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5"
-                        aria-label="Open the timer for this exercise"
+                        onclick={() => store.unfinishExercise(slot.id)}
+                        class="shrink-0 p-2 text-content-subtle hover:text-primary transition-colors"
+                        aria-label="Reopen this exercise"
+                        title="Reopen — correct what you logged"
                       >
-                        <Icon icon="ic:baseline-timer" class="text-base" />
-                        Timer
+                        <Icon icon="ic:baseline-undo" class="text-base" />
                       </button>
                     {/if}
-                    <button
-                      onclick={() => openFinish(slot)}
-                      class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                    >
-                      <Icon icon="ic:baseline-check" class="text-base" />
-                      Finish exercise
-                    </button>
                   </div>
+
+                  <!-- The current exercise opens up: what to do, then the actions -->
+                  {#if isCurrent && status === 'pending'}
+                    <div class="px-3.5 pb-3.5 space-y-3 animate-in fade-in duration-200">
+                      <ExerciseDetails {slot} showHowTo lastTime={lastTimeFor(slot)} />
+
+                      <div class="flex gap-2">
+                        <button
+                          onclick={() => store.skipExercise(slot.id)}
+                          class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98]"
+                        >
+                          Skip
+                        </button>
+                        {#if groupIdOf(slot)}
+                          <button
+                            onclick={() => openCircuit(groupIdOf(slot)!)}
+                            disabled={!!circuitGroupId && circuitGroupId !== slot.groupId}
+                            class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-40"
+                            aria-label="Run the circuit"
+                          >
+                            <Icon icon="ic:baseline-repeat" class="text-base" />
+                            {circuitGroupId === slot.groupId ? 'Resume' : 'Circuit'}
+                          </button>
+                        {:else if hasIntervalTiming(slotValues(slot))}
+                          <!-- Opens the timer that fits: the interval protocol
+                               for timed work (hangs), the set timer with rests
+                               for strength sets. The floating pill below also
+                               offers stopwatch and countdown for anything else. -->
+                          <button
+                            onclick={() => timer?.openForExercise()}
+                            class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5"
+                            aria-label="Open the timer for this exercise"
+                          >
+                            <Icon icon="ic:baseline-timer" class="text-base" />
+                            Timer
+                          </button>
+                        {/if}
+                        <button
+                          onclick={() => openFinish(slot)}
+                          class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        >
+                          <Icon icon="ic:baseline-check" class="text-base" />
+                          Finish exercise
+                        </button>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+              {#if status === 'pending'}
+                <div class="absolute inset-0 z-0 rounded-card bg-success/80 text-white flex items-center px-5 gap-2 text-label font-bold opacity-0 peer-data-[swipe=right]:opacity-100 transition-opacity">
+                  <Icon icon="ic:baseline-check" class="text-xl" /> Done as prescribed
+                </div>
+                <div class="absolute inset-0 z-0 rounded-card bg-surface-elevated text-content-muted flex items-center justify-end px-5 gap-2 text-label font-bold opacity-0 peer-data-[swipe=left]:opacity-100 transition-opacity">
+                  Skip <Icon icon="ic:baseline-skip-next" class="text-xl" />
                 </div>
               {/if}
             </div>
