@@ -1,7 +1,8 @@
 <script lang="ts">
   import InfoButton from '../common/InfoButton.svelte';
   import { showInfo } from '../../lib/help/infoSheet.svelte';
-  import { motionMs, scrollBehavior } from '../../lib/motion';
+  import { motionMs, motionReduced, scrollBehavior } from '../../lib/motion';
+  import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -289,6 +290,24 @@
     showPhaseDropdown = false;
   }
 
+  // --- Swiping the week card: one week back or on (same gesture as Analytics) ---
+  let weekCardEl = $state<HTMLElement | null>(null);
+  function stepWeek(direction: SwipeDirection) {
+    const from = trainingState.selectedWeekId;
+    if (!from || arranging) return;
+    const next = direction === 'next' ? incrementWeekId(from) : decrementWeekId(from);
+    trainingState.selectedWeekId = next;
+    showPhaseDropdown = false;
+    // The calendar shows 50 weeks at a time - page it along when the week walks off its edge.
+    if (!weeks.some((w) => w.id === next)) trainingState.weekOffset += direction === 'next' ? 1 : -1;
+    if (weekCardEl?.animate && !motionReduced()) {
+      weekCardEl.animate(
+        [{ transform: `translateX(${direction === 'prev' ? -32 : 32}px)`, opacity: 0.35 }, { transform: 'none', opacity: 1 }],
+        { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
+      );
+    }
+  }
+
   function handleAddWorkout(weekId: string, dayOfWeek?: DayOfWeek) {
     const dominantBlock = getDominantBlockForWeek(trainingState.trainingBlocks, weekId);
     const newWorkout: Workout = {
@@ -439,7 +458,14 @@
   </div>
 
   {#if trainingState.selectedWeekId && selectedWeekData}
-    <div class="card space-y-4 relative {showPhaseDropdown ? 'z-30' : ''}">
+    <!-- A sideways swipe moves a week back or on (lib/analytics/swipe.ts);
+         touch-pan-y keeps vertical scrolling native. Off while arranging,
+         where a sideways drag moves a session. -->
+    <div
+      class="card space-y-4 relative touch-pan-y {showPhaseDropdown ? 'z-30' : ''}"
+      bind:this={weekCardEl}
+      use:swipePaging={stepWeek}
+    >
       <!-- Title column and the week's actions side by side on every width -
            the actions used to drop onto their own row, leaving a gap. -->
       <div class="flex items-start justify-between gap-2">
