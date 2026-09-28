@@ -218,7 +218,6 @@
   {:else if currentTab === 'about'}
     <div class="space-y-4">
       <AppUpdateSettings />
-      <ErrorLogCard />
       <div class="card space-y-3 animate-in fade-in">
         <h4 class="text-section uppercase text-content-muted px-1">Help</h4>
         <button
@@ -243,6 +242,7 @@
           </div>
         {/if}
       </div>
+      <ErrorLogCard />
       <div class="card space-y-4 animate-in fade-in">
         <div class="space-y-4">
           <div class="text-center py-4">

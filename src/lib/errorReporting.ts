@@ -2,98 +2,233 @@ import { toast } from "./toast.svelte";
 import { setSaveErrorListener } from "./storage/persistence";
 
 /**
- * Makes failures visible. Errors nobody caught used to vanish into the
- * console, so a broken button looked like one that "does nothing" (the
- * session viewer's Delete did exactly that for days). Now:
+ * Makes failures visible, and traceable afterwards.
  *
- *  - a save that didn't reach the disk says so, every time;
- *  - any other uncaught error or rejected promise shows a short message -
- *    at most one per few seconds, and never the same one twice in a row
- *    within that time, so a failure in a loop can't flood the screen.
+ * Everything the browser console would show as an error or a warning is
+ * caught here: uncaught errors, rejected promises, and whatever the app
+ * or a library writes with `console.error` / `console.warn` (Svelte's own
+ * runtime warnings included). Each goes into a log kept on the device -
+ * Settings -> About & Help -> Errors & warnings - because by the time a
+ * button that "did nothing" on the phone gets looked at, the console is
+ * long gone.
+ *
+ * Whether one also pops up as it happens is a device setting (off /
+ * errors / errors and warnings; errors by default). Popups are rate
+ * limited - at most one per second, never the same one twice within a few
+ * seconds - so a failure in a loop can't flood the screen. A save that
+ * didn't reach the disk always says so.
  */
-const QUIET_MS = 5000;
-let lastShownAt = 0;
-let lastMessage = "";
 
-function describe(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === "string") return err;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
-}
+export type LogLevel = "error" | "warning";
+export type LogSource = "uncaught" | "promise" | "console" | "caught";
 
-/**
- * The last few errors, kept on the device (Settings -> About & Help) so a
- * button that "did nothing" on the phone can be traced afterwards - the
- * console is gone by the time anyone looks.
- */
-export const ERROR_LOG_KEY = "boulder_tracker_error_log";
-const ERROR_LOG_MAX = 20;
 export interface LoggedError {
   at: string;
+  level?: LogLevel; // absent on entries from before warnings were logged: an error
+  source?: LogSource;
   where?: string;
   message: string;
   stack?: string;
+  /** How many times in a row this same entry happened (1 when absent). */
+  count?: number;
 }
 
-export function readErrorLog(): LoggedError[] {
+export type AlertLevel = "off" | "errors" | "all";
+
+export const ERROR_LOG_KEY = "boulder_tracker_error_log";
+export const ALERT_LEVEL_KEY = "boulder_tracker_error_alerts";
+export const LOG_CHANGED_EVENT = "boulder-tracker:error-log";
+const ERROR_LOG_MAX = 100;
+const MESSAGE_MAX = 500;
+const STACK_MAX = 1500;
+const QUIET_MS = 5000;
+
+// --- Pure helpers (tested) ------------------------------------------------
+
+export function describe(value: unknown): string {
+  if (value instanceof Error) return value.message || value.name;
+  if (typeof value === "string") return value;
+  if (value === undefined) return "undefined";
   try {
-    const parsed = JSON.parse(localStorage.getItem(ERROR_LOG_KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    const json = JSON.stringify(value);
+    return json === undefined ? String(value) : json;
   } catch {
-    return [];
+    return String(value);
   }
 }
 
+/** A console call's arguments as one line, the way the console prints them (`%s`-style placeholders dropped). */
+export function formatConsoleArgs(args: unknown[]): string {
+  const [first, ...rest] = args;
+  if (typeof first === "string" && /%[sdifoOc]/.test(first)) {
+    let i = 0;
+    const text = first.replace(/%[sdifoOc]/g, (m) => (m === "%c" ? (i++, "") : i < rest.length ? describe(rest[i++]) : m));
+    return [text, ...rest.slice(i).map(describe)].join(" ").trim();
+  }
+  return args.map(describe).join(" ").trim();
+}
+
+/** The first Error among a console call's arguments, for its stack. */
+export function firstError(args: unknown[]): Error | undefined {
+  return args.find((a): a is Error => a instanceof Error);
+}
+
+/** Adds an entry newest-first; a repeat of the newest one bumps its count instead of taking a row. */
+export function addEntry(log: LoggedError[], entry: LoggedError, max = ERROR_LOG_MAX): LoggedError[] {
+  const top = log[0];
+  if (top && top.message === entry.message && (top.level ?? "error") === (entry.level ?? "error") && top.where === entry.where) {
+    return [{ ...top, at: entry.at, count: (top.count ?? 1) + 1 }, ...log.slice(1)];
+  }
+  return [entry, ...log].slice(0, max);
+}
+
+export function shouldAlert(level: LogLevel, setting: AlertLevel): boolean {
+  return setting === "all" || (setting === "errors" && level === "error");
+}
+
+// --- The device log -------------------------------------------------------
+
+let memory: LoggedError[] | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | undefined;
+
+export function readErrorLog(): LoggedError[] {
+  if (memory) return memory;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ERROR_LOG_KEY) ?? "[]");
+    memory = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    memory = [];
+  }
+  return memory;
+}
+
 export function clearErrorLog() {
+  memory = [];
   try {
     localStorage.removeItem(ERROR_LOG_KEY);
   } catch {
     // Nothing to clear.
   }
+  announce();
 }
 
-function logError(err: unknown, where?: string) {
+function announce() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(LOG_CHANGED_EVENT));
+}
+
+/** Written shortly after, not on every entry - a warning in a render loop mustn't hammer storage. */
+function scheduleFlush() {
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = undefined;
+    try {
+      localStorage.setItem(ERROR_LOG_KEY, JSON.stringify(memory ?? []));
+    } catch {
+      // A full or unavailable localStorage must not turn one error into two.
+    }
+  }, 500);
+}
+
+function flushNow() {
+  if (!flushTimer) return;
+  clearTimeout(flushTimer);
+  flushTimer = undefined;
+  try {
+    localStorage.setItem(ERROR_LOG_KEY, JSON.stringify(memory ?? []));
+  } catch {
+    // As above.
+  }
+}
+
+export function readAlertLevel(): AlertLevel {
+  try {
+    const v = localStorage.getItem(ALERT_LEVEL_KEY);
+    return v === "off" || v === "all" ? v : "errors";
+  } catch {
+    return "errors";
+  }
+}
+
+export function setAlertLevel(level: AlertLevel) {
+  try {
+    localStorage.setItem(ALERT_LEVEL_KEY, level);
+  } catch {
+    // Stays at the default.
+  }
+}
+
+// --- Recording ------------------------------------------------------------
+
+let lastShownAt = 0;
+let lastMessage = "";
+/** Set while this module is itself writing, so nothing it does is caught again. */
+let recording = false;
+
+function record(level: LogLevel, source: LogSource, message: string, stack?: string, where?: string) {
+  if (recording) return;
+  recording = true;
   try {
     const entry: LoggedError = {
       at: new Date().toISOString(),
+      level,
+      source,
       ...(where ? { where } : {}),
-      message: describe(err).slice(0, 300),
-      ...(err instanceof Error && err.stack ? { stack: err.stack.slice(0, 1200) } : {}),
+      message: message.slice(0, MESSAGE_MAX) || "(no message)",
+      ...(stack ? { stack: stack.slice(0, STACK_MAX) } : {}),
     };
-    localStorage.setItem(ERROR_LOG_KEY, JSON.stringify([entry, ...readErrorLog()].slice(0, ERROR_LOG_MAX)));
+    memory = addEntry(readErrorLog(), entry);
+    scheduleFlush();
+    announce();
+    if (shouldAlert(level, readAlertLevel())) popup(level, entry.message);
   } catch {
-    // A full or unavailable localStorage must not turn one error into two.
+    // Reporting must never be the thing that breaks.
+  } finally {
+    recording = false;
   }
+}
+
+function popup(level: LogLevel, message: string) {
+  const short = message.slice(0, 140);
+  const now = Date.now();
+  if (now - lastShownAt < QUIET_MS && (short === lastMessage || now - lastShownAt < 1000)) return;
+  lastShownAt = now;
+  lastMessage = short;
+  toast.show(level === "error" ? `Something went wrong: ${short}` : `Warning: ${short}`);
 }
 
 /** Shows and logs an error something caught itself (an error boundary, a fallback path). */
 export function reportError(err: unknown, where?: string) {
-  report(err, where);
+  record("error", "caught", describe(err), err instanceof Error ? err.stack : undefined, where);
 }
 
-function report(err: unknown, where?: string) {
-  logError(err, where);
-  const message = describe(err).slice(0, 140);
-  const now = Date.now();
-  if (now - lastShownAt < QUIET_MS && (message === lastMessage || now - lastShownAt < 1000)) return;
-  lastShownAt = now;
-  lastMessage = message;
-  toast.show(`Something went wrong: ${message}`);
-}
+let installed = false;
 
 export function installErrorReporting() {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || installed) return;
+  installed = true;
   setSaveErrorListener((err) => {
     toast.show(`Couldn't save your last change (${describe(err).slice(0, 80)}). If your phone's storage is full, free some up; export a backup to be safe.`);
   });
-  window.addEventListener("unhandledrejection", (e) => report(e.reason));
+  window.addEventListener("unhandledrejection", (e) => {
+    record("error", "promise", describe(e.reason), e.reason instanceof Error ? e.reason.stack : undefined);
+  });
   window.addEventListener("error", (e) => {
     // Resource load errors (an image, an icon) aren't failures of the app.
     if (!(e.error instanceof Error) && !e.message) return;
-    report(e.error ?? e.message);
+    const where = e.filename ? `${e.filename.split("/").pop()}:${e.lineno}` : undefined;
+    record("error", "uncaught", describe(e.error ?? e.message), e.error instanceof Error ? e.error.stack : undefined, where);
+  });
+  // The console itself: still prints as before, and is logged too.
+  for (const [method, level] of [["error", "error"], ["warn", "warning"]] as const) {
+    const original = console[method].bind(console);
+    console[method] = (...args: unknown[]) => {
+      original(...args);
+      record(level, "console", formatConsoleArgs(args), firstError(args)?.stack);
+    };
+  }
+  // The app going away (killed, backgrounded) writes what's pending.
+  window.addEventListener("pagehide", flushNow);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushNow();
   });
 }
