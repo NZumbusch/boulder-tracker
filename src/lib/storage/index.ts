@@ -310,7 +310,8 @@ export const storage = {
     const completed = (db.workouts as Workout[]).filter((w) => w.status === "completed");
     const completedIds = new Set(completed.map((w) => w.id));
     for (const table of PLAN_TABLE_NAMES) {
-      if (table !== "workouts") db[table] = record.before[table];
+      // A record written before a table existed doesn't have it - leave that table alone rather than wiping it.
+      if (table !== "workouts" && record.before[table] !== undefined) db[table] = record.before[table];
     }
     db.workouts = toPlain([
       ...(record.before.workouts as Workout[]).filter((w) => w.status === "planned" && !completedIds.has(w.id)),

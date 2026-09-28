@@ -65,6 +65,16 @@ describe("undoing the last AI plan change", () => {
     expect(ids).toEqual(["a:planned", "ai1:completed", "done:completed"]);
   });
 
+  it("leaves a table alone that the undo record predates (made by an older version)", async () => {
+    await storage.applyPlanWrites(plan);
+    const key = Object.keys(kv).find((k) => (kv[k] as { before?: unknown })?.before)!;
+    delete (kv[key] as { before: Record<string, unknown> }).before.coachNotes;
+    await storage.saveCoachNotes([{ id: "n1", text: "Mine", source: "me", addedOn: "2026-09-28" }]);
+
+    await storage.undoPlanChange();
+    expect((await storage.getCoachNotes()).map((n) => n.id)).toEqual(["n1"]);
+  });
+
   it("is cleared by a backup import, which replaces everything", async () => {
     await storage.applyPlanWrites(plan);
     await storage.clearPlanUndo();
