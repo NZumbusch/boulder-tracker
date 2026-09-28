@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RangeSlider from '../common/RangeSlider.svelte';
   /**
    * Pain and discomfort: log an entry, and see, edit or delete past ones -
    * the counterpart to BodyweightLog, in the quick-log sheet. Tapping an
@@ -83,7 +84,7 @@
     </datalist>
     <div class="space-y-1">
       <div class="flex justify-between text-label text-content-subtle"><span>Severity</span><span class="tabular-nums text-content">{severity}/10</span></div>
-      <input type="range" min="1" max="10" bind:value={severity} aria-label="Severity" class="w-full accent-primary" />
+      <RangeSlider bind:value={severity} label="Severity" />
     </div>
     <textarea bind:value={notes} rows="2" placeholder="Notes (optional)" class="{inputClass} resize-y"></textarea>
     <div class="flex gap-2">

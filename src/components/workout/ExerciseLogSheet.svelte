@@ -21,6 +21,7 @@
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { PARAMETER_LABELS } from '../../lib/constants';
   import TargetHint from './TargetHint.svelte';
+  import RangeSlider from '../common/RangeSlider.svelte';
   import Icon from '@iconify/svelte';
 
   let { slot, seed: seedOverride = null, onSave, onCancel, onEditFull }: {
@@ -208,15 +209,7 @@
             <span class="text-label text-content-subtle">{PARAMETER_LABELS.difficulty}</span>
             <span class="text-caption text-content-muted tabular-nums">{difficulty ?? '—'}</span>
           </span>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="1"
-            value={difficulty ?? 5}
-            oninput={(e) => difficulty = Number(e.currentTarget.value)}
-            class="w-full accent-[var(--color-primary)]"
-          />
+          <RangeSlider value={difficulty ?? 5} label={PARAMETER_LABELS.difficulty} onchange={(v) => difficulty = v} />
         </div>
       {/if}
 

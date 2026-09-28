@@ -6,6 +6,7 @@
 import { calculateLoadFactor } from '../../lib/analytics/load';
   import { generateId } from '../../lib/utils';
   import { formatMinutes } from '../../lib/session/formatSession';
+  import RangeSlider from './RangeSlider.svelte';
 
   // --- Props ---
   let { 
@@ -155,7 +156,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
             <span>Fingers</span>
             <span class="text-primary font-mono text-caption tabular-nums">{fingers}/10</span>
           </label>
-          <input id="fingers-range" type="range" min="1" max="10" bind:value={fingers} class="w-full h-1.5 bg-surface-elevated rounded-control appearance-none cursor-pointer accent-primary" />
+          <RangeSlider id="fingers-range" bind:value={fingers} />
         </div>
 
         <div class="space-y-3">
@@ -163,7 +164,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
             <span>Arms / Pulling</span>
             <span class="text-primary font-mono text-caption tabular-nums">{arms}/10</span>
           </label>
-          <input id="arms-range" type="range" min="1" max="10" bind:value={arms} class="w-full h-1.5 bg-surface-elevated rounded-control appearance-none cursor-pointer accent-primary" />
+          <RangeSlider id="arms-range" bind:value={arms} />
         </div>
 
         <div class="space-y-3">
@@ -171,7 +172,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
             <span>Core</span>
             <span class="text-primary font-mono text-caption tabular-nums">{core}/10</span>
           </label>
-          <input id="core-range" type="range" min="1" max="10" bind:value={core} class="w-full h-1.5 bg-surface-elevated rounded-control appearance-none cursor-pointer accent-primary" />
+          <RangeSlider id="core-range" bind:value={core} />
         </div>
 
         <div class="space-y-3">
@@ -179,7 +180,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
             <span>General Systemic</span>
             <span class="text-primary font-mono text-caption tabular-nums">{systemic}/10</span>
           </label>
-          <input id="systemic-range" type="range" min="1" max="10" bind:value={systemic} class="w-full h-1.5 bg-surface-elevated rounded-control appearance-none cursor-pointer accent-primary" />
+          <RangeSlider id="systemic-range" bind:value={systemic} />
         </div>
 
         <div class="space-y-2">
@@ -201,7 +202,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
                   <span>Severity</span>
                   <span class="text-primary font-mono text-caption tabular-nums">{painSeverity}/10</span>
                 </label>
-                <input id="pain-severity-range" type="range" min="1" max="10" bind:value={painSeverity} class="w-full h-1.5 bg-surface-elevated rounded-control appearance-none cursor-pointer accent-primary" />
+                <RangeSlider id="pain-severity-range" bind:value={painSeverity} />
               </div>
               <input bind:value={painNotes} placeholder="Notes (optional)" class="w-full bg-surface-elevated/50 text-content p-3 rounded-control border border-border outline-none text-sm placeholder:text-content-subtle" />
             </div>
@@ -235,11 +236,3 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   </div>
 {/if}
 
-<style>
-  input[type='range']::-webkit-slider-thumb {
-    width: 24px;
-    height: 24px;
-    border: 4px solid var(--theme-surface);
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  }
-</style>
