@@ -3,7 +3,7 @@ import type { AIContextProfile } from "./context";
 import { buildCoachPrompt, buildCoachPromptFor } from "./coachPrompt";
 
 const profile: AIContextProfile = {
-  exerciseModalities: [{ name: "Hangboard", category: "Fingers", params: ["sets"] }],
+  exerciseModalities: [{ name: "Hangboard", category: "Fingers", group: "Fingers", params: ["sets"] }],
   phases: ["Strength"],
   recentWorkouts: [],
   benchmarks: [],

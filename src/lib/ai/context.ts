@@ -16,6 +16,7 @@ import { slotTypeName, slotValues } from "../exerciseSlot";
 import { repsRepresentative } from "../exercise/reps";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
+import { exerciseGroup } from "../exercise/library";
 import { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
 export { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
 import {
@@ -72,14 +73,28 @@ export type AIPromptMode = "generate" | "analyze" | "context";
 export interface ExerciseModalitySummary {
   name: string;
   category: string;
+  /** The library group it's filed under. */
+  group: string;
   params: ParameterBlock[];
+  /** Only present (true) when it has no how-to yet - the text itself isn't sent, it would cost more than it tells. */
+  noHowTo?: true;
 }
 
 /** Archived types are excluded - nothing the AI should be offered as a modality to plan with, mirroring how the existing phase list already excludes archived phases. */
 export function buildExerciseModalities(exerciseTypes: ExerciseTypeDef[]): ExerciseModalitySummary[] {
   return exerciseTypes
     .filter((t) => !t.archived)
-    .map((t) => ({ name: t.name, category: t.category, params: t.parameters }));
+    .map((t) => ({ name: t.name, category: t.category, group: exerciseGroup(t), params: t.parameters, ...(t.description?.trim() ? {} : { noHowTo: true as const }) }));
+}
+
+/**
+ * Archived exercises by name only - enough for the AI to re-add one (which
+ * restores it) instead of inventing a near-duplicate, without spending
+ * the space a full entry would.
+ */
+export function buildArchivedExerciseNames(exerciseTypes: ExerciseTypeDef[]): string[] {
+  const active = new Set(exerciseTypes.filter((t) => !t.archived).map((t) => t.name.trim().toLowerCase()));
+  return [...new Set(exerciseTypes.filter((t) => t.archived && !active.has(t.name.trim().toLowerCase())).map((t) => t.name))].sort();
 }
 
 export interface AnalyticsCategorySummary {
@@ -456,6 +471,8 @@ export interface AIContextSource {
 
 export interface AIContextProfile {
   exerciseModalities?: ExerciseModalitySummary[];
+  /** Names only - see `buildArchivedExerciseNames`. */
+  archivedExercises?: string[];
   analyticsCategories?: AnalyticsCategorySummary[];
   phases?: string[];
   /** Completed sessions in full: the history window's recent weeks, or (analyze) the chosen weeks. */
@@ -518,6 +535,8 @@ export function buildAIContextProfile(
 
   if (includeCatalog) {
     profile.exerciseModalities = buildExerciseModalities(source.exerciseTypes);
+    const archived = buildArchivedExerciseNames(source.exerciseTypes);
+    if (archived.length) profile.archivedExercises = archived;
     profile.analyticsCategories = buildAnalyticsCategorySummaries(source.analyticsCategories);
     profile.phases = source.phaseDefs.filter((p) => !p.archived).map((p) => p.name);
   }

@@ -23,11 +23,14 @@ THE SHAPE (every section is optional; use the ones you need):
 The app applies "exerciseTypes" first, then "circuits", then "phases", then "weeks", then "planB", then "coachNotes" - so a later section may use a new exercise, circuit or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
 
 1) "exerciseTypes" - the exercise list (the Custom Exercise Modalities above)
-  { "action": "add", "name": "Max Hangs 7s", "categoryName": "Fingers", "parameters": ["sets", "timeOn", "timeBetweenSets", "weight", "holdSize"] }
-  { "action": "edit", "name": "Hangboard", "rename": "Hangboard Repeaters", "categoryName": "Fingers", "parameters": [...] }   (give only what changes)
+  { "action": "add", "name": "Max Hangs 7s", "categoryName": "Fingers", "group": "Fingerboard", "parameters": ["sets", "timeOn", "timeBetweenSets", "weight", "holdSize"], "description": "20 mm edge, half crimp. Engage the shoulders before loading; stop a set when the grip opens." }
+  { "action": "edit", "name": "Hangboard", "rename": "Hangboard Repeaters", "group": "Fingerboard", "description": "...", "parameters": [...] }   (give only what changes)
   { "action": "archive", "name": "Old Drill" }   (hides it from new plans; history keeps it)
   - Add an exercise type BEFORE any session uses it. Every "exerciseTypeName" you use anywhere must be an existing name from the list above or one you add here.
   - "categoryName" must be one of the Analytics Categories listed above.
+  - "group" files it in the athlete's exercise library (e.g. "Stretching", "Fingerboard", "Strength"). Reuse an existing group from the list when one fits; start a new one only for a genuinely new kind of exercise.
+  - "description" is a short, general how-to: setup and the 1-3 cues that matter. Keep it general - no sets, reps, weights or times (those belong in each session), nothing tied to this week. Give one to every exercise you add. When asked to fill in or improve how-tos, "edit" the exercises marked "noHowTo" with just a "description".
+  - Before adding, check the list AND the archived names: re-adding an archived exercise by its exact name restores it; never add a second exercise that is the same thing under another name.
   - "parameters" = which fields this exercise tracks, from: ${PARAMETER_BLOCKS.join(", ")}. Omit it to let the app infer them from the values you use.
 
 1b) "circuits" - the athlete's saved circuits (see SAVED CIRCUITS above, if any): reusable circuits and supersets that sessions use by name.

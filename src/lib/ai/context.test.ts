@@ -14,6 +14,7 @@ import type {
 import type { AISharingPreferences } from "../preferences/migrate";
 import {
   buildExerciseModalities,
+  buildArchivedExerciseNames,
   buildAnalyticsCategorySummaries,
   buildRecentWorkouts,
   buildWeeklyHistory,
@@ -58,9 +59,24 @@ function makeWorkout(overrides: Partial<Workout> = {}): Workout {
 }
 
 describe("buildExerciseModalities", () => {
-  it("excludes archived types", () => {
+  it("excludes archived types, and flags one without a how-to", () => {
     const result = buildExerciseModalities(exerciseTypes);
-    expect(result).toEqual([{ name: "Hangboard", category: "Fingers", params: ["duration", "sets"] }]);
+    expect(result).toEqual([{ name: "Hangboard", category: "Fingers", group: "Fingers", params: ["duration", "sets"], noHowTo: true }]);
+  });
+
+  it("gives the library group, and no flag once there's a how-to", () => {
+    const result = buildExerciseModalities([{ id: "a", name: "Pigeon", category: "Mobility", group: "Stretching", parameters: [], description: "Hips square." }]);
+    expect(result).toEqual([{ name: "Pigeon", category: "Mobility", group: "Stretching", params: [] }]);
+  });
+});
+
+describe("buildArchivedExerciseNames", () => {
+  it("lists archived names only, sorted, skipping ones an active exercise shares", () => {
+    expect(buildArchivedExerciseNames([
+      ...exerciseTypes,
+      { id: "z", name: "Another Old", category: "Other", parameters: [], archived: true },
+      { id: "h2", name: "hangboard", category: "Fingers", parameters: [], archived: true },
+    ])).toEqual(["Another Old", "Old Move"]);
   });
 });
 

@@ -75,6 +75,34 @@ describe("planChanges - exercise types", () => {
     expect(r.writes.exerciseTypes!.find((t) => t.id === "hb")!.archived).toBe(true);
     expect(r.items[1].warnings[0]).toContain("Still used");
   });
+
+  it("adds a type with its group and how-to", () => {
+    const r = plan({ exerciseTypes: [{ action: "add", name: "Pigeon pose", group: "Stretching", description: "Front shin across, hips square." }] });
+    const added = r.writes.exerciseTypes!.find((t) => t.name === "Pigeon pose")!;
+    expect(added.group).toBe("Stretching");
+    expect(added.description).toBe("Front shin across, hips square.");
+    expect(r.items[0].details).toContain("group Stretching");
+  });
+
+  it("edits only a group or a how-to", () => {
+    const r = plan({ exerciseTypes: [{ action: "edit", name: "Core", description: "Slow and controlled." }, { action: "edit", name: "Hangboard", group: "Fingerboard" }] });
+    expect(r.writes.exerciseTypes!.find((t) => t.id === "core")!.description).toBe("Slow and controlled.");
+    expect(r.writes.exerciseTypes!.find((t) => t.id === "hb")!.group).toBe("Fingerboard");
+    expect(r.items.every((i) => i.errors.length === 0)).toBe(true);
+  });
+
+  it("re-adding an archived type restores it instead of making a duplicate", () => {
+    const v = validateChangeSet({ exerciseTypes: [{ action: "add", name: "hangboard", description: "Open hand." }] });
+    const s = state();
+    s.exerciseTypes = s.exerciseTypes.map((t) => (t.id === "hb" ? { ...t, archived: true } : t));
+    const r = planChanges(v.data!, s, undefined, ids);
+    const hangboards = r.writes.exerciseTypes!.filter((t) => t.name.toLowerCase() === "hangboard");
+    expect(hangboards).toHaveLength(1);
+    expect(hangboards[0].id).toBe("hb");
+    expect(hangboards[0].archived).toBeUndefined();
+    expect(hangboards[0].description).toBe("Open hand.");
+    expect(r.items[0].title).toContain("restore");
+  });
 });
 
 describe("planChanges - phases", () => {

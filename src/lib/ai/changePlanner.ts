@@ -21,6 +21,7 @@
  * Completed sessions are never touched. Hand-edited weeks being replaced
  * are flagged, not refused.
  */
+import { exerciseGroup } from "../exercise/library";
 import type {
   Circuit,
   ExerciseGroup,
@@ -599,13 +600,47 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         item.errors.push(`"${existing.name}" is already in your exercise list - use "edit" to change it.`);
         return;
       }
+      if (existing) {
+        // An archived one by that name comes back rather than being
+        // duplicated: history, phases and circuits already point at it.
+        item.title = `restore ${existing.name}`;
+        item.details.push("from the archive");
+        const next: ExerciseTypeDef = { ...existing, archived: undefined };
+        if (change.categoryName) next.category = resolveNewExerciseTypeCategory(change.categoryName, state.analyticsCategories);
+        if (change.parameters) next.parameters = change.parameters;
+        if (change.group) {
+          next.group = change.group;
+          item.details.push(`group ${change.group}`);
+        }
+        if (change.description) {
+          next.description = change.description;
+          item.details.push("how-to");
+        }
+        if (!on) {
+          ctx.untickedTypeNames.add(normalizeName(change.name));
+          return;
+        }
+        ctx.types = ctx.types.map((t) => (t.id === existing.id ? next : t));
+        ctx.typeOrigin.set(normalizeName(next.name), id);
+        ctx.changed.types = true;
+        return;
+      }
       const category = resolveNewExerciseTypeCategory(change.categoryName, state.analyticsCategories);
       item.details.push(`category ${category}`, `tracks ${show(change.parameters ?? [])}`);
+      if (change.group) item.details.push(`group ${change.group}`);
+      if (change.description) item.details.push("how-to");
       if (!on) {
         ctx.untickedTypeNames.add(normalizeName(change.name));
         return;
       }
-      const def: ExerciseTypeDef = { id: newId(), name: change.name, category, parameters: change.parameters ?? [] };
+      const def: ExerciseTypeDef = {
+        id: newId(),
+        name: change.name,
+        category,
+        parameters: change.parameters ?? [],
+        ...(change.group ? { group: change.group } : {}),
+        ...(change.description ? { description: change.description } : {}),
+      };
       ctx.types.push(def);
       newTypeIds.push(def.id);
       ctx.typeOrigin.set(normalizeName(def.name), id);
@@ -641,6 +676,14 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
       if (change.parameters) {
         item.details.push(`tracks ${show(type.parameters)} → ${show(change.parameters)}`);
         next.parameters = change.parameters;
+      }
+      if (change.group) {
+        item.details.push(`group ${exerciseGroup(type)} → ${change.group}`);
+        next.group = change.group;
+      }
+      if (change.description) {
+        item.details.push(type.description ? "how-to rewritten" : "how-to added");
+        next.description = change.description;
       }
       if (on && item.errors.length === 0) {
         ctx.types = ctx.types.map((t) => (t.id === type.id ? next : t));

@@ -26,7 +26,10 @@ function lines(items: unknown[]): string {
 export function renderProfileSections(profile: AIContextProfile, mode: AIPromptMode, history?: AIHistoryWindow): string {
   const sections: string[] = [];
   if (profile.exerciseModalities) {
-    sections.push(`- Custom Exercise Modalities (name, category, tracked fields):\n${lines(profile.exerciseModalities)}`);
+    sections.push(`- Custom Exercise Modalities (name, analytics category, library group, tracked fields; "noHowTo" = it has no how-to text yet):\n${lines(profile.exerciseModalities)}`);
+  }
+  if (profile.archivedExercises?.length) {
+    sections.push(`- Archived Exercises (names only - to use one again, "add" it with this exact name and it is restored; don't add a near-duplicate): ${profile.archivedExercises.join(", ")}`);
   }
   if (profile.analyticsCategories) {
     sections.push(`- Analytics Categories (pick one for a new exercise's "categoryName" if you invent one - see the rules below): ${profile.analyticsCategories.map((c) => c.name).join(", ")}`);

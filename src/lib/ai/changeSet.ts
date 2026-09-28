@@ -137,8 +137,8 @@ export type CSSessionChange =
   | { action: "remove"; match: CSSessionMatch };
 
 export type CSExerciseTypeChange =
-  | { action: "add"; name: string; categoryName?: string; parameters?: ParameterBlock[] }
-  | { action: "edit"; name: string; rename?: string; categoryName?: string; parameters?: ParameterBlock[] }
+  | { action: "add"; name: string; categoryName?: string; parameters?: ParameterBlock[]; group?: string; description?: string }
+  | { action: "edit"; name: string; rename?: string; categoryName?: string; parameters?: ParameterBlock[]; group?: string; description?: string }
   | { action: "archive"; name: string };
 
 export type CSPhaseChange =
@@ -532,6 +532,8 @@ function validateExerciseTypeChange(raw: unknown, path: string, issues: Issues):
         name,
         categoryName: validateOptionalString(raw.categoryName, `${path}.categoryName`, issues)?.trim() || undefined,
         parameters: validateParameters(raw.parameters, `${path}.parameters`, issues),
+        group: validateOptionalString(raw.group, `${path}.group`, issues)?.trim() || undefined,
+        description: validateOptionalString(raw.description, `${path}.description`, issues)?.trim() || undefined,
       };
     case "edit": {
       const change: CSExerciseTypeChange = {
@@ -540,9 +542,11 @@ function validateExerciseTypeChange(raw: unknown, path: string, issues: Issues):
         rename: validateOptionalString(raw.rename, `${path}.rename`, issues)?.trim() || undefined,
         categoryName: validateOptionalString(raw.categoryName, `${path}.categoryName`, issues)?.trim() || undefined,
         parameters: validateParameters(raw.parameters, `${path}.parameters`, issues),
+        group: validateOptionalString(raw.group, `${path}.group`, issues)?.trim() || undefined,
+        description: validateOptionalString(raw.description, `${path}.description`, issues)?.trim() || undefined,
       };
-      if (!change.rename && !change.categoryName && !change.parameters) {
-        issues.push({ path, message: 'An exercise type "edit" needs "rename", "categoryName" or "parameters".' });
+      if (!change.rename && !change.categoryName && !change.parameters && !change.group && !change.description) {
+        issues.push({ path, message: 'An exercise type "edit" needs "rename", "categoryName", "parameters", "group" or "description".' });
         return null;
       }
       return change;
