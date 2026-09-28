@@ -112,3 +112,17 @@ describe("slotActualLoad", () => {
     expect(slotActualLoad({ id: "a", typeId: "t" })).toBe(0);
   });
 });
+
+describe("load of an exercise without a duration", () => {
+  it("uses the estimated time from its sets, reps and rests (not 60 minutes)", () => {
+    // 4 sets, no rep time, 180 s between sets -> 3 x 180 s = 9 min
+    const slot: ExerciseSlot = { id: "p", typeId: "t", prescribed: { sets: 4, reps: 6, timeOff: 180, plannedLoad: 7 } };
+    expect(slotPlannedLoad(slot)).toBe(calculatePlannedLoad({ duration: 9, plannedLoad: 7 }));
+    expect(slotActualLoad(slot)).toBe(calculatePlannedLoad({ duration: 9, plannedLoad: 7 }));
+  });
+
+  it("keeps an explicit duration, and the 60-minute default when there is nothing to go on", () => {
+    expect(slotPlannedLoad({ id: "a", typeId: "t", prescribed: { duration: 20 } })).toBe(calculatePlannedLoad({ duration: 20 }));
+    expect(slotPlannedLoad({ id: "b", typeId: "t", prescribed: { weight: 20 } })).toBe(calculatePlannedLoad({}));
+  });
+});

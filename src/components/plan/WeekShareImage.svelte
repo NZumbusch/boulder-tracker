@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { workoutPlannedLoad } from '../../lib/analytics/load';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * The shareable week card: a week's plan (and what's done of it) as an
@@ -40,7 +41,7 @@
   const load = $derived(
     doneCount > 0
       ? { value: Math.round(workouts.reduce((sum, w) => sum + (w.status === 'completed' ? w.loadFactor || 0 : 0), 0)), label: 'Load' }
-      : { value: Math.round(workouts.reduce((sum, w) => sum + (w.plannedLoad || 0), 0)), label: 'Planned load' },
+      : { value: Math.round(workouts.reduce((sum, w) => sum + workoutPlannedLoad(w.exercises, w.groups), 0)), label: 'Planned load' },
   );
 
   function exercisesLine(w: Workout): string {

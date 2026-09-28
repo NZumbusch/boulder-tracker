@@ -1,5 +1,6 @@
-import type { ExerciseGroup, ExerciseSlot } from "../types";
+import type { ExerciseGroup, ExerciseSlot, ExerciseValues } from "../types";
 import { groupMemberMinutes } from "../exercise/groups";
+import { estimateExerciseDuration } from "../planning/sessionDuration";
 
 /**
  * The load formulas: a completed session's load from its length and
@@ -102,6 +103,17 @@ export function slotActualLoads(exercises: ExerciseSlot[], groups?: ExerciseGrou
   return new Map((exercises ?? []).map((slot) => [slot.id, slotActualLoad(slot, minutes.get(slot.id))]));
 }
 
-function withMinutes<T extends { duration?: number }>(values: T, minutes: number | undefined): T {
-  return minutes === undefined ? values : { ...values, duration: minutes };
+/**
+ * The values load is read from: a group's share when the slot is in a
+ * circuit, otherwise the exercise's own duration - estimated from its
+ * sets/reps/rest when it has none (Nathan, 2026-09-28), so 4x6 pull-ups
+ * count as the minutes they take rather than `calculatePlannedLoad`'s
+ * 60-minute default. Only an exercise with nothing to go on still gets
+ * that default.
+ */
+function withMinutes<T extends ExerciseValues>(values: T, minutes: number | undefined): T {
+  if (minutes !== undefined) return { ...values, duration: minutes };
+  if (values.duration !== undefined && values.duration !== null) return values;
+  const estimate = estimateExerciseDuration(values);
+  return estimate === undefined ? values : { ...values, duration: estimate };
 }

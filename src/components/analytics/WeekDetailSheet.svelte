@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { workoutPlannedLoad } from '../../lib/analytics/load';
   import { planProgress } from '../../lib/planning/weekRecap';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
@@ -169,7 +170,7 @@
           />
           <span class="text-caption text-content-subtle w-12 shrink-0 tabular-nums">{sessionDay(w)}</span>
           <span class="text-body text-content truncate flex-1">{w.notes || 'Session'}</span>
-          <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.status === 'completed' ? w.loadFactor || 0 : w.plannedLoad || 0)}</span>
+          <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.status === 'completed' ? w.loadFactor || 0 : workoutPlannedLoad(w.exercises, w.groups))}</span>
         </button>
       {/each}
     </div>

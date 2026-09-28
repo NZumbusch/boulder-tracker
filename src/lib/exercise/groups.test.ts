@@ -161,15 +161,17 @@ describe("duration and load count a group once", () => {
     expect(sessionDuration(w)).toBe(10 + 9);
   });
 
-  it("times members by their share of the group, not by the 60-minute default", () => {
+  it("times members by their share of the group, rests included", () => {
     const shares = groupMemberMinutes(workout(), "planned");
     expect(shares.get("twist")).toBeCloseTo(12.5 / 3);
     const load = workoutPlannedLoad(workout().exercises, workout().groups);
     expect(load).toBe(
       calculatePlannedLoad({ duration: 10 }) + 3 * calculatePlannedLoad({ duration: 12.5 / 3 }),
     );
-    // Without groups every member would be a 60-minute exercise.
-    expect(workoutPlannedLoad(workout().exercises)).toBeGreaterThan(load * 5);
+    // Without the group each is its own 1-minute set - the circuit's rests go uncounted.
+    expect(workoutPlannedLoad(workout().exercises)).toBe(
+      calculatePlannedLoad({ duration: 10 }) + 3 * calculatePlannedLoad({ duration: 1 }),
+    );
   });
 
   it("gives a skipped member no actual load", () => {
