@@ -717,7 +717,7 @@
                       workout.provisional ? 'not saved yet' : undefined,
                     ].filter(Boolean).join(' · ')}
                     muted={workout.provisional || !counts(workout)}
-                    onclick={arranging ? undefined : () => openWorkout(workout)}
+                    onclick={arranging ? undefined : () => openWorkout(workout, 'view', false, listedDays.flatMap((k) => dayGroups[k]))}
                   >
                     {#snippet titleExtra()}
                       {#if workout.planB}

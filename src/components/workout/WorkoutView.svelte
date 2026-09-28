@@ -18,7 +18,14 @@
   import WorkoutShareImage from '../history/WorkoutShareImage.svelte';
   import Icon from '@iconify/svelte';
 
-  let { workout, onEdit, onClose }: { workout: Workout; onEdit: () => void; onClose: () => void } = $props();
+  let { workout, onEdit, onClose, position = null, onStep }: {
+    workout: Workout;
+    onEdit: () => void;
+    onClose: () => void;
+    /** Its place in the list it was opened from - shows "2 / 5" with arrows (swiping does the same). */
+    position?: { index: number; total: number } | null;
+    onStep?: (dir: 1 | -1) => void;
+  } = $props();
 
   const isCompleted = $derived(workout.status === 'completed');
   const isThisRunning = $derived(trainingState.sessionStore.isRunning(workout.id));
@@ -120,6 +127,18 @@
       {/if}
       <h2 class="text-title text-content break-words">{workout.notes || 'Session'}</h2>
       <p class="text-caption text-content-subtle mt-0.5">{subtitle}</p>
+      {#if position && onStep}
+        <div class="mt-1.5 flex items-center gap-1 text-caption text-content-subtle tabular-nums">
+          <button onclick={() => onStep(-1)} disabled={position.index === 0} class="p-0.5 -ml-1 rounded-control hover:text-content disabled:opacity-30" aria-label="Previous session">
+            <Icon icon="ic:baseline-chevron-left" class="text-lg" />
+          </button>
+          <span>{position.index + 1} / {position.total}</span>
+          <button onclick={() => onStep(1)} disabled={position.index === position.total - 1} class="p-0.5 rounded-control hover:text-content disabled:opacity-30" aria-label="Next session">
+            <Icon icon="ic:baseline-chevron-right" class="text-lg" />
+          </button>
+          <span class="text-content-subtle/70">· swipe to flip through</span>
+        </div>
+      {/if}
     </div>
     <div class="relative shrink-0">
       <button onclick={() => menuOpen = !menuOpen} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors" aria-label="More actions" aria-expanded={menuOpen}>

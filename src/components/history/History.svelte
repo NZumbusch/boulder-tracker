@@ -46,7 +46,7 @@
     const index = filteredWorkouts.findIndex((w) => w.id === focusId);
     if (index === -1) return;
     if (index >= limit) limit = index + 1;
-    openWorkout(filteredWorkouts[index]);
+    openWorkout(filteredWorkouts[index], 'view', false, filteredWorkouts);
     await tick();
     document.getElementById(`workout-${focusId}`)?.scrollIntoView({ block: 'center' });
   });
@@ -348,7 +348,7 @@
                 ].filter(Boolean).join(' · ') || undefined}
                 value={Math.round(workout.loadFactor)}
                 valueHint="load"
-                onclick={() => openWorkout(workout)}
+                onclick={() => openWorkout(workout, 'view', false, filteredWorkouts)}
               />
             </div>
           {/each}

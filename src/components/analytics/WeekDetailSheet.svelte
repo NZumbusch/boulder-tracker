@@ -94,7 +94,7 @@
   function open(w: Workout) {
     if (w.provisional) return;
     onClose();
-    openWorkout(w, 'view');
+    openWorkout(w, 'view', false, sessions.filter((s) => !s.provisional));
   }
 
   // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.

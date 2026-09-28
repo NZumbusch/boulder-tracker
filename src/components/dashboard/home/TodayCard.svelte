@@ -60,7 +60,7 @@
         ? `${summary.exerciseNames.join(' · ')}${summary.moreExercises > 0 ? ` +${summary.moreExercises} more` : ''}`
         : undefined}
       muted={workout.provisional || (!!workout.planB && !workout.planB.active)}
-      onclick={() => openWorkout(workout)}
+      onclick={() => openWorkout(workout, 'view', false, todaysWorkouts)}
     >
       {#snippet trailing()}
         <!-- Start goes live: it begins the session and opens the session
