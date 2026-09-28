@@ -7,6 +7,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   import { generateId } from '../../lib/utils';
   import { formatMinutes } from '../../lib/session/formatSession';
   import RangeSlider from './RangeSlider.svelte';
+  import { haptic } from '../../lib/native/haptics';
 
   // --- Props ---
   let { 
@@ -86,6 +87,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
         notes: painNotes || undefined,
       });
     }
+    haptic('success');
     onConfirm({
       fingers,
       arms,

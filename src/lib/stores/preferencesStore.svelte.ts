@@ -32,6 +32,8 @@ export class PreferencesStore {
   timerCountdownTicks = $state(true);
   timerWarnBeforeEnd = $state(false);
   timerPillHidden = $state(false);
+  sessionKeepAwake = $state(true);
+  hapticsEnabled = $state(true);
   sessionNotification = $state(true);
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
   homeDetails = $state<HomeDetails>(defaultHomeDetails());
@@ -83,6 +85,8 @@ export class PreferencesStore {
     this.timerCountdownTicks = prefs.timerCountdownTicks;
     this.timerWarnBeforeEnd = prefs.timerWarnBeforeEnd;
     this.timerPillHidden = prefs.timerPillHidden;
+    this.sessionKeepAwake = prefs.sessionKeepAwake;
+    this.hapticsEnabled = prefs.hapticsEnabled;
     this.sessionNotification = prefs.sessionNotification;
     this.homeSections = prefs.homeSections;
     this.homeDetails = prefs.homeDetails;
@@ -192,6 +196,16 @@ export class PreferencesStore {
 
   setTimerPillHidden(hidden: boolean) {
     this.timerPillHidden = hidden;
+    this.persist();
+  }
+
+  setSessionKeepAwake(enabled: boolean) {
+    this.sessionKeepAwake = enabled;
+    this.persist();
+  }
+
+  setHapticsEnabled(enabled: boolean) {
+    this.hapticsEnabled = enabled;
     this.persist();
   }
 
@@ -336,6 +350,8 @@ export class PreferencesStore {
       timerCountdownTicks: this.timerCountdownTicks,
       timerWarnBeforeEnd: this.timerWarnBeforeEnd,
       timerPillHidden: this.timerPillHidden,
+      sessionKeepAwake: this.sessionKeepAwake,
+      hapticsEnabled: this.hapticsEnabled,
       sessionNotification: this.sessionNotification,
       homeSections: this.homeSections,
       homeDetails: this.homeDetails,

@@ -30,14 +30,29 @@
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Timer</h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">Behaviour of the floating rest/stopwatch timer during a workout.</p>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">The session timer, the screen and feedback during a workout.</p>
   </div>
 
   <div class="divide-y divide-border">
     <label class="w-full flex items-center justify-between py-3 cursor-pointer">
       <div class="flex items-center gap-3">
+        <Icon icon="ic:baseline-touch-app" class="text-lg text-content-muted" />
+        <span>
+          <span class="block text-body text-content">Haptic feedback</span>
+          <span class="block text-caption text-content-subtle">A short buzz when an exercise or session is done, and on swipes and long-presses</span>
+        </span>
+      </div>
+      <input
+        type="checkbox"
+        checked={trainingState.hapticsEnabled}
+        onchange={(e) => trainingState.setHapticsEnabled(e.currentTarget.checked)}
+        class="w-5 h-5 rounded accent-primary"
+      />
+    </label>
+    <label class="w-full flex items-center justify-between py-3 cursor-pointer">
+      <div class="flex items-center gap-3">
         <Icon icon="ic:baseline-vibration" class="text-lg text-content-muted" />
-        <span class="text-body text-content">Vibrate on finish</span>
+        <span class="text-body text-content">Vibrate when a timer finishes</span>
       </div>
       <input
         type="checkbox"
@@ -135,7 +150,22 @@
       <label class="w-full flex items-center justify-between py-3 cursor-pointer">
         <div class="flex items-center gap-3">
           <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted" />
-          <span class="text-body text-content">Keep screen awake</span>
+          <span>
+            <span class="block text-body text-content">Keep screen on during a session</span>
+            <span class="block text-caption text-content-subtle">The whole time a session runs (not while paused)</span>
+          </span>
+        </div>
+        <input
+          type="checkbox"
+          checked={trainingState.sessionKeepAwake}
+          onchange={(e) => trainingState.setSessionKeepAwake(e.currentTarget.checked)}
+          class="w-5 h-5 rounded accent-primary"
+        />
+      </label>
+      <label class="w-full flex items-center justify-between py-3 cursor-pointer">
+        <div class="flex items-center gap-3">
+          <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted" />
+          <span class="text-body text-content">Keep screen on while a timer runs</span>
         </div>
         <input
           type="checkbox"

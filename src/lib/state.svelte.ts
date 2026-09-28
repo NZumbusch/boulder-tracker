@@ -259,6 +259,10 @@ class TrainingState {
   setTimerCountdownTicks(enabled: boolean) { this.preferencesStore.setTimerCountdownTicks(enabled); }
   setTimerWarnBeforeEnd(enabled: boolean) { this.preferencesStore.setTimerWarnBeforeEnd(enabled); }
   setTimerPillHidden(hidden: boolean) { this.preferencesStore.setTimerPillHidden(hidden); }
+  get sessionKeepAwake() { return this.preferencesStore.sessionKeepAwake; }
+  setSessionKeepAwake(enabled: boolean) { this.preferencesStore.setSessionKeepAwake(enabled); }
+  get hapticsEnabled() { return this.preferencesStore.hapticsEnabled; }
+  setHapticsEnabled(enabled: boolean) { this.preferencesStore.setHapticsEnabled(enabled); }
   setSessionNotification(enabled: boolean) { this.preferencesStore.setSessionNotification(enabled); }
 
   get homeSections() { return this.preferencesStore.homeSections; }

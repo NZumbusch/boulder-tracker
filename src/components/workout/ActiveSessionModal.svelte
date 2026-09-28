@@ -36,6 +36,8 @@
   import { workoutItems, groupSummary } from '../../lib/exercise/groups';
   import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
   import { reportError } from '../../lib/errorReporting';
+  import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
+  import { haptic } from '../../lib/native/haptics';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -99,6 +101,25 @@
   }
 
   const session = $derived(store.session);
+
+  // The screen stays on while a session runs (Settings -> Timer -> Keep
+  // screen on during a session). Android drops the lock whenever the app
+  // is hidden, so it's asked for again on the way back.
+  const sessionWakeLock = new ScreenWakeLock();
+  $effect(() => {
+    const want = !!session && !store.isPaused && trainingState.sessionKeepAwake;
+    if (!want) {
+      sessionWakeLock.release();
+      return;
+    }
+    void sessionWakeLock.acquire();
+    const onVisible = () => { if (document.visibilityState === 'visible') void sessionWakeLock.acquire(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      sessionWakeLock.release();
+    };
+  });
 
   // A session ending (or a different one starting) resets everything this
   // screen had open. Without it a sheet that failed to open left its slot
@@ -234,7 +255,10 @@
   // --- Handlers ---
 
   function handleLogged(values: ExerciseValues) {
-    if (loggingSlotId) store.logExercise(loggingSlotId, values);
+    if (loggingSlotId) {
+      store.logExercise(loggingSlotId, values);
+      haptic(store.isComplete ? 'success' : 'tap');
+    }
     loggingSlotId = null;
     seedFor = null;
   }

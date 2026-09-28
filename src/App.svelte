@@ -1,6 +1,8 @@
 <script lang="ts">
   // Logic & Storage
   import { trainingState } from './lib/state.svelte';
+  import { hapticsConfig } from './lib/native/haptics';
+  $effect(() => { hapticsConfig.enabled = trainingState.hapticsEnabled; });
   
   import FatigueModal from './components/common/FatigueModal.svelte';
   import ActiveSessionModal from './components/workout/ActiveSessionModal.svelte';

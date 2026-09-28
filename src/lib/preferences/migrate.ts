@@ -82,6 +82,10 @@ export interface Preferences {
   timerWarnBeforeEnd: boolean;
   /** The live session's floating timer is tucked away to a small button. */
   timerPillHidden: boolean;
+  /** The screen stays on for the whole running session, not only while a timer runs. */
+  sessionKeepAwake: boolean;
+  /** Short vibrations on finishing an exercise, a session, swipes and long-presses (native app). */
+  hapticsEnabled: boolean;
   /** Android: an ongoing notification while a session runs (its clock, progress, pause). */
   sessionNotification: boolean;
   /**
@@ -277,6 +281,8 @@ export function defaultPreferences(): Preferences {
     timerCountdownTicks: true,
     timerWarnBeforeEnd: false,
     timerPillHidden: false,
+    sessionKeepAwake: true,
+    hapticsEnabled: true,
     sessionNotification: true,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
     analyticsSections: ANALYTICS_SECTION_IDS.map((id) => ({ id, visible: true })),
@@ -493,6 +499,8 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     timerCountdownTicks: typeof candidate.timerCountdownTicks === 'boolean' ? candidate.timerCountdownTicks : defaults.timerCountdownTicks,
     timerWarnBeforeEnd: typeof candidate.timerWarnBeforeEnd === 'boolean' ? candidate.timerWarnBeforeEnd : defaults.timerWarnBeforeEnd,
     timerPillHidden: typeof candidate.timerPillHidden === 'boolean' ? candidate.timerPillHidden : defaults.timerPillHidden,
+    sessionKeepAwake: typeof candidate.sessionKeepAwake === 'boolean' ? candidate.sessionKeepAwake : defaults.sessionKeepAwake,
+    hapticsEnabled: typeof candidate.hapticsEnabled === 'boolean' ? candidate.hapticsEnabled : defaults.hapticsEnabled,
     sessionNotification: typeof candidate.sessionNotification === 'boolean' ? candidate.sessionNotification : defaults.sessionNotification,
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
     analyticsSections: validateOrderedToggles(candidate.analyticsSections, ANALYTICS_SECTION_IDS),
