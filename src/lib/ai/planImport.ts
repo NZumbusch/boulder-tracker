@@ -43,7 +43,7 @@ export function findCategoryByName(name: string, categories: AnalyticsCategory[]
  * Resolves what to write into a freshly-created `ExerciseTypeDef.category`
  * for an AI import. `ExerciseTypeDef.category`
  * stores the category's **name**, not its id - confirmed by every other
- * writer (`ExerciseTypeSettings.svelte`'s `<option value={cat.name}>`,
+ * writer (`ExerciseTypeEditor.svelte`'s `<option value={cat.name}>`,
  * `Analytics.svelte`'s `typeToCategory` map keyed straight off `t.category`
  * for chart bucketing). Before this change both of this function's call sites
  * wrote `fallbackCategory?.id` instead - a pre-existing bug (a freshly

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ExerciseTypeDef, AnalyticsCategory, WorkoutTemplate } from '../../lib/types';
-  import ExerciseTypeSettings from './ExerciseTypeSettings.svelte';
+  import ExerciseLibrary from './ExerciseLibrary.svelte';
   import AnalyticsCategorySettings from './AnalyticsCategorySettings.svelte';
 
   let {
@@ -20,7 +20,7 @@
 <div class="card space-y-4">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Exercises</h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">What you can log in a workout, and how it's grouped on charts.</p>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">Everything you can put in a session, in groups - each with the fields it tracks and an optional how-to.</p>
   </div>
 
   <div class="seg p-1">
@@ -28,7 +28,7 @@
       onclick={() => subTab = 'modalities'}
       class="seg-item flex-1 py-1.5 text-label {subTab === 'modalities' ? 'seg-on' : 'hover:text-content'}"
     >
-      Modalities
+      Library
     </button>
     <button
       onclick={() => subTab = 'categories'}
@@ -39,10 +39,7 @@
   </div>
 
   {#if subTab === 'modalities'}
-    <div class="space-y-2">
-      <p class="text-caption text-content-subtle px-1 leading-relaxed">The kinds of exercises you can add to a workout or template (e.g. "Free Bouldering", "Max Hangs"). Each one defines which fields (sets, grades, hold size, ...) show up when you log it, plus a default category below used for charts.</p>
-    </div>
-    <ExerciseTypeSettings bind:exerciseTypes {analyticsCategories} />
+    <ExerciseLibrary bind:exerciseTypes {analyticsCategories} {templates} />
   {:else}
     <div class="space-y-2">
       <p class="text-caption text-content-subtle px-1 leading-relaxed">Groupings used only by the charts in the Analytics tab (e.g. "Fingers", "Power Bouldering") — reorder them to change chart legend order. Every modality picks one of these as its default; nothing here changes what you can log.</p>

@@ -64,6 +64,15 @@ export interface ExerciseTypeDef {
   defaultPlannedLoad?: number;
   /** Never hard-delete a type once referenced by history - archive it instead. */
   archived?: boolean;
+  /**
+   * The exercise library's folder ("Stretching", "Fingerboard"). One level,
+   * separate from `category` (which only groups load on charts). Unset on
+   * types from before the library - they show under their category's name
+   * (`exerciseGroup`), and get it written the first time they're edited.
+   */
+  group?: string;
+  /** A short, general how-to: setup and key cues - not this week's numbers, which live on the slot. */
+  description?: string;
 }
 
 /**

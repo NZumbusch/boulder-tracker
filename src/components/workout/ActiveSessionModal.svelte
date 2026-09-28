@@ -506,7 +506,7 @@
               <!-- The current exercise opens up: what to do, then the actions -->
               {#if isCurrent && status === 'pending'}
                 <div class="px-3.5 pb-3.5 space-y-3 animate-in fade-in duration-200">
-                  <ExerciseDetails {slot} />
+                  <ExerciseDetails {slot} showHowTo />
 
                   <div class="flex gap-2">
                     <button

@@ -10,6 +10,8 @@
     HOLD_TYPES, CAMPUS_TYPES, MOBILITY_TYPES, LEAD_STYLES,
   } from '../../lib/ai/valueSpec';
   import TargetHint from './TargetHint.svelte';
+  import ExercisePicker from './ExercisePicker.svelte';
+  import { exerciseGroup } from '../../lib/exercise/library';
   import { repsRepresentative } from '../../lib/exercise/reps';
   import { displayWeight, toKg, formatWeight } from '../../lib/units';
   import { loggedMetrics } from '../../lib/analytics/metricValues';
@@ -86,8 +88,8 @@
     exerciseTypes = await storage.getExerciseTypes();
     if (initialSlot) {
       selectedTypeId = initialSlot.typeId;
-    } else if (exerciseTypes.length > 0) {
-      selectedTypeId = exerciseTypes[0].id;
+    } else {
+      pickerOpen = true;
     }
   });
 
@@ -96,45 +98,8 @@
   // --- Derived State ---
   const activeTypeDef = $derived(exerciseTypes.find(t => t.id === selectedTypeId));
 
-  // Exercise picker grouped by analytics category, recent/frequent first
-  // within each group (was a flat `<select>` over every
-  // modality). Usage is read straight from `trainingState.workouts`
-  // (already loaded/reactive) rather than a new derived-data module, since
-  // this is presentational ordering for one `<select>`, not a reusable
-  // analytics metric.
-  const typeUsage = $derived.by(() => {
-    const usage = new Map<string, { count: number; lastUsed: string }>();
-    for (const w of trainingState.workouts) {
-      if (!w.date) continue;
-      for (const slot of w.exercises) {
-        const entry = usage.get(slot.typeId) ?? { count: 0, lastUsed: '' };
-        entry.count += 1;
-        if (w.date > entry.lastUsed) entry.lastUsed = w.date;
-        usage.set(slot.typeId, entry);
-      }
-    }
-    return usage;
-  });
-
-  const groupedExerciseTypes = $derived.by(() => {
-    const groups = new Map<string, ExerciseTypeDef[]>();
-    for (const t of exerciseTypes) {
-      const category = t.category || 'Other';
-      if (!groups.has(category)) groups.set(category, []);
-      groups.get(category)!.push(t);
-    }
-    const byRecentThenFrequent = (types: ExerciseTypeDef[]) =>
-      [...types].sort((a, b) => {
-        const ua = typeUsage.get(a.id);
-        const ub = typeUsage.get(b.id);
-        if (!!ua !== !!ub) return ua ? -1 : 1;
-        if (ua && ub) return ub.lastUsed.localeCompare(ua.lastUsed) || ub.count - ua.count;
-        return a.name.localeCompare(b.name);
-      });
-    return Array.from(groups.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([category, types]) => ({ category, types: byRecentThenFrequent(types) }));
-  });
+  /** The library picker (`ExercisePicker`). A new exercise opens it straight away - choosing is the first step. */
+  let pickerOpen = $state(false);
 
   // The values bucket being edited - the current mode's bucket if it has
   // data, else fall back to prescribed as a sensible starting point (e.g.
@@ -319,16 +284,25 @@
 
 <div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm animate-in zoom-in-95 duration-300">
   <div class="space-y-1.5">
-    <label for="modality-select" class="text-label text-content-subtle ml-1">Modality</label>
-    <div class="relative">
-      <select id="modality-select" bind:value={selectedTypeId} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none appearance-none transition-all cursor-pointer text-sm font-medium">
-        {#each groupedExerciseTypes as group}
-          <optgroup label={group.category}>
-            {#each group.types as t} <option value={t.id}>{t.name}</option> {/each}
-          </optgroup>
-        {/each}
-      </select>
-    </div>
+    <span class="text-label text-content-subtle ml-1 block">Exercise</span>
+    <button
+      type="button"
+      onclick={() => pickerOpen = true}
+      class="w-full bg-surface-elevated text-left p-3.5 rounded-control border border-border-strong hover:border-primary/50 transition-all flex items-center gap-3"
+    >
+      <span class="min-w-0 flex-1">
+        {#if activeTypeDef}
+          <span class="block text-sm font-medium text-content truncate">{activeTypeDef.name}</span>
+          <span class="block text-caption text-content-subtle truncate">{exerciseGroup(activeTypeDef)}{activeTypeDef.archived ? ' · archived' : ''}</span>
+        {:else}
+          <span class="block text-sm font-medium text-content-subtle">Choose an exercise…</span>
+        {/if}
+      </span>
+      <Icon icon="ic:baseline-unfold-more" class="text-lg text-content-subtle shrink-0" />
+    </button>
+    {#if activeTypeDef?.description}
+      <p class="text-caption text-content-muted px-1 whitespace-pre-wrap break-words">{activeTypeDef.description}</p>
+    {/if}
   </div>
 
   {#if activeParams.includes('duration')}
@@ -500,9 +474,18 @@
 
   <button
     onclick={handleSubmit}
-    disabled={!isValid}
+    disabled={!isValid || !activeTypeDef}
     class="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold py-4 rounded-control shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
   >
     {initialSlot ? 'Update Exercise' : 'Add Exercise'}
   </button>
 </div>
+
+{#if pickerOpen}
+  <ExercisePicker
+    types={exerciseTypes}
+    selectedId={selectedTypeId}
+    onPick={(id) => selectedTypeId = id}
+    onClose={() => pickerOpen = false}
+  />
+{/if}
