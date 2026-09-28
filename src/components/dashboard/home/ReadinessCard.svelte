@@ -60,6 +60,16 @@
     { label: 'Sleep', penalty: readiness.penalties.sleep, max: MAX_SLEEP_PENALTY, used: readiness.inputsUsed.sleep },
     { label: 'HRV', penalty: readiness.penalties.hrv, max: MAX_HRV_PENALTY, used: readiness.inputsUsed.hrv },
   ]);
+  /**
+   * Each row's colour is its own verdict - how much of what that input can
+   * cost it is costing - not the overall status. A big sleep penalty on an
+   * otherwise good day used to be painted green along with everything else.
+   */
+  function rowStatus(penalty: number, max: number, used: boolean): ReadinessStatus {
+    if (!used) return 'neutral';
+    const share = max > 0 ? penalty / max : 0;
+    return share < 1 / 3 ? 'good' : share < 2 / 3 ? 'caution' : 'risk';
+  }
   const RING_RADIUS = 44;
   const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -138,14 +148,14 @@
         <div class="flex items-center gap-3">
           <span class="w-14 text-label text-content-subtle shrink-0">{row.label}</span>
           <div class="flex-1 h-1.5 bg-surface-elevated rounded-control overflow-hidden border border-border-strong/30">
-            <div class="h-full rounded-control origin-left {STATUS_BAR[readiness.status]} breakdown-bar" style="width: {Math.min(100, (row.penalty / row.max) * 100)}%"></div>
+            <div class="h-full rounded-control origin-left {STATUS_BAR[rowStatus(row.penalty, row.max, row.used)]} breakdown-bar" style="width: {Math.min(100, (row.penalty / row.max) * 100)}%"></div>
           </div>
-          <span class="w-12 text-right text-label tabular-nums shrink-0 {row.used ? 'text-content' : 'text-content-subtle'}">
+          <span class="w-12 text-right text-label tabular-nums shrink-0 {!row.used ? 'text-content-subtle' : rowStatus(row.penalty, row.max, row.used) === 'good' ? 'text-content' : STATUS_COLOR[rowStatus(row.penalty, row.max, row.used)]}">
             {row.used ? (Math.round(row.penalty) > 0 ? `−${Math.round(row.penalty)}` : '0') : 'no data'}
           </span>
         </div>
       {/each}
-      <p class="text-caption text-content-subtle">Points taken off 100.</p>
+      <p class="text-caption text-content-subtle">Points taken off 100. Each bar is coloured by how much of its maximum it costs.</p>
     </div>
   {/if}
 </div>
