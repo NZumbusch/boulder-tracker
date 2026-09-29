@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../../lib/ui/portal';
   import { sheetDrag } from '../../lib/ui/sheetDrag';
   /**
    * Choosing an exercise for a slot, from a library that can be long:
@@ -100,7 +101,7 @@
   </button>
 {/snippet}
 
-<div class="fixed inset-0 pb-safe z-[130] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+<div use:portal class="fixed inset-0 pb-safe z-[130] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
   <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onClose()}>
     <div class="shrink-0 border-b border-border px-5 pt-4 pb-3 space-y-3">
       <div class="flex items-center justify-between gap-3">
@@ -177,17 +178,17 @@
       {/if}
     </div>
   </div>
+  <!-- Inside the portalled root: it must stay this component's only top-level node. -->
+  {#if creating}
+    <ExerciseTypeEditor
+      type={creating}
+      isNew
+      layer="z-[140]"
+      groups={groupNames(types)}
+      analyticsCategories={trainingState.analyticsCategories}
+      takenNames={new Set(types.map((t) => t.name.trim().toLowerCase()))}
+      onSave={persist}
+      onClose={() => creating = null}
+    />
+  {/if}
 </div>
-
-{#if creating}
-  <ExerciseTypeEditor
-    type={creating}
-    isNew
-    layer="z-[140]"
-    groups={groupNames(types)}
-    analyticsCategories={trainingState.analyticsCategories}
-    takenNames={new Set(types.map((t) => t.name.trim().toLowerCase()))}
-    onSave={persist}
-    onClose={() => creating = null}
-  />
-{/if}

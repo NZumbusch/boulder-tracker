@@ -112,8 +112,17 @@ export function clearErrorLog() {
   announce();
 }
 
+/**
+ * Tells an open log view there's something new - at most every 250 ms, so
+ * a chatty console can't keep it redrawing (or loop, if a redraw logged).
+ */
+let announceTimer: ReturnType<typeof setTimeout> | undefined;
 function announce() {
-  if (typeof window !== "undefined") window.dispatchEvent(new Event(LOG_CHANGED_EVENT));
+  if (typeof window === "undefined" || announceTimer) return;
+  announceTimer = setTimeout(() => {
+    announceTimer = undefined;
+    window.dispatchEvent(new Event(LOG_CHANGED_EVENT));
+  }, 250);
 }
 
 /** Written shortly after, not on every entry - a warning in a render loop mustn't hammer storage. */
@@ -130,6 +139,11 @@ function scheduleFlush() {
 }
 
 function flushNow() {
+  if (fullFlushTimer) {
+    clearTimeout(fullFlushTimer);
+    fullFlushTimer = undefined;
+    writeFull();
+  }
   if (!flushTimer) return;
   clearTimeout(flushTimer);
   flushTimer = undefined;
@@ -157,6 +171,72 @@ export function setAlertLevel(level: AlertLevel) {
   }
 }
 
+// --- The full console log -----------------------------------------------
+//
+// Every line the console gets (log, info, debug, warnings, errors) and
+// every uncaught error, in order - the last FULL_LOG_MAX of them, kept on
+// the device like the error log, for reading the whole story around a
+// problem (Settings -> About & Help -> Errors & warnings -> Full log).
+
+export type ConsoleLevel = "debug" | "log" | "info" | "warning" | "error";
+export interface ConsoleLine {
+  at: string;
+  level: ConsoleLevel;
+  message: string;
+}
+export const FULL_LOG_KEY = "boulder_tracker_console_log";
+const FULL_LOG_MAX = 500;
+const LINE_MAX = 1000;
+
+let fullMemory: ConsoleLine[] | null = null;
+let fullFlushTimer: ReturnType<typeof setTimeout> | undefined;
+
+export function readFullLog(): ConsoleLine[] {
+  if (fullMemory) return fullMemory;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FULL_LOG_KEY) ?? "[]");
+    fullMemory = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    fullMemory = [];
+  }
+  return fullMemory;
+}
+
+export function clearFullLog() {
+  fullMemory = [];
+  try {
+    localStorage.removeItem(FULL_LOG_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+  announce();
+}
+
+/** Oldest first, newest last - the order a console reads in. */
+export function appendLine(log: ConsoleLine[], line: ConsoleLine, max = FULL_LOG_MAX): ConsoleLine[] {
+  const next = log.length >= max ? log.slice(log.length - max + 1) : log.slice();
+  next.push(line);
+  return next;
+}
+
+function writeFull() {
+  try {
+    localStorage.setItem(FULL_LOG_KEY, JSON.stringify(fullMemory ?? []));
+  } catch {
+    // A full localStorage: the in-memory log still works.
+  }
+}
+
+function line(level: ConsoleLevel, message: string) {
+  fullMemory = appendLine(readFullLog(), { at: new Date().toISOString(), level, message: message.slice(0, LINE_MAX) });
+  if (!fullFlushTimer) {
+    fullFlushTimer = setTimeout(() => {
+      fullFlushTimer = undefined;
+      writeFull();
+    }, 1000);
+  }
+}
+
 // --- Recording ------------------------------------------------------------
 
 let lastShownAt = 0;
@@ -177,6 +257,8 @@ function record(level: LogLevel, source: LogSource, message: string, stack?: str
       ...(stack ? { stack: stack.slice(0, STACK_MAX) } : {}),
     };
     memory = addEntry(readErrorLog(), entry);
+    // Console lines were added to the full log by the console hook itself.
+    if (source !== "console") line(level, where ? `${where}: ${entry.message}` : entry.message);
     scheduleFlush();
     announce();
     if (shouldAlert(level, readAlertLevel())) popup(level, entry.message);
@@ -218,12 +300,22 @@ export function installErrorReporting() {
     const where = e.filename ? `${e.filename.split("/").pop()}:${e.lineno}` : undefined;
     record("error", "uncaught", describe(e.error ?? e.message), e.error instanceof Error ? e.error.stack : undefined, where);
   });
-  // The console itself: still prints as before, and is logged too.
-  for (const [method, level] of [["error", "error"], ["warn", "warning"]] as const) {
+  // The console itself: still prints as before, and is logged too -
+  // every level into the full log, errors and warnings also into the
+  // error log (and maybe a popup).
+  for (const [method, level] of [["error", "error"], ["warn", "warning"], ["log", "log"], ["info", "info"], ["debug", "debug"]] as const) {
     const original = console[method].bind(console);
     console[method] = (...args: unknown[]) => {
       original(...args);
-      record(level, "console", formatConsoleArgs(args), firstError(args)?.stack);
+      if (recording) return;
+      const text = formatConsoleArgs(args);
+      try {
+        line(level, text);
+      } catch {
+        // Never break the caller's console call.
+      }
+      if (level === "error" || level === "warning") record(level, "console", text, firstError(args)?.stack);
+      else announce();
     };
   }
   // The app going away (killed, backgrounded) writes what's pending.

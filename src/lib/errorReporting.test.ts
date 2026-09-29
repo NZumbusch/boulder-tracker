@@ -1,5 +1,5 @@
 import { describe as suite, it, expect } from "vitest";
-import { describe, formatConsoleArgs, firstError, addEntry, shouldAlert, type LoggedError } from "./errorReporting";
+import { describe, formatConsoleArgs, firstError, addEntry, appendLine, shouldAlert, type LoggedError, type ConsoleLine } from "./errorReporting";
 
 suite("describe", () => {
   it("reads errors, strings and values", () => {
@@ -59,5 +59,13 @@ suite("shouldAlert", () => {
     expect(shouldAlert("warning", "errors")).toBe(false);
     expect(shouldAlert("warning", "all")).toBe(true);
     expect(shouldAlert("error", "off")).toBe(false);
+  });
+});
+
+suite("appendLine", () => {
+  it("keeps console order, oldest first, and drops the oldest past max", () => {
+    let log: ConsoleLine[] = [];
+    for (let i = 0; i < 5; i++) log = appendLine(log, { at: "t", level: "log", message: `l${i}` }, 3);
+    expect(log.map((l) => l.message)).toEqual(["l2", "l3", "l4"]);
   });
 });

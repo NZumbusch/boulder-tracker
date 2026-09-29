@@ -7,6 +7,7 @@
    */
   import { readErrorLog, clearErrorLog, readAlertLevel, setAlertLevel, LOG_CHANGED_EVENT, type LoggedError, type AlertLevel } from '../../lib/errorReporting';
   import { toast } from '../../lib/toast.svelte';
+  import FullLogView from './FullLogView.svelte';
   import Icon from '@iconify/svelte';
 
   let entries = $state<LoggedError[]>(readErrorLog());
@@ -14,6 +15,7 @@
   let filter = $state<'all' | 'error' | 'warning'>('all');
   let expanded = $state<number | null>(null);
   let showAll = $state(false);
+  let fullLogOpen = $state(false);
 
   $effect(() => {
     const refresh = () => { entries = [...readErrorLog()]; };
@@ -83,8 +85,12 @@
     </div>
   </div>
 
+  <button onclick={() => fullLogOpen = true} class="w-full py-2.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content text-label font-bold rounded-control border border-border-strong/50 flex items-center justify-center gap-1.5">
+    <Icon icon="ic:baseline-terminal" class="text-base" /> Full log — every console line
+  </button>
+
   {#if entries.length === 0}
-    <p class="text-caption text-content-subtle italic">Nothing logged.</p>
+    <p class="text-caption text-content-subtle italic">No errors or warnings logged.</p>
   {:else}
     <div class="flex items-center justify-between gap-2">
       <div class="seg">
@@ -124,3 +130,7 @@
     </div>
   {/if}
 </div>
+
+{#if fullLogOpen}
+  <FullLogView onClose={() => fullLogOpen = false} />
+{/if}
