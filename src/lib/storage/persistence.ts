@@ -237,6 +237,7 @@ export async function initDB() {
       metricDefs: await localforage.getItem("metricDefs"),
       dailyMetrics: await localforage.getItem("dailyMetrics"),
       painLogs: await localforage.getItem("painLogs"),
+      painIssues: await localforage.getItem("painIssues"),
       outdoorAscents: await localforage.getItem("outdoorAscents"),
       exportVersion: await localforage.getItem("database_version"),
     };
@@ -264,6 +265,9 @@ export async function initDB() {
     metricDefs: rawData.metricDefs || DEFAULT_METRIC_DEFS,
     dailyMetrics: rawData.dailyMetrics || [],
     painLogs: rawData.painLogs || [],
+    // No `|| []` here: a missing table is how the 3.33 migration knows to
+    // build issues from the entries (an empty one would say "already done").
+    ...(rawData.painIssues ? { painIssues: rawData.painIssues } : resolveInitialExportVersion(rawData) === DATA_EXPORT_VERSION ? { painIssues: [] } : {}),
     outdoorAscents: rawData.outdoorAscents || [],
     exportVersion: resolveInitialExportVersion(rawData),
   };
@@ -329,7 +333,7 @@ async function startNativeWrite(): Promise<void> {
 export const TABLES = [
   "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "planAlternatives", "athleteProfile", "coachNotes", "circuits", "goals", "templates", "phaseDefs",
   "exerciseTypes", "benchmarks", "benchmarkTypes", "analyticsCategories", "metricDefs",
-  "dailyMetrics", "painLogs", "outdoorAscents",
+  "dailyMetrics", "painLogs", "painIssues", "outdoorAscents",
 ] as const;
 export type TableName = (typeof TABLES)[number];
 

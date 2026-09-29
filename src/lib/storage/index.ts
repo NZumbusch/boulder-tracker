@@ -17,6 +17,7 @@ import type {
   MetricDef,
   DailyMetricEntry,
   PainLog,
+  PainIssue,
   OutdoorAscent,
 } from "../types";
 import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
@@ -73,6 +74,7 @@ export const storage = {
   async _getMetricDefs(): Promise<MetricDef[]> { await initDB(); return _dbState.metricDefs; },
   async _getDailyMetrics(): Promise<DailyMetricEntry[]> { await initDB(); return _dbState.dailyMetrics; },
   async _getPainLogs(): Promise<PainLog[]> { await initDB(); return _dbState.painLogs; },
+  async _getPainIssues(): Promise<PainIssue[]> { await initDB(); return _dbState.painIssues; },
   async _getOutdoorAscents(): Promise<OutdoorAscent[]> { await initDB(); return _dbState.outdoorAscents; },
 
   async _saveWorkouts(workouts: Workout[]): Promise<void> { await initDB(); _dbState.workouts = toPlain(workouts); await flushDB(["workouts"]); },
@@ -93,6 +95,9 @@ export const storage = {
   async _saveMetricDefs(defs: MetricDef[]): Promise<void> { await initDB(); _dbState.metricDefs = toPlain(defs); await flushDB(["metricDefs"]); },
   async _saveDailyMetrics(entries: DailyMetricEntry[]): Promise<void> { await initDB(); _dbState.dailyMetrics = toPlain(entries); await flushDB(["dailyMetrics"]); },
   async _savePainLogs(logs: PainLog[]): Promise<void> { await initDB(); _dbState.painLogs = toPlain(logs); await flushDB(["painLogs"]); },
+  async _savePainIssues(issues: PainIssue[]): Promise<void> { await initDB(); _dbState.painIssues = toPlain(issues); await flushDB(["painIssues"]); },
+  /** An issue and its check-ins in one write, so neither can land without the other. */
+  async _savePain(logs: PainLog[], issues: PainIssue[]): Promise<void> { await initDB(); _dbState.painLogs = toPlain(logs); _dbState.painIssues = toPlain(issues); await flushDB(["painLogs", "painIssues"]); },
   async _saveOutdoorAscents(ascents: OutdoorAscent[]): Promise<void> { await initDB(); _dbState.outdoorAscents = toPlain(ascents); await flushDB(["outdoorAscents"]); },
 
   // --- Public Interface ---
@@ -522,6 +527,15 @@ export const storage = {
     await this._savePainLogs(logs.filter((l) => l.id !== id));
   },
 
+  async getPainIssues(): Promise<PainIssue[]> {
+    return (await this._getPainIssues()) ?? [];
+  },
+
+  /** Replaces the whole pain picture - issues and check-ins together (see `_savePain`). */
+  async savePain(logs: PainLog[], issues: PainIssue[]): Promise<void> {
+    await this._savePain(logs, issues);
+  },
+
   async getOutdoorAscents(): Promise<OutdoorAscent[]> {
     return this._getOutdoorAscents();
   },
@@ -772,6 +786,7 @@ export const storage = {
           if (data.metricDefs) _dbState.metricDefs = data.metricDefs;
           if (data.dailyMetrics) _dbState.dailyMetrics = data.dailyMetrics;
           if (data.painLogs) _dbState.painLogs = data.painLogs;
+          if (data.painIssues) _dbState.painIssues = data.painIssues;
           if (data.outdoorAscents) _dbState.outdoorAscents = data.outdoorAscents;
           _dbState.exportVersion = data.exportVersion || "1.0";
 

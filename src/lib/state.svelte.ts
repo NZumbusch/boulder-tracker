@@ -1,3 +1,4 @@
+import { attachOrphanLogs, checkIn as checkInPainIssue } from './pain/issues';
 import { openWorkout } from './workoutModal.svelte';
 import { toast, showUndo } from './toast.svelte';
 import { copySessionsToWeek } from './planning/copyWeek';
@@ -5,7 +6,7 @@ import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
@@ -127,6 +128,7 @@ class TrainingState {
   get metricDefs() { return this.metricsStore.metricDefs; }
   get dailyMetrics() { return this.metricsStore.dailyMetrics; }
   get painLogs() { return this.metricsStore.painLogs; }
+  get painIssues() { return this.metricsStore.painIssues; }
   get outdoorAscents() { return this.outdoorAscentStore.outdoorAscents; }
 
   // --- Delegated UI state ---
@@ -1354,8 +1356,81 @@ class TrainingState {
    * Logs a pain/discomfort entry.
    */
   async savePainLog(log: PainLog) {
-    await this.metricsStore.savePainLog(log);
+    // Every entry belongs to an issue: one saved without (an edit of an
+    // old entry, a caller that doesn't know about issues) joins the open
+    // issue for its body part or starts one.
+    const logs = [...this.metricsStore.painLogs.filter((l) => l.id !== log.id), log];
+    const { logs: linked, issues } = attachOrphanLogs(logs, this.metricsStore.painIssues);
+    await this.metricsStore.savePain(linked, issues);
     await this.refresh();
+  }
+
+  // --- Pain issues (PAIN_PLAN.md) ---
+
+  /** A new issue with its first check-in. */
+  async reportPain(issue: PainIssue, first: PainLog) {
+    await this.metricsStore.savePain(
+      [...this.metricsStore.painLogs, { ...first, issueId: issue.id, bodyPart: issue.bodyPart }],
+      [...this.metricsStore.painIssues.filter((i) => i.id !== issue.id), issue],
+    );
+    await this.refresh();
+  }
+
+  /** A check-in on an issue - one tap from Home or after a session. "Gone" closes it today. */
+  async checkInPain(issueId: string, trend: PainTrend, extra: Partial<Pick<PainLog, 'severity' | 'notes' | 'kinds' | 'timing'>> = {}, dateIso = localIsoDate()) {
+    const issue = this.metricsStore.painIssues.find((i) => i.id === issueId);
+    if (!issue) return;
+    const r = checkInPainIssue($state.snapshot(issue) as PainIssue, this.metricsStore.painLogs, trend, dateIso, generateId, extra);
+    await this.metricsStore.savePain(
+      [...this.metricsStore.painLogs, r.log],
+      this.metricsStore.painIssues.map((i) => (i.id === issueId ? r.issue : i)),
+    );
+    await this.refresh();
+    if (trend === 'gone') showUndo(`${issue.bodyPart} closed`, () => this.undoPainCheckIn(r.log.id, issue));
+  }
+
+  /** Takes a check-in back and restores the issue as it was before it. */
+  private async undoPainCheckIn(logId: string, issueBefore: PainIssue) {
+    await this.metricsStore.savePain(
+      this.metricsStore.painLogs.filter((l) => l.id !== logId),
+      this.metricsStore.painIssues.map((i) => (i.id === issueBefore.id ? issueBefore : i)),
+    );
+    await this.refresh();
+  }
+
+  /** Edits an issue (name, region, watch list, notes, dates). A renamed issue renames its check-ins too. */
+  async savePainIssue(issue: PainIssue) {
+    const plain = $state.snapshot(issue) as PainIssue;
+    await this.metricsStore.savePain(
+      this.metricsStore.painLogs.map((l) => (l.issueId === plain.id && l.bodyPart !== plain.bodyPart ? { ...l, bodyPart: plain.bodyPart } : l)),
+      [...this.metricsStore.painIssues.filter((i) => i.id !== plain.id), plain],
+    );
+    await this.refresh();
+  }
+
+  /** It came back: open again, end removed. */
+  async reopenPainIssue(id: string) {
+    const issue = this.metricsStore.painIssues.find((i) => i.id === id);
+    if (!issue) return;
+    const { endDate: _end, endEstimated: _est, ...open } = $state.snapshot(issue) as PainIssue;
+    await this.savePainIssue(open);
+  }
+
+  /** Deletes an issue with all its check-ins, with an Undo toast. */
+  async deletePainIssue(id: string) {
+    const issue = this.metricsStore.painIssues.find((i) => i.id === id);
+    if (!issue) return;
+    const issueCopy = $state.snapshot(issue) as PainIssue;
+    const logsCopy = $state.snapshot(this.metricsStore.painLogs.filter((l) => l.issueId === id)) as PainLog[];
+    await this.metricsStore.savePain(
+      this.metricsStore.painLogs.filter((l) => l.issueId !== id),
+      this.metricsStore.painIssues.filter((i) => i.id !== id),
+    );
+    await this.refresh();
+    showUndo(`${issueCopy.bodyPart} deleted`, async () => {
+      await this.metricsStore.savePain([...this.metricsStore.painLogs, ...logsCopy], [...this.metricsStore.painIssues, issueCopy]);
+      await this.refresh();
+    });
   }
 
   /**

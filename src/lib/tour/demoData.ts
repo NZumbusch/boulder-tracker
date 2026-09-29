@@ -8,7 +8,7 @@ import type {
   ExerciseSlot,
   GoalEvent,
   OutdoorAscent,
-  PainLog,
+  PainLog, PainIssue,
   TrainingBlock,
   TrainingData,
   Workout,
@@ -259,7 +259,11 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
 
   const painDate = addDays(mondayOf(today, -3), 3);
   const painLogs: PainLog[] = [
-    { id: "demo-pain-1", date: iso(painDate), weekId: getWeekId(painDate), bodyPart: "Left ring finger", severity: 3, notes: "Slight tweak on a crimp, gone after two days" },
+    { id: "demo-pain-1", date: iso(painDate), weekId: getWeekId(painDate), bodyPart: "Left finger - ring A2", severity: 3, notes: "Slight tweak on a crimp", issueId: "demo-issue-1", kinds: ["sharp"], timing: ["during"] },
+    { id: "demo-pain-2", date: iso(addDays(painDate, 2)), weekId: getWeekId(addDays(painDate, 2)), bodyPart: "Left finger - ring A2", severity: 0, trend: "gone", issueId: "demo-issue-1" },
+  ];
+  const painIssues: PainIssue[] = [
+    { id: "demo-issue-1", bodyPart: "Left finger - ring A2", region: "finger", side: "left", detail: "ring A2", startDate: iso(painDate), endDate: iso(addDays(painDate, 2)), watchCategories: ["Fingers"] },
   ];
 
   return {
@@ -284,6 +288,7 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     metricDefs: structuredClone(DEFAULT_METRIC_DEFS),
     dailyMetrics,
     painLogs,
+    painIssues,
     outdoorAscents,
     exportVersion: DATA_EXPORT_VERSION,
   };

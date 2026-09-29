@@ -1,3 +1,4 @@
+import { groupLogsIntoIssues } from "../pain/issues";
 import { calculatePlannedLoad } from "../analytics/load";
 import {
   DEFAULT_TEMPLATES,
@@ -1134,6 +1135,19 @@ const MIGRATIONS: MigrationStep[] = [
       data.circuits = data.circuits || [];
     },
   },
+  {
+    from: "3.32",
+    to: "3.33",
+    describe: "Group pain entries into painIssues and link each entry to its issue (PAIN_PLAN.md)",
+    migrate: (data: any) => {
+      if (Array.isArray(data.painIssues)) return;
+      const { issues, logs } = groupLogsIntoIssues(Array.isArray(data.painLogs) ? data.painLogs : []);
+      // Entries keep their original order; only issueId is added.
+      const linked = new Map(logs.map((l) => [l.id, l.issueId]));
+      data.painLogs = (data.painLogs ?? []).map((l: any) => (linked.get(l.id) ? { ...l, issueId: linked.get(l.id) } : l));
+      data.painIssues = issues;
+    },
+  },
 ];
 
 /**
@@ -1186,6 +1200,18 @@ export function assertMigrationInvariants(before: any, after: any): void {
     problems.push(
       `benchmark count changed (${beforeBenchmarkCount} -> ${afterBenchmarkCount})`,
     );
+  }
+
+  const beforePainCount = before.painLogs?.length ?? 0;
+  const afterPainCount = after.painLogs?.length ?? 0;
+  if (beforePainCount !== afterPainCount) {
+    problems.push(`pain entry count changed (${beforePainCount} -> ${afterPainCount})`);
+  }
+  if (Array.isArray(after.painIssues)) {
+    const issueIds = new Set(after.painIssues.map((i: any) => i.id));
+    after.painLogs?.forEach((l: any) => {
+      if (l.issueId && !issueIds.has(l.issueId)) problems.push(`pain entry ${l.id} has unresolvable issueId "${l.issueId}"`);
+    });
   }
 
   const knownTypeIds = new Set(

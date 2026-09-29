@@ -285,6 +285,7 @@ const TABLE_NOUN: Record<string, string> = {
   metricDefs: "Metric",
   dailyMetrics: "Daily metric",
   painLogs: "Pain entry",
+  painIssues: "Pain issue",
   outdoorAscents: "Send",
 };
 

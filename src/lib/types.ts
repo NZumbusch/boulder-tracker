@@ -630,8 +630,54 @@ export interface PainLog {
   date: string;
   weekId: string;
   bodyPart: string;
-  /** 1-10 */
+  /** 1-10; 0 only on a "gone" check-in. */
   severity: number;
+  notes?: string;
+  /**
+   * The issue this is a check-in on (`PainIssue`). Every entry has one
+   * since 3.33; one saved without (an older app version) is attached at
+   * load time - see `attachOrphanLogs`.
+   */
+  issueId?: string;
+  /** Against the previous check-in - "gone" also closes the issue. */
+  trend?: PainTrend;
+  kinds?: PainKind[];
+  /** When it hurts. */
+  timing?: PainTiming[];
+}
+
+export type PainTrend = "better" | "same" | "worse" | "gone";
+export type PainKind = "sharp" | "ache" | "stiff" | "swelling" | "tingling";
+export type PainTiming = "during" | "after" | "morning" | "rest";
+export type PainRegion =
+  | "finger" | "hand" | "wrist" | "forearm" | "elbow" | "shoulder"
+  | "neck" | "back" | "hip" | "knee" | "ankle" | "foot" | "other";
+export type PainSide = "left" | "right" | "both";
+
+/**
+ * One niggle or injury, from when it started to when it was gone - the
+ * thing a pain entry (`PainLog`) is a check-in on (PAIN_PLAN.md).
+ * Resolved when `endDate` is set; "improving" and "worse" are read from
+ * its check-ins, not stored.
+ */
+export interface PainIssue {
+  id: string;
+  /** What it's called everywhere - built from region/side/detail, or typed freely. */
+  bodyPart: string;
+  region?: PainRegion;
+  side?: PainSide;
+  /** "ring A2", "medial epicondyle" - free text within the region. */
+  detail?: string;
+  /** YYYY-MM-DD */
+  startDate: string;
+  /** YYYY-MM-DD - set means resolved. */
+  endDate?: string;
+  /** Closed by the 3.33 migration at its last entry, not by the athlete - the real end is unknown. */
+  endEstimated?: true;
+  /** Analytics category names that aggravate it: sessions containing them get a warning. */
+  watchCategories?: string[];
+  /** The exercise it started in, if known. */
+  triggerTypeId?: string;
   notes?: string;
 }
 
@@ -678,5 +724,6 @@ export interface TrainingData {
   metricDefs: MetricDef[];
   dailyMetrics: DailyMetricEntry[];
   painLogs: PainLog[];
+  painIssues: PainIssue[];
   outdoorAscents: OutdoorAscent[];
 }
