@@ -14,6 +14,7 @@
   import { tour } from './lib/tour/tour.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
   import SessionActionsSheet from './components/workout/SessionActionsSheet.svelte';
+  import PainScreens from './components/health/PainScreens.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import { onMount } from 'svelte';
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
@@ -179,6 +180,7 @@
        the bubble's own elapsed readout. -->
   <ActiveSessionModal />
   <SessionActionsSheet />
+  <PainScreens />
   <SessionBubble />
   <WorkoutModal />
   <Toast />

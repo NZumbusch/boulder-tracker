@@ -10,7 +10,7 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import BodyweightLog from '../health/BodyweightLog.svelte';
-  import PainLog from '../health/PainLog.svelte';
+  import PainIssues from '../health/PainIssues.svelte';
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
   import SendForm from '../sends/SendForm.svelte';
   import { isOngoing } from '../../lib/goals/goals';
@@ -22,7 +22,7 @@
   let kind = $state<Kind | null>(null);
 
   const ALL_ACTIONS: { kind: Kind; icon: string; label: string; hint: string }[] = [
-    { kind: 'pain', icon: 'ic:baseline-healing', label: 'Pain', hint: 'Log, or see past entries' },
+    { kind: 'pain', icon: 'ic:baseline-healing', label: 'Pain', hint: 'Open issues, check in, or a new one' },
     { kind: 'bodyweight', icon: 'ic:baseline-monitor-weight', label: 'Bodyweight', hint: 'Today\'s weight' },
     { kind: 'send', icon: 'ic:baseline-terrain', label: 'Outdoor send', hint: 'Problem, grade, crag' },
     { kind: 'benchmark', icon: 'ic:baseline-straighten', label: 'Benchmark', hint: 'A test result this week' },
@@ -76,7 +76,7 @@
         {/each}
       </div>
     {:else if kind === 'pain'}
-      <PainLog />
+      <PainIssues />
     {:else if kind === 'bodyweight'}
       <BodyweightLog />
     {:else if kind === 'send'}

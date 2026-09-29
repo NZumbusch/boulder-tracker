@@ -1,4 +1,4 @@
-import type { PainIssue, PainLog, PainRegion, PainSide, PainTrend, Workout, ExerciseTypeDef, AnalyticsCategory } from "../types";
+import type { PainIssue, PainLog, PainRegion, PainSide, PainTrend, PainKind, PainTiming, Workout, ExerciseTypeDef, AnalyticsCategory } from "../types";
 import { getWeekId } from "../dateUtils";
 
 /**
@@ -219,3 +219,14 @@ export function issuesTouchedBy(
   );
   return watching.filter((i) => i.watchCategories!.some((c) => names.has(c)));
 }
+
+export const KIND_LABELS: Record<PainKind, string> = { sharp: "Sharp", ache: "Ache", stiff: "Stiff", swelling: "Swelling", tingling: "Tingling" };
+export const TIMING_LABELS: Record<PainTiming, string> = { during: "While climbing", after: "After", morning: "Next morning", rest: "At rest" };
+export const TREND_LABELS: Record<PainTrend, string> = { gone: "Gone", better: "Better", same: "Same", worse: "Worse" };
+export const TREND_ICONS: Record<PainTrend, string> = {
+  gone: "ic:baseline-check-circle",
+  better: "ic:baseline-trending-down",
+  same: "ic:baseline-trending-flat",
+  worse: "ic:baseline-trending-up",
+};
+export const STATUS_LABELS: Record<IssueStatus, string> = { resolved: "Resolved", worse: "Getting worse", improving: "Improving", steady: "Steady", new: "New" };
