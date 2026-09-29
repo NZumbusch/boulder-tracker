@@ -54,9 +54,9 @@
 <div id="section-fingerLoad" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div>
-      <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Finger Load <InfoButton term="fingerLoad" /></h3>
+      <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Filtered Load <InfoButton term="fingerLoad" /></h3>
       <p class="text-caption text-content-subtle mt-0.5">
-        {windowShare !== undefined ? `${windowShare}% of this window's load` : 'Load from finger-intensive exercises'}
+        {windowShare !== undefined ? `${windowShare}% of this window's load` : 'Load from the categories you pick - fingers by default'}
       </p>
     </div>
     <button
@@ -91,7 +91,7 @@
     <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
       {#if selected}
         {selected.label}
-        <span class="text-content-subtle"> · </span><span class="text-content">{Math.round(selected.finger)}</span> finger load
+        <span class="text-content-subtle"> · </span><span class="text-content">{Math.round(selected.finger)}</span> filtered load
         {#if selected.share !== undefined}<span class="text-content-subtle"> · {Math.round(selected.share * 100)}% of total</span>{/if}
         {#if selected.ramp}<span class="{selected.spike ? 'text-status-risk' : 'text-content-subtle'}"> · {selected.ramp > 0 ? '+' : ''}{Math.round(selected.ramp * 100)}% vs before</span>{/if}
       {:else}

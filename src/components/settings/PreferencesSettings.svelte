@@ -139,7 +139,7 @@
       list="analyticsSections"
       title="Analytics cards"
       hint="Drag to reorder; untick to hide."
-      labels={{ load: 'Rolling Load & ACWR', strain: 'Monotony & Strain', fingerLoad: 'Finger Load', heatmap: 'Training Calendar', mix: 'Training Mix', fatigue: 'Fatigue', recoveryTrend: 'Recovery (HRV · Sleep · RHR · weight)', pain: 'Pain', outdoor: 'Outdoor Ascents', benchmarks: 'Benchmark Progress', benchmarkOverview: 'All Benchmarks' }}
+      labels={{ load: 'Rolling Load & ACWR', strain: 'Monotony & Strain', fingerLoad: 'Filtered Load', heatmap: 'Training Calendar', mix: 'Training Mix', fatigue: 'Fatigue', recoveryTrend: 'Recovery (HRV · Sleep · RHR · weight)', pain: 'Pain', outdoor: 'Outdoor Ascents', benchmarks: 'Benchmark Progress', benchmarkOverview: 'All Benchmarks' }}
     />
     <ChartSettings />
   {:else if topic === 'model'}
