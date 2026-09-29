@@ -2,11 +2,15 @@
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { onMount } from 'svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { type Workout } from '../../lib/types';
+  import { type Workout, type PainTrend } from '../../lib/types';
 import { calculateLoadFactor } from '../../lib/analytics/load';
   import { generateId } from '../../lib/utils';
   import { formatMinutes } from '../../lib/session/formatSession';
   import RangeSlider from './RangeSlider.svelte';
+  import PainCheckInButtons from '../health/PainCheckInButtons.svelte';
+  import { openPainReport } from '../../lib/pain/painUi.svelte';
+  import { localIsoDate } from '../../lib/dateUtils';
+  import Icon from '@iconify/svelte';
   import { haptic } from '../../lib/native/haptics';
 
   // --- Props ---
@@ -27,14 +31,12 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   let systemic = $state(5);
   let notes = $state('');
 
-  // --- Pain/discomfort logging (the workout-completion
-  // flow is the natural entry point, since severity/weekId are already at
-  // hand here). Purely optional and additive to the fatigue rating above -
-  // it writes its own PainLog, it never affects loadFactor/fatigue.
-  let showPainLog = $state(false);
-  let painBodyPart = $state('');
-  let painSeverity = $state(5);
-  let painNotes = $state('');
+  // --- Pain check-ins (PAIN_PLAN.md): right after a session is when you
+  // know how the open issues took it. Answers are collected here and saved
+  // with the session; they never affect loadFactor/fatigue. A new issue
+  // opens the full report (mounted in App).
+  let painAnswers = $state<Record<string, PainTrend>>({});
+  const openIssues = $derived(trainingState.painCheckIns.session ? trainingState.painIssues.filter((i) => !i.endDate) : []);
 
   /**
    * The session's length, editable here before it is committed.
@@ -77,15 +79,10 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   const loadFactor = $derived(calculateLoadFactor(durationMinutes, fingers, core, systemic));
 
   async function handleSave() {
-    if (showPainLog && painBodyPart.trim()) {
-      await trainingState.savePainLog({
-        id: generateId(),
-        date: initialData?.date || new Date().toISOString(),
-        weekId: initialData?.weekId || '',
-        bodyPart: painBodyPart.trim(),
-        severity: painSeverity,
-        notes: painNotes || undefined,
-      });
+    // On the session's own day - a session logged late checks in for then.
+    const day = (initialData?.date || localIsoDate()).slice(0, 10);
+    for (const [issueId, trend] of Object.entries(painAnswers)) {
+      await trainingState.checkInPain(issueId, trend, {}, day);
     }
     haptic('success');
     onConfirm({
@@ -108,7 +105,8 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
 
 {#if trainingState.showFatigue}
   <div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[115] backdrop-blur-md transition-all duration-300">
-    <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
+    <!-- Scrolls within the screen: the pain questions made it taller than a phone. -->
+    <div class="bg-surface w-full max-w-lg max-h-[92vh] overflow-y-auto no-scrollbar rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
       <div class="w-10 h-1 bg-surface-elevated rounded-full mx-auto mb-6 sm:hidden"></div>
       
       <div class="flex items-center justify-between mb-6 px-1">
@@ -190,25 +188,17 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
           <textarea id="fatigue-notes" bind:value={notes} placeholder="Notes..." class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
         </div>
 
-        <div class="border-t border-border pt-4">
-          <button type="button" onclick={() => showPainLog = !showPainLog} class="flex items-center justify-between w-full text-left">
-            <span class="text-label text-content-subtle ml-1">Log Pain / Discomfort (optional)</span>
-            <span class="text-content-subtle text-lg leading-none">{showPainLog ? '−' : '+'}</span>
-          </button>
-
-          {#if showPainLog}
-            <div class="mt-3 space-y-3 animate-in fade-in">
-              <input bind:value={painBodyPart} placeholder="Body part (e.g. Left A2 pulley)" class="w-full bg-surface-elevated/50 text-content p-3 rounded-control border border-border outline-none text-sm placeholder:text-content-subtle" />
-              <div class="space-y-1">
-                <label for="pain-severity-range" class="flex justify-between text-label text-content-subtle ml-1">
-                  <span>Severity</span>
-                  <span class="text-primary font-mono text-caption tabular-nums">{painSeverity}/10</span>
-                </label>
-                <RangeSlider id="pain-severity-range" bind:value={painSeverity} />
-              </div>
-              <input bind:value={painNotes} placeholder="Notes (optional)" class="w-full bg-surface-elevated/50 text-content p-3 rounded-control border border-border outline-none text-sm placeholder:text-content-subtle" />
+        <div class="border-t border-border pt-4 space-y-3">
+          {#each openIssues as issue (issue.id)}
+            <div class="space-y-1.5">
+              <p class="text-label text-content-subtle ml-1">How did your <span class="text-content">{issue.bodyPart.toLowerCase()}</span> take it?</p>
+              <PainCheckInButtons chosen={painAnswers[issue.id] ?? null} onPick={(trend) => painAnswers = painAnswers[issue.id] === trend ? Object.fromEntries(Object.entries(painAnswers).filter(([k]) => k !== issue.id)) : { ...painAnswers, [issue.id]: trend }} />
             </div>
-          {/if}
+          {/each}
+          <button type="button" onclick={openPainReport} class="w-full flex items-center justify-between text-left">
+            <span class="text-label text-content-subtle ml-1">Something new hurts?</span>
+            <span class="text-caption font-bold text-primary flex items-center gap-1"><Icon icon="ic:baseline-healing" class="text-base" /> Log pain</span>
+          </button>
         </div>
       </div>
 

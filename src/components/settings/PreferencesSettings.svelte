@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type AppearanceTopic = 'general' | 'home' | 'plan' | 'sessions' | 'charts' | 'model' | 'weather' | 'notifications';
+  export type AppearanceTopic = 'general' | 'home' | 'plan' | 'sessions' | 'charts' | 'model' | 'pain' | 'weather' | 'notifications';
 
   /** The topic list - also what Settings' header uses to title an open topic. */
   export const APPEARANCE_TOPICS: { id: AppearanceTopic; label: string; hint: string; icon: string }[] = [
@@ -9,6 +9,7 @@
     { id: 'sessions', label: 'Sessions & Timer', hint: 'Live sessions, timer sounds and screen', icon: 'ic:baseline-timer' },
     { id: 'charts', label: 'History & Analytics', hint: 'Analytics cards, recovery chart, sends chart', icon: 'ic:baseline-bar-chart' },
     { id: 'model', label: 'Training model', hint: 'Readiness, ACWR zones, fatigue recovery, rest-day alert', icon: 'ic:baseline-tune' },
+    { id: 'pain', label: 'Pain check-ins', hint: 'Home, after sessions, reminder, when to ask to close', icon: 'ic:baseline-healing' },
     { id: 'weather', label: 'Weather & outdoor', hint: 'Locations, crags, conditions, trips', icon: 'ic:baseline-cloud' },
     { id: 'notifications', label: 'Notifications', hint: 'Reminders', icon: 'ic:baseline-notifications' },
   ];
@@ -23,6 +24,7 @@
    * back arrow can return to this list before leaving the tab.
    */
   import WidgetSettings from './WidgetSettings.svelte';
+  import PainCheckInSettings from './PainCheckInSettings.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import HomeLayoutSettings from './HomeLayoutSettings.svelte';
   import PlanDisplaySettings from './PlanDisplaySettings.svelte';
@@ -146,6 +148,8 @@
   {:else if topic === 'weather'}
     <WeatherSettings />
     <TunablesSettings topic="outdoor" title="Conditions & trips" />
+  {:else if topic === 'pain'}
+    <PainCheckInSettings />
   {:else if topic === 'notifications'}
     <NotificationSettings />
   {/if}

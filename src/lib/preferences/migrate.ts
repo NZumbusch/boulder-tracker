@@ -84,6 +84,8 @@ export interface Preferences {
   timerPillHidden: boolean;
   /** The screen stays on for the whole running session, not only while a timer runs. */
   sessionKeepAwake: boolean;
+  /** Pain check-in prompts (PAIN_PLAN.md) - each switchable. */
+  painCheckIns: PainCheckInPrefs;
   /** Short vibrations on finishing an exercise, a session, swipes and long-presses (native app). */
   hapticsEnabled: boolean;
   /** Android: an ongoing notification while a session runs (its clock, progress, pause). */
@@ -282,6 +284,7 @@ export function defaultPreferences(): Preferences {
     timerWarnBeforeEnd: false,
     timerPillHidden: false,
     sessionKeepAwake: true,
+    painCheckIns: { ...DEFAULT_PAIN_CHECK_INS },
     hapticsEnabled: true,
     sessionNotification: true,
     homeSections: HOME_SECTION_IDS.map((id) => ({ id, visible: true })),
@@ -500,6 +503,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     timerWarnBeforeEnd: typeof candidate.timerWarnBeforeEnd === 'boolean' ? candidate.timerWarnBeforeEnd : defaults.timerWarnBeforeEnd,
     timerPillHidden: typeof candidate.timerPillHidden === 'boolean' ? candidate.timerPillHidden : defaults.timerPillHidden,
     sessionKeepAwake: typeof candidate.sessionKeepAwake === 'boolean' ? candidate.sessionKeepAwake : defaults.sessionKeepAwake,
+    painCheckIns: validatePainCheckIns(candidate.painCheckIns),
     hapticsEnabled: typeof candidate.hapticsEnabled === 'boolean' ? candidate.hapticsEnabled : defaults.hapticsEnabled,
     sessionNotification: typeof candidate.sessionNotification === 'boolean' ? candidate.sessionNotification : defaults.sessionNotification,
     homeSections: candidate.homeSections === undefined ? defaults.homeSections : validateHomeSections(candidate.homeSections),
@@ -523,5 +527,40 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     navLabels: typeof candidate.navLabels === 'boolean' ? candidate.navLabels : defaults.navLabels,
     helpButtons: typeof candidate.helpButtons === 'boolean' ? candidate.helpButtons : defaults.helpButtons,
     welcomeDone: typeof candidate.welcomeDone === 'boolean' ? candidate.welcomeDone : true,
+  };
+}
+
+
+// --- Pain check-ins ----------------------------------------------------------
+
+export interface PainCheckInPrefs {
+  /** Home asks "still there?" about open issues not checked in today. */
+  home: boolean;
+  /** The post-session sheet asks about open issues. */
+  session: boolean;
+  /** After this many days without a check-in, Home asks whether to close it. */
+  staleDays: number;
+  /** A notification when an open issue hasn't been checked in for `reminderDays`. */
+  reminder: boolean;
+  reminderDays: number;
+  /** HH:MM */
+  reminderTime: string;
+}
+
+export const DEFAULT_PAIN_CHECK_INS: PainCheckInPrefs = { home: true, session: true, staleDays: 10, reminder: true, reminderDays: 3, reminderTime: '19:00' };
+
+export function validatePainCheckIns(raw: unknown): PainCheckInPrefs {
+  const d = DEFAULT_PAIN_CHECK_INS;
+  if (typeof raw !== 'object' || raw === null) return { ...d };
+  const c = raw as Record<string, unknown>;
+  const bool = (v: unknown, def: boolean) => (typeof v === 'boolean' ? v : def);
+  const days = (v: unknown, def: number) => (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 60 ? v : def);
+  return {
+    home: bool(c.home, d.home),
+    session: bool(c.session, d.session),
+    staleDays: days(c.staleDays, d.staleDays),
+    reminder: bool(c.reminder, d.reminder),
+    reminderDays: days(c.reminderDays, d.reminderDays),
+    reminderTime: typeof c.reminderTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(c.reminderTime) ? c.reminderTime : d.reminderTime,
   };
 }

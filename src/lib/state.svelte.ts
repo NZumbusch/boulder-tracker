@@ -60,12 +60,13 @@ import { SessionStore } from './stores/sessionStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { CragForecast } from './weather/suggestion';
 import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
 import { syncDailyMetricsReminder } from './notifications/dailyMetricsReminder';
+import { syncPainReminder } from './notifications/painReminder';
 import { cancelRemindersOfType } from './notifications/shared';
 import { syncPlanBReminders, type PlanBReminderInput } from './notifications/planBReminder';
 import { outdoorDayHints, hintText } from './weather/planBHint';
@@ -261,6 +262,15 @@ class TrainingState {
   setTimerCountdownTicks(enabled: boolean) { this.preferencesStore.setTimerCountdownTicks(enabled); }
   setTimerWarnBeforeEnd(enabled: boolean) { this.preferencesStore.setTimerWarnBeforeEnd(enabled); }
   setTimerPillHidden(hidden: boolean) { this.preferencesStore.setTimerPillHidden(hidden); }
+  get painCheckIns() { return this.preferencesStore.painCheckIns; }
+  async setPainCheckIns(changes: Partial<PainCheckInPrefs>) {
+    this.preferencesStore.setPainCheckIns(changes);
+    try {
+      await syncPainReminder(this.metricsStore.painIssues, this.metricsStore.painLogs, this.preferencesStore.painCheckIns);
+    } catch (err) {
+      console.error('Failed to sync the pain check-in reminder:', err);
+    }
+  }
   get sessionKeepAwake() { return this.preferencesStore.sessionKeepAwake; }
   setSessionKeepAwake(enabled: boolean) { this.preferencesStore.setSessionKeepAwake(enabled); }
   get hapticsEnabled() { return this.preferencesStore.hapticsEnabled; }
@@ -407,6 +417,11 @@ class TrainingState {
           } catch (err) {
             console.error('Failed to sync daily-metrics reminder notification:', err);
           }
+        }
+        try {
+          await syncPainReminder(this.metricsStore.painIssues, this.metricsStore.painLogs, this.preferencesStore.painCheckIns);
+        } catch (err) {
+          console.error('Failed to sync the pain check-in reminder:', err);
         }
         if (this.preferencesStore.planBReminderEnabled) {
           try {

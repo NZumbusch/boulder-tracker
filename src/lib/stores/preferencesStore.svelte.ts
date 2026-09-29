@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -33,6 +33,7 @@ export class PreferencesStore {
   timerWarnBeforeEnd = $state(false);
   timerPillHidden = $state(false);
   sessionKeepAwake = $state(true);
+  painCheckIns = $state<PainCheckInPrefs>({ ...DEFAULT_PAIN_CHECK_INS });
   hapticsEnabled = $state(true);
   sessionNotification = $state(true);
   homeSections = $state<HomeSectionPreference[]>(HOME_SECTION_IDS.map((id) => ({ id, visible: true })));
@@ -86,6 +87,7 @@ export class PreferencesStore {
     this.timerWarnBeforeEnd = prefs.timerWarnBeforeEnd;
     this.timerPillHidden = prefs.timerPillHidden;
     this.sessionKeepAwake = prefs.sessionKeepAwake;
+    this.painCheckIns = prefs.painCheckIns;
     this.hapticsEnabled = prefs.hapticsEnabled;
     this.sessionNotification = prefs.sessionNotification;
     this.homeSections = prefs.homeSections;
@@ -196,6 +198,11 @@ export class PreferencesStore {
 
   setTimerPillHidden(hidden: boolean) {
     this.timerPillHidden = hidden;
+    this.persist();
+  }
+
+  setPainCheckIns(changes: Partial<PainCheckInPrefs>) {
+    this.painCheckIns = validatePainCheckIns({ ...this.painCheckIns, ...changes });
     this.persist();
   }
 
@@ -351,6 +358,7 @@ export class PreferencesStore {
       timerWarnBeforeEnd: this.timerWarnBeforeEnd,
       timerPillHidden: this.timerPillHidden,
       sessionKeepAwake: this.sessionKeepAwake,
+      painCheckIns: this.painCheckIns,
       hapticsEnabled: this.hapticsEnabled,
       sessionNotification: this.sessionNotification,
       homeSections: this.homeSections,
