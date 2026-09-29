@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { GoalEvent, TrainingBlock } from "../types";
-import { blockSegments, goalsInWindow, painRows, FALLBACK_BLOCK_COLOR } from "./timeline";
+import { blockSegments, goalsInWindow, painRows, painIssueRows, FALLBACK_BLOCK_COLOR } from "./timeline";
 import { toUtcDayIndex } from "../dateUtils";
 
 const block = (id: string, start: string, end: string, extra: Partial<TrainingBlock> = {}): TrainingBlock => ({
@@ -52,5 +52,26 @@ describe("painRows", () => {
       toUtcDayIndex("2026-09-30"),
     );
     expect(rows.map((r) => [r.bodyPart, r.points.length])).toEqual([["Left ring finger", 2], ["Elbow", 1]]);
+  });
+});
+
+describe("painIssueRows", () => {
+  const d = toUtcDayIndex;
+  const issues = [
+    { id: "old", bodyPart: "Knee", startDate: "2026-08-20", endDate: "2026-09-05", endEstimated: true as const },
+    { id: "open", bodyPart: "A2", startDate: "2026-09-20" },
+    { id: "gone", bodyPart: "Elbow", startDate: "2026-06-01", endDate: "2026-06-10" },
+  ];
+  const logs = [
+    { id: "1", date: "2026-08-25", weekId: "", bodyPart: "Knee", severity: 5, issueId: "old" },
+    { id: "2", date: "2026-09-02", weekId: "", bodyPart: "Knee", severity: 2, issueId: "old" },
+    { id: "3", date: "2026-09-21", weekId: "", bodyPart: "A2", severity: 4, issueId: "open" },
+  ];
+  it("gives each overlapping issue a clipped bar, open ones running to today, open first", () => {
+    const rows = painIssueRows(issues, logs, d("2026-09-01"), d("2026-09-30"), d("2026-09-29"));
+    expect(rows.map((r) => [r.issueId, r.fromDay - d("2026-09-01"), r.toDay - d("2026-09-01"), r.open, r.estimated, r.points.length])).toEqual([
+      ["open", 19, 28, true, false, 1],
+      ["old", 0, 4, false, true, 1],
+    ]);
   });
 });

@@ -8,14 +8,16 @@
    */
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
-  import type { PainRow } from '../../lib/analytics/timeline';
+  import type { PainIssueRow } from '../../lib/analytics/timeline';
+  import { openPainIssue } from '../../lib/pain/painUi.svelte';
   // Hover is mouse-only (see HeatmapPanel for why).
   import { isTapPointer, isKeyboardActivation } from '../../lib/analytics/chartTips.svelte';
 
   let { firstDay, lastDay, rows, spikeIds, loadByDay }: {
     firstDay: number;
     lastDay: number;
-    rows: PainRow[];
+    /** One per pain issue in the window - a bar from start to end, its check-ins as dots. */
+    rows: PainIssueRow[];
     /** Pain log ids with a load spike nearby. */
     spikeIds: Set<string>;
     loadByDay: Map<number, number>;
@@ -36,7 +38,7 @@
   let selected = $state<{ row: string; id: string } | null>(null);
   const selectedInfo = $derived.by(() => {
     if (!selected) return null;
-    const row = rows.find((r) => r.bodyPart === selected!.row);
+    const row = rows.find((r) => r.issueId === selected!.row);
     const point = row?.points.find((p) => p.id === selected!.id);
     if (!row || !point) return null;
     return {
@@ -53,7 +55,7 @@
 <div id="section-pain" class="scroll-mt-4 card space-y-3">
   <div>
     <h3 class="text-section uppercase text-content-muted">Pain</h3>
-    <p class="text-caption text-content-subtle mt-0.5">By body part over daily load · ringed: load spike that week or the one before</p>
+    <p class="text-caption text-content-subtle mt-0.5">Each issue from start to end over daily load · ringed: load spike that week or the one before</p>
   </div>
 
     <div class="space-y-1">
@@ -62,18 +64,24 @@
       {#if rows.length === 0}
         <p class="h-6 flex items-center justify-center text-caption text-content-subtle italic">No pain logged in this window</p>
       {/if}
-      {#each rows as row (row.bodyPart)}
+      {#each rows as row (row.issueId)}
         <div class="flex items-center gap-2">
-          <div class="w-20 shrink-0 text-caption text-content-muted truncate" title={row.bodyPart}>{row.bodyPart}</div>
+          <button onclick={() => openPainIssue(row.issueId)} class="w-20 shrink-0 text-left text-caption text-content-muted hover:text-primary truncate" title={row.bodyPart}>{row.bodyPart}</button>
           <div class="flex-1 min-w-0 h-6 relative">
             <div class="absolute inset-x-0 top-1/2 border-t border-border"></div>
+            <!-- The issue's stretch: solid while it lasted, fading out while
+                 still open, a dashed end where the end was estimated. -->
+            <div
+              class="absolute top-1/2 -translate-y-1/2 h-2.5 rounded-full bg-status-caution/25 {row.estimated ? 'border-r-2 border-dashed border-status-caution/50' : ''}"
+              style="left: {((row.fromDay - firstDay) / dayCount) * 100}%; width: {((row.toDay - row.fromDay + 1) / dayCount) * 100}%;{row.open ? ' mask-image: linear-gradient(to right, black 70%, transparent); -webkit-mask-image: linear-gradient(to right, black 70%, transparent);' : ''}"
+            ></div>
             {#each row.points as p (p.id)}
               {@const size = 6 + p.severity}
               <button
                 type="button"
-                onpointerup={(e) => { if (isTapPointer(e)) selected = selected?.id === p.id ? null : { row: row.bodyPart, id: p.id }; }}
-                onclick={(e) => { if (isKeyboardActivation(e)) selected = selected?.id === p.id ? null : { row: row.bodyPart, id: p.id }; }}
-                onpointerenter={(e) => { if (!isTapPointer(e)) selected = { row: row.bodyPart, id: p.id }; }}
+                onpointerup={(e) => { if (isTapPointer(e)) selected = selected?.id === p.id ? null : { row: row.issueId, id: p.id }; }}
+                onclick={(e) => { if (isKeyboardActivation(e)) selected = selected?.id === p.id ? null : { row: row.issueId, id: p.id }; }}
+                onpointerenter={(e) => { if (!isTapPointer(e)) selected = { row: row.issueId, id: p.id }; }}
                 aria-label="{row.bodyPart}, severity {p.severity}"
                 class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full {spikeIds.has(p.id) ? 'ring-2 ring-status-risk/60 ring-offset-1 ring-offset-surface' : ''} {selected?.id === p.id ? 'outline outline-1 outline-content' : ''}"
                 style="left: {xOf(p.day)}%; width: {size}px; height: {size}px; background: {severityColor(p.severity)};"

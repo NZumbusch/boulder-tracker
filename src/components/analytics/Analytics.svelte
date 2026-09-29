@@ -21,7 +21,7 @@
   import { toUtcDayIndex } from '../../lib/dateUtils';
   import { buildBuckets, bucketOfDay, dayToX, ANALYTICS_RANGES, RANGE_LABELS } from '../../lib/analytics/range';
   import { windowStats, comparisonSpans } from '../../lib/analytics/windowSummary';
-  import { blockSegments, goalsInWindow, painRows } from '../../lib/analytics/timeline';
+  import { blockSegments, goalsInWindow, painIssueRows } from '../../lib/analytics/timeline';
   import { benchmarkChanges } from '../../lib/analytics/progress';
   import PainTimelinePanel from './PainTimelinePanel.svelte';
   import BenchmarkOverviewPanel from './BenchmarkOverviewPanel.svelte';
@@ -275,12 +275,12 @@
     return { perColumn, window: planProgress(soFar.flatMap((id) => trainingState.getWorkoutsForWeek(id))) };
   });
 
-  // --- Pain timeline: rows per body part, ringed where a load spike was
+  // --- Pain timeline: a row per issue (start to end), ringed where a load spike was
   // near (judged week by week, whatever the column size).
   const painData = $derived.by(() => {
     const correlations = correlatePainWithLoadSpikes(trainingState.painLogs, calculateAcwrForWeeks(trainingState.workouts, allWeekIds), trainingState.acwrZones.highRisk);
     return {
-      rows: painRows(trainingState.painLogs, firstDay, lastDay),
+      rows: painIssueRows(trainingState.painIssues, trainingState.painLogs, firstDay, lastDay, today),
       spikeIds: new Set(correlations.filter((c) => c.loadSpikeNearby).map((c) => c.painLogId)),
     };
   });

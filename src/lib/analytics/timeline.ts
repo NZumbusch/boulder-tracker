@@ -3,7 +3,7 @@
  * each stretch of the window, and the goals (competitions, trips) that
  * fall inside it.
  */
-import type { GoalEvent, PainLog, PhaseDef, TrainingBlock } from "../types";
+import type { GoalEvent, PainIssue, PainLog, PhaseDef, TrainingBlock } from "../types";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { toUtcDayIndex } from "../dateUtils";
 import { weekStartDay } from "./range";
@@ -84,4 +84,38 @@ export function painRows(painLogs: PainLog[], firstDay: number, lastDay: number)
   return [...rows.values()]
     .map((r) => ({ ...r, points: r.points.sort((a, b) => a.day - b.day) }))
     .sort((a, b) => b.points.length - a.points.length || a.bodyPart.localeCompare(b.bodyPart));
+}
+
+export interface PainIssueRow {
+  issueId: string;
+  bodyPart: string;
+  /** The stretch of the window the issue covers. */
+  fromDay: number;
+  toDay: number;
+  /** Still open - its bar runs to today. */
+  open: boolean;
+  /** The end was estimated by the 3.33 migration. */
+  estimated: boolean;
+  points: PainPoint[];
+}
+
+/**
+ * One row per pain issue overlapping [firstDay, lastDay]: a bar from its
+ * start to its end (an open one runs to `todayDay`), clipped to the
+ * window, with its check-ins as points. Open issues first, then newest.
+ */
+export function painIssueRows(issues: PainIssue[], logs: PainLog[], firstDay: number, lastDay: number, todayDay: number): PainIssueRow[] {
+  const rows: PainIssueRow[] = [];
+  for (const issue of issues) {
+    const start = toUtcDayIndex(issue.startDate);
+    const end = issue.endDate ? toUtcDayIndex(issue.endDate) : Math.max(start, todayDay);
+    if (start > lastDay || end < firstDay) continue;
+    const points = logs
+      .filter((l) => l.issueId === issue.id)
+      .map((l) => ({ id: l.id, day: toUtcDayIndex(l.date), severity: l.severity, notes: l.notes }))
+      .filter((p) => p.day >= firstDay && p.day <= lastDay)
+      .sort((a, b) => a.day - b.day);
+    rows.push({ issueId: issue.id, bodyPart: issue.bodyPart, fromDay: Math.max(start, firstDay), toDay: Math.min(end, lastDay), open: !issue.endDate, estimated: !!issue.endEstimated, points });
+  }
+  return rows.sort((a, b) => Number(b.open) - Number(a.open) || b.fromDay - a.fromDay);
 }
