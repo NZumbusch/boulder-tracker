@@ -310,7 +310,7 @@ class TrainingState {
   get readinessConfig(): ReadinessConfig {
     const t = this.preferencesStore.tunables;
     return {
-      use: { fatigue: flag(t, 'readiness.useFatigue'), acwr: flag(t, 'readiness.useAcwr'), sleep: flag(t, 'readiness.useSleep'), hrv: flag(t, 'readiness.useHrv') },
+      use: { fatigue: flag(t, 'readiness.useFatigue'), acwr: flag(t, 'readiness.useAcwr'), sleep: flag(t, 'readiness.useSleep'), hrv: flag(t, 'readiness.useHrv'), pain: flag(t, 'readiness.usePain') },
       sleepLow: num(t, 'readiness.sleepLow'),
       sleepShortHours: num(t, 'readiness.sleepShortHours'),
       hrvDip: num(t, 'readiness.hrvDip'),

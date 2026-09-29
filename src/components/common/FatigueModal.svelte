@@ -9,6 +9,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   import RangeSlider from './RangeSlider.svelte';
   import PainCheckInButtons from '../health/PainCheckInButtons.svelte';
   import { openPainReport } from '../../lib/pain/painUi.svelte';
+  import { inSentence } from '../../lib/pain/issues';
   import { localIsoDate } from '../../lib/dateUtils';
   import Icon from '@iconify/svelte';
   import { haptic } from '../../lib/native/haptics';
@@ -191,7 +192,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
         <div class="border-t border-border pt-4 space-y-3">
           {#each openIssues as issue (issue.id)}
             <div class="space-y-1.5">
-              <p class="text-label text-content-subtle ml-1">How did your <span class="text-content">{issue.bodyPart.toLowerCase()}</span> take it?</p>
+              <p class="text-label text-content-subtle ml-1">How did your <span class="text-content">{inSentence(issue.bodyPart)}</span> take it?</p>
               <PainCheckInButtons chosen={painAnswers[issue.id] ?? null} onPick={(trend) => painAnswers = painAnswers[issue.id] === trend ? Object.fromEntries(Object.entries(painAnswers).filter(([k]) => k !== issue.id)) : { ...painAnswers, [issue.id]: trend }} />
             </div>
           {/each}

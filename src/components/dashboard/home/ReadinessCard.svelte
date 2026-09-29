@@ -2,7 +2,7 @@
   /** The readiness hero: score ring, status and advice, and a tap-to-open breakdown of what cost points. */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
-  import { MAX_FATIGUE_PENALTY, MAX_ACWR_PENALTY, MAX_SLEEP_PENALTY, MAX_HRV_PENALTY, type ReadinessStatus } from '../../../lib/analytics/readiness';
+  import { MAX_FATIGUE_PENALTY, MAX_ACWR_PENALTY, MAX_SLEEP_PENALTY, MAX_HRV_PENALTY, MAX_PAIN_PENALTY, type ReadinessStatus } from '../../../lib/analytics/readiness';
   import Icon from '@iconify/svelte';
   import { untrack } from 'svelte';
   import { slide } from 'svelte/transition';
@@ -59,6 +59,8 @@
     { label: 'Load', penalty: readiness.penalties.acwr, max: MAX_ACWR_PENALTY, used: readiness.inputsUsed.acwr },
     { label: 'Sleep', penalty: readiness.penalties.sleep, max: MAX_SLEEP_PENALTY, used: readiness.inputsUsed.sleep },
     { label: 'HRV', penalty: readiness.penalties.hrv, max: MAX_HRV_PENALTY, used: readiness.inputsUsed.hrv },
+    // Only with an open issue - no pain isn't "no data".
+    ...(readiness.inputsUsed.pain ? [{ label: 'Pain', penalty: readiness.penalties.pain, max: MAX_PAIN_PENALTY, used: true }] : []),
   ]);
   /**
    * Each row's colour is its own verdict - how much of what that input can

@@ -16,6 +16,7 @@
   import { workoutItems, groupMinutes } from '../../lib/exercise/groups';
   import { occurrenceOnDay, dayIndexOf } from '../../lib/planning/planB';
   import WorkoutShareImage from '../history/WorkoutShareImage.svelte';
+  import PainHeadsUp from '../health/PainHeadsUp.svelte';
   import Icon from '@iconify/svelte';
 
   let { workout, onEdit, onClose, position = null, onStep }: {
@@ -178,6 +179,7 @@
 
 <div class="flex-1 overflow-y-auto no-scrollbar">
   <div class="max-w-lg mx-auto w-full px-4 py-4 pb-32 space-y-2.5">
+    <PainHeadsUp {workout} variant="line" />
     {#if workout.description}
       <p class="p-3.5 bg-surface/40 border border-border rounded-card text-body text-content-muted leading-relaxed whitespace-pre-wrap break-words">{workout.description}</p>
     {/if}

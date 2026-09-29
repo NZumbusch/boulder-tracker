@@ -230,3 +230,25 @@ export const TREND_ICONS: Record<PainTrend, string> = {
   worse: "ic:baseline-trending-up",
 };
 export const STATUS_LABELS: Record<IssueStatus, string> = { resolved: "Resolved", worse: "Getting worse", improving: "Improving", steady: "Steady", new: "New" };
+
+/**
+ * How much pain is open on `dayIso`, for readiness: the worst issue open
+ * that day (started, and not yet ended - its last day counts as gone),
+ * at its latest check-in on or before the day. Undefined with nothing
+ * open or nothing checked in yet.
+ */
+export function painLevelOn(issues: PainIssue[], logs: PainLog[], dayIso: string): { level: number; label: string } | undefined {
+  let worst: { level: number; label: string } | undefined;
+  for (const issue of issues) {
+    if (issue.startDate > dayIso || (issue.endDate && issue.endDate <= dayIso)) continue;
+    const latest = checkInsFor(issue.id, logs).filter((l) => l.date.slice(0, 10) <= dayIso).pop();
+    if (!latest) continue;
+    if (!worst || latest.severity > worst.level) worst = { level: latest.severity, label: issue.bodyPart };
+  }
+  return worst;
+}
+
+/** An issue's name inside a sentence: "your left finger - ring A2" (only the first letter lowered, so "A2" survives). */
+export function inSentence(bodyPart: string): string {
+  return bodyPart.length > 1 && bodyPart[1] === bodyPart[1].toLowerCase() ? bodyPart[0].toLowerCase() + bodyPart.slice(1) : bodyPart;
+}

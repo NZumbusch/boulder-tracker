@@ -24,14 +24,31 @@ describe("buildAlerts", () => {
     expect(buildAlerts(input({ workouts: run }))).toEqual([]);
   });
 
-  it("lists recent pain, worst first, and skips older entries", () => {
+  it("lists open pain issues that still matter, worst first, until they're closed", () => {
     const pain: PainLog[] = [
-      { id: "p1", date: "2026-09-21", weekId: "2026-W38", bodyPart: "Left ring finger", severity: 4 },
-      { id: "p2", date: "2026-09-23", weekId: "2026-W39", bodyPart: "Elbow", severity: 7 },
-      { id: "p3", date: "2026-09-01", weekId: "2026-W36", bodyPart: "Shoulder", severity: 8 },
+      { id: "p1", date: "2026-09-21", weekId: "2026-W38", bodyPart: "Left ring finger", severity: 4, issueId: "a" },
+      { id: "p2", date: "2026-09-23", weekId: "2026-W39", bodyPart: "Elbow", severity: 7, issueId: "b" },
+      { id: "p3", date: "2026-09-01", weekId: "2026-W36", bodyPart: "Shoulder", severity: 8, issueId: "c" },
+      { id: "p4", date: "2026-09-22", weekId: "2026-W39", bodyPart: "Knee", severity: 2, issueId: "d" },
     ];
-    const texts = buildAlerts(input({ painLogs: pain })).map((a) => a.text);
-    expect(texts).toEqual(["Elbow 7/10, today", "Left ring finger 4/10, 2 days ago"]);
+    const issues = [
+      { id: "a", bodyPart: "Left ring finger", startDate: "2026-09-21" },
+      { id: "b", bodyPart: "Elbow", startDate: "2026-09-23" },
+      { id: "c", bodyPart: "Shoulder", startDate: "2026-09-01", endDate: "2026-09-10" },
+      { id: "d", bodyPart: "Knee", startDate: "2026-09-22" },
+    ];
+    const alerts = buildAlerts(input({ painLogs: pain, painIssues: issues }));
+    expect(alerts.map((a) => a.text)).toEqual(["Elbow 7/10, new (checked today)", "Left ring finger 4/10, new (checked 2 days ago)"]);
+    expect(alerts[0]).toMatchObject({ severity: "risk", painIssueId: "b" });
+  });
+
+  it("keeps a worsening issue even at low severity", () => {
+    const pain: PainLog[] = [
+      { id: "p1", date: "2026-09-20", weekId: "w", bodyPart: "Knee", severity: 1, issueId: "d" },
+      { id: "p2", date: "2026-09-22", weekId: "w", bodyPart: "Knee", severity: 2, issueId: "d", trend: "worse" },
+    ];
+    const alerts = buildAlerts(input({ painLogs: pain, painIssues: [{ id: "d", bodyPart: "Knee", startDate: "2026-09-20" }] }));
+    expect(alerts[0]).toMatchObject({ severity: "risk", text: "Knee 2/10, getting worse (checked yesterday)" });
   });
 
   it("flags a tracked metric gone quiet, but not one never tracked", () => {

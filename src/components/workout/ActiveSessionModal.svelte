@@ -41,6 +41,7 @@
   import { findLastLogged } from '../../lib/exercise/lastTime';
   import { swipeRow } from '../../lib/ui/swipeRow';
   import { showUndo } from '../../lib/toast.svelte';
+  import PainHeadsUp from '../health/PainHeadsUp.svelte';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -420,6 +421,7 @@
     <!-- Exercise list -->
     <div class="flex-1 overflow-y-auto no-scrollbar">
       <div class="max-w-lg mx-auto w-full px-4 py-4 pb-40 space-y-2.5">
+        <PainHeadsUp workout={session.workout} variant="line" />
         {#if exercises.length === 0}
           <div class="py-12 border-2 border-dashed border-border rounded-card text-center bg-surface/10 space-y-3">
             <p class="text-caption text-content-subtle italic">Nothing in this session yet.</p>

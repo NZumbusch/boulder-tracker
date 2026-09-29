@@ -3,7 +3,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { localIsoDate } from '../dateUtils';
 import type { PainIssue, PainLog } from '../types';
 import type { PainCheckInPrefs } from '../preferences/migrate';
-import { unCheckedFor } from '../pain/issues';
+import { unCheckedFor, inSentence } from '../pain/issues';
 import { reminderId, checkNotificationPermission, cancelRemindersOfType } from './shared';
 import { computeDailyMetricsReminderTime } from './dailyMetricsReminder';
 
@@ -23,7 +23,7 @@ export function painReminderText(issues: PainIssue[], logs: PainLog[], todayIso:
   if (overdue.length === 0) return null;
   const names = overdue.map((i) => i.bodyPart);
   return overdue.length === 1
-    ? `How's your ${names[0].toLowerCase()}? A tap in the app keeps its history straight.`
+    ? `How's your ${inSentence(names[0])}? A tap in the app keeps its history straight.`
     : `How are ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}? A tap in the app keeps their history straight.`;
 }
 

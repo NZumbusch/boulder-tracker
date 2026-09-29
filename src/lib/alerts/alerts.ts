@@ -1,4 +1,5 @@
-import type { DailyMetricEntry, PainLog, Workout } from "../types";
+import type { DailyMetricEntry, PainIssue, PainLog, Workout } from "../types";
+import { groupLogsIntoIssues, issueState, checkInsFor, STATUS_LABELS } from "../pain/issues";
 import { decrementWeekId, getWeekId, toUtcDayIndex } from "../dateUtils";
 import { calculateAcwrForWeeks, correlatePainWithLoadSpikes, findRecoveryWarnings } from "../analytics/loadAnalytics";
 import { loggedMetrics } from "../analytics/metricValues";
@@ -12,6 +13,8 @@ export interface HomeAlert {
   text: string;
   /** A completed session the alert is about, when tapping it should open that session's fatigue rating. */
   rateWorkoutId?: string;
+  /** A pain issue the alert is about - tapping opens it. */
+  painIssueId?: string;
 }
 
 export interface AlertInputs {
@@ -19,6 +22,8 @@ export interface AlertInputs {
   workouts: Workout[];
   dailyMetrics: DailyMetricEntry[];
   painLogs: PainLog[];
+  /** Pain issues (PAIN_PLAN.md); without them the entries are grouped here. */
+  painIssues?: PainIssue[];
   /** ISO timestamp of the last successful backup export, if any. */
   lastBackupAt?: string;
   /** Upcoming or current trips with sessions still planned on their days (see `sessionsDuringTrip`). */
@@ -28,8 +33,6 @@ export interface AlertInputs {
   config?: { restDays?: number; backupDays?: number; acwrHighRisk?: number };
 }
 
-/** Pain logged within this many days shows up. */
-export const PAIN_ALERT_DAYS = 7;
 /** A metric you normally log is flagged once it has gone this many days without a reading. */
 export const METRIC_GAP_DAYS = 5;
 /** ...but only if it was logged at some point in this many days - otherwise it isn't something you track. */
@@ -71,18 +74,28 @@ export function buildAlerts(input: AlertInputs): HomeAlert[] {
     }
   }
 
+  // Open pain issues that still matter: at 3/10 or more, or getting worse
+  // - the worst first. An issue stays here until it's closed, not just for
+  // a week after its last entry (PAIN_PLAN.md).
   if (enabled.pain) {
-    const recent = painLogs.filter((p) => daysAgo(p.date, asOf) >= 0 && daysAgo(p.date, asOf) <= PAIN_ALERT_DAYS);
+    const { issues, logs } = input.painIssues ? { issues: input.painIssues, logs: painLogs } : groupLogsIntoIssues(painLogs);
+    // The same UTC day `daysAgo` counts from.
+    const today = asOf.toISOString().slice(0, 10);
+    const open = issues
+      .filter((i) => !i.endDate)
+      .map((issue) => ({ issue, st: issueState(issue, logs, today), latest: checkInsFor(issue.id, logs).pop() }))
+      .filter((x) => x.latest && ((x.st.severity ?? 0) >= 3 || x.st.status === "worse"));
     const nearSpike = new Map(
-      correlatePainWithLoadSpikes(recent, calculateAcwrForWeeks(workouts, weekIds), input.config?.acwrHighRisk).map((c) => [c.painLogId, c.loadSpikeNearby]),
+      correlatePainWithLoadSpikes(open.map((x) => x.latest!), calculateAcwrForWeeks(workouts, weekIds), input.config?.acwrHighRisk).map((c) => [c.painLogId, c.loadSpikeNearby]),
     );
-    for (const log of [...recent].sort((a, b) => b.severity - a.severity)) {
-      const ago = daysAgo(log.date, asOf);
-      const when = ago === 0 ? "today" : ago === 1 ? "yesterday" : `${ago} days ago`;
+    for (const { issue, st, latest } of open.sort((a, b) => (b.st.severity ?? 0) - (a.st.severity ?? 0))) {
+      const ago = daysAgo(latest!.date, asOf);
+      const when = ago === 0 ? "checked today" : ago === 1 ? "checked yesterday" : `checked ${ago} days ago`;
       alerts.push({
-        id: `pain-${log.id}`,
-        severity: log.severity >= 6 ? "risk" : "caution",
-        text: `${log.bodyPart} ${log.severity}/10, ${when}${nearSpike.get(log.id) ? " - near a load spike" : ""}`,
+        id: `pain-${issue.id}`,
+        severity: (st.severity ?? 0) >= 6 || st.status === "worse" ? "risk" : "caution",
+        text: `${issue.bodyPart} ${st.severity}/10, ${STATUS_LABELS[st.status].toLowerCase()} (${when})${nearSpike.get(latest!.id) ? " - near a load spike" : ""}`,
+        painIssueId: issue.id,
       });
     }
   }

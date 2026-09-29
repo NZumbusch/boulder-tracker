@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openPainIssue } from '../../../lib/pain/painUi.svelte';
   /** Things worth a look (lib/alerts/alerts.ts). The card hides when there are none. */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
@@ -14,6 +15,7 @@
       workouts: trainingState.workouts,
       dailyMetrics: trainingState.dailyMetrics,
       painLogs: trainingState.painLogs,
+      painIssues: trainingState.painIssues,
       lastBackupAt: trainingState.lastBackupAt,
       enabled: {
         recovery: trainingState.homeDetails['alerts.recovery'],
@@ -45,8 +47,8 @@
   <div class="card space-y-3">
     <SectionHeader label="Alerts" />
     {#each alerts as alert (alert.id)}
-      {#if alert.rateWorkoutId}
-        <button onclick={() => rateSession(alert.rateWorkoutId!)} class="w-full flex items-start gap-2.5 text-left group">
+      {#if alert.rateWorkoutId || alert.painIssueId}
+        <button onclick={() => alert.painIssueId ? openPainIssue(alert.painIssueId) : rateSession(alert.rateWorkoutId!)} class="w-full flex items-start gap-2.5 text-left group">
           <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 {ALERT_DOT[alert.severity]}"></span>
           <span class="text-body text-content group-hover:text-primary transition-colors flex-1">{alert.text}</span>
           <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0 mt-0.5" />

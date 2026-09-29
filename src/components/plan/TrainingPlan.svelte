@@ -4,6 +4,7 @@
   import { motionMs, motionReduced, scrollBehavior } from '../../lib/motion';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
   import { openSessionActions } from '../../lib/sessionActions.svelte';
+  import PainHeadsUp from '../health/PainHeadsUp.svelte';
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -726,6 +727,7 @@
                         <!-- Which plan this session belongs to - only sessions the two plans don't share get one. -->
                         <span class="inline-flex align-middle px-1.5 py-px rounded-full text-[10px] font-semibold uppercase tracking-wide {workout.planB.side === 'B' ? 'bg-primary/15 text-primary' : 'bg-surface-elevated text-content-muted'}">{planBMeta(workout)}</span>
                       {/if}
+                      <PainHeadsUp {workout} />
                     {/snippet}
                     {#snippet leading()}
                       {#if arranging}

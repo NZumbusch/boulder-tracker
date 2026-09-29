@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PainHeadsUp from '../../health/PainHeadsUp.svelte';
   import { openSessionActions } from '../../../lib/sessionActions.svelte';
   /** Today's planned sessions (tap to open, Start to go live), and this week's missed ones. */
   import { trainingState } from '../../../lib/state.svelte';
@@ -64,6 +65,7 @@
       onclick={() => openWorkout(workout, 'view', false, todaysWorkouts)}
       onlongpress={() => openSessionActions(workout, todaysWorkouts)}
     >
+      {#snippet titleExtra()}<PainHeadsUp {workout} />{/snippet}
       {#snippet trailing()}
         <!-- Start goes live: it begins the session and opens the session
              modal. While a session is running, only that one can be

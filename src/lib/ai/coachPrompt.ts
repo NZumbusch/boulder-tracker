@@ -61,8 +61,8 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
   if (profile.readiness) {
     sections.push(`- Readiness Snapshot:\n${JSON.stringify(profile.readiness)}`);
   }
-  if (profile.painLogs?.length) {
-    sections.push(`- Recent Pain/Discomfort Logs:\n${lines(profile.painLogs)}`);
+  if (profile.painIssues?.length) {
+    sections.push(`- Pain Issues (open ones, and any resolved in the last 90 days; severity 0-10; "course" is the check-ins in order; plan around open ones - especially what they're "aggravatedBy"):\n${lines(profile.painIssues)}`);
   }
   if (profile.outdoorAscents?.length) {
     sections.push(`- Recent Outdoor Ascents:\n${lines(profile.outdoorAscents)}`);

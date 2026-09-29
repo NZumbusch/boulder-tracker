@@ -1,3 +1,5 @@
+import { painLevelOn } from "../pain/issues";
+import type { PainIssue, PainLog } from "../types";
 import type { DailyMetricEntry, Workout } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
 import { loggedMetrics } from "./metricValues";
@@ -197,7 +199,7 @@ export function readinessByDay(
   entries: DailyMetricEntry[],
   firstDay: number,
   lastDay: number,
-  { config = DEFAULT_READINESS_CONFIG, halfLife = 3 }: { config?: ReadinessConfig; halfLife?: number | Partial<FatigueModel> } = {},
+  { config = DEFAULT_READINESS_CONFIG, halfLife = 3, pain }: { config?: ReadinessConfig; halfLife?: number | Partial<FatigueModel>; pain?: { issues: PainIssue[]; logs: PainLog[] } } = {},
 ): Map<number, number> {
   const completed = workouts
     .filter((w) => w.status === "completed" && w.date)
@@ -224,6 +226,7 @@ export function readinessByDay(
         napHours: napHours.get(day),
         hrv: hrv.get(day),
         hrvBaseline: computeHrvBaseline(entries, asOf),
+        pain: pain ? painLevelOn(pain.issues, pain.logs, dayIndexToIso(day)) : undefined,
       },
       config,
     );

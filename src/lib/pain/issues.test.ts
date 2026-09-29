@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { PainIssue, PainLog } from "../types";
 import {
   groupLogsIntoIssues, attachOrphanLogs, issueState, dueToday, unCheckedFor, checkIn,
-  bodyPartLabel, defaultWatchCategories, issuesTouchedBy, issueIdFor,
+  bodyPartLabel, defaultWatchCategories, issuesTouchedBy, issueIdFor, painLevelOn,
 } from "./issues";
 
 const log = (id: string, date: string, bodyPart: string, severity: number, extra: Partial<PainLog> = {}): PainLog =>
@@ -129,5 +129,25 @@ describe("issuesTouchedBy", () => {
     expect(issuesTouchedBy({ exercises: [{ id: "s", typeId: "hb" }] }, [finger, healed], types).map((i) => i.id)).toEqual(["f"]);
     expect(issuesTouchedBy({ exercises: [{ id: "s", typeId: "run" }] }, [finger], types)).toEqual([]);
     expect(issuesTouchedBy({ exercises: [{ id: "s", typeId: "run", categoryId: "c1" }] }, [finger], types, [{ id: "c1", name: "Fingers", color: "" }]).map((i) => i.id)).toEqual(["f"]);
+  });
+});
+
+describe("painLevelOn", () => {
+  const issues: PainIssue[] = [
+    { id: "a", bodyPart: "Elbow", startDate: "2026-09-01", endDate: "2026-09-20" },
+    { id: "b", bodyPart: "Knee", startDate: "2026-09-10" },
+  ];
+  const logs = [
+    log("1", "2026-09-01", "Elbow", 6, { issueId: "a" }),
+    log("2", "2026-09-10", "Knee", 2, { issueId: "b" }),
+    log("3", "2026-09-15", "Elbow", 3, { issueId: "a" }),
+  ];
+  it("is the worst open issue at its latest check-in on or before the day", () => {
+    expect(painLevelOn(issues, logs, "2026-09-12")).toEqual({ level: 6, label: "Elbow" });
+    expect(painLevelOn(issues, logs, "2026-09-16")).toEqual({ level: 3, label: "Elbow" });
+  });
+  it("drops an issue from its end day on, and is undefined with nothing open", () => {
+    expect(painLevelOn(issues, logs, "2026-09-20")).toEqual({ level: 2, label: "Knee" });
+    expect(painLevelOn(issues, logs, "2026-08-20")).toBeUndefined();
   });
 });

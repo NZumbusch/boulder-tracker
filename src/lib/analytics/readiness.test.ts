@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Workout, DailyMetricEntry } from "../types";
 import {
+  MAX_PAIN_PENALTY,
   computeFatigueDecay,
   fatigueReading,
   computeHrvBaseline,
@@ -214,7 +215,7 @@ describe("computeReadiness", () => {
     const r = computeReadiness({ fatigue: {}, acwr: insufficientAcwr(undefined) });
     expect(r.score).toBeUndefined();
     expect(r.status).toBe("neutral");
-    expect(r.inputsUsed).toEqual({ fatigue: false, acwr: false, sleep: false, hrv: false });
+    expect(r.inputsUsed).toEqual({ fatigue: false, acwr: false, sleep: false, hrv: false, pain: false });
   });
 
   it("fatigue-only, low fatigue -> near-max score, good status, only fatigue marked used", () => {
@@ -224,7 +225,7 @@ describe("computeReadiness", () => {
     });
     expect(r.score).toBeCloseTo(100, 10); // (1-1)/9 * penalty = 0
     expect(r.status).toBe("good");
-    expect(r.inputsUsed).toEqual({ fatigue: true, acwr: false, sleep: false, hrv: false });
+    expect(r.inputsUsed).toEqual({ fatigue: true, acwr: false, sleep: false, hrv: false, pain: false });
   });
 
   it("fatigue-only, max fatigue -> score reduced by exactly MAX_FATIGUE_PENALTY", () => {
@@ -348,7 +349,7 @@ describe("computeReadiness penalties (the breakdown behind the score)", () => {
 
   it("is zero for inputs that were missing or cost nothing", () => {
     const r = computeReadiness({ fatigue: {}, acwr: acwr(0.9), sleep: 85 });
-    expect(r.penalties).toEqual({ fatigue: 0, acwr: 0, sleep: 0, hrv: 0 });
+    expect(r.penalties).toEqual({ fatigue: 0, acwr: 0, sleep: 0, hrv: 0, pain: 0 });
   });
 });
 
@@ -357,8 +358,8 @@ describe("computeReadiness with a custom config", () => {
   const base = { fatigue: { fingers: 6, core: 4, systemic: 6 }, acwr: acwr(1.3), sleep: 55, hrv: 50, hrvBaseline: 60 };
 
   it("leaves out inputs that are switched off", () => {
-    const r = computeReadiness(base, { ...DEFAULT_READINESS_CONFIG, use: { fatigue: true, acwr: false, sleep: false, hrv: false } });
-    expect(r.inputsUsed).toEqual({ fatigue: true, acwr: false, sleep: false, hrv: false });
+    const r = computeReadiness(base, { ...DEFAULT_READINESS_CONFIG, use: { fatigue: true, acwr: false, sleep: false, hrv: false, pain: false } });
+    expect(r.inputsUsed).toEqual({ fatigue: true, acwr: false, sleep: false, hrv: false, pain: false });
     expect(r.penalties.acwr + r.penalties.sleep + r.penalties.hrv).toBe(0);
   });
 
@@ -411,5 +412,21 @@ describe("naps boost sleep duration", () => {
     expect(computeReadiness({ fatigue: {}, acwr, napHours: 1 }).inputsUsed.sleep).toBe(false);
     expect(computeReadiness({ fatigue: {}, acwr, sleep: 50, napHours: 3 }).penalties.sleep)
       .toBe(computeReadiness({ fatigue: {}, acwr, sleep: 50 }).penalties.sleep);
+  });
+});
+
+describe("computeReadiness - open pain", () => {
+  const acwr = { ratio: 1, sufficient: true } as unknown as RollingAcwrResult;
+  it("costs nothing at 1/10 and the maximum at 10/10, and names it in the advice", () => {
+    expect(computeReadiness({ fatigue: {}, acwr, pain: { level: 1, label: "Left elbow" } }).penalties.pain).toBe(0);
+    const bad = computeReadiness({ fatigue: {}, acwr, pain: { level: 10, label: "Left elbow" } });
+    expect(bad.penalties.pain).toBe(MAX_PAIN_PENALTY);
+    expect(bad.inputsUsed.pain).toBe(true);
+    expect(bad.advice).toContain("left elbow is still at 10/10");
+  });
+  it("is left out with nothing open, and when switched off", () => {
+    expect(computeReadiness({ fatigue: {}, acwr }).inputsUsed.pain).toBe(false);
+    const off = computeReadiness({ fatigue: {}, acwr, pain: { level: 8, label: "Knee" } }, { ...DEFAULT_READINESS_CONFIG, use: { ...DEFAULT_READINESS_CONFIG.use, pain: false } });
+    expect(off.penalties.pain).toBe(0);
   });
 });

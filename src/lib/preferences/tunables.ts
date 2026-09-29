@@ -50,6 +50,7 @@ export const TUNABLES: TunableDef[] = [
   { id: "readiness.useAcwr", topic: "model", group: "Readiness score", label: "Count load (ACWR)", kind: "boolean", default: true },
   { id: "readiness.useSleep", topic: "model", group: "Readiness score", label: "Count sleep", kind: "boolean", default: true },
   { id: "readiness.useHrv", topic: "model", group: "Readiness score", label: "Count HRV", kind: "boolean", default: true },
+  { id: "readiness.usePain", topic: "model", group: "Readiness score", label: "Count open pain", hint: "The worst open pain issue costs up to 15 points, by its latest check-in", kind: "boolean", default: true },
   { id: "readiness.sleepLow", topic: "model", group: "Readiness score", label: "Low sleep score", hint: "Below this, sleep starts costing points", kind: "number", default: 60, min: 20, max: 95, step: 5, unit: "pts" },
   { id: "readiness.sleepShortHours", topic: "model", group: "Readiness score", label: "Short sleep", hint: "Used when there's no sleep score for the day (e.g. sleep from Health Connect): less than this starts costing points", kind: "number", default: 7, min: 4, max: 10, step: 0.5, unit: "h" },
   { id: "readiness.hrvDip", topic: "model", group: "Readiness score", label: "HRV dip that counts", hint: "How far below your 14-day baseline before HRV costs points", kind: "number", default: 0.1, min: 0.02, max: 0.4, step: 0.01, percent: true },

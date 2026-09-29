@@ -23,7 +23,7 @@ import {
   buildTrainingBlockContext,
   buildGoalContext,
   buildReadinessSnapshot,
-  buildPainLogContext,
+  buildPainIssueContext,
   buildOutdoorAscentContext,
   buildAIContextProfile,
   type AIContextSource,
@@ -278,14 +278,30 @@ describe("buildReadinessSnapshot with zero entries", () => {
   });
 });
 
-describe("buildPainLogContext", () => {
-  it("sorts newest first and caps at the limit", () => {
+describe("buildPainIssueContext", () => {
+  const asOf2 = new Date("2026-09-29T12:00:00");
+  it("summarises open issues and recently resolved ones, open first, with their course", () => {
     const logs: PainLog[] = [
-      { id: "p1", date: "2026-01-01", weekId: "2026-W01", bodyPart: "Elbow", severity: 3 },
-      { id: "p2", date: "2026-06-01", weekId: "2026-W22", bodyPart: "Finger", severity: 6 },
+      { id: "a", date: "2026-09-10", weekId: "w", bodyPart: "Left A2", severity: 6, issueId: "i1", kinds: ["sharp"], timing: ["during"] },
+      { id: "b", date: "2026-09-20", weekId: "w", bodyPart: "Left A2", severity: 3, issueId: "i1", trend: "better", notes: "crimps ok" },
+      { id: "c", date: "2026-08-01", weekId: "w", bodyPart: "Knee", severity: 4, issueId: "i2" },
+      { id: "d", date: "2026-01-01", weekId: "w", bodyPart: "Old", severity: 4, issueId: "i3" },
     ];
-    const result = buildPainLogContext(logs, 1);
-    expect(result).toEqual([{ date: "2026-06-01", bodyPart: "Finger", severity: 6, notes: undefined }]);
+    const issues = [
+      { id: "i1", bodyPart: "Left A2", startDate: "2026-09-10", watchCategories: ["Fingers"] },
+      { id: "i2", bodyPart: "Knee", startDate: "2026-08-01", endDate: "2026-08-15" },
+      { id: "i3", bodyPart: "Old", startDate: "2026-01-01", endDate: "2026-01-10" },
+    ];
+    const r = buildPainIssueContext(logs, issues, asOf2);
+    expect(r.map((x) => x.bodyPart)).toEqual(["Left A2", "Knee"]);
+    expect(r[0]).toEqual({ bodyPart: "Left A2", status: "open", since: "2026-09-10", days: 20, now: 3, course: "6 → 3", trend: "improving", feels: ["sharp"], hurts: ["while climbing"], aggravatedBy: ["Fingers"], note: "crimps ok" });
+    expect(r[1]).toMatchObject({ status: "resolved", until: "2026-08-15" });
+  });
+
+  it("groups loose entries from a source without issues", () => {
+    const r = buildPainIssueContext([{ id: "p", date: "2026-09-20", weekId: "w", bodyPart: "Finger", severity: 4 }], undefined, asOf2);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ bodyPart: "Finger", status: "open", now: 4 });
   });
 });
 
@@ -349,7 +365,7 @@ describe("buildAIContextProfile", () => {
     expect(profile.trainingBlocks).toBeUndefined();
     expect(profile.goals).toBeUndefined();
     expect(profile.readiness).toBeUndefined();
-    expect(profile.painLogs).toBeUndefined();
+    expect(profile.painIssues).toBeUndefined();
     expect(profile.outdoorAscents).toBeUndefined();
   });
 
@@ -358,7 +374,7 @@ describe("buildAIContextProfile", () => {
     expect(profile.trainingBlocks).toBeDefined();
     expect(profile.goals).toBeDefined();
     expect(profile.readiness).toBeDefined();
-    expect(profile.painLogs).toBeDefined();
+    expect(profile.painIssues).toBeDefined();
     expect(profile.outdoorAscents).toBeDefined();
   });
 

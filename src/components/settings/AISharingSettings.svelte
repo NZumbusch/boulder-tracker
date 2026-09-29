@@ -23,7 +23,7 @@
     { id: 'trainingBlocks', label: 'Training Blocks', description: 'Active/upcoming phase blocks covering or near the prompt\'s target weeks.' },
     { id: 'competitions', label: 'Goals', description: 'Upcoming competitions and outdoor trips (dates, place, projects) - what you\'re peaking for.' },
     { id: 'readinessMetrics', label: 'Readiness & Daily Metrics', description: 'Current readiness score plus sleep/HRV/RHR/bodyweight trends. Health data - off by default.' },
-    { id: 'painLogs', label: 'Pain Logs', description: 'Recent pain/discomfort entries. Health data - off by default.' },
+    { id: 'painLogs', label: 'Pain issues', description: 'Open pain issues and those resolved in the last 90 days, with their course; also lets open pain count in the readiness snapshot. Health data - off by default.' },
     { id: 'outdoorAscents', label: 'Outdoor Ascents', description: 'Recent outdoor grade history.' },
     { id: 'notes', label: 'Block & Week Notes', description: 'Your notes on training blocks, and week notes within four weeks of the prompt\'s weeks.' },
     { id: 'coachNotes', label: 'Coach Notes & About Me', description: 'Your About me, standing goal and the coach notes (Settings → Coach notes) - so you don\'t have to repeat them.' },

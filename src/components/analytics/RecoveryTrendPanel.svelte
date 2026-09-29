@@ -99,6 +99,7 @@
       ? readinessByDay(trainingState.workouts, trainingState.dailyMetrics, firstDay, drawnLast, {
           config: trainingState.readinessConfig,
           halfLife: trainingState.fatigueModel,
+          pain: { issues: trainingState.painIssues, logs: trainingState.painLogs },
         })
       : new Map<number, number>(),
   );

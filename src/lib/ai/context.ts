@@ -6,6 +6,7 @@ import type {
   ExerciseTypeDef,
   OutdoorAscent,
   PainLog,
+  PainIssue,
   ParameterBlock,
   PhaseDef,
   TrainingBlock,
@@ -17,6 +18,7 @@ import { repsRepresentative } from "../exercise/reps";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
 import { exerciseGroup } from "../exercise/library";
+import { painLevelOn, groupLogsIntoIssues, checkInsFor, issueState, daysBetween, STATUS_LABELS, KIND_LABELS, TIMING_LABELS } from "../pain/issues";
 import { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
 export { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
 import {
@@ -391,6 +393,8 @@ export function buildReadinessSnapshot(
   allDailyMetrics: DailyMetricEntry[],
   asOf: Date,
   model: ModelOptions = {},
+  /** The open pain for readiness - only passed when pain is shared with the AI. */
+  pain?: { level: number; label: string },
 ): ReadinessSnapshot {
   const dailyMetrics = loggedMetrics(allDailyMetrics);
   const todayIso = localIsoDate(asOf);
@@ -407,6 +411,7 @@ export function buildReadinessSnapshot(
     napHours: todaysMetric("nap-duration"),
     hrv: todaysMetric("hrv"),
     hrvBaseline,
+    pain,
   }, model.readiness);
   return {
     score: readiness.score,
@@ -423,19 +428,59 @@ export function buildReadinessSnapshot(
 
 // --- Pain logs / outdoor ascents ------------------------------------------
 
-export interface PainLogSummary {
-  date: string;
+export interface PainIssueSummary {
   bodyPart: string;
-  severity: number;
-  notes?: string;
+  status: "open" | "resolved";
+  since: string;
+  until?: string;
+  days: number;
+  /** Latest check-in, 0-10. */
+  now?: number;
+  /** The check-ins' severities in order, e.g. "6 → 4 → 3" (the last few). */
+  course?: string;
+  trend?: string;
+  feels?: string[];
+  hurts?: string[];
+  aggravatedBy?: string[];
+  note?: string;
 }
 
-/** Most recent `limit` pain logs, newest first. */
-export function buildPainLogContext(painLogs: PainLog[], limit = PAIN_LOG_LIMIT): PainLogSummary[] {
-  return [...painLogs]
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+/** Resolved issues older than this aren't sent - a healed niggle from last year is noise. */
+const PAIN_RESOLVED_DAYS = 90;
+
+/**
+ * Pain for the AI as issues, not raw entries: every open one, and those
+ * resolved in the last 90 days - each with its dates, where it stands,
+ * its course, what it feels like, when it hurts and what aggravates it.
+ * Entries without issues (a source from before 3.33) are grouped first.
+ */
+export function buildPainIssueContext(painLogs: PainLog[], painIssues: PainIssue[] | undefined, asOf: Date, limit = PAIN_LOG_LIMIT): PainIssueSummary[] {
+  const grouped = painIssues ? { issues: painIssues, logs: painLogs } : groupLogsIntoIssues(painLogs);
+  const today = localIsoDate(asOf);
+  return grouped.issues
+    .filter((i) => !i.endDate || daysBetween(i.endDate, today) <= PAIN_RESOLVED_DAYS)
+    .sort((a, b) => Number(!!a.endDate) - Number(!!b.endDate) || b.startDate.localeCompare(a.startDate))
     .slice(0, limit)
-    .map((p) => ({ date: p.date, bodyPart: p.bodyPart, severity: p.severity, notes: p.notes }));
+    .map((issue) => {
+      const own = checkInsFor(issue.id, grouped.logs);
+      const st = issueState(issue, grouped.logs, today);
+      const latestWith = <K extends "kinds" | "timing">(k: K) => [...own].reverse().find((l) => l[k]?.length)?.[k];
+      const note = [...own].reverse().find((l) => l.notes)?.notes ?? issue.notes;
+      return {
+        bodyPart: issue.bodyPart,
+        status: issue.endDate ? "resolved" as const : "open" as const,
+        since: issue.startDate,
+        ...(issue.endDate ? { until: issue.endDate } : {}),
+        days: st.durationDays + 1,
+        ...(st.severity !== undefined ? { now: st.severity } : {}),
+        ...(own.length > 1 ? { course: own.slice(-6).map((l) => l.severity).join(" → ") } : {}),
+        ...(!issue.endDate ? { trend: STATUS_LABELS[st.status].toLowerCase() } : {}),
+        ...(latestWith("kinds") ? { feels: latestWith("kinds")!.map((k) => KIND_LABELS[k].toLowerCase()) } : {}),
+        ...(latestWith("timing") ? { hurts: latestWith("timing")!.map((t) => TIMING_LABELS[t].toLowerCase()) } : {}),
+        ...(issue.watchCategories?.length ? { aggravatedBy: issue.watchCategories } : {}),
+        ...(note ? { note } : {}),
+      };
+    });
 }
 
 export interface OutdoorAscentSummary {
@@ -465,6 +510,8 @@ export interface AIContextSource {
   goals: GoalEvent[];
   dailyMetrics: DailyMetricEntry[];
   painLogs: PainLog[];
+  /** Optional so callers from before pain issues keep compiling; trainingState has it. */
+  painIssues?: PainIssue[];
   outdoorAscents: OutdoorAscent[];
   weekNotes: WeekNote[];
 }
@@ -483,7 +530,7 @@ export interface AIContextProfile {
   trainingBlocks?: TrainingBlockSummary[];
   goals?: GoalSummary[];
   readiness?: ReadinessSnapshot;
-  painLogs?: PainLogSummary[];
+  painIssues?: PainIssueSummary[];
   outdoorAscents?: OutdoorAscentSummary[];
   weekNotes?: WeekNote[];
 }
@@ -547,10 +594,11 @@ export function buildAIContextProfile(
     profile.goals = buildGoalContext(source.goals, asOf);
   }
   if (sharing.readinessMetrics) {
-    profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf, model);
+    profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf, model,
+      sharing.painLogs ? painLevelOn(source.painIssues ?? [], source.painLogs, localIsoDate(asOf)) : undefined);
   }
   if (sharing.painLogs) {
-    profile.painLogs = buildPainLogContext(source.painLogs);
+    profile.painIssues = buildPainIssueContext(source.painLogs, source.painIssues, asOf);
   }
   if (sharing.outdoorAscents) {
     profile.outdoorAscents = buildOutdoorAscentContext(source.outdoorAscents);

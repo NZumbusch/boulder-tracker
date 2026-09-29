@@ -1,3 +1,4 @@
+import { inSentence } from "../pain/issues";
 import type { Workout, DailyMetricEntry } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
 import { loggedMetrics } from "./metricValues";
@@ -161,6 +162,11 @@ export interface ReadinessInputs {
   hrv?: number;
   /** `computeHrvBaseline`'s output - required alongside `hrv` for the HRV signal to be usable at all. */
   hrvBaseline?: number;
+  /**
+   * The worst open pain issue (`painLevelOn`): its current level 0-10 and
+   * name. Absent with nothing open - no pain isn't missing data.
+   */
+  pain?: { level: number; label: string };
 }
 
 export interface ReadinessResult {
@@ -169,7 +175,7 @@ export interface ReadinessResult {
   status: ReadinessStatus;
   /** Describes state and its implication; deliberately never issues a training instruction - the athlete has context the app doesn't. */
   advice: string;
-  inputsUsed: { fatigue: boolean; acwr: boolean; sleep: boolean; hrv: boolean };
+  inputsUsed: { fatigue: boolean; acwr: boolean; sleep: boolean; hrv: boolean; pain: boolean };
   /** Names which inputs actually fed the score, e.g. "Fatigue only - no HRV baseline yet". */
   confidence: string;
   /**
@@ -177,7 +183,7 @@ export interface ReadinessResult {
    * the breakdown Home shows when the ring is tapped. 0 for an input that
    * was missing or cost nothing.
    */
-  penalties: { fatigue: number; acwr: number; sleep: number; hrv: number };
+  penalties: { fatigue: number; acwr: number; sleep: number; hrv: number; pain: number };
 }
 
 // Tunable weights/thresholds - named rules of thumb documented at their
@@ -196,6 +202,8 @@ export const SLEEP_SHORT_HOURS = 7;
 export const SLEEP_SHORT_RANGE_HOURS = 3;
 /** HRV costs up to this many points once its dip below the 14-day baseline exceeds HRV_DIP_THRESHOLD_PCT, scaling to max cost at a 100% dip. */
 export const MAX_HRV_PENALTY = 15;
+/** An open pain issue at 10/10 costs this much; at 1/10, nothing. */
+export const MAX_PAIN_PENALTY = 15;
 export const HRV_DIP_THRESHOLD_PCT = 0.1;
 export const READINESS_GOOD_THRESHOLD = 70;
 
@@ -206,7 +214,7 @@ export const READINESS_GOOD_THRESHOLD = 70;
  */
 export interface ReadinessConfig {
   /** Inputs switched off never feed the score and aren't reported as missing. */
-  use: { fatigue: boolean; acwr: boolean; sleep: boolean; hrv: boolean };
+  use: { fatigue: boolean; acwr: boolean; sleep: boolean; hrv: boolean; pain?: boolean };
   sleepLow: number;
   /** Sleep duration below which sleep costs points, when there's no score. */
   sleepShortHours: number;
@@ -217,7 +225,7 @@ export interface ReadinessConfig {
 }
 
 export const DEFAULT_READINESS_CONFIG: ReadinessConfig = {
-  use: { fatigue: true, acwr: true, sleep: true, hrv: true },
+  use: { fatigue: true, acwr: true, sleep: true, hrv: true, pain: true },
   sleepLow: SLEEP_SCORE_LOW_THRESHOLD,
   sleepShortHours: SLEEP_SHORT_HOURS,
   hrvDip: HRV_DIP_THRESHOLD_PCT,
@@ -263,6 +271,8 @@ function buildAdvice(config: ReadinessConfig, args: {
   napHours: number;
   hrvUsed: boolean;
   hrvDipPct: number;
+  painUsed?: boolean;
+  pain?: { level: number; label: string };
 }): string {
   const clauses: string[] = [];
 
@@ -286,6 +296,10 @@ function buildAdvice(config: ReadinessConfig, args: {
 
   if (args.hrvUsed && args.hrvDipPct > config.hrvDip) {
     clauses.push("HRV is down from your 14-day baseline");
+  }
+
+  if (args.painUsed && args.pain && args.pain.level >= 3) {
+    clauses.push(`your ${inSentence(args.pain.label)} is still at ${Math.round(args.pain.level)}/10`);
   }
 
   if (clauses.length === 0) return "Fatigue and load look manageable.";
@@ -318,6 +332,9 @@ function buildConfidence(
 
   if (inputsUsed.hrv) present.push("HRV baseline");
   else if (use.hrv) missing.push("HRV baseline");
+
+  // Pain only ever adds to the picture: nothing open isn't "missing".
+  if (inputsUsed.pain) present.push("open pain");
 
   const allOn = use.fatigue && use.acwr && use.sleep && use.hrv;
   if (missing.length === 0 && allOn) return "Full picture - fatigue, load, sleep and HRV all available.";
@@ -374,9 +391,13 @@ export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfi
       ? clamp((hrvDipPct - hrvDip) / (1 - hrvDip), 0, 1) * MAX_HRV_PENALTY
       : 0;
 
-  const inputsUsed = { fatigue: fatigueUsed, acwr: acwrUsed, sleep: sleepUsed, hrv: hrvUsed };
-  const penalties = { fatigue: fatiguePenalty, acwr: acwrPenalty, sleep: sleepPenalty, hrv: hrvPenalty };
-  const anyInputUsed = fatigueUsed || acwrUsed || sleepUsed || hrvUsed;
+  // Level 1 is "barely anything" - it costs nothing, 10 costs the maximum.
+  const painUsed = use.pain !== false && !!inputs.pain && inputs.pain.level > 0;
+  const painPenalty = painUsed ? clamp((inputs.pain!.level - 1) / 9, 0, 1) * MAX_PAIN_PENALTY : 0;
+
+  const inputsUsed = { fatigue: fatigueUsed, acwr: acwrUsed, sleep: sleepUsed, hrv: hrvUsed, pain: painUsed };
+  const penalties = { fatigue: fatiguePenalty, acwr: acwrPenalty, sleep: sleepPenalty, hrv: hrvPenalty, pain: painPenalty };
+  const anyInputUsed = fatigueUsed || acwrUsed || sleepUsed || hrvUsed || painUsed;
 
   if (!anyInputUsed) {
     return {
@@ -389,12 +410,12 @@ export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfi
     };
   }
 
-  const score = clamp(READINESS_BASE_SCORE - fatiguePenalty - acwrPenalty - sleepPenalty - hrvPenalty, 0, 100);
+  const score = clamp(READINESS_BASE_SCORE - fatiguePenalty - acwrPenalty - sleepPenalty - hrvPenalty - painPenalty, 0, 100);
 
   return {
     score,
     status: readinessStatus(score),
-    advice: buildAdvice({ ...config, sleepShortHours }, { fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, sleepHours, napHours, hrvUsed, hrvDipPct }),
+    advice: buildAdvice({ ...config, sleepShortHours }, { fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, sleepHours, napHours, hrvUsed, hrvDipPct, painUsed, pain: inputs.pain }),
     inputsUsed,
     confidence: buildConfidence(inputsUsed, acwr, use),
     penalties,

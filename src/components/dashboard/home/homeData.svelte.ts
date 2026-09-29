@@ -1,3 +1,4 @@
+import { painLevelOn } from '../../../lib/pain/issues';
 import { trainingState } from '../../../lib/state.svelte';
 import { formatDate, getWeekIdRange, getWeekId, getWeekDates, localIsoDate } from '../../../lib/dateUtils';
 import { computeFatigueDecay, computeHrvBaseline, computeReadiness } from '../../../lib/analytics/readiness';
@@ -50,6 +51,7 @@ export class HomeData {
       napHours: this.todaysMetric('nap-duration')?.value,
       hrv: this.todaysMetric('hrv')?.value,
       hrvBaseline: this.hrvBaseline,
+      pain: painLevelOn(trainingState.painIssues, trainingState.painLogs, this.todayIso),
     }, trainingState.readinessConfig),
   );
 
