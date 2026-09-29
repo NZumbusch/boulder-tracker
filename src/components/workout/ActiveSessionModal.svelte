@@ -365,8 +365,9 @@
             </p>
             <h2 class="text-title text-content truncate">{session.workout.notes || 'Session'}</h2>
             {#if session.workout.description}
-              <button onclick={() => showNotes = true} class="block w-full text-left text-caption text-content-subtle hover:text-content mt-0.5 line-clamp-2 leading-snug" title="Read all notes">
-                {session.workout.description}
+              <!-- The clamp sits on a span: a button's own display overrides line-clamp, which let long notes fill half the screen. -->
+              <button onclick={() => showNotes = true} class="block w-full text-left mt-0.5 text-caption text-content-subtle hover:text-content" title="Read all notes">
+                <span class="line-clamp-2 leading-snug break-words">{session.workout.description}</span>
               </button>
             {/if}
           </div>

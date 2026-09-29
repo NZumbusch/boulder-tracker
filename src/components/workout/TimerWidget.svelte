@@ -883,25 +883,26 @@
     </div>
   {/if}
 
-  <div class="bg-surface/90 backdrop-blur-md border border-border shadow-2xl rounded-full p-2 flex items-center gap-3 animate-in slide-in-from-bottom-10">
-    <div class="flex items-center gap-1 bg-surface-elevated rounded-full p-1 border border-border-strong">
+  <!-- Sized to fit a narrow phone (~360 px) - it used to run off both edges. -->
+  <div class="max-w-full bg-surface/90 backdrop-blur-md border border-border shadow-2xl rounded-full p-1.5 flex items-center gap-2 animate-in slide-in-from-bottom-10">
+    <div class="shrink-0 flex items-center gap-0.5 bg-surface-elevated rounded-full p-1 border border-border-strong">
       <button
         onclick={() => selectMode('stopwatch')}
-        class="w-8 h-8 rounded-full flex items-center justify-center transition-colors {mode === 'stopwatch' ? 'bg-primary text-white' : 'text-content-subtle hover:text-content'}"
+        class="w-7 h-7 rounded-full flex items-center justify-center transition-colors {mode === 'stopwatch' ? 'bg-primary text-white' : 'text-content-subtle hover:text-content'}"
         aria-label="Stopwatch"
       >
         <Icon icon="ic:baseline-timer" class="text-lg" />
       </button>
       <button
         onclick={() => selectMode('timer')}
-        class="w-8 h-8 rounded-full flex items-center justify-center transition-colors {mode === 'timer' ? 'bg-warning text-white' : 'text-content-subtle hover:text-content'}"
+        class="w-7 h-7 rounded-full flex items-center justify-center transition-colors {mode === 'timer' ? 'bg-warning text-white' : 'text-content-subtle hover:text-content'}"
         aria-label="Countdown"
       >
         <Icon icon="ic:baseline-hourglass-empty" class="text-lg" />
       </button>
       <button
         onclick={() => selectMode('interval')}
-        class="w-8 h-8 rounded-full flex items-center justify-center transition-colors {mode === 'interval' ? 'bg-danger text-white' : 'text-content-subtle hover:text-content'}"
+        class="w-7 h-7 rounded-full flex items-center justify-center transition-colors {mode === 'interval' ? 'bg-danger text-white' : 'text-content-subtle hover:text-content'}"
         aria-label="Interval timer"
         title="Interval — sets, reps and rests"
       >
@@ -923,13 +924,13 @@
         onToggle={toggleInterval}
       />
     {:else}
-      <div class="w-16 text-center text-metric text-content tabular-nums">
+      <div class="min-w-14 text-center text-metric text-content tabular-nums">
         {formatTime(time)}
       </div>
 
-      <div class="flex items-center gap-2 pr-2">
+      <div class="shrink-0 flex items-center gap-1.5">
         {#if mode === 'timer'}
-          <div class="flex flex-col gap-1 mr-2">
+          <div class="flex flex-col gap-1">
             <button onclick={() => addTime(30)} class="text-label text-content-muted hover:text-content bg-surface-elevated px-1 rounded-control transition-colors">+30s</button>
             <button onclick={() => addTime(-30)} class="text-label text-content-muted hover:text-content bg-surface-elevated px-1 rounded-control transition-colors">-30s</button>
           </div>
@@ -954,7 +955,7 @@
     {/if}
     <button
       onclick={() => trainingState.setTimerPillHidden(true)}
-      class="w-8 h-8 -ml-1 rounded-full flex items-center justify-center text-content-subtle hover:text-content transition-colors"
+      class="shrink-0 w-7 h-8 -ml-1 rounded-full flex items-center justify-center text-content-subtle hover:text-content transition-colors"
       aria-label="Hide the timer"
       title="Hide - it keeps running"
     >

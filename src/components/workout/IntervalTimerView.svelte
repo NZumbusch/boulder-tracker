@@ -164,33 +164,36 @@
 
   <!-- The dial -->
   <div class="flex-1 min-h-0 flex flex-col items-center justify-center px-6 gap-6">
-    <div class="relative w-full max-w-[19rem] aspect-square">
-      <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full -rotate-90">
-        <circle cx="50" cy="50" r="45" fill="none" stroke="var(--color-surface-elevated)" stroke-width="5" />
-        <circle
-          cx="50" cy="50" r="45" fill="none"
-          stroke={accent}
-          stroke-width="5"
-          stroke-linecap="round"
-          stroke-dasharray="{(1 - phaseFraction) * RING} {RING}"
-          class="transition-[stroke-dasharray] duration-200 ease-linear"
-        />
-      </svg>
+    <!-- Sized by the room it has on both axes, so the dial fits in landscape too. -->
+    <div class="flex-1 min-h-0 w-full grid place-items-center" style="container-type: size;">
+      <div class="relative aspect-square" style="width: min(19rem, 100cqw, 100cqh); container-type: inline-size;">
+        <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full -rotate-90">
+          <circle cx="50" cy="50" r="45" fill="none" stroke="var(--color-surface-elevated)" stroke-width="5" />
+          <circle
+            cx="50" cy="50" r="45" fill="none"
+            stroke={accent}
+            stroke-width="5"
+            stroke-linecap="round"
+            stroke-dasharray="{(1 - phaseFraction) * RING} {RING}"
+            class="transition-[stroke-dasharray] duration-200 ease-linear"
+          />
+        </svg>
 
-      <div class="absolute inset-0 flex flex-col items-center justify-center">
-        <p class="text-section uppercase tracking-[0.2em]" style="color: {accent};">{headline}</p>
-        <p class="text-[5rem] leading-none font-black text-content tabular-nums my-2">
-          {isFinished ? '✓' : position.remaining}
-        </p>
-        {#if !isFinished}
-          <p class="text-label text-content-subtle tabular-nums">
-            Set {progress.currentSet}/{spec.sets} &middot; Rep {progress.currentRep}/{spec.reps}
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <p class="text-section uppercase tracking-[0.2em]" style="color: {accent};">{headline}</p>
+          <p class="text-[length:min(5rem,30cqw)] leading-none font-black text-content tabular-nums my-2">
+            {isFinished ? '✓' : position.remaining}
           </p>
-        {:else}
-          <p class="text-label text-content-subtle tabular-nums">
-            {progress.setsCompleted} sets &middot; {progress.repsCompleted} reps
-          </p>
-        {/if}
+          {#if !isFinished}
+            <p class="text-label text-content-subtle tabular-nums">
+              Set {progress.currentSet}/{spec.sets} &middot; Rep {progress.currentRep}/{spec.reps}
+            </p>
+          {:else}
+            <p class="text-label text-content-subtle tabular-nums">
+              {progress.setsCompleted} sets &middot; {progress.repsCompleted} reps
+            </p>
+          {/if}
+        </div>
       </div>
     </div>
 
