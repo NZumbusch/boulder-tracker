@@ -63,7 +63,7 @@
   const OPTIONS: { id: AlertLevel; label: string }[] = [
     { id: 'off', label: 'Off' },
     { id: 'errors', label: 'Errors' },
-    { id: 'all', label: 'Errors & warnings' },
+    { id: 'all', label: 'Warnings too' },
   ];
 </script>
 
@@ -79,7 +79,7 @@
       {#each OPTIONS as o}
         <button
           onclick={() => chooseAlert(o.id)}
-          class="flex-1 py-2 text-label rounded-control transition-all {alertLevel === o.id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+          class="flex-1 min-w-0 px-1 py-2 text-label whitespace-nowrap truncate rounded-control transition-all {alertLevel === o.id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
         >{o.label}</button>
       {/each}
     </div>
