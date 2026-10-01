@@ -44,6 +44,23 @@ describe("buildSessionPrompt", () => {
   });
 });
 
+describe("buildSessionPrompt notes on a finished session", () => {
+  const done: Workout = { ...workout, status: "completed", logNotes: "Tweaky left finger", exercises: [{ id: "s1", typeId: "et-hb", logged: { sets: 4 } }] };
+  it("leaves out the plan note, keeps how it went", () => {
+    const p = buildSessionPrompt({ workout: done, request: "", mode: "add", ...ctx });
+    expect(p).not.toContain("Keep it short");
+    expect(p).toContain("How it went: Tweaky left finger");
+  });
+  it("includes the plan note when sharing it is on, and drops how it went when it is off", () => {
+    const p = buildSessionPrompt({ workout: done, request: "", mode: "add", ...ctx, noteSharing: { logNotes: false, planNotes: true } });
+    expect(p).toContain("Keep it short");
+    expect(p).not.toContain("Tweaky");
+  });
+  it("still shows a planned session's note", () => {
+    expect(buildSessionPrompt({ workout, request: "", mode: "add", ...ctx })).toContain("Keep it short");
+  });
+});
+
 describe("parseAIWorkoutLogOutput", () => {
   it("accepts a reply wrapped in a markdown code fence", () => {
     const r = parseAIWorkoutLogOutput('```json\n{"workouts":[{"exercises":[{"exerciseTypeName":"Hangboard","values":{"sets":3}}]}]}\n```');

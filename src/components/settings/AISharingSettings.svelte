@@ -26,6 +26,8 @@
     { id: 'painLogs', label: 'Pain issues', description: 'Open pain issues and those resolved in the last 90 days, with their course; also lets open pain count in the readiness snapshot. Health data - off by default.' },
     { id: 'outdoorAscents', label: 'Outdoor Ascents', description: 'Recent outdoor grade history.' },
     { id: 'notes', label: 'Block & Week Notes', description: 'Your notes on training blocks, and week notes within four weeks of the prompt\'s weeks.' },
+    { id: 'sessionNotes', label: 'Session notes - how it went', description: 'The note you write when you finish a session, sent with your recent sessions.' },
+    { id: 'planNotesInHistory', label: 'Plan notes on past sessions', description: 'The session note written beforehand (goals, cues) for sessions you have already done. Off by default - it is usually stale once you have logged what happened.' },
     { id: 'coachNotes', label: 'Coach Notes & About Me', description: 'Your About me, standing goal and the coach notes (Settings → Coach notes) - so you don\'t have to repeat them.' },
   ];
 
@@ -57,7 +59,7 @@
         </div>
         <input
           type="checkbox"
-          checked={trainingState.aiSharing[category.id] !== false}
+          checked={category.id === 'planNotesInHistory' ? trainingState.aiSharing.planNotesInHistory === true : trainingState.aiSharing[category.id] !== false}
           onchange={(e) => trainingState.setAiSharing(category.id, e.currentTarget.checked)}
           class="w-5 h-5 rounded accent-primary shrink-0"
         />

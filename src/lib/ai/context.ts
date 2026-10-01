@@ -136,10 +136,25 @@ export interface RecentWorkoutSummary {
   arms?: number;
   core?: number;
   systemic?: number;
+  /** "How it went" (`Workout.logNotes`) - only when sharing it is on. */
+  howItWent?: string;
+  /** The plan-side note (`Workout.description`) - only when sharing it for past sessions is on. */
+  planNote?: string;
   exercises: RecentWorkoutExerciseSummary[];
 }
 
-function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentWorkoutSummary {
+/** Which of a past session's notes go into the prompt. */
+export interface WorkoutNoteSharing {
+  logNotes: boolean;
+  planNotes: boolean;
+}
+
+/** The notes switches as `AISharingPreferences` stores them: "how it went" defaults on, the plan note off. */
+export function workoutNoteSharing(sharing: Pick<AISharingPreferences, "sessionNotes" | "planNotesInHistory">): WorkoutNoteSharing {
+  return { logNotes: sharing.sessionNotes !== false, planNotes: sharing.planNotesInHistory === true };
+}
+
+function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], notes: WorkoutNoteSharing = { logNotes: true, planNotes: false }): RecentWorkoutSummary {
   return {
     date: w.date,
     status: w.status,
@@ -152,6 +167,8 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
     arms: w.arms,
     core: w.core,
     systemic: w.systemic,
+    ...(notes.logNotes && w.logNotes?.trim() ? { howItWent: w.logNotes.trim() } : {}),
+    ...(notes.planNotes && w.description?.trim() ? { planNote: w.description.trim() } : {}),
     exercises: w.exercises.map((e) => {
       const v = slotValues(e);
       const group = e.groupId ? w.groups?.find((g) => g.id === e.groupId) : undefined;
@@ -202,12 +219,13 @@ export function buildRecentWorkouts(
   exerciseTypes: ExerciseTypeDef[],
   asOf: Date,
   fullWeeks: number,
+  notes?: WorkoutNoteSharing,
 ): RecentWorkoutSummary[] {
   const weeks = new Set(historyWeekIds(asOf, { fullWeeks, summaryWeeks: 0 }).full);
   return workouts
     .filter((w) => w.status === "completed" && weeks.has(w.weekId))
     .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
-    .map((w) => summarizeWorkout(w, exerciseTypes));
+    .map((w) => summarizeWorkout(w, exerciseTypes, notes));
 }
 
 /** Completed workouts whose `weekId` falls in `weekIds` - "Analyze Past"'s own scoped window, full detail (not just names). */
@@ -215,11 +233,12 @@ export function buildWorkoutsInWeeks(
   workouts: Workout[],
   exerciseTypes: ExerciseTypeDef[],
   weekIds: string[],
+  notes?: WorkoutNoteSharing,
 ): RecentWorkoutSummary[] {
   const targetSet = new Set(weekIds);
   return workouts
     .filter((w) => w.status === "completed" && w.weekId && targetSet.has(w.weekId))
-    .map((w) => summarizeWorkout(w, exerciseTypes));
+    .map((w) => summarizeWorkout(w, exerciseTypes, notes));
 }
 
 /** Benchmarks recorded within `weekIds` - "Analyze Past"'s own scoped window. */
@@ -561,10 +580,11 @@ export function buildAIContextProfile(
   // doesn't need the full exercise/phase catalog.
   const includeCatalog = mode !== "analyze";
 
+  const noteSharing = workoutNoteSharing(sharing);
   const recentWorkouts =
     mode === "analyze"
-      ? buildWorkoutsInWeeks(source.workouts, source.exerciseTypes, targetWeekIds)
-      : buildRecentWorkouts(source.workouts, source.exerciseTypes, asOf, history.fullWeeks);
+      ? buildWorkoutsInWeeks(source.workouts, source.exerciseTypes, targetWeekIds, noteSharing)
+      : buildRecentWorkouts(source.workouts, source.exerciseTypes, asOf, history.fullWeeks, noteSharing);
 
   const benchmarks =
     mode === "analyze" ? buildBenchmarksInWeeks(source.benchmarks, targetWeekIds) : source.benchmarks;

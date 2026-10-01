@@ -298,6 +298,16 @@
       placeholder="Session notes or goals..."
       class="block w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-none overflow-hidden placeholder:text-content-subtle"
     ></textarea>
+    {#if workout.status === 'completed'}
+      <textarea
+        bind:value={workout.logNotes}
+        use:autosize={workout.logNotes}
+        rows="2"
+        placeholder="How it went…"
+        aria-label="How it went"
+        class="block w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-none overflow-hidden placeholder:text-content-subtle"
+      ></textarea>
+    {/if}
 
     {#if isReordering}
       <section

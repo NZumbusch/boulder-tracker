@@ -1,6 +1,6 @@
 import type { AnalyticsCategory, ExerciseSlot, ExerciseTypeDef, Workout } from "../types";
 import { AI_VALUES_CONTRACT } from "./schema";
-import { buildAnalyticsCategorySummaries, buildExerciseModalities } from "./context";
+import { buildAnalyticsCategorySummaries, buildExerciseModalities, type WorkoutNoteSharing } from "./context";
 
 /**
  * The prompt behind the workout editor's "Fill with AI" - one session, not
@@ -21,6 +21,8 @@ export interface SessionPromptInput {
   mode: "add" | "replace";
   exerciseTypes: ExerciseTypeDef[];
   analyticsCategories: AnalyticsCategory[];
+  /** What the "AI Sharing" switches allow of a finished session's notes; absent means the defaults. */
+  noteSharing?: WorkoutNoteSharing;
 }
 
 function currentExercises(slots: ExerciseSlot[], bucket: "prescribed" | "logged", types: ExerciseTypeDef[]): string {
@@ -34,7 +36,7 @@ function currentExercises(slots: ExerciseSlot[], bucket: "prescribed" | "logged"
 }
 
 export function buildSessionPrompt(input: SessionPromptInput): string {
-  const { workout, request, mode, exerciseTypes, analyticsCategories } = input;
+  const { workout, request, mode, exerciseTypes, analyticsCategories, noteSharing = { logNotes: true, planNotes: false } } = input;
   const isLog = workout.status === "completed";
   const bucket = isLog ? "logged" : "prescribed";
   const existing = workout.exercises.length > 0 ? currentExercises(workout.exercises, bucket, exerciseTypes) : "";
@@ -51,7 +53,9 @@ export function buildSessionPrompt(input: SessionPromptInput): string {
 
   const session = [
     `Name: ${workout.notes || "(unnamed)"}`,
-    workout.description ? `Notes: ${workout.description}` : "",
+    // A finished session's plan note is stale intent - left out unless sharing it is on.
+    workout.description && (!isLog || noteSharing.planNotes) ? `Notes: ${workout.description}` : "",
+    isLog && noteSharing.logNotes && workout.logNotes?.trim() ? `How it went: ${workout.logNotes.trim()}` : "",
     workout.dayOfWeek ? `Day: ${workout.dayOfWeek}` : "",
     workout.plannedDuration ? `Planned length: ${workout.plannedDuration} min` : "",
     existing ? `Current exercises (${isLog ? "logged" : "planned"} values):\n${existing}` : "Current exercises: none yet",

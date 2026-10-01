@@ -184,6 +184,13 @@
       <p class="p-3.5 bg-surface/40 border border-border rounded-card text-body text-content-muted leading-relaxed whitespace-pre-wrap break-words">{workout.description}</p>
     {/if}
 
+    {#if isCompleted && workout.logNotes}
+      <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-1">
+        <p class="text-caption uppercase text-content-subtle">How it went</p>
+        <p class="text-body text-content leading-relaxed whitespace-pre-wrap break-words">{workout.logNotes}</p>
+      </div>
+    {/if}
+
     {#if isCompleted}
       <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-center gap-3">
         <div class="flex-1 grid grid-cols-4 gap-2">

@@ -190,6 +190,18 @@ export interface AISharingPreferences {
    * preferences don't have it (read as on).
    */
   coachNotes?: boolean;
+  /**
+   * "How it went" on past sessions (`Workout.logNotes`). Default on: the
+   * athlete's own account of what happened is what a coach most needs.
+   * Optional - older saved preferences read as on.
+   */
+  sessionNotes?: boolean;
+  /**
+   * The plan-side note (`Workout.description`) of sessions already done.
+   * Default **off**: it is the intent written beforehand, usually stale
+   * once the session is logged. Optional - older saved preferences read as off.
+   */
+  planNotesInHistory?: boolean;
 }
 
 /**
@@ -414,6 +426,8 @@ function validateAISharing(raw: unknown): AISharingPreferences {
     outdoorAscents: typeof c.outdoorAscents === 'boolean' ? c.outdoorAscents : defaults.outdoorAscents,
     notes: typeof c.notes === 'boolean' ? c.notes : defaults.notes,
     ...(typeof c.coachNotes === 'boolean' ? { coachNotes: c.coachNotes } : {}),
+    ...(typeof c.sessionNotes === 'boolean' ? { sessionNotes: c.sessionNotes } : {}),
+    ...(typeof c.planNotesInHistory === 'boolean' ? { planNotesInHistory: c.planNotesInHistory } : {}),
   };
 }
 

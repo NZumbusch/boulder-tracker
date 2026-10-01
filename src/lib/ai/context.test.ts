@@ -26,6 +26,7 @@ import {
   buildPainIssueContext,
   buildOutdoorAscentContext,
   buildAIContextProfile,
+  workoutNoteSharing,
   type AIContextSource,
 } from "./context";
 
@@ -83,6 +84,26 @@ describe("buildArchivedExerciseNames", () => {
 describe("buildAnalyticsCategorySummaries", () => {
   it("excludes archived categories", () => {
     expect(buildAnalyticsCategorySummaries(analyticsCategories)).toEqual([{ name: "Fingers" }]);
+  });
+});
+
+describe("buildRecentWorkouts notes", () => {
+  const done = makeWorkout({ id: "n", status: "completed", date: "2026-09-16", weekId: "2026-W38", description: "plan: heavy pulls", logNotes: "  felt strong  " });
+  it("sends how it went by default, and the plan note only when asked", () => {
+    const [byDefault] = buildRecentWorkouts([done], exerciseTypes, asOf, 2);
+    expect(byDefault.howItWent).toBe("felt strong");
+    expect(byDefault.planNote).toBeUndefined();
+    const [both] = buildRecentWorkouts([done], exerciseTypes, asOf, 2, { logNotes: true, planNotes: true });
+    expect(both.planNote).toBe("plan: heavy pulls");
+  });
+  it("sends neither when both are off", () => {
+    const [none] = buildRecentWorkouts([done], exerciseTypes, asOf, 2, { logNotes: false, planNotes: false });
+    expect(none.howItWent).toBeUndefined();
+    expect(none.planNote).toBeUndefined();
+  });
+  it("reads the saved switches: log notes on and plan notes off when unset", () => {
+    expect(workoutNoteSharing({})).toEqual({ logNotes: true, planNotes: false });
+    expect(workoutNoteSharing({ sessionNotes: false, planNotesInHistory: true })).toEqual({ logNotes: false, planNotes: true });
   });
 });
 

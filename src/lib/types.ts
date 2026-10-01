@@ -266,7 +266,14 @@ export interface Workout {
   actualDuration?: number;
   dayOfWeek?: DayOfWeek;
   notes?: string; // Used as the session name
-  description?: string; // Extended notes/description for the session
+  description?: string; // Extended notes/description for the session - the PLAN's note, written before the session
+  /**
+   * "How it went" - the athlete's own note about a session they did, kept
+   * apart from `description` (which is plan-side: intent, cues) so AI
+   * prompts can share one and not the other (`AISharingPreferences`).
+   * Absent on everything from before the split; nothing is moved.
+   */
+  logNotes?: string;
   /** ISO-8601 Week ID (e.g. 2026-W25) linking this to the macrocycle */
   weekId: string;
   /** Actual calculated physiological stress score */
