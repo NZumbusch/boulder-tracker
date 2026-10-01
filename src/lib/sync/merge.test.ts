@@ -211,7 +211,7 @@ describe("mergeDoc with a base", () => {
   it("joins two edits to different fields of one record, with no conflict", () => {
     const phone = device("phone", { workouts: [w("a", "base")] });
     const tablet = device("tablet", { workouts: [w("a", "base")] });
-    const base = structuredClone(phone.tables.workouts[0 as never]);
+    const base = structuredClone((phone.tables.workouts as unknown[])[0]);
     edit(phone, 100, (db) => { (db.workouts as any[])[0].notes = "phone"; });
     edit(tablet, 110, (db) => { (db.workouts as any[])[0].date = "2026-09-25"; });
     const result = mergeDoc(phone.tables, phone.ledger, structuredClone(docOf(tablet, 120)), TABLES, { lastSyncAt: 50, firstSync: false, now: 130, deviceId: "phone", baseOf: () => base });
