@@ -15,6 +15,7 @@
   import BackupSettings from './BackupSettings.svelte';
   import ExportSettings from './ExportSettings.svelte';
   import SettingsTransfer from './SettingsTransfer.svelte';
+  import ValueDefSettings from './ValueDefSettings.svelte';
   import CoachNotesSettings from './CoachNotesSettings.svelte';
   import CircuitSettings from './CircuitSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
@@ -111,6 +112,17 @@
     });
   });
 
+  // Likewise the categories: "Restore default categories" (Backup & Sync) writes the store directly.
+  $effect(() => {
+    const fromStore = JSON.stringify(trainingState.analyticsCategories);
+    untrack(() => {
+      if (!lastSaved || fromStore === lastSaved.analyticsCategories) return;
+      if (JSON.stringify($state.snapshot(analyticsCategories)) !== lastSaved.analyticsCategories) return;
+      analyticsCategories = JSON.parse(fromStore);
+      lastSaved.analyticsCategories = fromStore;
+    });
+  });
+
   onDestroy(() => {
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -200,6 +212,7 @@
       <CircuitSettings />
       <PhaseSettings bind:phaseDefs bind:templates onResetAllTemplates={resetTemplates} />
       <BenchmarkTypeSettings bind:benchmarkTypes />
+      <ValueDefSettings />
     </div>
   {:else if currentTab === 'design'}
     <PreferencesSettings bind:topic={appearanceTopic} />

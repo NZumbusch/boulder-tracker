@@ -6,7 +6,7 @@ import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
@@ -241,6 +241,19 @@ class TrainingState {
   /** City name -> candidate locations, for the Settings location picker (raw lat/lon entry bypasses this entirely). */
   async geocodeCity(query: string) {
     return geocodeCity(query);
+  }
+
+  // --- Custom value types (lib/exercise/valueDefs.ts) ---
+
+  async saveValueDefs(defs: ValueDef[]) {
+    await this.catalogStore.saveValueDefs(defs);
+  }
+
+  /** Deletes a value type and every value of it; returns how many values went. */
+  async deleteValueDef(id: string): Promise<number> {
+    const removed = await this.catalogStore.deleteValueDef(id);
+    await this.refresh();
+    return removed;
   }
 
   // --- Portable settings: reset, file, sync (lib/preferences/portable.ts) ---
