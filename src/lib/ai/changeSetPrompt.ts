@@ -13,6 +13,7 @@ Respond with ONLY one JSON object - no markdown fences, no text before or after 
 THE SHAPE (every section is optional; use the ones you need):
 {
   "summary": "One short paragraph: what you changed and why.",
+  "categories": [ ...analytics category changes... ],
   "exerciseTypes": [ ...exercise list changes... ],
   "circuits": [ ...saved circuit changes... ],
   "phases": [ ...phase changes... ],
@@ -20,14 +21,21 @@ THE SHAPE (every section is optional; use the ones you need):
   "planB": [ ...Plan B entries... ],
   "coachNotes": [ ...coaching memory changes... ]
 }
-The app applies "exerciseTypes" first, then "circuits", then "phases", then "weeks", then "planB", then "coachNotes" - so a later section may use a new exercise, circuit or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
+The app applies "categories" first, then "exerciseTypes", then "circuits", then "phases", then "weeks", then "planB", then "coachNotes" - so a later section may use a new exercise, circuit or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
+
+0) "categories" - the analytics categories (the groups that charts split training load and time into; see Analytics Categories above)
+  { "action": "add", "name": "Mobility" }
+  { "action": "rename", "name": "Other", "rename": "Conditioning" }   (exercises in it follow the new name)
+  { "action": "archive", "name": "Old category" }   (hides it from new use; history keeps it)
+  - Add a category only for a genuinely distinct kind of training that no existing category fits, and keep the total small (about 6-10): charts get unreadable with more. Never add one for a single exercise.
+  - Then move exercises into it with "categoryName" in "exerciseTypes" edits. A category you add here may be used by "categoryName" in the same change set.
 
 1) "exerciseTypes" - the exercise list (the Custom Exercise Modalities above)
   { "action": "add", "name": "Max Hangs 7s", "categoryName": "Fingers", "group": "Fingerboard", "parameters": ["sets", "timeOn", "timeBetweenSets", "weight", "holdSize"], "description": "20 mm edge, half crimp. Engage the shoulders before loading; stop a set when the grip opens." }
   { "action": "edit", "name": "Hangboard", "rename": "Hangboard Repeaters", "group": "Fingerboard", "description": "...", "parameters": [...] }   (give only what changes)
   { "action": "archive", "name": "Old Drill" }   (hides it from new plans; history keeps it)
   - Add an exercise type BEFORE any session uses it. Every "exerciseTypeName" you use anywhere must be an existing name from the list above or one you add here.
-  - "categoryName" must be one of the Analytics Categories listed above.
+  - "categoryName" must be one of the Analytics Categories listed above, or one you add under "categories".
   - "group" files it in the athlete's exercise library (e.g. "Stretching", "Fingerboard", "Strength"). Reuse an existing group from the list when one fits; start a new one only for a genuinely new kind of exercise.
   - "description" is a short, general how-to: setup and the 1-3 cues that matter. Keep it general - no sets, reps, weights or times (those belong in each session), nothing tied to this week. Give one to every exercise you add. When asked to fill in or improve how-tos, "edit" the exercises marked "noHowTo" with just a "description".
   - Before adding, check the list AND the archived names: re-adding an archived exercise by its exact name restores it; never add a second exercise that is the same thing under another name.

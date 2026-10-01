@@ -31,6 +31,8 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   let core = $state(5);
   let systemic = $state(5);
   let notes = $state('');
+  /** "How it went" - separate from the session's name and from its plan note; AI Sharing treats it on its own. */
+  let logNotes = $state('');
 
   // --- Pain check-ins (PAIN_PLAN.md): right after a session is when you
   // know how the open issues took it. Answers are collected here and saved
@@ -68,6 +70,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
       systemic = initialData.systemic ?? 5;
 
       const genericNames = ['New Session', 'New Default Workout'];
+      logNotes = initialData.logNotes ?? '';
       notes = genericNames.includes(initialData.notes || '') ? '' : (initialData.notes ?? '');
     }
   });
@@ -92,6 +95,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
       core,
       systemic,
       notes,
+      logNotes: logNotes.trim() || undefined,
       loadFactor,
       // Zero means "no meaningful length recorded" - left unset so
       // `sessionDuration` falls back to summing the logged exercises
@@ -185,8 +189,14 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
         </div>
 
         <div class="space-y-2">
-          <label for="fatigue-notes" class="text-label text-content-subtle ml-1">Notes</label>
-          <textarea id="fatigue-notes" bind:value={notes} placeholder="Notes..." class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
+          <label for="fatigue-log-notes" class="text-label text-content-subtle ml-1">How it went</label>
+          <textarea id="fatigue-log-notes" bind:value={logNotes} placeholder="What worked, what didn't, how it felt…" class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
+        </div>
+
+        <div class="space-y-2">
+          <!-- `notes` is the session's name (see Workout.notes), which is what this field has always edited. -->
+          <label for="fatigue-notes" class="text-label text-content-subtle ml-1">Session name</label>
+          <input id="fatigue-notes" type="text" bind:value={notes} placeholder="Session name" class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-content-subtle text-sm" />
         </div>
 
         <div class="border-t border-border pt-4 space-y-3">

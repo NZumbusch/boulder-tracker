@@ -14,6 +14,7 @@
    * planner (`planWithSelection`): unticking something re-plans the rest,
    * and anything that relied on it is unticked too, with the reason shown.
    */
+  import { portal } from '../../lib/ui/portal';
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekIdRange } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
@@ -23,30 +24,38 @@
   import AIHistoryPicker from '../settings/AIHistoryPicker.svelte';
   import { parsePlanImport } from '../../lib/ai/planImportEntry';
   import { planWithSelection, allItemIds, type ChangeItem, type ChangeSection } from '../../lib/ai/changePlanner';
+  import { buildOrganisePrompt } from '../../lib/ai/organisePrompt';
   import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
   import Icon from '@iconify/svelte';
   import { WEEK_DAYS } from '../../lib/constants';
   import { hasProfile } from '../../lib/ai/coachNotes';
   import type { DayOfWeek } from '../../lib/types';
 
-  let { onClose }: { onClose: () => void } = $props();
+  /** "organise" is a Change plan flavour (same paste and review) that only regroups exercises and categories. */
+  type CoachMode = AIPromptMode | 'organise';
 
-  let mode = $state<AIPromptMode>('generate');
+  let { onClose, initialMode = 'generate' }: { onClose: () => void; initialMode?: CoachMode } = $props();
+
+  // svelte-ignore state_referenced_locally
+  let mode = $state<CoachMode>(initialMode);
+  /** Modes that end in paste-and-review. */
+  const flows = $derived(mode === 'generate' || mode === 'organise');
   let step = $state<'ask' | 'paste' | 'review'>('ask');
   let startWeek = $state(trainingState.currentWeekId);
   let endWeek = $state(trainingState.currentWeekId);
   let goal = $state('');
   /** Analyze/Context: the prompt is on the clipboard - show the "now paste it" note. */
-  let copiedFor = $state<AIPromptMode | null>(null);
+  let copiedFor = $state<CoachMode | null>(null);
   /** Change plan: brief "Copied" feedback on the paste step's copy button. */
   let copiedAgain = $state(false);
   /** Whether the prompt was copied this time - "I have a reply" skips straight to pasting. */
   let promptCopied = $state(false);
 
-  const MODES: { id: AIPromptMode; label: string; title: string }[] = [
+  const MODES: { id: CoachMode; label: string; title: string }[] = [
     { id: 'generate', label: 'Change plan', title: 'Change your plan' },
     { id: 'analyze', label: 'Analyze', title: 'Analyze past training' },
     { id: 'context', label: 'Context', title: 'Share your context' },
+    { id: 'organise', label: 'Organise', title: 'Organise your exercises' },
   ];
   const STEPS = [
     { id: 'ask', label: 'Ask' },
@@ -68,7 +77,7 @@
   const rangeValid = $derived(startWeek <= endWeek);
   const selectedWeekIds = $derived(rangeValid ? getWeekIdRange(startWeek, endWeek) : []);
 
-  function setMode(next: AIPromptMode) {
+  function setMode(next: CoachMode) {
     mode = next;
     copiedFor = null;
   }
@@ -99,18 +108,22 @@
   }
 
   /** The prompt exactly as it will be copied - also what the size shown is measured on. */
-  const prompt = $derived(buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined }));
+  const prompt = $derived(
+    mode === 'organise'
+      ? buildOrganisePrompt(trainingState, goal)
+      : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined }),
+  );
   const tokens = $derived(estimateTokens(prompt));
 
   async function copyPrompt() {
-    if (mode !== 'context' && !rangeValid) return;
+    if (mode !== 'context' && mode !== 'organise' && !rangeValid) return;
     try {
       await navigator.clipboard.writeText(prompt);
     } catch (err: any) {
       await showAlert('Copy failed', 'Your browser blocked the clipboard: ' + (err?.message ?? 'unknown error'));
       return;
     }
-    if (mode === 'generate') {
+    if (flows) {
       promptCopied = true;
       step = 'paste';
       copiedAgain = true;
@@ -156,6 +169,7 @@
   const appliedCount = $derived(plan?.selected.size ?? 0);
 
   const SECTIONS: { id: ChangeSection; label: string; icon: string }[] = [
+    { id: 'category', label: 'Categories', icon: 'ic:baseline-category' },
     { id: 'exercise', label: 'Exercises', icon: 'ic:baseline-fitness-center' },
     { id: 'circuit', label: 'Circuits', icon: 'ic:baseline-repeat' },
     { id: 'phase', label: 'Phases', icon: 'ic:baseline-view-week' },
@@ -226,7 +240,7 @@
   </ol>
 {/snippet}
 
-<div class="fixed inset-0 z-[130] safe-y bg-app-bg flex flex-col animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-label="AI Coach">
+<div use:portal class="fixed inset-0 z-[130] safe-y bg-app-bg flex flex-col animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-label="AI Coach">
   <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
     <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 space-y-3">
       <div class="flex items-start gap-3">
@@ -250,7 +264,7 @@
           {/each}
         </div>
       {/if}
-      {#if mode === 'generate'}{@render stepper()}{/if}
+      {#if flows}{@render stepper()}{/if}
     </div>
   </header>
 
@@ -262,6 +276,21 @@
             <p class="text-body text-content">Just your training profile, with no question attached.</p>
             <p class="text-caption text-content-subtle leading-relaxed">Paste it into any AI chat first, then ask it whatever you like. It knows your exercises, recent sessions, benchmarks, goals and anything else you share.</p>
           </div>
+        {:else if mode === 'organise'}
+          <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-1.5">
+            <p class="text-body text-content">Tidy your exercise list.</p>
+            <p class="text-caption text-content-subtle leading-relaxed">The AI sees your exercises, their categories and groups, and how often you have used each - no sessions, no plan. It can add analytics categories (e.g. split "Other") and move exercises between categories and library groups. You review every change before anything is applied.</p>
+          </div>
+          <label class="block space-y-1.5">
+            <span class="text-label text-content-subtle px-1 block">What do you want? <span class="text-caption">(optional)</span></span>
+            <textarea
+              bind:value={goal}
+              rows="3"
+              placeholder="e.g. Split Other into mobility and conditioning, and keep it to 8 categories."
+              class="w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-y placeholder:text-content-subtle"
+            ></textarea>
+          </label>
+          <p class="text-caption text-content-subtle px-1 flex items-center gap-1.5"><Icon icon="ic:baseline-straighten" class="text-sm shrink-0" /> Prompt size {formatTokens(tokens)}</p>
         {:else}
           <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-2.5">
             <p class="text-label text-content-subtle flex items-center justify-between">
@@ -339,6 +368,7 @@
         {/if}
 
         <!-- What history goes along, and what that costs in prompt size. -->
+        {#if mode !== 'organise'}
         <div class="bg-surface/40 border border-border rounded-card">
           <button
             onclick={() => showHistory = !showHistory}
@@ -377,7 +407,9 @@
           {/if}
         </div>
 
-        {#if mode === 'generate' && lastAiChange?.source === 'ai'}
+        {/if}
+
+        {#if flows && lastAiChange?.source === 'ai'}
           <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-center gap-3">
             <Icon icon="ic:baseline-history" class="text-xl text-content-subtle shrink-0" />
             <div class="min-w-0 flex-1">
@@ -392,10 +424,12 @@
           </div>
         {/if}
 
+        {#if mode !== 'organise'}
         <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
           <Icon icon="ic:baseline-info" class="text-sm shrink-0 mt-px" />
           What's shared (blocks, readiness, pain logs…) is set in Settings → Connections & Exports → AI Sharing.
         </p>
+        {/if}
 
       {:else if step === 'paste'}
         <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-start gap-3">
@@ -523,7 +557,7 @@
   <footer class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
     <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center gap-2">
       {#if step === 'ask'}
-        {#if mode === 'generate'}
+        {#if flows}
           <button onclick={() => step = 'paste'} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors">
             I have a reply
           </button>
@@ -535,7 +569,7 @@
         <div class="flex-1"></div>
         <button
           onclick={copyPrompt}
-          disabled={mode !== 'context' && !rangeValid}
+          disabled={mode !== 'context' && mode !== 'organise' && !rangeValid}
           class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
         >
           <Icon icon={copiedFor === mode ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-base" />

@@ -15,6 +15,7 @@
   import { repsRepresentative } from '../../lib/exercise/reps';
   import { displayWeight, toKg, formatWeight } from '../../lib/units';
   import { loggedMetrics } from '../../lib/analytics/metricValues';
+  import { isCustomParam, customIdOf, paramLabel } from '../../lib/exercise/valueDefs';
   import Icon from '@iconify/svelte';
 
   // --- Props ---
@@ -67,6 +68,9 @@
   let plannedLoad = $state(5);
   let notes = $state('');
   let categoryOverride = $state<string>('');
+  /** The athlete's own value types, as typed: text per def id, "" = not set. */
+  let customDraft = $state<Record<string, string>>({});
+
 
   // Optional convenience: shows the absolute added weight
   // implied by the bodyweightPercent slider, using the most recently logged
@@ -94,6 +98,14 @@
   });
 
   let activeParams = $state<ParameterBlock[]>([]);
+
+  /** The custom fields shown: active ones, in the order they were switched on. A def archived since still shows while it is on. */
+  const customFields = $derived(
+    activeParams.filter(isCustomParam).flatMap((p) => {
+      const def = trainingState.valueDefs.find((d) => d.id === customIdOf(p));
+      return def ? [def] : [];
+    }),
+  );
 
   // --- Derived State ---
   const activeTypeDef = $derived(exerciseTypes.find(t => t.id === selectedTypeId));
@@ -128,7 +140,9 @@
   const CIRCUIT_PARAMS: ParameterBlock[] = ['sets', 'reps', 'timeOn'];
   const customizable = $derived.by(() => {
     const base = activeTypeDef?.possibleParameters || activeTypeDef?.parameters || [];
-    return inGroup ? [...base, ...CIRCUIT_PARAMS.filter((p) => !base.includes(p))] : base;
+    const offered = inGroup ? [...base, ...CIRCUIT_PARAMS.filter((p) => !base.includes(p))] : base;
+    // An archived value type is not offered for switching on - unless it already is.
+    return offered.filter((p) => !isCustomParam(p) || activeParams.includes(p) || trainingState.valueDefs.some((d) => d.id === customIdOf(p) && !d.archived));
   });
 
   /**
@@ -177,6 +191,7 @@
     maxWeightPercent = v.maxWeightPercent ?? 80;
     plannedLoad = v.plannedLoad ?? (activeTypeDef?.defaultPlannedLoad ?? 5);
     notes = v.notes || '';
+    customDraft = Object.fromEntries(Object.entries(v.custom ?? {}).map(([k, x]) => [k, String(x)]));
     categoryOverride = initialSlot?.categoryId || '';
   });
 
@@ -257,6 +272,19 @@
     if (params.includes('routeDifficulty')) values.routeDifficulty = routeDifficulty;
     if (params.includes('bodyweightPercent')) values.bodyweightPercent = n(bodyweightPercent);
     if (params.includes('maxWeightPercent')) values.maxWeightPercent = n(maxWeightPercent);
+
+    const custom: Record<string, number | string> = {};
+    for (const def of customFields) {
+      const raw = (customDraft[def.id] ?? '').trim();
+      if (raw === '') continue;
+      if (def.kind === 'number') {
+        const num = Number(raw);
+        if (Number.isFinite(num)) custom[def.id] = num;
+      } else {
+        custom[def.id] = raw;
+      }
+    }
+    if (Object.keys(custom).length) values.custom = custom;
 
     onSave({
       typeId: activeTypeDef.id,
@@ -417,6 +445,23 @@
       </div>
     {/if}
     {#if activeParams.includes('difficulty')}<div class="space-y-4 pt-1"><label for="ex-diff" class="flex justify-between text-label text-content-subtle ml-1"><span>Difficulty</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.difficulty} current={difficulty} unit="/10" /><span class="text-primary font-mono text-caption tabular-nums">{difficulty}/10</span></span></label><RangeSlider id="ex-diff" bind:value={difficulty} /></div>{/if}
+    {#each customFields as def (def.id)}
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center ml-1">
+          <label for="ex-custom-{def.id}" class="text-label text-content-subtle">{def.name}{def.kind === 'number' && def.unit ? ` (${def.unit})` : ''}</label>
+          {#if def.kind === 'number'}<TargetHint prescribed={typeof targetValues.custom?.[def.id] === 'number' ? (targetValues.custom[def.id] as number) : undefined} current={customDraft[def.id] === undefined || customDraft[def.id] === '' ? undefined : Number(customDraft[def.id])} unit={def.unit ?? ''} />{/if}
+        </div>
+        {#if def.kind === 'number'}
+          <input id="ex-custom-{def.id}" type="number" inputmode="decimal" step="any" value={customDraft[def.id] ?? ''} oninput={(e) => customDraft[def.id] = e.currentTarget.value} placeholder="—" class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" />
+        {:else}
+          <select id="ex-custom-{def.id}" value={customDraft[def.id] ?? ''} onchange={(e) => customDraft[def.id] = e.currentTarget.value} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm appearance-none cursor-pointer">
+            <option value="">—</option>
+            {#each def.options ?? [] as option}<option value={option}>{option}</option>{/each}
+            {#if customDraft[def.id] && !(def.options ?? []).includes(customDraft[def.id])}<option value={customDraft[def.id]}>{customDraft[def.id]}</option>{/if}
+          </select>
+        {/if}
+      </div>
+    {/each}
     {#if activeParams.includes('routeDifficulty')}<div class="space-y-1.5"><label for="ex-route-diff" class="text-label text-content-subtle ml-1">Route Difficulty</label><select id="ex-route-diff" bind:value={routeDifficulty} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm appearance-none cursor-pointer"><option value="Easy">Easy</option><option value="Moderate">Moderate</option><option value="Hard">Hard</option></select></div>{/if}
 
     <details class="group border-t border-border/50 pt-4">
@@ -438,7 +483,7 @@
             class="px-3 py-2 rounded-control text-label border transition-all flex items-center gap-2 {activeParams.includes(id) ? 'bg-primary-hover/10 border-primary/50 text-primary-hover' : 'bg-surface border-border text-content-subtle'}"
           >
             <Icon icon={activeParams.includes(id) ? 'ic:baseline-check-box' : 'ic:baseline-check-box-outline-blank'} class="text-sm" />
-            <span class="text-left flex-1">{PARAMETER_LABELS[id] || id}</span>
+            <span class="text-left flex-1">{paramLabel(id, trainingState.valueDefs)}</span>
           </button>
         {/each}
       </div>

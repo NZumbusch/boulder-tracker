@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import type { ViewType } from "../types";
 import { DEMO_CIRCUIT_SESSION_ID } from "./demoData";
 
@@ -18,9 +19,13 @@ export interface TourStep {
   openWorkout?: string;
   title: string;
   body: string;
+  /** Only on the Android app (home-screen widgets live there). */
+  androidOnly?: true;
 }
 
-export const TOUR_STEPS: TourStep[] = [
+const ANDROID = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
+
+export const TOUR_STEPS: TourStep[] = ([
   {
     view: "home",
     title: "A quick tour",
@@ -166,8 +171,15 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Sleep, resting heart rate and weight from Health Connect (Android), your plan in your calendar, a PDF of the plan, and what the AI coach gets to see.",
   },
   {
+    view: "settings",
+    target: "settings-widgets",
+    title: "Home-screen widgets",
+    body: "Today, readiness, this week, week load and quick-log buttons for your home screen. Add them from here; they stretch to show more.",
+    androidOnly: true,
+  },
+  {
     view: "home",
     title: "That's the tour",
     body: "Close this and your own data is back. A good start: pick a phase for this week in Plan, or tap + to log a session. You can replay the tour from Settings → About & Help.",
   },
-];
+] as TourStep[]).filter((s) => !s.androidOnly || ANDROID);

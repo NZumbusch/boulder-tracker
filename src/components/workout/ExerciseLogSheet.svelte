@@ -21,6 +21,7 @@
   import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { PARAMETER_LABELS } from '../../lib/constants';
+  import { isCustomParam, customIdOf, paramLabel } from '../../lib/exercise/valueDefs';
   import TargetHint from './TargetHint.svelte';
   import type { LastTime } from '../../lib/exercise/lastTime';
   import { valuesLine } from '../../lib/session/slotDetails';
@@ -82,6 +83,15 @@
 
   const fields = $derived(NUMERIC_FIELDS.filter((f) => activeParams.includes(f.param)));
 
+  /** The athlete's own value types this exercise tracks, typed as text per def id ("" = not set). */
+  const customFields = $derived(
+    activeParams.filter(isCustomParam).flatMap((p) => {
+      const def = trainingState.valueDefs.find((d) => d.id === customIdOf(p));
+      return def ? [def] : [];
+    }),
+  );
+  let customDraft = $state<Record<string, string>>({});
+
   // Local, string-keyed draft: an <input type="number"> bound to a number
   // can't represent "cleared", and blanking a field mid-edit would
   // otherwise snap it back to 0 under the cursor.
@@ -111,6 +121,7 @@
       next[field.key] = typeof value === 'number' ? String(field.key === 'weight' ? shownWeight(value) : value) : '';
     }
     draft = next;
+    customDraft = Object.fromEntries(Object.entries(values.custom ?? {}).map(([k, x]) => [k, String(x)]));
     notes = values.notes ?? '';
     difficulty = typeof values.difficulty === 'number' ? values.difficulty : undefined;
   });
@@ -136,6 +147,15 @@
         if (Number.isFinite(n)) (values[field.key] as number) = field.key === 'weight' ? Math.round(toKg(n, trainingState.units.weight) * 100) / 100 : n;
       }
     }
+    const custom: Record<string, number | string> = { ...(seed.custom ?? {}) };
+    for (const def of customFields) {
+      const raw = (customDraft[def.id] ?? '').trim();
+      const num = Number(raw);
+      if (raw === '' || (def.kind === 'number' && !Number.isFinite(num))) delete custom[def.id];
+      else custom[def.id] = def.kind === 'number' ? num : raw;
+    }
+    if (Object.keys(custom).length) values.custom = custom;
+    else delete values.custom;
     values.notes = notes.trim() || undefined;
     if (tracksDifficulty && difficulty !== undefined) values.difficulty = difficulty;
     return values;
@@ -182,6 +202,8 @@
       if (typeof value === 'number') next[field.key] = String(field.key === 'weight' ? shownWeight(value) : value);
     }
     draft = next;
+    const lastCustom = lastTime.values.custom;
+    if (lastCustom) customDraft = { ...customDraft, ...Object.fromEntries(customFields.filter((d) => lastCustom[d.id] !== undefined).map((d) => [d.id, String(lastCustom[d.id])])) };
     if (tracksDifficulty && typeof lastTime.values.difficulty === 'number') difficulty = lastTime.values.difficulty;
   }
   const lastLine = $derived(lastTime ? valuesLine(lastTime.values) : '');
@@ -216,7 +238,7 @@
           <span class="shrink-0 text-caption font-bold text-primary">Use</span>
         </button>
       {/if}
-      {#if fields.length === 0}
+      {#if fields.length === 0 && customFields.length === 0}
         <p class="text-caption text-content-subtle italic">
           This exercise tracks no numeric values &mdash; log it as done, or open the full editor to change what it tracks.
         </p>
@@ -225,7 +247,7 @@
           {#each fields as field (field.key)}
             <label class="space-y-1.5 min-w-0">
               <span class="flex items-baseline justify-between gap-2">
-                <span class="text-label text-content-subtle truncate">{PARAMETER_LABELS[field.param]}</span>
+                <span class="text-label text-content-subtle truncate">{paramLabel(field.param, trainingState.valueDefs)}</span>
                 <TargetHint
                   prescribed={field.key === 'weight' && typeof target.weight === 'number' ? shownWeight(target.weight) : target[field.key] as number | undefined}
                   current={numberOrUndefined(field.key)}
@@ -234,7 +256,7 @@
               </span>
               <span class="flex items-stretch gap-1">
                 {#if stepOf(field.key)}
-                  <button type="button" onclick={() => bump(field.key, -1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="Less {PARAMETER_LABELS[field.param]}">
+                  <button type="button" onclick={() => bump(field.key, -1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="Less {paramLabel(field.param, trainingState.valueDefs)}">
                     <Icon icon="ic:baseline-remove" class="text-lg" />
                   </button>
                 {/if}
@@ -248,11 +270,36 @@
                   class="w-full min-w-0 px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums {stepOf(field.key) ? 'text-center px-1' : ''}"
                 />
                 {#if stepOf(field.key)}
-                  <button type="button" onclick={() => bump(field.key, 1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="More {PARAMETER_LABELS[field.param]}">
+                  <button type="button" onclick={() => bump(field.key, 1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="More {paramLabel(field.param, trainingState.valueDefs)}">
                     <Icon icon="ic:baseline-add" class="text-lg" />
                   </button>
                 {/if}
               </span>
+            </label>
+          {/each}
+        </div>
+      {/if}
+      {#if customFields.length > 0}
+        <div class="grid grid-cols-2 gap-3">
+          {#each customFields as def (def.id)}
+            <label class="space-y-1.5 min-w-0">
+              <span class="flex items-baseline justify-between gap-2">
+                <span class="text-label text-content-subtle truncate">{def.name}</span>
+                {#if def.kind === 'number'}
+                  <TargetHint prescribed={typeof target.custom?.[def.id] === 'number' ? (target.custom[def.id] as number) : undefined} current={customDraft[def.id] === undefined || customDraft[def.id] === '' ? undefined : Number(customDraft[def.id])} unit={def.unit ?? ''} />
+                {/if}
+              </span>
+              {#if def.kind === 'number'}
+                <span class="flex items-stretch gap-2">
+                  <input type="number" inputmode="decimal" step="any" value={customDraft[def.id] ?? ''} oninput={(e) => customDraft[def.id] = e.currentTarget.value} placeholder="—" class="w-full min-w-0 px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums" />
+                  {#if def.unit}<span class="self-center text-caption text-content-subtle shrink-0">{def.unit}</span>{/if}
+                </span>
+              {:else}
+                <select value={customDraft[def.id] ?? ''} onchange={(e) => customDraft[def.id] = e.currentTarget.value} class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none appearance-none cursor-pointer">
+                  <option value="">—</option>
+                  {#each def.options ?? [] as option}<option value={option}>{option}</option>{/each}
+                </select>
+              {/if}
             </label>
           {/each}
         </div>

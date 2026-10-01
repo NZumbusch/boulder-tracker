@@ -19,6 +19,7 @@ import type {
   PainLog,
   PainIssue,
   OutdoorAscent,
+  ValueDef,
 } from "../types";
 import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
 import { localIsoDate } from "../dateUtils";
@@ -28,12 +29,14 @@ import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
 import { toStoredWorkout } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
+import type { SettingsRecord } from "../preferences/portable";
+import { scrubValueDef } from "../exercise/valueDefs";
 import { saveFile } from "../share/saveFile";
 import type { ShareOutcome } from "../share/imageShare";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
 
 /** The tables a bulk plan change (AI change set, copied week) can touch - what its undo snapshot holds. */
-const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes", "planAlternatives", "coachNotes", "circuits"] as const;
+const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes", "planAlternatives", "coachNotes", "circuits", "analyticsCategories"] as const;
 type PlanTables = Record<(typeof PLAN_TABLE_NAMES)[number], unknown>;
 interface PlanUndoRecord {
   /** What made the change: an AI change set, or copying a week in the planner. */
@@ -76,6 +79,8 @@ export const storage = {
   async _getPainLogs(): Promise<PainLog[]> { await initDB(); return _dbState.painLogs; },
   async _getPainIssues(): Promise<PainIssue[]> { await initDB(); return _dbState.painIssues; },
   async _getOutdoorAscents(): Promise<OutdoorAscent[]> { await initDB(); return _dbState.outdoorAscents; },
+  async _getValueDefs(): Promise<ValueDef[]> { await initDB(); return _dbState.valueDefs ?? []; },
+  async _getSettings(): Promise<SettingsRecord[]> { await initDB(); return _dbState.settings ?? []; },
 
   async _saveWorkouts(workouts: Workout[]): Promise<void> { await initDB(); _dbState.workouts = toPlain(workouts); await flushDB(["workouts"]); },
   async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(["trainingBlocks"]); },
@@ -98,6 +103,8 @@ export const storage = {
   async _savePainIssues(issues: PainIssue[]): Promise<void> { await initDB(); _dbState.painIssues = toPlain(issues); await flushDB(["painIssues"]); },
   /** An issue and its check-ins in one write, so neither can land without the other. */
   async _savePain(logs: PainLog[], issues: PainIssue[]): Promise<void> { await initDB(); _dbState.painLogs = toPlain(logs); _dbState.painIssues = toPlain(issues); await flushDB(["painLogs", "painIssues"]); },
+  async _saveValueDefs(defs: ValueDef[]): Promise<void> { await initDB(); _dbState.valueDefs = toPlain(defs); await flushDB(["valueDefs"]); },
+  async _saveSettings(records: SettingsRecord[]): Promise<void> { await initDB(); _dbState.settings = toPlain(records); await flushDB(["settings"]); },
   async _saveOutdoorAscents(ascents: OutdoorAscent[]): Promise<void> { await initDB(); _dbState.outdoorAscents = toPlain(ascents); await flushDB(["outdoorAscents"]); },
 
   // --- Public Interface ---
@@ -264,6 +271,7 @@ export const storage = {
     if (writes.planAlternatives) db.planAlternatives = toPlain(writes.planAlternatives);
     if (writes.coachNotes) db.coachNotes = toPlain(writes.coachNotes);
     if (writes.circuits) db.circuits = toPlain(writes.circuits);
+    if (writes.analyticsCategories) db.analyticsCategories = toPlain(writes.analyticsCategories);
     if (writes.weeks.length) {
       const touched = new Set(writes.weeks.map((w) => w.weekId));
       const kept = (db.workouts as Workout[]).filter((w) => !(touched.has(w.weekId) && w.status === "planned"));
@@ -536,6 +544,37 @@ export const storage = {
     await this._savePain(logs, issues);
   },
 
+  async getValueDefs(): Promise<ValueDef[]> {
+    return this._getValueDefs();
+  },
+
+  async saveValueDefs(defs: ValueDef[]): Promise<void> {
+    await this._saveValueDefs(defs);
+  },
+
+  /**
+   * Deletes a value type for good: the def, its values on every session,
+   * template, week plan and circuit, and its place in every exercise's
+   * tracked fields. Returns how many values went.
+   */
+  async deleteValueDef(id: string): Promise<number> {
+    await initDB();
+    const tables = ["workouts", "exerciseTypes", "templates", "weekOverrides", "circuits", "planAlternatives", "trainingBlocks"] as const;
+    let removed = 0;
+    for (const t of tables) removed += scrubValueDef(_dbState[t], id);
+    _dbState.valueDefs = toPlain((_dbState.valueDefs ?? []).filter((d: ValueDef) => d.id !== id));
+    await flushDB([...tables, "valueDefs"]);
+    return removed;
+  },
+
+  async getSettings(): Promise<SettingsRecord[]> {
+    return this._getSettings();
+  },
+
+  async saveSettings(records: SettingsRecord[]): Promise<void> {
+    await this._saveSettings(records);
+  },
+
   async getOutdoorAscents(): Promise<OutdoorAscent[]> {
     return this._getOutdoorAscents();
   },
@@ -788,6 +827,8 @@ export const storage = {
           if (data.painLogs) _dbState.painLogs = data.painLogs;
           if (data.painIssues) _dbState.painIssues = data.painIssues;
           if (data.outdoorAscents) _dbState.outdoorAscents = data.outdoorAscents;
+          if (data.settings) _dbState.settings = data.settings;
+          if (data.valueDefs) _dbState.valueDefs = data.valueDefs;
           _dbState.exportVersion = data.exportVersion || "1.0";
 
           await flushDB();

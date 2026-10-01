@@ -287,6 +287,8 @@ const TABLE_NOUN: Record<string, string> = {
   painLogs: "Pain entry",
   painIssues: "Pain issue",
   outdoorAscents: "Send",
+  settings: "Settings group",
+  valueDefs: "Value type",
 };
 
 /** "Session · Board session · 2026-09-12" - the table's noun, then a name and a date if the record has them. */

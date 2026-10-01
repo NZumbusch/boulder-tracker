@@ -16,10 +16,11 @@
   import { isOngoing } from '../../lib/goals/goals';
   import Icon from '@iconify/svelte';
 
-  let { onClose }: { onClose: () => void } = $props();
-
   type Kind = 'pain' | 'bodyweight' | 'send' | 'benchmark';
-  let kind = $state<Kind | null>(null);
+  let { onClose, initialKind = null }: { onClose: () => void; initialKind?: Kind | null } = $props();
+
+  // svelte-ignore state_referenced_locally
+  let kind = $state<Kind | null>(initialKind);
 
   const ALL_ACTIONS: { kind: Kind; icon: string; label: string; hint: string }[] = [
     { kind: 'pain', icon: 'ic:baseline-healing', label: 'Pain', hint: 'Open issues, check in, or a new one' },

@@ -10,6 +10,7 @@ import type {
   ParameterBlock,
   PhaseDef,
   TrainingBlock,
+  ValueDef,
   WeekNote,
   Workout,
 } from "../types";
@@ -18,6 +19,7 @@ import { repsRepresentative } from "../exercise/reps";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
 import { exerciseGroup } from "../exercise/library";
+import { customValuesReference } from "./valueSpec";
 import { painLevelOn, groupLogsIntoIssues, checkInsFor, issueState, daysBetween, STATUS_LABELS, KIND_LABELS, TIMING_LABELS } from "../pain/issues";
 import { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
 export { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
@@ -118,6 +120,8 @@ export interface RecentWorkoutExerciseSummary {
   sets?: number;
   reps?: number;
   plannedLoad?: number;
+  /** The athlete's own value types, by id - see `customValuesReference`. */
+  custom?: Record<string, number | string>;
 }
 
 export interface RecentWorkoutSummary {
@@ -136,10 +140,25 @@ export interface RecentWorkoutSummary {
   arms?: number;
   core?: number;
   systemic?: number;
+  /** "How it went" (`Workout.logNotes`) - only when sharing it is on. */
+  howItWent?: string;
+  /** The plan-side note (`Workout.description`) - only when sharing it for past sessions is on. */
+  planNote?: string;
   exercises: RecentWorkoutExerciseSummary[];
 }
 
-function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentWorkoutSummary {
+/** Which of a past session's notes go into the prompt. */
+export interface WorkoutNoteSharing {
+  logNotes: boolean;
+  planNotes: boolean;
+}
+
+/** The notes switches as `AISharingPreferences` stores them: "how it went" defaults on, the plan note off. */
+export function workoutNoteSharing(sharing: Pick<AISharingPreferences, "sessionNotes" | "planNotesInHistory">): WorkoutNoteSharing {
+  return { logNotes: sharing.sessionNotes !== false, planNotes: sharing.planNotesInHistory === true };
+}
+
+function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], notes: WorkoutNoteSharing = { logNotes: true, planNotes: false }): RecentWorkoutSummary {
   return {
     date: w.date,
     status: w.status,
@@ -152,6 +171,8 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
     arms: w.arms,
     core: w.core,
     systemic: w.systemic,
+    ...(notes.logNotes && w.logNotes?.trim() ? { howItWent: w.logNotes.trim() } : {}),
+    ...(notes.planNotes && w.description?.trim() ? { planNote: w.description.trim() } : {}),
     exercises: w.exercises.map((e) => {
       const v = slotValues(e);
       const group = e.groupId ? w.groups?.find((g) => g.id === e.groupId) : undefined;
@@ -165,6 +186,7 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[]): RecentW
         // field may now hold one number or one per set.
         reps: repsRepresentative(v.reps),
         plannedLoad: v.plannedLoad,
+        ...(v.custom && Object.keys(v.custom).length ? { custom: v.custom } : {}),
       };
     }),
   };
@@ -202,12 +224,13 @@ export function buildRecentWorkouts(
   exerciseTypes: ExerciseTypeDef[],
   asOf: Date,
   fullWeeks: number,
+  notes?: WorkoutNoteSharing,
 ): RecentWorkoutSummary[] {
   const weeks = new Set(historyWeekIds(asOf, { fullWeeks, summaryWeeks: 0 }).full);
   return workouts
     .filter((w) => w.status === "completed" && weeks.has(w.weekId))
     .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
-    .map((w) => summarizeWorkout(w, exerciseTypes));
+    .map((w) => summarizeWorkout(w, exerciseTypes, notes));
 }
 
 /** Completed workouts whose `weekId` falls in `weekIds` - "Analyze Past"'s own scoped window, full detail (not just names). */
@@ -215,11 +238,12 @@ export function buildWorkoutsInWeeks(
   workouts: Workout[],
   exerciseTypes: ExerciseTypeDef[],
   weekIds: string[],
+  notes?: WorkoutNoteSharing,
 ): RecentWorkoutSummary[] {
   const targetSet = new Set(weekIds);
   return workouts
     .filter((w) => w.status === "completed" && w.weekId && targetSet.has(w.weekId))
-    .map((w) => summarizeWorkout(w, exerciseTypes));
+    .map((w) => summarizeWorkout(w, exerciseTypes, notes));
 }
 
 /** Benchmarks recorded within `weekIds` - "Analyze Past"'s own scoped window. */
@@ -514,6 +538,8 @@ export interface AIContextSource {
   painIssues?: PainIssue[];
   outdoorAscents: OutdoorAscent[];
   weekNotes: WeekNote[];
+  /** The athlete's own value types - optional so callers from before them keep compiling. */
+  valueDefs?: ValueDef[];
 }
 
 export interface AIContextProfile {
@@ -521,6 +547,8 @@ export interface AIContextProfile {
   /** Names only - see `buildArchivedExerciseNames`. */
   archivedExercises?: string[];
   analyticsCategories?: AnalyticsCategorySummary[];
+  /** `customValuesReference` text - only when there are value types of the athlete's own. */
+  customValues?: string;
   phases?: string[];
   /** Completed sessions in full: the history window's recent weeks, or (analyze) the chosen weeks. */
   recentWorkouts: RecentWorkoutSummary[];
@@ -561,10 +589,11 @@ export function buildAIContextProfile(
   // doesn't need the full exercise/phase catalog.
   const includeCatalog = mode !== "analyze";
 
+  const noteSharing = workoutNoteSharing(sharing);
   const recentWorkouts =
     mode === "analyze"
-      ? buildWorkoutsInWeeks(source.workouts, source.exerciseTypes, targetWeekIds)
-      : buildRecentWorkouts(source.workouts, source.exerciseTypes, asOf, history.fullWeeks);
+      ? buildWorkoutsInWeeks(source.workouts, source.exerciseTypes, targetWeekIds, noteSharing)
+      : buildRecentWorkouts(source.workouts, source.exerciseTypes, asOf, history.fullWeeks, noteSharing);
 
   const benchmarks =
     mode === "analyze" ? buildBenchmarksInWeeks(source.benchmarks, targetWeekIds) : source.benchmarks;
@@ -585,6 +614,8 @@ export function buildAIContextProfile(
     const archived = buildArchivedExerciseNames(source.exerciseTypes);
     if (archived.length) profile.archivedExercises = archived;
     profile.analyticsCategories = buildAnalyticsCategorySummaries(source.analyticsCategories);
+    const customValues = customValuesReference(source.valueDefs ?? []);
+    if (customValues) profile.customValues = customValues;
     profile.phases = source.phaseDefs.filter((p) => !p.archived).map((p) => p.name);
   }
   if (sharing.trainingBlocks) {

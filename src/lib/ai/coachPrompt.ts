@@ -28,6 +28,9 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
   if (profile.exerciseModalities) {
     sections.push(`- Custom Exercise Modalities (name, analytics category, library group, tracked fields; "noHowTo" = it has no how-to text yet):\n${lines(profile.exerciseModalities)}`);
   }
+  if (profile.customValues) {
+    sections.push(`- ${profile.customValues}`);
+  }
   if (profile.archivedExercises?.length) {
     sections.push(`- Archived Exercises (names only - to use one again, "add" it with this exact name and it is restored; don't add a near-duplicate): ${profile.archivedExercises.join(", ")}`);
   }

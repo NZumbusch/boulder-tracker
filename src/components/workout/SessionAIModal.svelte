@@ -20,6 +20,7 @@
   import { normalizeName, type NameMapping } from '../../lib/ai/planImport';
   import { buildWorkoutLogCommit, buildWorkoutLogPreview } from '../../lib/ai/workoutLogImport';
   import { buildSessionPrompt } from '../../lib/ai/sessionPrompt';
+  import { workoutNoteSharing } from '../../lib/ai/context';
   import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
   import { slotSummary } from '../../lib/session/slotDetails';
   import Icon from '@iconify/svelte';
@@ -104,6 +105,8 @@
       mode: hasExercises ? mode : 'add',
       exerciseTypes: trainingState.exerciseTypes,
       analyticsCategories: trainingState.analyticsCategories,
+      noteSharing: workoutNoteSharing(trainingState.aiSharing),
+      valueDefs: trainingState.valueDefs,
     });
     try {
       await navigator.clipboard.writeText(prompt);

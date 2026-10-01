@@ -141,6 +141,16 @@ export type CSExerciseTypeChange =
   | { action: "edit"; name: string; rename?: string; categoryName?: string; parameters?: ParameterBlock[]; group?: string; description?: string }
   | { action: "archive"; name: string };
 
+/**
+ * Analytics categories (the chart groups). Ids and colours are the app's:
+ * a new one gets the next unused colour, and exercises reach it by name via
+ * `categoryName` in "exerciseTypes".
+ */
+export type CSCategoryChange =
+  | { action: "add"; name: string }
+  | { action: "rename"; name: string; rename: string }
+  | { action: "archive"; name: string };
+
 export type CSPhaseChange =
   | { action: "add"; name: string; sessions: CSSession[] }
   | { action: "edit"; name: string; rename?: string; sessions?: CSSession[]; sessionChanges?: CSSessionChange[] }
@@ -189,6 +199,8 @@ export type CSPlanB =
 export interface AIChangeSet {
   /** The AI's one-paragraph summary of what it changed and why. */
   summary?: string;
+  /** Optional: change sets from before categories existed have none. */
+  categories?: CSCategoryChange[];
   exerciseTypes: CSExerciseTypeChange[];
   phases: CSPhaseChange[];
   weeks: CSWeekChange[];
@@ -217,7 +229,7 @@ function validateParameters(raw: unknown, path: string, issues: Issues): Paramet
   }
   const result: ParameterBlock[] = [];
   raw.forEach((p, i) => {
-    if (typeof p === "string" && (PARAMETER_BLOCKS as string[]).includes(p)) {
+    if (typeof p === "string" && ((PARAMETER_BLOCKS as string[]).includes(p) || /^v:[A-Za-z0-9_-]+$/.test(p))) {
       if (!result.includes(p as ParameterBlock)) result.push(p as ParameterBlock);
     } else {
       pushRepair(issues, `${path}[${i}]`, `${JSON.stringify(p)} is not a trackable field - dropped.`);
@@ -518,6 +530,28 @@ function validateSessionChanges(raw: unknown, path: string, issues: Issues): CSS
   return raw.map((c, i) => validateSessionChange(c, `${path}[${i}]`, issues)).filter((c): c is CSSessionChange => !!c);
 }
 
+function validateCategoryChange(raw: unknown, path: string, issues: Issues): CSCategoryChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a category change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  if (!name) return null;
+  switch (raw.action) {
+    case "add":
+      return { action: "add", name };
+    case "rename": {
+      const rename = requireString(raw.rename, `${path}.rename`, issues);
+      return rename ? { action: "rename", name, rename } : null;
+    }
+    case "archive":
+      return { action: "archive", name };
+    default:
+      issues.push({ path: `${path}.action`, message: `Expected "add", "rename" or "archive", got ${JSON.stringify(raw.action)}.` });
+      return null;
+  }
+}
+
 function validateExerciseTypeChange(raw: unknown, path: string, issues: Issues): CSExerciseTypeChange | null {
   if (!isPlainObject(raw)) {
     issues.push({ path, message: `Expected an exercise type change, got ${JSON.stringify(raw)}.` });
@@ -761,6 +795,7 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
   }
   const set: AIChangeSet = {
     summary: validateNote(raw.summary, "summary", issues),
+    ...(raw.categories !== undefined ? { categories: validateList(raw.categories, "categories", issues, validateCategoryChange) } : {}),
     exerciseTypes: validateList(raw.exerciseTypes, "exerciseTypes", issues, validateExerciseTypeChange),
     phases: validateList(raw.phases, "phases", issues, validatePhaseChange),
     weeks: validateList(raw.weeks, "weeks", issues, validateWeekChange),
@@ -768,8 +803,8 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
     coachNotes: validateList(raw.coachNotes, "coachNotes", issues, validateCoachNoteChange),
     circuits: validateList(raw.circuits, "circuits", issues, validateCircuitChange),
   };
-  if (!issues.some(isError) && set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length + set.circuits.length === 0) {
-    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "exerciseTypes", "circuits", "phases", "weeks", "planB" or "coachNotes".' });
+  if (!issues.some(isError) && (set.categories?.length ?? 0) + set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length + set.circuits.length === 0) {
+    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "categories", "exerciseTypes", "circuits", "phases", "weeks", "planB" or "coachNotes".' });
   }
   return split(issues.some(isError) ? null : set, issues);
 }
@@ -777,7 +812,7 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
 /** True if a parsed document looks like a change set rather than the older weekly/phase plan formats. */
 export function isChangeSetShape(raw: unknown): boolean {
   if (!isPlainObject(raw)) return false;
-  if (raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined || raw.circuits !== undefined) return true;
+  if (raw.categories !== undefined || raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined || raw.circuits !== undefined) return true;
   const phases = Array.isArray(raw.phases) ? raw.phases : [];
   const weeks = Array.isArray(raw.weeks) ? raw.weeks : [];
   if (phases.some((p) => isPlainObject(p) && "action" in p)) return true;

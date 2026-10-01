@@ -75,7 +75,7 @@ export interface PlannerState {
   currentWeekId: string;
 }
 
-export type ChangeSection = "exercise" | "circuit" | "phase" | "week" | "planB" | "coach";
+export type ChangeSection = "category" | "exercise" | "circuit" | "phase" | "week" | "planB" | "coach";
 
 export interface ChangeItem {
   id: string;
@@ -109,6 +109,8 @@ export interface PlanWrites {
   coachNotes?: CoachNote[];
   /** The whole saved-circuit list, when it changed. */
   circuits?: Circuit[];
+  /** The whole analytics-category list, when it changed. */
+  analyticsCategories?: AnalyticsCategory[];
   weeks: WeekWrite[];
   weekNotes: WeekNote[];
 }
@@ -152,6 +154,11 @@ interface Ctx {
   state: PlannerState;
   newId: () => string;
   types: ExerciseTypeDef[];
+  /** Analytics categories as the change set leaves them so far. */
+  categories: AnalyticsCategory[];
+  /** Normalised category name -> the item that added or renamed it. */
+  categoryOrigin: Map<string, string>;
+  untickedCategoryNames: Set<string>;
   /** Normalised name -> the item that introduced or renamed it (for dependencies). */
   typeOrigin: Map<string, string>;
   /** Names added by unticked items (for a clearer error). */
@@ -170,7 +177,7 @@ interface Ctx {
   circuits: Circuit[];
   circuitOrigin: Map<string, string>;
   untickedCircuitNames: Set<string>;
-  changed: { types: boolean; phases: boolean; templates: boolean; blocks: boolean; circuits: boolean };
+  changed: { categories: boolean; types: boolean; phases: boolean; templates: boolean; blocks: boolean; circuits: boolean };
 }
 
 function findType(ctx: Ctx, name: string): ExerciseTypeDef | undefined {
@@ -204,6 +211,29 @@ function resolveType(ctx: Ctx, name: string, item: ChangeItem): ExerciseTypeDef 
   if (origin && !item.dependsOn.includes(origin)) item.dependsOn.push(origin);
   if (type.archived) item.warnings.push(`"${type.name}" is archived in your exercise list.`);
   return type;
+}
+
+/**
+ * The category an exercise type's `categoryName` means: an existing one, or one
+ * this change set adds (recorded as a dependency). A name that is neither falls
+ * back to the first category, as it always did - now with a warning.
+ */
+function resolveCategory(ctx: Ctx, name: string | undefined, item: ChangeItem): string {
+  if (name) {
+    const key = normalizeName(name);
+    const hit = ctx.categories.find((c) => !c.archived && normalizeName(c.name) === key);
+    if (hit) {
+      const origin = ctx.categoryOrigin.get(key);
+      if (origin && !item.dependsOn.includes(origin)) item.dependsOn.push(origin);
+      return hit.name;
+    }
+    item.warnings.push(
+      ctx.untickedCategoryNames.has(key)
+        ? `The new category "${name}" is unticked - used the default category instead.`
+        : `No category called "${name}" - used the default category instead.`,
+    );
+  }
+  return resolveNewExerciseTypeCategory(undefined, ctx.categories);
 }
 
 function buildSlot(ctx: Ctx, exercise: AIExercise, item: ChangeItem): ExerciseSlot | undefined {
@@ -568,6 +598,9 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     state,
     newId,
     types: state.exerciseTypes.map((t) => ({ ...t })),
+    categories: state.analyticsCategories.map((c) => ({ ...c })),
+    categoryOrigin: new Map(),
+    untickedCategoryNames: new Set(),
     typeOrigin: new Map(),
     untickedTypeNames: new Set(),
     phaseDefs: state.phaseDefs.map((p) => ({ ...p })),
@@ -581,10 +614,77 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     circuits: (state.circuits ?? []).map((c) => ({ ...c })),
     circuitOrigin: new Map(),
     untickedCircuitNames: new Set(),
-    changed: { types: false, phases: false, templates: false, blocks: false, circuits: false },
+    changed: { categories: false, types: false, phases: false, templates: false, blocks: false, circuits: false },
   };
   const items: ChangeItem[] = [];
   const noteWrites = new Map<string, string>();
+
+  // --- 0. Analytics categories ---
+  (set.categories ?? []).forEach((change, i) => {
+    const id = `category-${i}`;
+    const item: ChangeItem = { id, section: "category", title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+    const key = normalizeName(change.name);
+    const existing = ctx.categories.find((c) => normalizeName(c.name) === key && !c.archived) ?? ctx.categories.find((c) => normalizeName(c.name) === key);
+    if (change.action === "add") {
+      item.title = `+ ${change.name}`;
+      if (existing && !existing.archived) {
+        item.errors.push(`"${existing.name}" is already a category.`);
+        return;
+      }
+      if (existing) {
+        item.title = `restore ${existing.name}`;
+        item.details.push("from the archive");
+        if (!on) {
+          ctx.untickedCategoryNames.add(key);
+          return;
+        }
+        ctx.categories = ctx.categories.map((c) => (c.id === existing.id ? { ...c, archived: undefined } : c));
+        ctx.categoryOrigin.set(key, id);
+        ctx.changed.categories = true;
+        return;
+      }
+      if (!on) {
+        ctx.untickedCategoryNames.add(key);
+        return;
+      }
+      const used = new Set(ctx.categories.map((c) => c.color));
+      const color = PHASE_COLORS.find((c) => !used.has(c)) ?? PHASE_COLORS[ctx.categories.length % PHASE_COLORS.length];
+      ctx.categories.push({ id: ctx.newId(), name: change.name, color });
+      ctx.categoryOrigin.set(key, id);
+      ctx.changed.categories = true;
+      return;
+    }
+    item.title = `${change.action === "archive" ? "archive" : "~"} ${change.name}`;
+    if (!existing) {
+      item.errors.push(`No category called "${change.name}".`);
+      return;
+    }
+    const inUse = ctx.types.filter((t) => t.category === existing.name && !t.archived).length;
+    if (change.action === "archive") {
+      if (inUse) item.warnings.push(`${inUse} exercise(s) still use it - move them in "exerciseTypes" first, or they keep it.`);
+      if (on) {
+        ctx.categories = ctx.categories.map((c) => (c.id === existing.id ? { ...c, archived: true } : c));
+        ctx.changed.categories = true;
+      }
+      return;
+    }
+    const clash = ctx.categories.find((c) => normalizeName(c.name) === normalizeName(change.rename) && c.id !== existing.id);
+    if (clash) item.errors.push(`Can't rename to "${change.rename}" - that name is taken.`);
+    item.details.push(`name ${existing.name} → ${change.rename}`);
+    if (inUse) item.details.push(`${inUse} exercise(s) follow it`);
+    if (on && item.errors.length === 0) {
+      ctx.categories = ctx.categories.map((c) => (c.id === existing.id ? { ...c, name: change.rename } : c));
+      // Exercises name their category, so they move with the rename.
+      ctx.types = ctx.types.map((t) => (t.category === existing.name ? { ...t, category: change.rename } : t));
+      ctx.categoryOrigin.set(normalizeName(change.rename), id);
+      ctx.changed.categories = true;
+      ctx.changed.types = true;
+    } else if (!on) {
+      ctx.untickedCategoryNames.add(normalizeName(change.rename));
+    }
+  });
 
   // --- 1. Exercise types ---
   const newTypeIds: string[] = [];
@@ -606,7 +706,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         item.title = `restore ${existing.name}`;
         item.details.push("from the archive");
         const next: ExerciseTypeDef = { ...existing, archived: undefined };
-        if (change.categoryName) next.category = resolveNewExerciseTypeCategory(change.categoryName, state.analyticsCategories);
+        if (change.categoryName) next.category = resolveCategory(ctx, change.categoryName, item);
         if (change.parameters) next.parameters = change.parameters;
         if (change.group) {
           next.group = change.group;
@@ -625,7 +725,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         ctx.changed.types = true;
         return;
       }
-      const category = resolveNewExerciseTypeCategory(change.categoryName, state.analyticsCategories);
+      const category = resolveCategory(ctx, change.categoryName, item);
       item.details.push(`category ${category}`, `tracks ${show(change.parameters ?? [])}`);
       if (change.group) item.details.push(`group ${change.group}`);
       if (change.description) item.details.push("how-to");
@@ -669,7 +769,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         next.name = change.rename;
       }
       if (change.categoryName) {
-        const category = resolveNewExerciseTypeCategory(change.categoryName, state.analyticsCategories);
+        const category = resolveCategory(ctx, change.categoryName, item);
         if (category !== type.category) item.details.push(`category ${type.category} → ${category}`);
         next.category = category;
       }
@@ -1121,6 +1221,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         if (!newTypeIds.includes(s.typeId)) continue;
         const keys = used.get(s.typeId) ?? new Set();
         for (const k of Object.keys(s.prescribed ?? {})) if ((PARAMETER_BLOCKS as string[]).includes(k)) keys.add(k);
+        for (const id of Object.keys(s.prescribed?.custom ?? {})) keys.add(`v:${id}`);
         used.set(s.typeId, keys);
       }
     };
@@ -1130,6 +1231,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
   }
 
   const writes: PlanWrites = {
+    ...(ctx.changed.categories ? { analyticsCategories: ctx.categories } : {}),
     ...(ctx.changed.types ? { exerciseTypes: ctx.types } : {}),
     ...(ctx.changed.phases ? { phaseDefs: ctx.phaseDefs } : {}),
     ...(ctx.changed.templates ? { templates: ctx.templates } : {}),
@@ -1200,6 +1302,7 @@ export function planWithSelection(set: AIChangeSet, state: PlannerState, request
 /** Every item id, for "all ticked" - the preview's starting point. */
 export function allItemIds(set: AIChangeSet): Set<string> {
   return new Set([
+    ...(set.categories ?? []).map((_, i) => `category-${i}`),
     ...set.exerciseTypes.map((_, i) => `exercise-${i}`),
     ...set.circuits.map((_, i) => `circuit-${i}`),
     ...set.phases.map((_, i) => `phase-${i}`),

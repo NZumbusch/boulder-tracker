@@ -8,6 +8,7 @@ import {
   DEFAULT_ANALYTICS_CATEGORIES,
   DEFAULT_PHASE_DEFS,
   DEFAULT_METRIC_DEFS,
+  DEFAULT_VALUE_DEFS,
   DATA_EXPORT_VERSION,
 } from "../constants";
 
@@ -239,6 +240,8 @@ export async function initDB() {
       painLogs: await localforage.getItem("painLogs"),
       painIssues: await localforage.getItem("painIssues"),
       outdoorAscents: await localforage.getItem("outdoorAscents"),
+      settings: await localforage.getItem("settings"),
+      valueDefs: await localforage.getItem("valueDefs"),
       exportVersion: await localforage.getItem("database_version"),
     };
   }
@@ -269,6 +272,8 @@ export async function initDB() {
     // build issues from the entries (an empty one would say "already done").
     ...(rawData.painIssues ? { painIssues: rawData.painIssues } : resolveInitialExportVersion(rawData) === DATA_EXPORT_VERSION ? { painIssues: [] } : {}),
     outdoorAscents: rawData.outdoorAscents || [],
+    settings: rawData.settings || [],
+    valueDefs: rawData.valueDefs || structuredClone(DEFAULT_VALUE_DEFS),
     exportVersion: resolveInitialExportVersion(rawData),
   };
   if (rewrite && !demoMode) await writeNativeFile();
@@ -333,7 +338,7 @@ async function startNativeWrite(): Promise<void> {
 export const TABLES = [
   "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "planAlternatives", "athleteProfile", "coachNotes", "circuits", "goals", "templates", "phaseDefs",
   "exerciseTypes", "benchmarks", "benchmarkTypes", "analyticsCategories", "metricDefs",
-  "dailyMetrics", "painLogs", "painIssues", "outdoorAscents",
+  "dailyMetrics", "painLogs", "painIssues", "outdoorAscents", "settings", "valueDefs",
 ] as const;
 export type TableName = (typeof TABLES)[number];
 

@@ -52,6 +52,7 @@ export class PreferencesStore {
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
   navLabels = $state(false);
   helpButtons = $state(true);
+  widgetShowReadiness = $state(true);
   welcomeDone = $state(true);
 
   constructor() {
@@ -69,6 +70,18 @@ export class PreferencesStore {
       },
     );
 
+    this.assign(prefs);
+
+    // Persist immediately so the fold (or a version migration) only ever
+    // has to happen once, and so a fresh install's defaults are recorded
+    // rather than re-derived from scratch on every load.
+    if (rawStored === null || !isCurrentShape(rawStored, prefs)) {
+      this.persist(prefs);
+    }
+  }
+
+  /** Takes every stored preference from `prefs`. */
+  private assign(prefs: Preferences) {
     this.textScale = prefs.textScale;
     this.motion = prefs.motion;
     this.dailyMetricsReminderEnabled = prefs.dailyMetricsReminderEnabled;
@@ -106,14 +119,8 @@ export class PreferencesStore {
     this.addedExerciseTarget = prefs.addedExerciseTarget;
     this.navLabels = prefs.navLabels;
     this.helpButtons = prefs.helpButtons;
+    this.widgetShowReadiness = prefs.widgetShowReadiness;
     this.welcomeDone = prefs.welcomeDone;
-
-    // Persist immediately so the fold (or a version migration) only ever
-    // has to happen once, and so a fresh install's defaults are recorded
-    // rather than re-derived from scratch on every load.
-    if (rawStored === null || !isCurrentShape(rawStored, prefs)) {
-      this.persist(prefs);
-    }
   }
 
   setTextScale(scale: TextScale) {
@@ -318,6 +325,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setWidgetShowReadiness(on: boolean) {
+    this.widgetShowReadiness = on;
+    this.persist();
+  }
+
   setHelpButtons(on: boolean) {
     this.helpButtons = on;
     this.persist();
@@ -334,11 +346,12 @@ export class PreferencesStore {
    * of them stay in sync with whatever `UiStore` currently has, instead of
    * drifting back to defaults the next time text scale or motion changes.
    */
-  private persist(prefs?: Preferences) {
-    if (typeof localStorage === 'undefined') return;
+  /** Every preference as it is now. */
+  snapshot(): Preferences {
+    if (typeof localStorage === 'undefined') return defaultPreferences();
     const legacyTheme = localStorage.getItem(LEGACY_THEME_KEY);
     const legacyNotifications = localStorage.getItem(LEGACY_NOTIFICATIONS_KEY);
-    const toWrite = prefs ?? {
+    return {
       ...defaultPreferences(),
       textScale: this.textScale,
       motion: this.motion,
@@ -377,11 +390,31 @@ export class PreferencesStore {
       addedExerciseTarget: this.addedExerciseTarget,
       navLabels: this.navLabels,
       helpButtons: this.helpButtons,
+      widgetShowReadiness: this.widgetShowReadiness,
       welcomeDone: this.welcomeDone,
       theme: parseTheme(legacyTheme),
       notificationsEnabled: legacyNotifications === null ? defaultPreferences().notificationsEnabled : legacyNotifications === 'true',
     };
+  }
+
+  /**
+   * Replaces the preferences wholesale (reset, settings file, sync) and saves
+   * them. `silent` skips telling the portable-settings listener - used when
+   * the new values came from it.
+   */
+  replace(prefs: Preferences, silent = false) {
+    this.assign(prefs);
+    this.persist(undefined, silent);
+  }
+
+  /** Called with the current preferences after every save, so the portable ones can be kept in the database (and synced). */
+  onSaved: ((prefs: Preferences) => void) | null = null;
+
+  private persist(prefs?: Preferences, silent = false) {
+    if (typeof localStorage === 'undefined') return;
+    const toWrite = prefs ?? this.snapshot();
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(toWrite));
+    if (!silent) this.onSaved?.(toWrite);
   }
 }
 

@@ -6,7 +6,7 @@ import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
@@ -59,6 +59,8 @@ import { UiStore } from './stores/uiStore.svelte';
 import { SessionStore } from './stores/sessionStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
+import { applySettingsRecords, resetGroups, applyGroups, buildSettingsFile, parseSettingsFile, toSettingsRecords, type SettingsGroupId } from './preferences/portable';
+import { stableStringify } from './sync/merge';
 import { WeatherStore } from './stores/weatherStore.svelte';
 import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
@@ -123,6 +125,8 @@ class TrainingState {
   get templates() { return this.planningStore.templates; }
   get exerciseTypes() { return this.catalogStore.exerciseTypes; }
   get analyticsCategories() { return this.catalogStore.analyticsCategories; }
+  /** The athlete's own value types - see `ValueDef`. */
+  get valueDefs() { return this.catalogStore.valueDefs; }
   get benchmarkTypes() { return this.catalogStore.benchmarkTypes; }
   get phaseDefs() { return this.catalogStore.phaseDefs; }
   get benchmarks() { return this.benchmarkStore.benchmarks; }
@@ -237,6 +241,75 @@ class TrainingState {
   /** City name -> candidate locations, for the Settings location picker (raw lat/lon entry bypasses this entirely). */
   async geocodeCity(query: string) {
     return geocodeCity(query);
+  }
+
+  // --- Custom value types (lib/exercise/valueDefs.ts) ---
+
+  async saveValueDefs(defs: ValueDef[]) {
+    await this.catalogStore.saveValueDefs(defs);
+  }
+
+  /** Deletes a value type and every value of it; returns how many values went. */
+  async deleteValueDef(id: string): Promise<number> {
+    const removed = await this.catalogStore.deleteValueDef(id);
+    await this.refresh();
+    return removed;
+  }
+
+  // --- Portable settings: reset, file, sync (lib/preferences/portable.ts) ---
+
+  #settingsSeeded = false;
+
+  /**
+   * Keeps the `settings` table and the preferences in step. The first call
+   * (startup) writes this device's preferences into the table - what is in
+   * localStorage is the truth then. Later calls (after a sync or an import)
+   * read the table back into the preferences, since that is where other
+   * devices' changes arrive.
+   */
+  private async reconcileSettings() {
+    if (isDemoMode()) return;
+    try {
+      if (!this.#settingsSeeded) {
+        this.#settingsSeeded = true;
+        this.preferencesStore.onSaved = () => { void this.saveSettingsRecords(); };
+        await this.saveSettingsRecords();
+        return;
+      }
+      const records = await storage.getSettings();
+      const current = this.preferencesStore.snapshot();
+      const next = applySettingsRecords(current, records);
+      if (stableStringify(next) !== stableStringify(current)) this.preferencesStore.replace(next, true);
+    } catch (err) {
+      console.error('Failed to reconcile settings with the database:', err);
+    }
+  }
+
+  private async saveSettingsRecords() {
+    if (isDemoMode()) return;
+    const records = toSettingsRecords(this.preferencesStore.snapshot());
+    // Skipped when nothing changed: every flush is a sync-ledger event.
+    if (stableStringify(records) === stableStringify(await storage.getSettings())) return;
+    await storage.saveSettings(records);
+  }
+
+  /** The settings groups, back at their defaults. Categories restore the built-in ones without touching yours. */
+  async resetSettings(groups: readonly SettingsGroupId[], opts: { categories?: boolean } = {}) {
+    if (groups.length) this.preferencesStore.replace(resetGroups(this.preferencesStore.snapshot(), groups));
+    if (opts.categories) await this.catalogStore.restoreDefaultCategories();
+  }
+
+  /** The portable settings as a file's text. */
+  settingsFileText(): string {
+    return JSON.stringify(buildSettingsFile(this.preferencesStore.snapshot()), null, 2);
+  }
+
+  /** Applies a settings file's text. Returns an error message, or null when it went in. */
+  importSettingsText(text: string, groups: readonly SettingsGroupId[]): string | null {
+    const parsed = parseSettingsFile(text);
+    if (!parsed.ok) return parsed.error;
+    this.preferencesStore.replace(applyGroups(this.preferencesStore.snapshot(), parsed.settings, groups));
+    return null;
   }
 
   // --- Fatigue chart style, timer toggles, Home section layout ---
@@ -365,6 +438,10 @@ class TrainingState {
   get helpButtons() { return this.preferencesStore.helpButtons; }
   setHelpButtons(on: boolean) { this.preferencesStore.setHelpButtons(on); }
 
+  /** Whether the home-screen widgets show the readiness score. */
+  get widgetShowReadiness() { return this.preferencesStore.widgetShowReadiness; }
+  setWidgetShowReadiness(on: boolean) { this.preferencesStore.setWidgetShowReadiness(on); }
+
   /** Whether the first-run welcome has been seen on this device. */
   get welcomeDone() { return this.preferencesStore.welcomeDone; }
   setWelcomeDone(done: boolean) { this.preferencesStore.setWelcomeDone(done); }
@@ -389,6 +466,8 @@ class TrainingState {
         this.metricsStore.load(),
         this.outdoorAscentStore.load(),
       ]);
+
+      await this.reconcileSettings();
 
       // The database file was damaged and got restored (storage/persistence.ts) - say so, once.
       const recovery = takeRecoveryNotice();

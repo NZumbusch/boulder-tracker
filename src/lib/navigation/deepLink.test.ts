@@ -9,6 +9,12 @@ describe("parseDeepLink", () => {
     expect(parseDeepLink("BoulderTracker://Session?from=widget")).toEqual({ kind: "session" });
   });
 
+  it("can name the quick-log form to open", () => {
+    expect(parseDeepLink("bouldertracker://quicklog/pain")).toEqual({ kind: "quickLog", action: "pain" });
+    expect(parseDeepLink("bouldertracker://quicklog/Bodyweight/")).toEqual({ kind: "quickLog", action: "bodyweight" });
+    expect(parseDeepLink("bouldertracker://quicklog/nonsense")).toEqual({ kind: "quickLog" });
+  });
+
   it("opens a tab by name", () => {
     expect(parseDeepLink("bouldertracker://view/plan")).toEqual({ kind: "view", view: "plan" });
     expect(parseDeepLink("bouldertracker://view/nowhere")).toBeNull();

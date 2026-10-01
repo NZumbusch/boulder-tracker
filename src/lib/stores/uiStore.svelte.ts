@@ -25,6 +25,8 @@ export class UiStore {
   historyTab = $state<'sessions' | 'sends'>('sessions');
   /** Something a shortcut or the widget asked Home to open (see `navigation/deepLink`); Home clears it once handled. */
   homeRequest = $state<'quickLog' | 'metrics' | null>(null);
+  /** With a quick-log request: the form to open straight away (the widget's buttons name one). */
+  quickLogAction = $state<'pain' | 'bodyweight' | 'send' | 'benchmark' | null>(null);
   theme = $state<ThemePreference>(DEFAULT_THEME);
   /** The phone's own dark-mode setting, kept live for the "system" theme. */
   systemDark = $state(false);

@@ -127,3 +127,11 @@ describe("validateChangeSet - circuits", () => {
     expect(validateChangeSet({ circuits: [{ action: "edit", name: "Core A" }] }).valid).toBe(false);
   });
 });
+
+describe("custom parameters in exercise-type changes", () => {
+  it('accepts "v:<id>" next to built-in fields and still drops junk', () => {
+    const result = validateChangeSet({ exerciseTypes: [{ action: "add", name: "Hill walk", parameters: ["duration", "v:elevation", "v:bad id", "nonsense"] }] });
+    expect(result.valid).toBe(true);
+    expect((result.data as any).exerciseTypes[0].parameters).toEqual(["duration", "v:elevation"]);
+  });
+});

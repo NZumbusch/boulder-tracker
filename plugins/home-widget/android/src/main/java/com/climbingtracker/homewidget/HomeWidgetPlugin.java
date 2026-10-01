@@ -11,7 +11,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
  * - `update({snapshot})`: stores the app's widget snapshot and redraws every widget from it.
- * - `pin({kind})`: asks the launcher to add a widget ("today" / "readiness") to the home screen
+ * - `pin({kind})`: asks the launcher to add a widget ("today" / "readiness" / "week" / "quicklog" / "load") to the home screen
  *   (Android 8+, launchers that support it); resolves `{requested}`.
  */
 @CapacitorPlugin(name = "HomeWidget")
@@ -37,10 +37,21 @@ public class HomeWidgetPlugin extends Plugin {
             return;
         }
         AppWidgetManager manager = getContext().getSystemService(AppWidgetManager.class);
-        Class<?> provider = "readiness".equals(call.getString("kind")) ? ReadinessWidgetProvider.class : TodayWidgetProvider.class;
+        Class<?> provider = providerFor(call.getString("kind"));
         boolean ok = manager != null && manager.isRequestPinAppWidgetSupported()
             && manager.requestPinAppWidget(new ComponentName(getContext(), provider), null, null);
         result.put("requested", ok);
         call.resolve(result);
+    }
+
+    private static Class<?> providerFor(String kind) {
+        if (kind == null) return TodayWidgetProvider.class;
+        switch (kind) {
+            case "readiness": return ReadinessWidgetProvider.class;
+            case "week": return WeekWidgetProvider.class;
+            case "quicklog": return QuickLogWidgetProvider.class;
+            case "load": return LoadWidgetProvider.class;
+            default: return TodayWidgetProvider.class;
+        }
     }
 }
