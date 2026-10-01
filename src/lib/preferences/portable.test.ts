@@ -99,3 +99,16 @@ describe('sync records', () => {
     expect(p.aiSharing.notes).toBe(defaultPreferences().aiSharing.notes);
   });
 });
+
+describe('reactive values', () => {
+  it('copies values that are proxies (as the preferences store holds them), which structuredClone cannot', () => {
+    const p = defaultPreferences();
+    p.homeSections = new Proxy(p.homeSections, {}) as typeof p.homeSections;
+    p.aiSharing = new Proxy(p.aiSharing, {}) as typeof p.aiSharing;
+    expect(() => structuredClone(p.aiSharing)).toThrow();
+    const records = toSettingsRecords(p);
+    expect(() => structuredClone(records)).not.toThrow();
+    expect(records.find((r) => r.id === 'ai')!.value.aiSharing).toEqual(defaultPreferences().aiSharing);
+  });
+});
+

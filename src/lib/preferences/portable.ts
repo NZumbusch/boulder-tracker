@@ -52,11 +52,19 @@ const DEVICE_BOUND: (keyof Preferences)[] = ['textScale', 'motion'];
 
 const travelKeys = (id: SettingsGroupId) => SETTINGS_GROUPS[id].keys.filter((k) => !DEVICE_BOUND.includes(k));
 
+/**
+ * A deep copy that works on Svelte `$state` proxies, which `structuredClone`
+ * refuses ("could not be cloned"). Preferences are JSON by construction.
+ */
+function plainCopy<T>(value: T): T {
+  return value === undefined ? value : JSON.parse(JSON.stringify(value));
+}
+
 /** The groups' values as they are now. */
 export function pickGroups(prefs: Preferences, ids: readonly SettingsGroupId[], opts: { forTravel?: boolean } = {}): Partial<Preferences> {
   const out: Record<string, unknown> = {};
   for (const id of ids) {
-    for (const key of opts.forTravel ? travelKeys(id) : SETTINGS_GROUPS[id].keys) out[key] = structuredClone(prefs[key]);
+    for (const key of opts.forTravel ? travelKeys(id) : SETTINGS_GROUPS[id].keys) out[key] = plainCopy(prefs[key]);
   }
   return out as Partial<Preferences>;
 }
