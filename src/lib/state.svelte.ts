@@ -62,7 +62,7 @@ import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { applySettingsRecords, resetGroups, applyGroups, buildSettingsFile, parseSettingsFile, toSettingsRecords, type SettingsGroupId } from './preferences/portable';
 import { stableStringify } from './sync/merge';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs, WidgetReadinessDetail } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { CragForecast } from './weather/suggestion';
 import type { TextScale, MotionPreference } from './preferences/migrate';
@@ -441,6 +441,9 @@ class TrainingState {
   /** Whether the home-screen widgets show the readiness score. */
   get widgetShowReadiness() { return this.preferencesStore.widgetShowReadiness; }
   setWidgetShowReadiness(on: boolean) { this.preferencesStore.setWidgetShowReadiness(on); }
+  /** What the tall readiness widget shows under the ring. */
+  get widgetReadinessDetail() { return this.preferencesStore.widgetReadinessDetail; }
+  setWidgetReadinessDetail(d: WidgetReadinessDetail) { this.preferencesStore.setWidgetReadinessDetail(d); }
 
   /** Whether the first-run welcome has been seen on this device. */
   get welcomeDone() { return this.preferencesStore.welcomeDone; }

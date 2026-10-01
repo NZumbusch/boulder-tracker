@@ -153,6 +153,8 @@ export interface Preferences {
   helpButtons: boolean;
   /** Home-screen widgets (Android) show the readiness score. Off hides the number - the ring stays empty - for those who'd rather not have it on the home screen. */
   widgetShowReadiness: boolean;
+  /** What the readiness widget shows under the ring when it is stretched tall: nothing (the clean look), the factors behind the score, or today's logged numbers. */
+  widgetReadinessDetail: WidgetReadinessDetail;
   /**
    * The welcome screens (level, units, location, install) have been seen.
    * False only on a fresh install: a blob saved before this key existed is
@@ -162,6 +164,9 @@ export interface Preferences {
 }
 
 /** See `Preferences.addedExerciseTarget`. */
+export type WidgetReadinessDetail = 'none' | 'factors' | 'metrics';
+export const WIDGET_READINESS_DETAILS: WidgetReadinessDetail[] = ['none', 'factors', 'metrics'];
+
 export type AddedExerciseTarget = 'none' | 'mirror';
 
 /**
@@ -315,6 +320,7 @@ export function defaultPreferences(): Preferences {
     navLabels: false,
     helpButtons: true,
     widgetShowReadiness: true,
+    widgetReadinessDetail: 'factors',
     welcomeDone: false,
     aiHistory: { ...DEFAULT_AI_HISTORY },
     autoBackup: true,
@@ -544,6 +550,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     navLabels: typeof candidate.navLabels === 'boolean' ? candidate.navLabels : defaults.navLabels,
     helpButtons: typeof candidate.helpButtons === 'boolean' ? candidate.helpButtons : defaults.helpButtons,
     widgetShowReadiness: typeof candidate.widgetShowReadiness === 'boolean' ? candidate.widgetShowReadiness : defaults.widgetShowReadiness,
+    widgetReadinessDetail: WIDGET_READINESS_DETAILS.includes(candidate.widgetReadinessDetail as WidgetReadinessDetail) ? (candidate.widgetReadinessDetail as WidgetReadinessDetail) : defaults.widgetReadinessDetail,
     welcomeDone: typeof candidate.welcomeDone === 'boolean' ? candidate.welcomeDone : true,
   };
 }

@@ -21,4 +21,142 @@
         android:text="Readiness"
         android:textColor="@color/widget_muted"
         android:textSize="12sp" />
+    <!-- Only when stretched tall and a detail is chosen (Settings -> Widgets): the factors or today's numbers. -->
+    <LinearLayout
+        android:id="@+id/detail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="vertical"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/detail_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.06"
+            android:textColor="@color/widget_muted"
+            android:textSize="10sp" />
+        <LinearLayout
+            android:id="@+id/d0"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/d0_l"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/d0_v"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:textColor="@color/widget_text"
+                android:textSize="13sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/d1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/d1_l"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/d1_v"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:textColor="@color/widget_text"
+                android:textSize="13sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/d2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/d2_l"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/d2_v"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:textColor="@color/widget_text"
+                android:textSize="13sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/d3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/d3_l"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/d3_v"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:textColor="@color/widget_text"
+                android:textSize="13sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/d4"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/d4_l"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:textColor="@color/widget_muted"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/d4_v"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:textColor="@color/widget_text"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </LinearLayout>
 </LinearLayout>

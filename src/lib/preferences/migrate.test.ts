@@ -25,6 +25,7 @@ describe('defaultPreferences', () => {
       navLabels: false,
       helpButtons: true,
       widgetShowReadiness: true,
+      widgetReadinessDetail: 'factors',
       welcomeDone: false,
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
@@ -133,6 +134,7 @@ describe('migratePreferences', () => {
       navLabels: true,
       helpButtons: false,
       widgetShowReadiness: false,
+      widgetReadinessDetail: 'metrics' as const,
       welcomeDone: true,
     };
     expect(migratePreferences(valid)).toEqual(valid);

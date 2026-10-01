@@ -52,7 +52,7 @@ final class WidgetRenderer {
             manager.updateAppWidget(id, today(context, heightDp(manager, id)));
         }
         for (int id : manager.getAppWidgetIds(new ComponentName(context, ReadinessWidgetProvider.class))) {
-            manager.updateAppWidget(id, readiness(context));
+            manager.updateAppWidget(id, readiness(context, heightDp(manager, id)));
         }
         for (int id : manager.getAppWidgetIds(new ComponentName(context, WeekWidgetProvider.class))) {
             manager.updateAppWidget(id, week(context, heightDp(manager, id)));
@@ -114,13 +114,44 @@ final class WidgetRenderer {
         return true;
     }
 
-    static RemoteViews readiness(Context context) {
+    private static final int[] DETAIL_ROW = {R.id.d0, R.id.d1, R.id.d2, R.id.d3, R.id.d4};
+    private static final int[] DETAIL_LABEL = {R.id.d0_l, R.id.d1_l, R.id.d2_l, R.id.d3_l, R.id.d4_l};
+    private static final int[] DETAIL_VALUE = {R.id.d0_v, R.id.d1_v, R.id.d2_v, R.id.d3_v, R.id.d4_v};
+
+    static RemoteViews readiness(Context context, int heightDp) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_readiness);
-        boolean scored = drawRing(context, views, snapshot(context));
+        JSONObject snap = snapshot(context);
+        boolean scored = drawRing(context, views, snap);
+        showDetail(context, views, snap, heightDp);
         views.setTextViewText(R.id.caption, scored ? "Readiness" : "Tap to log metrics");
         // Tapping goes straight to logging today's metrics - what moves the score.
         views.setOnClickPendingIntent(R.id.widget_root, link(context, "bouldertracker://metrics"));
         return views;
+    }
+
+    /**
+     * Under the ring, when the widget is tall enough and the athlete chose a detail: the factors behind
+     * the score, or today's numbers (the app decides which and sends the rows; the clean look sends none).
+     */
+    private static void showDetail(Context context, RemoteViews views, JSONObject snap, int heightDp) {
+        views.setViewVisibility(R.id.detail, View.GONE);
+        JSONObject r = snap == null ? null : snap.optJSONObject("readiness");
+        JSONObject detail = r == null ? null : r.optJSONObject("detail");
+        if (detail == null || heightDp < TALL_DP || !todayIso().equals(r.optString("date"))) return;
+        JSONArray rows = detail.optJSONArray("rows");
+        if (rows == null || rows.length() == 0) return;
+        views.setTextViewText(R.id.detail_title, detail.optString("title"));
+        for (int i = 0; i < DETAIL_ROW.length; i++) {
+            JSONObject row = i < rows.length() ? rows.optJSONObject(i) : null;
+            if (row == null) {
+                views.setViewVisibility(DETAIL_ROW[i], View.GONE);
+                continue;
+            }
+            views.setViewVisibility(DETAIL_ROW[i], View.VISIBLE);
+            views.setTextViewText(DETAIL_LABEL[i], row.optString("l"));
+            views.setTextViewText(DETAIL_VALUE[i], row.optString("v"));
+        }
+        views.setViewVisibility(R.id.detail, View.VISIBLE);
     }
 
     // --- Today ---

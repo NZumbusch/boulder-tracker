@@ -55,11 +55,38 @@ export function acwrZoneOf(ratio: number, zones: { sweetMin: number; caution: nu
   return "low";
 }
 
+/** A few labelled rows: the factors behind the score, or today's logged numbers. */
+export interface ReadinessDetailRows {
+  title: string;
+  rows: { l: string; v: string }[];
+}
+
+/**
+ * The factors that fed the score, each with the points it cost (0 = fine). Inputs with no data are left
+ * out - a row of "n/a" says less than no row.
+ */
+export function readinessFactorRows(readiness: Pick<ReadinessResult, "penalties" | "inputsUsed">): { l: string; v: string }[] {
+  const all: [string, number, boolean][] = [
+    ["Fatigue", readiness.penalties.fatigue, readiness.inputsUsed.fatigue],
+    ["Load", readiness.penalties.acwr, readiness.inputsUsed.acwr],
+    ["Sleep", readiness.penalties.sleep, readiness.inputsUsed.sleep],
+    ["HRV", readiness.penalties.hrv, readiness.inputsUsed.hrv],
+    ["Pain", readiness.penalties.pain, readiness.inputsUsed.pain],
+  ];
+  return all.filter(([, , used]) => used).map(([l, p]) => ({ l, v: p > 0 ? `\u2212${Math.round(p)}` : "\u2713" }));
+}
+
 export interface WidgetSnapshot {
   v: 1;
   updatedAt: number;
   /** Today's readiness; the widget shows it only on the day it was worked out. */
-  readiness: { date: string; score: number | null; status: ReadinessResult["status"] };
+  readiness: {
+    date: string;
+    score: number | null;
+    status: ReadinessResult["status"];
+    /** Shown under the ring when the widget is tall - absent for the clean look. */
+    detail?: ReadinessDetailRows;
+  };
   days: WidgetDay[];
   /** Absent when the app that wrote the snapshot predates the week widgets. */
   week?: WidgetWeek;
@@ -93,6 +120,8 @@ export function buildWidgetSnapshot(input: {
   quickLog?: string[];
   /** Hide the readiness score (a privacy choice - the widget then shows no number). */
   hideReadiness?: boolean;
+  /** What goes under the ring on a tall widget; none for the clean look. */
+  readinessDetail?: ReadinessDetailRows;
 }): WidgetSnapshot {
   return {
     v: 1,
@@ -101,6 +130,7 @@ export function buildWidgetSnapshot(input: {
       date: localIsoDate(input.now),
       score: !input.hideReadiness && input.readiness?.score !== undefined ? Math.round(input.readiness.score) : null,
       status: input.hideReadiness ? "neutral" : input.readiness?.status ?? "neutral",
+      ...(!input.hideReadiness && input.readinessDetail && input.readinessDetail.rows.length ? { detail: input.readinessDetail } : {}),
     },
     days: input.days.map((day) => ({
       date: day.date,

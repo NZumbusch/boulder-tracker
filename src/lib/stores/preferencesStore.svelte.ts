@@ -1,4 +1,4 @@
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -53,6 +53,7 @@ export class PreferencesStore {
   navLabels = $state(false);
   helpButtons = $state(true);
   widgetShowReadiness = $state(true);
+  widgetReadinessDetail = $state<WidgetReadinessDetail>('factors');
   welcomeDone = $state(true);
 
   constructor() {
@@ -120,6 +121,7 @@ export class PreferencesStore {
     this.navLabels = prefs.navLabels;
     this.helpButtons = prefs.helpButtons;
     this.widgetShowReadiness = prefs.widgetShowReadiness;
+    this.widgetReadinessDetail = prefs.widgetReadinessDetail;
     this.welcomeDone = prefs.welcomeDone;
   }
 
@@ -325,6 +327,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setWidgetReadinessDetail(detail: WidgetReadinessDetail) {
+    this.widgetReadinessDetail = detail;
+    this.persist();
+  }
+
   setWidgetShowReadiness(on: boolean) {
     this.widgetShowReadiness = on;
     this.persist();
@@ -391,6 +398,7 @@ export class PreferencesStore {
       navLabels: this.navLabels,
       helpButtons: this.helpButtons,
       widgetShowReadiness: this.widgetShowReadiness,
+      widgetReadinessDetail: this.widgetReadinessDetail,
       welcomeDone: this.welcomeDone,
       theme: parseTheme(legacyTheme),
       notificationsEnabled: legacyNotifications === null ? defaultPreferences().notificationsEnabled : legacyNotifications === 'true',

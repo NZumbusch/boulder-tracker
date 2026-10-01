@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { acwrZoneOf, buildWidgetSnapshot, localIsoDate } from "./widgetSnapshot";
+import { acwrZoneOf, buildWidgetSnapshot, localIsoDate, readinessFactorRows } from "./widgetSnapshot";
 import type { Workout } from "../types";
 
 const workout = (notes: string, extra: Partial<Workout> = {}): Workout =>
@@ -61,5 +61,20 @@ describe("widget snapshot", () => {
   it("puts an ACWR ratio in its zone by the given thresholds", () => {
     const zones = { sweetMin: 0.8, caution: 1.3, highRisk: 1.5 };
     expect(["0.5", "0.8", "1.3", "1.31", "1.5", "1.51"].map((r) => acwrZoneOf(Number(r), zones))).toEqual(["low", "sweet", "sweet", "caution", "caution", "risk"]);
+  });
+
+  it("lists the factors that fed the score with their cost, leaving out inputs without data", () => {
+    const rows = readinessFactorRows({
+      penalties: { fatigue: 12.4, acwr: 0, sleep: 0, hrv: 3, pain: 0 },
+      inputsUsed: { fatigue: true, acwr: true, sleep: false, hrv: true, pain: false },
+    });
+    expect(rows).toEqual([{ l: "Fatigue", v: "\u221212" }, { l: "Load", v: "\u2713" }, { l: "HRV", v: "\u22123" }]);
+  });
+
+  it("carries the detail rows only while readiness is shown", () => {
+    const base = { now: new Date(2026, 8, 25), readiness: { score: 80, status: "good" } as never, days: [], exerciseTypes: [], active: null, readinessDetail: { title: "TODAY", rows: [{ l: "HRV", v: "64 ms" }] } };
+    expect(buildWidgetSnapshot(base).readiness.detail).toEqual({ title: "TODAY", rows: [{ l: "HRV", v: "64 ms" }] });
+    expect(buildWidgetSnapshot({ ...base, hideReadiness: true }).readiness.detail).toBeUndefined();
+    expect(buildWidgetSnapshot({ ...base, readinessDetail: { title: "TODAY", rows: [] } }).readiness.detail).toBeUndefined();
   });
 });

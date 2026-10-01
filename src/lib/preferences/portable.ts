@@ -23,7 +23,7 @@ export const SETTINGS_GROUPS: Record<SettingsGroupId, { label: string; descripti
   appearance: {
     label: 'Appearance & units',
     description: 'Text size, motion, units, labels, help buttons, chart styles',
-    keys: ['textScale', 'motion', 'units', 'navLabels', 'helpButtons', 'widgetShowReadiness', 'fatigueChartStyle', 'recoveryChartMode', 'sendsChartCounts', 'analyticsRange'],
+    keys: ['textScale', 'motion', 'units', 'navLabels', 'helpButtons', 'widgetShowReadiness', 'widgetReadinessDetail', 'fatigueChartStyle', 'recoveryChartMode', 'sendsChartCounts', 'analyticsRange'],
   },
   layout: {
     label: 'Home, Analytics & quick-log layout',

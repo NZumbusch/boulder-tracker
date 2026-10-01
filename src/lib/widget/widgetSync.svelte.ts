@@ -9,10 +9,13 @@ import { untrack } from "svelte";
 import { trainingState } from "../state.svelte";
 import { HomeData } from "../../components/dashboard/home/homeData.svelte";
 import { getWeekId } from "../dateUtils";
-import { acwrZoneOf, buildWidgetSnapshot, localIsoDate, sessionName, WIDGET_DAYS, type WidgetSnapshot, type WidgetWeek } from "./widgetSnapshot";
+import { acwrZoneOf, buildWidgetSnapshot, readinessFactorRows, type ReadinessDetailRows, localIsoDate, sessionName, WIDGET_DAYS, type WidgetSnapshot, type WidgetWeek } from "./widgetSnapshot";
 import { weekDayStrip } from "../planning/weekStatus";
 import { buildWeekRecap, planProgress } from "../planning/weekRecap";
 import { decrementWeekId } from "../dateUtils";
+import { loggedMetrics } from "../analytics/metricValues";
+import { BODYWEIGHT_METRIC_ID } from "../constants";
+import { formatWeight } from "../units";
 import type { DayOfWeek } from "../types";
 
 interface HomeWidgetPlugin {
@@ -51,6 +54,29 @@ function currentWeek(now: Date, home: HomeData): WidgetWeek {
   };
 }
 
+/** The rows under the readiness ring on a tall widget, as the athlete chose them (nothing for the clean look). */
+function readinessDetail(home: HomeData): ReadinessDetailRows | undefined {
+  const mode = trainingState.widgetReadinessDetail;
+  if (mode === "factors") {
+    const r = home.readiness;
+    return r.score === undefined ? undefined : { title: "WHAT MOVES IT", rows: readinessFactorRows(r) };
+  }
+  if (mode === "metrics") {
+    const rows: { l: string; v: string }[] = [];
+    const add = (l: string, v: string | undefined) => { if (v) rows.push({ l, v }); };
+    const num = (id: string) => home.todaysMetric(id)?.value;
+    const sleep = num("sleep-score");
+    const hours = num("sleep-duration");
+    add("Sleep", sleep !== undefined ? `${Math.round(sleep)}${hours !== undefined ? ` \u00b7 ${hours.toFixed(1)} h` : ""}` : hours !== undefined ? `${hours.toFixed(1)} h` : undefined);
+    add("HRV", num("hrv") !== undefined ? `${Math.round(num("hrv")!)} ms` : undefined);
+    add("Resting HR", num("rhr") !== undefined ? `${Math.round(num("rhr")!)} bpm` : undefined);
+    const weight = loggedMetrics(trainingState.dailyMetrics).filter((m) => m.metricId === BODYWEIGHT_METRIC_ID).sort((a, b) => b.date.localeCompare(a.date))[0];
+    add("Weight", weight ? formatWeight(weight.value, trainingState.units.weight) : undefined);
+    return rows.length ? { title: "TODAY", rows } : undefined;
+  }
+  return undefined;
+}
+
 function currentSnapshot(): WidgetSnapshot {
   const now = new Date();
   const home = new HomeData();
@@ -74,6 +100,7 @@ function currentSnapshot(): WidgetSnapshot {
     week: trainingState.isLoading ? undefined : currentWeek(now, home),
     quickLog: trainingState.quickLogActions.filter((a) => a.visible).map((a) => a.id),
     hideReadiness: !trainingState.widgetShowReadiness,
+    readinessDetail: trainingState.isLoading ? undefined : readinessDetail(home),
     active: workout
       // The clock is read untracked: it ticks every second, and the widget runs its own.
       ? { name: sessionName(workout), settled: store.progress.settled, total: store.progress.total, paused: store.isPaused, elapsedMs: untrack(() => store.elapsedMs) }
