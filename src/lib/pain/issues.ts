@@ -2,7 +2,7 @@ import type { PainIssue, PainLog, PainRegion, PainSide, PainTrend, PainKind, Pai
 import { getWeekId } from "../dateUtils";
 
 /**
- * Pain issues and their check-ins (PAIN_PLAN.md). Pure: storage, state
+ * Pain issues and their check-ins. Pure: storage, state
  * and the UI all read the same answers from here.
  */
 

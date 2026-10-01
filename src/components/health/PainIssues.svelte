@@ -2,7 +2,7 @@
   /**
    * Pain in the quick-log sheet: your open issues (tap for the issue page,
    * check in right here), a new issue, and the resolved ones - folded.
-   * Replaces the old flat list of entries (PAIN_PLAN.md).
+   * Replaces the old flat list of entries.
    */
   import { trainingState } from '../../lib/state.svelte';
   import { localIsoDate, formatDate } from '../../lib/dateUtils';

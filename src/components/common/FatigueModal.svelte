@@ -34,7 +34,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   /** "How it went" - separate from the session's name and from its plan note; AI Sharing treats it on its own. */
   let logNotes = $state('');
 
-  // --- Pain check-ins (PAIN_PLAN.md): right after a session is when you
+  // --- Pain check-ins: right after a session is when you
   // know how the open issues took it. Answers are collected here and saved
   // with the session; they never affect loadFactor/fatigue. A new issue
   // opens the full report (mounted in App).

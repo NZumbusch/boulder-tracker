@@ -1459,7 +1459,7 @@ class TrainingState {
     await this.refresh();
   }
 
-  // --- Pain issues (PAIN_PLAN.md) ---
+  // --- Pain issues ---
 
   /** A new issue with its first check-in. */
   async reportPain(issue: PainIssue, first: PainLog) {

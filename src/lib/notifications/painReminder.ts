@@ -8,7 +8,7 @@ import { reminderId, checkNotificationPermission, cancelRemindersOfType } from '
 import { computeDailyMetricsReminderTime } from './dailyMetricsReminder';
 
 /**
- * The pain check-in reminder (PAIN_PLAN.md): one notification at the
+ * The pain check-in reminder: one notification at the
  * chosen time when an open issue has gone `reminderDays` without a
  * check-in. Reconciled from scratch on every refresh, like the other
  * reminders - checking in clears it the next time the app runs.

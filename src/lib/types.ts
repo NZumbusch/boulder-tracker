@@ -697,7 +697,7 @@ export type PainSide = "left" | "right" | "both";
 
 /**
  * One niggle or injury, from when it started to when it was gone - the
- * thing a pain entry (`PainLog`) is a check-in on (PAIN_PLAN.md).
+ * thing a pain entry (`PainLog`) is a check-in on.
  * Resolved when `endDate` is set; "improving" and "worse" are read from
  * its check-ins, not stored.
  */

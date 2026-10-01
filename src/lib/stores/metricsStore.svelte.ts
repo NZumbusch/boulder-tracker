@@ -10,7 +10,7 @@ export class MetricsStore {
   metricDefs = $state<MetricDef[]>([]);
   dailyMetrics = $state<DailyMetricEntry[]>([]);
   painLogs = $state<PainLog[]>([]);
-  /** Pain issues - what the entries above are check-ins on (PAIN_PLAN.md). */
+  /** Pain issues - what the entries above are check-ins on. */
   painIssues = $state<PainIssue[]>([]);
 
   async load() {

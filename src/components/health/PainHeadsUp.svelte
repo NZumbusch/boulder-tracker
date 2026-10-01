@@ -2,7 +2,7 @@
   /**
    * A heads-up on a planned session that hits an open pain issue: one of
    * its exercises is charted under a category the issue watches ("Warn me
-   * before sessions with…", PAIN_PLAN.md). A chip in a row, or a line in
+   * before sessions with…"). A chip in a row, or a line in
    * the viewer and the live session.
    */
   import type { Workout } from '../../lib/types';

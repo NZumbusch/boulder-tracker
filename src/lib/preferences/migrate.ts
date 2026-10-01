@@ -84,7 +84,7 @@ export interface Preferences {
   timerPillHidden: boolean;
   /** The screen stays on for the whole running session, not only while a timer runs. */
   sessionKeepAwake: boolean;
-  /** Pain check-in prompts (PAIN_PLAN.md) - each switchable. */
+  /** Pain check-in prompts - each switchable. */
   painCheckIns: PainCheckInPrefs;
   /** Short vibrations on finishing an exercise, a session, swipes and long-presses (native app). */
   hapticsEnabled: boolean;

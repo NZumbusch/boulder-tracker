@@ -22,7 +22,7 @@ export interface AlertInputs {
   workouts: Workout[];
   dailyMetrics: DailyMetricEntry[];
   painLogs: PainLog[];
-  /** Pain issues (PAIN_PLAN.md); without them the entries are grouped here. */
+  /** Pain issues; without them the entries are grouped here. */
   painIssues?: PainIssue[];
   /** ISO timestamp of the last successful backup export, if any. */
   lastBackupAt?: string;
@@ -76,7 +76,7 @@ export function buildAlerts(input: AlertInputs): HomeAlert[] {
 
   // Open pain issues that still matter: at 3/10 or more, or getting worse
   // - the worst first. An issue stays here until it's closed, not just for
-  // a week after its last entry (PAIN_PLAN.md).
+  // a week after its last entry.
   if (enabled.pain) {
     const { issues, logs } = input.painIssues ? { issues: input.painIssues, logs: painLogs } : groupLogsIntoIssues(painLogs);
     // The same UTC day `daysAgo` counts from.

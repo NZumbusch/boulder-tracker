@@ -1138,7 +1138,7 @@ const MIGRATIONS: MigrationStep[] = [
   {
     from: "3.32",
     to: "3.33",
-    describe: "Group pain entries into painIssues and link each entry to its issue (PAIN_PLAN.md)",
+    describe: "Group pain entries into painIssues and link each entry to its issue",
     migrate: (data: any) => {
       if (Array.isArray(data.painIssues)) return;
       const { issues, logs } = groupLogsIntoIssues(Array.isArray(data.painLogs) ? data.painLogs : []);
