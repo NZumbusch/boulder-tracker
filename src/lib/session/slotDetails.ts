@@ -3,7 +3,7 @@ import { trainingState } from '../state.svelte';
 import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../types';
 import { slotValues } from '../exerciseSlot';
 import { estimateSlotDuration } from '../planning/sessionDuration';
-import { PARAMETER_LABELS } from '../constants';
+import { paramLabel, formatCustomValue, customParam } from '../exercise/valueDefs';
 import { restSeconds } from '../exercise/rest';
 
 /** A one-line summary of what a slot asks for, for the collapsed rows. */
@@ -42,7 +42,7 @@ export function detailPairs(
     if (value === undefined || value === null || value === '') return;
     if (Array.isArray(value) && value.length === 0) return;
     pairs.push({
-      label: PARAMETER_LABELS[param],
+      label: paramLabel(param, trainingState.valueDefs),
       value: `${Array.isArray(value) ? value.join(', ') : value}${suffix}`,
     });
   };
@@ -70,6 +70,11 @@ export function detailPairs(
   push('maxWeightPercent', v.maxWeightPercent, '%');
   push('routeDifficulty', v.routeDifficulty);
   push('difficulty', v.difficulty);
+  // The athlete's own value types: shown whenever there is a value, archived or not - archiving only stops new use.
+  for (const def of trainingState.valueDefs) {
+    const text = formatCustomValue(def, v.custom?.[def.id]);
+    if (text && params.includes(customParam(def.id))) pairs.push({ label: def.name, value: text });
+  }
   if (params.includes('grades') || params.includes('boulderingGrades') || params.includes('routeGrades')) {
     if (v.minGrade) {
       pairs.push({

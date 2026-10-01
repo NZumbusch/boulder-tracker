@@ -67,3 +67,25 @@ describe("parseAIWorkoutLogOutput", () => {
     expect(r.valid).toBe(true);
   });
 });
+
+describe("custom value types in the session prompt", () => {
+  const defs = [
+    { id: "elevation", name: "Height / elevation", unit: "m", kind: "number" as const },
+    { id: "terrain", name: "Terrain", kind: "choice" as const, options: ["Flat", "Hilly"] },
+    { id: "old", name: "Old", kind: "number" as const, archived: true },
+  ];
+  it("describes the live ones and leaves archived ones out", () => {
+    const p = buildSessionPrompt({ workout, request: "", mode: "add", ...ctx, valueDefs: defs });
+    expect(p).toContain('"elevation" (Height / elevation): a number in m');
+    expect(p).toContain('"terrain" (Terrain): one of "Flat" / "Hilly"');
+    expect(p).not.toContain('"old"');
+  });
+  it("adds nothing when there are none", () => {
+    expect(buildSessionPrompt({ workout, request: "", mode: "add", ...ctx })).not.toContain("MY OWN VALUE TYPES");
+  });
+  it("keeps custom values from a reply, as numbers where they read as one", () => {
+    const parsed = parseAIWorkoutLogOutput(JSON.stringify({ workouts: [{ exercises: [{ exerciseTypeName: "Hangboard", values: { custom: { elevation: "120", terrain: "Hilly", bad: { x: 1 } } } }] }] }));
+    expect(parsed.valid).toBe(true);
+    expect(parsed.data?.workouts[0].exercises[0].values.custom).toEqual({ elevation: 120, terrain: "Hilly" });
+  });
+});

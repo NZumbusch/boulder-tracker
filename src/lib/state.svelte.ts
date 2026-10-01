@@ -125,6 +125,8 @@ class TrainingState {
   get templates() { return this.planningStore.templates; }
   get exerciseTypes() { return this.catalogStore.exerciseTypes; }
   get analyticsCategories() { return this.catalogStore.analyticsCategories; }
+  /** The athlete's own value types - see `ValueDef`. */
+  get valueDefs() { return this.catalogStore.valueDefs; }
   get benchmarkTypes() { return this.catalogStore.benchmarkTypes; }
   get phaseDefs() { return this.catalogStore.phaseDefs; }
   get benchmarks() { return this.benchmarkStore.benchmarks; }

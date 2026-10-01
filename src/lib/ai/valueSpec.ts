@@ -1,4 +1,4 @@
-import type { ExerciseValues } from "../types";
+import type { ExerciseValues, ValueDef } from "../types";
 
 /**
  * The single source of truth for what every `ExerciseValues` field means:
@@ -66,7 +66,10 @@ export const MOBILITY_TYPES = ["Hamstrings", "Shoulders", "Hips", "Spine", "Ankl
 export const LEAD_STYLES = ["Onsight", "Flash", "Redpoint", "Projecting"] as const;
 export const ROUTE_DIFFICULTIES = ["Easy", "Moderate", "Hard"] as const;
 
-export const EXERCISE_VALUE_SPEC: Record<keyof ExerciseValues, ValueFieldSpec> = {
+/** The built-in fields. `custom` (the athlete's own value types) is described per athlete - see `customValuesReference`. */
+export type BuiltInValueField = Exclude<keyof ExerciseValues, "custom">;
+
+export const EXERCISE_VALUE_SPEC: Record<BuiltInValueField, ValueFieldSpec> = {
   notes: { type: "string", description: "Free text. The ONLY field that accepts prose - coaching cues, session intent, anything qualitative." },
   duration: { type: "number", unit: "minutes", description: "Total working time for this exercise." },
   plannedLoad: { type: "number", unit: "1-10", description: "Intended stress of this exercise." },
@@ -102,7 +105,7 @@ export const EXERCISE_VALUE_SPEC: Record<keyof ExerciseValues, ValueFieldSpec> =
   mobilityType: { type: "string[]", enum: MOBILITY_TYPES, description: "Body areas mobilised. Split compound answers, e.g. \"Shoulders and Wrists\" is [\"Shoulders\", \"Wrists\"]." },
 };
 
-export const EXERCISE_VALUE_FIELD_NAMES = Object.keys(EXERCISE_VALUE_SPEC) as (keyof ExerciseValues)[];
+export const EXERCISE_VALUE_FIELD_NAMES = Object.keys(EXERCISE_VALUE_SPEC) as BuiltInValueField[];
 
 /**
  * Wrong-but-obvious field names, mapped to the real one.
@@ -212,4 +215,22 @@ export function renderValueFieldReference(): string {
     return line;
   });
   return lines.join("\n");
+}
+
+/**
+ * The athlete's own value types, as prompt text - empty when there are none
+ * in use. They go in `values.custom` by id; the matching "v:<id>" is what an
+ * exercise lists among its "parameters". Archived ones are left out: nothing
+ * new should be written to them.
+ */
+export function customValuesReference(defs: readonly ValueDef[]): string {
+  const live = defs.filter((d) => !d.archived);
+  if (!live.length) return "";
+  const rows = live.map((d) =>
+    d.kind === "choice"
+      ? `- "${d.id}" (${d.name}): one of ${(d.options ?? []).map((o) => JSON.stringify(o)).join(" / ")}`
+      : `- "${d.id}" (${d.name}): a number${d.unit ? ` in ${d.unit}` : ""}`,
+  );
+  return `MY OWN VALUE TYPES - besides the fields above, "values" may carry a "custom" object of these, keyed by the id in quotes: "custom": { "${live[0].id}": ${live[0].kind === "choice" ? JSON.stringify((live[0].options ?? [""])[0]) : 42} }. In an exercise's "parameters" list one as "v:<id>" (e.g. "v:${live[0].id}"). They are only recorded - they don't change load.
+${rows.join("\n")}`;
 }

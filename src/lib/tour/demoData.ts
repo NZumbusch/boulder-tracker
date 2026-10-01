@@ -21,6 +21,7 @@ import {
   DEFAULT_BENCHMARK_TYPES,
   DEFAULT_EXERCISE_TYPES,
   DEFAULT_METRIC_DEFS,
+  DEFAULT_VALUE_DEFS,
   DEFAULT_PHASE_DEFS,
   DEFAULT_TEMPLATES,
 } from "../constants";
@@ -286,6 +287,7 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     benchmarkTypes: structuredClone(DEFAULT_BENCHMARK_TYPES),
     analyticsCategories: structuredClone(DEFAULT_ANALYTICS_CATEGORIES),
     metricDefs: structuredClone(DEFAULT_METRIC_DEFS),
+    valueDefs: structuredClone(DEFAULT_VALUE_DEFS),
     dailyMetrics,
     painLogs,
     painIssues,

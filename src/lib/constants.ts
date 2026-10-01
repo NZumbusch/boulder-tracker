@@ -1,4 +1,4 @@
-import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, ParameterBlock, AnalyticsCategory, BenchmarkTypeDef, MetricDef, DayOfWeek } from "./types";
+import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, ParameterBlock, CustomParameter, ValueDef, AnalyticsCategory, BenchmarkTypeDef, MetricDef, DayOfWeek } from "./types";
 import defaults from "../data/defaults.json";
 
 /** The week, Monday first - the order the planner, schedule and AI all use. */
@@ -55,6 +55,18 @@ export const SLEEP_DURATION_METRIC: MetricDef = { id: "sleep-duration", name: "S
 /** Hours of naps that day, from Health Connect: a readiness boost on top of the night, not part of it. */
 export const NAP_DURATION_METRIC: MetricDef = { id: "nap-duration", name: "Naps", unit: "h" };
 
+/**
+ * The value types that ship with the app. Seeded once (`persistence.ts` for
+ * installs that have no table yet); after that they are ordinary defs - edit,
+ * archive or delete them like your own.
+ */
+export const DEFAULT_VALUE_DEFS: ValueDef[] = [
+  { id: "elevation", name: "Height / elevation", unit: "m", kind: "number", builtIn: true },
+  { id: "speed", name: "Speed", unit: "km/h", kind: "number", builtIn: true },
+  { id: "heartRate", name: "Heart rate", unit: "bpm", kind: "number", builtIn: true },
+  { id: "count", name: "Count", unit: "", kind: "number", builtIn: true },
+];
+
 export const DEFAULT_METRIC_DEFS: MetricDef[] = [
   { id: "sleep-score", name: "Sleep Score", unit: "pts" },
   { id: "hrv", name: "HRV", unit: "ms" },
@@ -72,7 +84,7 @@ export const DEFAULT_ANALYTICS_CATEGORIES: AnalyticsCategory[] = defaults.analyt
  */
 export const DEFAULT_EXERCISE_TYPES: ExerciseTypeDef[] = defaults.exerciseTypes as ExerciseTypeDef[];
 
-export const PARAMETER_LABELS: Record<ParameterBlock, string> = {
+export const PARAMETER_LABELS: Record<Exclude<ParameterBlock, CustomParameter>, string> = {
   duration: 'Duration',
   boulderingGrades: 'Bouldering Grades',
   routeGrades: 'Route Grades',

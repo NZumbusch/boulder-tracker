@@ -106,6 +106,7 @@
       exerciseTypes: trainingState.exerciseTypes,
       analyticsCategories: trainingState.analyticsCategories,
       noteSharing: workoutNoteSharing(trainingState.aiSharing),
+      valueDefs: trainingState.valueDefs,
     });
     try {
       await navigator.clipboard.writeText(prompt);

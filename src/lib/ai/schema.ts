@@ -332,6 +332,20 @@ export function validateExerciseValues(
     if (result.value !== undefined) (values as Record<string, unknown>)[field] = result.value;
   }
 
+  // The athlete's own value types. Unknown ids can't be told from typos without the defs, so they are
+  // kept and simply never shown; a value's type is only checked as far as number-or-text.
+  if (isPlainObject(raw.custom)) {
+    const custom: Record<string, number | string> = {};
+    for (const [id, v] of Object.entries(raw.custom)) {
+      if (typeof v === "number" && Number.isFinite(v)) custom[id] = v;
+      else if (typeof v === "string" && v.trim()) {
+        const num = coerceNumber(v).value;
+        custom[id] = typeof num === "number" ? num : v.trim();
+      }
+    }
+    if (Object.keys(custom).length) values.custom = custom;
+  }
+
   if (rescuedText.length) {
     const carried = rescuedText.map((t) => `[${t}]`).join(" ");
     values.notes = values.notes ? `${values.notes} ${carried}` : carried;

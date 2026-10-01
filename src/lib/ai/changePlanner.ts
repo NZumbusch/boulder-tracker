@@ -1121,6 +1121,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         if (!newTypeIds.includes(s.typeId)) continue;
         const keys = used.get(s.typeId) ?? new Set();
         for (const k of Object.keys(s.prescribed ?? {})) if ((PARAMETER_BLOCKS as string[]).includes(k)) keys.add(k);
+        for (const id of Object.keys(s.prescribed?.custom ?? {})) keys.add(`v:${id}`);
         used.set(s.typeId, keys);
       }
     };

@@ -217,7 +217,7 @@ function validateParameters(raw: unknown, path: string, issues: Issues): Paramet
   }
   const result: ParameterBlock[] = [];
   raw.forEach((p, i) => {
-    if (typeof p === "string" && (PARAMETER_BLOCKS as string[]).includes(p)) {
+    if (typeof p === "string" && ((PARAMETER_BLOCKS as string[]).includes(p) || /^v:[A-Za-z0-9_-]+$/.test(p))) {
       if (!result.includes(p as ParameterBlock)) result.push(p as ParameterBlock);
     } else {
       pushRepair(issues, `${path}[${i}]`, `${JSON.stringify(p)} is not a trackable field - dropped.`);

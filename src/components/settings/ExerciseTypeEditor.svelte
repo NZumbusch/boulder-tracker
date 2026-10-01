@@ -12,6 +12,8 @@
   import { PARAMETER_LABELS } from '../../lib/constants';
   import type { ExerciseTypeDef, ParameterBlock, AnalyticsCategory } from '../../lib/types';
   import { exerciseGroup } from '../../lib/exercise/library';
+  import { trainingState } from '../../lib/state.svelte';
+  import { customParam } from '../../lib/exercise/valueDefs';
   import RangeSlider from '../common/RangeSlider.svelte';
   import Icon from '@iconify/svelte';
 
@@ -44,7 +46,13 @@
   const nameError = $derived(!trimmedName ? 'Give it a name.' : takenNames.has(trimmedName.toLowerCase()) ? 'Another exercise already has this name.' : null);
   const groupChoices = $derived([...new Set([...groups, draft.group?.trim() || ''].filter(Boolean))].sort((a, b) => a.localeCompare(b)));
 
-  const parameterBlocks = Object.entries(PARAMETER_LABELS).map(([id, label]) => ({ id: id as ParameterBlock, label }));
+  /** Built-in fields, then your own value types (an archived one only while this exercise still tracks it). */
+  const parameterBlocks = $derived<{ id: ParameterBlock; label: string }[]>([
+    ...Object.entries(PARAMETER_LABELS).map(([id, label]) => ({ id: id as ParameterBlock, label })),
+    ...trainingState.valueDefs
+      .filter((d) => !d.archived || (draft.possibleParameters ?? draft.parameters).includes(customParam(d.id)))
+      .map((d) => ({ id: customParam(d.id), label: d.unit ? `${d.name} (${d.unit})` : d.name })),
+  ]);
 
   /** Off -> possible -> default -> off: "possible" fields can be switched on per exercise, "default" ones come switched on. */
   function cycleParam(param: ParameterBlock) {

@@ -1,5 +1,6 @@
-import type { AnalyticsCategory, ExerciseSlot, ExerciseTypeDef, Workout } from "../types";
+import type { AnalyticsCategory, ExerciseSlot, ExerciseTypeDef, ValueDef, Workout } from "../types";
 import { AI_VALUES_CONTRACT } from "./schema";
+import { customValuesReference } from "./valueSpec";
 import { buildAnalyticsCategorySummaries, buildExerciseModalities, type WorkoutNoteSharing } from "./context";
 
 /**
@@ -21,6 +22,8 @@ export interface SessionPromptInput {
   mode: "add" | "replace";
   exerciseTypes: ExerciseTypeDef[];
   analyticsCategories: AnalyticsCategory[];
+  /** The athlete's own value types, if any. */
+  valueDefs?: ValueDef[];
   /** What the "AI Sharing" switches allow of a finished session's notes; absent means the defaults. */
   noteSharing?: WorkoutNoteSharing;
 }
@@ -36,7 +39,7 @@ function currentExercises(slots: ExerciseSlot[], bucket: "prescribed" | "logged"
 }
 
 export function buildSessionPrompt(input: SessionPromptInput): string {
-  const { workout, request, mode, exerciseTypes, analyticsCategories, noteSharing = { logNotes: true, planNotes: false } } = input;
+  const { workout, request, mode, exerciseTypes, analyticsCategories, noteSharing = { logNotes: true, planNotes: false }, valueDefs = [] } = input;
   const isLog = workout.status === "completed";
   const bucket = isLog ? "logged" : "prescribed";
   const existing = workout.exercises.length > 0 ? currentExercises(workout.exercises, bucket, exerciseTypes) : "";
@@ -87,7 +90,7 @@ ${buildExerciseModalities(exerciseTypes).map((m) => JSON.stringify(m)).join("\n"
 Categories: ${buildAnalyticsCategorySummaries(analyticsCategories).map((c) => c.name).join(", ")}
 
 ${AI_VALUES_CONTRACT}
-
+${customValuesReference(valueDefs) ? `\n${customValuesReference(valueDefs)}\n` : ""}
 THE SESSION
 ${session}
 

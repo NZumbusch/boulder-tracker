@@ -48,7 +48,37 @@ export type ParameterBlock =
   | "movesPerRoute"
   | "routeDifficulty"
   | "bodyweightPercent"
-  | "maxWeightPercent";
+  | "maxWeightPercent"
+  | CustomParameter;
+
+/**
+ * A value type you defined yourself (`ValueDef`), as an exercise's tracked
+ * parameter: "v:" and the def's id. Kept apart from the built-in names so
+ * neither can ever collide with the other.
+ */
+export type CustomParameter = `v:${string}`;
+
+/**
+ * A value type beyond the built-in fields - "Elevation (m)", "Heart rate
+ * (bpm)", or one the athlete makes up. Record-only: it is logged, shown and
+ * exported (and the AI knows it exists) but never enters load or fatigue.
+ *
+ * Never hard-deleted while anything uses it - archiving hides it from new
+ * forms and keeps every stored value readable (`lib/exercise/valueDefs.ts`).
+ */
+export interface ValueDef {
+  /** Stable key into `ExerciseValues.custom`; never reused or renamed. */
+  id: string;
+  name: string;
+  /** Shown after a number ("m", "bpm"); unused by choice values. */
+  unit?: string;
+  kind: "number" | "choice";
+  /** The pick-list of a choice value. */
+  options?: string[];
+  archived?: boolean;
+  /** Shipped with the app (still editable and archivable, never recreated once deleted). */
+  builtIn?: true;
+}
 
 /**
  * Defines a custom exercise modality, its tracking parameters, and defaults.
@@ -145,6 +175,9 @@ export interface ExerciseValues {
 
   // Mobility
   mobilityType?: ("Hamstrings" | "Shoulders" | "Hips" | "Spine" | "Ankles" | "Wrists")[];
+
+  /** Values of the athlete's own value types, by `ValueDef.id` - a number, or a pick-list's chosen option. */
+  custom?: Record<string, number | string>;
 }
 
 /**
@@ -741,4 +774,6 @@ export interface TrainingData {
    * before it have none.
    */
   settings?: SettingsRecord[];
+  /** The athlete's own value types; backups from before them get the built-in four (`DEFAULT_VALUE_DEFS`). */
+  valueDefs?: ValueDef[];
 }
