@@ -2,6 +2,8 @@
   import type { ExerciseTypeDef, AnalyticsCategory, WorkoutTemplate } from '../../lib/types';
   import ExerciseLibrary from './ExerciseLibrary.svelte';
   import AnalyticsCategorySettings from './AnalyticsCategorySettings.svelte';
+  import AICoachModal from '../plan/AICoachModal.svelte';
+  import Icon from '@iconify/svelte';
 
   let {
     exerciseTypes = $bindable(),
@@ -15,6 +17,7 @@
 
   type SubTab = 'modalities' | 'categories';
   let subTab = $state<SubTab>('modalities');
+  let organising = $state(false);
 </script>
 
 <div class="card space-y-4">
@@ -22,6 +25,20 @@
     <h3 class="text-section uppercase text-content-muted px-1">Exercises</h3>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Everything you can put in a session, in groups - each with the fields it tracks and an optional how-to.</p>
   </div>
+
+  <button
+    onclick={() => organising = true}
+    class="w-full flex items-center justify-between gap-3 p-3 rounded-control bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors text-left"
+  >
+    <span class="flex items-center gap-3 min-w-0">
+      <Icon icon="ic:baseline-auto-awesome" class="text-xl text-primary shrink-0" />
+      <span class="min-w-0">
+        <span class="block text-body font-semibold text-content">Organise with AI</span>
+        <span class="block text-caption text-content-subtle">Split "Other", regroup exercises - you tick what to apply</span>
+      </span>
+    </span>
+    <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl shrink-0" />
+  </button>
 
   <div class="seg p-1">
     <button
@@ -47,3 +64,7 @@
     <AnalyticsCategorySettings bind:analyticsCategories {templates} />
   {/if}
 </div>
+
+{#if organising}
+  <AICoachModal initialMode="organise" onClose={() => organising = false} />
+{/if}

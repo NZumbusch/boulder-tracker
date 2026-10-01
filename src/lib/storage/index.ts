@@ -36,7 +36,7 @@ import type { ShareOutcome } from "../share/imageShare";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
 
 /** The tables a bulk plan change (AI change set, copied week) can touch - what its undo snapshot holds. */
-const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes", "planAlternatives", "coachNotes", "circuits"] as const;
+const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "weekOverrides", "weekNotes", "planAlternatives", "coachNotes", "circuits", "analyticsCategories"] as const;
 type PlanTables = Record<(typeof PLAN_TABLE_NAMES)[number], unknown>;
 interface PlanUndoRecord {
   /** What made the change: an AI change set, or copying a week in the planner. */
@@ -271,6 +271,7 @@ export const storage = {
     if (writes.planAlternatives) db.planAlternatives = toPlain(writes.planAlternatives);
     if (writes.coachNotes) db.coachNotes = toPlain(writes.coachNotes);
     if (writes.circuits) db.circuits = toPlain(writes.circuits);
+    if (writes.analyticsCategories) db.analyticsCategories = toPlain(writes.analyticsCategories);
     if (writes.weeks.length) {
       const touched = new Set(writes.weeks.map((w) => w.weekId));
       const kept = (db.workouts as Workout[]).filter((w) => !(touched.has(w.weekId) && w.status === "planned"));

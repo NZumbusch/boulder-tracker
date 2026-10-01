@@ -198,6 +198,37 @@ describe("planChanges - weeks", () => {
   });
 });
 
+describe("planChanges - analytics categories", () => {
+  it("adds a category with the next free colour, and an exercise can move into it in the same change set", () => {
+    const r = plan({
+      categories: [{ action: "add", name: "Mobility" }],
+      exerciseTypes: [{ action: "edit", name: "Core", categoryName: "mobility" }],
+    });
+    const added = r.writes.analyticsCategories!.find((c) => c.name === "Mobility")!;
+    expect(added.color).not.toBe("x");
+    expect(r.writes.exerciseTypes!.find((t) => t.name === "Core")!.category).toBe("Mobility");
+    expect(r.items.find((i) => i.id === "exercise-0")!.dependsOn).toEqual(["category-0"]);
+  });
+
+  it("unticking the new category leaves the exercise where it was, with a warning, and a rename moves its exercises", () => {
+    const doc = { categories: [{ action: "add", name: "Mobility" }], exerciseTypes: [{ action: "edit", name: "Core", categoryName: "Mobility" }] };
+    const off = plan(doc, new Set(["exercise-0"]));
+    expect(off.writes.analyticsCategories).toBeUndefined();
+    expect(off.items.find((i) => i.id === "exercise-0")!.warnings.join(" ")).toMatch(/unticked/);
+    const renamed = plan({ categories: [{ action: "rename", name: "Power", rename: "Limit work" }] });
+    expect(renamed.writes.analyticsCategories!.map((c) => c.name)).toEqual(["Fingers", "Limit work"]);
+    expect(renamed.writes.exerciseTypes!.find((t) => t.id === "lb")!.category).toBe("Limit work");
+  });
+
+  it("refuses a duplicate or unknown category, and archives with a warning while exercises use it", () => {
+    expect(plan({ categories: [{ action: "add", name: "fingers" }] }).items[0].errors).toHaveLength(1);
+    expect(plan({ categories: [{ action: "archive", name: "Nope" }] }).items[0].errors).toHaveLength(1);
+    const arch = plan({ categories: [{ action: "archive", name: "Fingers" }] });
+    expect(arch.items[0].warnings.join(" ")).toMatch(/1 exercise/);
+    expect(arch.writes.analyticsCategories!.find((c) => c.name === "Fingers")!.archived).toBe(true);
+  });
+});
+
 describe("planWithSelection", () => {
   const doc = {
     exerciseTypes: [{ action: "add", name: "Max Hangs 7s" }],
