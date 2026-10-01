@@ -59,6 +59,8 @@ import { UiStore } from './stores/uiStore.svelte';
 import { SessionStore } from './stores/sessionStore.svelte';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
+import { applySettingsRecords, resetGroups, applyGroups, buildSettingsFile, parseSettingsFile, toSettingsRecords, type SettingsGroupId } from './preferences/portable';
+import { stableStringify } from './sync/merge';
 import { WeatherStore } from './stores/weatherStore.svelte';
 import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
@@ -239,6 +241,62 @@ class TrainingState {
     return geocodeCity(query);
   }
 
+  // --- Portable settings: reset, file, sync (lib/preferences/portable.ts) ---
+
+  #settingsSeeded = false;
+
+  /**
+   * Keeps the `settings` table and the preferences in step. The first call
+   * (startup) writes this device's preferences into the table - what is in
+   * localStorage is the truth then. Later calls (after a sync or an import)
+   * read the table back into the preferences, since that is where other
+   * devices' changes arrive.
+   */
+  private async reconcileSettings() {
+    if (isDemoMode()) return;
+    try {
+      if (!this.#settingsSeeded) {
+        this.#settingsSeeded = true;
+        this.preferencesStore.onSaved = () => { void this.saveSettingsRecords(); };
+        await this.saveSettingsRecords();
+        return;
+      }
+      const records = await storage.getSettings();
+      const current = this.preferencesStore.snapshot();
+      const next = applySettingsRecords(current, records);
+      if (stableStringify(next) !== stableStringify(current)) this.preferencesStore.replace(next, true);
+    } catch (err) {
+      console.error('Failed to reconcile settings with the database:', err);
+    }
+  }
+
+  private async saveSettingsRecords() {
+    if (isDemoMode()) return;
+    const records = toSettingsRecords(this.preferencesStore.snapshot());
+    // Skipped when nothing changed: every flush is a sync-ledger event.
+    if (stableStringify(records) === stableStringify(await storage.getSettings())) return;
+    await storage.saveSettings(records);
+  }
+
+  /** The settings groups, back at their defaults. Categories restore the built-in ones without touching yours. */
+  async resetSettings(groups: readonly SettingsGroupId[], opts: { categories?: boolean } = {}) {
+    if (groups.length) this.preferencesStore.replace(resetGroups(this.preferencesStore.snapshot(), groups));
+    if (opts.categories) await this.catalogStore.restoreDefaultCategories();
+  }
+
+  /** The portable settings as a file's text. */
+  settingsFileText(): string {
+    return JSON.stringify(buildSettingsFile(this.preferencesStore.snapshot()), null, 2);
+  }
+
+  /** Applies a settings file's text. Returns an error message, or null when it went in. */
+  importSettingsText(text: string, groups: readonly SettingsGroupId[]): string | null {
+    const parsed = parseSettingsFile(text);
+    if (!parsed.ok) return parsed.error;
+    this.preferencesStore.replace(applyGroups(this.preferencesStore.snapshot(), parsed.settings, groups));
+    return null;
+  }
+
   // --- Fatigue chart style, timer toggles, Home section layout ---
 
   get fatigueChartStyle() { return this.preferencesStore.fatigueChartStyle; }
@@ -389,6 +447,8 @@ class TrainingState {
         this.metricsStore.load(),
         this.outdoorAscentStore.load(),
       ]);
+
+      await this.reconcileSettings();
 
       // The database file was damaged and got restored (storage/persistence.ts) - say so, once.
       const recovery = takeRecoveryNotice();

@@ -28,6 +28,7 @@ import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
 import { toStoredWorkout } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
+import type { SettingsRecord } from "../preferences/portable";
 import { saveFile } from "../share/saveFile";
 import type { ShareOutcome } from "../share/imageShare";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
@@ -76,6 +77,7 @@ export const storage = {
   async _getPainLogs(): Promise<PainLog[]> { await initDB(); return _dbState.painLogs; },
   async _getPainIssues(): Promise<PainIssue[]> { await initDB(); return _dbState.painIssues; },
   async _getOutdoorAscents(): Promise<OutdoorAscent[]> { await initDB(); return _dbState.outdoorAscents; },
+  async _getSettings(): Promise<SettingsRecord[]> { await initDB(); return _dbState.settings ?? []; },
 
   async _saveWorkouts(workouts: Workout[]): Promise<void> { await initDB(); _dbState.workouts = toPlain(workouts); await flushDB(["workouts"]); },
   async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(["trainingBlocks"]); },
@@ -98,6 +100,7 @@ export const storage = {
   async _savePainIssues(issues: PainIssue[]): Promise<void> { await initDB(); _dbState.painIssues = toPlain(issues); await flushDB(["painIssues"]); },
   /** An issue and its check-ins in one write, so neither can land without the other. */
   async _savePain(logs: PainLog[], issues: PainIssue[]): Promise<void> { await initDB(); _dbState.painLogs = toPlain(logs); _dbState.painIssues = toPlain(issues); await flushDB(["painLogs", "painIssues"]); },
+  async _saveSettings(records: SettingsRecord[]): Promise<void> { await initDB(); _dbState.settings = toPlain(records); await flushDB(["settings"]); },
   async _saveOutdoorAscents(ascents: OutdoorAscent[]): Promise<void> { await initDB(); _dbState.outdoorAscents = toPlain(ascents); await flushDB(["outdoorAscents"]); },
 
   // --- Public Interface ---
@@ -536,6 +539,14 @@ export const storage = {
     await this._savePain(logs, issues);
   },
 
+  async getSettings(): Promise<SettingsRecord[]> {
+    return this._getSettings();
+  },
+
+  async saveSettings(records: SettingsRecord[]): Promise<void> {
+    await this._saveSettings(records);
+  },
+
   async getOutdoorAscents(): Promise<OutdoorAscent[]> {
     return this._getOutdoorAscents();
   },
@@ -788,6 +799,7 @@ export const storage = {
           if (data.painLogs) _dbState.painLogs = data.painLogs;
           if (data.painIssues) _dbState.painIssues = data.painIssues;
           if (data.outdoorAscents) _dbState.outdoorAscents = data.outdoorAscents;
+          if (data.settings) _dbState.settings = data.settings;
           _dbState.exportVersion = data.exportVersion || "1.0";
 
           await flushDB();

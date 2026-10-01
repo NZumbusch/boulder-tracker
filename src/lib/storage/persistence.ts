@@ -239,6 +239,7 @@ export async function initDB() {
       painLogs: await localforage.getItem("painLogs"),
       painIssues: await localforage.getItem("painIssues"),
       outdoorAscents: await localforage.getItem("outdoorAscents"),
+      settings: await localforage.getItem("settings"),
       exportVersion: await localforage.getItem("database_version"),
     };
   }
@@ -269,6 +270,7 @@ export async function initDB() {
     // build issues from the entries (an empty one would say "already done").
     ...(rawData.painIssues ? { painIssues: rawData.painIssues } : resolveInitialExportVersion(rawData) === DATA_EXPORT_VERSION ? { painIssues: [] } : {}),
     outdoorAscents: rawData.outdoorAscents || [],
+    settings: rawData.settings || [],
     exportVersion: resolveInitialExportVersion(rawData),
   };
   if (rewrite && !demoMode) await writeNativeFile();
@@ -333,7 +335,7 @@ async function startNativeWrite(): Promise<void> {
 export const TABLES = [
   "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "planAlternatives", "athleteProfile", "coachNotes", "circuits", "goals", "templates", "phaseDefs",
   "exerciseTypes", "benchmarks", "benchmarkTypes", "analyticsCategories", "metricDefs",
-  "dailyMetrics", "painLogs", "painIssues", "outdoorAscents",
+  "dailyMetrics", "painLogs", "painIssues", "outdoorAscents", "settings",
 ] as const;
 export type TableName = (typeof TABLES)[number];
 

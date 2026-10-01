@@ -1,4 +1,6 @@
 import { storage } from '../storage';
+import { DEFAULT_ANALYTICS_CATEGORIES } from '../constants';
+import { restoreDefaultCategories } from '../exercise/categories';
 import type { ExerciseTypeDef, AnalyticsCategory, BenchmarkTypeDef, PhaseDef } from '../types';
 
 /**
@@ -29,5 +31,12 @@ export class CatalogStore {
 
   async updateExerciseTypes(types: ExerciseTypeDef[]) {
     await storage.saveExerciseTypes(types);
+  }
+
+  /** Puts the built-in analytics categories back as shipped; your own stay (see `restoreDefaultCategories`). */
+  async restoreDefaultCategories() {
+    const restored = restoreDefaultCategories($state.snapshot(this.analyticsCategories), DEFAULT_ANALYTICS_CATEGORIES);
+    await storage.saveAnalyticsCategories(restored);
+    this.analyticsCategories = restored;
   }
 }

@@ -1,3 +1,4 @@
+import type { SettingsRecord } from "./preferences/portable";
 /**
  * Valid navigation views within the application.
  */
@@ -733,4 +734,11 @@ export interface TrainingData {
   painLogs: PainLog[];
   painIssues: PainIssue[];
   outdoorAscents: OutdoorAscent[];
+  /**
+   * The portable settings, one record per group (`lib/preferences/portable.ts`).
+   * Preferences themselves live in localStorage; this table mirrors the ones
+   * that travel so Drive sync and backups carry them. Optional: backups from
+   * before it have none.
+   */
+  settings?: SettingsRecord[];
 }

@@ -14,6 +14,7 @@
   import BenchmarkTypeSettings from './BenchmarkTypeSettings.svelte';
   import BackupSettings from './BackupSettings.svelte';
   import ExportSettings from './ExportSettings.svelte';
+  import SettingsTransfer from './SettingsTransfer.svelte';
   import CoachNotesSettings from './CoachNotesSettings.svelte';
   import CircuitSettings from './CircuitSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
@@ -208,6 +209,7 @@
     <div class="space-y-4">
       <SyncSettings />
       <BackupSettings {onExport} {onImport} />
+      <SettingsTransfer />
     </div>
   {:else if currentTab === 'connections'}
     <div class="space-y-4">
