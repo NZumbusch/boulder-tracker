@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildDoc, compareVersions, hashOf, initLedger, mapToTable, mergeDoc, stableStringify, tableToMap, trackTable,
+  buildDoc, compareVersions, hashOf, initLedger, mapToTable, mergeDoc, mergeValues, stableStringify, tableToMap, trackTable,
   type Ledger,
 } from "./merge";
 
@@ -159,3 +159,75 @@ describe("compareVersions", () => {
     expect(compareVersions("2.9", "3.0")).toBeLessThan(0);
   });
 });
+
+describe("mergeValues - a three-way merge", () => {
+  const merge = (base: unknown, l: unknown, r: unknown, prefer: "local" | "remote" = "remote") => mergeValues(base, l, r, prefer);
+
+  it("takes whichever side changed a field, and joins changes to different fields", () => {
+    const base = { id: "a", notes: "x", duration: 60, sets: 3 };
+    expect(merge(base, { ...base, notes: "mine" }, { ...base, duration: 90 })).toEqual({ value: { id: "a", notes: "mine", duration: 90, sets: 3 }, collided: false });
+  });
+
+  it("joins added and removed fields", () => {
+    const base = { a: 1, b: 2 };
+    expect(merge(base, { a: 1, b: 2, c: 3 }, { a: 1 })).toEqual({ value: { a: 1, c: 3 }, collided: false });
+  });
+
+  it("reports a field both sides changed differently, and gives it to `prefer`", () => {
+    const base = { notes: "x", duration: 60 };
+    expect(merge(base, { notes: "mine", duration: 60 }, { notes: "theirs", duration: 75 }, "remote")).toEqual({ value: { notes: "theirs", duration: 75 }, collided: true });
+    expect(merge(base, { notes: "mine", duration: 60 }, { notes: "theirs", duration: 75 }, "local")).toEqual({ value: { notes: "mine", duration: 75 }, collided: true });
+  });
+
+  it("merges lists of items with ids item by item: both sides' additions are kept", () => {
+    const base = { exercises: [{ id: "e1", sets: 3 }] };
+    const local = { exercises: [{ id: "e1", sets: 4 }, { id: "e2", sets: 1 }] };
+    const remote = { exercises: [{ id: "e1", sets: 3 }, { id: "e3", sets: 2 }] };
+    expect(merge(base, local, remote)).toEqual({
+      value: { exercises: [{ id: "e1", sets: 4 }, { id: "e2", sets: 1 }, { id: "e3", sets: 2 }] },
+      collided: false,
+    });
+  });
+
+  it("an item removed on one side stays removed if the other left it alone, and is reported if it was edited", () => {
+    const base = { exercises: [{ id: "e1", sets: 3 }, { id: "e2", sets: 1 }] };
+    expect(merge(base, { exercises: [{ id: "e1", sets: 3 }] }, base).value).toEqual({ exercises: [{ id: "e1", sets: 3 }] });
+    const r = merge(base, { exercises: [{ id: "e1", sets: 3 }] }, { exercises: [{ id: "e1", sets: 3 }, { id: "e2", sets: 9 }] });
+    expect(r).toEqual({ value: { exercises: [{ id: "e1", sets: 3 }] }, collided: true });
+  });
+
+  it("follows the side that reordered the list", () => {
+    const base = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    expect(merge(base, base, [{ id: "c" }, { id: "a" }, { id: "b" }]).value).toEqual([{ id: "c" }, { id: "a" }, { id: "b" }]);
+  });
+
+  it("treats plain lists as one value", () => {
+    expect(merge({ p: ["a"] }, { p: ["a", "b"] }, { p: ["a", "c"] }, "local")).toEqual({ value: { p: ["a", "b"] }, collided: true });
+    expect(merge({ p: ["a"] }, { p: ["a", "b"] }, { p: ["a"] }).value).toEqual({ p: ["a", "b"] });
+  });
+});
+
+describe("mergeDoc with a base", () => {
+  it("joins two edits to different fields of one record, with no conflict", () => {
+    const phone = device("phone", { workouts: [w("a", "base")] });
+    const tablet = device("tablet", { workouts: [w("a", "base")] });
+    const base = structuredClone(phone.tables.workouts[0 as never]);
+    edit(phone, 100, (db) => { (db.workouts as any[])[0].notes = "phone"; });
+    edit(tablet, 110, (db) => { (db.workouts as any[])[0].date = "2026-09-25"; });
+    const result = mergeDoc(phone.tables, phone.ledger, structuredClone(docOf(tablet, 120)), TABLES, { lastSyncAt: 50, firstSync: false, now: 130, deviceId: "phone", baseOf: () => base });
+    expect(result.conflicts).toEqual([]);
+    expect((phone.tables.workouts as any[])[0]).toMatchObject({ notes: "phone", date: "2026-09-25" });
+    expect(phone.ledger.workouts.a).toMatchObject({ t: 130, o: "phone" });
+  });
+
+  it("without a base the newer edit still wins whole", () => {
+    const phone = device("phone", { workouts: [w("a", "base")] });
+    const tablet = device("tablet", { workouts: [w("a", "base")] });
+    edit(phone, 100, (db) => { (db.workouts as any[])[0].notes = "phone"; });
+    edit(tablet, 110, (db) => { (db.workouts as any[])[0].date = "2026-09-25"; });
+    const result = mergeDoc(phone.tables, phone.ledger, structuredClone(docOf(tablet, 120)), TABLES, { lastSyncAt: 50, firstSync: false, now: 130 });
+    expect(result.conflicts).toHaveLength(1);
+    expect((phone.tables.workouts as any[])[0]).toMatchObject({ notes: "base", date: "2026-09-25" });
+  });
+});
+

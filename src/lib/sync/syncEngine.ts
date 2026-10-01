@@ -94,6 +94,19 @@ export function upgradeDoc(doc: SyncDoc, tableNames: readonly string[], migrate:
   return { ...doc, exportVersion: targetVersion, tables };
 }
 
+/** This device's own last upload, brought to the current data version - or null if it can't be read. */
+async function readOwnDoc(transport: SyncTransport, file: DriveFile, tableNames: readonly string[], local: LocalPort): Promise<SyncDoc | null> {
+  try {
+    const doc: SyncDoc = JSON.parse(await transport.read(file.id));
+    if (doc.format !== SYNC_DOC_FORMAT || !doc.tables) return null;
+    const cmp = compareVersions(doc.exportVersion, local.exportVersion());
+    if (cmp > 0) return null;
+    return cmp < 0 ? upgradeDoc(doc, tableNames, local.migrate, local.exportVersion()) : doc;
+  } catch {
+    return null;
+  }
+}
+
 export async function runSync(opts: {
   transport: SyncTransport;
   local: LocalPort;
@@ -129,20 +142,33 @@ export async function runSync(opts: {
       docs.push(cmp < 0 ? upgradeDoc(doc, tableNames, local.migrate, local.exportVersion()) : doc);
     }
 
-    const tables = structuredClone(local.tables());
-    const ledger = structuredClone(local.ledger());
-    const conflicts: SyncConflict[] = [];
-    const changed = new Set<string>();
-    for (const doc of docs) {
-      const result = mergeDoc(tables, ledger, doc, tableNames, {
-        lastSyncAt: opts.lastSyncAt ?? 0,
-        firstSync: opts.lastSyncAt === null,
-        now: startedAt,
-        labelOf: opts.labelOf,
-      });
-      result.changedTables.forEach((t) => changed.add(t));
-      conflicts.push(...result.conflicts);
+    /** Merges every other device's doc into fresh copies of this device's data. */
+    const mergeAll = (baseOf?: (table: string, key: string) => unknown) => {
+      const merged = { tables: structuredClone(local.tables()), ledger: structuredClone(local.ledger()), conflicts: [] as SyncConflict[], changed: new Set<string>() };
+      for (const doc of docs) {
+        const result = mergeDoc(merged.tables, merged.ledger, doc, tableNames, {
+          lastSyncAt: opts.lastSyncAt ?? 0,
+          firstSync: opts.lastSyncAt === null,
+          now: startedAt,
+          deviceId: identity.deviceId,
+          baseOf,
+          labelOf: opts.labelOf,
+        });
+        result.changedTables.forEach((t) => merged.changed.add(t));
+        merged.conflicts.push(...result.conflicts);
+      }
+      return merged;
+    };
+
+    let merged = mergeAll();
+    // A record both devices edited: join the two versions field by field, against what this device
+    // last uploaded (the state both had then). Read only when there is something to join, and only
+    // if this device has synced before.
+    if (merged.conflicts.length > 0 && mine && opts.lastSyncAt !== null) {
+      const base = await readOwnDoc(transport, mine, tableNames, local);
+      if (base) merged = mergeAll((table, key) => (base.tables[table]?.[key]?.del ? undefined : base.tables[table]?.[key]?.v));
     }
+    const { tables, ledger, conflicts, changed } = merged;
 
     // Edited while we were downloading: merge again from the new state.
     if (local.generation() !== generation) continue;

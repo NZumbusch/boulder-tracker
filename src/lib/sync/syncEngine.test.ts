@@ -104,6 +104,45 @@ describe("runSync", () => {
     expect(tablet.state.tables.workouts).toEqual([w("a", "tablet")]);
   });
 
+  it("joins edits to different parts of the same session made on two devices", async () => {
+    const drive = fakeDrive();
+    const session = { id: "a", name: "Board", duration: 60, exercises: [{ id: "e1", sets: 3 }] };
+    const phone = device("phone", { workouts: [session], dailyMetrics: [] });
+    const tablet = device("tablet", { workouts: [], dailyMetrics: [] });
+    await phone.sync(drive.transport, 100);
+    await tablet.sync(drive.transport, 110);
+
+    phone.edit(200, (t) => { (t.workouts[0] as any).name = "Board night"; (t.workouts[0] as any).exercises.push({ id: "e2", sets: 1 }); });
+    tablet.edit(220, (t) => { (t.workouts[0] as any).duration = 75; (t.workouts[0] as any).exercises[0].sets = 4; });
+    await tablet.sync(drive.transport, 300);
+    const atPhone = await phone.sync(drive.transport, 310);
+    const atTablet = await tablet.sync(drive.transport, 320);
+
+    const joined = { id: "a", name: "Board night", duration: 75, exercises: [{ id: "e1", sets: 4 }, { id: "e2", sets: 1 }] };
+    expect(atPhone.conflicts).toEqual([]);
+    expect(atTablet.conflicts).toEqual([]);
+    expect(phone.state.tables.workouts).toEqual([joined]);
+    expect(tablet.state.tables.workouts).toEqual([joined]);
+  });
+
+  it("joins what it can when both devices changed the same field, and reports just that", async () => {
+    const drive = fakeDrive();
+    const phone = device("phone", { workouts: [{ id: "a", name: "x", duration: 60 }], dailyMetrics: [] });
+    const tablet = device("tablet", { workouts: [], dailyMetrics: [] });
+    await phone.sync(drive.transport, 100);
+    await tablet.sync(drive.transport, 110);
+
+    phone.edit(200, (t) => { (t.workouts[0] as any).name = "phone"; (t.workouts[0] as any).duration = 90; });
+    tablet.edit(220, (t) => { (t.workouts[0] as any).name = "tablet"; });
+    await tablet.sync(drive.transport, 300);
+    const atPhone = await phone.sync(drive.transport, 310);
+    await tablet.sync(drive.transport, 320);
+
+    expect(atPhone.conflicts).toHaveLength(1);
+    expect(phone.state.tables.workouts).toEqual([{ id: "a", name: "tablet", duration: 90 }]);
+    expect(tablet.state.tables.workouts).toEqual(phone.state.tables.workouts);
+  });
+
   it("starts over when the data changes mid-sync, instead of overwriting the edit", async () => {
     const drive = fakeDrive();
     const phone = device("phone", { workouts: [w("a", "x")], dailyMetrics: [] });

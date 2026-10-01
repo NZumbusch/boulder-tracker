@@ -123,6 +123,84 @@ export function mapToTable(table: string, map: Map<string, unknown>, previous: u
   return order.map((k) => map.get(k));
 }
 
+// --- Merging one record field by field ---------------------------------------
+
+const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+const same = (a: unknown, b: unknown) => a === b || stableStringify(a) === stableStringify(b);
+
+/** An array whose items are all objects with a distinct string `id`: its items can be merged one by one. */
+function byId(list: unknown): Map<string, Record<string, unknown>> | null {
+  if (!Array.isArray(list)) return null;
+  const map = new Map<string, Record<string, unknown>>();
+  for (const item of list) {
+    if (!isObj(item) || typeof item.id !== "string" || map.has(item.id)) return null;
+    map.set(item.id, item);
+  }
+  return map;
+}
+
+/**
+ * A three-way merge, the way git does it. `base` is what both sides started
+ * from; a side that didn't touch a field takes the other's change, and
+ * objects and id-keyed lists are merged piece by piece. Only a field both
+ * sides changed differently (or a delete against an edit) is a collision:
+ * `prefer` decides it ("local" or "remote", normally the newer edit) and
+ * `collided` says it happened.
+ */
+export function mergeValues(base: unknown, local: unknown, remote: unknown, prefer: "local" | "remote"): { value: unknown; collided: boolean } {
+  if (same(local, remote)) return { value: local, collided: false };
+  if (same(base, local)) return { value: remote, collided: false };
+  if (same(base, remote)) return { value: local, collided: false };
+  const pick = (): { value: unknown; collided: boolean } => ({ value: prefer === "local" ? local : remote, collided: true });
+
+  if (isObj(local) && isObj(remote)) {
+    const b = isObj(base) ? base : {};
+    const out: Record<string, unknown> = {};
+    let collided = false;
+    for (const key of new Set([...Object.keys(local), ...Object.keys(remote)])) {
+      const r = mergeValues(b[key], local[key], remote[key], prefer);
+      if (r.collided) collided = true;
+      if (r.value !== undefined) out[key] = r.value;
+    }
+    return { value: out, collided };
+  }
+
+  const l = byId(local);
+  const r = byId(remote);
+  if (l && r) {
+    const b = byId(base) ?? new Map<string, Record<string, unknown>>();
+    const merged = new Map<string, unknown>();
+    let collided = false;
+    for (const id of new Set([...l.keys(), ...r.keys()])) {
+      const [li, ri, bi] = [l.get(id), r.get(id), b.get(id)];
+      if (li && ri) {
+        const m = mergeValues(bi, li, ri, prefer);
+        if (m.collided) collided = true;
+        merged.set(id, m.value);
+      } else if (!bi) {
+        merged.set(id, li ?? ri); // added on one side only
+      } else {
+        // Gone on one side. Untouched on the other: it stays gone. Edited there: the delete wins, and that is reported.
+        const kept = (li ?? ri)!;
+        if (!same(bi, kept)) collided = true;
+      }
+    }
+    // Order: the side that reordered wins; with no reordering (or both), the local one, then new remote items.
+    const order = (list: Map<string, unknown>) => [...list.keys()].filter((id) => merged.has(id));
+    const baseIds = [...b.keys()];
+    const localIds = order(l);
+    const remoteIds = order(r);
+    const kept = (ids: string[]) => ids.filter((id) => b.has(id));
+    const localMoved = !same(kept(localIds), baseIds.filter((id) => l.has(id)));
+    const remoteMoved = !same(kept(remoteIds), baseIds.filter((id) => r.has(id)));
+    const first = remoteMoved && !localMoved ? remoteIds : localIds;
+    const second = first === remoteIds ? localIds : remoteIds;
+    const ids = [...new Set([...first, ...second])];
+    return { value: ids.map((id) => merged.get(id)), collided };
+  }
+  return pick();
+}
+
 // --- Tracking local changes -------------------------------------------------
 
 /**
@@ -188,6 +266,14 @@ export interface MergeContext {
   /** This device's first sync: between two pre-sync versions, take the other device's. */
   firstSync: boolean;
   now: number;
+  /** This device's id, stamped on the records it merges. */
+  deviceId?: string;
+  /**
+   * The record as both devices last agreed on it - this device's own last
+   * upload - or undefined when there isn't one. With it, a record both sides
+   * changed is merged field by field; without it, the newer edit wins whole.
+   */
+  baseOf?: (table: string, key: string) => unknown;
   /** Names a record for the conflict list. */
   labelOf?: (table: string, value: unknown) => string;
 }
@@ -239,6 +325,30 @@ export function mergeDoc(
       const takeRemote = remoteWins(l, r, ctx.firstSync);
       const bothChanged = l.t > ctx.lastSyncAt && r.t > ctx.lastSyncAt && l.o !== r.o;
       const localValue = map.get(key);
+
+      // Both devices edited it: try to join the two versions instead of picking one.
+      const base = bothChanged && !l.del && !r.del ? ctx.baseOf?.(table, key) : undefined;
+      if (base !== undefined) {
+        const joined = mergeValues(base, localValue, r.v, takeRemote ? "remote" : "local");
+        // A new version of the record that contains both edits; it is newer than either, so every device converges on it.
+        // Only fields both sides changed differently go to the newer edit - and are reported, with the other whole version restorable.
+        if (joined.collided) {
+          const winner = takeRemote ? r : l;
+          const loser = takeRemote ? l : r;
+          conflicts.push({
+            table,
+            key,
+            label: label(table, localValue ?? r.v),
+            at: ctx.now,
+            kept: { device: winner.o, t: winner.t },
+            lost: { device: loser.o, t: loser.t, deleted: false, value: takeRemote ? localValue : r.v },
+          });
+        }
+        map.set(key, joined.value);
+        entries[key] = { h: hashOf(joined.value), t: ctx.now, o: ctx.deviceId ?? l.o };
+        changed = true;
+        continue;
+      }
       if (bothChanged) {
         const winner = takeRemote ? r : l;
         const loser = takeRemote ? l : r;
