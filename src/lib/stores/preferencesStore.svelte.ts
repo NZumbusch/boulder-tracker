@@ -52,6 +52,7 @@ export class PreferencesStore {
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
   navLabels = $state(false);
   helpButtons = $state(true);
+  widgetShowReadiness = $state(true);
   welcomeDone = $state(true);
 
   constructor() {
@@ -118,6 +119,7 @@ export class PreferencesStore {
     this.addedExerciseTarget = prefs.addedExerciseTarget;
     this.navLabels = prefs.navLabels;
     this.helpButtons = prefs.helpButtons;
+    this.widgetShowReadiness = prefs.widgetShowReadiness;
     this.welcomeDone = prefs.welcomeDone;
   }
 
@@ -323,6 +325,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setWidgetShowReadiness(on: boolean) {
+    this.widgetShowReadiness = on;
+    this.persist();
+  }
+
   setHelpButtons(on: boolean) {
     this.helpButtons = on;
     this.persist();
@@ -383,6 +390,7 @@ export class PreferencesStore {
       addedExerciseTarget: this.addedExerciseTarget,
       navLabels: this.navLabels,
       helpButtons: this.helpButtons,
+      widgetShowReadiness: this.widgetShowReadiness,
       welcomeDone: this.welcomeDone,
       theme: parseTheme(legacyTheme),
       notificationsEnabled: legacyNotifications === null ? defaultPreferences().notificationsEnabled : legacyNotifications === 'true',

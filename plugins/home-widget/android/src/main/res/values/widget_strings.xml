@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_today_label">Today</string>
-    <string name="widget_today_description">Readiness, today\'s session and quick buttons</string>
+    <string name="widget_today_description">Readiness, today\'s session and quick buttons - shows the next days when stretched taller</string>
     <string name="widget_readiness_label">Readiness</string>
     <string name="widget_readiness_description">Today\'s readiness score</string>
+    <string name="widget_week_label">This week</string>
+    <string name="widget_week_description">The week day by day: done, missed, planned - stretch it taller for the totals</string>
+    <string name="widget_quicklog_label">Quick log</string>
+    <string name="widget_quicklog_description">Buttons to log pain, bodyweight, a send or a benchmark</string>
+    <string name="widget_load_label">Week load</string>
+    <string name="widget_load_description">This week\'s load, plan progress and ACWR</string>
 </resources>

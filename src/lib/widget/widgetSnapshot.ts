@@ -10,6 +10,7 @@
 import type { ExerciseTypeDef, Workout } from "../types";
 import type { ReadinessResult } from "../analytics/readiness";
 import { summarizeSession } from "../planning/sessionSummary";
+import type { DayStatus } from "../planning/weekStatus";
 
 export const WIDGET_DAYS = 7;
 
@@ -29,12 +30,41 @@ export interface WidgetDay {
   done: number;
 }
 
+/** What the week-strip and load widgets draw: this week as Home's "This Week" card shows it. */
+export interface WidgetWeek {
+  /** Monday to Sunday: done / missed / skipped / planned / rest. */
+  strip: { status: DayStatus; today?: true }[];
+  /** Rated load of the week so far (the number History and Analytics use). */
+  load: number;
+  done: number;
+  /** Sessions the week had in all. */
+  planned: number;
+  /** Share of the plan's own load done, 0-1; null when nothing is planned. */
+  progress: number | null;
+  /** ACWR, or null while there is no baseline yet. */
+  acwr: { ratio: number; zone: AcwrZoneName } | null;
+}
+
+export type AcwrZoneName = "low" | "sweet" | "caution" | "risk";
+
+/** Where an ACWR ratio falls, by the athlete's own thresholds. */
+export function acwrZoneOf(ratio: number, zones: { sweetMin: number; caution: number; highRisk: number }): AcwrZoneName {
+  if (ratio > zones.highRisk) return "risk";
+  if (ratio > zones.caution) return "caution";
+  if (ratio >= zones.sweetMin) return "sweet";
+  return "low";
+}
+
 export interface WidgetSnapshot {
   v: 1;
   updatedAt: number;
   /** Today's readiness; the widget shows it only on the day it was worked out. */
   readiness: { date: string; score: number | null; status: ReadinessResult["status"] };
   days: WidgetDay[];
+  /** Absent when the app that wrote the snapshot predates the week widgets. */
+  week?: WidgetWeek;
+  /** The quick-log actions the athlete has switched on, in their order (`bodyweight`, `pain`, ...). */
+  quickLog?: string[];
   active: {
     name: string;
     settled: number;
@@ -59,14 +89,18 @@ export function buildWidgetSnapshot(input: {
   days: { date: string; planned: Workout[]; done: number }[];
   exerciseTypes: ExerciseTypeDef[];
   active: WidgetSnapshot["active"];
+  week?: WidgetWeek;
+  quickLog?: string[];
+  /** Hide the readiness score (a privacy choice - the widget then shows no number). */
+  hideReadiness?: boolean;
 }): WidgetSnapshot {
   return {
     v: 1,
     updatedAt: input.now.getTime(),
     readiness: {
       date: localIsoDate(input.now),
-      score: input.readiness?.score !== undefined ? Math.round(input.readiness.score) : null,
-      status: input.readiness?.status ?? "neutral",
+      score: !input.hideReadiness && input.readiness?.score !== undefined ? Math.round(input.readiness.score) : null,
+      status: input.hideReadiness ? "neutral" : input.readiness?.status ?? "neutral",
     },
     days: input.days.map((day) => ({
       date: day.date,
@@ -81,6 +115,8 @@ export function buildWidgetSnapshot(input: {
         };
       }),
     })),
+    ...(input.week ? { week: input.week } : {}),
+    ...(input.quickLog ? { quickLog: input.quickLog } : {}),
     active: input.active,
   };
 }

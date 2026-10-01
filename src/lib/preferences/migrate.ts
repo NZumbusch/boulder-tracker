@@ -151,6 +151,8 @@ export interface Preferences {
   navLabels: boolean;
   /** The (?) buttons next to terms like load, ACWR and phases. On by default. */
   helpButtons: boolean;
+  /** Home-screen widgets (Android) show the readiness score. Off hides the number - the ring stays empty - for those who'd rather not have it on the home screen. */
+  widgetShowReadiness: boolean;
   /**
    * The welcome screens (level, units, location, install) have been seen.
    * False only on a fresh install: a blob saved before this key existed is
@@ -312,6 +314,7 @@ export function defaultPreferences(): Preferences {
     addedExerciseTarget: 'none',
     navLabels: false,
     helpButtons: true,
+    widgetShowReadiness: true,
     welcomeDone: false,
     aiHistory: { ...DEFAULT_AI_HISTORY },
     autoBackup: true,
@@ -540,6 +543,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
       : defaults.addedExerciseTarget,
     navLabels: typeof candidate.navLabels === 'boolean' ? candidate.navLabels : defaults.navLabels,
     helpButtons: typeof candidate.helpButtons === 'boolean' ? candidate.helpButtons : defaults.helpButtons,
+    widgetShowReadiness: typeof candidate.widgetShowReadiness === 'boolean' ? candidate.widgetShowReadiness : defaults.widgetShowReadiness,
     welcomeDone: typeof candidate.welcomeDone === 'boolean' ? candidate.welcomeDone : true,
   };
 }

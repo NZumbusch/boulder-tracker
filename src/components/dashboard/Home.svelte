@@ -63,12 +63,15 @@
   }
 
   let showQuickLog = $state(false);
+  let quickLogStart = $state<'pain' | 'bodyweight' | 'send' | 'benchmark' | null>(null);
 
   // A launcher shortcut / the widget asked for the quick log (see lib/navigation/deepLink).
   // "metrics" is MetricsCard's to handle - unless that card is hidden, then there's nothing to open.
   $effect(() => {
     const request = trainingState.uiStore.homeRequest;
     if (request === 'quickLog') {
+      quickLogStart = trainingState.uiStore.quickLogAction;
+      trainingState.uiStore.quickLogAction = null;
       showQuickLog = true;
       trainingState.uiStore.homeRequest = null;
     } else if (request === 'metrics' && !trainingState.homeSections.some((s) => s.id === 'metrics' && s.visible)) {
@@ -140,5 +143,5 @@
 </div>
 
 {#if showQuickLog}
-  <QuickLogSheet onClose={() => showQuickLog = false} />
+  <QuickLogSheet initialKind={quickLogStart} onClose={() => { showQuickLog = false; quickLogStart = null; }} />
 {/if}

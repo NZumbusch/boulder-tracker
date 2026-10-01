@@ -438,6 +438,10 @@ class TrainingState {
   get helpButtons() { return this.preferencesStore.helpButtons; }
   setHelpButtons(on: boolean) { this.preferencesStore.setHelpButtons(on); }
 
+  /** Whether the home-screen widgets show the readiness score. */
+  get widgetShowReadiness() { return this.preferencesStore.widgetShowReadiness; }
+  setWidgetShowReadiness(on: boolean) { this.preferencesStore.setWidgetShowReadiness(on); }
+
   /** Whether the first-run welcome has been seen on this device. */
   get welcomeDone() { return this.preferencesStore.welcomeDone; }
   setWelcomeDone(done: boolean) { this.preferencesStore.setWelcomeDone(done); }

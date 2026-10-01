@@ -19,6 +19,7 @@ export function openDeepLink(link: DeepLink): void {
     case "metrics":
       trainingState.sessionStore.minimize();
       trainingState.navigate("home");
+      trainingState.uiStore.quickLogAction = link.kind === "quickLog" ? link.action ?? null : null;
       trainingState.uiStore.homeRequest = link.kind;
       break;
     case "view":
