@@ -74,4 +74,5 @@
       {/if}
     </div>
   {/if}
+  <p class="text-caption text-content-subtle leading-relaxed px-1">A training log, not medical advice. For pain that lasts, gets worse or worries you, see a doctor or physiotherapist.</p>
 </div>

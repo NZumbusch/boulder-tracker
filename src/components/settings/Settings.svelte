@@ -28,6 +28,7 @@
   import ErrorLogCard from './ErrorLogCard.svelte';
   import { updater } from '../../lib/update/updater.svelte';
   import { APP_INFO } from '../../lib/appInfo';
+  import FeedbackCard from './FeedbackCard.svelte';
   import { shortCommit, commitUrl } from '../../lib/update/appUpdate';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import Icon from "@iconify/svelte";
@@ -281,12 +282,21 @@
             </p>
           </div>
 
+          <FeedbackCard />
+
           <div class="space-y-2 pt-4 border-t border-border">
             <h4 class="text-section uppercase text-content-muted">Impressum</h4>
             <p class="text-caption text-content-muted leading-relaxed">
               {APP_INFO.developer}<br/>
               <a href="mailto:{APP_INFO.email}" class="text-primary">{APP_INFO.email}</a><br/>
               <a href={APP_INFO.homepage} target="_blank" rel="noopener" class="text-primary">{APP_INFO.homepage.replace('https://', '')}</a>
+            </p>
+          </div>
+
+          <div class="space-y-2 pt-4 border-t border-border">
+            <h4 class="text-section uppercase text-content-muted">Not medical advice</h4>
+            <p class="text-caption text-content-muted leading-relaxed">
+              Boulder Tracker's readiness score, load numbers, pain tracking and AI coach prompts are training aids, not medical advice or a diagnosis. For pain that persists, gets worse or worries you, see a doctor or physiotherapist.
             </p>
           </div>
 
@@ -301,6 +311,7 @@
           <div class="space-y-2 pt-4 border-t border-border">
             <h4 class="text-section uppercase text-content-muted">Credits</h4>
             <ul class="text-caption text-content-muted space-y-1 list-disc list-inside">
+              <li>Open source under the <a href={`${APP_INFO.repoUrl}/blob/main/LICENSE`} target="_blank" rel="noopener" class="text-primary">MIT licence</a></li>
               <li>Built with Svelte and Capacitor</li>
               <li>Icons: Material Icons, via Iconify</li>
               <li>Weather data by <a href="https://open-meteo.com" target="_blank" rel="noopener" class="text-primary">Open-Meteo.com</a> (CC BY 4.0)</li>

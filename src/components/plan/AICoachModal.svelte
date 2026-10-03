@@ -271,6 +271,7 @@
   <div class="flex-1 overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full px-4 py-4 pb-32 space-y-4">
       {#if step === 'ask'}
+        <p class="text-caption text-content-subtle leading-relaxed px-1">An AI's training suggestions are ideas to check, not medical advice. For pain or injury, ask a doctor or physiotherapist.</p>
         {#if mode === 'context'}
           <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-1.5">
             <p class="text-body text-content">Just your training profile, with no question attached.</p>
