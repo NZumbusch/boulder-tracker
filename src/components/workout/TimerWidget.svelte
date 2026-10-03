@@ -1,7 +1,6 @@
 <script lang="ts">
   /**
-   * Floating stopwatch / countdown / interval timer (ported from an old
-   * stash, extended 2026-09-22 with interval mode).
+   * Floating stopwatch / countdown / interval timer.
    *
    * Three modes:
    * - **Stopwatch** and **countdown**, kept as timestamps (`lib/timer/clock`)

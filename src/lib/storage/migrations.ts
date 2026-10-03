@@ -79,13 +79,12 @@ const BUILTIN_PHASE_DEFS = [
  * again in the other still maps to the same id rather than creating a
  * duplicate placeholder.
  *
- * Checks by id first (bug fix, 2026-09-16): a fresh install's `templates`
- * come straight from `DEFAULT_TEMPLATES`, already keyed by phaseId (e.g.
- * "phase-capacity"), not by name - see `resolveInitialExportVersion` in
- * `persistence.ts` for the full story. Without this check, an
- * already-resolved key got treated as an unresolvable *name* and produced a
- * brand new archived placeholder PhaseDef every time this step ran on
- * already-current-shape data.
+ * Checks by id first: a fresh install's `templates` come straight from
+ * `DEFAULT_TEMPLATES`, already keyed by phaseId (e.g. "phase-capacity"), not by
+ * name - see `resolveInitialExportVersion` in `persistence.ts`. Without this
+ * check an already-resolved key would be treated as an unresolvable *name* and
+ * produce a new archived placeholder PhaseDef every time this step ran on
+ * current-shape data.
  */
 function makePhaseIdResolver(data: any): (nameOrId: string) => string {
   const placeholderIds = new Map<string, string>();
@@ -899,12 +898,11 @@ const MIGRATIONS: MigrationStep[] = [
           if (seenSlotIds.has(id)) id = generateId();
           seenSlotIds.add(id);
 
-          // Bug fix (2026-09-16): already in ExerciseSlot shape - e.g. a
-          // fresh install's default templates, which come straight from
-          // DEFAULT_TEMPLATES and are never flat Exercise[] to begin with.
-          // Without this check, `prescribed` fell into `...rest` below and
-          // got wrapped in a second `prescribed` layer (`prescribed.prescribed`),
-          // silently hiding every default template's exercise values.
+          // Already in ExerciseSlot shape (a fresh install's default templates
+          // come straight from DEFAULT_TEMPLATES and are never flat Exercise[]).
+          // Without this check `prescribed` fell into `...rest` below and got
+          // wrapped in a second `prescribed` layer, hiding every default
+          // template's exercise values.
           if (e.prescribed !== undefined || e.logged !== undefined) {
             return { ...e, id };
           }

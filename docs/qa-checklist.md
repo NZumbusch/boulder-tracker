@@ -1,6 +1,6 @@
 # Real-device QA checklist
 
-For the pre-launch check on real hardware. Everything below was only exercised in a desktop browser (Chrome with a phone-sized window and spoofed user agents) or by unit tests, never on a phone. Fill in **Result** (pass / fail) and **Notes** as you go; anything that fails goes into a GitHub issue with the build number from Settings → About & Help.
+For the pre-launch check on real hardware. Everything below was only exercised in a desktop browser (Chrome with a phone-sized window and spoofed user agents) or by unit tests, never on a phone. Fill in **Result** (pass / fail) and **Notes** as the run goes; anything that fails goes into a GitHub issue with the build number from Settings → About & Help.
 
 Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the installed app), ideally an Android **tablet** and a **second Android phone** for sync. Do each section on a **fresh install** (new browser profile or cleared site data; for the app: uninstall first) unless it says otherwise.
 

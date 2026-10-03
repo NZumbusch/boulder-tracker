@@ -54,9 +54,8 @@
   // The window is a range preset split into columns ("buckets") - a week
   // each, or a month each for the year view. See `lib/analytics/range.ts`.
   //
-  // Not a sticky header (user-directed, 2026-09-18, after the sticky
-  // version's z-index/narrow-screen problems): it scrolls away with the
-  // page like every other screen's header.
+  // Not a sticky header: it scrolls away with the page like every other
+  // screen's header (a sticky one had z-index and narrow-screen problems).
 
   // --- State ---
   const categories = $derived(trainingState.analyticsCategories);
@@ -354,7 +353,7 @@
   $effect(() => tips.listen());
 
   // Nothing logged of any kind yet: every chart would be a row of zeros,
-  // so the screen says what will appear instead (decided 2026-09-26).
+  // so the screen says what will appear instead.
   const hasAnyData = $derived(
     trainingState.completedWorkouts.length > 0 ||
     trainingState.benchmarks.length > 0 ||

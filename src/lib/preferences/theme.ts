@@ -1,6 +1,6 @@
 /**
- * The theme choice and what it resolves to. "system" (the default since
- * 2026-09-26) follows the phone's light/dark setting; the other three are
+ * The theme choice and what it resolves to. "system" (the default) follows
+ * the phone's light/dark setting; the other three are
  * fixed choices. Only the resolved theme ever reaches `data-theme`.
  */
 export type ThemePreference = "system" | "dark" | "light" | "contrast";

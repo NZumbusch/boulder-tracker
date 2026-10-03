@@ -106,7 +106,7 @@ export function slotActualLoads(exercises: ExerciseSlot[], groups?: ExerciseGrou
 /**
  * The values load is read from: a group's share when the slot is in a
  * circuit, otherwise the exercise's own duration - estimated from its
- * sets/reps/rest when it has none (Nathan, 2026-09-28), so 4x6 pull-ups
+ * sets/reps/rest when it has none, so 4x6 pull-ups
  * count as the minutes they take rather than `calculatePlannedLoad`'s
  * 60-minute default. Only an exercise with nothing to go on still gets
  * that default.

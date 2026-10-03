@@ -3,13 +3,11 @@ import type { ValidationIssue } from "./schema";
 /**
  * Collapses validation output into something a human can act on.
  *
- * The motivating case (2026-09-21): a 15-week plan produced ~170 issues
- * that the import modal rendered as one flat list, so the user saw a wall
- * of near-identical lines scrolling past a 160px box. There were only ever
- * *three* distinct problems in it - a string where an array belonged, prose
- * in `cadence`, prose in `climbingStyle` - repeated across every week.
- * Grouping turns "170 errors" into "3 problems", which is both the truth
- * and something you can fix.
+ * Example: a 15-week plan can produce ~170 issues that are really three
+ * distinct problems (a string where an array belonged, prose in `cadence`,
+ * prose in `climbingStyle`) repeated across every week.
+ * Grouping turns "170 errors" into "3 problems", which is both the truth and
+ * something that can be fixed.
  */
 export interface IssueGroup {
   /** The field the group is about, with array indices collapsed: "weeks[].workouts[].exercises[].values.cadence". */

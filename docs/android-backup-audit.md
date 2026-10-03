@@ -12,7 +12,7 @@ With the original phone gone or reset, restoring is harmless, and is in fact use
 
 ## How likely is it?
 
-I can't tell from the code. Auto Backup restores happen when an app is installed through Google Play or during phone setup from a Google backup. This app is **sideloaded**, and I don't know whether a sideloaded APK on a new phone gets its data restored (it depends on the Android version and the installer). Treat it as possible, unconfirmed.
+It can't be told from the code. Auto Backup restores happen when an app is installed through Google Play or during phone setup from a Google backup. This app is **sideloaded**, and whether a sideloaded APK on a new phone gets its data restored is unclear (it depends on the Android version and the installer). Treat it as possible, unconfirmed.
 
 ## What a test needs (a phone with a Google account, USB debugging, `adb`)
 

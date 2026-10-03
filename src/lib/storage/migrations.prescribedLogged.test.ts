@@ -18,7 +18,7 @@ function loadFixture(name: string): any {
 // The biggest, highest-stakes migration step: flat Exercise[] ->
 // ExerciseSlot[] with a prescribed/logged split. Each scenario below is one
 // of the specific cases the prescribed/logged split had to handle, plus the
-// two gap-fills decided with the user before implementation (2026-09-16).
+// two gap-fills made before implementation.
 
 describe("prescribed/logged split - (a) pre-3.12 completed workout, no plannedDuration", () => {
   it("sets prescribed === logged (honest limitation: no plan/actual distinction ever existed for this data)", () => {

@@ -18,7 +18,7 @@ import {
 
 const member = (id: string, prescribed: ExerciseSlot["prescribed"]) => ({ slot: { id, typeId: "t", prescribed } as ExerciseSlot, values: prescribed! });
 
-// Nathan's circuit: 1 min twists, 15 s switch, 12 push-ups, 1 min after each round.
+// A circuit: 1 min twists, 15 s switch, 12 push-ups, 1 min after each round.
 const group: ExerciseGroup = { id: "g", rounds: 2, transition: 15, roundRest: 60 };
 const members = [member("twist", { timeOn: 60 }), member("push", { reps: 12 })];
 const steps = circuitSteps(group, members);

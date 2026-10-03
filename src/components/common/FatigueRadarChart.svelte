@@ -5,7 +5,7 @@
    * `FatiguePanel.svelte` - same four values `computeFatigueDecay` already
    * produces, this is presentation only.
    *
-   * The old stash's radar chart was rejected for imputing missing axes with `|| 5` - a radar polygon
+   * Missing axes are never imputed (e.g. with `|| 5`): a radar polygon
    * structurally can't represent "no data" honestly at one vertex without
    * either implying zero fatigue (plotting at centre) or max fatigue
    * (plotting at the rim), and a partial polygon that skips a vertex still

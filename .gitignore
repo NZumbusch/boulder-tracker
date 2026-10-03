@@ -27,7 +27,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Bits and pieces
+# Local scratch files
 stuff
 # Never commit signing keys or credentials, wherever they end up
 *.jks

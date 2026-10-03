@@ -5,30 +5,25 @@ import type { ExerciseValues, ValueDef } from "../types";
  * its JSON type, its unit, and - crucially - its allowed values when the
  * TypeScript type is a union of string literals.
  *
- * Why this file exists (2026-09-21): the AI plan contract used to describe
- * `values` to the model as nothing but a bare list of field *names*
- * (`AI_EXERCISE_VALUE_FIELD_NAMES.join(", ")`), and `schema.ts` validated
- * them as nothing but "number" | "string" | "string[]". Both halves were
- * weaker than the real type in `types.ts`, which produced two distinct
- * classes of failure in a real 15-week plan the user pasted:
+ * Both the AI prompt and the validator used to be weaker than the real type in
+ * `types.ts`: `values` was described to the model as a bare list of field
+ * names, and validated as just "number" | "string" | "string[]". That let two
+ * kinds of failure through:
  *
- *  1. Loud, fatal ones - the model sent `"mobilityType": "Shoulders and
- *     Wrists"` (a string where the type is `string[]`) and
- *     `"cadence": "Continuous, 1 problem every 3-4 min"` (prose where the
- *     type is `number`). ~170 of these rejected the entire import.
- *  2. Silent, corrupting ones - the model sent `"boardType": "Kilter"`
- *     (not one of the four legal board types), `"campusType": "Max
- *     Ladders"`, and `"routeDifficulty": "6B+"` (a climbing grade, where
- *     the field is Easy/Moderate/Hard). The old validator type-checked
- *     these as "string", passed them, and stored values the rest of the app
- *     can never render. It also silently *dropped* every `"restTime"` the
- *     model emitted, because the real field is `timeBetweenSets` and
- *     unrecognized keys are (deliberately) ignored.
+ *  1. Loud ones - a string where the type is `string[]` (`"mobilityType":
+ *     "Shoulders and Wrists"`) or prose where it is `number` (`"cadence":
+ *     "Continuous, 1 problem every 3-4 min"`). Dozens of these in one plan
+ *     rejected the entire import.
+ *  2. Silent ones - a string that is not a legal value (`"boardType":
+ *     "Kilter"`, `"campusType": "Max Ladders"`, a climbing grade for
+ *     `"routeDifficulty"`, which is Easy/Moderate/Hard), or a wrong key
+ *     (`"restTime"` instead of `timeBetweenSets`, silently ignored). These
+ *     passed and stored values the app can never render.
  *
- * Class 2 is the dangerous one: an import that "succeeds" and writes
- * garbage is worse than one that fails. Both classes have the same root
- * cause - the model was never told the rules - so the fix is to derive both
- * the prompt text and the validator from this one table. They cannot drift.
+ * The second kind is the dangerous one: an import that "succeeds" and writes
+ * garbage is worse than one that fails. Both have one cause - the model was
+ * never told the rules - so the prompt text and the validator are derived from
+ * this one table and cannot drift.
  */
 
 export type ValueFieldType = "number" | "string" | "string[]";

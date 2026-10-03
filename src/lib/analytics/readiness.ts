@@ -66,10 +66,6 @@ export function fatigueReading(sum: number, model: Pick<FatigueModel, "soften" |
  * ratings add up - so rest days bring the reading down, and back-to-back
  * sessions stack. The sum becomes a 0-10 reading through `fatigueReading`.
  *
- * (Until 2026-09-28 this was a decay-weighted *average* of the ratings,
- * which rest never lowered: one session rated 8 still read 8 ten days
- * later.)
- *
  * A workout with no value for an axis (arms is the common case for any
  * workout logged before its slider existed) adds nothing to that axis. An
  * axis with zero workouts carrying it anywhere in `workouts` comes back

@@ -23,9 +23,8 @@
     risk: 'bg-status-risk',
     neutral: 'bg-status-neutral',
   };
-  // Bold hero treatment (user-directed, 2026-09-18) - a status-tinted gradient + border, translated
-  // through this app's existing status tokens rather than the stash's
-  // literal emerald/amber/rose. Full literal Tailwind class strings, not
+  // Bold hero treatment: a status-tinted gradient + border in this app's
+  // status tokens. Full literal Tailwind class strings, not
   // built via template interpolation - Tailwind's JIT can't see classes
   // assembled at runtime, only ones it can find as complete strings.
   const STATUS_HERO_BG: Record<ReadinessStatus, string> = {
@@ -38,7 +37,7 @@
   // safe to build dynamically - `color-mix()` needs a real custom-property
   // reference, and `--theme-status-*` are already hex per-theme (never
   // channel triples), matching the `color-mix` fix `AcwrPanel.svelte`
-  // already established rather than the stash's invalid `rgba(var(...))`.
+  // already established (not an invalid `rgba(var(...))`).
   const STATUS_VAR: Record<ReadinessStatus, string> = {
     good: 'var(--theme-status-good)',
     caution: 'var(--theme-status-caution)',

@@ -6,7 +6,7 @@ import { BODYWEIGHT_METRIC_ID, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC } from
  * Pure; the plugin (plugins/health-connect) supplies the readings, each
  * already carrying the local day it belongs to.
  *
- * Rules (decided with the user 2026-09-26):
+ * Rules:
  * - Resting HR: the day's average. Weight: the day's last reading.
  * - Sleep belongs to the day you wake up on. The longest sleep ending that
  *   day is the night (`sleep-duration`); any others are naps, stored as the

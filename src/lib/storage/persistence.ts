@@ -15,22 +15,17 @@ import {
 /**
  * Decides what `exportVersion` a freshly-loaded `_dbState` should carry.
  *
- * Bug fix (found 2026-09-16, reported by the user as duplicate/gray
- * "phase-..." entries surviving a storage wipe): a **true fresh install**
- * (no `workouts` ever persisted - the one field every real install always
- * has, even as `[]`) populates every other field straight from the
- * `DEFAULT_*` constants, which are already in the *current* schema shape by
- * construction. Defaulting `exportVersion` to `"1.0"` in that case (the old
- * behavior) made `runStartupMigrations` run the *entire* migration chain
- * over already-current-shape data - most historical steps happen to be
- * defensive/idempotent against that, but not all of them (confirmed: the
- * PhaseDef templates-rekey step re-resolved already-correct phaseId keys as
- * if they were phase *names*, creating an archived placeholder PhaseDef
- * per phase, and the Exercise->ExerciseSlot restructure step
- * double-nested `prescribed` on already-slotted default-template
- * exercises). A real, pre-existing install (has persisted `workouts`, even
- * an empty array) still defaults to `"1.0"` exactly as before when its
- * `exportVersion` is missing - that's the genuine 1.0/2.0-era case
+ * A **true fresh install** (no `workouts` ever persisted - the one field every
+ * real install always has, even as `[]`) populates every other field straight
+ * from the `DEFAULT_*` constants, which are already in the *current* schema
+ * shape. Defaulting `exportVersion` to `"1.0"` there would run the *entire*
+ * migration chain over current-shape data, and not every historical step is
+ * idempotent against that: the PhaseDef templates-rekey step re-resolved
+ * correct phaseId keys as if they were phase *names* (creating an archived
+ * placeholder PhaseDef per phase), and the Exercise->ExerciseSlot step
+ * double-nested `prescribed` on already-slotted default templates. A real
+ * install (has persisted `workouts`, even an empty array) still defaults to
+ * `"1.0"` when its `exportVersion` is missing - the genuine 1.0/2.0-era case
  * migrations exist to handle.
  */
 export function resolveInitialExportVersion(rawData: { workouts?: unknown; exportVersion?: string }): string {
@@ -156,8 +151,8 @@ export function setDemoMode(on: boolean): void {
  * blamed on whichever unrelated write triggered it, and every write after
  * that keeps failing while the UI still shows the in-memory state as if it
  * had saved. So this is enforced at the boundary rather than trusted to
- * each caller (found 2026-09-21 via `materializeWeek` writing projected
- * sessions built from reactive templates).
+ * each caller (e.g. `materializeWeek` writes sessions built from reactive
+ * templates).
  *
  * JSON round-trip rather than `structuredClone`: it is the one deep copy
  * that reads *through* a proxy instead of rejecting it. Every persisted

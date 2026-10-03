@@ -40,8 +40,7 @@ function emptyState(): WeatherState {
  * successful snapshot per location (home and each crag) in `localStorage` with its
  * fetch timestamp, so a cold app start while offline shows the last known
  * conditions labelled as stale rather than a blank card or an indefinite
- * spinner - the stash's `Dashboard.svelte` did the latter, explicitly
- * flagged in the stash audit as a pattern not to repeat.
+ * spinner.
  */
 export class WeatherStore {
   home = $state<WeatherState>(emptyState());

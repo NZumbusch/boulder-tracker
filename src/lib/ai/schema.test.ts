@@ -387,10 +387,10 @@ describe("parseAIWorkoutLogOutput (JSON.parse + validate)", () => {
 });
 
 /**
- * Regression suite built directly from the plan the user pasted on
- * 2026-09-21: a real 15-week plan from a frontier model that the old
- * validator rejected with ~170 errors, plus the mistakes it did NOT catch
- * and silently stored. Every case below is taken verbatim from that paste.
+ * Regression suite built from a real 15-week plan produced by a frontier
+ * model, which the old validator rejected with ~170 errors, plus the mistakes
+ * it did NOT catch and silently stored. Every case below is taken verbatim
+ * from that plan.
  */
 describe("repairs the mistakes real AI plans actually make", () => {
   function planWithValues(values: Record<string, unknown>) {

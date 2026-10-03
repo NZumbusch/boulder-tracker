@@ -1118,8 +1118,7 @@ class TrainingState {
    * which reads as the page jumping back to its top. Fine for a save that
    * navigates away anyway, but wrong for an in-place
    * edit where the user stays put (e.g. the Plan screen's day-of-week
-   * reassignment) - found and fixed 2026-09-18 after the
-   * new day-picker made this pre-existing behaviour newly visible.
+   * reassignment).
    * Reloads only the workouts store (everything a schedule change could
    * plausibly affect) and still re-syncs fatigue-reminder notifications,
    * since those key off `dayOfWeek`/`startTime` (`fatigueReminder.ts`) -
@@ -1554,8 +1553,8 @@ class TrainingState {
 
   /**
    * Logs (or updates) a daily metric entry, e.g. a bodyweight reading.
-   * Ensures the referenced MetricDef exists first - defensive, see
-   * (fixed 2026-09-17: a fresh install had no MetricDefs seeded).
+   * Ensures the referenced MetricDef exists first (a fresh install has none
+   * seeded by migration).
    */
   async saveDailyMetric(entry: DailyMetricEntry, def: MetricDef) {
     await this.metricsStore.ensureMetricDef(def);

@@ -67,7 +67,7 @@ export const COACH_MEMORY_READ_ONLY =
 
 /**
  * The change-set section's instructions - exactly how notes are used and
- * kept, as Nathan asked, so each AI keeps the list useful rather than
+ * kept, so each AI keeps the list useful rather than
  * growing it.
  */
 export const COACH_NOTES_INSTRUCTIONS = `5) "coachNotes" - the coaching memory (optional; leave it out when there's nothing worth keeping).

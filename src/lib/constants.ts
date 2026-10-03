@@ -38,17 +38,12 @@ export const BODYWEIGHT_METRIC_ID = "bodyweight";
 /**
  * Built-in `MetricDef`s, used as `persistence.ts`'s fresh-install default.
  *
- * Bug fix (found 2026-09-17 while wiring bodyweight tracking): unlike every
- * other catalog (`templates`/`phaseDefs`/`exerciseTypes`/`benchmarkTypes`/
- * `analyticsCategories`, each defaulted from a `DEFAULT_*` constant in
- * `persistence.ts`), `metricDefs` had only ever defaulted to `[]` - the
- * built-in `sleep-score`/`hrv`/`rhr` ids were seeded *only* by the
- * `3.17->3.18` migration step. Combined with the post-Phase-3 fresh-install
- * fix (a true fresh install now skips the whole migration chain), a fresh
- * install got zero built-in `MetricDef`s. This constant is used only as
- * `persistence.ts`'s default for a fresh install - the historical
- * `3.17->3.18` migration step is left untouched (migration steps are
- * frozen once shipped) for existing installs that go through it.
+ * Every other catalog (`templates`/`phaseDefs`/`exerciseTypes`/`benchmarkTypes`/
+ * `analyticsCategories`) defaults from a `DEFAULT_*` constant in
+ * `persistence.ts`; `metricDefs` needs the same, because a fresh install skips
+ * the migration chain and so never gets the built-in `sleep-score`/`hrv`/`rhr`
+ * ids that the `3.17->3.18` migration step seeds for existing installs. (A
+ * migration step is frozen once shipped, so that step is left as it is.)
  */
 /** Hours asleep, from Health Connect (no sleep score there). Created by the first import that has sleep, not on every install. */
 export const SLEEP_DURATION_METRIC: MetricDef = { id: "sleep-duration", name: "Sleep Duration", unit: "h" };
@@ -132,10 +127,9 @@ export const DEFAULT_BENCHMARK_TYPES: BenchmarkTypeDef[] = defaults.benchmarkTyp
  * Starter template sets, one per training level, that replace the
  * user's phase templates in one go (welcome screen, Settings → Phases).
  * "Getting started" is the fresh-install default (`DEFAULT_TEMPLATES`);
- * the others live in defaults.json's `templateLibrary`. Decided with the
- * user 2026-09-26: the shipped defaults were an experienced climber's
- * plan (max hangs, campus), too much for a friend trying the app; that
- * set is kept as "Advanced".
+ * the others live in defaults.json's `templateLibrary`. The original defaults
+ * were an experienced climber's plan (max hangs, campus), too much for a
+ * first-time user; that set is kept as "Advanced".
  */
 export interface TemplateLibrarySet {
   id: string;

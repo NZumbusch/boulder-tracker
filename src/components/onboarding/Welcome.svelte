@@ -4,7 +4,7 @@
    * templates the phases get), units, an optional home location, and on an
    * iPhone in Safari the "Add to Home Screen" steps. Ends by offering the
    * tour. Everything here can be changed later in Settings, and every step
-   * but the first can be skipped. Decided with the user 2026-09-26.
+   * but the first can be skipped.
    *
    * On an iPhone in Safari, or inside another app's browser, nothing is set up
    * first: the Home Screen app (and the real browser) keep their own storage, so

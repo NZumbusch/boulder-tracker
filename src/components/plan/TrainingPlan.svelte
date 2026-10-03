@@ -61,7 +61,7 @@
    * Arrange mode: drag handles (and every day as a drop zone, rest days
    * included) only while it's on. Normally rows are clean and a tap opens
    * the session - dragging stays deliberate, never a side effect of
-   * scrolling (user-directed: drag by handle only).
+   * scrolling (drag by handle only).
    */
   let arranging = $state(false);
 
@@ -103,13 +103,8 @@
   const selectedWeekNote = $derived(trainingState.selectedWeekId ? trainingState.getWeekNote(trainingState.selectedWeekId) : '');
 
   // --- Logic: Calendar Generation ---
-  // Reverted to the pre-Stage-6 50-week grid + hover-tooltip design
-  // (user-directed, 2026-09-18: the
-  // block-timeline band/16-week window/visible-week-number redesign this
-  // stage originally built didn't read well in the
-  // real app and was reverted in favour of the original look, restyled
-  // only with this branch's tokens/radii - not a partial keep of any of
-  // that redesign).
+  // A 50-week grid with hover tooltips (a block-timeline band over a 16-week
+  // window was tried and read worse in the real app).
 
   const weeks = $derived.by(() => {
     const currentWeekId = trainingState.currentWeekId;
@@ -146,12 +141,10 @@
       isCurrent: w.isCurrent,
       // Deliberately not `phaseColor(w.phaseId)` here - that helper's
       // `bg-status-neutral` fallback is right for badges/legend dots
-      // elsewhere in this file, but for the calendar grid it was drowning
-      // out `WeekCalendar`'s own softer "no phase" fallback
-      // (`bg-surface-elevated/50`, matching main's original look) with a
-      // flat mid-gray on every unassigned cell. Passing `undefined` here
-      // lets that component's own fallback apply instead (found/fixed
-      // 2026-09-18).
+      // elsewhere in this file, but for the calendar grid it drowned out
+      // `WeekCalendar`'s own softer "no phase" fallback
+      // (`bg-surface-elevated/50`) with a flat mid-gray on every unassigned
+      // cell. Passing `undefined` here lets that component's own fallback apply.
       color: w.phaseId ? phaseDefById.get(w.phaseId)?.color : undefined,
       tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}${w.provisional ? ' - not saved yet' : ''}`,
       hasOverlap: w.hasOverlap,
@@ -329,9 +322,8 @@
   /**
    * The single write path for reassigning a session's day (the select
    * and drag-and-drop both write the same field through it). Snapshots
-   * before mutating rather than writing to the live store object in place
-   * (the stash's version did the latter and is explicitly called out as
-   * the thing not to repeat). Uses `saveWorkoutQuiet` rather than
+   * before mutating rather than writing to the live store object in place.
+   * Uses `saveWorkoutQuiet` rather than
    * `saveWorkout` so this in-place edit doesn't trigger `refresh()`'s
    * `isLoading` remount - see that method's own doc comment.
    */
@@ -343,7 +335,7 @@
 
   /**
    * Drag-and-drop day reassignment, via a drag handle on
-   * each session row rather than the whole row - user-directed, so the
+   * each session row rather than the whole row, so the
    * rest of the row (and the page) keeps its normal scroll/tap behaviour;
    * only the handle itself starts a drag. Each day group is its own
    * `dragHandleZone`; dropping into a different zone than the one a

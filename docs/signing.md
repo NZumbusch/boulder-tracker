@@ -4,13 +4,13 @@ Android installs an update only if it is signed with the **same key** as the ins
 
 ## What is in use today
 
-- Release APKs (built by `.github/workflows/deploy.yml`) are signed with the debug keystore of Nathan's machine, `~/.android/debug.keystore` (alias `androiddebugkey`, password `android`). Its base64 is in the repository secret `ANDROID_KEYSTORE_BASE64`, with the other three secrets listed in the README.
+- Release APKs (built by `.github/workflows/deploy.yml`) are signed with the debug keystore of the maintainer's machine, `~/.android/debug.keystore` (alias `androiddebugkey`, password `android`). Its base64 is in the repository secret `ANDROID_KEYSTORE_BASE64`, with the other three secrets listed in the README.
 - Google Drive sign-in is tied to this key: the Android OAuth client in the Google Cloud project holds its **SHA-1**.
 - The certificate's fingerprints are published in `version.json` (the `signing` field) and on the site's "Is this APK safe?" section, so anyone can compare.
 
-I could not check from the repository whether the keystore file still exists only on that one machine; that is yours to confirm.
+Whether the keystore file exists only on that one machine can't be seen from the repository: confirm where the copies are.
 
-## Back it up now (do this whatever you decide below)
+## Back it up (whatever is decided below)
 
 GitHub secrets are write-only: the secret is **not** a backup, since nobody can read it back.
 
@@ -30,7 +30,7 @@ What it costs, because installed apps are signed with the old key:
 
 Cheapest moment: before the public post, while few copies exist. After it, the same move costs every new user a reinstall.
 
-## If you decide to move (steps)
+## If the key is moved (steps)
 
 1. Create the key, on your machine, never in the repository:
    `keytool -genkeypair -v -keystore boulder-tracker-release.keystore -alias boulder-tracker -keyalg RSA -keysize 4096 -validity 10000`

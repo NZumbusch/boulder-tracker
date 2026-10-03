@@ -28,7 +28,7 @@ const slot = (id: string, prescribed: ExerciseSlot["prescribed"], extra: Partial
   ...extra,
 });
 
-// Nathan's core circuit: 1 min each, 15 s transitions, 1 min after each round.
+// A core circuit: 1 min each, 15 s transitions, 1 min after each round.
 const core: ExerciseGroup = { id: "g", name: "Core", rounds: 3, transition: 15, roundRest: 60 };
 const coreSlots = [
   slot("twist", { timeOn: 60 }, { groupId: "g" }),

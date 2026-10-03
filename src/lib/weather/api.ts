@@ -111,13 +111,10 @@ function optionalNumber(value: unknown): number | undefined {
  * Meteo's forecast endpoint.
  *
  * Uses the unified `current=` parameter rather than the older
- * `current_weather=true` flag. That choice was previously the other way
- * round, on the grounds that the newer parameter's field names were
- * "less certain without a live call to verify against" - so the call was
- * made (2026-09-22) and every field below was read off a real response.
- * `current_weather=true` only ever returned temperature, wind and a code;
- * humidity and apparent temperature, which are the two things that
- * actually decide whether rock has friction, are only available this way.
+ * `current_weather=true` flag: that one only returns temperature, wind and a
+ * code, while humidity and apparent temperature - the two things that
+ * actually decide whether rock has friction - are only available through
+ * `current=`. The field names below were checked against a real response.
  *
  * Only temperature, weather code and the daily arrays are required. Every
  * other field is optional, so a partial response still produces a usable
@@ -139,9 +136,8 @@ export async function fetchWeatherSnapshot(latitude: number, longitude: number):
       'relative_humidity_2m_mean', 'dew_point_2m_mean', 'wind_speed_10m_max', 'sunset',
     ].join(',');
     // Hourly: the 72 h before now (rain history - whether rock is still
-    // drying) and the 24 h ahead (today's best window). Checked against a
-    // live response 2026-09-23: past_hours/forecast_hours bound the hourly
-    // series without touching the daily one.
+    // drying) and the 24 h ahead (today's best window). past_hours and
+    // forecast_hours bound the hourly series without touching the daily one.
     const hourly = [
       'temperature_2m', 'dew_point_2m', 'relative_humidity_2m',
       'precipitation', 'precipitation_probability', 'wind_speed_10m',
