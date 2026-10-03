@@ -1,6 +1,69 @@
 # Boulder Tracker
 
-A training planner and log for bouldering and climbing, built with Svelte 5 and Vite. It runs in the browser, installs as a web app (iPhone: Safari → Share → Add to Home Screen) and as an Android app (Capacitor). All data stays on the device.
+**Plan, log and understand your climbing training.** Free, open source, no account: your data stays on your device.
+
+![Boulder Tracker: the plan, Home and analytics screens](public/img/og.jpg)
+
+Boulder Tracker is a training planner and log for bouldering and climbing, built with Svelte 5 and Vite. It runs in the browser, installs as a web app on iPhone and Android, and as a native Android app.
+
+<p align="center">
+  <img src="public/img/intro-home.webp" alt="Home" width="31%">
+  <img src="public/img/intro-plan.webp" alt="Plan" width="31%">
+  <img src="public/img/intro-analytics.webp" alt="Analytics" width="31%">
+</p>
+
+## Install
+
+Everything is at **https://bouldertracker.nathanzumbusch.de/**.
+
+### Android app
+
+It adds Google Drive sync, home-screen widgets, reminders, launcher shortcuts, Health Connect and timer sound with the screen off. It is not in the Play Store, so you install the APK yourself:
+
+1. Download [boulder-tracker.apk](https://bouldertracker.nathanzumbusch.de/android/stable/boulder-tracker.apk) on your phone and open it.
+2. If Android asks, allow your browser to **install unknown apps**, then go back and tap Install.
+3. Play Protect may say it hasn't seen the app before, because it isn't from the Play Store. Tap **More details → Install anyway**.
+4. Updates arrive inside the app (Settings → About & Help → App updates). Each one is checked against its SHA-256 before Android installs it, and a backup is saved first.
+
+Needs Android 8 (API 26) or newer.
+
+### iPhone and iPad
+
+Open the site in **Safari**, tap Share → **Add to Home Screen**. (Links opened inside Reddit, Instagram and other apps can't install: open them in Safari first.) The Home Screen app keeps its own data, so set it up there rather than in the browser tab.
+
+### Any browser
+
+Just [open the web app](https://bouldertracker.nathanzumbusch.de/). It works offline once loaded.
+
+### What works where
+
+| | Android app | iPhone Home Screen | Browser |
+| --- | --- | --- | --- |
+| Works offline | Yes | Yes | Once loaded |
+| Google Drive sync | Yes | No | No |
+| Reminders | Yes | No | No |
+| Timer sound, screen locked | Yes | No (keep the screen on) | No (keep the screen on) |
+| Widgets, shortcuts | Yes | No | No |
+| Health Connect import | Yes | No | No |
+| Backups | Automatic, weekly | By hand | By hand |
+
+A browser (Safari especially) can erase a website's data after a while. Installing to the Home Screen and saving a backup file now and then (Settings → Data & Exports) keeps your training safe.
+
+## Is the APK safe? Check it yourself
+
+The APK is built by GitHub's servers from this repository on every release (`.github/workflows/deploy.yml`), and each build records the commit it came from. On the [site](https://bouldertracker.nathanzumbusch.de/about.html#verify) you'll find the commit, SHA-256 and signing certificate of the current build. To check on a computer:
+
+```bash
+sha256sum boulder-tracker.apk                      # must match the SHA-256 on the site
+apksigner verify --print-certs boulder-tracker.apk # who signed it
+gh attestation verify boulder-tracker.apk --repo NZumbusch/boulder-tracker
+```
+
+The last command asks GitHub to confirm this exact file was produced by this repository's workflow. (Builds from before attestations were added don't have one.) The signing key is the developer's own, so Android treats an update signed with any other key as a different app: see [docs/signing.md](docs/signing.md).
+
+## Feedback
+
+Found a bug, or want something? Open an [issue](https://github.com/NZumbusch/boulder-tracker/issues/new), or use Settings → About & Help → *Report a bug or send feedback* in the app, which prefills your version and device. Training aids here (readiness, load, pain tracking, AI prompts) are not medical advice.
 
 ## What it does
 
@@ -112,3 +175,7 @@ Most logic is in plain TypeScript modules under `src/lib/` with tests next to th
 Stored data carries a version (`DATA_EXPORT_VERSION` in `src/lib/constants.ts`). On startup, older data, including imported backups, is upgraded step by step by `src/lib/storage/migrations.ts`. A backup is kept, and the upgrade is rolled back if its safety checks fail. A shipped migration step is never changed afterwards; a new one is added instead.
 
 Weeks that follow their phase aren't stored. They're projected from the phase's typical week until you edit them, and only then written out (see `src/lib/planning/weekProjection.ts`).
+
+## Licence
+
+[MIT](LICENSE). Weather data by [Open-Meteo.com](https://open-meteo.com) (CC BY 4.0).
