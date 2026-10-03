@@ -4,9 +4,6 @@ For the pre-launch check on real hardware. Everything below was only exercised i
 
 Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the installed app), ideally an Android **tablet** and a **second Android phone** for sync. Do each section on a **fresh install** (new browser profile or cleared site data; for the app: uninstall first) unless it says otherwise.
 
-| # | Test | Steps | Expected | Result | Notes |
-| --- | --- | --- | --- | --- | --- |
-
 ## 1. Install: iPhone
 
 | # | Test | Steps | Expected | Result | Notes |
