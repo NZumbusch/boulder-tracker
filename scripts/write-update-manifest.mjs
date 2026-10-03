@@ -10,6 +10,10 @@
  * app-version.mjs), the APK's SHA-256 and
  * size, the commit it was built from, and recent commit subjects as
  * "what's new". No author names, emails or anything else from git.
+ *
+ * APK_CERT_SHA256 / APK_CERT_SHA1 (set by CI from the signing key) are
+ * written as `signing`: certificate fingerprints are public (every APK
+ * carries its certificate) and let people check who signed the file.
  */
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -35,6 +39,12 @@ const changes = git("log", "-30", "--no-merges", "--format=%H%x09%s")
     return { versionCode: Number(git("rev-list", "--count", sha)), subject: subject.join("\t") };
   });
 
+const certificate = (value) => {
+  const hex = (value ?? "").replace(/[^0-9a-f]/gi, "").toUpperCase();
+  return hex ? hex.match(/../g).join(":") : undefined;
+};
+const signing = { sha256: certificate(process.env.APK_CERT_SHA256), sha1: certificate(process.env.APK_CERT_SHA1) };
+
 const bytes = readFileSync(apk);
 const manifest = {
   versionCode,
@@ -44,6 +54,7 @@ const manifest = {
   size: statSync(apk).size,
   commit: git("rev-parse", "HEAD"),
   publishedAt: new Date().toISOString(),
+  ...(signing.sha256 || signing.sha1 ? { signing: Object.fromEntries(Object.entries(signing).filter(([, v]) => v)) } : {}),
   changes,
 };
 
