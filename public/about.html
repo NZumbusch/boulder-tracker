@@ -34,6 +34,11 @@
     dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; color: var(--text); word-break: break-all; font-size: 14px; }
     @media (max-width: 520px) { dl.facts { grid-template-columns: 1fr; gap: 0; } dl.facts dd { margin-bottom: 10px; } }
     .button.alt { background: transparent; color: var(--accent); border: 1px solid var(--border); margin-left: 8px; }
+    table.platforms { border-collapse: collapse; width: 100%; font-size: 14px; margin: 8px 0; }
+    table.platforms th, table.platforms td { text-align: left; padding: 8px 10px 8px 0; border-top: 1px solid var(--border); vertical-align: top; color: var(--text); }
+    table.platforms thead th { border-top: 0; }
+    table.platforms tbody th { color: var(--muted); font-weight: 400; }
+    table.platforms td.no { color: var(--muted); }
     footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 16px; }
   </style>
 </head>
@@ -71,6 +76,23 @@
   <p>Want proof it's the code on GitHub? <a href="#verify">Check the build yourself</a>.</p>
   <p><strong>iPhone / iPad</strong>: open this page in <strong>Safari</strong>, tap Share → <strong>Add to Home Screen</strong>. In Chrome or Firefox on iOS, use the browser's menu or Share sheet for the same entry. (Links opened inside Reddit or other apps can't install; open them in Safari first.) iOS has no sync, reminders or widgets.</p>
   <p><strong>Any browser</strong>: just <a href="./">open the web app</a>; it also works offline once loaded.</p>
+
+  <h2 id="platforms">What works where</h2>
+  <div style="overflow-x:auto">
+  <table class="platforms">
+    <thead><tr><th></th><th>Android app</th><th>iPhone Home Screen</th><th>Browser</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Works offline</th><td>Yes</td><td>Yes</td><td>Once loaded</td></tr>
+      <tr><th scope="row">Google Drive sync</th><td>Yes</td><td class="no">No</td><td class="no">No</td></tr>
+      <tr><th scope="row">Reminders</th><td>Yes</td><td class="no">No</td><td class="no">No</td></tr>
+      <tr><th scope="row">Timer sound, screen locked</th><td>Yes</td><td class="no">No: keep the screen on</td><td class="no">No: keep the screen on</td></tr>
+      <tr><th scope="row">Widgets, shortcuts</th><td>Yes</td><td class="no">No</td><td class="no">No</td></tr>
+      <tr><th scope="row">Health Connect import</th><td>Yes</td><td class="no">No</td><td class="no">No</td></tr>
+      <tr><th scope="row">Backups</th><td>Automatic, weekly</td><td class="no">By hand</td><td class="no">By hand</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Planning, logging, analytics, the AI coach prompts and PDF/CSV export work everywhere. A browser (Safari especially) can erase a website's data after a while, so installing to the Home Screen and saving a backup file now and then is worth it.</p>
 
   <h2 id="verify">Is this APK safe? Check it yourself</h2>
   <p>The app is open source: <a href="https://github.com/NZumbusch/boulder-tracker">github.com/NZumbusch/boulder-tracker</a>. The APK is built by GitHub's servers from that code on every release, not on a personal computer, and each build records which commit it came from. You don't have to take my word for it:</p>
