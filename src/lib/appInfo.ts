@@ -4,11 +4,14 @@
  * public/privacy.html) and Google's consent screen show.
  */
 declare const __APP_VERSION__: string | undefined;
+declare const __APP_COMMIT__: string | undefined;
 
 export const APP_INFO = {
   name: "Boulder Tracker",
   /** "1.2.9" - from git at build time (scripts/app-version.mjs). */
   version: typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "dev",
+  /** Full hash of the commit this build was made from ('' when built outside git). */
+  commit: typeof __APP_COMMIT__ === "string" ? __APP_COMMIT__ : "",
   developer: "Nathan Zumbusch",
   email: "info@nathanzumbusch.de",
   homepage: "https://nathanzumbusch.de",

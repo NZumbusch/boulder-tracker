@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseManifest, isNewer, changesSince, apkUrl, formatSize, manifestUrlFor, UPDATE_MANIFEST_URL } from "./appUpdate";
+import { parseManifest, isNewer, changesSince, apkUrl, formatSize, missingChannelMessage, shortCommit, commitUrl, manifestUrlFor, UPDATE_MANIFEST_URL } from "./appUpdate";
 
 const SHA = "a".repeat(64);
 const raw = {
@@ -59,5 +59,30 @@ describe("deciding", () => {
     expect(apkUrl(m, UPDATE_MANIFEST_URL)).toBe(UPDATE_MANIFEST_URL.replace("version.json", "boulder-tracker.apk"));
     expect(apkUrl({ ...m, apk: "http://evil.example/x.apk" }, UPDATE_MANIFEST_URL)).toBeNull();
     expect(formatSize(m.size)).toBe("12.3 MB");
+  });
+});
+
+describe("commit", () => {
+  const COMMIT = "D095D290A50541198A539A62E14400DAE756BE9A";
+  it("keeps a valid commit hash and drops anything else", () => {
+    expect(parseManifest({ ...raw, commit: COMMIT })!.commit).toBe(COMMIT.toLowerCase());
+    expect(parseManifest({ ...raw, commit: "not a hash" })!.commit).toBeUndefined();
+    expect(parseManifest(raw)!.commit).toBeUndefined();
+  });
+
+  it("shortens it and links to GitHub, only for real hashes", () => {
+    expect(shortCommit(COMMIT)).toBe("d095d29");
+    expect(shortCommit("")).toBeUndefined();
+    expect(shortCommit("zz")).toBeUndefined();
+    expect(commitUrl(COMMIT)).toBe(`https://github.com/NZumbusch/boulder-tracker/commit/${COMMIT.toLowerCase()}`);
+    expect(commitUrl("d095d29")).toBeUndefined();
+    expect(commitUrl(undefined)).toBeUndefined();
+  });
+});
+
+describe("an empty channel", () => {
+  it("tells the person what to do instead of failing", () => {
+    expect(missingChannelMessage("stable")).toMatch(/Switch to Testing/);
+    expect(missingChannelMessage("testing")).toMatch(/Try again later/);
   });
 });

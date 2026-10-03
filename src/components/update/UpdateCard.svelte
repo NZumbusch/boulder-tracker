@@ -6,7 +6,7 @@
    */
   import Icon from '@iconify/svelte';
   import { updater } from '../../lib/update/updater.svelte';
-  import { formatSize } from '../../lib/update/appUpdate';
+  import { formatSize, shortCommit, commitUrl } from '../../lib/update/appUpdate';
 
   let { compact = false }: { compact?: boolean } = $props();
 
@@ -22,6 +22,9 @@
         <p class="text-body font-semibold text-content">Update available</p>
         <p class="text-caption text-content-subtle tabular-nums">
           Build {updater.available.versionCode}{updater.installedCode ? ` · you have ${updater.installedCode}` : ''}{formatSize(updater.available.size) ? ` · ${formatSize(updater.available.size)}` : ''}
+        </p>
+        <p class="text-caption text-content-subtle tabular-nums truncate">
+          {#if shortCommit(updater.available.commit)}commit <a href={commitUrl(updater.available.commit)} target="_blank" rel="noopener" class="text-primary">{shortCommit(updater.available.commit)}</a> · {/if}SHA-256 {updater.available.sha256.slice(0, 12)}…
         </p>
       </div>
       {#if compact && !busy}
@@ -58,7 +61,7 @@
       {updater.status === 'backing-up' ? 'Backing up your data…' : updater.status === 'downloading' ? `Downloading ${Math.round(updater.progress * 100)}%` : updater.status === 'installing' ? 'Opening installer…' : 'Install'}
     </button>
     {#if !compact}
-      <p class="text-caption text-content-subtle">A backup of your data goes to Documents/BoulderTracker first. Android then asks you to confirm; your data stays - it's an update, not a reinstall.</p>
+      <p class="text-caption text-content-subtle">A backup of your data goes to Documents/BoulderTracker first. The download is checked against the SHA-256 above before Android asks you to confirm; your data stays - it's an update, not a reinstall.</p>
     {/if}
   </div>
 {/if}

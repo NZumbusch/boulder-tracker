@@ -28,6 +28,7 @@
   import ErrorLogCard from './ErrorLogCard.svelte';
   import { updater } from '../../lib/update/updater.svelte';
   import { APP_INFO } from '../../lib/appInfo';
+  import { shortCommit, commitUrl } from '../../lib/update/appUpdate';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import Icon from "@iconify/svelte";
 
@@ -272,6 +273,12 @@
             <Icon icon="ic:baseline-terrain" class="text-6xl text-primary mx-auto mb-2" />
             <h3 class="text-title text-content">{APP_INFO.name}</h3>
             <p class="text-body text-content-subtle mt-1">Version {updater.installedName ?? APP_INFO.version}</p>
+            <p class="text-caption text-content-subtle mt-0.5 tabular-nums">
+              {#if updater.installedCode}Build {updater.installedCode}{/if}{#if shortCommit(APP_INFO.commit)}{updater.installedCode ? ' · ' : ''}commit <a href={commitUrl(APP_INFO.commit)} target="_blank" rel="noopener" class="text-primary">{shortCommit(APP_INFO.commit)}</a>{/if}
+            </p>
+            <p class="text-caption text-content-subtle mt-0.5">
+              <a href={APP_INFO.repoUrl} target="_blank" rel="noopener" class="text-primary">Source code</a> · <a href={APP_INFO.verifyUrl} target="_blank" rel="noopener" class="text-primary">Check this build</a>
+            </p>
           </div>
 
           <div class="space-y-2 pt-4 border-t border-border">

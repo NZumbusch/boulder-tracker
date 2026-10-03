@@ -8,7 +8,7 @@
 import { App } from "@capacitor/app";
 import { trainingState } from "../state.svelte";
 import { AppUpdater, appUpdaterSupported } from "../native/appUpdater";
-import { parseManifest, isNewer, changesSince, apkUrl, manifestUrlFor, type UpdateManifest, type UpdateChannel } from "./appUpdate";
+import { missingChannelMessage, parseManifest, isNewer, changesSince, apkUrl, manifestUrlFor, type UpdateManifest, type UpdateChannel } from "./appUpdate";
 
 const SETTINGS_KEY = "boulder_tracker_app_updates";
 const CHECK_EVERY_MS = 6 * 3_600_000;
@@ -129,13 +129,13 @@ class Updater {
     this.upToDate = false;
     try {
       const response = await fetch(`${manifestUrlFor(this.channel)}?t=${Date.now()}`, { cache: "no-store" });
-      if (response.status === 404 && this.channel === "stable") {
-        // Nothing has been promoted to stable yet.
+      if (response.status === 404) {
+        // Nothing has been promoted to stable yet (or testing is mid-deploy).
         this.latestOnChannel = null;
         this.available = null;
         this.lastCheckedAt = Date.now();
         this.#save();
-        if (manual) this.error = "Nothing on the stable channel yet.";
+        if (manual) this.error = missingChannelMessage(this.channel);
         return;
       }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);

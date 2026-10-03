@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execFileSync } from 'node:child_process'
 import { appVersion } from './scripts/app-version.mjs'
 
 // "1.2.9" - see scripts/app-version.mjs. Outside a git checkout (a zip of
@@ -9,10 +10,16 @@ function versionName() {
   try { return appVersion().versionName } catch { return 'dev' }
 }
 
+// The commit this build was made from, so About can link to it ('' outside git).
+function commitHash() {
+  try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() } catch { return '' }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(versionName()),
+    __APP_COMMIT__: JSON.stringify(commitHash()),
   },
   plugins: [
     svelte(),
