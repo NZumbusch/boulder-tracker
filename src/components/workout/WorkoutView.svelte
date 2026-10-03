@@ -214,6 +214,7 @@
           slot={item.slot}
           index={item.index}
           values={isCompleted ? item.slot.logged : undefined}
+          showLog={isCompleted}
           status={isCompleted ? (item.slot.logged ? 'done' : 'skipped') : 'pending'}
         />
       {:else}
@@ -224,6 +225,7 @@
               index={m.index}
               inGroup
               values={isCompleted ? m.slot.logged : undefined}
+              showLog={isCompleted}
               status={isCompleted ? (m.slot.logged ? 'done' : 'skipped') : 'pending'}
             />
           {/each}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { planNote, logNote } from '../../lib/exerciseSlot';
   import RangeSlider from '../common/RangeSlider.svelte';
   import { onMount } from 'svelte';
   import { storage } from '../../lib/storage';
@@ -30,7 +31,7 @@
     mode?: 'prescribed' | 'logged',
     /** The slot is (or joins) a circuit: one set of it is timed or counted, whatever its type usually tracks. */
     inGroup?: boolean,
-    onSave: (data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues }) => void
+    onSave: (data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues; planNote?: string }) => void
   }>();
 
   // --- State ---
@@ -67,6 +68,8 @@
   let maxWeightPercent = $state(80);
   let plannedLoad = $state(5);
   let notes = $state('');
+  /** Logged mode only: the plan's own note, edited here beside "how it went". */
+  let planNoteText = $state('');
   let categoryOverride = $state<string>('');
   /** The athlete's own value types, as typed: text per def id, "" = not set. */
   let customDraft = $state<Record<string, string>>({});
@@ -190,7 +193,9 @@
     bodyweightPercent = v.bodyweightPercent ?? 100;
     maxWeightPercent = v.maxWeightPercent ?? 80;
     plannedLoad = v.plannedLoad ?? (activeTypeDef?.defaultPlannedLoad ?? 5);
-    notes = v.notes || '';
+    // Logged mode: `notes` is the how-it-went note, apart from the plan's.
+    notes = mode === 'logged' ? (initialSlot ? logNote(initialSlot) : '') : v.notes || '';
+    planNoteText = initialSlot ? planNote(initialSlot) : '';
     customDraft = Object.fromEntries(Object.entries(v.custom ?? {}).map(([k, x]) => [k, String(x)]));
     categoryOverride = initialSlot?.categoryId || '';
   });
@@ -234,7 +239,7 @@
 
     const values: ExerciseValues = {
       plannedLoad: n(Number(plannedLoad)),
-      notes: notes
+      notes: notes.trim() || undefined
     };
 
     const params = activeParams;
@@ -290,7 +295,8 @@
       typeId: activeTypeDef.id,
       categoryId: categoryOverride || undefined,
       activeParameters: activeParams,
-      values
+      values,
+      ...(mode === 'logged' && initialSlot?.prescribed ? { planNote: planNoteText.trim() } : {}),
     });
   }
 
@@ -500,8 +506,12 @@
     </div>
 
     <div class="space-y-1.5 pt-4 border-t border-border/50">
-      <label for="ex-notes" class="text-label text-content-subtle ml-1">Exercise Notes</label>
-      <textarea id="ex-notes" bind:value={notes} placeholder="Focus on footwork..." class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border-strong outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
+      {#if mode === 'logged' && initialSlot?.prescribed}
+        <label for="ex-plan-notes" class="text-label text-content-subtle ml-1">Plan note</label>
+        <textarea id="ex-plan-notes" bind:value={planNoteText} placeholder="Focus on footwork..." class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border-strong outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
+      {/if}
+      <label for="ex-notes" class="text-label text-content-subtle ml-1">{mode === 'logged' ? 'How it went' : 'Exercise Notes'}</label>
+      <textarea id="ex-notes" bind:value={notes} placeholder={mode === 'logged' ? 'How did it feel? Anything worth remembering?' : 'Focus on footwork...'} class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border-strong outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
     </div>
 
     <div class="space-y-4 pt-4 border-t border-border/50">

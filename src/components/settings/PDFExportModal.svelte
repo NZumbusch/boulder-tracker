@@ -10,7 +10,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekIdRange, getWeekDates, localIsoDate } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
-  import { slotTypeName } from '../../lib/exerciseSlot';
+  import { slotTypeName, planNote, logNote } from '../../lib/exerciseSlot';
   import { getDominantBlockForWeek } from '../../lib/planning/trainingBlocks';
   import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
   import { summarizeSession } from '../../lib/planning/sessionSummary';
@@ -97,7 +97,7 @@
           return {
             name: slotTypeName(slot, trainingState.exerciseTypes),
             detail: exerciseDetail(detailPairs(slot, values)),
-            notes: values?.notes?.trim() || undefined,
+            notes: (done ? [planNote(slot), logNote(slot) && `How it went: ${logNote(slot)}`].filter(Boolean).join('\n') : values?.notes?.trim()) || undefined,
           };
         }),
       };

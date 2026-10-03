@@ -148,8 +148,9 @@
     openChip = openChip === chip ? null : chip;
   }
 
-  function saveExercise(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues }) {
-    const fields = { typeId: data.typeId, categoryId: data.categoryId, activeParameters: data.activeParameters, [bucket]: data.values };
+  function saveExercise(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues; planNote?: string }) {
+    const fields: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; prescribed?: ExerciseValues; logged?: ExerciseValues } = { typeId: data.typeId, categoryId: data.categoryId, activeParameters: data.activeParameters, [bucket]: data.values };
+    if (data.planNote !== undefined && formSlot && formSlot !== 'new' && formSlot.prescribed) fields.prescribed = { ...formSlot.prescribed, notes: data.planNote || undefined };
     if (formSlot === 'new') {
       const slot = { id: generateId(), ...fields };
       if (addingToGroup) regroup(addToGroup(workout, addingToGroup, slot));
@@ -354,7 +355,7 @@
       <!-- The wrapper keeps Svelte from reading `slot=` as a legacy slot name inside the snippet. -->
       {#snippet card(exercise: ExerciseSlot, index: number)}
         <div>
-          <ExerciseCard slot={exercise} {index} inGroup={!!exercise.groupId} values={exercise[bucket]} onclick={() => formSlot = exercise}>
+          <ExerciseCard slot={exercise} {index} inGroup={!!exercise.groupId} values={exercise[bucket]} showLog={bucket === 'logged'} onclick={() => formSlot = exercise}>
             {#snippet actions()}
               {#if exercise.groupId}
                 <button

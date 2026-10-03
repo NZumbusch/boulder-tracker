@@ -14,7 +14,7 @@ import type {
   WeekNote,
   Workout,
 } from "../types";
-import { slotTypeName, slotValues } from "../exerciseSlot";
+import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
 import { repsRepresentative } from "../exercise/reps";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
@@ -187,6 +187,7 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], notes: W
         reps: repsRepresentative(v.reps),
         plannedLoad: v.plannedLoad,
         ...(v.custom && Object.keys(v.custom).length ? { custom: v.custom } : {}),
+        ...(notes.logNotes && logNote(e) ? { howItWent: logNote(e) } : {}),
       };
     }),
   };

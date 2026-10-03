@@ -10,6 +10,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { detailPairs } from '../../lib/session/slotDetails';
+  import { planNote, logNote } from '../../lib/exerciseSlot';
   import ExerciseDetails from './ExerciseDetails.svelte';
   import Icon from '@iconify/svelte';
 
@@ -21,6 +22,7 @@
     onclick,
     actions,
     inGroup = false,
+    showLog = false,
   }: {
     slot: ExerciseSlot;
     index: number;
@@ -33,10 +35,12 @@
     actions?: Snippet;
     /** A circuit member: drawn flatter, inside its group's card, without its own set rest. */
     inGroup?: boolean;
+    /** Shows the plan's note and the "how it went" note apart (a finished session). */
+    showLog?: boolean;
   } = $props();
 
   const pairs = $derived(detailPairs(slot, values, { inGroup }));
-  const notes = $derived((values ?? slot.prescribed ?? slot.logged)?.notes);
+  const notes = $derived(showLog ? planNote(slot) || logNote(slot) : (values ?? slot.prescribed ?? slot.logged)?.notes);
 </script>
 
 <div class="rounded-card border transition-colors {status === 'skipped' ? 'bg-surface/20 border-border/60' : inGroup ? 'bg-surface/60 border-border/70' : 'bg-surface/40 border-border'} {onclick ? 'hover:border-border-strong' : ''}">
@@ -65,7 +69,7 @@
   </div>
   {#if status !== 'skipped' && (pairs.length > 0 || notes)}
     <div class="px-3.5 pb-3.5 space-y-2">
-      <ExerciseDetails {slot} {values} {inGroup} />
+      <ExerciseDetails {slot} {values} {inGroup} {showLog} />
     </div>
   {/if}
 </div>

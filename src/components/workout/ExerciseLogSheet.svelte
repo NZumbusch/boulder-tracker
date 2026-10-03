@@ -19,7 +19,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { displayWeight, toKg } from '../../lib/units';
   import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
-  import { slotTypeName } from '../../lib/exerciseSlot';
+  import { slotTypeName, planNote, logNote } from '../../lib/exerciseSlot';
   import { PARAMETER_LABELS } from '../../lib/constants';
   import { isCustomParam, customIdOf, paramLabel } from '../../lib/exercise/valueDefs';
   import TargetHint from './TargetHint.svelte';
@@ -122,7 +122,8 @@
     }
     draft = next;
     customDraft = Object.fromEntries(Object.entries(values.custom ?? {}).map(([k, x]) => [k, String(x)]));
-    notes = values.notes ?? '';
+    // The plan note is shown above the field, never copied into it.
+    notes = seedOverride ? (values.notes ?? '') : logNote(slot);
     difficulty = typeof values.difficulty === 'number' ? values.difficulty : undefined;
   });
 
@@ -167,7 +168,9 @@
 
   /** One tap for the common case: it went exactly as prescribed. */
   function handleAsPrescribed() {
-    onSave({ ...(slot.prescribed ?? seed) });
+    const values = { ...(slot.prescribed ?? seed) };
+    delete values.notes;
+    onSave(values);
   }
 
   function numberOrUndefined(key: string): number | undefined {
@@ -316,7 +319,8 @@
       {/if}
 
       <label class="space-y-1.5 block">
-        <span class="text-label text-content-subtle">Notes</span>
+        <span class="text-label text-content-subtle">How it went</span>
+        {#if planNote(slot)}<span class="block text-caption text-content-subtle italic whitespace-pre-wrap break-words">Plan: {planNote(slot)}</span>{/if}
         <textarea
           bind:value={notes}
           rows="2"

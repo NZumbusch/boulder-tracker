@@ -297,13 +297,15 @@
    * details" on the finish sheet) and appends a new slot through
    * `addExercise`, which applies the added-exercise preference.
    */
-  function handleFormSave(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues }) {
+  function handleFormSave(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues; planNote?: string }) {
     if (isAddingExercise) {
       store.addExercise({ id: generateId(), ...data }, trainingState.addedExerciseTarget);
       isAddingExercise = false;
     } else if (editingSlotId) {
       // Type/parameter changes first, then the log - `logExercise` is what
       // settles the slot and moves focus on, so it goes last.
+      const planned = editingSlot?.prescribed;
+      if (data.planNote !== undefined && planned) store.updateExercise(editingSlotId, { ...data, values: { ...planned, notes: data.planNote || undefined } }, 'prescribed');
       store.updateExercise(editingSlotId, data, 'logged');
       store.logExercise(editingSlotId, data.values);
       editingSlotId = null;

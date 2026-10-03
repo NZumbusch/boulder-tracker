@@ -8,7 +8,7 @@
    */
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { slotTypeName } from '../../lib/exerciseSlot';
+  import { slotTypeName, planNote, logNote } from '../../lib/exerciseSlot';
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
@@ -18,7 +18,7 @@
   const weekNote = $derived(workout?.weekId ? trainingState.getWeekNote(workout.weekId) : '');
   const exerciseNotes = $derived(
     (workout?.exercises ?? [])
-      .map((slot, i) => ({ index: i + 1, name: slotTypeName(slot, trainingState.exerciseTypes), text: (slot.prescribed?.notes ?? '').trim(), logged: (slot.logged?.notes ?? '').trim() }))
+      .map((slot, i) => ({ index: i + 1, name: slotTypeName(slot, trainingState.exerciseTypes), text: planNote(slot), logged: logNote(slot) }))
       .filter((e) => e.text || e.logged),
   );
 
@@ -90,7 +90,7 @@
             <div class="space-y-0.5">
               <p class="text-label font-bold text-content">{e.index}. {e.name}</p>
               {#if e.text}<p class="text-caption text-content-muted whitespace-pre-wrap break-words">{e.text}</p>{/if}
-              {#if e.logged && e.logged !== e.text}<p class="text-caption text-content-subtle italic whitespace-pre-wrap break-words">You: {e.logged}</p>{/if}
+              {#if e.logged}<p class="text-caption text-content whitespace-pre-wrap break-words"><span class="text-content-subtle">How it went:</span> {e.logged}</p>{/if}
             </div>
           {/each}
         </section>
