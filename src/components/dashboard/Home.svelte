@@ -1,5 +1,6 @@
 <script lang="ts">
   import UpdateCard from '../update/UpdateCard.svelte';
+  import AndroidAppCard from './AndroidAppCard.svelte';
   import PainCheckInCard from './home/PainCheckInCard.svelte';
   import { updater } from '../../lib/update/updater.svelte';
   /**
@@ -118,6 +119,7 @@
   <!-- Each section in `trainingState.homeSections`' order, skipping hidden
        ones. The header above isn't part of this list - always shown, first. -->
   {#if updater.showBanner}<UpdateCard compact />{/if}
+  <AndroidAppCard />
   <PainCheckInCard />
 
   {#each trainingState.homeSections as section (section.id)}

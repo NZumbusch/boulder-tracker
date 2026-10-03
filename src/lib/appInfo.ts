@@ -14,5 +14,10 @@ export const APP_INFO = {
   homepage: "https://nathanzumbusch.de",
   siteUrl: "https://bouldertracker.nathanzumbusch.de/",
   privacyUrl: "https://bouldertracker.nathanzumbusch.de/privacy.html",
+  repoUrl: "https://github.com/NZumbusch/boulder-tracker",
+  /** The promoted (stable) Android build - same file the in-app updater installs. */
+  apkUrl: "https://bouldertracker.nathanzumbusch.de/android/stable/boulder-tracker.apk",
+  /** Where the APK's commit, checksum and signing fingerprint are explained. */
+  verifyUrl: "https://bouldertracker.nathanzumbusch.de/about.html#verify",
   aboutUrl: "https://bouldertracker.nathanzumbusch.de/about.html",
 } as const;

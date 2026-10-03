@@ -32,6 +32,16 @@ export function shouldOfferIOSInstall(info: BrowserInfo): boolean {
   return isIOS(info) && !info.standalone;
 }
 
+/** Android, in a browser (not inside the Android app itself). */
+export function isAndroidWeb(info: BrowserInfo): boolean {
+  return !info.native && /Android/.test(info.userAgent);
+}
+
+/** Show the "Get the Android app" card: the web build on an Android phone or tablet. */
+export function shouldOfferAndroidApp(info: BrowserInfo): boolean {
+  return isAndroidWeb(info);
+}
+
 export function readBrowserInfo(native: boolean): BrowserInfo {
   if (typeof navigator === "undefined" || typeof window === "undefined") {
     return { userAgent: "", maxTouchPoints: 0, standalone: false, native };

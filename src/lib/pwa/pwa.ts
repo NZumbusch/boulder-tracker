@@ -6,6 +6,7 @@
 import { Capacitor } from "@capacitor/core";
 import { toast } from "../toast.svelte";
 import { isIOS, readBrowserInfo } from "./platform";
+import { installPrompt } from "./installPrompt.svelte";
 
 export function installPwa(): void {
   if (Capacitor.isNativePlatform()) return;
@@ -19,6 +20,8 @@ export function installPwa(): void {
     const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
     if (viewport && !viewport.content.includes("maximum-scale")) viewport.content += ", maximum-scale=1";
   }
+
+  installPrompt.listen();
 
   // Ask the browser not to evict the training data under storage pressure.
   // Safari's 7-day cap on site data doesn't apply to home-screen apps, which
