@@ -41,9 +41,24 @@ export default defineConfig({
         start_url: './#/home',
         scope: './',
         display: 'standalone',
-        orientation: 'portrait',
+        // Free: a tablet on a stand, or a phone against the wall during a
+        // hangboard session, is as likely landscape as portrait.
+        orientation: 'any',
+        categories: ['sports', 'health', 'fitness'],
         background_color: '#0a0a0b',
         theme_color: '#0a0a0b',
+        // Long-press the installed icon (Android/desktop Chrome). Hash routes: App.svelte opens the tab.
+        shortcuts: [
+          { name: 'Start a session', short_name: 'Session', url: './#/add', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Training plan', short_name: 'Plan', url: './#/plan', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Analytics', short_name: 'Analytics', url: './#/analytics', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+        ],
+        // Chrome's richer install dialog on Android needs narrow screenshots.
+        screenshots: [
+          { src: 'img/intro-home.webp', sizes: '780x1560', type: 'image/webp', form_factor: 'narrow', label: "Home: today's session and readiness" },
+          { src: 'img/intro-plan.webp', sizes: '780x1560', type: 'image/webp', form_factor: 'narrow', label: 'Plan: phases and weeks' },
+          { src: 'img/intro-analytics.webp', sizes: '780x1560', type: 'image/webp', form_factor: 'narrow', label: 'Analytics: load and recovery' },
+        ],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
@@ -52,8 +67,18 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webp,webmanifest}'],
-        // html2pdf and friends are large and lazy; still precache them so
-        // PDF export works offline too.
+        // The PDF and share-image libraries are big (pdfmake + its fonts are
+        // about 1.8 MB) and only load when someone exports, so they are not
+        // downloaded at install: they are cached the first time they're used
+        // (runtimeCaching below). Trade-off: a first-ever export with no signal fails.
+        globIgnores: ['**/assets/pdfmake-*.js', '**/assets/vfs_fonts-*.js', '**/assets/planPdfRender-*.js', '**/assets/html2canvas-*.js'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/(pdfmake|vfs_fonts|planPdfRender|html2canvas)-[^/]+\.js$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'export-libraries', expiration: { maxEntries: 8 }, cacheableResponse: { statuses: [200] } },
+          },
+        ],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: 'index.html',
         // The public pages are real documents, not app routes, and so are
