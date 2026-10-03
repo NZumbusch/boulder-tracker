@@ -19,6 +19,8 @@
   import PainScreens from './components/health/PainScreens.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import { onMount } from 'svelte';
+  import { Capacitor } from '@capacitor/core';
+  import { shouldAskForNotifications } from './lib/notifications/promptRule';
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
   import { installDeepLinks } from './lib/native/deepLinks';
   import { driveSync } from './lib/sync/driveSync.svelte';
@@ -87,9 +89,18 @@
     return () => query.removeEventListener('change', apply);
   });
 
+  // Ask about reminders after the first finished session - not at launch (lib/notifications/promptRule).
   $effect(() => {
-    if (!trainingState.isLoading) {
-      trainingState.maybePromptForNotifications();
+    if (shouldAskForNotifications({
+      native: Capacitor.isNativePlatform(),
+      loading: trainingState.isLoading,
+      welcomeDone: trainingState.welcomeDone,
+      completedSessions: trainingState.workouts.filter((w) => w.status === 'completed').length,
+      sessionRunning: trainingState.isSessionActive,
+      ratingOpen: !!trainingState.activeWorkout && trainingState.showFatigue,
+      exampleData: trainingState.demoActive,
+    })) {
+      void trainingState.maybePromptForNotifications();
     }
   });
 </script>

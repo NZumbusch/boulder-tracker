@@ -139,9 +139,9 @@ export class UiStore {
 
   /**
    * Shows a one-time in-app prompt (native only) asking whether to enable
-   * fatigue-log reminders, the first time the app runs after this feature
-   * shipped. Never re-prompts after this - a decline is respected, not
-   * nagged around.
+   * fatigue-log reminders. App.svelte calls it once the person has finished
+   * a session (`notifications/promptRule.ts`), not at first launch. Never
+   * re-prompts after this - a decline is respected, not nagged around.
    */
   async maybePromptForNotifications() {
     if (!Capacitor.isNativePlatform()) return;
@@ -150,8 +150,8 @@ export class UiStore {
     localStorage.setItem(NOTIFICATIONS_PROMPTED_KEY, 'true');
 
     const wantsReminders = await showConfirm(
-      'Fatigue Log Reminders',
-      "Get a reminder to log fatigue/RPE after a planned workout's time has passed? You can change this anytime in Settings."
+      'Reminders?',
+      "You've finished a session. Want a reminder to rate how a session felt (fatigue/RPE) after a planned workout's time has passed? You can change this anytime in Settings → Appearance & Behaviour."
     );
     if (wantsReminders) {
       await this.setNotificationsEnabled(true);
