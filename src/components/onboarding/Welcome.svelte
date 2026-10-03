@@ -96,6 +96,8 @@
   function finish(startTour: boolean) {
     trainingState.setWelcomeDone(true);
     const ids = planBlockIds;
+    // Plan opens on the plan's first week, not on an empty current one.
+    if (ids.length) trainingState.selectedWeekId = planOptions[0].blocks[0].startWeekId;
     if (ids.length) showUndo('Starter plan added to Plan', async () => { await trainingState.replaceStarterPlan(ids, null); });
     if (startTour) void tour.start();
   }

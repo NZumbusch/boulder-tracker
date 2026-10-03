@@ -55,6 +55,7 @@ export class PreferencesStore {
   widgetShowReadiness = $state(true);
   widgetReadinessDetail = $state<WidgetReadinessDetail>('factors');
   welcomeDone = $state(true);
+  simpleHome = $state(defaultPreferences().simpleHome);
 
   constructor() {
     if (typeof localStorage === 'undefined') return;
@@ -123,6 +124,7 @@ export class PreferencesStore {
     this.widgetShowReadiness = prefs.widgetShowReadiness;
     this.widgetReadinessDetail = prefs.widgetReadinessDetail;
     this.welcomeDone = prefs.welcomeDone;
+    this.simpleHome = prefs.simpleHome;
   }
 
   setTextScale(scale: TextScale) {
@@ -342,6 +344,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setSimpleHome(on: boolean) {
+    this.simpleHome = on;
+    this.persist();
+  }
+
   setWelcomeDone(done: boolean) {
     this.welcomeDone = done;
     this.persist();
@@ -400,6 +407,7 @@ export class PreferencesStore {
       widgetShowReadiness: this.widgetShowReadiness,
       widgetReadinessDetail: this.widgetReadinessDetail,
       welcomeDone: this.welcomeDone,
+      simpleHome: this.simpleHome,
       theme: parseTheme(legacyTheme),
       notificationsEnabled: legacyNotifications === null ? defaultPreferences().notificationsEnabled : legacyNotifications === 'true',
     };

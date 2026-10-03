@@ -27,6 +27,7 @@ describe('defaultPreferences', () => {
       widgetShowReadiness: true,
       widgetReadinessDetail: 'factors',
       welcomeDone: false,
+      simpleHome: true,
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
       planBReminderEnabled: true,
@@ -136,6 +137,7 @@ describe('migratePreferences', () => {
       widgetShowReadiness: false,
       widgetReadinessDetail: 'metrics' as const,
       welcomeDone: true,
+      simpleHome: false,
     };
     expect(migratePreferences(valid)).toEqual(valid);
   });

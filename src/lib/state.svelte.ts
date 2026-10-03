@@ -448,6 +448,8 @@ class TrainingState {
 
   /** Whether the first-run welcome has been seen on this device. */
   get welcomeDone() { return this.preferencesStore.welcomeDone; }
+  get simpleHome() { return this.preferencesStore.simpleHome; }
+  setSimpleHome(on: boolean) { this.preferencesStore.setSimpleHome(on); }
   setWelcomeDone(done: boolean) { this.preferencesStore.setWelcomeDone(done); }
 
   /**
@@ -963,6 +965,11 @@ class TrainingState {
    * live, so this is a backstop rather than the normal path.
    */
   startSession(workout: Workout): boolean {
+    // Example data is for looking at; a session started on it would outlive it.
+    if (this.demoActive) {
+      toast.show('Exit the example data first, then start a session.');
+      return false;
+    }
     if (this.sessionStore.isActive) {
       // Tapping Start on the session that is already running just reopens it.
       if (this.sessionStore.isRunning(workout.id)) {

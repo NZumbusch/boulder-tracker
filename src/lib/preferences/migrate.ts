@@ -161,6 +161,8 @@ export interface Preferences {
    * a returning user, who never needs welcoming.
    */
   welcomeDone: boolean;
+  /** Home hides cards that are empty shells until there is data (`lib/home/newUser.ts`). */
+  simpleHome: boolean;
 }
 
 /** See `Preferences.addedExerciseTarget`. */
@@ -229,6 +231,7 @@ export const DEFAULT_AI_HISTORY: AIHistoryWindow = { fullWeeks: 2, summaryWeeks:
 
 /** Every togglable/reorderable Home section below the always-shown header, in the plan's own fixed default order. */
 export const HOME_SECTION_IDS = [
+  'checklist',
   'readiness',
   'alerts',
   'today',
@@ -322,6 +325,7 @@ export function defaultPreferences(): Preferences {
     widgetShowReadiness: true,
     widgetReadinessDetail: 'factors',
     welcomeDone: false,
+    simpleHome: true,
     aiHistory: { ...DEFAULT_AI_HISTORY },
     autoBackup: true,
     aiSharing: {
@@ -552,6 +556,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     widgetShowReadiness: typeof candidate.widgetShowReadiness === 'boolean' ? candidate.widgetShowReadiness : defaults.widgetShowReadiness,
     widgetReadinessDetail: WIDGET_READINESS_DETAILS.includes(candidate.widgetReadinessDetail as WidgetReadinessDetail) ? (candidate.widgetReadinessDetail as WidgetReadinessDetail) : defaults.widgetReadinessDetail,
     welcomeDone: typeof candidate.welcomeDone === 'boolean' ? candidate.welcomeDone : true,
+    simpleHome: typeof candidate.simpleHome === 'boolean' ? candidate.simpleHome : defaults.simpleHome,
   };
 }
 

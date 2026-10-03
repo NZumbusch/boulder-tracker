@@ -23,7 +23,8 @@
         recovery: trainingState.homeDetails['alerts.recovery'],
         pain: trainingState.homeDetails['alerts.pain'],
         missingData: trainingState.homeDetails['alerts.missingData'],
-        backup: trainingState.homeDetails['alerts.backup'],
+        // Example data must never be exported as a backup.
+        backup: trainingState.homeDetails['alerts.backup'] && !trainingState.demoActive,
         tripConflict: trainingState.homeDetails['alerts.tripConflict'],
       },
       tripConflicts: data.tripConflicts,

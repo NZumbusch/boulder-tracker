@@ -13,7 +13,9 @@
   import { trainingState } from '../../lib/state.svelte';
   import { HomeData } from './home/homeData.svelte';
   import QuickLogSheet from './QuickLogSheet.svelte';
+  import ChecklistCard from './home/ChecklistCard.svelte';
   import ReadinessCard from './home/ReadinessCard.svelte';
+  import { hasAnyData, isHiddenWhileNew } from '../../lib/home/newUser';
   import AlertsCard from './home/AlertsCard.svelte';
   import ProgressCard from './home/ProgressCard.svelte';
   import CragsCard from './home/CragsCard.svelte';
@@ -33,6 +35,15 @@
   import { toast } from '../../lib/toast.svelte';
 
   const data = new HomeData();
+  const hasData = $derived(
+    hasAnyData({
+      workouts: trainingState.workouts,
+      dailyMetrics: trainingState.dailyMetrics,
+      benchmarks: trainingState.benchmarks,
+      painLogs: trainingState.painLogs,
+      outdoorAscents: trainingState.outdoorAscents,
+    }),
+  );
 
   // Weather is fetched once per mount, not on every `refresh()` (a network
   // call on every save would be excessive for conditions that change over
@@ -123,9 +134,10 @@
   <PainCheckInCard />
 
   {#each trainingState.homeSections as section (section.id)}
-    {#if section.visible}
+    {#if section.visible && !isHiddenWhileNew(section.id, trainingState.simpleHome, hasData)}
       <div data-tour="home-{section.id}" class="empty:hidden">
-      {#if section.id === 'readiness'}<ReadinessCard {data} />
+      {#if section.id === 'checklist'}<ChecklistCard onBodyweight={() => { quickLogStart = 'bodyweight'; showQuickLog = true; }} />
+      {:else if section.id === 'readiness'}<ReadinessCard {data} />
       {:else if section.id === 'alerts'}<AlertsCard {data} />
       {:else if section.id === 'progress'}<ProgressCard {data} />
       {:else if section.id === 'crags'}<CragsCard {data} />

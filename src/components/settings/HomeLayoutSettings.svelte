@@ -21,6 +21,7 @@
   import Icon from "@iconify/svelte";
 
   const SECTION_LABELS: Record<HomeSectionPreference['id'], string> = {
+    checklist: 'Get started',
     readiness: 'Readiness',
     alerts: 'Alerts',
     today: 'Today',
@@ -66,6 +67,13 @@
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Home sections</h3>
     <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide. Open a section to choose what it shows.</p>
+    <label class="flex items-center justify-between gap-3 py-2 px-1 cursor-pointer">
+      <div class="min-w-0">
+        <p class="text-body text-content">Simple Home until I have data</p>
+        <p class="text-caption text-content-subtle mt-0.5">Hides Readiness, Metrics, Fatigue, Progress, Recent activity and Alerts while there is nothing logged yet. They all appear with your first entry. Off shows every section you've turned on, always.</p>
+      </div>
+      <input type="checkbox" checked={trainingState.simpleHome} onchange={(e) => trainingState.setSimpleHome(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0" />
+    </label>
     <div
       class="divide-y divide-border"
       use:dragHandleZone={{ items, flipDurationMs: motionMs(150), dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
