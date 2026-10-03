@@ -71,6 +71,29 @@ describe("buildAlerts", () => {
     expect(buildAlerts(input({ lastBackupAt: undefined, workouts: many })).map((a) => a.id)).toContain("backup");
   });
 
+  describe("on a device with no automatic backup (web, iPhone)", () => {
+    const some = (n: number) => Array.from({ length: n }, (_, i) => done(`2026-07-${String(i + 10).padStart(2, "0")}`));
+    const web = { noAutoBackup: true };
+
+    it("asks sooner, after 3 sessions, and offers to save one", () => {
+      expect(buildAlerts(input({ ...web, lastBackupAt: undefined, workouts: some(2) }))).toEqual([]);
+      const [alert] = buildAlerts(input({ ...web, lastBackupAt: undefined, workouts: some(3) }));
+      expect(alert).toMatchObject({ id: "backup", exportBackup: true });
+      expect(alert.text).toMatch(/erase/);
+    });
+
+    it("keeps the usual interval for an old backup, but tappable", () => {
+      const [alert] = buildAlerts(input({ ...web, lastBackupAt: "2026-09-01T00:00:00Z" }));
+      expect(alert).toMatchObject({ id: "backup", exportBackup: true });
+      expect(alert.text).toMatch(/22 days ago/);
+    });
+
+    it("leaves the Android wording and threshold as they were", () => {
+      expect(buildAlerts(input({ lastBackupAt: undefined, workouts: some(3) }))).toEqual([]);
+      expect(buildAlerts(input({ lastBackupAt: "2026-09-01T00:00:00Z" }))[0]).not.toHaveProperty("exportBackup");
+    });
+  });
+
   it("flags sessions still planned during a trip", () => {
     const alerts = buildAlerts(input({ tripConflicts: [{ tripName: "Font", dates: "Oct 5 – 12", count: 2 }, { tripName: "Day", dates: "Oct 20", count: 0 }], enabled: { ...all, tripConflict: true } }));
     expect(alerts).toEqual([{ id: "trip-Font", severity: "caution", text: "2 sessions still planned during Font (Oct 5 – 12)" }]);

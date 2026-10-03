@@ -2,6 +2,7 @@
   import { openPainIssue } from '../../../lib/pain/painUi.svelte';
   /** Things worth a look (lib/alerts/alerts.ts). The card hides when there are none. */
   import { trainingState } from '../../../lib/state.svelte';
+  import { Capacitor } from '@capacitor/core';
   import type { HomeData } from './homeData.svelte';
   import { buildAlerts, type AlertSeverity } from '../../../lib/alerts/alerts';
   import SectionHeader from './SectionHeader.svelte';
@@ -17,6 +18,7 @@
       painLogs: trainingState.painLogs,
       painIssues: trainingState.painIssues,
       lastBackupAt: trainingState.lastBackupAt,
+      noAutoBackup: !Capacitor.isNativePlatform(),
       enabled: {
         recovery: trainingState.homeDetails['alerts.recovery'],
         pain: trainingState.homeDetails['alerts.pain'],
@@ -47,7 +49,13 @@
   <div class="card space-y-3">
     <SectionHeader label="Alerts" />
     {#each alerts as alert (alert.id)}
-      {#if alert.rateWorkoutId || alert.painIssueId}
+      {#if alert.exportBackup}
+        <button onclick={() => trainingState.exportData()} class="w-full flex items-start gap-2.5 text-left group">
+          <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 {ALERT_DOT[alert.severity]}"></span>
+          <span class="text-body text-content group-hover:text-primary transition-colors flex-1">{alert.text}</span>
+          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0 mt-0.5" />
+        </button>
+      {:else if alert.rateWorkoutId || alert.painIssueId}
         <button onclick={() => alert.painIssueId ? openPainIssue(alert.painIssueId) : rateSession(alert.rateWorkoutId!)} class="w-full flex items-start gap-2.5 text-left group">
           <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 {ALERT_DOT[alert.severity]}"></span>
           <span class="text-body text-content group-hover:text-primary transition-colors flex-1">{alert.text}</span>

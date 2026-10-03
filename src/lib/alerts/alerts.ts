@@ -15,6 +15,8 @@ export interface HomeAlert {
   rateWorkoutId?: string;
   /** A pain issue the alert is about - tapping opens it. */
   painIssueId?: string;
+  /** Tapping saves a backup file (the web build, which has no automatic backup). */
+  exportBackup?: boolean;
 }
 
 export interface AlertInputs {
@@ -26,6 +28,8 @@ export interface AlertInputs {
   painIssues?: PainIssue[];
   /** ISO timestamp of the last successful backup export, if any. */
   lastBackupAt?: string;
+  /** This device never backs up by itself (web, iPhone): remind sooner, and make the reminder do the export. */
+  noAutoBackup?: boolean;
   /** Upcoming or current trips with sessions still planned on their days (see `sessionsDuringTrip`). */
   tripConflicts?: { tripName: string; dates: string; count: number }[];
   enabled: { recovery: boolean; pain: boolean; missingData: boolean; backup: boolean; tripConflict?: boolean };
@@ -43,6 +47,8 @@ const UNRATED_SESSION_DAYS = 3;
 export const BACKUP_STALE_DAYS = 14;
 /** With no backup at all, stay quiet until there's this much to lose. */
 const BACKUP_MIN_SESSIONS = 10;
+/** Without automatic backups, or a browser that may erase its data, there's less to lose before it's worth asking. */
+const BACKUP_MIN_SESSIONS_NO_AUTO = 3;
 /** How many weeks back the load-spike check looks (it needs a previous week to compare against). */
 const RECOVERY_LOOKBACK_WEEKS = 6;
 
@@ -134,11 +140,17 @@ export function buildAlerts(input: AlertInputs): HomeAlert[] {
   const backupDays = input.config?.backupDays ?? BACKUP_STALE_DAYS;
   if (enabled.backup && backupDays > 0) {
     const completedCount = workouts.filter((w) => w.status === "completed").length;
+    const manual = input.noAutoBackup ? { exportBackup: true } : {};
     if (!input.lastBackupAt) {
-      if (completedCount >= BACKUP_MIN_SESSIONS) alerts.push({ id: "backup", severity: "info", text: "No backup exported from this device yet" });
+      if (completedCount >= (input.noAutoBackup ? BACKUP_MIN_SESSIONS_NO_AUTO : BACKUP_MIN_SESSIONS)) {
+        const text = input.noAutoBackup
+          ? "No backup yet. A browser can erase this app's data: save a backup file"
+          : "No backup exported from this device yet";
+        alerts.push({ id: "backup", severity: "info", text, ...manual });
+      }
     } else {
       const age = daysAgo(input.lastBackupAt, asOf);
-      if (age > backupDays) alerts.push({ id: "backup", severity: "info", text: `Last backup ${age} days ago` });
+      if (age > backupDays) alerts.push({ id: "backup", severity: "info", text: `Last backup ${age} days ago${input.noAutoBackup ? ": save a new one" : ""}`, ...manual });
     }
   }
 
