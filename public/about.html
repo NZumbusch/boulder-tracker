@@ -6,6 +6,21 @@
   <title>Boulder Tracker</title>
   <meta name="description" content="Boulder Tracker – plan, log and analyse your climbing and bouldering training. No account, no server; your data stays yours.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://bouldertracker.nathanzumbusch.de/about.html">
+  <meta name="theme-color" content="#0a0a0b">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Boulder Tracker">
+  <meta property="og:title" content="Boulder Tracker: plan, log and understand your climbing training">
+  <meta property="og:description" content="Free and open source. Training plans, live sessions with timers, load and readiness analytics. No account, your data stays on your device. Android app, iPhone and web.">
+  <meta property="og:url" content="https://bouldertracker.nathanzumbusch.de/about.html">
+  <meta property="og:image" content="https://bouldertracker.nathanzumbusch.de/img/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Boulder Tracker on a phone: the training plan, the Home screen and the analytics charts">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Boulder Tracker: plan, log and understand your climbing training">
+  <meta name="twitter:description" content="Free and open source. No account, your data stays on your device. Android, iPhone and web.">
+  <meta name="twitter:image" content="https://bouldertracker.nathanzumbusch.de/img/og.jpg">
   <style>
     :root { --bg: #fafafa; --card: #ffffff; --text: #18181b; --muted: #52525b; --border: #e4e4e7; --accent: #2563eb; }
     @media (prefers-color-scheme: dark) {
@@ -39,6 +54,13 @@
     table.platforms thead th { border-top: 0; }
     table.platforms tbody th { color: var(--muted); font-weight: 400; }
     table.platforms td.no { color: var(--muted); }
+    .cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 6px; }
+    .cta .button { margin-top: 0; margin-left: 0; }
+    .shots { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 12px; margin: 20px -16px 0; padding-left: 16px; padding-right: 16px; scroll-snap-type: x mandatory; scroll-padding: 0 16px; }
+    .shots figure { margin: 0; flex: none; width: 210px; scroll-snap-align: start; }
+    .shots img { width: 100%; height: 330px; object-fit: cover; object-position: top; display: block; border-radius: 18px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.12); background: var(--card); }
+    .shots figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+    .lead { font-size: 18px; }
     footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 16px; }
   </style>
 </head>
@@ -52,7 +74,19 @@
     </div>
   </div>
 
-  <p>Boulder Tracker is a training companion for boulderers and climbers, made by <a href="https://nathanzumbusch.de">Nathan Zumbusch</a>. It runs on Android and in the browser, works offline, and keeps your data on your device – there is no account and no server.</p>
+  <p class="lead">A free, open-source training companion for boulderers and climbers, made by <a href="https://nathanzumbusch.de">Nathan Zumbusch</a>. It works offline and keeps your data on your device: no account, no server, no ads.</p>
+
+  <div class="cta">
+    <a class="button" href="android/stable/boulder-tracker.apk" download>Android app (APK)</a>
+    <a class="button alt" href="#install">iPhone: Add to Home Screen</a>
+    <a class="button alt" href="./">Open the web app</a>
+  </div>
+
+  <div class="shots" aria-label="Screenshots">
+    <figure><img src="img/intro-home.webp" alt="Home: readiness score, today's sessions and alerts" width="780" height="1560" loading="lazy"><figcaption>Home: today and readiness</figcaption></figure>
+    <figure><img src="img/intro-plan.webp" alt="Plan: training phases by week, with a Plan B for uncertain days" width="780" height="1560" loading="lazy"><figcaption>Plan: phases and weeks</figcaption></figure>
+    <figure><img src="img/intro-analytics.webp" alt="Analytics: rolling load with the acute to chronic ratio" width="780" height="1560" loading="lazy"><figcaption>Analytics: load and recovery</figcaption></figure>
+  </div>
 
   <div class="grid">
     <div class="card"><strong>Plan</strong><span>Training blocks and phases, weekly sessions from templates, goals and trips.</span></div>
@@ -62,8 +96,6 @@
     <div class="card"><strong>Your data</strong><span>Stored on your device; optional sync through a private folder in your own Google Drive.</span></div>
     <div class="card"><strong>Android extras</strong><span>Home-screen widgets, launcher shortcuts, notifications and backups.</span></div>
   </div>
-
-  <a class="button" href="./">Open the web app</a><a class="button alt" href="#install">Install</a>
 
   <h2 id="install">Install</h2>
   <p><strong>Android app</strong> (adds Google Drive sync, widgets, reminders and timer sound with the screen off). It is not in the Play Store; you download it from here.</p>
@@ -122,6 +154,8 @@ gh attestation verify boulder-tracker.apk --repo NZumbusch/boulder-tracker</pre>
 
   <footer>
     <a href="privacy.html">Privacy Policy</a>
+    <a href="https://github.com/NZumbusch/boulder-tracker">Source code</a>
+    <a href="https://github.com/NZumbusch/boulder-tracker/blob/main/LICENSE">MIT licence</a>
     <a href="https://nathanzumbusch.de">nathanzumbusch.de</a>
     <span>Weather data by <a href="https://open-meteo.com">Open-Meteo.com</a></span>
   </footer>
