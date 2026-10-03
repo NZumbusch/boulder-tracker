@@ -51,7 +51,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,webmanifest}'],
         // html2pdf and friends are large and lazy; still precache them so
         // PDF export works offline too.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
