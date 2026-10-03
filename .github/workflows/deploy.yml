@@ -118,8 +118,10 @@ jobs:
           # The signing certificate's fingerprints go into version.json, so the
           # site can show people what to compare the APK's certificate against.
           cert=$(keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS")
-          export APK_CERT_SHA256=$(printf '%s\n' "$cert" | sed -n 's/^ *SHA256: *//p' | head -1)
-          export APK_CERT_SHA1=$(printf '%s\n' "$cert" | sed -n 's/^ *SHA1: *//p' | head -1)
+          export APK_CERT_SHA256=$(printf '%s\n' "$cert" | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -1)
+          export APK_CERT_SHA1=$(printf '%s\n' "$cert" | sed -n 's/^[[:space:]]*SHA1:[[:space:]]*//p' | head -1)
+          # keytool indents these lines with a tab, so match any whitespace; an empty value would silently drop the fingerprint.
+          [ -n "$APK_CERT_SHA256" ] || echo "::warning::Could not read the signing certificate fingerprint; version.json will not list it."
           node scripts/write-update-manifest.mjs android/app/build/outputs/apk/release/app-release.apk dist/android
 
       # A signed statement from GitHub that this exact file was built by this
