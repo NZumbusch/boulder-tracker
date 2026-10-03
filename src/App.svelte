@@ -8,6 +8,7 @@
   import ActiveSessionModal from './components/workout/ActiveSessionModal.svelte';
   import WorkoutModal from './components/workout/WorkoutModal.svelte';
   import Toast from './components/common/Toast.svelte';
+  import InAppBrowserBanner from './components/common/InAppBrowserBanner.svelte';
   import InfoSheet from './components/common/InfoSheet.svelte';
   import Welcome from './components/onboarding/Welcome.svelte';
   import TourOverlay from './components/tour/TourOverlay.svelte';
@@ -93,6 +94,7 @@
 </script>
 
 <main class="flex flex-col h-dvh pt-safe overflow-hidden bg-app-bg text-content font-sans">
+  <InAppBrowserBanner />
   <!-- `overflow-x-hidden` is a guard, not a layout tool: several charts
        hang absolutely-positioned nowrap tooltips off their data points,
        and one on a right-edge point reaches past the viewport, which made
