@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * The minimised session: a corner pill showing which exercise you're on
-   * and how long you've been at it, anywhere in the app.
+   * The minimised session: a corner pill showing which exercise is current
+   * and how long it has been going, anywhere in the app.
    *
    * Only ever visible while a session is running *and* the session modal
    * is closed - the two are mutually exclusive, so the bubble can never

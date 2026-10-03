@@ -4,10 +4,10 @@
    * mid-session counts as.
    *
    * Both options are real and neither is a compromise, which is why this
-   * is a preference rather than a decision made for you - the honest
-   * answer depends on whether you treat the plan as a contract (an
+   * is a preference rather than a decision made for the user - the honest
+   * answer depends on whether the user treats the plan as a contract (an
    * unplanned extra is extra, and adherence should say so) or as a rough
-   * intent (what you did *is* the session).
+   * intent (what was done *is* the session).
    */
   import { trainingState } from '../../lib/state.svelte';
   import type { AddedExerciseTarget } from '../../lib/preferences/migrate';

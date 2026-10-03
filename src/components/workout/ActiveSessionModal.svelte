@@ -8,7 +8,7 @@
    * The running session, full screen.
    *
    * The linear path is the point: the current exercise is expanded with
-   * everything you need to do it, and finishing it logs what you did and
+   * everything needed to do it, and finishing it logs what was done and
    * moves to the next one. Everything else (jumping around, reordering,
    * skipping, un-finishing, adding) is available but deliberately quieter.
    *
@@ -59,7 +59,7 @@
   /**
    * Values handed over by a finished interval run (or the exercise's own
    * clock), seeding the finish sheet once - only for the slot they were
-   * made for, so a leftover can never follow you to another exercise.
+   * made for, so a leftover can never follow the user to another exercise.
    */
   let seedFor = $state<{ slotId: string; values: ExerciseValues } | null>(null);
   const intervalSeed = $derived(seedFor && seedFor.slotId === loggingSlotId ? seedFor.values : null);
@@ -325,7 +325,7 @@
   /**
    * A finished interval run, logged against the exercise it was run for.
    * Opens the normal finish sheet with the protocol's real numbers seeded,
-   * rather than logging silently - what the timer counted and what you did
+   * rather than logging silently - what the timer counted and what the user did
    * are usually but not always the same thing.
    */
   function handleIntervalLogged(values: Partial<ExerciseValues>) {

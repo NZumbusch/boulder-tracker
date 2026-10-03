@@ -52,7 +52,7 @@ export type ParameterBlock =
   | CustomParameter;
 
 /**
- * A value type you defined yourself (`ValueDef`), as an exercise's tracked
+ * A value type the user defined (`ValueDef`), as an exercise's tracked
  * parameter: "v:" and the def's id. Kept apart from the built-in names so
  * neither can ever collide with the other.
  */
@@ -654,7 +654,7 @@ export interface DailyMetricEntry {
   note?: string;
   /**
    * Set on values imported from Health Connect (`lib/health/`). Editing
-   * one by hand saves it without this, which makes it yours: the import
+   * one by hand saves it without this, which makes it the user's: the import
    * never overwrites a value that isn't marked as its own.
    */
   source?: "health-connect";

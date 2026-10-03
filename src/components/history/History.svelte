@@ -119,7 +119,7 @@
     crag: filterCrag,
   }));
 
-  /** Grades you've sent, lowest first, labelled in the display scale. In V, one option per band: its lowest Font grade for "min", its highest for "max". */
+  /** Grades that have been sent, lowest first, labelled in the display scale. In V, one option per band: its lowest Font grade for "min", its highest for "max". */
   function gradeOptions(end: 'min' | 'max'): { value: string; label: string }[] {
     const grades = [...new Set(trainingState.outdoorAscents.map((a) => a.grade))]
       .filter((g) => parseFontGrade(g) !== undefined)
@@ -134,7 +134,7 @@
   const sendStyles = $derived([...new Set(trainingState.outdoorAscents.map((a) => a.style).filter((x): x is string => !!x))].sort());
   const sendCrags = $derived([...new Set(trainingState.outdoorAscents.map((a) => a.crag).filter((x): x is string => !!x))].sort());
 
-  /** How many filters apply to the tab you're on - shown on the filter button. */
+  /** How many filters apply to the tab being viewed - shown on the filter button. */
   const activeFilterCount = $derived(
     [filterSearch, filterFromDate, filterToDate].filter(Boolean).length +
       (onSends

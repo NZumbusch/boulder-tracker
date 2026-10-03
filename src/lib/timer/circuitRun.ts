@@ -10,7 +10,7 @@ import type { LiveCue, LiveSegment, LiveTimerConfig } from "./liveTimer";
  *
  * Steps are one of:
  * - **work** - a member's set. Timed (`seconds`) counts down and moves on
- *   by itself; counted (no `seconds`) stays open until you tap Done.
+ *   by itself; counted (no `seconds`) stays open until the user taps Done.
  * - **transition** - the pause between members inside a round.
  * - **roundRest** - the rest after a round.
  * - **leadIn** - a few seconds to get into position at the start.
@@ -153,7 +153,7 @@ export function setCircuitResult(state: CircuitRunState, slotId: string, round: 
   return { ...state, results: { ...state.results, [slotId]: list } };
 }
 
-/** The last work step before the current one - what the rest after a set lets you correct. */
+/** The last work step before the current one - what the rest after a set lets the user correct. */
 export function previousWork(steps: CircuitStep[], state: CircuitRunState): Extract<CircuitStep, { kind: "work" }> | undefined {
   const upTo = state.done ? steps.length : state.stepIndex;
   for (let i = upTo - 1; i >= 0; i--) {
@@ -225,8 +225,8 @@ export interface CircuitLiveInput {
 
 /**
  * The service schedule for a running circuit: every step from now until
- * the next open (counted) set, which only you can end - the plan is simply
- * re-made when you do. Same shape as the interval timer's, so the session
+ * the next open (counted) set, which only the user can end - the plan is simply
+ * re-made when they do. Same shape as the interval timer's, so the session
  * notification and the beeps work the same way.
  */
 export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTimerConfig | null {

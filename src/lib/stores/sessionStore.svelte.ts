@@ -49,8 +49,8 @@ export class SessionStore {
    * Whether the full-screen session modal is showing. Minimising the modal
    * leaves the session running and swaps it for the corner bubble, so this
    * is view state, not session state - it deliberately does **not**
-   * persist: reopening the app lands you on your normal screen with the
-   * bubble showing, rather than trapping you in the modal.
+   * persist: reopening the app lands on the normal screen with the
+   * bubble showing, rather than trapping the user in the modal.
    */
   isModalOpen = $state(false);
 

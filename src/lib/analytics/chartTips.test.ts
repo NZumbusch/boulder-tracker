@@ -47,7 +47,7 @@ describe("isTapPointer", () => {
 
   it("is false for a mouse, where hover already opens the tooltip", () => {
     // Regression: a mouse that both opened on `pointerenter` and toggled on
-    // click closed the tooltip the moment you clicked what you were
+    // click closed the tooltip the moment the user clicked what they were
     // hovering, which read as clicking being broken.
     expect(isTapPointer({ pointerType: "mouse" } as PointerEvent)).toBe(false);
   });

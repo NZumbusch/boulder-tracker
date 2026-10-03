@@ -39,7 +39,7 @@ class Updater {
   installedName = $state<string | null>(null);
   auto = $state(true);
   channel = $state<UpdateChannel>("stable");
-  /** The channel's newest build, even when it isn't newer than this one - for "you're ahead of stable". */
+  /** The channel's newest build, even when it isn't newer than this one - for the "ahead of stable" message. */
   latestOnChannel = $state<UpdateManifest | null>(null);
   lastCheckedAt = $state<number | null>(null);
   dismissedCode = $state<number | null>(null);

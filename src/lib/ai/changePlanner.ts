@@ -4,7 +4,7 @@
  *
  * Pure: it works on copies of the user's data and never touches storage.
  * The preview calls `planChanges` on every tick/untick; the same function's
- * `writes` are what Apply persists, so what you see is what gets written.
+ * `writes` are what Apply persists, so what is previewed is what gets written.
  *
  * Order matters and follows the contract: exercise types first (so
  * sessions can use a type added in the same document), then phases (so

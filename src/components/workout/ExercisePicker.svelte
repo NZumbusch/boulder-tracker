@@ -3,8 +3,8 @@
   import { sheetDrag } from '../../lib/ui/sheetDrag';
   /**
    * Choosing an exercise for a slot, from a library that can be long:
-   * search (names, groups, how-tos), your most recent ones up top, then
-   * every group - folded until you open one or search. Archived exercises
+   * search (names, groups, how-tos), the most recent ones up top, then
+   * every group - folded until one is opened or a search is made. Archived exercises
    * aren't offered. Replaces what used to be one long `<select>`.
    */
   import { backWhile } from '../../lib/navigation/backStack.svelte';

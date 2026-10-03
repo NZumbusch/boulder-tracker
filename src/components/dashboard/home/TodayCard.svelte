@@ -16,7 +16,7 @@
 
   let { data }: { data: HomeData } = $props();
 
-  // An undecided Plan B offers both plans today - whichever you start or
+  // An undecided Plan B offers both plans today - whichever is started or
   // log decides it. A decided one shows only the chosen plan.
   const todaysWorkouts = $derived(
     sortWorkoutsBySchedule(

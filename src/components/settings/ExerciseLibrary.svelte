@@ -3,7 +3,7 @@
    * Settings -> Customization -> Exercises: the exercise library.
    *
    * Built for a long list (the AI coach adds exercises quickly): search
-   * over names, groups and how-tos, one-level groups you can fold and
+   * over names, groups and how-tos, one-level groups that can be folded and
    * rename, usage on every row, and archived exercises kept out of the way
    * but restorable. Tapping an exercise opens `ExerciseTypeEditor`.
    *

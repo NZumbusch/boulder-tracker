@@ -3,7 +3,7 @@
   import { localIsoDate } from '../../lib/dateUtils';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
-   * Home's header "+": one sheet for the quick things you log outside a
+   * Home's header "+": one sheet for the quick things logged outside a
    * session - pain, bodyweight, an outdoor send, a benchmark. Pain and
    * bodyweight show their history too, to edit or delete; sends and
    * benchmarks reuse the existing forms so there's one way to enter each.

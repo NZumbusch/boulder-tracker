@@ -34,11 +34,11 @@ const RESUME_AFTER_MS = 60_000;
 interface Settings {
   connected: boolean;
   deviceId: string;
-  /** What other devices see: "<your name> (<model>)", or just the model. */
+  /** What other devices see: "<device name> (<model>)", or just the model. */
   deviceName: string;
   /** The phone's model, from Android (e.g. "Samsung SM-S911B"). Absent in settings from before naming - `deviceName` was the model then. */
   deviceModel?: string;
-  /** The name you gave this device ("Phone"). */
+  /** The name the user gave this device ("Phone"). */
   deviceLabel?: string;
   account?: string;
   /** The Google account's display name (from Drive), for showing who's signed in. */
@@ -63,7 +63,7 @@ function loadSettings(): Settings | null {
   }
 }
 
-/** What a device is called on the others: your name for it with the model in brackets, or the model. */
+/** What a device is called on the others: the user's name for it with the model in brackets, or the model. */
 export function publishedDeviceName(label: string | undefined, model: string): string {
   return label ? `${label} (${model})` : model;
 }

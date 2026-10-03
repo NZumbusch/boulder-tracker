@@ -2,9 +2,9 @@
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * "Ask AI" for the one session open in the editor, as three steps:
-   * say what you want and copy the prompt, paste the reply, review exactly
-   * what will change. The prompt carries your exercise list and the session
-   * itself (`buildSessionPrompt`), so the AI reuses your exercise names.
+   * say what is wanted and copy the prompt, paste the reply, review exactly
+   * what will change. The prompt carries the exercise list and the session
+   * itself (`buildSessionPrompt`), so the AI reuses the exercise names.
    *
    * Add vs replace is chosen up front because it changes what the AI is
    * asked for (only new exercises, or the complete list) - and is shown
@@ -92,7 +92,7 @@
   /** The AI's name for each returned exercise, in slot order. */
   const aiNames = $derived(result?.data?.workouts.flatMap((w) => w.exercises.map((e) => e.exerciseTypeName)) ?? []);
 
-  /** The AI's name behind slot `i`, when it didn't match one of your exercises - for the "new exercise" choice. */
+  /** The AI's name behind slot `i`, when it didn't match one of the user's exercises - for the "new exercise" choice. */
   function unresolvedNameFor(i: number): string | undefined {
     const name = aiNames[i];
     return name && preview?.unresolvedExerciseTypeNames.includes(name) ? name : undefined;
@@ -190,7 +190,7 @@
           <h2 class="text-title text-content break-words">{workout.notes || 'Session'}</h2>
         </div>
       </div>
-      <!-- Where you are in the three steps -->
+      <!-- Which of the three steps this is -->
       <ol class="flex items-center gap-2">
         {#each STEPS as s, i}
           <li class="flex-1 flex items-center gap-1.5 min-w-0">

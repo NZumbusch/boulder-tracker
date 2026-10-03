@@ -45,7 +45,7 @@ export function currentBlockIndex(sorted: TrainingBlock[], currentWeekId: string
 /**
  * The collapsed list's window: the current block and the ones after it, up
  * to `limit`. If that runs out before `limit` is reached (a plan that is
- * mostly behind you), the window is backfilled with the blocks just before
+ * mostly in the past), the window is backfilled with the blocks just before
  * it rather than rendering a short list - so the panel is always as full as
  * the data allows, and always includes "now".
  */

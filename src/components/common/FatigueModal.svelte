@@ -34,7 +34,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   /** "How it went" - separate from the session's name and from its plan note; AI Sharing treats it on its own. */
   let logNotes = $state('');
 
-  // --- Pain check-ins: right after a session is when you
+  // --- Pain check-ins: right after a session is when the user
   // know how the open issues took it. Answers are collected here and saved
   // with the session; they never affect loadFactor/fatigue. A new issue
   // opens the full report (mounted in App).
@@ -47,7 +47,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
    * Seeded from `duration` (a live session's measured running time, or the
    * estimate for a session logged by hand) and written back as
    * `actualDuration`. Editable because a measured time can be wrong in the
-   * one way that matters - a session left running while you drove home -
+   * one way that matters - a session left running while the user drove home -
    * and this number feeds `loadFactor`, so a bad one distorts every load
    * chart downstream rather than just reading oddly in History.
    */

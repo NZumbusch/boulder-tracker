@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Your crags: current conditions per crag, their forecast, and a nudge when a planned session day looks prime. */
+  /** The user's crags: current conditions per crag, their forecast, and a nudge when a planned session day looks prime. */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
   import type { DayOfWeek } from '../../../lib/types';

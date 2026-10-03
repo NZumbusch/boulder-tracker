@@ -40,7 +40,7 @@ export interface ActiveSession {
    */
   sourceWorkoutId: string | null;
   /**
-   * Time spent on each exercise, banked when you move off it, keyed by slot
+   * Time spent on each exercise, banked when the user moves off it, keyed by slot
    * id. Only counts while the session is running, so a session pause stops
    * it too. See `syncSlotClock`.
    */
@@ -72,7 +72,7 @@ export function slotStatus(slot: ExerciseSlot): SlotStatus {
 /**
  * Progress through the session. `settled` drives the "3/5" readout
  * because a skipped exercise is resolved - it is not still waiting for
- * you - while `done` stays available for anything that cares only about
+ * the user - while `done` stays available for anything that cares only about
  * work actually performed.
  */
 export function sessionProgress(session: ActiveSession): SessionProgress {
@@ -265,7 +265,7 @@ export function skipSlot(session: ActiveSession, slotId: string): ActiveSession 
 
 /** Puts a logged or skipped slot back to pending and focuses it, for fixing a number mid-session. */
 export function unfinishSlot(session: ActiveSession, slotId: string): ActiveSession {
-  // Reopened: its clock carries on from the duration you logged for it
+  // Reopened: its clock carries on from the duration logged for it
   // (which may be a corrected number), not from zero.
   const loggedMinutes = Number(session.workout.exercises.find((s) => s.id === slotId)?.logged?.duration);
   const withTime = Number.isFinite(loggedMinutes) && loggedMinutes > 0
@@ -280,11 +280,11 @@ export function unfinishSlot(session: ActiveSession, slotId: string): ActiveSess
 }
 
 /**
- * Appends an exercise you did that wasn't in the plan.
+ * Appends an exercise the user did that wasn't in the plan.
  *
- * It lands **done**, not pending: adding something mid-session is how you
- * record the extra set you threw in, so the values you enter are what you
- * did. Un-finish it if you meant it as an upcoming target instead.
+ * It lands **done**, not pending: adding something mid-session is how the user
+ * record the extra set they threw in, so the values entered are what was
+ * done. Un-finish it if it was meant as an upcoming target instead.
  *
  * `target` decides whether it also counts as *planned*. Under "none" (the
  * default) `prescribed` is left unset, so `workoutPlannedLoad` excludes it

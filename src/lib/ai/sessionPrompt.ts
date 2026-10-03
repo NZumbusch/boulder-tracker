@@ -6,7 +6,7 @@ import { buildAnalyticsCategorySummaries, buildExerciseModalities, type WorkoutN
 /**
  * The prompt behind the workout editor's "Fill with AI" - one session, not
  * the plan. Like the plan prompt it shows the AI the exercise list (so it
- * reuses your names instead of inventing near-duplicates that would each
+ * reuses the user's names instead of inventing near-duplicates that would each
  * become a new exercise type) and the thing being edited. The reply shape
  * is the workout-log contract (`validateAIWorkoutLogOutput`), asked for as
  * exactly one workout.

@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
    * Settings -> Coach notes: the AI coach's memory, visible and editable.
-   * About me and the standing goal are yours; coach notes are proposed by an
-   * AI (and ticked by you in the AI Coach's review) or written here. All of
+   * About me and the standing goal are the user's; coach notes are proposed by an
+   * AI (and ticked by the user in the AI Coach's review) or written here. All of
    * it goes with every AI Coach prompt - see lib/ai/coachNotes.ts.
    */
   import Icon from '@iconify/svelte';
@@ -80,7 +80,7 @@
     </p>
   </div>
 
-  <!-- About me + standing goal: yours. -->
+  <!-- About me + standing goal: the user's. -->
   <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-1 px-1">
       <h3 class="text-section uppercase text-content-muted">About me</h3>
@@ -114,7 +114,7 @@
     </button>
   </div>
 
-  <!-- Coach notes: the AI's memory, ticked by you. -->
+  <!-- Coach notes: the AI's memory, ticked by the user. -->
   <div class="card space-y-3 animate-in fade-in">
     <div class="space-y-1 px-1">
       <h3 class="text-section uppercase text-content-muted flex items-center justify-between">

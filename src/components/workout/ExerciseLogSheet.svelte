@@ -181,7 +181,7 @@
   }
 
   /**
-   * −/+ beside the numbers you change most mid-workout, so a one-off
+   * −/+ beside the numbers changed most mid-workout, so a one-off
    * adjustment needs no keyboard. Weight moves by 2.5 kg (5 lb).
    */
   const STEPS: Partial<Record<keyof ExerciseValues, number>> = { sets: 1, reps: 1, duration: 5 };

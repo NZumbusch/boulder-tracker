@@ -16,7 +16,7 @@
    * fires cues on phase changes and counts the last three seconds down, so
    * it samples `Date.now()` at 100ms and derives everything from elapsed
    * time. A counter incremented once per second drifts, and drift here
-   * means the beep lands after you have already let go.
+   * means the beep lands after the user has already let go.
    *
    * `bottom-[91px]` (the default) clears App.svelte's nav bar; the session
    * modal covers that nav with a shorter footer and overrides it.
@@ -145,7 +145,7 @@
   let warnedStepIndex = -1;
   let restWarnedForSet = 0;
 
-  // --- Self-paced sets (strength work: you set the pace, the rest is timed) ---
+  // --- Self-paced sets (strength work: the user sets the pace, the rest is timed) ---
   let timingMode = $state<SetTimingMode>('auto');
   let setRun = $state<SetRunState>(startSetRun(DEFAULT_SPEC));
   /** Reps staged for the set about to be finished, prefilled from the target. */
@@ -243,14 +243,14 @@
     }
 
     // Count the last three seconds of a phase, so the change is never a
-    // surprise - you get onto or off the holds on the beat, not after it.
+    // surprise - the user gets onto or off the holds on the beat, not after it.
     if (!pos.done && pos.remaining > 0 && pos.remaining <= 3 && pos.remaining !== lastTickSecond) {
       lastTickSecond = pos.remaining;
       cue('tick');
     }
   });
 
-  // Self-paced cues: the lead-in counts you in, and the rest announces
+  // Self-paced cues: the lead-in counts the user in, and the rest announces
   // itself when the target passes. Kept separate from the timed engine's
   // effect because the two never run at the same time and sharing one
   // would mean guarding every branch on which engine is live.
@@ -541,7 +541,7 @@
         now = at;
         // The self-paced run advances by elapsed delta rather than being
         // derived from a start time, because only its rests are on a
-        // clock - the sets themselves end when you say so.
+        // clock - the sets themselves end when the user says so.
         if (selfPaced && !setRun.done) setRun = tickSetRun(setRun, delta);
       }, 100);
     } else if (!shouldTick && ticker !== null) {

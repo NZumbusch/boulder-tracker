@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * One Plan B stretch in the Plan week: which plan counts (A|B - the
-   * numbers follow it until you decide), deciding, the outdoor weather
+   * numbers follow it until it is decided), deciding, the outdoor weather
    * hint, anything that no longer matches Plan A, and the ways in to edit
    * it. See `lib/planning/planB.ts`.
    */

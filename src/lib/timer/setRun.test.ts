@@ -232,7 +232,7 @@ describe("choosing the timing model", () => {
   });
 
   it("counts down an exercise that has one", () => {
-    // max-hangs: a 7-second hang is 7 seconds whether you like it or not.
+    // max-hangs: a 7-second hang is 7 seconds whether the user likes it or not.
     expect(isSelfPaced({ sets: 5, reps: 6, timeOn: 7, timeOff: 3, timeBetweenSets: 180 })).toBe(false);
   });
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Settings -> Connections & Exports: getting your plan and history out - a calendar file and a printable PDF. */
+  /** Settings -> Connections & Exports: getting the plan and history out - a calendar file and a printable PDF. */
   import { trainingState } from '../../lib/state.svelte';
   import { exportWorkoutsToICS } from '../../lib/ics';
   import PDFExportModal from './PDFExportModal.svelte';

@@ -7,7 +7,7 @@
    * out as a callback, so the running state lives in one place
    * (`TimerWidget`) and this can't drift from it.
    *
-   * Sized to be read from the board rather than from your hand - the
+   * Sized to be read from the board rather than from the hand - the
    * remaining seconds are the largest thing on the screen, the phase name
    * sits above them, and set/rep counts stay in the corners where they
    * don't compete.
@@ -64,7 +64,7 @@
   const edited = $derived(specsDiffer(spec, baseSpec));
   const phase = $derived(position.step?.phase ?? null);
 
-  /** Colour carries the phase, so a glance from three metres tells you whether to be on the holds. */
+  /** Colour carries the phase, so a glance from three metres shows whether to be on the holds. */
   const accent = $derived(
     isFinished ? 'var(--color-success)'
       : phase === 'work' ? 'var(--color-danger)'

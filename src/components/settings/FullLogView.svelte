@@ -34,7 +34,7 @@
     );
   });
 
-  // Opens at the newest line, and stays there as lines arrive unless you've scrolled up.
+  // Opens at the newest line, and stays there as lines arrive unless the user has scrolled up.
   $effect(() => {
     void shown.length;
     if (!follow) return;

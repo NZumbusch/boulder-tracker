@@ -3,16 +3,16 @@
  * sync all speak.
  *
  * `Preferences` lives in localStorage and is device-local, but most of it is
- * taste (layout, units, tunables, AI sharing) that you'd want on every device
+ * taste (layout, units, tunables, AI sharing) that a user would want on every device
  * and want to reset or share as a unit. A group is a named set of
  * `Preferences` keys; a *portable* group is one that travels (file and sync).
  *
  * Deliberately outside every group, so they never reset, export or sync:
- * where you are (`homeLocation`, `crags`), reminders (notification
+ * where the user is (`homeLocation`, `crags`), reminders (notification
  * permission and scheduling are per device), `autoBackup`, `welcomeDone`,
  * `theme`, and transient UI state (`timerPillHidden`). `textScale` and `motion`
  * are in the appearance group for resetting but never travel - they answer to
- * the screen in your hand.
+ * the screen in the user's hand.
  */
 import { defaultPreferences, migratePreferences, CURRENT_PREFERENCES_VERSION, type Preferences } from './migrate';
 
@@ -47,7 +47,7 @@ export const SETTINGS_GROUPS: Record<SettingsGroupId, { label: string; descripti
   },
 };
 
-/** In a group but answering to the device, not you: left out of the file and of sync. */
+/** In a group but answering to the device, not the user: left out of the file and of sync. */
 const DEVICE_BOUND: (keyof Preferences)[] = ['textScale', 'motion'];
 
 const travelKeys = (id: SettingsGroupId) => SETTINGS_GROUPS[id].keys.filter((k) => !DEVICE_BOUND.includes(k));

@@ -3,13 +3,13 @@
   /**
    * The self-paced set timer, full screen.
    *
-   * One action: **Finished set**. You do the set at your own pace, say so,
+   * One action: **Finished set**. The user does the set at their own pace, says so,
    * and the rest starts from that moment - which is the whole point, since
-   * a rest that begins on schedule rather than when you actually racked is
+   * a rest that begins on schedule rather than when they actually racked is
    * worse than no timer at all.
    *
    * The rest counts down to its target, cues, and then keeps counting into
-   * overtime rather than sitting at 0:00, because "you rested 3:20" is
+   * overtime rather than sitting at 0:00, because "rested 3:20" is
    * information and "0:00" is not.
    */
   import type { IntervalSpec } from '../../lib/timer/intervalTimer';

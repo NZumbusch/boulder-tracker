@@ -13,7 +13,7 @@ import { repsPerSet, setsFromReps, repsRepresentative } from "../exercise/reps";
  * Everything here is pure: a spec expands to a flat timeline of steps, and
  * a position in that timeline is a function of elapsed seconds. No clock,
  * no audio, no state - which is what makes the awkward parts (where the
- * rests go, what "sets completed" means when you stop mid-set) testable.
+ * rests go, what "sets completed" means when the user stops mid-set) testable.
  */
 
 export type IntervalPhase = "leadIn" | "work" | "rest" | "setRest";
@@ -27,7 +27,7 @@ export interface IntervalSpec {
   restSeconds: number;
   /** Seconds of rest between sets. */
   setRestSeconds: number;
-  /** "Get ready" seconds before the first rep, so you're on the holds when it starts. */
+  /** "Get ready" seconds before the first rep, so the user is on the holds when it starts. */
   leadInSeconds: number;
 }
 

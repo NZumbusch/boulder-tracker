@@ -10,7 +10,7 @@ export interface LastTime {
 /**
  * What was logged the last time an exercise type was done: the most recent
  * completed session with a *logged* slot of `typeId` (skipped and
- * never-reached slots don't count - they say nothing about what you did).
+ * never-reached slots don't count - they say nothing about what was done).
  * `excludeWorkoutId` leaves out the session being done right now. When one
  * session has the type twice, its last logged slot wins; two sessions on
  * the same day go by list order.

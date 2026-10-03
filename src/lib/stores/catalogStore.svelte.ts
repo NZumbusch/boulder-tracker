@@ -46,7 +46,7 @@ export class CatalogStore {
     await storage.saveExerciseTypes(types);
   }
 
-  /** Puts the built-in analytics categories back as shipped; your own stay (see `restoreDefaultCategories`). */
+  /** Puts the built-in analytics categories back as shipped; the user's own stay (see `restoreDefaultCategories`). */
   async restoreDefaultCategories() {
     const restored = restoreDefaultCategories($state.snapshot(this.analyticsCategories), DEFAULT_ANALYTICS_CATEGORIES);
     await storage.saveAnalyticsCategories(restored);

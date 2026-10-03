@@ -113,7 +113,7 @@ export function buildLiveTimer(input: LiveInput, now: number): LiveTimerConfig |
   const spec = clampSpec(input.spec);
   const running = input.intervalClock.runningSince !== null;
 
-  // --- Self-paced sets: you end each set; only the rests are on a clock.
+  // --- Self-paced sets: the user ends each set; only the rests are on a clock.
   if (input.selfPaced) {
     const run = input.setRun;
     if (run.done || !running) return null;
@@ -145,7 +145,7 @@ export function buildLiveTimer(input: LiveInput, now: number): LiveTimerConfig |
         finishedTitle: setText,
       };
     }
-    // In a set: nothing will beep until you finish it in the app.
+    // In a set: nothing will beep until the user finishes it in the app.
     return { segments: [{ startedAt: now - run.sinceLastSetMs, title: setText, body }], cues: [], actions: [], finishedTitle: setText };
   }
 

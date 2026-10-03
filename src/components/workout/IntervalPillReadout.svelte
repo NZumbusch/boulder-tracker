@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The timer pill's readout while an interval run is minimised: where you
+   * The timer pill's readout while an interval run is minimised: where the user
    * are (set, rep, phase and seconds - or, self-paced, the set and the
    * rest) and the one control that matters. Tapping the readout brings the
    * big view back. Part of TimerWidget.
@@ -37,7 +37,7 @@
 </script>
 
 {#if selfPaced}
-  <!-- Minimised self-paced run: which set, and how long you have
+  <!-- Minimised self-paced run: which set, and how long they have
        rested. Tapping goes back to the big view, where the only
        action - finishing a set - actually lives. -->
   <button onclick={onExpand} class="flex items-center gap-3 pr-1 text-left">
@@ -69,7 +69,7 @@
     <Icon icon="ic:baseline-check-circle" class="text-2xl" />
   </button>
 {:else}
-  <!-- Minimised interval: enough to know where you are, and a tap to
+  <!-- Minimised interval: enough to know where the user is, and a tap to
        get the big view back. -->
   <button onclick={onExpand} class="flex items-center gap-3 pr-1 text-left">
     <div class="min-w-0">

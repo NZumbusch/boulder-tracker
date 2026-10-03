@@ -107,7 +107,7 @@ jobs:
             echo "::error::The keystore doesn't open with ANDROID_KEYSTORE_PASSWORD, or has no key called ANDROID_KEY_ALIAS (for the debug keystore: android / androiddebugkey)."
             exit 1
           fi
-          # The certificate fingerprint is public (every APK carries it) - compare it with your local one.
+          # The certificate fingerprint is public (every APK carries it) - compare it with a local one.
           echo "Signing with certificate:"
           keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" | grep -E "SHA1:"
           npx cap sync android

@@ -48,7 +48,7 @@ export class ChartTips {
    * teardown, so it is used straight from an `$effect`.
    *
    * Listens on `pointerdown` in the capture phase: a tooltip must go away
-   * as soon as you touch elsewhere, including on a scroll that starts
+   * as soon as the user touches elsewhere, including on a scroll that starts
    * outside it, rather than waiting for a click that may never come.
    */
   listen(): () => void {
@@ -70,7 +70,7 @@ export class ChartTips {
  *
  * Only where hover isn't already doing the job. On a mouse, a chart that
  * opens its tooltip on `pointerenter` and also toggles on click closes it
- * the instant you click the thing you are hovering - which reads exactly
+ * the instant the user clicks the thing being hovered - which reads exactly
  * like clicking being broken. Touch and pen have no hover, so there the
  * tap is the only way in.
  */

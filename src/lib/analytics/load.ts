@@ -22,10 +22,10 @@ export function calculateLoadFactor(
   const weightedFatigue = fingers * 0.45 + systemic * 0.45 + core * 0.1;
 
   // 2. Exponential Scaling: Penalize high-intensity fatigue to make the graph realistic
-  // Using a power of 1.2 or 1.3 ensures that 8s, 9s, and 10s spike your load graph.
+  // Using a power of 1.2 or 1.3 ensures that 8s, 9s, and 10s spike the load graph.
   const intensityScale = Math.pow(weightedFatigue || 5, 1.2);
 
-  // 3. Calculate and round to keep your database and charts clean
+  // 3. Calculate and round to keep the database and charts clean
   // We use Number() to handle potential string inputs from range sliders or legacy data
   const d = duration !== undefined ? Number(duration) : 60;
   return Math.round(d * intensityScale);
@@ -60,7 +60,7 @@ export function calculatePlannedLoad(exercise: {
  * contributed ~414 phantom planned load, and a spontaneous session (every
  * slot unplanned) reported a large plan it never had. Exercises added
  * mid-session are the common case for this now: unless the "added exercises
- * inherit what you did" preference is on, they carry no `prescribed` at all
+ * inherit what was done" preference is on, they carry no `prescribed` at all
  * and must land as extra load on top of the plan, not as plan.
  */
 export function slotPlannedLoad(slot: ExerciseSlot, minutes?: number): number {

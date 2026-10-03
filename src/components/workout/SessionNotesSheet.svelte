@@ -4,7 +4,7 @@
    * Everything written down for the running session, readable in full:
    * the session's own notes (the header only has room for two lines), the
    * week's note, and each exercise's notes in order. Read first - the
-   * keyboard only comes up when you choose to edit the session notes.
+   * keyboard only comes up when the user chooses to edit the session notes.
    */
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { trainingState } from '../../lib/state.svelte';

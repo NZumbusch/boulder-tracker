@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Sends per grade - a minimal bar chart in the spirit of the Kilter app's
-   * pyramid: every Font grade from your easiest to your hardest send, one
+   * pyramid: every Font grade from the easiest to the hardest send, one
    * step of padding either side, empty grades left empty so gaps show.
    * One series, so one colour and no legend. Every bar with sends carries
    * its count (as in Kilter's pyramid) while the bars are wide enough to

@@ -10,7 +10,7 @@ import type { DayOfWeek } from "../types";
 /**
  * The plan-level AI prompts, as text: "generate" (change the plan - the
  * reply comes back as a change set), "analyze" (feedback on a past window,
- * read in the chat) and "context" (just the profile, for your own
+ * read in the chat) and "context" (just the profile, for the user's own
  * questions). Pure; the AI Coach modal gathers the inputs and copies it.
  */
 

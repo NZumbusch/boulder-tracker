@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * "Update available" for the Android app (lib/update/): the new build,
-   * what changed since yours, and Install. `compact` is Home's version,
+   * what changed since the installed one, and Install. `compact` is Home's version,
    * which can be closed for this build; Settings shows it in full.
    */
   import Icon from '@iconify/svelte';

@@ -3,8 +3,8 @@
   import { sheetDrag } from '../../lib/ui/sheetDrag';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
-   * Advanced: your own value types - things an exercise can record beyond the
-   * built-in fields (height, speed, heart rate, a pick-list of your own...).
+   * Advanced: the user's own value types - things an exercise can record beyond the
+   * built-in fields (height, speed, heart rate, a pick-list of their own...).
    * They are only recorded and shown: they never enter load or fatigue.
    *
    * Removing one is two steps on purpose. Archive hides it from new use and

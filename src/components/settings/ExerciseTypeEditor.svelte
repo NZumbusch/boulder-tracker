@@ -46,7 +46,7 @@
   const nameError = $derived(!trimmedName ? 'Give it a name.' : takenNames.has(trimmedName.toLowerCase()) ? 'Another exercise already has this name.' : null);
   const groupChoices = $derived([...new Set([...groups, draft.group?.trim() || ''].filter(Boolean))].sort((a, b) => a.localeCompare(b)));
 
-  /** Built-in fields, then your own value types (an archived one only while this exercise still tracks it). */
+  /** Built-in fields, then the user's own value types (an archived one only while this exercise still tracks it). */
   const parameterBlocks = $derived<{ id: ParameterBlock; label: string }[]>([
     ...Object.entries(PARAMETER_LABELS).map(([id, label]) => ({ id: id as ParameterBlock, label })),
     ...trainingState.valueDefs

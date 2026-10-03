@@ -52,8 +52,8 @@ export class UiStore {
 
   /**
    * Back from any tab but Home goes to Home (one history entry for "not on
-   * Home", replaced rather than stacked as you move between tabs - back
-   * doesn't replay every tab you visited). See `navigation/backStack`.
+   * Home", replaced rather than stacked as the user moves between tabs - back
+   * doesn't replay every tab visited). See `navigation/backStack`.
    */
   #tabRelease: (() => void) | null = null;
 

@@ -58,7 +58,7 @@
   backWhile(() => inSection, () => { currentTab = 'overview'; });
   backWhile(() => inTopic, () => { appearanceTopic = null; });
 
-  // --- State: local editable copies of every catalog, saved as you edit ---
+  // --- State: local editable copies of every catalog, saved as they are edited ---
   let templates = $state<Record<string, WorkoutTemplate[]>>({});
   let phaseDefs = $state<PhaseDef[]>([]);
   let exerciseTypes = $state<ExerciseTypeDef[]>([]);

@@ -2,7 +2,7 @@ import type { AnalyticsCategory } from "../types";
 
 /**
  * The built-in analytics categories back as they ship: a missing one is added,
- * a renamed, recoloured or archived one is put back. Categories you made are
+ * a renamed, recoloured or archived one is put back. Categories the user made are
  * left alone - workouts refer to categories by id, so removing one would
  * orphan its history.
  */

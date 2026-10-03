@@ -32,7 +32,7 @@
   }
 
   /**
-   * Goes live immediately with an empty session - you add exercises as you
+   * Goes live immediately with an empty session - the user adds exercises as they
    * do them, from inside the session modal. This is the spontaneous path;
    * it never touches the plan.
    */

@@ -294,7 +294,7 @@ class TrainingState {
     await storage.saveSettings(records);
   }
 
-  /** The settings groups, back at their defaults. Categories restore the built-in ones without touching yours. */
+  /** The settings groups, back at their defaults. Categories restore the built-in ones without touching the user's own. */
   async resetSettings(groups: readonly SettingsGroupId[], opts: { categories?: boolean } = {}) {
     if (groups.length) this.preferencesStore.replace(resetGroups(this.preferencesStore.snapshot(), groups));
     if (opts.categories) await this.catalogStore.restoreDefaultCategories();
@@ -849,7 +849,7 @@ class TrainingState {
   /**
    * Ids of stored sessions on the side of a Plan B that doesn't count right
    * now - left out of reminders, which would otherwise nag about a session
-   * you aren't going to do.
+   * the user isn't going to do.
    */
   private inactivePlanBIds(): Set<string> {
     const ids = new Set<string>();
@@ -943,7 +943,7 @@ class TrainingState {
       this.sessionStore.discard();
     }
 
-    // Land on the finished session in the workout modal, wherever you
+    // Land on the finished session in the workout modal, wherever the user
     // were - from a live session, "Log as planned", or a re-rate.
     this.uiStore.closeFatigueModal();
     openWorkout(completedWorkout, 'view');
@@ -1390,7 +1390,7 @@ class TrainingState {
   }
 
   /**
-   * Adds or changes a note by hand. Editing one the AI wrote makes it yours
+   * Adds or changes a note by hand. Editing one the AI wrote makes it the user's
    * ("me"), so later AI coaches leave it alone unless asked.
    */
   async saveCoachNote(text: string, id?: string): Promise<boolean> {

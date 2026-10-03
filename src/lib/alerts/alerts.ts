@@ -37,9 +37,9 @@ export interface AlertInputs {
   config?: { restDays?: number; backupDays?: number; acwrHighRisk?: number };
 }
 
-/** A metric you normally log is flagged once it has gone this many days without a reading. */
+/** A metric normally logged is flagged once it has gone this many days without a reading. */
 export const METRIC_GAP_DAYS = 5;
-/** ...but only if it was logged at some point in this many days - otherwise it isn't something you track. */
+/** ...but only if it was logged at some point in this many days - otherwise it isn't something tracked. */
 const METRIC_TRACKED_WINDOW_DAYS = 30;
 /** Completed sessions this recent without fatigue ratings get a nudge. */
 const UNRATED_SESSION_DAYS = 3;

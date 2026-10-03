@@ -53,7 +53,7 @@ export const NAP_DURATION_METRIC: MetricDef = { id: "nap-duration", name: "Naps"
 /**
  * The value types that ship with the app. Seeded once (`persistence.ts` for
  * installs that have no table yet); after that they are ordinary defs - edit,
- * archive or delete them like your own.
+ * archive or delete them like their own.
  */
 export const DEFAULT_VALUE_DEFS: ValueDef[] = [
   { id: "elevation", name: "Height / elevation", unit: "m", kind: "number", builtIn: true },

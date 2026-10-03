@@ -4,7 +4,7 @@
  * The stopwatch and countdown used to add one per `setInterval` tick. A
  * phone throttles or stops timers for a backgrounded app, so a counter
  * falls behind the moment the screen locks - a three-minute rest could
- * still read 2:40 when you came back. Time banked from earlier stretches
+ * still read 2:40 when the user came back. Time banked from earlier stretches
  * plus "running since" is exact whenever it is read, and survives the app
  * being killed (it is saved with the rest of the timer state).
  */

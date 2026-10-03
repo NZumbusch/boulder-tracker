@@ -57,7 +57,7 @@ export interface Preferences {
    */
   homeLocation: WeatherLocation | null;
   /**
-   * Saved outdoor spots (as many as you like), each with its own
+   * Saved outdoor spots (as many as wanted), each with its own
    * conditions on the Home Crags card. Replaces the old single `tripLocation`, which
    * `migratePreferences` turns into the first crag.
    */
@@ -139,7 +139,7 @@ export interface Preferences {
    * unplanned extra: it is excluded from the session's planned load
    * (`workoutPlannedLoad`) and its work lands on top of the plan rather
    * than inside it, which is the honest account of something that was
-   * never in the plan. "mirror" copies what you logged into `prescribed`
+   * never in the plan. "mirror" copies what was logged into `prescribed`
    * as well, so the addition counts as planned and the session still
    * reports full adherence.
    *

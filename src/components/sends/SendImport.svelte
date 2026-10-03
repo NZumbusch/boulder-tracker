@@ -3,7 +3,7 @@
    * 8a.nu CSV import: every row shown and editable before anything is
    * written. Sends already logged are discarded (listed, collapsed); likely
    * duplicates - a similar name, or a day apart - come unticked with what
-   * they look like, so you decide. See `lib/sends/matching.ts`.
+   * they look like, so the user decides. See `lib/sends/matching.ts`.
    */
   import { displayGrade, gradeFromInput } from '../../lib/sends/gradeScale';
   import { trainingState } from '../../lib/state.svelte';

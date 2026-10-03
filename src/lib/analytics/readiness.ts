@@ -38,7 +38,7 @@ export interface FatigueDecayResult {
  * `soften` / `softKnee` - stacked sessions add up, and without softening
  * the sum is simply capped at 10. With it, readings up to `softKnee` are
  * left exactly as they are and everything above bends smoothly towards 10
- * (a hard session on its own reads about what you rated it; a third hard
+ * (a hard session on its own reads about what it was rated; a third hard
  * day in a row no longer slams into the ceiling).
  */
 export interface FatigueModel {

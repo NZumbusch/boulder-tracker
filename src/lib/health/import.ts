@@ -8,7 +8,7 @@ import { BODYWEIGHT_METRIC_ID, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC } from
  *
  * Rules:
  * - Resting HR: the day's average. Weight: the day's last reading.
- * - Sleep belongs to the day you wake up on. The longest sleep ending that
+ * - Sleep belongs to the day the user wakes up on. The longest sleep ending that
  *   day is the night (`sleep-duration`); any others are naps, stored as the
  *   day's total apart (`nap-duration`) so they boost readiness without
  *   changing the night's number. Overlapping sessions (one night written by

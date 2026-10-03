@@ -1,5 +1,5 @@
 /**
- * Svelte action: a row you can swipe sideways to act on it, like a mail
+ * Svelte action: a row that can be swiped sideways to act on it, like a mail
  * app. The row follows the finger; past the threshold it slides out and
  * the action runs, short of it the row springs back. Vertical movement is
  * left to the page (`touch-action: pan-y` is set on the row), and the

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Pain in the quick-log sheet: your open issues (tap for the issue page,
+   * Pain in the quick-log sheet: the open issues (tap for the issue page,
    * check in right here), a new issue, and the resolved ones - folded.
    * Replaces the old flat list of entries.
    */
