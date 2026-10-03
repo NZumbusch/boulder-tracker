@@ -27,6 +27,13 @@
     .card strong { display: block; margin-bottom: 2px; }
     .card span { color: var(--muted); font-size: 15px; }
     .button { display: inline-block; margin-top: 24px; padding: 10px 18px; border-radius: 12px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+    .steps { padding-left: 20px; } .steps li { margin: 6px 0; }
+    code, pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; overflow-x: auto; margin: 8px 0; color: var(--text); }
+    dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 12px 0; }
+    dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; color: var(--text); word-break: break-all; font-size: 14px; }
+    @media (max-width: 520px) { dl.facts { grid-template-columns: 1fr; gap: 0; } dl.facts dd { margin-bottom: 10px; } }
+    .button.alt { background: transparent; color: var(--accent); border: 1px solid var(--border); margin-left: 8px; }
     footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 16px; }
   </style>
 </head>
@@ -51,7 +58,39 @@
     <div class="card"><strong>Android extras</strong><span>Home-screen widgets, launcher shortcuts, notifications and backups.</span></div>
   </div>
 
-  <a class="button" href="./">Open the web app</a>
+  <a class="button" href="./">Open the web app</a><a class="button alt" href="#install">Install</a>
+
+  <h2 id="install">Install</h2>
+  <p><strong>Android app</strong> (adds Google Drive sync, widgets, reminders and timer sound with the screen off). It is not in the Play Store; you download it from here.</p>
+  <ol class="steps">
+    <li>Tap <a href="android/stable/boulder-tracker.apk" download>Download the APK</a> and open the file when it finishes (browser download bar or your Files app).</li>
+    <li>If Android asks, allow your browser to <strong>install unknown apps</strong>, then go back and tap Install.</li>
+    <li>Play Protect may say it hasn't seen this app before, because it isn't from the Play Store. Tap <strong>More details → Install anyway</strong>.</li>
+    <li>Updates arrive inside the app (Settings → About → App updates), each checked against its checksum first.</li>
+  </ol>
+  <p>Want proof it's the code on GitHub? <a href="#verify">Check the build yourself</a>.</p>
+  <p><strong>iPhone / iPad</strong>: open this page in <strong>Safari</strong>, tap Share → <strong>Add to Home Screen</strong>. In Chrome or Firefox on iOS, use the browser's menu or Share sheet for the same entry. (Links opened inside Reddit or other apps can't install; open them in Safari first.) iOS has no sync, reminders or widgets.</p>
+  <p><strong>Any browser</strong>: just <a href="./">open the web app</a>; it also works offline once loaded.</p>
+
+  <h2 id="verify">Is this APK safe? Check it yourself</h2>
+  <p>The app is open source: <a href="https://github.com/NZumbusch/boulder-tracker">github.com/NZumbusch/boulder-tracker</a>. The APK is built by GitHub's servers from that code on every release, not on a personal computer, and each build records which commit it came from. You don't have to take my word for it:</p>
+  <dl class="facts" id="facts">
+    <dt>Version</dt><dd id="f-version">loading…</dd>
+    <dt>Built from</dt><dd id="f-commit">loading…</dd>
+    <dt>SHA-256 of the APK</dt><dd id="f-sha">loading…</dd>
+    <dt>Signing certificate (SHA-256)</dt><dd id="f-cert">loading…</dd>
+  </dl>
+  <p>On a computer, download the APK and compare:</p>
+<pre>sha256sum boulder-tracker.apk
+apksigner verify --print-certs boulder-tracker.apk
+gh attestation verify boulder-tracker.apk --repo NZumbusch/boulder-tracker</pre>
+  <ul>
+    <li><code>sha256sum</code> must print the SHA-256 above. The app does the same check on every update before it lets Android install anything.</li>
+    <li><code>gh attestation verify</code> asks GitHub to confirm this exact file was produced by the build workflow in that repository, from the commit shown. Builds made before attestations were added won't have one; the next promoted build will.</li>
+    <li><code>apksigner</code> shows who signed it. The certificate is the developer's own key (Android labels such keys "Android Debug"), not a Play Store key; its fingerprint above never changes between versions, and Android refuses an update signed with a different one.</li>
+  </ul>
+  <p>The build recipe is the public file <a href="https://github.com/NZumbusch/boulder-tracker/blob/main/.github/workflows/deploy.yml">.github/workflows/deploy.yml</a>.</p>
+
 
   <h2>Privacy</h2>
   <p>No ads, no analytics, no tracking. The developer never receives your data. Read the full <a href="privacy.html">privacy policy</a>.</p>
@@ -65,5 +104,24 @@
     <span>Weather data by <a href="https://open-meteo.com">Open-Meteo.com</a></span>
   </footer>
 </main>
+<script>
+  // Live values from the published (stable) build's version file, so this page can't go stale.
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var none = 'not published with this build';
+    fetch('android/stable/version.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (m) {
+      $('f-version').textContent = (m.versionName || '?') + ' (build ' + m.versionCode + (m.publishedAt ? ', ' + m.publishedAt.slice(0, 10) : '') + ')';
+      var c = $('f-commit');
+      if (/^[0-9a-f]{40}$/i.test(m.commit || '')) {
+        var a = document.createElement('a'); a.href = 'https://github.com/NZumbusch/boulder-tracker/commit/' + m.commit; a.textContent = m.commit.slice(0, 12);
+        c.textContent = ''; c.appendChild(a);
+      } else c.textContent = none;
+      $('f-sha').textContent = m.sha256 || none;
+      $('f-cert').textContent = (m.signing && m.signing.sha256) || none + ' (the next promoted build will list it)';
+    }).catch(function () {
+      ['f-version', 'f-commit', 'f-sha', 'f-cert'].forEach(function (id) { $(id).textContent = 'No build has been published yet, or this page is offline.'; });
+    });
+  })();
+</script>
 </body>
 </html>
