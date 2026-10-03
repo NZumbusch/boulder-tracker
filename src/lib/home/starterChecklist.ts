@@ -7,6 +7,8 @@ import type { DataCounts } from "./newUser";
  */
 export interface ChecklistInput extends DataCounts {
   trainingBlocks: unknown[];
+  /** Competitions and trips in the plan. */
+  goals: unknown[];
   /** The guided tour has been started on this device. */
   tourSeen: boolean;
   dismissed: boolean;
@@ -15,7 +17,7 @@ export interface ChecklistInput extends DataCounts {
   syncConnected: boolean;
 }
 
-export type ChecklistItemId = "plan" | "session" | "metric" | "tour" | "sync";
+export type ChecklistItemId = "plan" | "session" | "metric" | "tour" | "goal" | "sync";
 
 export interface ChecklistItem {
   id: ChecklistItemId;
@@ -44,6 +46,7 @@ export function buildChecklist(input: ChecklistInput): Checklist {
     { id: "session", label: "Do your first session", hint: "Start one live, or log it afterwards", done: completed > 0 },
     { id: "metric", label: "Log your bodyweight", hint: "One number starts the trend charts", done: input.dailyMetrics.length > 0 },
     { id: "tour", label: "Take the tour", hint: "Every screen, on example data", done: input.tourSeen },
+    { id: "goal", label: "Add a trip or competition", hint: "So your plan can build towards it", done: input.goals.length > 0, optional: true },
   ];
   if (input.syncAvailable) items.push({ id: "sync", label: "Turn on Google Drive sync", hint: "Keeps your phones and tablets in step", done: input.syncConnected, optional: true });
   const required = items.filter((i) => !i.optional);

@@ -39,18 +39,18 @@ describe("isHiddenWhileNew", () => {
 
 describe("buildChecklist", () => {
   const input = (over: Partial<ChecklistInput> = {}): ChecklistInput => ({
-    ...empty, trainingBlocks: [], tourSeen: false, dismissed: false, syncAvailable: false, syncConnected: false, ...over,
+    ...empty, trainingBlocks: [], tourSeen: false, dismissed: false, syncAvailable: false, syncConnected: false, goals: [], ...over,
   });
 
   it("starts with nothing ticked and is shown", () => {
     const c = buildChecklist(input());
-    expect(c.items.map((i) => [i.id, i.done])).toEqual([["plan", false], ["session", false], ["metric", false], ["tour", false]]);
+    expect(c.items.map((i) => [i.id, i.done])).toEqual([["plan", false], ["session", false], ["metric", false], ["tour", false], ["goal", false]]);
     expect(c.visible).toBe(true);
     expect(c.doneCount).toBe(0);
   });
 
   it("ticks each item from real data", () => {
-    const c = buildChecklist(input({ trainingBlocks: [{}], workouts: done(1), dailyMetrics: [{}], tourSeen: true }));
+    const c = buildChecklist(input({ trainingBlocks: [{}], workouts: done(1), dailyMetrics: [{}], tourSeen: true, goals: [{}] }));
     expect(c.items.every((i) => i.done)).toBe(true);
     expect(c.visible).toBe(false);
   });

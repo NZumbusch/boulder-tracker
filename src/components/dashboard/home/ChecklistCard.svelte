@@ -23,6 +23,7 @@
       painLogs: trainingState.painLogs,
       outdoorAscents: trainingState.outdoorAscents,
       trainingBlocks: trainingState.trainingBlocks,
+      goals: trainingState.goals,
       tourSeen: checklistState.tourSeen,
       dismissed: checklistState.dismissed,
       syncAvailable: driveSync.available,
@@ -31,7 +32,7 @@
   );
 
   function go(id: ChecklistItemId) {
-    if (id === 'plan') trainingState.navigate('plan');
+    if (id === 'plan' || id === 'goal') trainingState.navigate('plan');
     else if (id === 'session') trainingState.navigate('add');
     else if (id === 'metric') onBodyweight();
     else if (id === 'tour') void tour.start();
