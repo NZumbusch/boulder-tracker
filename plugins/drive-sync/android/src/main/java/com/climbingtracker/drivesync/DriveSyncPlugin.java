@@ -269,9 +269,8 @@ public class DriveSyncPlugin extends Plugin {
             java.io.File file = new java.io.File(getContext().getNoBackupFilesDir(), "install-marker");
             String marker = null;
             if (file.exists()) {
-                try (InputStream in = new java.io.FileInputStream(file)) {
-                    marker = new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
-                }
+                // Files.readAllBytes (API 26); InputStream.readAllBytes only exists from Android 13.
+                marker = new String(java.nio.file.Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).trim();
             }
             if (marker == null || marker.isEmpty()) {
                 marker = java.util.UUID.randomUUID().toString();
