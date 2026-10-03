@@ -33,6 +33,7 @@
   import { driveSync } from '../../lib/sync/driveSync.svelte';
   import { healthConnect } from '../../lib/health/healthConnect.svelte';
   import { toast } from '../../lib/toast.svelte';
+  import { tour } from '../../lib/tour/tour.svelte';
 
   const data = new HomeData();
   const hasData = $derived(
@@ -117,6 +118,14 @@
           <Icon icon="ic:baseline-plus" class="text-xl" />
         </button>
       {/if}
+      <button
+        onclick={() => void tour.start()}
+        class="p-2 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
+        aria-label="Take the tour"
+        title="Take the tour"
+      >
+        <Icon icon="ic:outline-help-outline" class="text-lg" />
+      </button>
       <button
         onclick={() => trainingState.navigate('settings')}
         class="p-2 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"

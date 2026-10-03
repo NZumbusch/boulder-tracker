@@ -1053,10 +1053,10 @@ class TrainingState {
   /**
    * Imports training data from a JSON file.
    */
-  async importData(event: Event) {
+  async importData(event: Event): Promise<boolean> {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
-    if (!file) return;
+    if (!file) return false;
 
     const progress = (label: string, fraction: number) => { this.importProgress = { label, fraction }; };
     try {
@@ -1070,9 +1070,11 @@ class TrainingState {
       this.importProgress = null;
       await showAlert('Import Success', 'Data imported successfully!');
       this.navigate('history');
+      return true;
     } catch (err) {
       this.importProgress = null;
       await showAlert('Import Error', 'Failed to import data. Please check the file format.');
+      return false;
     } finally {
       target.value = '';
     }
