@@ -69,17 +69,18 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-1">
-    <h4 class="text-section uppercase text-content-muted">Errors &amp; warnings</h4>
+    <h3 class="text-section uppercase text-content-muted">Errors &amp; warnings</h3>
     <p class="text-caption text-content-subtle">Everything the app's console reports is kept here, on this device, so a problem can be traced afterwards.</p>
   </div>
 
   <div class="space-y-2">
-    <span class="text-label text-content-subtle block">Pop up a message for</span>
-    <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+    <span id="error-popup-label" class="text-label text-content-subtle block">Pop up a message for</span>
+    <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="group" aria-labelledby="error-popup-label">
       {#each OPTIONS as o}
         <button
           onclick={() => chooseAlert(o.id)}
-          class="flex-1 min-w-0 px-1 py-2 text-label whitespace-nowrap truncate rounded-control transition-all {alertLevel === o.id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+          aria-pressed={alertLevel === o.id}
+          class="flex-1 min-w-0 min-h-11 px-1 py-2 text-label whitespace-nowrap truncate rounded-control transition-all {alertLevel === o.id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
         >{o.label}</button>
       {/each}
     </div>

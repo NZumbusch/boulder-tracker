@@ -12,7 +12,7 @@
 {#if updater.supported}
   <div class="card space-y-3 animate-in fade-in">
     <div class="px-1">
-      <h4 class="text-section uppercase text-content-muted">App updates</h4>
+      <h3 class="text-section uppercase text-content-muted">App updates</h3>
       <p class="text-caption text-content-subtle mt-0.5 tabular-nums">
         {updater.installedName ? `Version ${updater.installedName}` : 'Version unknown'}{updater.installedCode ? ` (build ${updater.installedCode})` : ''} · last checked {lastChecked}
       </p>

@@ -1,9 +1,5 @@
 <script lang="ts">
-  import { tour } from '../../lib/tour/tour.svelte';
   import HealthConnectSettings from './HealthConnectSettings.svelte';
-  import IOSInstallSteps from '../onboarding/IOSInstallSteps.svelte';
-  import { readBrowserInfo, shouldOfferIOSInstall } from '../../lib/pwa/platform';
-  import { Capacitor } from '@capacitor/core';
   import { trainingState } from '../../lib/state.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
   import { storage } from '../../lib/storage';
@@ -24,12 +20,7 @@
   import PreferencesSettings, { APPEARANCE_TOPICS, type AppearanceTopic } from './PreferencesSettings.svelte';
   import NavRow from '../common/NavRow.svelte';
   import SyncSettings from './SyncSettings.svelte';
-  import AppUpdateSettings from '../update/AppUpdateSettings.svelte';
-  import ErrorLogCard from './ErrorLogCard.svelte';
-  import { updater } from '../../lib/update/updater.svelte';
-  import { APP_INFO } from '../../lib/appInfo';
-  import FeedbackCard from './FeedbackCard.svelte';
-  import { shortCommit, commitUrl } from '../../lib/update/appUpdate';
+  import AboutPage from './AboutPage.svelte';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import Icon from "@iconify/svelte";
 
@@ -164,7 +155,6 @@
     // Already saved by the reset - don't write it again.
     if (lastSaved) lastSaved.templates = current().templates;
   }
-  const offerInstall = shouldOfferIOSInstall(readBrowserInfo(Capacitor.isNativePlatform()));
 </script>
 
 <div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
@@ -241,84 +231,6 @@
       <AISharingSettings />
     </div>
   {:else if currentTab === 'about'}
-    <div class="space-y-4">
-      <AppUpdateSettings />
-      <div class="card space-y-3 animate-in fade-in">
-        <h4 class="text-section uppercase text-content-muted px-1">Help</h4>
-        <button
-          onclick={() => tour.start()}
-          disabled={trainingState.isSessionActive}
-          class="w-full flex items-center justify-between py-2 group disabled:opacity-50"
-        >
-          <span class="flex items-center gap-3">
-            <Icon icon="ic:baseline-tour" class="text-xl text-content-subtle group-hover:text-primary transition-colors" />
-            <span class="text-left">
-              <span class="block text-body font-semibold text-content group-hover:text-primary transition-colors">Take the tour</span>
-              <span class="block text-caption text-content-subtle">{trainingState.isSessionActive ? 'Finish your running session first' : 'Every screen, on example data. Nothing is saved.'}</span>
-            </span>
-          </span>
-          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
-        </button>
-        {#if offerInstall}
-          <div class="pt-3 border-t border-border space-y-3">
-            <p class="text-body font-semibold text-content">Add to your Home Screen</p>
-            <p class="text-caption text-content-subtle leading-relaxed">Opens full screen, works offline, and keeps Safari from clearing your data. The Home Screen app has its own data, so export a backup here first and import it there.</p>
-            <IOSInstallSteps />
-          </div>
-        {/if}
-      </div>
-      <ErrorLogCard />
-      <div class="card space-y-4 animate-in fade-in">
-        <div class="space-y-4">
-          <div class="text-center py-4">
-            <Icon icon="ic:baseline-terrain" class="text-6xl text-primary mx-auto mb-2" />
-            <h3 class="text-title text-content">{APP_INFO.name}</h3>
-            <p class="text-body text-content-subtle mt-1">Version {updater.installedName ?? APP_INFO.version}</p>
-            <p class="text-caption text-content-subtle mt-0.5 tabular-nums">
-              {#if updater.installedCode}Build {updater.installedCode}{/if}{#if shortCommit(APP_INFO.commit)}{updater.installedCode ? ' · ' : ''}commit <a href={commitUrl(APP_INFO.commit)} target="_blank" rel="noopener" class="text-primary">{shortCommit(APP_INFO.commit)}</a>{/if}
-            </p>
-            <p class="text-caption text-content-subtle mt-0.5">
-              <a href={APP_INFO.repoUrl} target="_blank" rel="noopener" class="text-primary">Source code</a> · <a href={APP_INFO.verifyUrl} target="_blank" rel="noopener" class="text-primary">Check this build</a>
-            </p>
-          </div>
-
-          <FeedbackCard />
-
-          <div class="space-y-2 pt-4 border-t border-border">
-            <h4 class="text-section uppercase text-content-muted">Impressum</h4>
-            <p class="text-caption text-content-muted leading-relaxed">
-              {APP_INFO.developer}<br/>
-              <a href="mailto:{APP_INFO.email}" class="text-primary">{APP_INFO.email}</a><br/>
-              <a href={APP_INFO.homepage} target="_blank" rel="noopener" class="text-primary">{APP_INFO.homepage.replace('https://', '')}</a>
-            </p>
-          </div>
-
-          <div class="space-y-2 pt-4 border-t border-border">
-            <h4 class="text-section uppercase text-content-muted">Not medical advice</h4>
-            <p class="text-caption text-content-muted leading-relaxed">
-              Boulder Tracker's readiness score, load numbers, pain tracking and AI coach prompts are training aids, not medical advice or a diagnosis. For pain that persists, gets worse or worries you, see a doctor or physiotherapist.
-            </p>
-          </div>
-
-          <div class="space-y-2 pt-4 border-t border-border">
-            <h4 class="text-section uppercase text-content-muted">Privacy</h4>
-            <p class="text-caption text-content-muted leading-relaxed">
-              No account, no server, no ads, no tracking - your data stays on this device, and in your own Google Drive if you turn on sync.
-              <a href={APP_INFO.privacyUrl} target="_blank" rel="noopener" class="text-primary">Privacy policy</a>
-            </p>
-          </div>
-
-          <div class="space-y-2 pt-4 border-t border-border">
-            <h4 class="text-section uppercase text-content-muted">Credits</h4>
-            <ul class="text-caption text-content-muted space-y-1 list-disc list-inside">
-              <li>Open source under the <a href={`${APP_INFO.repoUrl}/blob/main/LICENSE`} target="_blank" rel="noopener" class="text-primary">MIT licence</a></li>
-              <li>Built with Svelte and Capacitor</li>
-              <li>Icons: Material Icons, via Iconify</li>
-              <li>Weather data by <a href="https://open-meteo.com" target="_blank" rel="noopener" class="text-primary">Open-Meteo.com</a> (CC BY 4.0)</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AboutPage />
   {/if}
 </div>
