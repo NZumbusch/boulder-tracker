@@ -49,6 +49,7 @@ import {
   type PlanBWeek,
 } from './planning/planB';
 import { showAlert, showConfirm, generateId } from './utils';
+import type { StarterPlanOption } from './planning/starterPlan';
 import { WorkoutStore } from './stores/workoutStore.svelte';
 import { PlanningStore } from './stores/planningStore.svelte';
 import { CatalogStore } from './stores/catalogStore.svelte';
@@ -1618,6 +1619,23 @@ class TrainingState {
   async resetTemplates() {
     await this.planningStore.resetTemplates();
     await this.refresh();
+  }
+
+  /**
+   * The welcome's starter plan: takes out the blocks an earlier pick saved (`previousIds`, if the
+   * person went back and chose again) and saves `option`'s. No sessions are written - the weeks
+   * project them from the templates. Returns the new blocks' ids, for `previousIds` or an Undo.
+   */
+  async replaceStarterPlan(previousIds: string[], option: StarterPlanOption | null): Promise<string[]> {
+    for (const id of previousIds) await this.planningStore.deleteTrainingBlock(id);
+    const ids: string[] = [];
+    for (const block of option?.blocks ?? []) {
+      const id = generateId();
+      ids.push(id);
+      await this.planningStore.saveTrainingBlock({ id, ...block });
+    }
+    await this.refresh();
+    return ids;
   }
 
   /** Replaces the phases' sessions with a starter set's (welcome screen's level choice). */

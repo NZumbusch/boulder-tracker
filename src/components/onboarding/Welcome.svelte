@@ -16,14 +16,16 @@
   import { trainingState } from '../../lib/state.svelte';
   import { DEFAULT_TEMPLATE_LIBRARY } from '../../lib/constants';
   import { isAndroidWeb, isInAppBrowser, isIOS, readBrowserInfo, shouldOfferIOSInstall } from '../../lib/pwa/platform';
-  import { toast } from '../../lib/toast.svelte';
+  import { toast, showUndo } from '../../lib/toast.svelte';
+  import { firstPlanWeek, previewOf, starterPlanOptions } from '../../lib/planning/starterPlan';
+  import { getWeekDates } from '../../lib/dateUtils';
   import { tour } from '../../lib/tour/tour.svelte';
   import LocationEditor from '../settings/LocationEditor.svelte';
   import IOSInstallSteps from './IOSInstallSteps.svelte';
   import PlatformTable from './PlatformTable.svelte';
   import type { WeatherLocation } from '../../lib/preferences/migrate';
 
-  type Step = 'intro' | 'platforms' | 'level' | 'units' | 'location' | 'install' | 'done';
+  type Step = 'intro' | 'platforms' | 'level' | 'plan' | 'units' | 'location' | 'install' | 'done';
   const native = Capacitor.isNativePlatform();
   const info = readBrowserInfo(native);
   const inApp = isInAppBrowser(info);
@@ -32,13 +34,32 @@
   /** Install (or switch browser) before any setup. "Use it in the browser" drops it. */
   let gate = $state(offerInstall || inApp);
   const steps = $derived<Step[]>(
-    gate ? ['intro', 'install'] : ['intro', ...(native ? [] : (['platforms'] as Step[])), 'level', 'units', 'location', 'done'],
+    gate ? ['intro', 'install'] : ['intro', ...(native ? [] : (['platforms'] as Step[])), 'level', 'plan', 'units', 'location', 'done'],
   );
 
   let index = $state(0);
   const step = $derived(steps[index]);
   let level = $state('getting-started');
   let applying = $state(false);
+
+  // The first weeks of a plan, so Plan and Home aren't empty. Nothing is written until "Use this plan".
+  const planOptions = starterPlanOptions(firstPlanWeek(new Date()));
+  let planChoice = $state<string>(planOptions[0].id);
+  /** The blocks saved from an earlier pick of this step (going back and choosing again replaces them). */
+  let planBlockIds = $state<string[]>([]);
+  const planStart = getWeekDates(planOptions[0].blocks[0].startWeekId)?.start;
+  const planStartLabel = planStart?.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+
+  async function choosePlan() {
+    applying = true;
+    try {
+      const option = planOptions.find((o) => o.id === planChoice) ?? null;
+      planBlockIds = await trainingState.replaceStarterPlan(planBlockIds, option);
+    } finally {
+      applying = false;
+    }
+    next();
+  }
 
   const next = () => (index = Math.min(index + 1, steps.length - 1));
   const back = () => (index = Math.max(index - 1, 0));
@@ -74,6 +95,8 @@
 
   function finish(startTour: boolean) {
     trainingState.setWelcomeDone(true);
+    const ids = planBlockIds;
+    if (ids.length) showUndo('Starter plan added to Plan', async () => { await trainingState.replaceStarterPlan(ids, null); });
     if (startTour) void tour.start();
   }
 </script>
@@ -120,6 +143,39 @@
               {#if set.description}<p class="text-caption text-content-subtle mt-1 leading-relaxed">{set.description}</p>{/if}
             </button>
           {/each}
+        </div>
+
+      {:else if step === 'plan'}
+        <div class="space-y-2">
+          <h2 class="text-title text-content">Your first weeks</h2>
+          <p class="text-body text-content-muted leading-relaxed">So Plan isn't empty. Pick a shape; it starts on {planStartLabel}. You can change or delete it any time.</p>
+        </div>
+        <div class="space-y-2.5" role="radiogroup" aria-label="Starter plan">
+          {#each planOptions as option}
+            <button
+              role="radio"
+              aria-checked={planChoice === option.id}
+              onclick={() => (planChoice = option.id)}
+              class="w-full text-left p-4 rounded-card border transition-colors {planChoice === option.id ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-border-strong'}"
+            >
+              <p class="text-body font-bold text-content">{option.name}</p>
+              <p class="text-caption text-content-subtle mt-1 leading-relaxed">{option.description}</p>
+              <ul class="mt-2 space-y-1">
+                {#each previewOf(option, trainingState.templates, trainingState.phaseDefs) as line}
+                  <li class="text-caption text-content-muted leading-relaxed"><span class="font-semibold text-content">{line.phase}</span>, {line.weeks} {line.weeks === 1 ? 'week' : 'weeks'}{line.sessions.length ? `: ${line.sessions.join(', ')}` : ''}</li>
+                {/each}
+              </ul>
+            </button>
+          {/each}
+          <button
+            role="radio"
+            aria-checked={planChoice === 'none'}
+            onclick={() => (planChoice = 'none')}
+            class="w-full text-left p-4 rounded-card border transition-colors {planChoice === 'none' ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-border-strong'}"
+          >
+            <p class="text-body font-bold text-content">I'll plan it myself</p>
+            <p class="text-caption text-content-subtle mt-1 leading-relaxed">Start with an empty plan.</p>
+          </button>
         </div>
 
       {:else if step === 'units'}
@@ -219,6 +275,8 @@
       </button>
       {#if step === 'install'}
         <!-- Nothing to continue to: the way on is the install itself, or the choice above. -->
+      {:else if step === 'plan'}
+        <button onclick={choosePlan} disabled={applying} class="flex-1 py-3 bg-primary text-white text-body font-bold rounded-control disabled:opacity-50">{planChoice === 'none' ? 'Continue without a plan' : 'Use this plan'}</button>
       {:else if step === 'level'}
         <button onclick={chooseLevel} disabled={applying} class="flex-1 py-3 bg-primary text-white text-body font-bold rounded-control disabled:opacity-50">Continue</button>
       {:else}
