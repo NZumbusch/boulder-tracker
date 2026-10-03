@@ -1,6 +1,6 @@
 # Android auto-backup and sync identity (audit, 2026-10-03)
 
-Status: **audited, nothing changed.** `AndroidManifest.xml` has `android:allowBackup="true"` and no `dataExtractionRules` / `fullBackupContent`, so Android's Auto Backup (the Google backup in the phone's settings) copies the app's whole data directory, which includes the WebView's IndexedDB and localStorage: that is where all training data, the sync settings and the sync ledger live.
+Status: **fixed with option A (2026-10-03), needs the device test below.** `AndroidManifest.xml` has `android:allowBackup="true"` and no `dataExtractionRules` / `fullBackupContent`, so Android's Auto Backup (the Google backup in the phone's settings) copies the app's whole data directory, which includes the WebView's IndexedDB and localStorage: that is where all training data, the sync settings and the sync ledger live.
 
 ## The finding
 
@@ -22,8 +22,18 @@ I can't tell from the code. Auto Backup restores happen when an app is installed
 4. Open the app on B. Check Settings → Sync: if B shows the same device name/ID as A, and A is not listed under "Devices", the identity was cloned. Edit something on each and sync both: with the bug, neither change arrives on the other.
 5. For the "restore is harmless" case: reset phone A first, then repeat.
 
-## Options (your choice)
+## What was built (option A)
 
-- **A. Guard the identity (recommended).** The plugin keeps a random install marker in `getNoBackupFilesDir()` (never backed up). Sync settings record the marker; on start, if it differs, this copy was restored from a backup, so it mints a new `deviceId`, discards the cloned ledger and does a first sync that adopts what's on Drive. A few dozen lines (Java plus TypeScript), unit-testable on the TypeScript side. Keeps automatic restore for people without sync.
+- `DriveSyncPlugin.installMarker()` keeps a random id in `getNoBackupFilesDir()`, which Auto Backup never copies.
+- The sync settings record that marker. On start, `installVerdict` (`src/lib/sync/identity.ts`) compares it with the install's own: **same** = nothing; **adopt** = settings from before markers, the marker is just recorded; **restored** = the settings came from another install's backup; **unknown** = the plugin couldn't read it, nothing changes.
+- A restored copy gets a new `deviceId`, an empty device list, and `lastSyncAt = null`, so its first sync adopts what is on Drive (local records lose ties, like connecting with "Merge"). It tells you three ways: a 12-second toast, a `console.warn` (so it lands in Settings → About & Help → Errors & warnings), and a "Restored from a backup" note in Settings → Sync until dismissed.
+- Disconnecting and reconnecting on a restored copy no longer reuses the other install's id either.
+- Tested with the plugin faked (`driveSync.restore.test.ts`, `identity.test.ts`); the Java compiles. **Not yet run on a device.** Existing installs have no marker, so they just record one on their next start: a restore from a backup made *before* that update is not detected.
+
+With the test below, expect on phone B: the toast, the note in Settings → Sync, a different device name/ID than A, and A listed under "Devices". Edits on each should now reach the other.
+
+## Options considered
+
+- **A. Guard the identity (chosen).** The plugin keeps a random install marker in `getNoBackupFilesDir()` (never backed up). Sync settings record the marker; on start, if it differs, this copy was restored from a backup, so it mints a new `deviceId`, discards the cloned ledger and does a first sync that adopts what's on Drive. A few dozen lines (Java plus TypeScript), unit-testable on the TypeScript side. Keeps automatic restore for people without sync.
 - **B. Exclude WebView data from backup** (`dataExtractionRules`). Removes the clash entirely but also removes the automatic restore for non-sync users, who then depend on the weekly file in `Documents/BoulderTracker` and manual restore.
 - **C. Keep and document.** Add a line to Settings → Sync: "after restoring a phone from a backup, disconnect and reconnect sync". No code risk, but relies on people reading it.
