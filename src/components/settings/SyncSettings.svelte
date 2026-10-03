@@ -63,6 +63,15 @@
       {/if}
     </div>
 
+    {#if driveSync.notice}
+      <!-- This copy was restored from a backup and given its own identity (lib/sync/identity.ts). -->
+      <div class="p-3 rounded-control bg-status-caution/10 border border-status-caution/40 space-y-2" role="status">
+        <p class="text-label text-content flex items-center gap-1.5"><Icon icon="ic:baseline-info" class="text-base text-status-caution shrink-0" />Restored from a backup</p>
+        <p class="text-caption text-content-muted leading-relaxed">{driveSync.notice}</p>
+        <button onclick={() => driveSync.dismissNotice()} class="text-label text-primary">Got it</button>
+      </div>
+    {/if}
+
     {#if driveSync.choosing}
       <!-- Connecting found data both here and on Drive. -->
       <div class="p-3 rounded-control bg-surface-elevated/40 space-y-3">

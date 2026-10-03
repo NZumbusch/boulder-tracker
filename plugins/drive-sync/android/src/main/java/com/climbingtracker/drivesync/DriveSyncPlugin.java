@@ -256,6 +256,37 @@ public class DriveSyncPlugin extends Plugin {
         call.resolve(result);
     }
 
+    /**
+     * A random id that belongs to this install of the app and is kept in
+     * noBackupFilesDir - the one place Android's Auto Backup never copies. If
+     * the app's data is restored from a backup (new phone, reinstall) the
+     * restored settings carry the marker of the install that made the backup,
+     * not this one, which is how the page notices (see src/lib/sync/identity.ts).
+     */
+    @PluginMethod
+    public void installMarker(PluginCall call) {
+        try {
+            java.io.File file = new java.io.File(getContext().getNoBackupFilesDir(), "install-marker");
+            String marker = null;
+            if (file.exists()) {
+                try (InputStream in = new java.io.FileInputStream(file)) {
+                    marker = new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+                }
+            }
+            if (marker == null || marker.isEmpty()) {
+                marker = java.util.UUID.randomUUID().toString();
+                try (OutputStream out = new java.io.FileOutputStream(file)) {
+                    out.write(marker.getBytes(StandardCharsets.UTF_8));
+                }
+            }
+            JSObject result = new JSObject();
+            result.put("marker", marker);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject(e.getMessage(), "marker");
+        }
+    }
+
     // --- HTTP ---
 
     private static final class HttpError extends Exception {

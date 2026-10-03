@@ -21,6 +21,7 @@ import { writeAutoBackup } from "../storage/autoBackup";
 import { DriveClient, driveErrorCode, driveSyncAvailable } from "../native/driveClient";
 import { defaultLabel, initLedger, mapToTable, tableToMap, trackTable, type Ledger, type SyncConflict } from "./merge";
 import { runSync, SyncVersionError, type DeviceInfo, type LocalPort } from "./syncEngine";
+import { installVerdict, restoredSettings } from "./identity";
 
 const SETTINGS_KEY = "boulder_tracker_sync";
 const LEDGER_KEY = "sync_ledger";
@@ -45,6 +46,10 @@ interface Settings {
   /** null until the first sync has run (it adopts what's already on Drive). */
   lastSyncAt: number | null;
   devices: DeviceInfo[];
+  /** This install's marker (identity.ts): a mismatch on start means the settings were restored from a backup. */
+  installMarker?: string;
+  /** Something the person should know happened to this device's sync; shown in Settings until dismissed. */
+  notice?: string;
 }
 
 export type SyncStatus = "off" | "idle" | "syncing" | "error";
@@ -97,6 +102,8 @@ class DriveSync {
   lastSyncAt = $state<number | null>(null);
   devices = $state<DeviceInfo[]>([]);
   conflicts = $state<SyncConflict[]>([]);
+  /** Set when this copy turned out to be restored from a backup (see `#checkInstall`). */
+  notice = $state<string | undefined>(undefined);
   /** Set while connecting found data both here and on Drive: the Settings card asks merge or replace. */
   choosing = $state(false);
 
@@ -120,11 +127,13 @@ class DriveSync {
     if (!this.available || this.#started) return;
     this.#started = true;
     this.conflicts = ((await localforage.getItem(CONFLICTS_KEY)) as SyncConflict[] | null) ?? [];
-    const settings = loadSettings();
+    let settings = loadSettings();
     if (!settings?.connected) return;
     await initDB();
+    settings = await this.#checkInstall(settings);
     settings.deviceModel ??= settings.deviceName;
     this.#settings = settings;
+    this.notice = settings.notice;
     this.#client.email = settings.account;
     this.account = settings.account;
     this.accountName = settings.accountName;
@@ -133,11 +142,48 @@ class DriveSync {
     this.deviceName = settings.deviceName;
     this.lastSyncAt = settings.lastSyncAt;
     this.devices = settings.devices ?? [];
-    this.#ledger = ((await localforage.getItem(LEDGER_KEY)) as Ledger | null) ?? initLedger(currentTables(), TABLES, settings.deviceId);
+    this.#ledger = this.#restoredLedger ?? ((await localforage.getItem(LEDGER_KEY)) as Ledger | null) ?? initLedger(currentTables(), TABLES, settings.deviceId);
+    if (this.#restoredLedger) await localforage.setItem(LEDGER_KEY, this.#ledger);
+    this.#restoredLedger = null;
     // Anything saved while the last ledger write was still pending (the app was killed) is picked up here.
     this.#track(TABLES);
     this.#start();
     this.schedule(0);
+  }
+
+  #restoredLedger: Ledger | null = null;
+
+  /**
+   * Is this a restored copy of another install's data? (Android backup, see
+   * identity.ts.) If so it must not keep the other install's device id: it
+   * gets its own, starts its history again (the first sync adopts what's on
+   * Drive, local records losing ties) and says so - a toast now, the error
+   * log, and a note in Settings → Sync until dismissed.
+   */
+  async #checkInstall(settings: Settings): Promise<Settings> {
+    const marker = await DriveClient.installMarker();
+    const verdict = installVerdict(settings.installMarker, marker);
+    if (verdict === "adopt" && marker) {
+      settings.installMarker = marker;
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      return settings;
+    }
+    if (verdict !== "restored" || !marker) return settings;
+    const next = restoredSettings(settings, randomId(), marker);
+    console.warn(`Sync: this copy was restored from a backup. Device id ${settings.deviceId} -> ${next.deviceId}; first sync adopts Drive's data.`);
+    this.#restoredLedger = initLedger(currentTables(), TABLES, next.deviceId);
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    toast.show("Sync: this app was restored from a backup, so it got its own sync identity and is merging with Drive. Details in Settings → Sync.", { durationMs: 12000 });
+    return next;
+  }
+
+  /** Closes the note about a restored copy. */
+  dismissNotice() {
+    this.notice = undefined;
+    if (this.#settings) {
+      delete this.#settings.notice;
+      this.#saveSettings();
+    }
   }
 
   #start() {
@@ -193,11 +239,14 @@ class DriveSync {
     try {
       await initDB();
       const { email } = await this.#client.authorize(true);
-      const deviceId = loadSettings()?.deviceId ?? randomId();
       const previous = loadSettings();
+      const marker = await DriveClient.installMarker();
+      // The id kept from an earlier connection is only this device's if it was made on this install.
+      const sameInstall = installVerdict(previous?.installMarker, marker) !== "restored";
+      const deviceId = previous?.deviceId && sameInstall ? previous.deviceId : randomId();
       const model = await DriveClient.deviceName();
       const label = previous?.deviceLabel;
-      this.#settings = { connected: false, deviceId, deviceName: publishedDeviceName(label, model), deviceModel: model, ...(label ? { deviceLabel: label } : {}), account: email, lastSyncAt: null, devices: [] };
+      this.#settings = { connected: false, deviceId, deviceName: publishedDeviceName(label, model), deviceModel: model, ...(label ? { deviceLabel: label } : {}), ...(marker ? { installMarker: marker } : {}), account: email, lastSyncAt: null, devices: [] };
       this.account = email;
       this.deviceModel = model;
       this.deviceLabel = label;
@@ -256,9 +305,11 @@ class DriveSync {
     document.removeEventListener("visibilitychange", this.#onVisibility);
     await this.#client.revoke().catch(() => {});
     const deviceId = this.#settings?.deviceId;
+    const installMarker = this.#settings?.installMarker;
     this.#settings = null;
+    this.notice = undefined;
     // Keep the device id, so reconnecting later is recognised as this same device.
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ connected: false, deviceId }));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ connected: false, deviceId, ...(installMarker ? { installMarker } : {}) }));
     await localforage.removeItem(LEDGER_KEY);
     this.#ledger = {};
     this.status = "off";

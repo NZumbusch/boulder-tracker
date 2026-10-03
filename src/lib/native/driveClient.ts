@@ -17,6 +17,7 @@ interface DriveSyncPlugin {
   clearToken(options: { token: string }): Promise<void>;
   revoke(options: { email?: string }): Promise<void>;
   deviceName(): Promise<{ name: string }>;
+  installMarker(): Promise<{ marker: string }>;
   about(options: { token: string }): Promise<{ name?: string; email?: string }>;
 }
 
@@ -77,6 +78,15 @@ export class DriveClient implements SyncTransport {
       await DriveSync.revoke({ email: this.email });
     } finally {
       this.token = null;
+    }
+  }
+
+  /** This install's marker (kept where backups don't reach), or null if it can't be read. */
+  static async installMarker(): Promise<string | null> {
+    try {
+      return (await DriveSync.installMarker()).marker || null;
+    } catch {
+      return null;
     }
   }
 
