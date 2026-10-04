@@ -46,6 +46,7 @@
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { circuitHud, setCircuitToggle, resetCircuitHud } from '../../lib/session/circuitHud.svelte';
   import ExerciseDetails from './ExerciseDetails.svelte';
+  import VolumeControl from './VolumeControl.svelte';
   import {
     type CircuitStep,
     type CircuitRunState,
@@ -417,6 +418,7 @@
     </div>
     {#if !run.done}
       <div class="flex items-center -mr-2">
+        <VolumeControl />
         <button onclick={() => (confirmRestart = true)} class="p-2 text-content-subtle hover:text-content transition-colors" aria-label="Restart the circuit" title="Restart from the beginning">
           <Icon icon="ic:baseline-restart-alt" class="text-xl" />
         </button>

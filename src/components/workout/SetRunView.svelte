@@ -24,6 +24,7 @@
   } from '../../lib/timer/setRun';
   import { formatClock } from '../../lib/session/formatSession';
   import Icon from '@iconify/svelte';
+  import VolumeControl from './VolumeControl.svelte';
 
   let {
     spec,
@@ -137,13 +138,16 @@
         {#if progress.repsCompleted > 0}&middot; {progress.repsCompleted} reps{/if}
       </p>
     </div>
-    <button
-      onclick={() => showSettings = !showSettings}
-      class="p-2 -mr-2 transition-colors {showSettings ? 'text-primary' : 'text-content-subtle hover:text-content'}"
-      aria-label="Adjust the protocol"
-    >
-      <Icon icon="ic:baseline-tune" class="text-2xl" />
-    </button>
+    <div class="flex items-center -mr-2">
+      <VolumeControl />
+      <button
+        onclick={() => showSettings = !showSettings}
+        class="p-2 transition-colors {showSettings ? 'text-primary' : 'text-content-subtle hover:text-content'}"
+        aria-label="Adjust the protocol"
+      >
+        <Icon icon="ic:baseline-tune" class="text-2xl" />
+      </button>
+    </div>
   </div>
 
   {#if showSettings}

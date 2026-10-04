@@ -30,6 +30,7 @@
   import ChartSettings from './ChartSettings.svelte';
   import SessionSettings from './SessionSettings.svelte';
   import TimerSettings from './TimerSettings.svelte';
+  import TimerCuesSettings from './TimerCuesSettings.svelte';
   import WeatherSettings from './WeatherSettings.svelte';
   import NotificationSettings from './NotificationSettings.svelte';
   import TunablesSettings from './TunablesSettings.svelte';
@@ -132,6 +133,7 @@
   {:else if topic === 'sessions'}
     <SessionSettings />
     <TimerSettings />
+    <TimerCuesSettings />
   {:else if topic === 'charts'}
     <OrderedListSettings
       list="analyticsSections"

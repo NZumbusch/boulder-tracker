@@ -16,6 +16,7 @@
   import { phaseLabel, specsDiffer } from '../../lib/timer/intervalTimer';
   import { formatClock } from '../../lib/session/formatSession';
   import Icon from '@iconify/svelte';
+  import VolumeControl from './VolumeControl.svelte';
 
   let {
     spec,
@@ -119,13 +120,16 @@
         {formatClock(elapsedSeconds * 1000)} / {formatClock(totalSeconds * 1000)}
       </p>
     </div>
-    <button
-      onclick={() => showSettings = !showSettings}
-      class="p-2 -mr-2 transition-colors {showSettings ? 'text-primary' : 'text-content-subtle hover:text-content'}"
-      aria-label="Adjust the protocol"
-    >
-      <Icon icon="ic:baseline-tune" class="text-2xl" />
-    </button>
+    <div class="flex items-center -mr-2">
+      <VolumeControl />
+      <button
+        onclick={() => showSettings = !showSettings}
+        class="p-2 transition-colors {showSettings ? 'text-primary' : 'text-content-subtle hover:text-content'}"
+        aria-label="Adjust the protocol"
+      >
+        <Icon icon="ic:baseline-tune" class="text-2xl" />
+      </button>
+    </div>
   </div>
 
   {#if showSettings}
