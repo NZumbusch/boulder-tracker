@@ -36,6 +36,13 @@
     void load(sp.engine);
   });
 
+  // Hundreds of voices come with an engine: show the phone's language by default.
+  const language = (typeof navigator !== 'undefined' ? navigator.language : 'en').split('-')[0].toLowerCase();
+  let allLanguages = $state(false);
+  const shownVoices = $derived(
+    (choices?.voices ?? []).filter((v) => allLanguages || v.locale.split('-')[0].toLowerCase() === language || v.name === sp.voice),
+  );
+
   /** "en-GB · en-gb-x-gba-local" - the locale first, so a long list reads in groups. */
   const voiceLabel = (v: { name: string; locale: string; network: boolean }) => `${v.locale} · ${v.name}${v.network ? ' (online)' : ''}`;
 
@@ -115,9 +122,15 @@
             <span class="text-body text-content">Voice</span>
             <select class={selectClass} value={sp.voice ?? ''} disabled={!choices} onchange={(e) => trainingState.setTimerCues({ speech: { voice: e.currentTarget.value || null } })}>
               <option value="">{loading ? 'Loading…' : 'Engine default'}</option>
-              {#each choices?.voices ?? [] as voice (voice.name)}<option value={voice.name}>{voiceLabel(voice)}</option>{/each}
+              {#each shownVoices as voice (voice.name)}<option value={voice.name}>{voiceLabel(voice)}</option>{/each}
             </select>
           </label>
+          {#if choices && choices.voices.length > shownVoices.length || allLanguages}
+            <label class="flex items-center justify-between gap-3 cursor-pointer">
+              <span class="text-label text-content-subtle">Voices in all languages</span>
+              <input type="checkbox" bind:checked={allLanguages} class="w-5 h-5 rounded accent-primary shrink-0" />
+            </label>
+          {/if}
           {#if !loading && !choices}
             <p class="text-caption text-content-subtle">Couldn't read the phone's speech engines - the default voice is used.</p>
           {/if}
