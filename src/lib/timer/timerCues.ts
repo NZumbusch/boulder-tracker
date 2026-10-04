@@ -1,0 +1,57 @@
+/**
+ * The timer's cue settings that are more than an on/off: how loud, whether
+ * that moves the phone's media volume, and the spoken announcements
+ * (which exercise to say, and when - before a set, at the start of a rest,
+ * before it ends). One validated object so a stored value can never put the
+ * timer in a state it can't play.
+ */
+export interface AnnounceRules {
+  /** Master switch. */
+  enabled: boolean;
+  /** Say the exercise's name when its set starts... */
+  work: boolean;
+  /** ...this many seconds before it starts (0 = on the start; up to 30, during the rest before). */
+  workLead: number;
+  /** Say "next: X" when a rest or a switch begins... */
+  restStart: boolean;
+  /** ...this many seconds after it begins. */
+  restStartDelay: number;
+  /** Say "next: X" this many seconds before a rest ends (0 = off) - for the long rests, when the phone is down. */
+  restEnd: number;
+}
+
+export interface TimerCues {
+  /** Cue loudness, 0.1 - 1 (1 = as before this setting existed). */
+  volume: number;
+  /** While a cue plays (Android), the phone's media volume is set to `volume` of its maximum, then put back. */
+  volumeSetsMedia: boolean;
+  announce: AnnounceRules;
+}
+
+export const DEFAULT_ANNOUNCE: AnnounceRules = { enabled: false, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 0 };
+export const DEFAULT_TIMER_CUES: TimerCues = { volume: 1, volumeSetsMedia: false, announce: { ...DEFAULT_ANNOUNCE } };
+
+export const ANNOUNCE_LIMITS = { workLead: { min: 0, max: 30 }, restStartDelay: { min: 0, max: 30 }, restEnd: { min: 0, max: 60 } } as const;
+
+export function validateTimerCues(raw: unknown): TimerCues {
+  const d = DEFAULT_TIMER_CUES;
+  if (typeof raw !== "object" || raw === null) return { ...d, announce: { ...d.announce } };
+  const c = raw as Record<string, unknown>;
+  const a = typeof c.announce === "object" && c.announce !== null ? (c.announce as Record<string, unknown>) : {};
+  const bool = (v: unknown, def: boolean) => (typeof v === "boolean" ? v : def);
+  const secs = (v: unknown, def: number, min: number, max: number) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : def;
+  const L = ANNOUNCE_LIMITS;
+  return {
+    volume: typeof c.volume === "number" && Number.isFinite(c.volume) ? Math.min(1, Math.max(0.1, Math.round(c.volume * 100) / 100)) : d.volume,
+    volumeSetsMedia: bool(c.volumeSetsMedia, d.volumeSetsMedia),
+    announce: {
+      enabled: bool(a.enabled, DEFAULT_ANNOUNCE.enabled),
+      work: bool(a.work, DEFAULT_ANNOUNCE.work),
+      workLead: secs(a.workLead, DEFAULT_ANNOUNCE.workLead, L.workLead.min, L.workLead.max),
+      restStart: bool(a.restStart, DEFAULT_ANNOUNCE.restStart),
+      restStartDelay: secs(a.restStartDelay, DEFAULT_ANNOUNCE.restStartDelay, L.restStartDelay.min, L.restStartDelay.max),
+      restEnd: secs(a.restEnd, DEFAULT_ANNOUNCE.restEnd, L.restEnd.min, L.restEnd.max),
+    },
+  };
+}

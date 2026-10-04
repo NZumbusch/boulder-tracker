@@ -17,6 +17,7 @@
  * overwrites those two fields - `UiStore` remains their sole writer.
  */
 
+import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { ANALYTICS_RANGES, DEFAULT_ANALYTICS_RANGE, type AnalyticsRange } from '../analytics/range';
 import { defaultHomeDetails, validateHomeDetails, type HomeDetails } from './homeDetails';
 import { defaultTunables, validateTunables, type Tunables } from './tunables';
@@ -82,6 +83,8 @@ export interface Preferences {
   timerWarnBeforeEnd: boolean;
   /** The live session's floating timer is tucked away to a small button. */
   timerPillHidden: boolean;
+  /** Cue loudness, whether it sets the media volume, and the spoken announcements. */
+  timerCues: TimerCues;
   /** The screen stays on for the whole running session, not only while a timer runs. */
   sessionKeepAwake: boolean;
   /** Pain check-in prompts - each switchable. */
@@ -305,6 +308,7 @@ export function defaultPreferences(): Preferences {
     timerCountdownTicks: true,
     timerWarnBeforeEnd: false,
     timerPillHidden: false,
+    timerCues: validateTimerCues(undefined),
     sessionKeepAwake: true,
     painCheckIns: { ...DEFAULT_PAIN_CHECK_INS },
     hapticsEnabled: true,
@@ -529,6 +533,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     timerCountdownTicks: typeof candidate.timerCountdownTicks === 'boolean' ? candidate.timerCountdownTicks : defaults.timerCountdownTicks,
     timerWarnBeforeEnd: typeof candidate.timerWarnBeforeEnd === 'boolean' ? candidate.timerWarnBeforeEnd : defaults.timerWarnBeforeEnd,
     timerPillHidden: typeof candidate.timerPillHidden === 'boolean' ? candidate.timerPillHidden : defaults.timerPillHidden,
+    timerCues: validateTimerCues(candidate.timerCues),
     sessionKeepAwake: typeof candidate.sessionKeepAwake === 'boolean' ? candidate.sessionKeepAwake : defaults.sessionKeepAwake,
     painCheckIns: validatePainCheckIns(candidate.painCheckIns),
     hapticsEnabled: typeof candidate.hapticsEnabled === 'boolean' ? candidate.hapticsEnabled : defaults.hapticsEnabled,

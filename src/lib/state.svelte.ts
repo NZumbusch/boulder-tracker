@@ -328,6 +328,8 @@ class TrainingState {
   get timerCountdownTicks() { return this.preferencesStore.timerCountdownTicks; }
   get timerWarnBeforeEnd() { return this.preferencesStore.timerWarnBeforeEnd; }
   get timerPillHidden() { return this.preferencesStore.timerPillHidden; }
+  get timerCues() { return this.preferencesStore.timerCues; }
+  setTimerCues(changes: Parameters<PreferencesStore['setTimerCues']>[0]) { this.preferencesStore.setTimerCues(changes); }
   get sessionNotification() { return this.preferencesStore.sessionNotification; }
   setTimerVibrateEnabled(enabled: boolean) { this.preferencesStore.setTimerVibrateEnabled(enabled); }
   setTimerBeepEnabled(enabled: boolean) { this.preferencesStore.setTimerBeepEnabled(enabled); }

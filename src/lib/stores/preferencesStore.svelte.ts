@@ -1,3 +1,4 @@
+import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
@@ -32,6 +33,7 @@ export class PreferencesStore {
   timerCountdownTicks = $state(true);
   timerWarnBeforeEnd = $state(false);
   timerPillHidden = $state(false);
+  timerCues = $state<TimerCues>(validateTimerCues(undefined));
   sessionKeepAwake = $state(true);
   painCheckIns = $state<PainCheckInPrefs>({ ...DEFAULT_PAIN_CHECK_INS });
   hapticsEnabled = $state(true);
@@ -101,6 +103,7 @@ export class PreferencesStore {
     this.timerCountdownTicks = prefs.timerCountdownTicks;
     this.timerWarnBeforeEnd = prefs.timerWarnBeforeEnd;
     this.timerPillHidden = prefs.timerPillHidden;
+    this.timerCues = prefs.timerCues;
     this.sessionKeepAwake = prefs.sessionKeepAwake;
     this.painCheckIns = prefs.painCheckIns;
     this.hapticsEnabled = prefs.hapticsEnabled;
@@ -204,6 +207,12 @@ export class PreferencesStore {
 
   setTimerWarnBeforeEnd(enabled: boolean) {
     this.timerWarnBeforeEnd = enabled;
+    this.persist();
+  }
+
+  /** Changes some of the cue settings; `announce` is merged field by field. */
+  setTimerCues(changes: Partial<Omit<TimerCues, 'announce'>> & { announce?: Partial<TimerCues['announce']> }) {
+    this.timerCues = validateTimerCues({ ...this.timerCues, ...changes, announce: { ...this.timerCues.announce, ...changes.announce } });
     this.persist();
   }
 
@@ -384,6 +393,7 @@ export class PreferencesStore {
       timerCountdownTicks: this.timerCountdownTicks,
       timerWarnBeforeEnd: this.timerWarnBeforeEnd,
       timerPillHidden: this.timerPillHidden,
+      timerCues: this.timerCues,
       sessionKeepAwake: this.sessionKeepAwake,
       painCheckIns: this.painCheckIns,
       hapticsEnabled: this.hapticsEnabled,

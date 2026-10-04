@@ -38,7 +38,7 @@ export const SETTINGS_GROUPS: Record<SettingsGroupId, { label: string; descripti
   sessions: {
     label: 'Session, timer & pain check-in behaviour',
     description: 'Timer sounds, keep-awake, haptics, added-exercise handling, pain prompts',
-    keys: ['timerVibrateEnabled', 'timerBeepEnabled', 'timerKeepAwakeEnabled', 'timerBackgroundAlerts', 'timerCountdownTicks', 'timerWarnBeforeEnd', 'sessionKeepAwake', 'hapticsEnabled', 'sessionNotification', 'addedExerciseTarget', 'painCheckIns'],
+    keys: ['timerVibrateEnabled', 'timerBeepEnabled', 'timerKeepAwakeEnabled', 'timerBackgroundAlerts', 'timerCountdownTicks', 'timerWarnBeforeEnd', 'timerCues', 'sessionKeepAwake', 'hapticsEnabled', 'sessionNotification', 'addedExerciseTarget', 'painCheckIns'],
   },
   ai: {
     label: 'AI sharing & history',
