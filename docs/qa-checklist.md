@@ -100,7 +100,12 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 7.11 | Volume | Move the slider (Settings and the speaker icon on a timer screen); turn on "also sets the media volume" with music playing. | Cues get quieter/louder; with the option, the music's volume returns afterwards. | | |
 | 7.12 | Speaking | Turn on "Speak the exercises"; run a circuit with the screen off. | The exercise is named at set start, and "Rest. Next: …" when a rest begins; "again before a rest ends" works on a long rest. | | |
 | 7.13 | Voice | Change the speech engine, voice, speed and pitch; tap Try it. | The sample changes; the timer uses the same. | | |
-| 7.14 | AI week dates | AI → generate: look at the prompt preview. | Week ids carry their dates ("2026-W40 (28 Sep – 4 Oct 2026)"). | | |
+
+## 8. AI prompts
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 8.1 | Week dates | AI → generate: look at the prompt preview. | Week ids carry their dates ("2026-W40 (28 Sep – 4 Oct 2026)"), in the target timeframe, the target weeks, blocks and week notes. | | |
 
 ## After the run
 
