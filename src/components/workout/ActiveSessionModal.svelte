@@ -34,6 +34,8 @@
   import TimerWidget from './TimerWidget.svelte';
   import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
   import { workoutItems, groupSummary } from '../../lib/exercise/groups';
+  import CircuitPill from './CircuitPill.svelte';
+  import { circuitHud } from '../../lib/session/circuitHud.svelte';
   import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
   import { reportError } from '../../lib/errorReporting';
   import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
@@ -85,6 +87,14 @@
       forgetCircuitRun();
       circuitGroupId = null;
       circuitVisible = false;
+    }
+  });
+
+  // The session's corner bubble was tapped while a circuit ran: open straight into it.
+  $effect(() => {
+    if (circuitHud.openRequested && store.isModalOpen && circuitGroupId) {
+      circuitHud.openRequested = false;
+      circuitVisible = true;
     }
   });
 
@@ -732,6 +742,7 @@
 {/if}
 
 {#if session && circuitRun}
+  <CircuitPill visible={store.isModalOpen && !circuitVisible} onOpen={() => (circuitVisible = true)} />
   {#key circuitGroupId}
     <CircuitRunner
       sessionKey={session.startedAt}

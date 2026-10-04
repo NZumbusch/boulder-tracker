@@ -44,6 +44,8 @@
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { formatClock } from '../../lib/session/formatSession';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import { circuitHud, setCircuitToggle, resetCircuitHud } from '../../lib/session/circuitHud.svelte';
+  import ExerciseDetails from './ExerciseDetails.svelte';
   import {
     type CircuitStep,
     type CircuitRunState,
@@ -52,6 +54,7 @@
     tickCircuitRun,
     finishCircuitStep,
     skipCircuitStep,
+    previousCircuitStep,
     setCircuitResult,
     currentStep,
     stepRemainingSeconds,
@@ -213,6 +216,33 @@
     lastTickAt = Date.now();
     onStepChanged(true);
   }
+  /** Bumped when the run changes without changing step (back, restart), so the notification's plan is re-made. */
+  let planNonce = $state(0);
+  function back() {
+    sound.unlock();
+    tick();
+    const before = run.stepIndex;
+    run = previousCircuitStep(steps, run);
+    lastTickAt = Date.now();
+    planNonce++;
+    if (run.stepIndex !== before) onStepChanged(true);
+  }
+  let confirmRestart = $state(false);
+  function restart() {
+    sound.unlock();
+    confirmRestart = false;
+    stoppedEarly = false;
+    run = startCircuitRun();
+    running = true;
+    lastTickAt = Date.now();
+    stagedFor = -1;
+    lastTickSecond = -1;
+    warnedStep = -1;
+    planNonce++;
+    onStepChanged(true);
+  }
+  /** The member whose details are open (by index), or null. */
+  let infoMember = $state<number | null>(null);
   function toggle() {
     sound.unlock();
     tick();
@@ -252,7 +282,7 @@
   }
 
   $effect(() => {
-    void [run.stepIndex, run.done, running, useLive, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd];
+    void [run.stepIndex, run.done, running, useLive, planNonce, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd];
     untrack(() => {
       syncLive();
       syncTicker();
@@ -300,6 +330,7 @@
   onDestroy(() => {
     if (ticker) clearInterval(ticker);
     screenLock.release();
+    resetCircuitHud();
     live.circuitRunning = false;
     live.timerPlan = null;
     live.timerFinished = false;
@@ -308,6 +339,37 @@
   backWhile(() => visible, () => onMinimize());
 
   // --- Display ---
+  /** The exercise on now, or coming up during a rest. */
+  const focus = $derived(step?.kind === 'work' ? step.member : upcoming?.member);
+  const phaseLabel = $derived(
+    !running ? 'Paused'
+      : step?.kind === 'leadIn' ? 'Get ready'
+      : step?.kind === 'work' ? 'Go'
+      : step?.kind === 'roundRest' ? 'Rest'
+      : 'Switch',
+  );
+  const clockText = $derived(
+    !step ? '' : remaining !== undefined ? formatClock(Math.ceil(remaining) * 1000) : formatClock(run.stepElapsedMs),
+  );
+  /** What the minimised pill and the session bubble show. */
+  $effect(() => {
+    circuitHud.active = !run.done;
+    circuitHud.phase = phaseLabel;
+    circuitHud.exercise = focus !== undefined ? memberName(focus) : (group.name || 'Circuit');
+    circuitHud.time = clockText;
+    circuitHud.running = running;
+    circuitHud.accent = accent;
+  });
+  setCircuitToggle(() => toggle());
+  /** This round's sets, in order, with where each stands - the whole round at a glance. */
+  const roundSets = $derived(
+    steps.filter((s): s is Extract<CircuitStep, { kind: 'work' }> => s.kind === 'work' && s.round === progress.round - 1)
+      .map((s) => {
+        const result = run.results[s.slotId]?.[s.round];
+        const here = step?.kind === 'work' && step.slotId === s.slotId && step.round === s.round;
+        return { s, state: here ? 'now' : result === undefined ? 'next' : result === null ? 'skipped' : 'done' } as const;
+      }),
+  );
   const accent = $derived(
     run.done ? 'var(--color-success)'
       : step?.kind === 'leadIn' ? 'var(--color-warning)'
@@ -340,11 +402,24 @@
       <p class="text-label text-content-muted tabular-nums">Round {progress.round}/{progress.rounds} · {progress.sets}/{progress.totalSets} sets</p>
     </div>
     {#if !run.done}
-      <button onclick={stop} class="p-2 -mr-2 text-label font-bold text-content-subtle hover:text-danger transition-colors">Stop</button>
+      <div class="flex items-center -mr-2">
+        <button onclick={() => (confirmRestart = true)} class="p-2 text-content-subtle hover:text-content transition-colors" aria-label="Restart the circuit" title="Restart from the beginning">
+          <Icon icon="ic:baseline-restart-alt" class="text-xl" />
+        </button>
+        <button onclick={stop} class="p-2 text-label font-bold text-content-subtle hover:text-danger transition-colors">Stop</button>
+      </div>
     {:else}
       <span class="w-10"></span>
     {/if}
   </div>
+
+  {#if confirmRestart && !run.done}
+    <div class="shrink-0 mx-4 mb-1 px-3 py-2.5 rounded-control border border-border-strong bg-surface-elevated/60 flex items-center gap-3 animate-in fade-in">
+      <p class="flex-1 text-label text-content">Restart from round 1? This run's progress is dropped.</p>
+      <button onclick={() => (confirmRestart = false)} class="text-label font-bold text-content-subtle hover:text-content px-2 py-1">Cancel</button>
+      <button onclick={restart} class="text-label font-bold text-danger px-2 py-1">Restart</button>
+    </div>
+  {/if}
 
   {#if run.done}
     <!-- Summary -->
@@ -400,6 +475,26 @@
       {#if step.kind !== 'work' && upcoming}
         <p class="text-body text-content-muted text-center">Next: <b class="text-content">{memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
       {/if}
+      {#if focus !== undefined}
+        <!-- The exercise's note on one line; a tap opens what to do (details, notes, how-to) without leaving the run. -->
+        <button onclick={() => (infoMember = focus)} class="w-full max-w-sm flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border text-left hover:border-border-strong transition-colors" aria-label="How to do {memberName(focus)}">
+          <Icon icon="ic:outline-info" class="text-lg text-content-subtle shrink-0" />
+          <span class="min-w-0 flex-1 text-caption text-content-muted line-clamp-2 break-words">{members[focus].values.notes?.trim() || `${memberName(focus)} — how to, details`}</span>
+          <Icon icon="ic:baseline-chevron-right" class="text-base text-content-subtle shrink-0" />
+        </button>
+      {/if}
+      {#if roundSets.length > 1}
+        <div class="flex flex-wrap items-center justify-center gap-1.5 max-w-sm" aria-label="This round">
+          {#each roundSets as { s, state } (s.slotId)}
+            <span class="px-2.5 py-1 rounded-full text-caption border flex items-center gap-1 max-w-full
+              {state === 'now' ? 'border-transparent text-white font-bold' : state === 'done' ? 'border-success/40 text-success bg-success/10' : state === 'skipped' ? 'border-border text-content-subtle line-through' : 'border-border text-content-muted'}"
+              style={state === 'now' ? `background: ${accent};` : ''}>
+              {#if state === 'done'}<Icon icon="ic:baseline-check" class="text-xs shrink-0" />{/if}
+              <span class="truncate">{memberName(s.member)}</span>
+            </span>
+          {/each}
+        </div>
+      {/if}
       {#if correctable && previous}
         <!-- The set just finished, correctable while resting: Done kept the flow, this keeps the record honest. -->
         <div class="flex items-center gap-3">
@@ -437,6 +532,9 @@
         <button onclick={finishStep} class="w-full py-4 bg-primary hover:bg-primary-hover text-white rounded-control text-label font-bold transition-all active:scale-[0.98]">I'm ready</button>
       {/if}
       <div class="flex items-center gap-2">
+        <button onclick={back} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5" aria-label="Back: restart this step, or the previous one">
+          <Icon icon="ic:baseline-skip-previous" class="text-base" /> Back
+        </button>
         <button onclick={toggle} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5">
           <Icon icon={running ? 'ic:baseline-pause' : 'ic:baseline-play-arrow'} class="text-base" /> {running ? 'Pause' : 'Resume'}
         </button>
@@ -450,6 +548,20 @@
           <Icon icon="ic:baseline-skip-next" class="text-base" /> {step.kind === 'work' ? 'Skip set' : 'Skip rest'}
         </button>
         {/if}
+      </div>
+    </div>
+  {/if}
+  {#if infoMember !== null && members[infoMember]}
+    {@const m = members[infoMember]}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="absolute inset-0 z-10 bg-black/50 flex items-end" onclick={() => (infoMember = null)}>
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <div class="w-full max-h-[75%] overflow-y-auto no-scrollbar bg-surface rounded-t-card border-t border-border-strong p-5 pb-8 space-y-3 animate-in slide-in-from-bottom-10" onclick={(e) => e.stopPropagation()}>
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-title text-content truncate">{memberName(infoMember)}</h3>
+          <button onclick={() => (infoMember = null)} class="p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
+        </div>
+        <ExerciseDetails slot={m.slot} values={m.values} inGroup showHowTo />
       </div>
     </div>
   {/if}

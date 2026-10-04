@@ -146,6 +146,28 @@ export function skipCircuitStep(steps: CircuitStep[], state: CircuitRunState): C
   return advance(steps, next, 0);
 }
 
+/** Past this long into a step, Back restarts the step instead of leaving it (like a music player's). */
+export const CIRCUIT_BACK_RESTART_MS = 3000;
+
+/**
+ * Back, as a music player has it: more than a few seconds into a step it
+ * restarts that step; at the beginning of one it goes to the step before
+ * (a set that was recorded there is taken back, to be done again). The
+ * lead-in is never gone back to - at the first real step it just restarts.
+ */
+export function previousCircuitStep(steps: CircuitStep[], state: CircuitRunState): CircuitRunState {
+  if (state.done) return state;
+  const restart = { ...state, stepElapsedMs: 0 };
+  const prevIndex = state.stepIndex - 1;
+  const prev = steps[prevIndex];
+  if (state.stepElapsedMs > CIRCUIT_BACK_RESTART_MS || !prev || prev.kind === "leadIn") return restart;
+  let results = state.results;
+  if (prev.kind === "work" && (results[prev.slotId]?.length ?? 0) > prev.round) {
+    results = { ...results, [prev.slotId]: results[prev.slotId].slice(0, prev.round) };
+  }
+  return { ...state, stepIndex: prevIndex, stepElapsedMs: 0, results };
+}
+
 /** Corrects what a set recorded - the reps stepper on the rest after it. */
 export function setCircuitResult(state: CircuitRunState, slotId: string, round: number, value: number | null): CircuitRunState {
   const list = [...(state.results[slotId] ?? [])];

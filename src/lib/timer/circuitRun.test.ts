@@ -3,6 +3,7 @@ import type { ExerciseGroup, ExerciseSlot } from "../types";
 import {
   buildCircuitLive,
   circuitLoggedValues,
+  previousCircuitStep,
   circuitProgress,
   circuitSteps,
   currentStep,
@@ -87,6 +88,36 @@ describe("running", () => {
     const noted = members.map((m) => ({ ...m, values: { ...m.values, notes: "Slow and controlled" } }));
     const out = circuitLoggedValues(noted, { ...startCircuitRun(), results: { twist: [60] } });
     expect(out.twist).toEqual({ timeOn: 60, sets: 1 });
+  });
+});
+
+describe("previousCircuitStep", () => {
+  it("restarts the step when it is well under way, goes back to the one before when it has just begun", () => {
+    let st = tickCircuitRun(steps, startCircuitRun(), 5000); // lead-in over
+    st = tickCircuitRun(steps, st, 20_000); // twists 60 s, 20 s in
+    const restarted = previousCircuitStep(steps, st);
+    expect(restarted.stepIndex).toBe(st.stepIndex);
+    expect(restarted.stepElapsedMs).toBe(0);
+    const fresh = tickCircuitRun(steps, st, 45_000); // twists done (60 s) and into the next step
+    const back = previousCircuitStep(steps, { ...fresh, stepElapsedMs: 1000 });
+    expect(back.stepIndex).toBe(fresh.stepIndex - 1);
+    expect(back.stepElapsedMs).toBe(0);
+  });
+
+  it("takes back the set it goes back over, so it is done again", () => {
+    let st = tickCircuitRun(steps, startCircuitRun(), 5000);
+    st = tickCircuitRun(steps, st, 60_000); // twists round 1 done in full
+    expect(st.results.twist).toEqual([60]);
+    const back = previousCircuitStep(steps, { ...st, stepElapsedMs: 500 });
+    expect(back.results.twist).toEqual([]);
+    expect(steps[back.stepIndex].kind).toBe("work");
+  });
+
+  it("never goes back into the lead-in, and does nothing once done", () => {
+    const first = tickCircuitRun(steps, startCircuitRun(), 5000);
+    expect(previousCircuitStep(steps, { ...first, stepElapsedMs: 100 }).stepIndex).toBe(first.stepIndex);
+    const done = { ...first, done: true };
+    expect(previousCircuitStep(steps, done)).toBe(done);
   });
 });
 

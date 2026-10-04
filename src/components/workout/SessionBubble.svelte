@@ -13,6 +13,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import Icon from '@iconify/svelte';
+  import { circuitHud } from '../../lib/session/circuitHud.svelte';
 
   const store = trainingState.sessionStore;
 
@@ -31,7 +32,7 @@
      you back into a session you have just ended. -->
 {#if store.isActive && !store.isModalOpen && !trainingState.showFatigue}
   <button
-    onclick={() => store.openModal()}
+    onclick={() => { if (circuitHud.active) circuitHud.openRequested = true; store.openModal(); }}
     class="fixed bottom-[calc(91px+env(safe-area-inset-bottom))] right-4 z-[90] flex items-center gap-3 pl-3 pr-4 py-2.5 rounded-full bg-surface/95 backdrop-blur-md border border-border-strong shadow-card hover:border-primary/50 transition-all active:scale-95 animate-in slide-in-from-bottom-4 duration-200 max-w-[calc(100vw-2rem)]"
     aria-label="Return to the running session"
   >
@@ -60,15 +61,22 @@
 
     <span class="min-w-0 text-left">
       <span class="text-label font-bold text-content block truncate">
-        {store.currentSlot ? slotTypeName(store.currentSlot, trainingState.exerciseTypes) : 'Session'}
+        {circuitHud.active ? circuitHud.exercise : store.currentSlot ? slotTypeName(store.currentSlot, trainingState.exerciseTypes) : 'Session'}
       </span>
       <!-- Minutes, not a ticking stopwatch: the running clock belongs to
            the session modal, and a second one out here would be the
            interference this bubble exists to avoid. -->
+      {#if circuitHud.active}
+        <!-- A circuit is running: its phase and clock are what matters out here. -->
+        <span class="text-caption block tabular-nums truncate" style="color: {circuitHud.accent};">
+          {circuitHud.phase} · {circuitHud.time}
+        </span>
+      {:else}
       <span class="text-caption text-content-subtle block tabular-nums truncate">
         {elapsed}{#if expected > 0}<span class="text-content-subtle/70">/{expected}</span>{/if} min
         {#if store.isPaused}&middot; paused{/if}
       </span>
+      {/if}
     </span>
 
     <Icon icon="ic:baseline-open-in-full" class="text-sm text-content-subtle shrink-0" />
