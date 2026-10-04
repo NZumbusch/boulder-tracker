@@ -47,6 +47,7 @@
   import { circuitHud, setCircuitToggle, resetCircuitHud } from '../../lib/session/circuitHud.svelte';
   import ExerciseDetails from './ExerciseDetails.svelte';
   import VolumeControl from './VolumeControl.svelte';
+  import VolumeBar from './VolumeBar.svelte';
   import {
     type CircuitStep,
     type CircuitRunState,
@@ -244,6 +245,7 @@
     planNonce++;
     onStepChanged(true);
   }
+  let volumeOpen = $state(false);
   /** The member whose details are open (by index), or null. */
   let infoMember = $state<number | null>(null);
   function toggle() {
@@ -418,7 +420,7 @@
     </div>
     {#if !run.done}
       <div class="flex items-center -mr-2">
-        <VolumeControl />
+        <VolumeControl bind:open={volumeOpen} />
         <button onclick={() => (confirmRestart = true)} class="p-2 text-content-subtle hover:text-content transition-colors" aria-label="Restart the circuit" title="Restart from the beginning">
           <Icon icon="ic:baseline-restart-alt" class="text-xl" />
         </button>
@@ -428,6 +430,10 @@
       <span class="w-10"></span>
     {/if}
   </div>
+
+  {#if volumeOpen && !run.done}
+    <VolumeBar onclose={() => (volumeOpen = false)} />
+  {/if}
 
   {#if confirmRestart && !run.done}
     <div class="shrink-0 mx-4 mb-1 px-3 py-2.5 rounded-control border border-border-strong bg-surface-elevated/60 flex items-center gap-3 animate-in fade-in">
@@ -462,7 +468,7 @@
     </div>
   {:else if step}
     <!-- The dial -->
-    <div class="flex-1 min-h-0 flex flex-col items-center justify-center px-6 gap-4">
+    <div class="flex-1 min-h-0 flex flex-col items-center justify-center px-6 pt-2 pb-5 gap-4">
       <!-- Sized by the room it has on both axes, so the dial fits in landscape too. -->
       <div class="flex-1 min-h-0 w-full grid place-items-center" style="container-type: size;">
         <div class="relative aspect-square" style="width: min(17rem, 100cqw, 100cqh); container-type: inline-size;">
@@ -488,46 +494,49 @@
         </div>
       </div>
 
-      {#if step.kind !== 'work' && upcoming}
-        <p class="text-body text-content-muted text-center">Next: <b class="text-content">{memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
-      {/if}
-      {#if focus !== undefined}
-        <!-- The exercise's note on one line; a tap opens what to do (details, notes, how-to) without leaving the run. -->
-        <button onclick={() => (infoMember = focus)} class="w-full max-w-sm flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border text-left hover:border-border-strong transition-colors" aria-label="How to do {memberName(focus)}">
-          <Icon icon="ic:outline-info" class="text-lg text-content-subtle shrink-0" />
-          <span class="min-w-0 flex-1 text-caption text-content-muted line-clamp-2 break-words">{members[focus].values.notes?.trim() || `${memberName(focus)} — how to, details`}</span>
-          <Icon icon="ic:baseline-chevron-right" class="text-base text-content-subtle shrink-0" />
-        </button>
-      {/if}
-      {#if roundSets.length > 1}
-        <div class="flex flex-wrap items-center justify-center gap-1.5 max-w-sm" aria-label="This round">
-          {#each roundSets as { s, state } (s.slotId)}
-            <span class="px-2.5 py-1 rounded-full text-caption border flex items-center gap-1 max-w-full
-              {state === 'now' ? 'border-transparent text-white font-bold' : state === 'done' ? 'border-success/40 text-success bg-success/10' : state === 'skipped' ? 'border-border text-content-subtle line-through' : 'border-border text-content-muted'}"
-              style={state === 'now' ? `background: ${accent};` : ''}>
-              {#if state === 'done'}<Icon icon="ic:baseline-check" class="text-xs shrink-0" />{/if}
-              <span class="truncate">{memberName(s.member)}</span>
-            </span>
-          {/each}
-        </div>
-      {/if}
-      {#if correctable && previous}
-        <!-- The set just finished, correctable while resting: Done kept the flow, this keeps the record honest. -->
-        <div class="flex items-center gap-3">
-          <span class="text-label text-content-subtle">{memberName(previous.member)}</span>
-          <button onclick={() => correct(-1)} class="w-9 h-9 rounded-full grid place-items-center bg-surface-elevated text-content border border-border-strong active:scale-90" aria-label="One fewer rep">
-            <Icon icon="ic:baseline-remove" class="text-lg" />
+      <!-- What is on, what is next and the round: one block under the dial, so it never runs into the buttons. -->
+      <div class="shrink-0 w-full flex flex-col items-center gap-3">
+        {#if step.kind !== 'work' && upcoming}
+          <p class="text-body text-content-muted text-center">Next: <b class="text-content">{memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
+        {/if}
+        {#if focus !== undefined}
+          <!-- The exercise's note on one line; a tap opens what to do (details, notes, how-to) without leaving the run. -->
+          <button onclick={() => (infoMember = focus)} class="w-full max-w-sm flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border text-left hover:border-border-strong transition-colors" aria-label="How to do {memberName(focus)}">
+            <Icon icon="ic:outline-info" class="text-lg text-content-subtle shrink-0" />
+            <span class="min-w-0 flex-1 text-caption text-content-muted line-clamp-2 break-words">{members[focus].values.notes?.trim() || `${memberName(focus)} — how to, details`}</span>
+            <Icon icon="ic:baseline-chevron-right" class="text-base text-content-subtle shrink-0" />
           </button>
-          <span class="w-8 text-center text-metric text-content tabular-nums">{run.results[previous.slotId]?.[previous.round]}</span>
-          <button onclick={() => correct(1)} class="w-9 h-9 rounded-full grid place-items-center bg-surface-elevated text-content border border-border-strong active:scale-90" aria-label="One more rep">
-            <Icon icon="ic:baseline-add" class="text-lg" />
-          </button>
-        </div>
-      {/if}
+        {/if}
+        {#if roundSets.length > 1}
+          <div class="flex flex-wrap items-center justify-center gap-1.5 max-w-sm" aria-label="This round">
+            {#each roundSets as { s, state } (s.slotId)}
+              <span class="px-2.5 py-1 rounded-full text-caption border flex items-center gap-1 max-w-full
+                {state === 'now' ? 'border-transparent text-white font-bold' : state === 'done' ? 'border-success/40 text-success bg-success/10' : state === 'skipped' ? 'border-border text-content-subtle line-through' : 'border-border text-content-muted'}"
+                style={state === 'now' ? `background: ${accent};` : ''}>
+                {#if state === 'done'}<Icon icon="ic:baseline-check" class="text-xs shrink-0" />{/if}
+                <span class="truncate">{memberName(s.member)}</span>
+              </span>
+            {/each}
+          </div>
+        {/if}
+        {#if correctable && previous}
+          <!-- The set just finished, correctable while resting: Done kept the flow, this keeps the record honest. -->
+          <div class="flex items-center gap-3">
+            <span class="text-label text-content-subtle">{memberName(previous.member)}</span>
+            <button onclick={() => correct(-1)} class="w-9 h-9 rounded-full grid place-items-center bg-surface-elevated text-content border border-border-strong active:scale-90" aria-label="One fewer rep">
+              <Icon icon="ic:baseline-remove" class="text-lg" />
+            </button>
+            <span class="w-8 text-center text-metric text-content tabular-nums">{run.results[previous.slotId]?.[previous.round]}</span>
+            <button onclick={() => correct(1)} class="w-9 h-9 rounded-full grid place-items-center bg-surface-elevated text-content border border-border-strong active:scale-90" aria-label="One more rep">
+              <Icon icon="ic:baseline-add" class="text-lg" />
+            </button>
+          </div>
+        {/if}
+      </div>
     </div>
 
     <!-- Controls -->
-    <div class="shrink-0 px-6 pb-8 space-y-3">
+    <div class="shrink-0 px-6 pt-1 pb-8 space-y-3">
       {#if step.kind === 'work' && step.seconds === undefined}
         <div class="flex items-center justify-between gap-3 px-1">
           <span class="text-label text-content-subtle">Reps done{step.reps ? ` (target ${step.reps})` : ''}</span>

@@ -17,6 +17,7 @@
   import { formatClock } from '../../lib/session/formatSession';
   import Icon from '@iconify/svelte';
   import VolumeControl from './VolumeControl.svelte';
+  import VolumeBar from './VolumeBar.svelte';
 
   let {
     spec,
@@ -99,6 +100,7 @@
   ]);
 
   // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
+  let volumeOpen = $state(false);
   backWhile(() => true, () => onMinimize());
 </script>
 
@@ -121,7 +123,7 @@
       </p>
     </div>
     <div class="flex items-center -mr-2">
-      <VolumeControl />
+      <VolumeControl bind:open={volumeOpen} />
       <button
         onclick={() => showSettings = !showSettings}
         class="p-2 transition-colors {showSettings ? 'text-primary' : 'text-content-subtle hover:text-content'}"
@@ -131,6 +133,10 @@
       </button>
     </div>
   </div>
+
+  {#if volumeOpen}
+    <VolumeBar onclose={() => (volumeOpen = false)} />
+  {/if}
 
   {#if showSettings}
     <!-- Local overrides. These never touch the exercise - Reset puts the
