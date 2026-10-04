@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange } from "./dateUtils";
+import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange, weekDatesText, weekLabel } from "./dateUtils";
 
 describe("getWeekDates", () => {
   it("returns the UTC Monday-start/Sunday-end for a mid-year week", () => {
@@ -109,5 +109,19 @@ describe("53-week years", () => {
       expect(decrementWeekId(oneWeekLater)).toBe(week);
       week = oneWeekLater;
     }
+  });
+});
+
+describe('weekDatesText / weekLabel', () => {
+  it('spells a week and a run of weeks out in plain English', () => {
+    expect(weekDatesText('2026-W40')).toBe('28 Sep – 4 Oct 2026');
+    expect(weekDatesText('2026-W41')).toBe('5 – 11 Oct 2026');
+    expect(weekDatesText('2026-W38', '2026-W41')).toBe('14 Sep – 11 Oct 2026');
+    expect(weekDatesText('2025-W52', '2026-W02')).toBe('22 Dec 2025 – 11 Jan 2026');
+    expect(weekDatesText('nonsense')).toBe('');
+  });
+  it('labels a week id with its dates', () => {
+    expect(weekLabel('2026-W40')).toBe('2026-W40 (28 Sep – 4 Oct 2026)');
+    expect(weekLabel('x')).toBe('x');
   });
 });

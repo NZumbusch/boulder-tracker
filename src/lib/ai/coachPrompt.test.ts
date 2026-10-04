@@ -12,7 +12,7 @@ const profile: AIContextProfile = {
 describe("buildCoachPrompt", () => {
   it("generate: asks for a change set over the target weeks, with goal and current plan", () => {
     const p = buildCoachPrompt({ mode: "generate", profile, targetWeekIds: ["2026-W40", "2026-W41"], goal: "Font trip", planContext: "PHASES - x" });
-    expect(p).toContain("2026-W40, 2026-W41");
+    expect(p).toContain("2026-W40 (28 Sep – 4 Oct 2026), 2026-W41 (5 – 11 Oct 2026)");
     expect(p).toContain("Font trip");
     expect(p).toContain("PHASES - x");
     expect(p).toContain("CHANGE SET");

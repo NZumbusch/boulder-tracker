@@ -25,12 +25,12 @@ describe("buildPlanContext", () => {
   });
 
   it("spells out only weeks with their own sessions; the rest are one line", () => {
-    expect(text).toContain('"week":"2026-W40","phase":"Capacity","state":"custom (edited by hand)","sessions":[{"name":"Extra","dayOfWeek":"Tuesday"}],"completed":["Monday Board"]');
-    expect(lines).toContain('{"week":"2026-W41","phase":"Capacity","state":"follows its phase - no changes","note":"Travel"}');
+    expect(text).toContain('"week":"2026-W40","dates":"28 Sep – 4 Oct 2026","phase":"Capacity","state":"custom (edited by hand)","sessions":[{"name":"Extra","dayOfWeek":"Tuesday"}],"completed":["Monday Board"]');
+    expect(lines).toContain('{"week":"2026-W41","dates":"5 – 11 Oct 2026","phase":"Capacity","state":"follows its phase - no changes","note":"Travel"}');
   });
 
   it("lists the blocks around the target weeks with their notes", () => {
-    expect(lines).toContain('{"block":"Base","phase":"Capacity","from":"2026-W38","to":"2026-W41","notes":"Build volume"}');
+    expect(lines).toContain('{"block":"Base","phase":"Capacity","from":"2026-W38","to":"2026-W41","dates":"14 Sep – 11 Oct 2026","notes":"Build volume"}');
   });
 
   it("lists Plan Bs touching the target weeks, and asks for Plan Bs on uncertain days", () => {

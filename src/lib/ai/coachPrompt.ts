@@ -6,6 +6,7 @@ import { AI_CHANGESET_INSTRUCTIONS } from "./changeSetPrompt";
 import { renderCoachMemory, COACH_MEMORY_READ_ONLY } from "./coachNotes";
 import type { AthleteProfile, CoachNote } from "../types";
 import type { DayOfWeek } from "../types";
+import { weekDatesText, weekLabel } from "../dateUtils";
 
 /**
  * The plan-level AI prompts, as text: "generate" (change the plan - the
@@ -19,7 +20,22 @@ import type { DayOfWeek } from "../types";
  * JSON at roughly 60% of the size, and just as readable to a model.
  */
 function lines(items: unknown[]): string {
-  return items.length ? items.map((i) => JSON.stringify(i)).join("\n") : "(none)";
+  return items.length ? items.map((i) => JSON.stringify(withDates(i))).join("\n") : "(none)";
+}
+
+/** An item that names a week or a run of weeks also gets the calendar dates, so the model needn't work them out from "2026-W40". */
+function withDates(item: unknown): unknown {
+  if (!item || typeof item !== "object") return item;
+  const o = item as Record<string, unknown>;
+  if (typeof o.weekId === "string") {
+    const dates = weekDatesText(o.weekId);
+    return dates ? { ...o, weekDates: dates } : item;
+  }
+  if (typeof o.startWeekId === "string" && typeof o.endWeekId === "string") {
+    const dates = weekDatesText(o.startWeekId, o.endWeekId);
+    return dates ? { ...o, dates } : item;
+  }
+  return item;
 }
 
 /** Renders every present field of `profile` as a "- Label:" section, joined with blank lines. */
@@ -121,7 +137,7 @@ ${profileText}`;
   if (mode === "generate") {
     return `You are an elite climbing coach managing my training plan in an app. Based on my goal, my training history and my current plan below, decide what to change - from building a whole new plan to adjusting a single session - and reply with a change set.
 
-Target Timeframe (the weeks you may change): ${targetWeekIds.join(", ")}
+Target Timeframe (the weeks you may change): ${targetWeekIds.map(weekLabel).join(", ")}
 
 ${memory}My Goal & Notes for this cycle:
 ${goal.trim() || "No specific goals provided. Optimize for general climbing performance."}
@@ -138,7 +154,7 @@ ${AI_CHANGESET_INSTRUCTIONS}`;
   return `You are an elite climbing coach. Please analyze my training data and performance from the specified timeframe and give me detailed feedback.
 
 Target Timeframe Analysed:
-${targetWeekIds.join(", ")}
+${targetWeekIds.map(weekLabel).join(", ")}
 
 ${memory}My Goal & Notes for this cycle:
 ${goal.trim() || "No specific goals provided. Just tell me what I did well and what I should change."}

@@ -131,6 +131,29 @@ export function getWeekDateRange(weekId: string): string {
   return `${dates.start.toLocaleDateString(undefined, formatOpts)} - ${dates.end.toLocaleDateString(undefined, formatOpts)}`;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * A week's (or a run of weeks') Monday-to-Sunday dates as plain English,
+ * the same wherever the phone is set to: "28 Sep – 4 Oct 2026". For text
+ * a model reads (week ids alone are hard to place on a calendar).
+ */
+export function weekDatesText(firstWeekId: string, lastWeekId: string = firstWeekId): string {
+  const a = getWeekDates(firstWeekId);
+  const b = getWeekDates(lastWeekId);
+  if (!a || !b) return '';
+  const day = (d: Date, year: boolean) => `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
+  const sameYear = a.start.getUTCFullYear() === b.end.getUTCFullYear();
+  if (sameYear && a.start.getUTCMonth() === b.end.getUTCMonth()) return `${a.start.getUTCDate()} – ${day(b.end, true)}`;
+  return `${day(a.start, !sameYear)} – ${day(b.end, true)}`;
+}
+
+/** "2026-W40 (28 Sep – 4 Oct 2026)". */
+export function weekLabel(weekId: string): string {
+  const dates = weekDatesText(weekId);
+  return dates ? `${weekId} (${dates})` : weekId;
+}
+
 /**
  * The local calendar date as "YYYY-MM-DD" - what "today" means to the
  * person holding the phone. Not `toISOString().slice(0, 10)`: that's the

@@ -14,6 +14,7 @@ import { allOccurrenceKeys, describeChanges, occurrenceFirstDay, weekAndDayOf } 
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { sortWorkoutsBySchedule } from "../planning/sortWorkouts";
 import { weekNoteText } from "../planning/notes";
+import { weekDatesText } from "../dateUtils";
 import { slotValues } from "../exerciseSlot";
 import { workoutItems } from "../exercise/groups";
 
@@ -101,7 +102,7 @@ export function buildPlanContext(input: PlanContextInput): string {
   if (inRange.length) {
     lines.push("", "BLOCKS overlapping the target weeks:");
     for (const b of inRange) {
-      lines.push(JSON.stringify(compact({ block: b.name, phase: phaseDefs.find((p) => p.id === b.phaseId)?.name, from: b.startWeekId, to: b.endWeekId, notes: b.notes })));
+      lines.push(JSON.stringify(compact({ block: b.name, phase: phaseDefs.find((p) => p.id === b.phaseId)?.name, from: b.startWeekId, to: b.endWeekId, dates: weekDatesText(b.startWeekId, b.endWeekId), notes: b.notes })));
     }
   }
 
@@ -113,11 +114,12 @@ export function buildPlanContext(input: PlanContextInput): string {
     const completed = stored.filter((w) => w.status === "completed");
     const note = weekNoteText(weekNotes, weekId) || undefined;
     if (stored.length === 0) {
-      lines.push(JSON.stringify(compact({ week: weekId, phase: phase ?? "none", state: phase ? "follows its phase - no changes" : "empty", note })));
+      lines.push(JSON.stringify(compact({ week: weekId, dates: weekDatesText(weekId), phase: phase ?? "none", state: phase ? "follows its phase - no changes" : "empty", note })));
       continue;
     }
     lines.push(JSON.stringify(compact({
       week: weekId,
+      dates: weekDatesText(weekId),
       phase: phase ?? "none",
       state: weekOverrides.find((o) => o.weekId === weekId)?.customized ? "custom (edited by hand)" : "stored (as generated from its phase)",
       sessions: planned.map((w) => workoutSession(w, types)),
