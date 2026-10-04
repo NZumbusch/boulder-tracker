@@ -123,7 +123,9 @@
     draft = next;
     customDraft = Object.fromEntries(Object.entries(values.custom ?? {}).map(([k, x]) => [k, String(x)]));
     // The plan note is shown above the field, never copied into it.
-    notes = seedOverride ? (values.notes ?? '') : logNote(slot);
+    // A seed built from the plan (a finished timer or circuit) carries the plan's note along: that is not how it went.
+    const seeded = (values.notes ?? '').trim();
+    notes = seedOverride ? (seeded && seeded !== planNote(slot) ? seeded : '') : logNote(slot);
     difficulty = typeof values.difficulty === 'number' ? values.difficulty : undefined;
   });
 

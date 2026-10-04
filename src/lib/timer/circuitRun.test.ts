@@ -82,6 +82,12 @@ describe("running", () => {
     const some = circuitLoggedValues(members, { ...st, results: { push: [12, null] } });
     expect(some.push).toEqual({ reps: [12], sets: 1 });
   });
+
+  it("does not log the plan's note as how it went", () => {
+    const noted = members.map((m) => ({ ...m, values: { ...m.values, notes: "Slow and controlled" } }));
+    const out = circuitLoggedValues(noted, { ...startCircuitRun(), results: { twist: [60] } });
+    expect(out.twist).toEqual({ timeOn: 60, sets: 1 });
+  });
 });
 
 describe("buildCircuitLive", () => {

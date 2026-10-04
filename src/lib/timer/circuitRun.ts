@@ -204,6 +204,7 @@ export function circuitLoggedValues(members: GroupMember[], state: CircuitRunSta
     }
     const timed = Number(values.timeOn) > 0 || (!values.reps && Number(values.duration) > 0);
     const logged: ExerciseValues = { ...values, sets: done.length };
+    delete logged.notes; // the plan's note stays the plan's: "how it went" is the user's to write
     if (!timed) logged.reps = done;
     out[slot.id] = logged;
   }
