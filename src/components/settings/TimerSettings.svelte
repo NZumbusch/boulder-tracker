@@ -85,7 +85,7 @@
     {#if isNative}
       <label class="w-full flex items-center justify-between py-3 cursor-pointer">
         <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-phonelink-ring" class="text-lg text-content-muted" />
+          <Icon icon="ic:baseline-phone-android" class="text-lg text-content-muted" />
           <div>
             <span class="block text-body text-content">Timer in the background</span>
             <span class="block text-caption text-content-subtle">While a timer runs: a notification with the live countdown (Pause / +30 s), and the beeps keep playing when the phone is locked - music gets quieter for each beep instead of stopping</span>

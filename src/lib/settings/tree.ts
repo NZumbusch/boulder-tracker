@@ -93,7 +93,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     id: "reminders",
     label: "Reminders & nudges",
-    hint: "Notifications, retest and backup nudges - and where the others live",
+    hint: "Notifications and the nudges Home gives",
     icon: "ic:baseline-notifications",
     pages: [{ id: "reminders", label: "Reminders & nudges", hint: "Notifications, retest and backup nudges", icon: "ic:baseline-notifications" }],
   },
@@ -227,6 +227,8 @@ export interface SearchHit {
   page: PageId;
 }
 
+const SEARCH_PAGE_LABELS = new Set(SETTINGS_SECTIONS.flatMap((s) => s.pages.map((p) => p.label)));
+
 const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9 ]+/g, " ");
 
 /**
@@ -249,6 +251,12 @@ export function searchSettings(query: string, ctx: SettingsContext): SearchHit[]
     for (const page of section.pages) consider(page.label, page.id, `${page.hint} ${section.label}`, true);
   }
   for (const e of SEARCH_ENTRIES) consider(e.label, e.page, `${e.words ?? ""} ${findPage(e.page).page.label}`, false);
+  // A page whose only match is its hint adds nothing when a setting on it already matched.
+  const settingPages = new Set(hits.filter((h) => h.score < 3 && !SEARCH_PAGE_LABELS.has(h.hit.label)).map((h) => h.hit.page));
+  for (let i = hits.length - 1; i >= 0; i--) {
+    const h = hits[i];
+    if (SEARCH_PAGE_LABELS.has(h.hit.label) && h.score >= 3 && settingPages.has(h.hit.page)) hits.splice(i, 1);
+  }
   hits.sort((a, b) => a.score - b.score);
   const seen = new Set<string>();
   return hits.map((h) => h.hit).filter((h) => (seen.has(`${h.page}:${h.label}`) ? false : (seen.add(`${h.page}:${h.label}`), true))).slice(0, 12);

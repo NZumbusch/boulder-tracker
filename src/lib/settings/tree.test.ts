@@ -33,6 +33,10 @@ describe("searchSettings", () => {
     expect(searchSettings("fahrenheit", phone)[0].page).toBe("units");
   });
 
+  it("does not list a page again when a setting on it already matched", () => {
+    expect(searchSettings("volume", phone)).toEqual([{ label: "Cue volume", page: "timer" }]);
+  });
+
   it("needs every word, ignores case, and finds pages by name", () => {
     expect(searchSettings("TIMER sound", phone).some((h) => h.page === "timer")).toBe(true);
     expect(searchSettings("zzzz", phone)).toEqual([]);
