@@ -1,16 +1,17 @@
 <script lang="ts">
   /**
-   * Timer behaviour toggles. Vibrate/beep
-   * always offered; keep-awake only when `navigator.wakeLock` actually
-   * exists - degrade silently rather than showing a dead toggle, matching how the Notifications section below already hides
-   * itself entirely on non-native platforms.
+   * The timer itself: what runs in the background, the screen, and which
+   * warnings it gives. (How it sounds and what it says are the next two
+   * cards on this page; the live session's own behaviour is under Live
+   * sessions.) Keep-awake only when `navigator.wakeLock` exists - degrade
+   * silently rather than showing a dead toggle.
    */
   import { trainingState } from '../../lib/state.svelte';
   import Icon from "@iconify/svelte";
-
-  const wakeLockSupported = typeof navigator !== 'undefined' && 'wakeLock' in navigator;
   import { Capacitor } from '@capacitor/core';
   import { exactAlarmStatus, openExactAlarmSetting } from '../../lib/notifications/timerAlerts';
+
+  const wakeLockSupported = typeof navigator !== 'undefined' && 'wakeLock' in navigator;
 
   // Background alerts need Android's "Alarms & reminders" permission to
   // arrive on the second; Android 14 turns it off for new installs.
@@ -30,51 +31,10 @@
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Timer</h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">The session timer, the screen and feedback during a workout.</p>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">Intervals, rests, countdowns and circuits.</p>
   </div>
 
   <div class="divide-y divide-border">
-    <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-      <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-touch-app" class="text-lg text-content-muted" />
-        <span>
-          <span class="block text-body text-content">Haptic feedback</span>
-          <span class="block text-caption text-content-subtle">A short buzz when an exercise or session is done, and on swipes and long-presses</span>
-        </span>
-      </div>
-      <input
-        type="checkbox"
-        checked={trainingState.hapticsEnabled}
-        onchange={(e) => trainingState.setHapticsEnabled(e.currentTarget.checked)}
-        class="w-5 h-5 rounded accent-primary"
-      />
-    </label>
-    <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-      <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-vibration" class="text-lg text-content-muted" />
-        <span class="text-body text-content">Vibrate when a timer finishes</span>
-      </div>
-      <input
-        type="checkbox"
-        checked={trainingState.timerVibrateEnabled}
-        onchange={(e) => trainingState.setTimerVibrateEnabled(e.currentTarget.checked)}
-        class="w-5 h-5 rounded accent-primary"
-      />
-    </label>
-
-    <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-      <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-volume-up" class="text-lg text-content-muted" />
-        <span class="text-body text-content">Audible beep</span>
-      </div>
-      <input
-        type="checkbox"
-        checked={trainingState.timerBeepEnabled}
-        onchange={(e) => trainingState.setTimerBeepEnabled(e.currentTarget.checked)}
-        class="w-5 h-5 rounded accent-primary"
-      />
-    </label>
-
     <label class="w-full flex items-center justify-between py-3 cursor-pointer">
       <div class="flex items-center gap-3">
         <Icon icon="ic:baseline-looks-3" class="text-lg text-content-muted" />
@@ -107,22 +67,22 @@
       />
     </label>
 
-    {#if isNative}
+    {#if wakeLockSupported}
       <label class="w-full flex items-center justify-between py-3 cursor-pointer">
         <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-directions-run" class="text-lg text-content-muted" />
-          <div>
-            <span class="block text-body text-content">Session notification</span>
-            <span class="block text-caption text-content-subtle">While a session runs: its clock, the current exercise and how far you are, with Pause / Resume</span>
-          </div>
+          <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted" />
+          <span class="text-body text-content">Keep screen on while a timer runs</span>
         </div>
         <input
           type="checkbox"
-          checked={trainingState.sessionNotification}
-          onchange={(e) => trainingState.setSessionNotification(e.currentTarget.checked)}
-          class="w-5 h-5 rounded accent-primary shrink-0"
+          checked={trainingState.timerKeepAwakeEnabled}
+          onchange={(e) => trainingState.setTimerKeepAwakeEnabled(e.currentTarget.checked)}
+          class="w-5 h-5 rounded accent-primary"
         />
       </label>
+    {/if}
+
+    {#if isNative}
       <label class="w-full flex items-center justify-between py-3 cursor-pointer">
         <div class="flex items-center gap-3">
           <Icon icon="ic:baseline-phonelink-ring" class="text-lg text-content-muted" />
@@ -144,36 +104,6 @@
           <button onclick={() => openExactAlarmSetting()} class="chip text-primary shrink-0">Allow</button>
         </div>
       {/if}
-    {/if}
-
-    {#if wakeLockSupported}
-      <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-        <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted" />
-          <span>
-            <span class="block text-body text-content">Keep screen on during a session</span>
-            <span class="block text-caption text-content-subtle">The whole time a session runs (not while paused)</span>
-          </span>
-        </div>
-        <input
-          type="checkbox"
-          checked={trainingState.sessionKeepAwake}
-          onchange={(e) => trainingState.setSessionKeepAwake(e.currentTarget.checked)}
-          class="w-5 h-5 rounded accent-primary"
-        />
-      </label>
-      <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-        <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted" />
-          <span class="text-body text-content">Keep screen on while a timer runs</span>
-        </div>
-        <input
-          type="checkbox"
-          checked={trainingState.timerKeepAwakeEnabled}
-          onchange={(e) => trainingState.setTimerKeepAwakeEnabled(e.currentTarget.checked)}
-          class="w-5 h-5 rounded accent-primary"
-        />
-      </label>
     {/if}
   </div>
 </div>

@@ -172,7 +172,7 @@
   }
 
   // --- Cues ---
-  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume });
+  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume, preset: () => trainingState.timerCues.sound });
   const useLive = $derived(liveTimerAvailable() && trainingState.timerBackgroundAlerts);
   const liveActive = $derived(live.timerPlan !== null && live.serviceOk && useLive);
   let lastTickSecond = -1;
@@ -293,7 +293,7 @@
     const due = speakQueue.filter((c) => c.at <= t);
     speakQueue = speakQueue.filter((c) => c.at > t);
     const last = due[due.length - 1];
-    if (last?.text && !liveActive && document.visibilityState !== 'hidden') speakText(last.text, trainingState.timerCues.volume);
+    if (last?.text && !liveActive && document.visibilityState !== 'hidden') speakText(last.text, trainingState.timerCues.volume, trainingState.timerCues.speech.rate, trainingState.timerCues.speech.pitch);
   }
 
   $effect(() => {

@@ -140,7 +140,7 @@
   /** Cue bookkeeping, so a phase change or a countdown second fires exactly once. */
   let lastStepIndex = $state(-1);
   let lastTickSecond = $state(-1);
-  /** The 15 s heads-up (optional, Settings -> Sessions & Timer). */
+  /** The 15 s heads-up (optional, Settings -> Timer, sound & voice). */
   const WARN_SECONDS = 15;
   let warnedStepIndex = -1;
   let restWarnedForSet = 0;
@@ -196,7 +196,7 @@
   // --- Audio cues -------------------------------------------------------
 
   // The tones and vibrations themselves: lib/timer/cueSound.
-  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume });
+  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume, preset: () => trainingState.timerCues.sound });
   /** Every control that can begin a run calls this synchronously first - Web Audio's unlock (see CueSound.unlock). */
   const unlockAudio = () => sound.unlock();
 

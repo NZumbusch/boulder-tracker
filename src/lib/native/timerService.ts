@@ -11,6 +11,7 @@
  */
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import type { LiveTimerConfig } from "../timer/liveTimer";
+import type { SpeechVoice } from "../timer/timerCues";
 
 export type LiveAction = {
   kind: "pause" | "resume" | "add30" | "sessionPause" | "sessionResume";
@@ -28,6 +29,18 @@ export interface ServiceOptions {
   volume: number;
   /** Set the phone's media volume to `volume` while a cue plays, then restore it. */
   volumeSetsMedia: boolean;
+  /** The beep style's tones: cue kind -> [frequency Hz, length ms, delay ms, gain?][]. */
+  tones: Record<string, (number | undefined)[][]>;
+  /** How announcements sound. */
+  speech: SpeechVoice;
+}
+
+/** What the phone's text-to-speech offers (Android). */
+export interface SpeechChoices {
+  engines: { name: string; label: string }[];
+  /** The engine the voices belong to (the phone's default when none was asked for). */
+  engine: string;
+  voices: { name: string; locale: string; network: boolean }[];
 }
 
 interface TimerServicePlugin {
@@ -36,6 +49,8 @@ interface TimerServicePlugin {
   stop(): Promise<void>;
   isRunning(): Promise<{ running: boolean }>;
   takeActions(): Promise<{ actions: LiveAction[] }>;
+  speechChoices(options: { engine: string | null }): Promise<SpeechChoices>;
+  previewSpeech(options: { text: string; volume: number; volumeSetsMedia: boolean } & SpeechVoice): Promise<void>;
   addListener(event: "action", handler: (action: LiveAction) => void): Promise<PluginListenerHandle>;
 }
 
@@ -76,5 +91,26 @@ export async function takeLiveActions(): Promise<LiveAction[]> {
     return (await TimerService.takeActions()).actions ?? [];
   } catch {
     return [];
+  }
+}
+
+/** The engines and voices the phone has; null when there is no native speech (web) or it did not answer. */
+export async function loadSpeechChoices(engine: string | null): Promise<SpeechChoices | null> {
+  if (!liveTimerAvailable()) return null;
+  try {
+    return await TimerService.speechChoices({ engine });
+  } catch {
+    return null;
+  }
+}
+
+/** Says `text` once, with the chosen engine and voice - exactly as the timer service will. */
+export async function previewNativeSpeech(text: string, speech: SpeechVoice, volume: number, volumeSetsMedia: boolean): Promise<boolean> {
+  if (!liveTimerAvailable()) return false;
+  try {
+    await TimerService.previewSpeech({ text, volume, volumeSetsMedia, ...speech });
+    return true;
+  } catch {
+    return false;
   }
 }

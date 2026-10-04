@@ -16,6 +16,10 @@ import android.os.VibratorManager;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
+import java.util.HashMap;
+import java.util.Map;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * Plays the timer's cues: the same short synthesized tones and vibration
@@ -58,6 +62,16 @@ final class CuePlayer {
     private boolean ttsReady = false;
     private String pendingSpeech;
 
+    /** The page's chosen beep style; null kinds fall back to the built-in classic table. */
+    private volatile Map<String, Tone[]> customTones = new HashMap<>();
+
+    private String speechEngine = null;
+    private String speechVoice = null;
+    private float speechRate = 1f;
+    private float speechPitch = 1f;
+    /** The engine the live `tts` was created for. */
+    private String ttsEngine = null;
+
     CuePlayer(Context context) {
         this.context = context.getApplicationContext();
         this.audioManager = (AudioManager) this.context.getSystemService(Context.AUDIO_SERVICE);
@@ -75,7 +89,53 @@ final class CuePlayer {
     /** A tone: frequency (Hz), length (ms), start offset (ms). */
     private record Tone(double freq, int durationMs, int delayMs, double gain) {}
 
-    private static Tone[] tonesFor(String kind) {
+    /** The page's tones for `kind` (see cueSound.ts), else the built-in ones. */
+    private Tone[] tonesFor(String kind) {
+        Tone[] custom = customTones.get(kind);
+        return custom != null ? custom : defaultTonesFor(kind);
+    }
+
+    /** `{kind: [[freq, ms, delay, gain?], ...]}` as the page sends it. The page's gains are for Web Audio; native ones run 2.5x. */
+    void setTones(JSONObject table) {
+        Map<String, Tone[]> next = new HashMap<>();
+        if (table != null) {
+            java.util.Iterator<String> kinds = table.keys();
+            while (kinds.hasNext()) {
+                String kind = kinds.next();
+                JSONArray list = table.optJSONArray(kind);
+                if (list == null || list.length() == 0) continue;
+                Tone[] tones = new Tone[list.length()];
+                try {
+                    for (int i = 0; i < list.length(); i++) {
+                        JSONArray t = list.getJSONArray(i);
+                        double gain = t.isNull(3) ? 0.2 : t.optDouble(3, 0.2);
+                        tones[i] = new Tone(t.getDouble(0), t.getInt(1), t.getInt(2), gain * 2.5);
+                    }
+                    next.put(kind, tones);
+                } catch (Exception ignored) {
+                    // A malformed entry: that cue keeps the built-in tones.
+                }
+            }
+        }
+        customTones = next;
+    }
+
+    /** Engine and voice by name (null = the phone's default), speed and pitch (1 = normal). */
+    void configureSpeech(String engine, String voice, float rate, float pitch) {
+        speechEngine = engine == null || engine.isEmpty() ? null : engine;
+        speechVoice = voice == null || voice.isEmpty() ? null : voice;
+        speechRate = Math.max(0.5f, Math.min(2f, rate));
+        speechPitch = Math.max(0.5f, Math.min(2f, pitch));
+        // A different engine needs a fresh instance; the next announcement creates it.
+        if (tts != null && !java.util.Objects.equals(ttsEngine, speechEngine)) {
+            tts.stop();
+            tts.shutdown();
+            tts = null;
+            ttsReady = false;
+        }
+    }
+
+    private static Tone[] defaultTonesFor(String kind) {
         switch (kind) {
             case "work":
                 return new Tone[] { new Tone(880, 120, 0, 0.5), new Tone(1320, 220, 120, 0.5) };
@@ -169,6 +229,7 @@ final class CuePlayer {
         Log.d("TimerService", "speak: " + text);
         if (tts == null) {
             pendingSpeech = text;
+            ttsEngine = speechEngine;
             tts = new TextToSpeech(context, status -> handler.post(() -> {
                 if (status != TextToSpeech.SUCCESS) {
                     Log.d("TimerService", "text-to-speech unavailable");
@@ -186,7 +247,7 @@ final class CuePlayer {
                     pendingSpeech = null;
                     speakNow(queued);
                 }
-            }));
+            }), speechEngine);
             return;
         }
         if (!ttsReady) {
@@ -199,11 +260,29 @@ final class CuePlayer {
     private void speakNow(String text) {
         applyMediaVolume();
         requestFocus();
+        applySpeechSettings();
         Bundle params = new Bundle();
         params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "cue");
         // Safety net if no "done" arrives; the utterance listener normally ends focus sooner.
         scheduleAbandon(8000);
+    }
+
+    private void applySpeechSettings() {
+        try {
+            tts.setSpeechRate(speechRate);
+            tts.setPitch(speechPitch);
+            if (speechVoice != null && tts.getVoices() != null) {
+                for (android.speech.tts.Voice v : tts.getVoices()) {
+                    if (speechVoice.equals(v.getName())) {
+                        tts.setVoice(v);
+                        break;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // The engine's own defaults then.
+        }
     }
 
     private void scheduleAbandon(long afterMs) {

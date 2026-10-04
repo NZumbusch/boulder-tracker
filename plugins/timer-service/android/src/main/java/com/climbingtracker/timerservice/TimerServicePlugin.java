@@ -85,6 +85,82 @@ public class TimerServicePlugin extends Plugin {
         call.resolve(result);
     }
 
+    /**
+     * The phone's text-to-speech engines and, for one of them (the default
+     * when none is named), its voices - for the settings pickers.
+     */
+    @PluginMethod
+    public void speechChoices(PluginCall call) {
+        String wanted = call.getString("engine");
+        final android.speech.tts.TextToSpeech[] holder = new android.speech.tts.TextToSpeech[1];
+        android.speech.tts.TextToSpeech.OnInitListener onInit = status -> {
+            try {
+                android.speech.tts.TextToSpeech tts = holder[0];
+                if (status != android.speech.tts.TextToSpeech.SUCCESS || tts == null) {
+                    call.reject("Text-to-speech is not available");
+                    return;
+                }
+                com.getcapacitor.JSArray engines = new com.getcapacitor.JSArray();
+                for (android.speech.tts.TextToSpeech.EngineInfo e : tts.getEngines()) {
+                    JSObject o = new JSObject();
+                    o.put("name", e.name);
+                    o.put("label", e.label);
+                    engines.put(o);
+                }
+                com.getcapacitor.JSArray voices = new com.getcapacitor.JSArray();
+                java.util.List<android.speech.tts.Voice> sorted = new java.util.ArrayList<>();
+                if (tts.getVoices() != null) sorted.addAll(tts.getVoices());
+                java.util.Collections.sort(sorted, (a, b) -> {
+                    int c = a.getLocale().toLanguageTag().compareTo(b.getLocale().toLanguageTag());
+                    return c != 0 ? c : a.getName().compareTo(b.getName());
+                });
+                for (android.speech.tts.Voice v : sorted) {
+                    JSObject o = new JSObject();
+                    o.put("name", v.getName());
+                    o.put("locale", v.getLocale().toLanguageTag());
+                    o.put("network", v.isNetworkConnectionRequired());
+                    voices.put(o);
+                }
+                JSObject result = new JSObject();
+                result.put("engines", engines);
+                result.put("engine", wanted != null ? wanted : tts.getDefaultEngine());
+                result.put("voices", voices);
+                tts.shutdown();
+                call.resolve(result);
+            } catch (Exception e) {
+                call.reject("Could not read the speech engines: " + e.getMessage());
+            }
+        };
+        try {
+            holder[0] = wanted == null || wanted.isEmpty()
+                ? new android.speech.tts.TextToSpeech(getContext(), onInit)
+                : new android.speech.tts.TextToSpeech(getContext(), onInit, wanted);
+        } catch (Exception e) {
+            call.reject("Could not start text-to-speech: " + e.getMessage());
+        }
+    }
+
+    private CuePlayer preview;
+
+    /** Says a sample with the chosen engine, voice, speed and pitch - what the timer service will do. */
+    @PluginMethod
+    public void previewSpeech(PluginCall call) {
+        String text = call.getString("text", "");
+        getActivity().runOnUiThread(() -> {
+            if (preview == null) preview = new CuePlayer(getContext());
+            preview.configure(call.getFloat("volume", 1f), Boolean.TRUE.equals(call.getBoolean("volumeSetsMedia", false)));
+            preview.configureSpeech(call.getString("engine"), call.getString("voice"), call.getFloat("rate", 1f), call.getFloat("pitch", 1f));
+            preview.speak(text);
+            call.resolve();
+        });
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (preview != null) preview.release();
+        super.handleOnDestroy();
+    }
+
     @PluginMethod
     public void isRunning(PluginCall call) {
         JSObject result = new JSObject();

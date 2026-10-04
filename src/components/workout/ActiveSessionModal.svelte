@@ -35,6 +35,7 @@
   import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
   import { workoutItems, groupSummary } from '../../lib/exercise/groups';
   import CircuitPill from './CircuitPill.svelte';
+  import { tonesFor } from '../../lib/timer/cueSound';
   import { circuitHud } from '../../lib/session/circuitHud.svelte';
   import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
   import { reportError } from '../../lib/errorReporting';
@@ -116,7 +117,7 @@
 
   const session = $derived(store.session);
 
-  // The screen stays on while a session runs (Settings -> Timer -> Keep
+  // The screen stays on while a session runs (Settings -> Live sessions -> Keep
   // screen on during a session). Android drops the lock whenever the app
   // is hidden, so it's asked for again on the way back.
   const sessionWakeLock = new ScreenWakeLock();
@@ -162,7 +163,7 @@
     const s = session;
     void [live.timerPlan, live.timerFinished, s?.runningSince, s?.accumulatedMs, store.currentIndex, store.progress.settled,
       s?.workout.notes, s?.workout.exercises.length, trainingState.exerciseTypes.length, trainingState.sessionNotification,
-      trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled, trainingState.timerCues.volume, trainingState.timerCues.volumeSetsMedia];
+      trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled, trainingState.timerCues.volume, trainingState.timerCues.volumeSetsMedia, trainingState.timerCues.sound, JSON.stringify(trainingState.timerCues.speech)];
     untrack(() => {
       if (!liveTimerAvailable()) return;
       const cur = store.currentSlot;
@@ -182,6 +183,8 @@
           vibrate: trainingState.timerVibrateEnabled,
           volume: trainingState.timerCues.volume,
           volumeSetsMedia: trainingState.timerCues.volumeSetsMedia,
+          tones: tonesFor(trainingState.timerCues.sound),
+          speech: $state.snapshot(trainingState.timerCues.speech),
         }).then((ok) => { live.serviceOk = ok; });
       } else if (notificationSent && !(live.timerFinished && s)) {
         notificationSent = false;

@@ -63,3 +63,24 @@ describe("CueSound", () => {
     expect(() => { sound.unlock(); sound.play("tick"); }).not.toThrow();
   });
 });
+
+import { CUE_PRESETS, tonesFor } from "./cueSound";
+import { SOUND_PRESETS } from "./timerCues";
+
+describe("sound presets", () => {
+  it("every style has a tone for every cue, and each is audible", () => {
+    const kinds = Object.keys(CUE_PRESETS.classic).sort();
+    for (const preset of SOUND_PRESETS) {
+      expect(Object.keys(CUE_PRESETS[preset]).sort()).toEqual(kinds);
+      for (const tones of Object.values(CUE_PRESETS[preset])) {
+        expect(tones.length).toBeGreaterThan(0);
+        for (const [freq, ms, delay] of tones) {
+          expect(freq).toBeGreaterThan(100);
+          expect(ms).toBeGreaterThan(20);
+          expect(delay).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
+    expect(tonesFor("soft")).toBe(CUE_PRESETS.soft);
+  });
+});

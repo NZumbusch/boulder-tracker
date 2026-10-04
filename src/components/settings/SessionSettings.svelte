@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * How live sessions behave. One setting so far: what an exercise added
-   * mid-session counts as.
+   * How live sessions behave: what the screen and the notification do while
+   * one runs, haptics, and what an exercise added mid-session counts as.
    *
    * Both options are real and neither is a compromise, which is why this
    * is a preference rather than a decision made for the user - the honest
@@ -12,6 +12,10 @@
   import { trainingState } from '../../lib/state.svelte';
   import type { AddedExerciseTarget } from '../../lib/preferences/migrate';
   import Icon from '@iconify/svelte';
+  import { Capacitor } from '@capacitor/core';
+
+  const isNative = Capacitor.isNativePlatform();
+  const wakeLockSupported = typeof navigator !== 'undefined' && 'wakeLock' in navigator;
 
   const OPTIONS: { value: AddedExerciseTarget; icon: string; title: string; detail: string }[] = [
     {
@@ -53,5 +57,48 @@
         <Icon icon={selected ? 'ic:baseline-radio-button-checked' : 'ic:baseline-radio-button-unchecked'} class="text-xl shrink-0 mt-0.5 {selected ? '' : 'text-content-subtle'}" />
       </button>
     {/each}
+  </div>
+</div>
+
+<div class="card space-y-4 animate-in fade-in">
+  <div class="space-y-2">
+    <h3 class="text-section uppercase text-content-muted px-1">While a session runs</h3>
+  </div>
+
+  <div class="divide-y divide-border">
+    {#if wakeLockSupported}
+      <label class="w-full flex items-center justify-between py-3 cursor-pointer gap-3">
+        <div class="flex items-center gap-3">
+          <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted shrink-0" />
+          <span>
+            <span class="block text-body text-content">Keep screen on</span>
+            <span class="block text-caption text-content-subtle">The whole time a session runs (not while paused)</span>
+          </span>
+        </div>
+        <input type="checkbox" checked={trainingState.sessionKeepAwake} onchange={(e) => trainingState.setSessionKeepAwake(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0" />
+      </label>
+    {/if}
+    {#if isNative}
+      <label class="w-full flex items-center justify-between py-3 cursor-pointer gap-3">
+        <div class="flex items-center gap-3">
+          <Icon icon="ic:baseline-directions-run" class="text-lg text-content-muted shrink-0" />
+          <div>
+            <span class="block text-body text-content">Session notification</span>
+            <span class="block text-caption text-content-subtle">Its clock, the current exercise and how far you are, with Pause / Resume</span>
+          </div>
+        </div>
+        <input type="checkbox" checked={trainingState.sessionNotification} onchange={(e) => trainingState.setSessionNotification(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0" />
+      </label>
+    {/if}
+    <label class="w-full flex items-center justify-between py-3 cursor-pointer gap-3">
+      <div class="flex items-center gap-3">
+        <Icon icon="ic:baseline-touch-app" class="text-lg text-content-muted shrink-0" />
+        <span>
+          <span class="block text-body text-content">Haptic feedback</span>
+          <span class="block text-caption text-content-subtle">A short buzz when an exercise or session is done, and on swipes and long-presses</span>
+        </span>
+      </div>
+      <input type="checkbox" checked={trainingState.hapticsEnabled} onchange={(e) => trainingState.setHapticsEnabled(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0" />
+    </label>
   </div>
 </div>

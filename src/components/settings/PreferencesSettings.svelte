@@ -1,12 +1,13 @@
 <script lang="ts" module>
-  export type AppearanceTopic = 'general' | 'home' | 'plan' | 'sessions' | 'charts' | 'model' | 'pain' | 'weather' | 'notifications';
+  export type AppearanceTopic = 'general' | 'home' | 'plan' | 'sessions' | 'timer' | 'charts' | 'model' | 'pain' | 'weather' | 'notifications';
 
   /** The topic list - also what Settings' header uses to title an open topic. */
   export const APPEARANCE_TOPICS: { id: AppearanceTopic; label: string; hint: string; icon: string }[] = [
     { id: 'general', label: 'General', hint: 'Theme, text size, motion, units', icon: 'ic:baseline-palette' },
     { id: 'home', label: 'Home', hint: 'Cards and their details, quick log, list lengths, reminders', icon: 'ic:baseline-home' },
     { id: 'plan', label: 'Plan', hint: 'Week view', icon: 'ic:baseline-calendar-month' },
-    { id: 'sessions', label: 'Sessions & Timer', hint: 'Live sessions, timer sounds and screen', icon: 'ic:baseline-timer' },
+    { id: 'sessions', label: 'Live sessions', hint: 'Added exercises, screen, notification, haptics', icon: 'ic:baseline-play-circle-outline' },
+    { id: 'timer', label: 'Timer, sound & voice', hint: 'Countdown warnings, beep style and volume, spoken exercises', icon: 'ic:baseline-timer' },
     { id: 'charts', label: 'History & Analytics', hint: 'Analytics cards, recovery chart, sends chart', icon: 'ic:baseline-bar-chart' },
     { id: 'model', label: 'Training model', hint: 'Readiness, ACWR zones, fatigue recovery, rest-day alert', icon: 'ic:baseline-tune' },
     { id: 'pain', label: 'Pain check-ins', hint: 'Home, after sessions, reminder, when to ask to close', icon: 'ic:baseline-healing' },
@@ -30,7 +31,8 @@
   import ChartSettings from './ChartSettings.svelte';
   import SessionSettings from './SessionSettings.svelte';
   import TimerSettings from './TimerSettings.svelte';
-  import TimerCuesSettings from './TimerCuesSettings.svelte';
+  import SoundSettings from './SoundSettings.svelte';
+  import VoiceSettings from './VoiceSettings.svelte';
   import WeatherSettings from './WeatherSettings.svelte';
   import NotificationSettings from './NotificationSettings.svelte';
   import TunablesSettings from './TunablesSettings.svelte';
@@ -132,8 +134,10 @@
     <PlanDisplaySettings />
   {:else if topic === 'sessions'}
     <SessionSettings />
+  {:else if topic === 'timer'}
     <TimerSettings />
-    <TimerCuesSettings />
+    <SoundSettings />
+    <VoiceSettings />
   {:else if topic === 'charts'}
     <OrderedListSettings
       list="analyticsSections"

@@ -210,9 +210,14 @@ export class PreferencesStore {
     this.persist();
   }
 
-  /** Changes some of the cue settings; `announce` is merged field by field. */
-  setTimerCues(changes: Partial<Omit<TimerCues, 'announce'>> & { announce?: Partial<TimerCues['announce']> }) {
-    this.timerCues = validateTimerCues({ ...this.timerCues, ...changes, announce: { ...this.timerCues.announce, ...changes.announce } });
+  /** Changes some of the cue settings; `announce` and `speech` are merged field by field. */
+  setTimerCues(changes: Partial<Omit<TimerCues, 'announce' | 'speech'>> & { announce?: Partial<TimerCues['announce']>; speech?: Partial<TimerCues['speech']> }) {
+    this.timerCues = validateTimerCues({
+      ...this.timerCues,
+      ...changes,
+      announce: { ...this.timerCues.announce, ...changes.announce },
+      speech: { ...this.timerCues.speech, ...changes.speech },
+    });
     this.persist();
   }
 

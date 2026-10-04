@@ -218,6 +218,15 @@ public class TimerForegroundService extends Service {
             sound = config.optBoolean("sound", true);
             vibrate = config.optBoolean("vibrate", true);
             player.configure((float) config.optDouble("volume", 1.0), config.optBoolean("volumeSetsMedia", false));
+            player.setTones(config.optJSONObject("tones"));
+            JSONObject speech = config.optJSONObject("speech");
+            if (speech != null) {
+                player.configureSpeech(
+                    speech.isNull("engine") ? null : speech.optString("engine", null),
+                    speech.isNull("voice") ? null : speech.optString("voice", null),
+                    (float) speech.optDouble("rate", 1.0),
+                    (float) speech.optDouble("pitch", 1.0));
+            }
             pausedAt = 0;
             timerPausedBySession = false;
         } catch (Exception e) {

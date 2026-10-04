@@ -123,7 +123,7 @@ Pushing to `main` builds the app and deploys it to GitHub Pages (`.github/workfl
 
 `vite-plugin-pwa` (in `vite.config.js`) writes the manifest and a service worker that precaches the whole build, so the installed app opens offline. A new deploy shows a "Reload" toast rather than switching under a running session (`src/lib/pwa/pwa.ts`); the service worker is not registered inside the Android app. Home-screen icons are PNGs in `public/icons/`, rendered by `node scripts/generate-pwa-icons.mjs`.
 
-What the web app can't do, on iOS in particular: scheduled reminders, timer beeps with the screen locked (keep the screen on - Settings → Appearance & Behaviour → Sessions & Timer), Drive sync, widgets and shortcuts (Android only). On iPhone the Home Screen app has its own storage, separate from Safari's.
+What the web app can't do, on iOS in particular: scheduled reminders, timer beeps with the screen locked (keep the screen on - Settings → Appearance & Behaviour → Live sessions), Drive sync, widgets and shortcuts (Android only). On iPhone the Home Screen app has its own storage, separate from Safari's.
 
 ### Android app updates
 

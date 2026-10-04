@@ -83,6 +83,25 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 6.5 | Medical wording | Look at About, the Pain card and the AI coach. | "Not medical advice" notes present and not in the way. | | |
 | 6.6 | PDF export, first use offline | Online: export a plan PDF once. Then offline: export again. | First export works online; the second works offline (libraries now cached). A first-ever export with no signal fails (known). | | |
 
+## 7. Timer, circuit and notification (Android)
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 7.1 | Pause in the app | Run a circuit rest, pause it in the app, pull down the shade. | The notification freezes ("Paused · …") and offers Resume; it never counts below zero. | | |
+| 7.2 | Pause in the notification | Press Pause on the notification, then Resume. | Freezes and continues from where it stopped; the app agrees when opened. | | |
+| 7.3 | Reopen mid-rest | Lock the phone during a rest, wait, reopen the app. | The circuit is where the notification says, not reset. | | |
+| 7.4 | Session pause | Pause the session (app, then notification) during a rest. | The rest pauses too; resuming the session resumes it. Resuming only the timer leaves the session paused. | | |
+| 7.5 | Stopwatch | Start the stopwatch, background the app, pause it from the notification. | Stays as "Stopwatch paused" with Resume. | | |
+| 7.6 | Circuit Back / Restart | In a circuit: Back after a few seconds, Back right after a step began, Restart. | First restarts the step, second goes to the previous step (its set is taken back); Restart asks first and starts at round 1. | | |
+| 7.7 | Minimise | Minimise the circuit, then the session. | A pill with the phase, exercise and clock (tuck it with the arrow); the session bubble shows the same; a tap returns into the circuit. | | |
+| 7.8 | Exercise details | Tap the note row in a circuit. | The exercise's details, note and how-to open; closing returns to the run. | | |
+| 7.9 | Quick log notes | Finish a timed exercise or circuit member and open its log sheet. | "How it went" is empty (the plan note is shown above it, not copied in). | | |
+| 7.10 | Sound style | Settings → Timer, sound & voice → Sound: pick each style. | Each plays a preview; the choice is used by the page and with the screen locked. | | |
+| 7.11 | Volume | Move the slider (Settings and the speaker icon on a timer screen); turn on "also sets the media volume" with music playing. | Cues get quieter/louder; with the option, the music's volume returns afterwards. | | |
+| 7.12 | Speaking | Turn on "Speak the exercises"; run a circuit with the screen off. | The exercise is named at set start, and "Rest. Next: …" when a rest begins; "again before a rest ends" works on a long rest. | | |
+| 7.13 | Voice | Change the speech engine, voice, speed and pitch; tap Try it. | The sample changes; the timer uses the same. | | |
+| 7.14 | AI week dates | AI → generate: look at the prompt preview. | Week ids carry their dates ("2026-W40 (28 Sep – 4 Oct 2026)"). | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.

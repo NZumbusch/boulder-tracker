@@ -7,7 +7,7 @@ import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
  * @capacitor/haptics; a browser gets a tiny `navigator.vibrate` where it
  * has one (Android Chrome), nothing elsewhere. Never throws.
  *
- * Switched off with Settings -> Sessions & Timer -> Haptic feedback;
+ * Switched off with Settings -> Live sessions -> Haptic feedback;
  * `App.svelte` keeps `hapticsConfig.enabled` in step with that preference.
  */
 export const hapticsConfig = { enabled: true };
