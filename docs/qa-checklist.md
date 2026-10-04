@@ -121,7 +121,7 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 
 | # | Test | Steps | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 10.1 | Upgrade from before fields | Update a phone that has logged max hangs (20/15/10 mm) and other benchmarks. | One "Max Hang" test (folder Fingers) with Edge depth + Added weight; every old result is still there, under the right edge, with its value; nothing is lost (Settings → Training setup → Benchmark tests, and the Plan screen's list). | | |
+| 10.1 | Upgrade from before fields | Update a phone that has logged max hangs (20/15/10 mm) and other benchmarks. | One "Max Hang" test with Edge depth + Added weight (no folders unless you make them); every old result is still there, under the right edge, with its value; nothing is lost (Settings → Training setup → Benchmark tests, and the Plan screen's list). | | |
 | 10.2 | Units | Set the weight unit to lb; open a hang result and the logging form. | Weights are shown and typed in lb, and stored in kg (switching back shows the same load). | | |
 | 10.3 | New test from a preset | Benchmark tests → New test → Weight for reps; save; log three results with different weights and reps. | Opens prefilled; the results land in one line (reps does not split it). | | |
 | 10.4 | Conditions split a test | Log max hangs at two edges. | Benchmark Progress shows a chip per edge (and All); Home's progress card has a row per edge with its own change. | | |
