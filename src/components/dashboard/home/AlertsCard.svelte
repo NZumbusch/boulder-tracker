@@ -52,19 +52,19 @@
     {#each alerts as alert (alert.id)}
       {#if alert.exportBackup}
         <button onclick={() => trainingState.exportData()} class="w-full flex items-start gap-2.5 text-left group">
-          <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 {ALERT_DOT[alert.severity]}"></span>
+          <span class="text-body h-[1lh] shrink-0 flex items-center"><span class="w-2 h-2 rounded-full {ALERT_DOT[alert.severity]}"></span></span>
           <span class="text-body text-content group-hover:text-primary transition-colors flex-1">{alert.text}</span>
-          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0 mt-0.5" />
+          <span class="text-body h-[1lh] shrink-0 flex items-center"><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-lg" /></span>
         </button>
       {:else if alert.rateWorkoutId || alert.painIssueId}
         <button onclick={() => alert.painIssueId ? openPainIssue(alert.painIssueId) : rateSession(alert.rateWorkoutId!)} class="w-full flex items-start gap-2.5 text-left group">
-          <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 {ALERT_DOT[alert.severity]}"></span>
+          <span class="text-body h-[1lh] shrink-0 flex items-center"><span class="w-2 h-2 rounded-full {ALERT_DOT[alert.severity]}"></span></span>
           <span class="text-body text-content group-hover:text-primary transition-colors flex-1">{alert.text}</span>
-          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0 mt-0.5" />
+          <span class="text-body h-[1lh] shrink-0 flex items-center"><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-lg" /></span>
         </button>
       {:else}
         <div class="flex items-start gap-2.5">
-          <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 {ALERT_DOT[alert.severity]}"></span>
+          <span class="text-body h-[1lh] shrink-0 flex items-center"><span class="w-2 h-2 rounded-full {ALERT_DOT[alert.severity]}"></span></span>
           <span class="text-body text-content">{alert.text}</span>
         </div>
       {/if}
