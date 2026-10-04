@@ -25,6 +25,7 @@
   import { windowStats, comparisonSpans } from '../../lib/analytics/windowSummary';
   import { blockSegments, goalsInWindow, painIssueRows } from '../../lib/analytics/timeline';
   import { benchmarkChanges } from '../../lib/analytics/progress';
+  import { bodyweightsOf } from '../../lib/benchmarks/series';
   import PainTimelinePanel from './PainTimelinePanel.svelte';
   import BenchmarkOverviewPanel from './BenchmarkOverviewPanel.svelte';
   import { dayIndexToIso, localDayIndex } from '../../lib/analytics/recoverySeries';
@@ -286,7 +287,7 @@
     };
   });
 
-  const benchmarkSeries = $derived(benchmarkChanges(trainingState.benchmarks, trainingState.benchmarkTypes, firstDay, lastDay));
+  const benchmarkSeries = $derived(benchmarkChanges(trainingState.benchmarks, trainingState.benchmarkTypes, firstDay, lastDay, trainingState.valueDefs, trainingState.units.weight, bodyweightsOf(trainingState.dailyMetrics)));
 
   // --- Fatigue panel data - `computeFatigueDecay` sampled at each
   // column's last day, so this is a trend rather than duplicating Home's

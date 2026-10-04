@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Benchmark, OutdoorAscent, Workout } from "../types";
+import type { Benchmark, OutdoorAscent, ValueDef, Workout } from "../types";
 import { benchmarkChanges, consistency, latestBenchmarks, retestDue, sendsSummary } from "./progress";
 import { toUtcDayIndex } from "../dateUtils";
 
@@ -74,5 +74,45 @@ describe("benchmarkChanges", () => {
     expect(got).toHaveLength(1);
     expect(got[0].points).toHaveLength(1);
     expect(got[0].points[0].pct).toBeCloseTo(25);
+  });
+});
+
+describe("benchmarks with fields", () => {
+  const defs: ValueDef[] = [
+    { id: "weight", name: "Weight", unit: "kg", kind: "number", measure: "weight" },
+    { id: "edge", name: "Edge depth", unit: "mm", kind: "number", measure: "length" },
+    { id: "time", name: "Time", unit: "s", kind: "number", measure: "time" },
+  ];
+  const hang = { id: "hang", name: "Max Hang", unit: "kg", fields: [{ valueId: "edge", role: "condition" as const }, { valueId: "weight", role: "result" as const, label: "Added weight" }] };
+  const circuit = { id: "circ", name: "Circuit", unit: "s", direction: "lower" as const, fields: [{ valueId: "time", role: "result" as const }] };
+  const res = (id: string, typeId: string, date: string, value: number, values: Record<string, number>): Benchmark => ({ id, typeId, type: typeId, value, unit: typeId === "circ" ? "s" : "kg", date, weekId: "", values });
+
+  it("keeps an edge's results apart: the change is within the same edge", () => {
+    const list = [
+      res("a", "hang", "2026-06-01", 40, { edge: 20, weight: 40 }),
+      res("b", "hang", "2026-07-01", 20, { edge: 15, weight: 20 }),
+      res("c", "hang", "2026-09-01", 45, { edge: 20, weight: 45 }),
+    ];
+    const p = latestBenchmarks(list, [hang], defs, "kg");
+    expect(p.map((x) => [x.name, x.latest, x.change, x.latestText, x.changeText])).toEqual([
+      ["Max Hang · 20 mm", 45, 5, "45 kg", "+5 kg"],
+      ["Max Hang · 15 mm", 20, undefined, "20 kg", undefined],
+    ]);
+  });
+
+  it("shows weights in the chosen unit and counts a lower time as a gain", () => {
+    const w = latestBenchmarks([res("a", "hang", "2026-06-01", 40, { edge: 20, weight: 40 }), res("b", "hang", "2026-07-01", 45, { edge: 20, weight: 45 })], [hang], defs, "lb");
+    expect(w[0].latestText).toBe("99.2 lb");
+    expect(w[0].improved).toBe(true);
+    const t = latestBenchmarks([res("a", "circ", "2026-06-01", 100, { time: 100 }), res("b", "circ", "2026-07-01", 90, { time: 90 })], [circuit], defs, "kg");
+    expect([t[0].change, t[0].improved]).toEqual([-10, true]);
+  });
+
+  it("charts % change as a gain when lower is better", () => {
+    const got = benchmarkChanges(
+      [res("a", "circ", "2026-06-01", 100, { time: 100 }), res("b", "circ", "2026-09-01", 90, { time: 90 })],
+      [circuit], toUtcDayIndex("2026-01-01"), toUtcDayIndex("2026-12-31"), defs, "kg",
+    );
+    expect(got[0].points.map((p) => Math.round(p.pct))).toEqual([0, 10]);
   });
 });

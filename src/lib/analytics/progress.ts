@@ -1,10 +1,15 @@
-import type { Benchmark, BenchmarkTypeDef, OutdoorAscent, Workout } from "../types";
+import type { Benchmark, BenchmarkTypeDef, OutdoorAscent, ValueDef, Workout } from "../types";
+import type { WeightUnit } from "../units";
+import { buildSeries, defaultMetric, isImprovement, metricPoints, primaryText, type Bodyweight } from "../benchmarks/series";
+import { formatFieldValue, primaryField } from "../benchmarks/model";
 import { decrementWeekId, getWeekId, toUtcDayIndex } from "../dateUtils";
 import { parseFontGrade } from "./grades";
 import { isoDayIndex, workoutDay } from "../planning/weekStatus";
 
 export interface BenchmarkProgress {
+  /** The series (a test done one way) - unique per row. */
   typeKey: string;
+  /** "Max Hang · 20 mm". */
   name: string;
   unit: string;
   latest: number;
@@ -12,6 +17,11 @@ export interface BenchmarkProgress {
   /** latest - previous; undefined with only one result. */
   change?: number;
   previousDate?: string;
+  /** The latest result as text in the chosen weight unit, and the change likewise (signed). */
+  latestText: string;
+  changeText?: string;
+  /** Whether the change is a gain: lower is better for a test that says so. */
+  improved?: boolean;
 }
 
 /** How many benchmark types the card shows (most recently tested first). */
@@ -19,35 +29,30 @@ export const PROGRESS_BENCHMARKS = 3;
 /** A benchmark untested for this many weeks gets a retest nudge. */
 export const RETEST_WEEKS = 6;
 
-function benchmarkKey(b: Benchmark): string {
-  return b.typeId || b.type;
-}
-
-/** Latest result per benchmark type with its change from the previous one, most recently tested first. */
-export function latestBenchmarks(benchmarks: Benchmark[], types: BenchmarkTypeDef[]): BenchmarkProgress[] {
-  const byType = new Map<string, Benchmark[]>();
-  for (const b of benchmarks) {
-    const key = benchmarkKey(b);
-    byType.set(key, [...(byType.get(key) ?? []), b]);
-  }
-  const result: BenchmarkProgress[] = [];
-  for (const [key, list] of byType) {
-    const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
-    const latest = sorted[sorted.length - 1];
-    const previous = sorted.length > 1 ? sorted[sorted.length - 2] : undefined;
-    const def = types.find((t) => t.id === latest.typeId);
-    if (def?.archived) continue;
-    result.push({
-      typeKey: key,
-      name: def?.name ?? latest.type,
-      unit: latest.unit || def?.unit || "",
+/**
+ * Latest result per test-and-conditions with its change from the previous
+ * one of the same, most recently tested first - "Max Hang at 20 mm" and "at
+ * 15 mm" are separate rows, so they are never subtracted from each other.
+ */
+export function latestBenchmarks(benchmarks: Benchmark[], types: BenchmarkTypeDef[], defs: ValueDef[] = [], weight: WeightUnit = "kg"): BenchmarkProgress[] {
+  return buildSeries(benchmarks, types, defs, weight).map((s) => {
+    const latest = s.results[s.results.length - 1];
+    const previous = s.results.length > 1 ? s.results[s.results.length - 2] : undefined;
+    const change = previous ? Math.round((latest.value - previous.value) * 100) / 100 : undefined;
+    const primary = primaryField(s.fields);
+    return {
+      typeKey: s.key,
+      name: s.label,
+      unit: latest.unit || s.type.unit || "",
       latest: latest.value,
       latestDate: latest.date,
-      change: previous ? Math.round((latest.value - previous.value) * 100) / 100 : undefined,
+      change,
       previousDate: previous?.date,
-    });
-  }
-  return result.sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+      latestText: primaryText(latest, s, weight),
+      changeText: change !== undefined && primary ? `${change > 0 ? "+" : "−"}${formatFieldValue(primary, Math.abs(change), weight)}` : undefined,
+      improved: change !== undefined ? isImprovement(change, s.type) : undefined,
+    };
+  });
 }
 
 /** Benchmark types last tested `RETEST_WEEKS` or more weeks before `asOf`, longest-untested first, with how many weeks. */
@@ -126,31 +131,30 @@ export function consistency(workouts: Workout[], asOf: Date): Consistency {
 export interface BenchmarkChangeSeries {
   typeKey: string;
   name: string;
-  /** Each result in the window as % change from the first result ever of its type. */
+  /** Each result in the window as % change from the first result ever of its series (a gain is positive, also for a test where lower is better). */
   points: { day: number; value: number; pct: number }[];
 }
 
 /**
- * Every benchmark type with results in [firstDay, lastDay], each result as
- * % change from that type's very first result - so benchmarks in kg,
- * seconds and reps share one axis. Archived types are left out.
+ * Every test-and-conditions with results in [firstDay, lastDay], each result
+ * as % change from that series' very first result - so benchmarks in kg,
+ * seconds and reps share one axis. Archived tests are left out. The
+ * number followed is the test's own chosen score (its primary result unless
+ * it says otherwise).
  */
-export function benchmarkChanges(benchmarks: Benchmark[], types: BenchmarkTypeDef[], firstDay: number, lastDay: number): BenchmarkChangeSeries[] {
-  const byType = new Map<string, Benchmark[]>();
-  for (const b of benchmarks) {
-    const key = benchmarkKey(b);
-    byType.set(key, [...(byType.get(key) ?? []), b]);
-  }
-  const series: BenchmarkChangeSeries[] = [];
-  for (const [key, list] of byType) {
-    const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
-    const def = types.find((t) => t.id === sorted[0].typeId);
-    if (def?.archived || sorted[0].value <= 0) continue;
-    const first = sorted[0].value;
-    const points = sorted
-      .map((b) => ({ day: toUtcDayIndex(b.date), value: b.value, pct: (b.value / first - 1) * 100 }))
+export function benchmarkChanges(benchmarks: Benchmark[], types: BenchmarkTypeDef[], firstDay: number, lastDay: number, defs: ValueDef[] = [], weight: WeightUnit = "kg", bodyweights: Bodyweight[] = []): BenchmarkChangeSeries[] {
+  const out: BenchmarkChangeSeries[] = [];
+  for (const s of buildSeries(benchmarks, types, defs, weight)) {
+    const metric = defaultMetric(s, weight);
+    if (!metric) continue;
+    const all = metricPoints(metric, s, weight, bodyweights);
+    if (all.length === 0 || all[0].value <= 0) continue;
+    const first = all[0].value;
+    const sign = s.type.direction === "lower" ? -1 : 1;
+    const points = all
+      .map((p) => ({ day: p.day, value: p.value, pct: sign * (p.value / first - 1) * 100 + 0 }))
       .filter((p) => p.day >= firstDay && p.day <= lastDay);
-    if (points.length > 0) series.push({ typeKey: key, name: def?.name ?? sorted[0].type, points });
+    if (points.length > 0) out.push({ typeKey: s.key, name: s.label, points });
   }
-  return series.sort((a, b) => a.name.localeCompare(b.name));
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 }

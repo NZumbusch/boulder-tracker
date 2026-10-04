@@ -12,7 +12,7 @@
 
   let { data }: { data: HomeData } = $props();
 
-  const benchmarkProgress = $derived(latestBenchmarks(trainingState.benchmarks, trainingState.benchmarkTypes));
+  const benchmarkProgress = $derived(latestBenchmarks(trainingState.benchmarks, trainingState.benchmarkTypes, trainingState.valueDefs, trainingState.units.weight));
   const retests = $derived(retestDue(benchmarkProgress, data.asOf, trainingState.tunable('progress.retestWeeks')));
   const sends = $derived(sendsSummary(trainingState.outdoorAscents, data.asOf));
   const consistencyStats = $derived(consistency(trainingState.workouts, data.asOf));
@@ -45,9 +45,9 @@
           <!-- Parts laid out with a flex gap, not markup spaces - spaces at
                an {#if} edge are dropped (see joinParts). -->
           <span class="text-label text-content tabular-nums shrink-0 flex items-baseline gap-1.5">
-            <span>{b.latest} {b.unit}</span>
-            {#if b.change !== undefined && b.change !== 0}
-              <span class={b.change > 0 ? 'text-status-good' : 'text-status-caution'}>{b.change > 0 ? '+' : '−'}{Math.abs(b.change)}</span>
+            <span>{b.latestText}</span>
+            {#if b.changeText && b.change !== 0}
+              <span class={b.improved ? 'text-status-good' : 'text-status-caution'}>{b.changeText}</span>
             {/if}
             <span class="text-content-subtle">· {formatDate(b.latestDate)}</span>
           </span>
