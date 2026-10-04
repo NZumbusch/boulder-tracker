@@ -87,7 +87,12 @@ export function buildLiveTimer(input: LiveInput, now: number): LiveTimerConfig |
   if (input.mode !== "interval") {
     const running = input.basic.runningSince !== null;
     if (input.mode === "stopwatch") {
-      if (!running) return null;
+      if (!running) {
+        // Paused part-way: keep the notification, frozen, with Resume.
+        const elapsed = clockElapsedMs(input.basic, now);
+        if (elapsed === 0) return null;
+        return { segments: [{ title: `Stopwatch paused · ${fmt(elapsed)}`, body }], cues: [], actions: ["resume"], finishedTitle: "Stopwatch" };
+      }
       return {
         segments: [{ startedAt: now - clockElapsedMs(input.basic, now), title: "Stopwatch", body }],
         cues: [],

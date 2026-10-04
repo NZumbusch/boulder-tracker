@@ -51,6 +51,13 @@ describe("buildLiveTimer", () => {
     expect(live.segments[0].startedAt).toBe(NOW - 5000);
   });
 
+  it("keeps a paused stopwatch in the notification, frozen, with Resume", () => {
+    const paused = { ...STOPPED_CLOCK, bankedMs: 5000 };
+    const live = buildLiveTimer({ ...base, mode: "stopwatch", basic: paused }, NOW)!;
+    expect(live.segments).toEqual([{ title: "Stopwatch paused · 0:05", body: "Max Hangs" }]);
+    expect(live.actions).toEqual(["resume"]);
+  });
+
   it("plans a whole interval protocol: a segment per phase and a cue at each change", () => {
     const spec = { ...DEFAULT_SPEC, sets: 2, reps: 2, workSeconds: 7, restSeconds: 3, setRestSeconds: 60, leadInSeconds: 0 };
     const live = buildLiveTimer({ ...base, mode: "interval", spec, ticks: false, intervalClock: startClock(STOPPED_CLOCK, NOW) }, NOW)!;
