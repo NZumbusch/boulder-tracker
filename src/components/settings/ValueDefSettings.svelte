@@ -12,13 +12,13 @@
    * much it takes with it.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import type { ValueDef } from '../../lib/types';
-  import { cleanOptions, defProblem, defUsage, newDefId } from '../../lib/exercise/valueDefs';
-  import { showConfirm } from '../../lib/utils';
+  import type { ValueDef, ValueMeasure } from '../../lib/types';
+  import { benchmarkUsage, cleanOptions, defProblem, defUsage, newDefId } from '../../lib/exercise/valueDefs';
+  import { showAlert, showConfirm } from '../../lib/utils';
   import { toast } from '../../lib/toast.svelte';
   import Icon from '@iconify/svelte';
 
-  let open = $state(false);
+  let open = $state(true);
   let editing = $state<{ def: ValueDef; isNew: boolean; optionsText: string } | null>(null);
 
   // Back (phone key or browser) closes the editor first - see lib/navigation/backStack.
@@ -29,6 +29,31 @@
   const archived = $derived(defs.filter((d) => d.archived));
 
   const usage = (id: string) => defUsage(id, { workouts: trainingState.workouts, exerciseTypes: trainingState.exerciseTypes });
+  const benchUsage = (id: string) => benchmarkUsage(id, trainingState.benchmarkTypes, trainingState.benchmarks);
+
+  /** What a quantity fixes: its unit is stored the same way everywhere, so it is not typed. */
+  const MEASURES: { id: ValueMeasure | ''; label: string; unit?: string; hint: string }[] = [
+    { id: '', label: 'Plain', hint: 'Any number, with a unit of your own.' },
+    { id: 'weight', label: 'Weight', unit: 'kg', hint: 'Stored in kg, shown in your unit; can be read against bodyweight.' },
+    { id: 'reps', label: 'Reps', unit: 'reps', hint: 'A count of repetitions.' },
+    { id: 'time', label: 'Time', unit: 's', hint: 'Seconds.' },
+    { id: 'length', label: 'Length', unit: 'mm', hint: 'Millimetres - an edge depth.' },
+  ];
+  function setMeasure(measure: ValueMeasure | '') {
+    if (!editing) return;
+    editing.def.measure = measure || undefined;
+    const unit = MEASURES.find((m) => m.id === measure)?.unit;
+    if (unit) editing.def.unit = unit;
+  }
+  const hasUse = (use: 'exercise' | 'benchmark') => !editing?.def.uses || editing.def.uses.includes(use);
+  function toggleUse(use: 'exercise' | 'benchmark') {
+    if (!editing) return;
+    const both: ('exercise' | 'benchmark')[] = ['exercise', 'benchmark'];
+    const now = editing.def.uses ?? both;
+    const next = now.includes(use) ? now.filter((u) => u !== use) : [...now, use];
+    if (next.length === 0) return; // it has to be for something
+    editing.def.uses = next.length === 2 ? undefined : next;
+  }
 
   function startNew() {
     editing = { def: { id: '', name: '', kind: 'number', unit: '' }, isNew: true, optionsText: '' };
@@ -54,7 +79,10 @@
       name: def.name.trim(),
       unit: def.kind === 'number' ? def.unit?.trim() || undefined : undefined,
       options: def.kind === 'choice' ? draftOptions : undefined,
+      measure: def.kind === 'number' ? def.measure : undefined,
     };
+    if (saved.measure === undefined) delete saved.measure;
+    if (saved.uses === undefined) delete saved.uses;
     if (isNew) saved.id = newDefId(saved.name, defs.map((d) => d.id));
     await trainingState.saveValueDefs(isNew ? [...defs, saved] : defs.map((d) => (d.id === saved.id ? saved : d)));
     editing = null;
@@ -68,6 +96,11 @@
 
   async function remove(def: ValueDef) {
     const u = usage(def.id);
+    const b = benchUsage(def.id);
+    if (b.tests > 0) {
+      await showAlert(`${def.name} is in use`, `${b.tests} benchmark ${b.tests === 1 ? 'test records' : 'tests record'} it. Take it out of the test${b.tests === 1 ? '' : 's'} first, or archive it instead - archiving keeps every value.`);
+      return;
+    }
     const used = u.values > 0 || u.trackedBy > 0;
     const ok = await showConfirm(
       `Delete ${def.name}?`,
@@ -83,16 +116,19 @@
 
   function describe(def: ValueDef): string {
     const u = usage(def.id);
-    const what = def.kind === 'choice' ? `pick one of ${def.options?.length ?? 0}` : def.unit ? `number, ${def.unit}` : 'number';
-    return `${what} · ${u.values === 0 ? 'unused' : `${u.values} ${u.values === 1 ? 'value' : 'values'}`}`;
+    const b = benchUsage(def.id);
+    const what = def.kind === 'choice' ? `pick one of ${def.options?.length ?? 0}` : def.measure ? `${def.measure}${def.unit ? `, ${def.unit}` : ''}` : def.unit ? `number, ${def.unit}` : 'number';
+    const for_ = !def.uses ? 'exercises & benchmarks' : def.uses.includes('benchmark') ? 'benchmarks' : 'exercises';
+    const count = u.values + b.values;
+    return `${what} · ${for_} · ${count === 0 ? 'unused' : `${count} ${count === 1 ? 'value' : 'values'}`}`;
   }
 </script>
 
 <div class="card space-y-3 animate-in fade-in">
   <button onclick={() => open = !open} class="w-full flex items-center justify-between px-1 text-left" aria-expanded={open}>
     <span class="space-y-0.5">
-      <span class="block text-section uppercase text-content-muted">Advanced · Custom value types</span>
-      <span class="block text-caption text-content-subtle">Height, speed, heart rate, or your own - recorded on exercises, never part of load.</span>
+      <span class="block text-section uppercase text-content-muted">Value types</span>
+      <span class="block text-caption text-content-subtle">The numbers and pick-lists you record on exercises and in benchmark tests - weight, reps, time, edge depth, or your own. Never part of load.</span>
     </span>
     <Icon icon={open ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-xl text-content-subtle shrink-0" />
   </button>
@@ -155,9 +191,18 @@
         </div>
 
         {#if editing.def.kind === 'number'}
+          <div class="space-y-1.5">
+            <span class="text-label text-content-subtle block">Quantity</span>
+            <div class="flex flex-wrap gap-1.5">
+              {#each MEASURES as m (m.id)}
+                <button type="button" onclick={() => setMeasure(m.id)} aria-pressed={(editing.def.measure ?? '') === m.id} class="px-3 py-1.5 rounded-control text-label border transition-all {(editing.def.measure ?? '') === m.id ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'bg-surface-elevated border-border-strong text-content-muted'}">{m.label}</button>
+              {/each}
+            </div>
+            <p class="text-caption text-content-subtle">{MEASURES.find((m) => m.id === (editing!.def.measure ?? ''))?.hint}</p>
+          </div>
           <label class="block space-y-1.5">
             <span class="text-label text-content-subtle">Unit <span class="text-content-subtle/70">(optional)</span></span>
-            <input bind:value={editing.def.unit} placeholder="m, bpm, km/h…" maxlength="12" class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50" />
+            <input bind:value={editing.def.unit} disabled={!!editing.def.measure} placeholder="m, bpm, km/h…" maxlength="12" class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 disabled:opacity-50" />
           </label>
         {:else}
           <label class="block space-y-1.5">
@@ -168,7 +213,15 @@
 
         {#if problem && (editing.def.name || editing.optionsText)}<p class="text-caption text-danger">{problem}</p>{/if}
 
-        <p class="text-caption text-content-subtle">Switch it on for an exercise under Exercises → the exercise → What it tracks.</p>
+        <div class="space-y-1.5">
+          <span class="text-label text-content-subtle block">Use it for</span>
+          <div class="grid grid-cols-2 gap-2">
+            {#each [['exercise', 'Exercises'], ['benchmark', 'Benchmark tests']] as [use, label]}
+              <button type="button" onclick={() => toggleUse(use as 'exercise' | 'benchmark')} aria-pressed={hasUse(use as 'exercise' | 'benchmark')} class="px-3 py-2 rounded-control text-label border transition-all {hasUse(use as 'exercise' | 'benchmark') ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'bg-surface-elevated border-border-strong text-content-muted'}">{label}</button>
+            {/each}
+          </div>
+          <p class="text-caption text-content-subtle">Switch it on for an exercise under Exercises → the exercise → What it tracks, or add it to a test under Benchmarks.</p>
+        </div>
 
         <div class="flex gap-2">
           <button onclick={save} disabled={!!problem} class="flex-1 py-3 bg-primary text-white text-label font-bold rounded-control disabled:opacity-40">Save</button>

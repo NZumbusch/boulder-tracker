@@ -21,6 +21,19 @@ export function paramLabel(param: ParameterBlock, defs: readonly ValueDef[]): st
   return defs.find((d) => d.id === id)?.name ?? id;
 }
 
+/** Whether a value type is offered for exercises or for benchmark tests (unset = both). */
+export function usableFor(def: Pick<ValueDef, "uses">, kind: "exercise" | "benchmark"): boolean {
+  return !def.uses || def.uses.includes(kind);
+}
+
+/** The benchmark tests (and how many results) that record a value type. */
+export function benchmarkUsage(defId: string, types: readonly { fields?: { valueId: string }[] }[], results: readonly { values?: Record<string, unknown> }[]): { tests: number; values: number } {
+  return {
+    tests: types.filter((t) => t.fields?.some((f) => f.valueId === defId)).length,
+    values: results.filter((r) => r.values && defId in r.values).length,
+  };
+}
+
 /** A fresh id for `name`: lowercase letters/digits in camelCase, unique among `taken`. */
 export function newDefId(name: string, taken: Iterable<string>): string {
   const words = name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);

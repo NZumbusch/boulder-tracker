@@ -16,6 +16,7 @@
   import { dragHandleZone, dragHandle, type DndEvent } from 'svelte-dnd-action';
   import Icon from "@iconify/svelte";
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
+  import { describeResult } from '../../lib/benchmarks/model';
   import AICoachModal from './AICoachModal.svelte';
   import WeekShareImage from './WeekShareImage.svelte';
   import WeekCalendar from './WeekCalendar.svelte';
@@ -780,7 +781,8 @@
 
         <div class="divide-y divide-border">
           {#each weekBenchmarks as benchmark}
-            <ListRow title={benchmark.type} value="{benchmark.value} {benchmark.unit}" onclick={() => handleEditBenchmark(benchmark)}>
+            {@const shown = describeResult(benchmark, trainingState.benchmarkTypes, trainingState.valueDefs, trainingState.units.weight)}
+            <ListRow title={shown.title} value={shown.value} onclick={() => handleEditBenchmark(benchmark)}>
               {#snippet trailing()}
                 <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete benchmark"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
               {/snippet}

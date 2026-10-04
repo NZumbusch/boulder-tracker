@@ -13,7 +13,7 @@
   import type { ExerciseTypeDef, ParameterBlock, AnalyticsCategory } from '../../lib/types';
   import { exerciseGroup } from '../../lib/exercise/library';
   import { trainingState } from '../../lib/state.svelte';
-  import { customParam } from '../../lib/exercise/valueDefs';
+  import { customParam, usableFor } from '../../lib/exercise/valueDefs';
   import RangeSlider from '../common/RangeSlider.svelte';
   import Icon from '@iconify/svelte';
 
@@ -50,7 +50,7 @@
   const parameterBlocks = $derived<{ id: ParameterBlock; label: string }[]>([
     ...Object.entries(PARAMETER_LABELS).map(([id, label]) => ({ id: id as ParameterBlock, label })),
     ...trainingState.valueDefs
-      .filter((d) => !d.archived || (draft.possibleParameters ?? draft.parameters).includes(customParam(d.id)))
+      .filter((d) => (!d.archived && usableFor(d, 'exercise')) || (draft.possibleParameters ?? draft.parameters).includes(customParam(d.id)))
       .map((d) => ({ id: customParam(d.id), label: d.unit ? `${d.name} (${d.unit})` : d.name })),
   ]);
 

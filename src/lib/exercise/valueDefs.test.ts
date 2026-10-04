@@ -67,3 +67,18 @@ describe("usage and removal", () => {
     expect(data.templates.p1[0].exercises[0].prescribed).toEqual({});
   });
 });
+
+import { usableFor, benchmarkUsage } from "./valueDefs";
+describe("value types shared with benchmark tests", () => {
+  it("offers a type where it is meant for, both by default", () => {
+    expect(usableFor({}, "exercise")).toBe(true);
+    expect(usableFor({ uses: ["benchmark"] }, "exercise")).toBe(false);
+    expect(usableFor({ uses: ["benchmark"] }, "benchmark")).toBe(true);
+  });
+  it("counts the tests and results that record one", () => {
+    const types = [{ fields: [{ valueId: "edge" }, { valueId: "weight" }] }, { fields: [{ valueId: "weight" }] }, {}];
+    const results = [{ values: { edge: 20 } }, { values: { weight: 3 } }, {}];
+    expect(benchmarkUsage("edge", types, results)).toEqual({ tests: 1, values: 1 });
+    expect(benchmarkUsage("weight", types, results)).toEqual({ tests: 2, values: 1 });
+  });
+});

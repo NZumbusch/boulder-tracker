@@ -47,14 +47,14 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     id: "setup",
     label: "Training setup",
-    hint: "Exercises, circuits, phases, benchmarks, custom values",
+    hint: "Exercises, circuits, phases, benchmark tests, value types",
     icon: "ic:baseline-tune",
     pages: [
       { id: "exercises", label: "Exercises & categories", hint: "Your exercise library and the analytics categories", icon: "ic:baseline-fitness-center" },
       { id: "circuits", label: "Circuits", hint: "Saved circuits and supersets", icon: "ic:baseline-loop" },
       { id: "phases", label: "Phases & templates", hint: "Training phases and the sessions each one starts with", icon: "ic:baseline-calendar-month" },
-      { id: "benchmarks", label: "Benchmarks", hint: "Periodic tests such as max hang or max pull-up", icon: "ic:baseline-bar-chart" },
-      { id: "values", label: "Custom values", hint: "Extra numbers to track on exercises", icon: "ic:baseline-tune" },
+      { id: "benchmarks", label: "Benchmark tests", hint: "Max hang, pull-ups, holds - what each records, and how", icon: "ic:baseline-bar-chart" },
+      { id: "values", label: "Value types", hint: "Weight, reps, time, edge depth or your own - used by exercises and benchmark tests", icon: "ic:baseline-tune" },
     ],
   },
   {
@@ -214,6 +214,8 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Health Connect import", page: "healthConnect", words: "garmin watch rhr sleep weight" },
   { label: "Calendar file", page: "exports", words: "ics google calendar" },
   { label: "Printable plan PDF", page: "exports" },
+  { label: "Benchmark fields and presets", page: "benchmarks", words: "max hang edge reps weight time condition result test" },
+  { label: "Value types", page: "values", words: "custom units measure weight reps time" },
   { label: "Home-screen widgets", page: "widgets" },
   { label: "App updates and build", page: "about", words: "version check now" },
   { label: "Take the tour", page: "about", words: "help install iphone" },
