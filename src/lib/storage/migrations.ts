@@ -7,6 +7,7 @@ import {
   BODYWEIGHT_METRIC_ID,
 } from "../constants";
 import { generateId } from "../utils";
+import { upgradeBenchmarks } from "../benchmarks/upgrade";
 
 // --- Migration Helper ---
 
@@ -1144,6 +1145,21 @@ const MIGRATIONS: MigrationStep[] = [
       const linked = new Map(logs.map((l) => [l.id, l.issueId]));
       data.painLogs = (data.painLogs ?? []).map((l: any) => (linked.get(l.id) ? { ...l, issueId: linked.get(l.id) } : l));
       data.painIssues = issues;
+    },
+  },
+  {
+    from: "3.33",
+    to: "3.34",
+    describe: "Benchmark tests get fields (value types and conditions): units become Weight/Reps/Time, tests that differ only by an edge in mm are merged, results keep every value",
+    migrate: (data: any) => {
+      const out = upgradeBenchmarks({
+        types: Array.isArray(data.benchmarkTypes) ? data.benchmarkTypes : [],
+        results: Array.isArray(data.benchmarks) ? data.benchmarks : [],
+        valueDefs: Array.isArray(data.valueDefs) ? data.valueDefs : undefined,
+      });
+      data.benchmarkTypes = out.types;
+      data.benchmarks = out.results;
+      data.valueDefs = out.valueDefs;
     },
   },
 ];

@@ -67,7 +67,7 @@ export type CustomParameter = `v:${string}`;
  * forms and keeps every stored value readable (`lib/exercise/valueDefs.ts`).
  */
 export interface ValueDef {
-  /** Stable key into `ExerciseValues.custom`; never reused or renamed. */
+  /** Stable key into `ExerciseValues.custom` / `Benchmark.values`; never reused or renamed. */
   id: string;
   name: string;
   /** Shown after a number ("m", "bpm"); unused by choice values. */
@@ -78,7 +78,19 @@ export interface ValueDef {
   archived?: boolean;
   /** Shipped with the app (still editable and archivable, never recreated once deleted). */
   builtIn?: true;
+  /**
+   * What kind of quantity the number is, where the app can do more with it:
+   * a weight is stored in kg and shown in the chosen unit (and can be read
+   * against bodyweight), reps and time can be combined into a score. Unset =
+   * a plain number.
+   */
+  measure?: ValueMeasure;
+  /** Where it is offered. Unset = both. The measures that ship for benchmark tests are not offered on exercises, which have their own weight and reps. */
+  uses?: ("exercise" | "benchmark")[];
 }
+
+/** A quantity the app understands (see `ValueDef.measure`). Weight is kg, time is seconds, length is mm. */
+export type ValueMeasure = "weight" | "reps" | "time" | "length";
 
 /**
  * Defines a custom exercise modality, its tracking parameters, and defaults.
@@ -604,13 +616,50 @@ export interface WorkoutTemplate {
 }
 
 /**
- * Defines a type of benchmark test and its unit of measurement.
+ * One thing a benchmark test records: a value type (`ValueDef`) in a role.
+ * A *result* is what the test measures (added weight, reps, hold time);
+ * a *condition* is how it was done (edge depth, hang time, the load on a
+ * rep test) - results are only compared like with like, i.e. at the same
+ * conditions.
+ */
+export interface BenchmarkField {
+  /** `ValueDef.id`. */
+  valueId: string;
+  role: "result" | "condition";
+  /** The name in this test when it differs from the value type's ("Added weight"). */
+  label?: string;
+  /** Always this value in this test (a one-rep max: 1 rep) - not asked for when logging. */
+  fixed?: number | string;
+  /** A weight field: the number is the load on top of the body ("added", the default) or the whole load ("total"). */
+  basis?: "added" | "total";
+}
+
+/** How a test's results are turned into the one number charted: as logged, as % of bodyweight, or an estimated one-rep max (Epley) from weight and reps. */
+export type BenchmarkScore = "raw" | "relative" | "estimatedMax";
+
+/**
+ * Defines a type of benchmark test: what it records (`fields`), which way
+ * is better, and how to do it. The first result field is the *primary*
+ * result - its value is `Benchmark.value`, what progress follows.
  */
 export interface BenchmarkTypeDef {
   id: string;
   name: string;
+  /** The primary result's unit as shown ("kg", "reps", "s"); kept in step with the field, and the only description a test from before fields has. */
   unit: string;
   archived?: boolean;
+  /** A folder in the list ("Fingers", "Pulling"). */
+  group?: string;
+  /** What it records, in the order asked. Unset on a test from before fields: one result in `unit`. */
+  fields?: BenchmarkField[];
+  /** "higher" (default) or "lower" is better - a timed circuit. */
+  direction?: "higher" | "lower";
+  /** How to do the test: warm-up, rest, attempts. Shown when logging. */
+  protocol?: string;
+  /** How the charted number is formed. Default "raw". */
+  score?: BenchmarkScore;
+  /** The ids of tests merged into this one by the fields migration, so a setting that named one of them still finds it. */
+  mergedFrom?: string[];
 }
 
 /**
@@ -623,10 +672,13 @@ export interface Benchmark {
   /** Keeping name for display/backwards compatibility during migrations */
   type: string;
   notes?: string;
+  /** The primary result (see `BenchmarkTypeDef`) - what every chart that predates fields reads. */
   value: number;
   unit: string;
   date: string;
   weekId: string;
+  /** Every field's value by `ValueDef.id` - the primary result too, and the conditions it was done under. */
+  values?: Record<string, number | string>;
 }
 
 /**

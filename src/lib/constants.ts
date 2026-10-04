@@ -26,7 +26,7 @@ export const FATIGUE_AXIS_COLORS: Record<(typeof RATING_AXES)[number]["key"], st
 /**
  * Current data model version for exports and migrations.
  */
-export const DATA_EXPORT_VERSION = "3.33";
+export const DATA_EXPORT_VERSION = "3.34";
 
 /**
  * Well-known `MetricDef.id` for bodyweight - fixed/stable, same
@@ -60,6 +60,11 @@ export const DEFAULT_VALUE_DEFS: ValueDef[] = [
   { id: "speed", name: "Speed", unit: "km/h", kind: "number", builtIn: true },
   { id: "heartRate", name: "Heart rate", unit: "bpm", kind: "number", builtIn: true },
   { id: "count", name: "Count", unit: "", kind: "number", builtIn: true },
+  // For benchmark tests (kept in step with `BENCHMARK_VALUE_DEFS`, which the 3.34 migration uses).
+  { id: "weight", name: "Weight", unit: "kg", kind: "number", measure: "weight", builtIn: true, uses: ["benchmark"] },
+  { id: "reps", name: "Reps", unit: "reps", kind: "number", measure: "reps", builtIn: true, uses: ["benchmark"] },
+  { id: "time", name: "Time", unit: "s", kind: "number", measure: "time", builtIn: true, uses: ["benchmark"] },
+  { id: "edge", name: "Edge depth", unit: "mm", kind: "number", measure: "length", builtIn: true, uses: ["benchmark"] },
 ];
 
 export const DEFAULT_METRIC_DEFS: MetricDef[] = [
