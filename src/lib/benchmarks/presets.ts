@@ -36,8 +36,8 @@ export const BENCHMARK_PRESETS: BenchmarkPreset[] = [
   {
     id: "weight-for-reps",
     label: "Weight for reps",
-    hint: "Both change between tests - charted as an estimated one-rep max, and reps against weight",
-    make: () => ({ name: "Weighted Pullup", unit: "kg", group: "Pulling", score: "estimatedMax", fields: [{ valueId: "weight", role: "result", label: "Added weight" }, { valueId: "reps", role: "condition" }] }),
+    hint: "Both change between tests - charted as an estimated one-rep max, and reps against weight (both are results, so nothing is split)",
+    make: () => ({ name: "Weighted Pullup", unit: "kg", group: "Pulling", score: "estimatedMax", fields: [{ valueId: "weight", role: "result", label: "Added weight" }, { valueId: "reps", role: "result" }] }),
   },
   {
     id: "one-rep-max",

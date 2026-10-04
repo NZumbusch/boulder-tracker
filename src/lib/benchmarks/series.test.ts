@@ -13,7 +13,7 @@ const defs: ValueDef[] = [
 const hang: BenchmarkTypeDef = { id: "hang", name: "Max Hang", unit: "kg", fields: [{ valueId: "edge", role: "condition" }, { valueId: "weight", role: "result", label: "Added weight" }] };
 const pull: BenchmarkTypeDef = {
   id: "pull", name: "Weighted Pullup", unit: "kg", score: "estimatedMax",
-  fields: [{ valueId: "weight", role: "result", label: "Added weight" }, { valueId: "reps", role: "condition" }],
+  fields: [{ valueId: "weight", role: "result", label: "Added weight" }, { valueId: "reps", role: "result" }],
 };
 const circuit: BenchmarkTypeDef = { id: "circ", name: "Circuit", unit: "s", direction: "lower", fields: [{ valueId: "time", role: "result" }] };
 const r = (id: string, typeId: string, date: string, value: number, values?: Benchmark["values"]): Benchmark => ({ id, typeId, type: typeId, value, unit: "kg", date, weekId: "2026-W36", values });
@@ -73,12 +73,19 @@ describe("metrics", () => {
   });
 
   it("makes the points of a series for a metric, skipping results that cannot be read", () => {
-    const s = buildSeries([r("a", "pull", "2026-01-01", 30, { weight: 30, reps: 3 }), r("b", "pull", "2026-02-01", 30, { weight: 30 })], [pull], defs, "kg");
-    // different reps -> different conditions -> separate series
-    expect(s).toHaveLength(2);
-    const est = defaultMetric(s[0], "kg")!;
-    expect(metricPoints(est, s[0], "kg", [])).toEqual([]);
-    expect(metricPoints(est, s[1], "kg", []).map((p) => p.value)).toEqual([33]);
+    const [s] = buildSeries([r("a", "pull", "2026-01-01", 30, { weight: 30, reps: 3 }), r("b", "pull", "2026-02-01", 30, { weight: 30 })], [pull], defs, "kg");
+    // reps is a result, not a condition: both are one series
+    expect(s.results).toHaveLength(2);
+    const est = defaultMetric(s, "kg")!;
+    expect(est.id).toBe("estimatedMax");
+    expect(metricPoints(est, s, "kg", []).map((p) => p.value)).toEqual([33]); // the second has no reps
+  });
+
+  it("splits a series by a condition but not by a result", () => {
+    const withCondition = { ...pull, fields: [pull.fields![0], { valueId: "reps", role: "condition" as const }] };
+    const rs = [r("a", "pull", "2026-01-01", 30, { weight: 30, reps: 3 }), r("b", "pull", "2026-02-01", 30, { weight: 30, reps: 5 })];
+    expect(buildSeries(rs, [withCondition], defs, "kg")).toHaveLength(2);
+    expect(buildSeries(rs, [pull], defs, "kg")).toHaveLength(1);
   });
 });
 

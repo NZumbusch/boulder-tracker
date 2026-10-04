@@ -253,7 +253,7 @@
               {@const isPrimary = row.role === 'result' && editing.rows.findIndex((r) => r.role === 'result') === i}
               <div class="p-3 rounded-control bg-surface-elevated/50 border border-border space-y-2.5">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="min-w-0 text-body font-bold text-content truncate">{defName(row.valueId)}{#if def?.unit}<span class="text-content-subtle font-normal"> · {def.measure === 'weight' ? trainingState.units.weight : def.unit}</span>{/if}</span>
+                  <span class="min-w-0 text-body font-bold text-content truncate">{row.label.trim() || defName(row.valueId)}{#if def?.unit}<span class="text-content-subtle font-normal">&nbsp;· {def.measure === 'weight' ? trainingState.units.weight : def.unit}</span>{/if}</span>
                   <span class="flex items-center shrink-0">
                     <button onclick={() => moveRow(i, -1)} disabled={i === 0} class="p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move up"><Icon icon="ic:baseline-arrow-upward" class="text-base" /></button>
                     <button onclick={() => moveRow(i, 1)} disabled={i === editing.rows.length - 1} class="p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move down"><Icon icon="ic:baseline-arrow-downward" class="text-base" /></button>
@@ -269,7 +269,7 @@
                   {#if isPrimary}<span class="text-caption text-content-subtle">charted</span>{/if}
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <input bind:value={row.label} placeholder="Name in this test (optional)" aria-label="Name in this test" class="px-3 py-2 bg-surface text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50" />
+                  <input bind:value={row.label} placeholder="Own name (optional)" aria-label="Name in this test" class="px-3 py-2 bg-surface text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50" />
                   {#if def?.kind === 'choice'}
                     <select bind:value={row.fixedText} aria-label="Always" class="px-3 py-2 bg-surface text-content rounded-control border border-border-strong text-sm outline-none">
                       <option value="">Asked each time</option>
@@ -295,7 +295,7 @@
               {#each unusedDefs as d (d.id)}<option value={d.id}>{d.name}{d.unit ? ` (${d.measure === 'weight' ? trainingState.units.weight : d.unit})` : ''}</option>{/each}
             </select>
           {/if}
-          <p class="text-caption text-content-subtle">The first result is what progress follows. Need another kind of value? Add it under Training setup → Value types.</p>
+          <p class="text-caption text-content-subtle leading-relaxed"><b class="text-content-muted">Result</b>: something you measure and chart - weight, reps, time. <b class="text-content-muted">Condition</b>: how you did it (edge depth, a set load) - results are only compared at the same condition, so each value of it is its own line. The first result is what progress follows. Need another kind of value? Add it under Training setup → Value types.</p>
         </div>
 
         <div class="space-y-1.5">

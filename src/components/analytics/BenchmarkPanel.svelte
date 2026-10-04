@@ -81,8 +81,12 @@
   const metricA = $derived(metrics.find((m) => m.id === metricAId) ?? metrics[0]);
   const metricB = $derived(metrics.find((m) => m.id === metricBId && m.id !== metricA?.id));
   const canCompare = $derived(metrics.length > 1);
-  const xMetric = $derived(metrics.find((m) => m.id === xId) ?? metrics.find((m) => m.id !== (yMetric?.id ?? metrics[0]?.id)) ?? metrics[0]);
-  const yMetric = $derived(metrics.find((m) => m.id === yId) ?? metrics[0]);
+  // Against starts from the logged fields (reps against weight), not a score computed from one of them.
+  const rawMetrics = $derived(metrics.filter((m) => m.field));
+  const yMetric = $derived(metrics.find((m) => m.id === yId) ?? rawMetrics[0] ?? metrics[0]);
+  const xMetric = $derived(
+    metrics.find((m) => m.id === xId) ?? rawMetrics.find((m) => m.id !== yMetric?.id) ?? metrics.find((m) => m.id !== yMetric?.id) ?? metrics[0],
+  );
 
   const pointsIn = (m: Metric | undefined): MetricPoint[] =>
     m && series ? metricPoints(m, series, weight, bodyweights).filter((p) => inWindow(p.result.date)) : [];

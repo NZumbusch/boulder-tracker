@@ -197,9 +197,9 @@
       <div class="grid grid-cols-2 gap-3">
         {#each asked as f (f.valueId)}
           {@const isPrimary = primary?.valueId === f.valueId}
-          <div class="space-y-1 {isPrimary || asked.length === 1 ? 'col-span-2' : ''}">
+          <div class="space-y-1 {isPrimary || asked.length <= 2 ? 'col-span-2' : ''}">
             <label for="benchmark-{f.valueId}" class="text-label text-content-subtle ml-1">
-              {f.label}{#if f.role === 'condition'}<span class="text-content-subtle/70"> · condition</span>{/if}{#if unitLabel(f, weightUnit)}<span class="text-content-subtle/70"> ({unitLabel(f, weightUnit)})</span>{/if}
+              {f.label}{#if f.role === 'condition'}<span class="text-content-subtle/70">&nbsp;· condition</span>{/if}{#if unitLabel(f, weightUnit)}<span class="text-content-subtle/70">&nbsp;({unitLabel(f, weightUnit)})</span>{/if}
             </label>
             {#if f.kind === 'choice'}
               <select id="benchmark-{f.valueId}" bind:value={inputs[f.valueId]} class="{inputClass} appearance-none">
