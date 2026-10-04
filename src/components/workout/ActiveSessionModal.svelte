@@ -1,6 +1,6 @@
 <script lang="ts">
   import { backWhile } from '../../lib/navigation/backStack.svelte';
-  import { live, composeLive, onLiveAction } from '../../lib/native/liveNotification.svelte';
+  import { live, composeLive, onLiveAction, pushTimerAction, timerRunning } from '../../lib/native/liveNotification.svelte';
   import { liveTimerAvailable, sendLiveTimer, stopLiveTimer } from '../../lib/native/timerService';
   import { untrack } from 'svelte';
   import { motionMs } from '../../lib/motion';
@@ -174,10 +174,49 @@
       }
     });
   });
-  // Pause / Resume session pressed in the notification.
+  // Pausing the session pauses a running timer or circuit with it, and
+  // resuming resumes it - but only a timer this pause stopped: one paused
+  // by hand stays paused, and resuming the timer alone while the session is
+  // paused just runs the timer on (the session is not touched).
+  let timerPausedBySession = false;
+  let sessionWasPaused = untrack(() => store.isPaused);
+  function linkTimerToSession(paused: boolean) {
+    if (paused) {
+      if (timerRunning(live.timerPlan)) {
+        timerPausedBySession = true;
+        pushTimerAction('pause');
+      }
+    } else if (timerPausedBySession) {
+      timerPausedBySession = false;
+      pushTimerAction('resume');
+    }
+  }
+  $effect(() => {
+    const paused = store.isPaused;
+    untrack(() => {
+      if (paused === sessionWasPaused) return;
+      sessionWasPaused = paused;
+      linkTimerToSession(paused);
+    });
+  });
+  // The timer running again by itself (a hand resume) ends the link. (A
+  // paused self-paced timer has no plan at all, so "no plan" doesn't.)
+  $effect(() => {
+    if (timerRunning(live.timerPlan)) timerPausedBySession = false;
+  });
+  // Pause / Resume session pressed in the notification: the service has
+  // already paused or resumed the timer itself when it should (`withTimer`).
   $effect(() => onLiveAction((action) => {
-    if (action.kind === 'sessionPause') store.pause();
-    else if (action.kind === 'sessionResume') store.resume();
+    if (action.kind === 'sessionPause') {
+      if (action.withTimer) timerPausedBySession = true;
+      store.pause();
+      sessionWasPaused = store.isPaused;
+      if (!action.withTimer) linkTimerToSession(true);
+    } else if (action.kind === 'sessionResume') {
+      store.resume();
+      sessionWasPaused = store.isPaused;
+      linkTimerToSession(false);
+    }
   }));
 
   /** The session timer, so the exercise card's Timer button can open it. */

@@ -56,7 +56,7 @@ public class TimerForegroundService extends Service {
 
     /** Tells the plugin (and so the page) about a notification button press. */
     interface ActionListener {
-        void onAction(String kind, long at, long seq);
+        void onAction(String kind, long at, long seq, boolean withTimer);
     }
 
     /**
@@ -103,6 +103,8 @@ public class TimerForegroundService extends Service {
     private boolean vibrate = true;
     /** Epoch ms paused at (from the notification), or 0. */
     private long pausedAt = 0;
+    /** The timer was paused by the session's pause (not by its own button). */
+    private boolean timerPausedBySession = false;
     private boolean foreground = false;
     /** The segment the notification shows now, to tell when it has moved on without us noticing. */
     private Segment shownSegment;
@@ -213,6 +215,7 @@ public class TimerForegroundService extends Service {
             sound = config.optBoolean("sound", true);
             vibrate = config.optBoolean("vibrate", true);
             pausedAt = 0;
+            timerPausedBySession = false;
         } catch (Exception e) {
             return;
         }
@@ -312,7 +315,8 @@ public class TimerForegroundService extends Service {
             for (Cue cue : cues) if (cue.at >= pausedAt) cue.at += shift;
             for (Segment seg : segments) {
                 if (seg.endsAt >= pausedAt) seg.endsAt += shift;
-                if (seg.startedAt > 0) seg.startedAt += shift;
+                // The session's own segment (its buttons) keeps running through a timer pause.
+                if (seg.startedAt > 0 && seg.actions == null) seg.startedAt += shift;
             }
             pausedAt = 0;
         }
@@ -335,11 +339,31 @@ public class TimerForegroundService extends Service {
      * Session pause/resume: the page owns the session, so this only reports
      * it and shows it straight away (the clock frozen, or running on from
      * where it stopped); the page answers with a fresh plan.
+     *
+     * A running timer is paused with the session (and resumed with it, if
+     * it was this pause that stopped it), so a rest doesn't keep counting
+     * while the session is paused - also while the page is asleep. The
+     * timer's own buttons stay independent: resuming just the timer leaves
+     * the session paused.
      */
     private void sessionFromNotification(boolean pause) {
         long now = System.currentTimeMillis();
-        Segment seg = currentSegment(now);
-        if (seg != null && seg.actions != null) {
+        boolean withTimer = false;
+        if (pause) {
+            Segment current = currentSegment(now);
+            if (pausedAt == 0 && current != null && current.actions == null && actions.contains("pause")) {
+                pauseFromNotification();
+                timerPausedBySession = true;
+                withTimer = true;
+            }
+        } else if (timerPausedBySession && pausedAt != 0) {
+            resumeFromNotification();
+            withTimer = true;
+        }
+        if (!pause) timerPausedBySession = false;
+
+        for (Segment seg : segments) {
+            if (seg.actions == null) continue;
             if (pause && seg.startedAt > 0) {
                 seg.body = "Paused · " + format(now - seg.startedAt) + " · " + seg.body;
                 seg.startedAt = 0;
@@ -347,23 +371,29 @@ public class TimerForegroundService extends Service {
             } else if (!pause) {
                 seg.actions = new ArrayList<>(java.util.Collections.singletonList("sessionPause"));
             }
-            render();
         }
-        notifyListener(pause ? "sessionPause" : "sessionResume", now);
+        render();
+        notifyListener(pause ? "sessionPause" : "sessionResume", now, withTimer);
     }
 
     private void notifyListener(String kind, long at) {
+        notifyListener(kind, at, false);
+    }
+
+    private void notifyListener(String kind, long at, boolean withTimer) {
         long seq;
         synchronized (TimerForegroundService.class) {
             seq = ++actionSeq;
             try {
-                pendingActions.add(new JSONObject().put("kind", kind).put("at", at).put("seq", seq));
+                JSONObject action = new JSONObject().put("kind", kind).put("at", at).put("seq", seq);
+                if (withTimer) action.put("withTimer", true);
+                pendingActions.add(action);
             } catch (Exception ignored) {
                 // JSONObject.put only throws for NaN numbers.
             }
         }
         ActionListener l = listener;
-        if (l != null) l.onAction(kind, at, seq);
+        if (l != null) l.onAction(kind, at, seq, withTimer);
     }
 
     // --- Lifecycle ----------------------------------------------------------

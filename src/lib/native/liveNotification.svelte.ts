@@ -44,6 +44,19 @@ function dispatch(action: LiveAction) {
   for (const h of handlers) h(action);
 }
 
+/**
+ * Tells the running timer or circuit (their `onLiveAction` handlers) to
+ * pause or resume now - the session's pause, mirrored onto it. Not a
+ * notification press, so it has no sequence number.
+ */
+export function pushTimerAction(kind: "pause" | "resume", at = Date.now()) {
+  for (const h of handlers) h({ kind, at, seq: 0 });
+}
+
+/** The timer plan is a running timer / a paused one (what its notification buttons say). */
+export const timerRunning = (plan: LiveTimerConfig | null): boolean => !!plan && plan.actions.includes("pause");
+export const timerPaused = (plan: LiveTimerConfig | null): boolean => !!plan && plan.actions.includes("resume");
+
 export function onLiveAction(handler: Handler): () => void {
   handlers.add(handler);
   if (!listening) {

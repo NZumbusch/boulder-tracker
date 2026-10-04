@@ -12,7 +12,13 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import type { LiveTimerConfig } from "../timer/liveTimer";
 
-export type LiveAction = { kind: "pause" | "resume" | "add30" | "sessionPause" | "sessionResume"; at: number; seq: number };
+export type LiveAction = {
+  kind: "pause" | "resume" | "add30" | "sessionPause" | "sessionResume";
+  at: number;
+  seq: number;
+  /** A session pause that also paused the timer (or a session resume that resumed it) - the service did it while the page slept. */
+  withTimer?: boolean;
+};
 
 interface TimerServicePlugin {
   start(options: LiveTimerConfig & { sound: boolean; vibrate: boolean }): Promise<void>;

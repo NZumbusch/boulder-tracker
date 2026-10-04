@@ -27,9 +27,10 @@ public class TimerServicePlugin extends Plugin {
 
     @Override
     public void load() {
-        TimerForegroundService.listener = (kind, at, seq) -> {
+        TimerForegroundService.listener = (kind, at, seq, withTimer) -> {
             JSObject data = new JSObject();
             data.put("kind", kind);
+            if (withTimer) data.put("withTimer", true);
             data.put("at", at);
             data.put("seq", seq);
             // Retained until the page's listener takes it, so a press while

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { composeLive, sessionSegment, type SessionInfo } from "./liveNotification.svelte";
+import { composeLive, sessionSegment, timerPaused, timerRunning, type SessionInfo } from "./liveNotification.svelte";
 import type { LiveTimerConfig } from "../timer/liveTimer";
 
 const NOW = 1_000_000;
@@ -41,5 +41,12 @@ describe("session notification", () => {
     expect(composeLive(null, session, { sessionNotification: false }, NOW)).toBeNull();
     expect(composeLive(timer, session, { sessionNotification: false }, NOW)).toBe(timer);
     expect(composeLive(null, null, { sessionNotification: true }, NOW)).toBeNull();
+  });
+
+  it("tells a running timer from a paused one by its buttons", () => {
+    expect([timerRunning(timer), timerPaused(timer)]).toEqual([true, false]);
+    const paused = { ...timer, actions: ["resume" as const] };
+    expect([timerRunning(paused), timerPaused(paused)]).toEqual([false, true]);
+    expect([timerRunning(null), timerPaused(null)]).toEqual([false, false]);
   });
 });
