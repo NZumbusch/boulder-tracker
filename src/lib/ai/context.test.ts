@@ -468,3 +468,27 @@ describe("notes in the AI profile", () => {
     expect(profile.weekNotes).toBeUndefined();
   });
 });
+
+import { describeBenchmarks } from "./context";
+describe("describeBenchmarks", () => {
+  const types = [{ id: "hang", name: "Max Hang", unit: "kg", fields: [{ valueId: "edge", role: "condition" as const }, { valueId: "weight", role: "result" as const }] },
+    { id: "circ", name: "Circuit", unit: "s", direction: "lower" as const, fields: [{ valueId: "time", role: "result" as const }] }];
+  const defs = [
+    { id: "edge", name: "Edge depth", unit: "mm", kind: "number" as const, measure: "length" as const },
+    { id: "weight", name: "Weight", unit: "kg", kind: "number" as const, measure: "weight" as const },
+    { id: "time", name: "Time", unit: "s", kind: "number" as const, measure: "time" as const },
+  ];
+  const b = (typeId: string, values?: Record<string, number>) => ({ id: "x", typeId, type: typeId, value: 40, unit: "kg", date: "2026-09-01", weekId: "2026-W36", values });
+
+  it("spells out the conditions in words and drops the ids", () => {
+    const [out] = describeBenchmarks([b("hang", { edge: 20, weight: 40 })], types, defs);
+    expect(out.conditions).toBe("Edge depth 20 mm");
+    expect("values" in out).toBe(false);
+  });
+  it("says when lower is better, and leaves results of unknown tests as they are", () => {
+    expect(describeBenchmarks([b("circ", { time: 90 })], types, defs)[0].better).toBe("lower");
+    const [plain] = describeBenchmarks([b("gone")], types, defs);
+    expect(plain).toMatchObject({ typeId: "gone", value: 40 });
+    expect(plain.conditions).toBeUndefined();
+  });
+});

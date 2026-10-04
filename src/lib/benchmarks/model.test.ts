@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Benchmark, BenchmarkTypeDef, ValueDef } from "../types";
 import {
-  describeResult, askedFields, conditionKey, conditionsText, finalizeType, formatFieldValue, fromShown, groupTypes,
+  describeResult, otherValuesText, askedFields, conditionKey, conditionsText, finalizeType, formatFieldValue, fromShown, groupTypes,
   primaryField, resolveFields, resultValues, toShown, typeProblem, unitLabel,
 } from "./model";
 
@@ -103,5 +103,13 @@ describe("describeResult", () => {
   });
   it("falls back to what the result itself says when its test is gone", () => {
     expect(describeResult(res(undefined), [], defs, "kg")).toEqual({ title: "Max Hang", value: "40 kg" });
+  });
+});
+
+describe("otherValuesText", () => {
+  it("names every value but the primary one, fixed ones too", () => {
+    const f = resolveFields(hang, defs);
+    expect(otherValuesText(res({ edge: 20 }), f)).toBe("Edge depth 20 mm, Reps 1 reps");
+    expect(otherValuesText(res(undefined), f)).toBe("Reps 1 reps");
   });
 });

@@ -1,6 +1,7 @@
 import type {
   AnalyticsCategory,
   Benchmark,
+  BenchmarkTypeDef,
   GoalEvent,
   DailyMetricEntry,
   ExerciseTypeDef,
@@ -15,6 +16,7 @@ import type {
   Workout,
 } from "../types";
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
+import { otherValuesText, resolveFields } from "../benchmarks/model";
 import { repsRepresentative } from "../exercise/reps";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
@@ -541,6 +543,26 @@ export interface AIContextSource {
   weekNotes: WeekNote[];
   /** The athlete's own value types - optional so callers from before them keep compiling. */
   valueDefs?: ValueDef[];
+  /** The benchmark tests: with them, results are described by their conditions ("Edge depth 20 mm"). */
+  benchmarkTypes?: BenchmarkTypeDef[];
+}
+
+/** A benchmark result for a prompt: the stored result, with the names its values lack. */
+export type AIBenchmark = Omit<Benchmark, "values"> & {
+  /** The other values it was recorded with ("Edge depth 20 mm"), named. */
+  conditions?: string;
+  /** Present when a lower result is the better one. */
+  better?: "lower";
+};
+
+/** The results with their conditions spelled out (the ids in `values` mean nothing to a reader). */
+export function describeBenchmarks(results: Benchmark[], types: BenchmarkTypeDef[] | undefined, defs: ValueDef[] | undefined): AIBenchmark[] {
+  return results.map(({ values, ...b }) => {
+    const type = types?.find((t) => t.id === b.typeId);
+    if (!type) return b;
+    const conditions = values ? otherValuesText({ ...b, values }, resolveFields(type, defs ?? [])) : "";
+    return { ...b, ...(conditions ? { conditions } : {}), ...(type.direction === "lower" ? { better: "lower" as const } : {}) };
+  });
 }
 
 export interface AIContextProfile {
@@ -555,7 +577,7 @@ export interface AIContextProfile {
   recentWorkouts: RecentWorkoutSummary[];
   /** One line per older week - not for analyze, which is scoped to its own weeks. */
   weeklyHistory?: WeekHistorySummary[];
-  benchmarks: Benchmark[];
+  benchmarks: AIBenchmark[];
   trainingBlocks?: TrainingBlockSummary[];
   goals?: GoalSummary[];
   readiness?: ReadinessSnapshot;
@@ -601,7 +623,7 @@ export function buildAIContextProfile(
 
   const windowWeekIds = mode === "context" ? [getWeekId(asOf)] : targetWeekIds;
 
-  const profile: AIContextProfile = { recentWorkouts, benchmarks };
+  const profile: AIContextProfile = { recentWorkouts, benchmarks: describeBenchmarks(benchmarks, source.benchmarkTypes, source.valueDefs) };
 
   if (mode !== "analyze" && history.summaryWeeks > 0) {
     const phaseOf = sharing.trainingBlocks

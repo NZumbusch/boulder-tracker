@@ -201,7 +201,9 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     [-2, "lsit-duration", "L-Sit Duration", 24, "s"],
   ].map(([offset, typeId, type, value, unit], i) => {
     const date = addDays(mondayOf(today, offset as number), 5);
-    return { id: `demo-bm-${i}`, typeId: typeId as string, type: type as string, value: value as number, unit: unit as string, date: iso(date), weekId: getWeekId(date) };
+    // Reps for the pull-ups, seconds for the hold: the field the test records.
+    const values = { [unit === "reps" ? "reps" : "time"]: value as number };
+    return { id: `demo-bm-${i}`, typeId: typeId as string, type: type as string, value: value as number, unit: unit as string, date: iso(date), weekId: getWeekId(date), values };
   });
 
   const outdoorAscents: OutdoorAscent[] = (

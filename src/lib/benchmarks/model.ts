@@ -186,3 +186,13 @@ export function describeResult(b: Benchmark, types: readonly BenchmarkTypeDef[],
     value: primary ? formatFieldValue(primary, b.value, weight) : `${b.value} ${b.unit}`.trim(),
   };
 }
+
+/** Every value of a result except the primary one, with its name: "Edge depth 20 mm, Reps 1" - for the AI, which needs the names. */
+export function otherValuesText(b: Benchmark, fields: ResolvedField[]): string {
+  const values = resultValues(b, fields);
+  const primary = primaryField(fields);
+  return fields
+    .filter((f) => f.valueId !== primary?.valueId && values[f.valueId] !== undefined)
+    .map((f) => `${f.label} ${formatFieldValue(f, values[f.valueId], "kg")}`)
+    .join(", ");
+}

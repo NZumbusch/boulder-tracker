@@ -6,6 +6,7 @@ import { storage } from './storage';
 import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
+import { adoptTotalBasis } from './benchmarks/basis';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate } from './dateUtils';
@@ -455,6 +456,26 @@ class TrainingState {
   setWelcomeDone(done: boolean) { this.preferencesStore.setWelcomeDone(done); }
 
   /**
+   * "This test's weight already includes bodyweight" used to be a list in the
+   * preferences; it is a property of the test's weight field now. Carry an
+   * old list over, once, and empty it.
+   */
+  private async adoptBenchmarkBasis() {
+    const ids = this.preferencesStore.benchmarkTotalTypeIds;
+    if (ids.length === 0 || isDemoMode()) return;
+    const { types, changed } = adoptTotalBasis(this.catalogStore.benchmarkTypes, this.catalogStore.valueDefs, ids);
+    try {
+      if (changed) {
+        await storage.saveBenchmarkTypes($state.snapshot(types));
+        this.catalogStore.benchmarkTypes = types;
+      }
+      this.preferencesStore.setBenchmarkTotalTypeIds([]);
+    } catch (err) {
+      console.error('Failed to carry the benchmark weight basis over:', err);
+    }
+  }
+
+  /**
    * Refreshes all data from storage.
    */
   async refresh() {
@@ -476,6 +497,7 @@ class TrainingState {
       ]);
 
       await this.reconcileSettings();
+      await this.adoptBenchmarkBasis();
 
       // The database file was damaged and got restored (storage/persistence.ts) - say so, once.
       const recovery = takeRecoveryNotice();
