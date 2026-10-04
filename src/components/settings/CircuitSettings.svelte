@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Settings -> Customization -> Circuits: the saved-circuit library. Each
+   * Settings -> Training setup -> Circuits: the saved-circuit library. Each
    * circuit is added to a session or phase template as a copy (see
    * lib/exercise/circuits.ts), so editing one here changes only future adds.
    */

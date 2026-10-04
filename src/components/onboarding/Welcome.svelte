@@ -12,6 +12,7 @@
    * (or "open in…") step, with a way to carry on in the browser anyway.
    */
   import Icon from '@iconify/svelte';
+  import { settingsPath } from '../../lib/settings/tree';
   import { Capacitor } from '@capacitor/core';
   import { trainingState } from '../../lib/state.svelte';
   import { DEFAULT_TEMPLATE_LIBRARY } from '../../lib/constants';
@@ -170,7 +171,7 @@
         <div class="space-y-2.5">
           <label class="block w-full text-left p-4 rounded-card border border-border bg-surface hover:border-border-strong transition-colors cursor-pointer {restoring ? 'opacity-60 pointer-events-none' : ''}">
             <p class="text-body font-bold text-content">Restore a backup file</p>
-            <p class="text-caption text-content-subtle mt-1 leading-relaxed">The .json file from Settings → Data &amp; Exports on your other device, or the weekly backup in Documents/BoulderTracker.</p>
+            <p class="text-caption text-content-subtle mt-1 leading-relaxed">The .json file from {settingsPath('sync')} on your other device, or the weekly backup in Documents/BoulderTracker.</p>
             <input type="file" accept=".json,application/json" class="hidden" onchange={restoreBackup} />
           </label>
           {#if driveSync.available}
@@ -188,7 +189,7 @@
           <p class="text-body text-content-muted leading-relaxed">You're using the web version. It has everything for planning, logging and charts. Some things need the Android app.</p>
         </div>
         <PlatformTable />
-        <p class="text-caption text-content-subtle leading-relaxed">Your data stays in this browser, so save a backup file now and then (Settings → Data &amp; Exports).{#if isAndroidWeb(info)} The Android app is a separate install; there's a link on Home.{/if}</p>
+        <p class="text-caption text-content-subtle leading-relaxed">Your data stays in this browser, so save a backup file now and then ({settingsPath('sync')}).{#if isAndroidWeb(info)} The Android app is a separate install; there's a link on Home.{/if}</p>
 
       {:else if step === 'focus'}
         <div class="space-y-2">
@@ -215,12 +216,12 @@
             </button>
           {/each}
         </div>
-        <p class="text-caption text-content-subtle leading-relaxed">Both go into "About me" and your standing goal for the AI coach (Settings → Coach notes), where you can change them. Skippable.</p>
+        <p class="text-caption text-content-subtle leading-relaxed">Both go into "About me" and your standing goal for the AI coach ({settingsPath('coach')}), where you can change them. Skippable.</p>
 
       {:else if step === 'level'}
         <div class="space-y-2">
           <h2 class="text-title text-content">How do you train?</h2>
-          <p class="text-body text-content-muted leading-relaxed">This picks the sessions each training phase starts with. You can edit them, or switch, any time under Settings → Customization.</p>
+          <p class="text-body text-content-muted leading-relaxed">This picks the sessions each training phase starts with. You can edit them, or switch, any time under {settingsPath('phases')}.</p>
         </div>
         <div class="space-y-2.5" role="radiogroup" aria-label="Training level">
           {#each DEFAULT_TEMPLATE_LIBRARY as set}
@@ -272,7 +273,7 @@
       {:else if step === 'units'}
         <div class="space-y-2">
           <h2 class="text-title text-content">Units</h2>
-          <p class="text-body text-content-muted leading-relaxed">For weights and the weather. Grades and each unit on its own are under Settings → Appearance & Behaviour → General.</p>
+          <p class="text-body text-content-muted leading-relaxed">For weights and the weather. Grades and each unit on its own are under {settingsPath('units')}.</p>
         </div>
         <div class="space-y-2.5" role="radiogroup" aria-label="Units">
           {#each [[true, 'Metric', 'kg · °C · km/h'], [false, 'Imperial', 'lb · °F · mph']] as [isMetric, name, detail]}
@@ -340,7 +341,7 @@
           <Icon icon="ic:baseline-check-circle" class="text-5xl text-success" />
           <h2 class="text-title text-content">You're set up</h2>
           <p class="text-body text-content-muted leading-relaxed">Want a quick tour? It shows every screen filled with example training, so you can see what each part does. Nothing from it is saved.</p>
-          <p class="text-caption text-content-subtle leading-relaxed">You can take it later from Settings → About & Help.</p>
+          <p class="text-caption text-content-subtle leading-relaxed">You can take it later from {settingsPath('about')}.</p>
         </div>
       {/if}
     </div>

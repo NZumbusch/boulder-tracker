@@ -1,7 +1,7 @@
 import type { Content, ContentTable, CustomTableLayout, TDocumentDefinitions, TableCell } from "pdfmake/interfaces";
 
 /**
- * The printable training plan (Settings -> Connections & Exports -> PDF).
+ * The printable training plan (Settings -> Data & connections -> Calendar & PDF).
  *
  * pdfmake lays out real text, so the PDF is sharp, searchable and small,
  * paginates itself and never splits a session across pages. The previous

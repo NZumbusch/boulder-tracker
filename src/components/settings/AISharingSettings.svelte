@@ -7,7 +7,7 @@
    * togglable; a disabled one is simply omitted from the generated prompt,
    * never sent-but-redacted (`src/lib/ai/context.ts`).
    *
-   * Placed under Settings' "Connections & Exports" page, next to the calendar
+   * Placed under Settings' "AI & coach" section, next to the coach notes
    * export - the app's other "what leaves this device" surface - rather
    * than a new top-level tab, same reasoning as nesting
    * Notifications into Appearance & Behaviour instead of promoting it.

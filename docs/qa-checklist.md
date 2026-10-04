@@ -41,7 +41,7 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 3.4 | "Just keep track" | Repeat with goal "Just keep track". | The plan step is preselected as "I'll plan it myself"; Plan stays empty. | | |
 | 3.5 | Home for a new user | After the welcome. | Get started card; no readiness ring, metrics, fatigue, progress or alerts. Today / This week visible. | | |
 | 3.6 | Checklist ticks | Plan, do a session, log bodyweight, take the tour. | Each item ticks itself; the card disappears when done (or after 3 sessions, or ×). | | |
-| 3.7 | Simple Home setting | Settings → Appearance → Home sections → turn off "Simple Home". | All enabled sections appear even with no data; turning on hides them again. | | |
+| 3.7 | Simple Home setting | Settings → App & display → Home → turn off "Simple Home". | All enabled sections appear even with no data; turning on hides them again. | | |
 | 3.8 | Example data | Home → "look around with example data" (and Analytics → See it with example data). | Banner "Example data, nothing saved"; Start Now refuses with a message; Exit returns to your (empty) data; reload shows no example data. | | |
 | 3.9 | Tour | Home ? button, then Take the tour. | Runs through every screen; leaving restores your data. | | |
 | 3.10 | Returning user: backup | New install, "I already use Boulder Tracker" → Restore a backup file. | Data comes back, no setup questions, lands on History. | | |
@@ -66,10 +66,10 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | --- | --- | --- | --- | --- | --- |
 | 5.1 | Two phones | Connect Drive on phone A, log a session; connect on phone B (fresh). | B ends up with A's data; both list each other under Devices. | | |
 | 5.2 | Edits both ways | Edit different things on A and B, sync both (Sync now). | Both phones end with both edits. | | |
-| 5.3 | Same record, two edits | Edit the same session on both while offline, then sync both. | A "changed on two devices" toast; the losing version is restorable in Settings → Sync. | | |
+| 5.3 | Same record, two edits | Edit the same session on both while offline, then sync both. | A "changed on two devices" toast; the losing version is restorable in Settings → Data & connections → Sync & backup. | | |
 | 5.4 | Offline | Airplane mode, log something, reconnect. | Syncs by itself within a minute or two of coming online. | | |
 | 5.5 | Reconnect | Disconnect and connect again on A. | Same device name, no duplicates under Devices. | | |
-| 5.6 | **Restored backup (new)** | Follow `docs/android-backup-audit.md` ("What a test needs"). | Phone B: toast + "Restored from a backup" note in Settings → Sync; a **different** device ID than A; A and B list each other; edits reach both ways. | | |
+| 5.6 | **Restored backup (new)** | Follow `docs/android-backup-audit.md` ("What a test needs"). | Phone B: toast + "Restored from a backup" note in Settings → Data & connections → Sync & backup; a **different** device ID than A; A and B list each other; edits reach both ways. | | |
 | 5.7 | Revoked access | Remove the app at myaccount.google.com/permissions, then open the app. | "Google needs you to sign in again" with a Sign in button that works. | | |
 
 ## 6. Look and feel
@@ -106,6 +106,16 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | # | Test | Steps | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
 | 8.1 | Week dates | AI → generate: look at the prompt preview. | Week ids carry their dates ("2026-W40 (28 Sep – 4 Oct 2026)"), in the target timeframe, the target weeks, blocks and week notes. | | |
+
+## 9. Settings layout
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 9.1 | Sections and pages | Open Settings; open each of the 8 sections. | Every section lists its pages (Reminders and About open straight into their page); back goes page → section → Settings → Home. | | |
+| 9.2 | Search | Type "volume", "sync", "units", "tts" in the search box. | Each finds the setting and opens the page it is on; nonsense shows "Nothing called that". | | |
+| 9.3 | Browser vs app | Open Settings in the browser build. | No Widgets, Health Connect or phone notifications; nothing else missing. | | |
+| 9.4 | Paths in the text | Follow a few "Settings → …" mentions (glossary ?, welcome, AI coach screen, sync toast). | Each names a page that exists. | | |
+| 9.5 | Tour | Replay the tour from About & Help; go through the Settings stops. | Each stop highlights a row on the Settings screen. | | |
 
 ## After the run
 

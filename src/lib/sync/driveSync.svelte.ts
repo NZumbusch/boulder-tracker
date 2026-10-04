@@ -22,6 +22,7 @@ import { DriveClient, driveErrorCode, driveSyncAvailable } from "../native/drive
 import { defaultLabel, initLedger, mapToTable, tableToMap, trackTable, type Ledger, type SyncConflict } from "./merge";
 import { runSync, SyncVersionError, type DeviceInfo, type LocalPort } from "./syncEngine";
 import { installVerdict, restoredSettings } from "./identity";
+import { settingsPath } from "../settings/tree";
 
 const SETTINGS_KEY = "boulder_tracker_sync";
 const LEDGER_KEY = "sync_ledger";
@@ -173,7 +174,7 @@ class DriveSync {
     console.warn(`Sync: this copy was restored from a backup. Device id ${settings.deviceId} -> ${next.deviceId}; first sync adopts Drive's data.`);
     this.#restoredLedger = initLedger(currentTables(), TABLES, next.deviceId);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
-    toast.show("Sync: this app was restored from a backup, so it got its own sync identity and is merging with Drive. Details in Settings → Sync.", { durationMs: 12000 });
+    toast.show(`Sync: this app was restored from a backup, so it got its own sync identity and is merging with Drive. Details in ${settingsPath('sync')}.`, { durationMs: 12000 });
     return next;
   }
 
@@ -452,7 +453,7 @@ class DriveSync {
     this.conflicts = [...found, ...this.conflicts].slice(0, MAX_CONFLICTS);
     await localforage.setItem(CONFLICTS_KEY, $state.snapshot(this.conflicts));
     const other = found.length === 1 ? `"${found[0].label}"` : `${found.length} records`;
-    toast.show(`Sync: ${other} changed on two devices - kept the newer edit. The other is under Settings → Sync & Backup.`, { durationMs: 7000 });
+    toast.show(`Sync: ${other} changed on two devices - kept the newer edit. The other is under ${settingsPath('sync')}.`, { durationMs: 7000 });
   }
 
   /** Puts the losing version back (as a new edit, so it syncs out and wins everywhere). */

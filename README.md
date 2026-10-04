@@ -47,7 +47,7 @@ Just [open the web app](https://bouldertracker.nathanzumbusch.de/). It works off
 | Health Connect import | Yes | No | No |
 | Backups | Automatic, weekly | By hand | By hand |
 
-A browser (Safari especially) can erase a website's data after a while. Installing to the Home Screen and saving a backup file now and then (Settings → Data & Exports) keeps your training safe.
+A browser (Safari especially) can erase a website's data after a while. Installing to the Home Screen and saving a backup file now and then (Settings → Data & connections → Sync & backup) keeps your training safe.
 
 ## Is the APK safe? Check it yourself
 
@@ -102,11 +102,11 @@ Needs Android Studio.
 
 ### Health Connect
 
-Settings → Data & Exports → Health Connect reads resting heart rate, weight and sleep (read-only) and stores one value per day: `rhr`, `bodyweight` and `sleep-duration` (hours). Values typed by hand win; imported entries carry `source: "health-connect"` and fixed ids, so a second importing device doesn't duplicate them through sync. Logic: `src/lib/health/` (tested); native side: `plugins/health-connect` (Kotlin). Health Connect requires a privacy policy to grant access - the plugin's rationale screen opens `privacy.html#health-connect`.
+Settings → Data & connections → Health Connect reads resting heart rate, weight and sleep (read-only) and stores one value per day: `rhr`, `bodyweight` and `sleep-duration` (hours). Values typed by hand win; imported entries carry `source: "health-connect"` and fixed ids, so a second importing device doesn't duplicate them through sync. Logic: `src/lib/health/` (tested); native side: `plugins/health-connect` (Kotlin). Health Connect requires a privacy policy to grant access - the plugin's rationale screen opens `privacy.html#health-connect`.
 
 ### Google Drive sync - one-time setup
 
-Sync (Settings → Data & Exports → Sync) uses each user's own Google Drive app folder; there is no server. Google only hands out Drive access to apps registered in a Google Cloud project, so once:
+Sync (Settings → Data & connections → Sync & backup) uses each user's own Google Drive app folder; there is no server. Google only hands out Drive access to apps registered in a Google Cloud project, so once:
 
 1. [Google Cloud console](https://console.cloud.google.com) → create a project (e.g. "Boulder Tracker").
 2. *APIs & Services → Library* → enable **Google Drive API**.
@@ -123,7 +123,7 @@ Pushing to `main` builds the app and deploys it to GitHub Pages (`.github/workfl
 
 `vite-plugin-pwa` (in `vite.config.js`) writes the manifest and a service worker that precaches the whole build, so the installed app opens offline. A new deploy shows a "Reload" toast rather than switching under a running session (`src/lib/pwa/pwa.ts`); the service worker is not registered inside the Android app. Home-screen icons are PNGs in `public/icons/`, rendered by `node scripts/generate-pwa-icons.mjs`.
 
-What the web app can't do, on iOS in particular: scheduled reminders, timer beeps with the screen locked (keep the screen on - Settings → Appearance & Behaviour → Live sessions), Drive sync, widgets and shortcuts (Android only). On iPhone the Home Screen app has its own storage, separate from Safari's.
+What the web app can't do, on iOS in particular: scheduled reminders, timer beeps with the screen locked (keep the screen on - Settings → Sessions & timer → Live sessions), Drive sync, widgets and shortcuts (Android only). On iPhone the Home Screen app has its own storage, separate from Safari's.
 
 ### Android app updates
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Settings -> Customization -> Exercises: the exercise library.
+   * Settings -> Training setup -> Exercises & categories: the exercise library.
    *
    * Built for a long list (the AI coach adds exercises quickly): search
    * over names, groups and how-tos, one-level groups that can be folded and

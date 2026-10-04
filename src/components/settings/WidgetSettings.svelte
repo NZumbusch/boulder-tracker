@@ -7,6 +7,7 @@
    * (`lib/widget/widgetSync.svelte.ts`, `plugins/home-widget`).
    */
   import { trainingState } from '../../lib/state.svelte';
+  import { settingsPath } from '../../lib/settings/tree';
   import { pinWidget, type WidgetKind } from '../../lib/widget/widgetSync.svelte';
   import { toast } from '../../lib/toast.svelte';
   import type { WidgetReadinessDetail } from '../../lib/preferences/migrate';
@@ -16,7 +17,7 @@
     { kind: 'today', icon: 'ic:baseline-view-agenda', title: 'Today', size: '4×2', hint: 'Readiness, today\'s session or the running one, Start and Log. Stretch it taller for the next days.' },
     { kind: 'week', icon: 'ic:baseline-view-week', title: 'This week', size: '4×1', hint: 'The week day by day - done, missed, planned. Stretch it for the totals.' },
     { kind: 'load', icon: 'ic:baseline-bar-chart', title: 'Week load', size: '2×2', hint: 'The week\'s load, how much of the plan is done, and the ACWR zone.' },
-    { kind: 'quicklog', icon: 'ic:baseline-add-circle-outline', title: 'Quick log', size: '4×1', hint: 'Pain, bodyweight, send, benchmark - each opens its own form. Which ones follows Settings → Appearance → Home.' },
+    { kind: 'quicklog', icon: 'ic:baseline-add-circle-outline', title: 'Quick log', size: '4×1', hint: 'Pain, bodyweight, send, benchmark - each opens its own form. Which ones follows ' + settingsPath('home') + '.' },
     { kind: 'readiness', icon: 'ic:baseline-donut-large', title: 'Readiness', size: '2×2', hint: 'Today\'s score - tap it to log metrics. Stretch it tall for the factors or today\'s numbers.' },
   ];
 

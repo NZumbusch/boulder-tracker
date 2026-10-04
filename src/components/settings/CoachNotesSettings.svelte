@@ -76,7 +76,7 @@
   <div class="card space-y-2 animate-in fade-in">
     <p class="text-caption text-content-subtle leading-relaxed">
       What the AI Coach knows about you before it reads your data - sent with every prompt, so you don't have to repeat it in each chat, in any AI app.
-      {#if sharingOff}<span class="text-status-caution">Currently not sent: turn on "Coach Notes & About Me" in Connections & Exports → AI Sharing.</span>{/if}
+      {#if sharingOff}<span class="text-status-caution">Currently not sent: turn on "Coach Notes & About Me" in Settings → AI & coach → What the AI sees.</span>{/if}
     </p>
   </div>
 

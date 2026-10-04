@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import type { ViewType } from "../types";
 import { DEMO_CIRCUIT_SESSION_ID } from "./demoData";
+import { settingsPath } from "../settings/tree";
 
 /**
  * The launch tour, in order: one list of plain data, so adding, removing
@@ -148,38 +149,31 @@ export const TOUR_STEPS: TourStep[] = ([
   },
   {
     view: "settings",
-    target: "settings-customization",
+    target: "settings-setup",
     title: "Make it yours",
-    body: "Exercises, saved circuits, categories and the sessions each phase starts with - including switching between the Getting started and Advanced sets.",
+    body: "Under Training setup: exercises, saved circuits, categories and the sessions each phase starts with - including switching between the Getting started and Advanced sets.",
   },
   {
     view: "settings",
-    target: "settings-coach",
-    title: "Coach notes",
-    body: "What the AI coach should know about you (height, injuries, goals) and a short memory it keeps between chats - AI-proposed notes are only saved once you tick them.",
+    target: "settings-sessions",
+    title: "Timer, sound and voice",
+    body: "How the timer beeps (four styles, your volume) and, if you like, says the next exercise out loud - also with the screen off. Search at the top finds any setting by name.",
+  },
+  {
+    view: "settings",
+    target: "settings-ai",
+    title: "AI & coach",
+    body: "What the AI coach should know about you (height, injuries, goals), a short memory it keeps between chats - AI-proposed notes are only saved once you tick them - and what it gets to see.",
   },
   {
     view: "settings",
     target: "settings-data",
-    title: "Back up your data",
-    body: "Everything lives only on this device. Export a backup now and then (it's one file), or turn on Google Drive sync on Android - then pull down on Home to sync.",
-  },
-  {
-    view: "settings",
-    target: "settings-connections",
-    title: "Connections & exports",
-    body: "Sleep, resting heart rate and weight from Health Connect (Android), your plan in your calendar, a PDF of the plan, and what the AI coach gets to see.",
-  },
-  {
-    view: "settings",
-    target: "settings-widgets",
-    title: "Home-screen widgets",
-    body: "Today, readiness, this week, week load and quick-log buttons for your home screen. Add them from here; they stretch to show more.",
-    androidOnly: true,
+    title: "Back up and connect",
+    body: "Everything lives only on this device. Export a backup now and then (it's one file), or turn on Google Drive sync on Android. Health Connect, calendar and PDF exports and the home-screen widgets are here too.",
   },
   {
     view: "home",
     title: "That's the tour",
-    body: "Close this and your own data is back. A good start: pick a phase for this week in Plan, or tap + to log a session. You can replay the tour from Settings → About & Help.",
+    body: `Close this and your own data is back. A good start: pick a phase for this week in Plan, or tap + to log a session. You can replay the tour from ${settingsPath("about")}.`,
   },
 ] as TourStep[]).filter((s) => !s.androidOnly || ANDROID);

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import { settingsPath } from '../../lib/settings/tree';
   /**
    * The plan's one AI entry point, full screen like the session's "Ask AI".
    *
@@ -332,7 +333,7 @@
             <!-- The coaching memory goes along with every prompt - no need to retype it. -->
             <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
               <Icon icon="ic:baseline-psychology" class="text-sm shrink-0 mt-0.5" />
-              <span>Sent along: {memoryParts.join(' · ')} <span class="text-content-subtle/70">(Settings → Coach notes)</span></span>
+              <span>Sent along: {memoryParts.join(' · ')} <span class="text-content-subtle/70">({settingsPath('coach')})</span></span>
             </p>
           {/if}
 
@@ -428,7 +429,7 @@
         {#if mode !== 'organise'}
         <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
           <Icon icon="ic:baseline-info" class="text-sm shrink-0 mt-px" />
-          What's shared (blocks, readiness, pain logs…) is set in Settings → Connections & Exports → AI Sharing.
+          What's shared (blocks, readiness, pain logs…) is set in {settingsPath('aiSharing')}.
         </p>
         {/if}
 

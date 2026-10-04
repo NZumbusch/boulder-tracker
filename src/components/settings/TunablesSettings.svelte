@@ -11,9 +11,10 @@
   import { showConfirm } from '../../lib/utils';
   import Icon from '@iconify/svelte';
 
-  let { topic, title }: { topic: TunableTopic; title: string } = $props();
+  /** `ids` shows only those entries of the topic (a topic can be split over pages); reset then applies to them alone. */
+  let { topic, title, ids }: { topic: TunableTopic; title: string; ids?: string[] } = $props();
 
-  const defs = TUNABLES.filter((t) => t.topic === topic);
+  const defs = TUNABLES.filter((t) => t.topic === topic && (!ids || ids.includes(t.id)));
   const groups = [...new Set(defs.map((d) => d.group))].map((group) => ({ group, defs: defs.filter((d) => d.group === group) }));
 
   const isTemp = (def: NumberTunable) => def.unit === '°C';
@@ -38,7 +39,9 @@
   }
 
   async function reset() {
-    if (await showConfirm('Reset to defaults', `Put every ${title} setting back to its default?`)) trainingState.resetTunables(topic);
+    if (!(await showConfirm('Reset to defaults', `Put every ${title} setting back to its default?`))) return;
+    if (ids) for (const def of defs) trainingState.setTunable(def.id, def.default);
+    else trainingState.resetTunables(topic);
   }
 </script>
 

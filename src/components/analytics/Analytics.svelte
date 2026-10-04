@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import { tour } from '../../lib/tour/tour.svelte';
+  import { settingsPath } from '../../lib/settings/tree';
   import { motionReduced } from '../../lib/motion';
   import { trainingState } from '../../lib/state.svelte';
   import type { Workout, ExerciseTypeDef, ExerciseCategory } from '../../lib/types';
@@ -533,7 +534,7 @@
 
       {#if tabSections.length === 0}
         <p class="text-caption text-content-subtle italic text-center py-8 px-8 leading-relaxed">
-          Every card on this tab is hidden - turn them back on under Settings → Appearance → History & Analytics
+          Every card on this tab is hidden - turn them back on under {settingsPath('history')}
         </p>
       {/if}
 

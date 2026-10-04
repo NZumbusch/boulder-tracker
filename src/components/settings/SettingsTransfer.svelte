@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Settings -> Backup & Sync: the settings on their own - a file to carry
+   * Settings -> Data & connections -> Sync & backup: the settings on their own - a file to carry
    * them to another device (or keep as a restore point), and a reset by group.
    * Never touches sessions, exercises or history. With Drive sync on they also
    * travel by themselves (`lib/preferences/portable.ts`).

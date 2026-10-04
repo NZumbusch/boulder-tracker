@@ -9,6 +9,7 @@ import { App } from "@capacitor/app";
 import { trainingState } from "../state.svelte";
 import { AppUpdater, appUpdaterSupported } from "../native/appUpdater";
 import { missingChannelMessage, parseManifest, isNewer, changesSince, apkUrl, manifestUrlFor, type UpdateManifest, type UpdateChannel } from "./appUpdate";
+import { settingsPath } from "../settings/tree";
 
 const SETTINGS_KEY = "boulder_tracker_app_updates";
 const CHECK_EVERY_MS = 6 * 3_600_000;
@@ -173,7 +174,7 @@ class Updater {
       } catch (e) {
         this.status = "idle";
         this.#skipBackup = true;
-        this.error = `Couldn't write a safety backup first (${e instanceof Error ? e.message : String(e)}). Export one in Settings → Backup, or tap Install again to update anyway.`;
+        this.error = `Couldn't write a safety backup first (${e instanceof Error ? e.message : String(e)}). Export one in ${settingsPath('sync')}, or tap Install again to update anyway.`;
         return;
       }
     }

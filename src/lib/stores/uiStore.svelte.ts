@@ -5,6 +5,7 @@ import type { Workout, ViewType } from '../types';
 import { showConfirm } from '../utils';
 import { requestNotificationPermission, cancelAllReminders } from '../notifications/shared';
 import { registerBack } from '../navigation/backStack.svelte';
+import { settingsPath } from "../settings/tree";
 
 const NOTIFICATIONS_ENABLED_KEY = 'boulder_tracker_notifications_enabled';
 const NOTIFICATIONS_PROMPTED_KEY = 'boulder_tracker_notifications_prompted';
@@ -151,7 +152,7 @@ export class UiStore {
 
     const wantsReminders = await showConfirm(
       'Reminders?',
-      "You've finished a session. Want a reminder to rate how a session felt (fatigue/RPE) after a planned workout's time has passed? You can change this anytime in Settings → Appearance & Behaviour."
+      `You've finished a session. Want a reminder to rate how a session felt (fatigue/RPE) after a planned workout's time has passed? You can change this anytime in ${settingsPath('reminders')}.`
     );
     if (wantsReminders) {
       await this.setNotificationsEnabled(true);

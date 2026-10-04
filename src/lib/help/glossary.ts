@@ -1,3 +1,5 @@
+import { settingsPath } from "../settings/tree";
+
 /**
  * Short explanations of the app's training terms, opened from the (?)
  * buttons next to them (`InfoButton` → `InfoSheet`). One place, so a
@@ -34,7 +36,7 @@ export const GLOSSARY: Record<TermId, Term> = {
     paragraphs: [
       "Your load over the last 7 days divided by your average weekly load over the last 28 days. It shows whether you're suddenly doing much more (or less) than you're used to.",
       "Around 0.8–1.3 is the usual sweet spot. Above about 1.5 means a sharp jump, a common time for finger and shoulder injuries. Below 0.8 means you're doing less than usual, which is fine for a rest week.",
-      "It needs about four weeks of logged sessions before it's meaningful. You can change the zones under Settings → Appearance & Behaviour → Training model.",
+      `It needs about four weeks of logged sessions before it's meaningful. You can change the zones under ${settingsPath('model')}.`,
     ],
   },
   monotony: {
@@ -56,14 +58,14 @@ export const GLOSSARY: Record<TermId, Term> = {
     paragraphs: [
       "After each session you rate how much that session took out of your fingers, arms, core and whole body (1–10) - what it added, not how you feel overall. Each rating fades over the next days: by default it halves every 3 days.",
       "The fatigue shown today is what's left of every recent session, added up (at most 10). Rest days count as nothing, so it falls while you rest and climbs when sessions come close together. 7 or more means that area still needs rest.",
-      "The fade speed, and an option to soften how stacked sessions add up, are under Settings → Appearance & Behaviour → Training model.",
+      `The fade speed, and an option to soften how stacked sessions add up, are under ${settingsPath('model')}.`,
     ],
   },
   mix: {
     title: "Training mix",
     paragraphs: [
       "How your training time splits across categories (technique, power, fingers, strength…). Done is what you logged; planned adds the sessions still to come.",
-      "Categories come from each exercise's type and can be edited under Settings → Customization.",
+      `Categories come from each exercise's type and can be edited under ${settingsPath('exercises')}.`,
     ],
   },
   phases: {
@@ -71,7 +73,7 @@ export const GLOSSARY: Record<TermId, Term> = {
     paragraphs: [
       "A phase is a kind of training week (Capacity, Strength, Power…) with a typical set of sessions. Pick a phase for a week and those sessions appear on its days.",
       "A training block puts phases on a run of weeks, e.g. 3 weeks Strength then 1 Deload. You can still change any single week; only that week is affected.",
-      "The phases' sessions can be edited under Settings → Customization → Training phases, where you can also switch between the Getting started and Advanced sets.",
+      `The phases' sessions can be edited under ${settingsPath('phases')}, where you can also switch between the Getting started and Advanced sets.`,
     ],
   },
   notSaved: {
