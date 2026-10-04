@@ -20,9 +20,19 @@ export type LiveAction = {
   withTimer?: boolean;
 };
 
+/** How the service plays its cues (the plan says when). */
+export interface ServiceOptions {
+  sound: boolean;
+  vibrate: boolean;
+  /** 0.1 - 1. */
+  volume: number;
+  /** Set the phone's media volume to `volume` while a cue plays, then restore it. */
+  volumeSetsMedia: boolean;
+}
+
 interface TimerServicePlugin {
-  start(options: LiveTimerConfig & { sound: boolean; vibrate: boolean }): Promise<void>;
-  update(options: LiveTimerConfig & { sound: boolean; vibrate: boolean }): Promise<void>;
+  start(options: LiveTimerConfig & ServiceOptions): Promise<void>;
+  update(options: LiveTimerConfig & ServiceOptions): Promise<void>;
   stop(): Promise<void>;
   isRunning(): Promise<{ running: boolean }>;
   takeActions(): Promise<{ actions: LiveAction[] }>;
@@ -34,10 +44,10 @@ const TimerService = registerPlugin<TimerServicePlugin>("TimerService");
 export const liveTimerAvailable = (): boolean => Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 
 /** Sends the current plan; resolves false if Android refused (then the app falls back to plain notifications). */
-export async function sendLiveTimer(config: LiveTimerConfig, sound: boolean, vibrate: boolean): Promise<boolean> {
+export async function sendLiveTimer(config: LiveTimerConfig, options: ServiceOptions): Promise<boolean> {
   if (!liveTimerAvailable()) return false;
   try {
-    await TimerService.update({ ...config, sound, vibrate });
+    await TimerService.update({ ...config, ...options });
     return true;
   } catch {
     return false;

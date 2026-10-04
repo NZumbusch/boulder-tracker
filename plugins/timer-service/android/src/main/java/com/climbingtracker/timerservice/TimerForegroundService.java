@@ -89,6 +89,8 @@ public class TimerForegroundService extends Service {
     private static final class Cue {
         long at;
         String kind;
+        /** For "speak": what to say. */
+        String text;
     }
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -205,6 +207,7 @@ public class TimerForegroundService extends Service {
                     Cue cue = new Cue();
                     cue.at = c.optLong("at", 0);
                     cue.kind = c.optString("kind", "tick");
+                    cue.text = c.optString("text", "");
                     cues.add(cue);
                 }
             }
@@ -214,6 +217,7 @@ public class TimerForegroundService extends Service {
             finishedTitle = config.optString("finishedTitle", "Timer");
             sound = config.optBoolean("sound", true);
             vibrate = config.optBoolean("vibrate", true);
+            player.configure((float) config.optDouble("volume", 1.0), config.optBoolean("volumeSetsMedia", false));
             pausedAt = 0;
             timerPausedBySession = false;
         } catch (Exception e) {
@@ -236,7 +240,11 @@ public class TimerForegroundService extends Service {
             long delay = cue.at - now;
             if (delay < -250) continue; // already past
             final String kind = cue.kind;
-            handler.postDelayed(() -> player.play(kind, sound, vibrate), Math.max(0, delay));
+            final String text = cue.text;
+            handler.postDelayed(() -> {
+                if ("speak".equals(kind)) speak(text);
+                else player.play(kind, sound, vibrate);
+            }, Math.max(0, delay));
         }
         for (Segment seg : segments) {
             if (seg.endsAt > now) handler.postDelayed(this::render, seg.endsAt - now + 30);
@@ -249,6 +257,18 @@ public class TimerForegroundService extends Service {
         if (pausedAt == 0) handler.postDelayed(watchdog, WATCHDOG_MS);
         if (isPlanActive(now)) acquireWakeLock();
         else releaseWakeLock();
+    }
+
+    private String lastSpoken = "";
+    private long lastSpokenAt = 0;
+
+    /** A plan re-sent a moment after an announcement was due must not say it twice. */
+    private void speak(String text) {
+        long now = System.currentTimeMillis();
+        if (text.equals(lastSpoken) && now - lastSpokenAt < 2500) return;
+        lastSpoken = text;
+        lastSpokenAt = now;
+        player.speak(text);
     }
 
     private boolean isPlanActive(long now) {

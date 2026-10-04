@@ -128,9 +128,30 @@ describe("buildCircuitLive", () => {
 
   it("schedules every step up to the next open set", () => {
     const plan = buildCircuitLive(input(), 1_000_000)!;
-    expect(plan.segments.map((s) => s.title)).toEqual(["Get ready", "Round 1/2 · Twists", "Switch · next: Push-ups", "Round 1/2 · Push-ups · 12 reps"]);
+    expect(plan.segments.map((s) => s.title)).toEqual(["Get ready", "Go · Twists", "Switch · next: Push-ups", "Go · Push-ups · 12 reps"]);
+    expect(plan.segments.map((s) => s.body)).toEqual([
+      "Core · Round 1/2 · Set 1/4", "Core · Round 1/2 · Set 1/4", "Core · Round 1/2 · Set 2/4", "Core · Round 1/2 · Set 2/4",
+    ]);
     expect(plan.segments[3].startedAt).toBe(1_000_000 + 80_000);
     expect(plan.cues.map((c) => c.kind)).toEqual(["work", "rest", "work"]);
+  });
+
+  it("speaks the exercises when asked: the set's name on its start, \"next\" when a rest begins and before it ends", () => {
+    const announce = { enabled: true, work: true, workLead: 3, restStart: true, restStartDelay: 1, restEnd: 5 };
+    const at = 1_000_000;
+    // Twists 5 s in: transition (15 s) next, then push-ups (open), nothing further is scheduled past it.
+    const plan = buildCircuitLive({ ...input({ ...startCircuitRun(), stepIndex: 1, stepElapsedMs: 10_000 }), announce }, at)!;
+    const spoken = plan.cues.filter((c) => c.kind === "speak").map((c) => [c.text, c.at - at]);
+    expect(spoken).toEqual([
+      ["Next: Push-ups", 50_000 + 1000], // transition begins when the 60 s twists end; +1 s delay
+      ["Next: Push-ups", 50_000 + 15_000 - 5000], // 5 s before the switch ends
+      ["Push-ups", 65_000 - 3000], // the set's name 3 s before it starts
+    ].sort((a, b) => (a[1] as number) - (b[1] as number)));
+  });
+
+  it("says nothing when announcements are off", () => {
+    const plan = buildCircuitLive({ ...input(), announce: { enabled: false, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 5 } }, 0)!;
+    expect(plan.cues.some((c) => c.kind === "speak")).toBe(false);
   });
 
   it("freezes while paused and is null once done", () => {

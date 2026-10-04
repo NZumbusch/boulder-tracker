@@ -3,6 +3,7 @@ import { groupTiming, memberRounds, restBetweenRounds, type GroupMember } from "
 import { toRepsArray } from "../exercise/reps";
 import { restSeconds } from "../exercise/rest";
 import type { LiveCue, LiveSegment, LiveTimerConfig } from "./liveTimer";
+import type { AnnounceRules } from "./timerCues";
 
 /**
  * Running a circuit or superset live: one timeline across its members,
@@ -244,6 +245,8 @@ export interface CircuitLiveInput {
   memberName: (member: number) => string;
   ticks: boolean;
   warningSeconds: number;
+  /** Spoken announcements of the exercises; off when absent or disabled. */
+  announce?: AnnounceRules;
 }
 
 /**
@@ -256,37 +259,62 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
   const { steps, state } = input;
   if (state.done) return null;
   const rounds = circuitProgress(steps, state).rounds;
+  const totalSets = steps.filter((s) => s.kind === "work").length;
+  /** "Circuit · Round 2/3 · Set 4/6" - the line under the title. `at` is the step's index. */
+  const where = (at: number) => {
+    const step = steps[at];
+    const round = step && step.kind !== "leadIn" ? step.round + 1 : 1;
+    // A rest names the set it leads into: sets up to and including the next one.
+    const set = steps.slice(0, at + 1).filter((s) => s.kind === "work").length + (step && step.kind !== "work" ? 1 : 0);
+    return `${input.name} · Round ${Math.min(round, rounds)}/${rounds} · Set ${Math.min(set, totalSets)}/${totalSets}`;
+  };
   if (!input.running) {
-    return { segments: [{ title: `${input.name} paused`, body: describe(steps[state.stepIndex], input, rounds) }], cues: [], actions: ["resume"], finishedTitle: input.name };
+    return { segments: [{ title: `Paused · ${describe(steps[state.stepIndex], input)}`, body: where(state.stepIndex) }], cues: [], actions: ["resume"], finishedTitle: input.name };
   }
   const segments: LiveSegment[] = [];
   const cues: LiveCue[] = [];
+  const say = input.announce?.enabled ? input.announce : null;
+  const speak = (at: number, text: string) => {
+    if (at >= now - 100) cues.push({ at, kind: "speak", text });
+  };
   let t = now - state.stepElapsedMs;
   for (let i = state.stepIndex; i < steps.length; i++) {
     const step = steps[i];
-    const title = describe(step, input, rounds);
-    const seconds = step.kind === "work" ? step.seconds : step.seconds;
+    const title = describe(step, input);
+    const seconds = step.seconds;
     if (i > state.stepIndex) cues.push({ at: t, kind: step.kind === "work" ? "work" : step.kind === "leadIn" ? "leadIn" : "rest" });
+    if (say) {
+      if (step.kind === "work" && say.work) speak(t - say.workLead * 1000, input.memberName(step.member));
+      if (step.kind !== "work" && say.restStart) {
+        const first = step.kind === "leadIn" ? steps.find((s): s is Extract<CircuitStep, { kind: "work" }> => s.kind === "work") : undefined;
+        const next = step.kind === "leadIn" ? first?.member : step.next;
+        if (next !== undefined) speak(t + say.restStartDelay * 1000, `${step.kind === "roundRest" ? "Rest. " : step.kind === "leadIn" ? "Get ready. " : ""}Next: ${input.memberName(next)}`);
+      }
+      if (step.kind !== "work" && step.kind !== "leadIn" && say.restEnd > 0 && seconds !== undefined && seconds > say.restEnd + say.restStartDelay + 4) {
+        speak(t + seconds * 1000 - say.restEnd * 1000, `Next: ${input.memberName(step.next)}`);
+      }
+    }
     if (seconds === undefined) {
-      segments.push({ startedAt: t, title, body: input.name });
-      return { segments, cues: cues.filter((c) => c.at > now), actions: ["pause"], finishedTitle: input.name };
+      segments.push({ startedAt: t, title, body: where(i) });
+      return { segments, cues: cues.filter((c) => c.kind === "speak" || c.at > now), actions: ["pause"], finishedTitle: input.name };
     }
     const end = t + seconds * 1000;
-    segments.push({ endsAt: end, title, body: input.name });
+    segments.push({ endsAt: end, title, body: where(i) });
     if (input.ticks) cues.push(...[3000, 2000, 1000].map((d) => ({ at: end - d, kind: "tick" as const })));
     if (step.kind === "roundRest" && input.warningSeconds > 0 && seconds > input.warningSeconds + 3) cues.push({ at: end - input.warningSeconds * 1000, kind: "warn" });
     t = end;
   }
   cues.push({ at: t, kind: "done" });
-  return { segments, cues: cues.filter((c) => c.at > now).sort((a, b) => a.at - b.at), actions: ["pause"], finishedTitle: `${input.name} done` };
+  return { segments, cues: cues.filter((c) => c.kind === "speak" || c.at > now).sort((a, b) => a.at - b.at), actions: ["pause"], finishedTitle: `${input.name} done` };
 }
 
-function describe(step: CircuitStep | undefined, input: CircuitLiveInput, rounds: number): string {
+/** The title: the phase and the exercise - "Go · Twists", "Rest · next: Push-ups". */
+function describe(step: CircuitStep | undefined, input: CircuitLiveInput): string {
   if (!step) return input.name;
   if (step.kind === "leadIn") return "Get ready";
   if (step.kind === "work") {
     const what = step.seconds === undefined && step.reps ? ` · ${step.reps} reps` : "";
-    return `Round ${step.round + 1}/${rounds} · ${input.memberName(step.member)}${what}`;
+    return `Go · ${input.memberName(step.member)}${what}`;
   }
   return `${step.kind === "roundRest" ? "Rest" : "Switch"} · next: ${input.memberName(step.next)}`;
 }

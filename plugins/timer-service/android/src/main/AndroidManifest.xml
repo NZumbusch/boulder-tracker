@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Text-to-speech engines must be visible to the app (Android 11+) for the spoken announcements. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application>
         <!-- The session timer while the app is in the background: an ongoing
              notification with a live countdown, and the timer's beeps. -->

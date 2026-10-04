@@ -36,7 +36,9 @@ export interface LiveSegment {
 
 export interface LiveCue {
   at: number;
-  kind: CueKind;
+  /** A beep pattern, or "speak": say `text` aloud (text-to-speech). */
+  kind: CueKind | "speak";
+  text?: string;
 }
 
 export type LiveAction = "pause" | "resume" | "add30" | "sessionPause" | "sessionResume";

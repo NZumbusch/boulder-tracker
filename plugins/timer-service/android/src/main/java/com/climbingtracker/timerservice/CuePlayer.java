@@ -7,11 +7,14 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 
 /**
@@ -25,6 +28,11 @@ import android.util.Log;
  * for the beep and comes back, instead of pausing. Focus is held across
  * cues that follow each other closely (a 3-2-1), so the music doesn't
  * bob up and down between every tick.
+ *
+ * Loudness is the page's setting: the tones are scaled by it and, when
+ * asked, the phone's media volume is set to it for as long as focus is held
+ * (then put back). Announcements (text-to-speech) go through the same focus
+ * and volume.
  */
 final class CuePlayer {
     private static final int SAMPLE_RATE = 44100;
@@ -39,6 +47,17 @@ final class CuePlayer {
     private boolean hasFocus = false;
     private final Runnable abandonFocus = this::releaseFocus;
 
+    /** 0.1 - 1; scales the tones and the speech. */
+    private volatile float volume = 1f;
+    /** Set the media volume to `volume` while a cue plays. */
+    private volatile boolean volumeSetsMedia = false;
+    /** The media volume index to put back, or -1 when it is not changed. */
+    private int savedMediaVolume = -1;
+
+    private TextToSpeech tts;
+    private boolean ttsReady = false;
+    private String pendingSpeech;
+
     CuePlayer(Context context) {
         this.context = context.getApplicationContext();
         this.audioManager = (AudioManager) this.context.getSystemService(Context.AUDIO_SERVICE);
@@ -46,6 +65,11 @@ final class CuePlayer {
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build();
+    }
+
+    void configure(float volume, boolean volumeSetsMedia) {
+        this.volume = Math.max(0.1f, Math.min(1f, volume));
+        this.volumeSetsMedia = volumeSetsMedia;
     }
 
     /** A tone: frequency (Hz), length (ms), start offset (ms). */
@@ -94,6 +118,7 @@ final class CuePlayer {
         for (Tone t : tones) totalMs = Math.max(totalMs, t.delayMs + t.durationMs);
         short[] pcm = synthesize(tones, totalMs);
 
+        applyMediaVolume();
         requestFocus();
         try {
             AudioTrack track = new AudioTrack.Builder()
@@ -116,7 +141,7 @@ final class CuePlayer {
         handler.postDelayed(abandonFocus, totalMs + FOCUS_LINGER_MS);
     }
 
-    private static short[] synthesize(Tone[] tones, int totalMs) {
+    private short[] synthesize(Tone[] tones, int totalMs) {
         int length = (int) ((long) SAMPLE_RATE * totalMs / 1000) + 1;
         double[] mix = new double[length];
         for (Tone t : tones) {
@@ -133,9 +158,79 @@ final class CuePlayer {
         short[] pcm = new short[length];
         for (int i = 0; i < length; i++) {
             double v = Math.max(-1.0, Math.min(1.0, mix[i]));
-            pcm[i] = (short) (v * 32000);
+            pcm[i] = (short) (v * 32000 * volume);
         }
         return pcm;
+    }
+
+    /** Says `text` aloud (queued until the speech engine is up on the first call). */
+    void speak(String text) {
+        if (text == null || text.isEmpty()) return;
+        Log.d("TimerService", "speak: " + text);
+        if (tts == null) {
+            pendingSpeech = text;
+            tts = new TextToSpeech(context, status -> handler.post(() -> {
+                if (status != TextToSpeech.SUCCESS) {
+                    Log.d("TimerService", "text-to-speech unavailable");
+                    return;
+                }
+                tts.setAudioAttributes(attributes);
+                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                    @Override public void onStart(String id) {}
+                    @Override public void onError(String id) { handler.post(() -> scheduleAbandon(0)); }
+                    @Override public void onDone(String id) { handler.post(() -> scheduleAbandon(0)); }
+                });
+                ttsReady = true;
+                if (pendingSpeech != null) {
+                    String queued = pendingSpeech;
+                    pendingSpeech = null;
+                    speakNow(queued);
+                }
+            }));
+            return;
+        }
+        if (!ttsReady) {
+            pendingSpeech = text;
+            return;
+        }
+        speakNow(text);
+    }
+
+    private void speakNow(String text) {
+        applyMediaVolume();
+        requestFocus();
+        Bundle params = new Bundle();
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "cue");
+        // Safety net if no "done" arrives; the utterance listener normally ends focus sooner.
+        scheduleAbandon(8000);
+    }
+
+    private void scheduleAbandon(long afterMs) {
+        handler.removeCallbacks(abandonFocus);
+        handler.postDelayed(abandonFocus, afterMs + FOCUS_LINGER_MS);
+    }
+
+    /** With the option on: the media volume is the cue volume while focus is held. */
+    private void applyMediaVolume() {
+        if (!volumeSetsMedia || audioManager == null) return;
+        try {
+            if (savedMediaVolume < 0) savedMediaVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+            int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, Math.max(1, Math.round(volume * max)), 0);
+        } catch (Exception ignored) {
+            // Do-not-disturb can refuse volume changes; the cue plays at the current volume.
+        }
+    }
+
+    private void restoreMediaVolume() {
+        if (savedMediaVolume < 0 || audioManager == null) return;
+        try {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, savedMediaVolume, 0);
+        } catch (Exception ignored) {
+            // Same as above.
+        }
+        savedMediaVolume = -1;
     }
 
     private void requestFocus() {
@@ -160,6 +255,7 @@ final class CuePlayer {
             audioManager.abandonAudioFocus(null);
         }
         hasFocus = false;
+        restoreMediaVolume();
     }
 
     private void vibrate(long[] pattern) {
@@ -185,5 +281,12 @@ final class CuePlayer {
     void release() {
         handler.removeCallbacksAndMessages(null);
         releaseFocus();
+        restoreMediaVolume();
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts = null;
+            ttsReady = false;
+        }
     }
 }

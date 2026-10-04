@@ -162,7 +162,7 @@
     const s = session;
     void [live.timerPlan, live.timerFinished, s?.runningSince, s?.accumulatedMs, store.currentIndex, store.progress.settled,
       s?.workout.notes, s?.workout.exercises.length, trainingState.exerciseTypes.length, trainingState.sessionNotification,
-      trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled];
+      trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled, trainingState.timerCues.volume, trainingState.timerCues.volumeSetsMedia];
     untrack(() => {
       if (!liveTimerAvailable()) return;
       const cur = store.currentSlot;
@@ -177,7 +177,12 @@
       const config = composeLive(live.timerPlan, info, { sessionNotification: trainingState.sessionNotification }, Date.now());
       if (config) {
         notificationSent = true;
-        void sendLiveTimer(config, trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled).then((ok) => { live.serviceOk = ok; });
+        void sendLiveTimer(config, {
+          sound: trainingState.timerBeepEnabled,
+          vibrate: trainingState.timerVibrateEnabled,
+          volume: trainingState.timerCues.volume,
+          volumeSetsMedia: trainingState.timerCues.volumeSetsMedia,
+        }).then((ok) => { live.serviceOk = ok; });
       } else if (notificationSent && !(live.timerFinished && s)) {
         notificationSent = false;
         void stopLiveTimer();

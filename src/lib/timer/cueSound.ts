@@ -41,7 +41,7 @@ export const CUE_VIBRATION: Record<CueKind, number | number[]> = {
 export class CueSound {
   private audioContext: AudioContext | null = null;
 
-  constructor(private readonly enabled: { sound: () => boolean; vibrate: () => boolean }) {}
+  constructor(private readonly enabled: { sound: () => boolean; vibrate: () => boolean; volume?: () => number }) {}
 
   /**
    * Creates (or resumes) the AudioContext - call it synchronously inside a
@@ -72,7 +72,7 @@ export class CueSound {
       const osc = ctx.createOscillator();
       const amp = ctx.createGain();
       osc.frequency.value = frequency;
-      amp.gain.setValueAtTime(gain, start);
+      amp.gain.setValueAtTime(gain * (this.enabled.volume?.() ?? 1), start);
       amp.gain.exponentialRampToValueAtTime(0.001, start + durationMs / 1000);
       osc.connect(amp).connect(ctx.destination);
       osc.start(start);

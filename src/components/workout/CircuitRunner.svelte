@@ -65,6 +65,7 @@
     buildCircuitLive,
   } from '../../lib/timer/circuitRun';
   import { CueSound, type CueKind } from '../../lib/timer/cueSound';
+  import { speakText } from '../../lib/timer/speech';
   import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
   import { liveTimerAvailable, type LiveAction } from '../../lib/native/timerService';
   import { live, onLiveAction, collectLiveActions } from '../../lib/native/liveNotification.svelte';
@@ -160,6 +161,7 @@
     lastTickAt = t;
     if (run.stepIndex !== before) onStepChanged();
     cueCountdown();
+    speakDue(t);
   }
 
   function syncTicker() {
@@ -169,7 +171,7 @@
   }
 
   // --- Cues ---
-  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled });
+  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume });
   const useLive = $derived(liveTimerAvailable() && trainingState.timerBackgroundAlerts);
   const liveActive = $derived(live.timerPlan !== null && live.serviceOk && useLive);
   let lastTickSecond = -1;
@@ -270,19 +272,31 @@
   }
 
   // --- The Android service and the page's own lifecycle ---
+  /** The announcements still to come, for when the page (not the service) is the one speaking. */
+  let speakQueue: { at: number; text?: string }[] = [];
   function syncLive() {
     live.circuitRunning = true;
-    if (!useLive) { live.timerPlan = null; live.timerFinished = false; return; }
     const plan = buildCircuitLive({
       steps, state: run, running, name: group.name || 'Circuit', memberName,
       ticks: trainingState.timerCountdownTicks, warningSeconds: trainingState.timerWarnBeforeEnd ? WARN_SECONDS : 0,
+      announce: trainingState.timerCues.announce,
     }, Date.now());
+    speakQueue = plan ? plan.cues.filter((c) => c.kind === 'speak') : [];
+    if (!useLive) { live.timerPlan = null; live.timerFinished = false; return; }
     live.timerFinished = !plan && run.done;
     live.timerPlan = plan;
   }
+  /** Speaks what has come due - unless the service does, or the page is hidden. */
+  function speakDue(t: number) {
+    if (speakQueue.length === 0 || speakQueue[0].at > t) return;
+    const due = speakQueue.filter((c) => c.at <= t);
+    speakQueue = speakQueue.filter((c) => c.at > t);
+    const last = due[due.length - 1];
+    if (last?.text && !liveActive && document.visibilityState !== 'hidden') speakText(last.text, trainingState.timerCues.volume);
+  }
 
   $effect(() => {
-    void [run.stepIndex, run.done, running, useLive, planNonce, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd];
+    void [run.stepIndex, run.done, running, useLive, planNonce, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, JSON.stringify(trainingState.timerCues.announce)];
     untrack(() => {
       syncLive();
       syncTicker();

@@ -196,7 +196,7 @@
   // --- Audio cues -------------------------------------------------------
 
   // The tones and vibrations themselves: lib/timer/cueSound.
-  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled });
+  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume });
   /** Every control that can begin a run calls this synchronously first - Web Audio's unlock (see CueSound.unlock). */
   const unlockAudio = () => sound.unlock();
 
