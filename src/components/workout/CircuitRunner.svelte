@@ -147,7 +147,11 @@
 
   function tick() {
     const t = Date.now();
-    if (!running || held) { lastTickAt = t; return; }
+    // Held (hidden, the service owns the clock): lastTickAt must stay where
+    // it was, or the time spent hidden is lost and the page wakes up behind
+    // the notification - then publishes that stale plan over the right one.
+    if (held) return;
+    if (!running) { lastTickAt = t; return; }
     const before = run.stepIndex;
     run = tickCircuitRun(steps, run, t - lastTickAt);
     lastTickAt = t;

@@ -5,8 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.Handler;
@@ -102,6 +104,27 @@ public class TimerForegroundService extends Service {
     /** Epoch ms paused at (from the notification), or 0. */
     private long pausedAt = 0;
     private boolean foreground = false;
+    /** The segment the notification shows now, to tell when it has moved on without us noticing. */
+    private Segment shownSegment;
+
+    /** How often the notification is checked against the clock, in case the handler's own timers ran late. */
+    private static final long WATCHDOG_MS = 4000;
+
+    private final Runnable watchdog = new Runnable() {
+        @Override
+        public void run() {
+            catchUp();
+            if (!segments.isEmpty()) handler.postDelayed(this, WATCHDOG_MS);
+        }
+    };
+
+    /** The screen coming on is the moment the notification is looked at; make sure it is right. */
+    private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            catchUp();
+        }
+    };
 
     @Override
     public void onCreate() {
@@ -109,6 +132,9 @@ public class TimerForegroundService extends Service {
         instance = this;
         player = new CuePlayer(this);
         ensureChannel();
+        IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_USER_PRESENT);
+        registerReceiver(screenReceiver, filter);
     }
 
     @Override
@@ -137,6 +163,7 @@ public class TimerForegroundService extends Service {
 
     @Override
     public void onDestroy() {
+        try { unregisterReceiver(screenReceiver); } catch (IllegalArgumentException ignored) { /* never registered */ }
         handler.removeCallbacksAndMessages(null);
         if (player != null) player.release();
         releaseWakeLock();
@@ -216,6 +243,7 @@ public class TimerForegroundService extends Service {
             handler.postDelayed(this::finish, Math.max(0, lastEnd - now) + 1500);
         }
         render();
+        if (pausedAt == 0) handler.postDelayed(watchdog, WATCHDOG_MS);
         if (isPlanActive(now)) acquireWakeLock();
         else releaseWakeLock();
     }
@@ -245,6 +273,20 @@ public class TimerForegroundService extends Service {
             if (seg.endsAt == 0 || seg.endsAt > now) return seg;
         }
         return segments.isEmpty() ? null : segments.get(segments.size() - 1);
+    }
+
+    /**
+     * Android can hold the handler's timers back (Doze, battery savers), and
+     * a countdown notification then keeps counting past zero - as negative
+     * time. This puts the notification on the right segment whenever it is
+     * called, and finishes a plan that ran out unseen.
+     */
+    private void catchUp() {
+        if (pausedAt != 0 || segments.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        if (currentSegment(now) != shownSegment) render();
+        long lastEnd = lastCountdownEnd();
+        if (lastEnd > 0 && !hasOpenEndedSegment() && now > lastEnd + 1500) finish();
     }
 
     // --- Notification buttons ---------------------------------------------
@@ -415,6 +457,7 @@ public class TimerForegroundService extends Service {
         long now = System.currentTimeMillis();
         Segment seg = currentSegment(now);
         if (seg == null) return;
+        shownSegment = seg;
 
         NotificationCompat.Builder b = baseBuilder().setOngoing(true).setContentText(seg.body);
         if (pausedAt != 0) {
@@ -429,7 +472,9 @@ public class TimerForegroundService extends Service {
         }
 
         int code = 1;
-        for (String a : (seg.actions != null ? seg.actions : actions)) {
+        // Paused from here: Resume, whatever the segment carried.
+        java.util.List<String> shown = pausedAt != 0 ? java.util.Collections.singletonList("resume") : (seg.actions != null ? seg.actions : actions);
+        for (String a : shown) {
             switch (a) {
                 case "pause": b.addAction(0, "Pause", actionIntent(ACTION_PAUSE, code++)); break;
                 case "resume": b.addAction(0, "Resume", actionIntent(ACTION_RESUME, code++)); break;
