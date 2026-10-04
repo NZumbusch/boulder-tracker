@@ -40,13 +40,15 @@
 
   const resultCount = (id: string) => trainingState.benchmarks.filter((b) => b.typeId === id).length;
 
-  /** "Edge depth · Added weight (kg)": what a test records, at a glance. */
+  /** What a test records, in a line: "Added weight (kg) · by edge depth", "Reps", "Time (s)". */
   function summary(type: BenchmarkTypeDef): string {
     const fields = resolveFields(type, defs);
-    const conditions = fields.filter((f) => f.role === 'condition' && f.fixed === undefined).map((f) => f.label);
-    const results = fields.filter((f) => f.role === 'result').map((f) => f.label + (f.unit ? ` (${f.measure === 'weight' ? trainingState.units.weight : f.unit})` : ''));
-    const better = type.direction === 'lower' ? ' · lower is better' : '';
-    return [...conditions, ...results].join(' · ') + better;
+    const unitOf = (f: ResolvedField) => (f.measure === 'weight' ? trainingState.units.weight : f.unit);
+    // "Reps (reps)" says it twice.
+    const named = (f: ResolvedField) => (unitOf(f) && unitOf(f).toLowerCase() !== f.label.toLowerCase() ? `${f.label} (${unitOf(f)})` : f.label);
+    const results = fields.filter((f) => f.role === 'result').map(named).join(' + ');
+    const by = fields.filter((f) => f.role === 'condition' && f.fixed === undefined).map((f) => f.label.toLowerCase());
+    return [results, by.length ? `by ${by.join(' and ')}` : '', type.direction === 'lower' ? 'lower is better' : ''].filter(Boolean).join(' · ');
   }
 
   // --- The editor ---
@@ -157,7 +159,7 @@
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Benchmark tests</h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests (max hang, max pull-ups, ...) tracked over time. A test records a few values - what you measure, and how you did it (edge, added weight) - so results are compared like with like. You log one under "Benchmark Tests" on the Training Plan screen, not as part of a workout.</p>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight), so results are compared like with like.</p>
   </div>
 
   {#each groups as g (g.group)}
@@ -171,7 +173,7 @@
               <span class="block text-caption text-content-subtle truncate">{summary(type)}</span>
             </span>
             <span class="flex items-center gap-2 shrink-0">
-              <span class="text-caption text-content-subtle tabular-nums">{resultCount(type.id)}</span>
+              {#if resultCount(type.id) > 0}<span class="text-caption text-content-subtle tabular-nums">{resultCount(type.id)}</span>{/if}
               <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
             </span>
           </button>

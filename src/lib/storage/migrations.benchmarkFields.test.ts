@@ -42,7 +42,7 @@ describe("3.33 -> 3.34: benchmark fields", () => {
     assertMigrationInvariants(before, data);
 
     const hang = data.benchmarkTypes.find((t: any) => t.id === "max-hang");
-    expect(hang).toMatchObject({ name: "Max Hang", unit: "kg", group: "Fingers", mergedFrom: ["max-hang-10", "max-hang-15", "max-hang-20"] });
+    expect(hang).toMatchObject({ name: "Max Hang", unit: "kg", mergedFrom: ["max-hang-10", "max-hang-15", "max-hang-20"] });
     expect(hang.fields).toEqual([{ valueId: "edge", role: "condition" }, { valueId: "weight", role: "result", label: "Added weight" }]);
     expect(data.benchmarkTypes.some((t: any) => t.id.startsWith("max-hang-"))).toBe(false);
 
@@ -60,8 +60,9 @@ describe("3.33 -> 3.34: benchmark fields", () => {
       { valueId: "weight", role: "result", label: "Added weight" },
       { valueId: "reps", role: "condition", fixed: 1 },
     ]);
-    expect(t["max-pullups"].fields).toEqual([{ valueId: "reps", role: "result" }, { valueId: "weight", role: "condition", label: "Added weight" }]);
-    expect(t["lsit-duration"]).toMatchObject({ unit: "s", group: "Core", fields: [{ valueId: "time", role: "result" }] });
+    expect(t["max-pullups"].fields).toEqual([{ valueId: "reps", role: "result" }]);
+    expect(t["lsit-duration"]).toMatchObject({ unit: "s", fields: [{ valueId: "time", role: "result" }] });
+    expect(data.benchmarkTypes.some((x: any) => x.group)).toBe(false); // no folders until the user makes one
   });
 
   it("makes a fresh install's tests the same as an upgraded one's", () => {

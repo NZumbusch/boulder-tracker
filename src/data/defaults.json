@@ -733,11 +733,11 @@
     }
   ],
   "benchmarkTypes": [
-    { "id": "max-hang", "name": "Max Hang", "unit": "kg", "group": "Fingers", "fields": [{ "valueId": "edge", "role": "condition" }, { "valueId": "weight", "role": "result", "label": "Added weight" }] },
-    { "id": "1rm-weighted-pullup", "name": "1RM Weighted Pullup", "unit": "kg", "group": "Pulling", "fields": [{ "valueId": "weight", "role": "result", "label": "Added weight" }, { "valueId": "reps", "role": "condition", "fixed": 1 }] },
-    { "id": "max-pullups", "name": "Max Pullups", "unit": "reps", "group": "Pulling", "fields": [{ "valueId": "reps", "role": "result" }, { "valueId": "weight", "role": "condition", "label": "Added weight" }] },
-    { "id": "1rm-weighted-dip", "name": "1RM Weighted Dip", "unit": "kg", "group": "Pushing", "fields": [{ "valueId": "weight", "role": "result", "label": "Added weight" }, { "valueId": "reps", "role": "condition", "fixed": 1 }] },
-    { "id": "lsit-duration", "name": "L-Sit Duration", "unit": "s", "group": "Core", "fields": [{ "valueId": "time", "role": "result" }] },
-    { "id": "front-lever-duration", "name": "Front Lever Duration", "unit": "s", "group": "Core", "fields": [{ "valueId": "time", "role": "result" }] }
+    { "id": "max-hang", "name": "Max Hang", "unit": "kg", "fields": [{ "valueId": "edge", "role": "condition" }, { "valueId": "weight", "role": "result", "label": "Added weight" }] },
+    { "id": "1rm-weighted-pullup", "name": "1RM Weighted Pullup", "unit": "kg", "fields": [{ "valueId": "weight", "role": "result", "label": "Added weight" }, { "valueId": "reps", "role": "condition", "fixed": 1 }] },
+    { "id": "1rm-weighted-dip", "name": "1RM Weighted Dip", "unit": "kg", "fields": [{ "valueId": "weight", "role": "result", "label": "Added weight" }, { "valueId": "reps", "role": "condition", "fixed": 1 }] },
+    { "id": "max-pullups", "name": "Max Pullups", "unit": "reps", "fields": [{ "valueId": "reps", "role": "result" }] },
+    { "id": "lsit-duration", "name": "L-Sit Duration", "unit": "s", "fields": [{ "valueId": "time", "role": "result" }] },
+    { "id": "front-lever-duration", "name": "Front Lever Duration", "unit": "s", "fields": [{ "valueId": "time", "role": "result" }] }
   ]
 }

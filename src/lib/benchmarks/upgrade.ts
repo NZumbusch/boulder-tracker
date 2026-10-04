@@ -15,7 +15,7 @@
  *   s/min -> Time, anything else -> a value type of that unit; pounds and
  *   minutes are converted (weight is stored in kg, time in seconds);
  * - the known tests get their natural conditions: a one-rep max fixes
- *   reps at 1, max pull-ups can carry an added weight;
+ *   reps at 1;
  * - tests that differ only by an edge in mm ("Max Hang 20mm" and "... 15mm",
  *   two or more of them) become one test with an Edge depth condition, and
  *   their results are moved over with the edge filled in;
@@ -42,14 +42,6 @@ const ORIGINAL_VALUE_DEFS: ValueDef[] = [
   { id: "heartRate", name: "Heart rate", unit: "bpm", kind: "number", builtIn: true },
   { id: "count", name: "Count", unit: "", kind: "number", builtIn: true },
 ];
-
-/** The folders the shipped tests are listed under (by their old ids, and the merged hang). */
-const KNOWN_GROUPS: Record<string, string> = {
-  "max-hang": "Fingers", "max-hang-20": "Fingers", "max-hang-15": "Fingers", "max-hang-10": "Fingers",
-  "1rm-weighted-pullup": "Pulling", "max-pullups": "Pulling",
-  "1rm-weighted-dip": "Pushing",
-  "lsit-duration": "Core", "front-lever-duration": "Core",
-};
 
 const LB = 0.45359237;
 
@@ -136,11 +128,8 @@ function planFor(type: BenchmarkTypeDef, defs: Defs): Plan {
     result.label = "Added weight";
     fields.push({ valueId: defs.id.reps, role: "condition", fixed: 1 });
     extra[defs.id.reps] = 1;
-  } else if (m?.key === "reps" && type.id === "max-pullups") {
-    fields.push({ valueId: defs.id.weight, role: "condition", label: "Added weight" });
   }
-  const group = type.group ?? KNOWN_GROUPS[type.id];
-  return { type: { ...type, unit, fields, ...(group ? { group } : {}) }, factor: m?.factor ?? 1, resultId, extra };
+  return { type: { ...type, unit, fields }, factor: m?.factor ?? 1, resultId, extra };
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
