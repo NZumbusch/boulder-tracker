@@ -117,6 +117,21 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 9.4 | Paths in the text | Follow a few "Settings → …" mentions (glossary ?, welcome, AI coach screen, sync toast). | Each names a page that exists. | | |
 | 9.5 | Tour | Replay the tour from About & Help; go through the Settings stops. | Each stop highlights a row on the Settings screen. | | |
 
+## 10. Benchmark tests
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 10.1 | Upgrade from before fields | Update a phone that has logged max hangs (20/15/10 mm) and other benchmarks. | One "Max Hang" test (folder Fingers) with Edge depth + Added weight; every old result is still there, under the right edge, with its value; nothing is lost (Settings → Training setup → Benchmark tests, and the Plan screen's list). | | |
+| 10.2 | Units | Set the weight unit to lb; open a hang result and the logging form. | Weights are shown and typed in lb, and stored in kg (switching back shows the same load). | | |
+| 10.3 | New test from a preset | Benchmark tests → New test → Weight for reps; save; log three results with different weights and reps. | Opens prefilled; the results land in one line (reps does not split it). | | |
+| 10.4 | Conditions split a test | Log max hangs at two edges. | Benchmark Progress shows a chip per edge (and All); Home's progress card has a row per edge with its own change. | | |
+| 10.5 | Two metrics over time | Progress → Over time: pick a second metric. | Two lines, each on its own scale (axes left and right), the readout shows both. | | |
+| 10.6 | Against | Progress → Against on the weighted pull-up test. | Reps against weight (or any pair you pick), points joined in time order, the latest solid; tap a point for its readout. | | |
+| 10.7 | Lower is better | Make a timed test (Timed effort preset), log two times, the second faster. | The change shows as a gain (green), in the progress card and the overview. | | |
+| 10.8 | Estimated max and % of bodyweight | Chart a weight-for-reps test as "Estimated max"; chart a hang as "% of bodyweight" with a bodyweight logged near it. | Both draw; without a bodyweight the chart says what it needs. | | |
+| 10.9 | Value types | Settings → Training setup → Value types: add your own number type, mark it "Benchmark tests" only; add it to a test. | It is offered for tests and not on exercises; deleting a value type used by a test is refused (archive instead). | | |
+| 10.10 | AI | AI → copy the prompt after logging a hang at an edge. | The benchmark carries "conditions": "Edge depth 20 mm" in words (no ids). | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
