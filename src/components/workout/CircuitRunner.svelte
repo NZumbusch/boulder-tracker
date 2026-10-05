@@ -68,6 +68,7 @@
   } from '../../lib/timer/circuitRun';
   import { CueSound, type CueKind } from '../../lib/timer/cueSound';
   import { speakText } from '../../lib/timer/speech';
+  import { measureMissing, measurerFor } from '../../lib/timer/speechMeter';
   import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
   import { liveTimerAvailable, type LiveAction } from '../../lib/native/timerService';
   import { live, onLiveAction, collectLiveActions } from '../../lib/native/liveNotification.svelte';
@@ -279,11 +280,17 @@
   let speakQueue: { at: number; text?: string }[] = [];
   function syncLive() {
     live.circuitRunning = true;
+    // The phone's speech engine tells how long phrases really take; until it has, the plan uses an estimate and is made again.
+    const speech = $state.snapshot(trainingState.timerCues.speech);
+    const meter = measurerFor(speech);
     const plan = buildCircuitLive({
       steps, state: run, running, name: group.name || 'Circuit', memberName,
       ticks: trainingState.timerCountdownTicks, warningSeconds: trainingState.timerWarnBeforeEnd ? WARN_SECONDS : 0,
-      announce: trainingState.timerCues.announce,
+      announce: trainingState.timerCues.announce, speechRate: speech.rate,
+      measure: liveTimerAvailable() ? meter.measure : undefined,
     }, Date.now());
+    const unknown = meter.missing();
+    if (unknown.length > 0) void measureMissing(unknown, speech).then((learned) => { if (learned) planNonce++; });
     speakQueue = plan ? plan.cues.filter((c) => c.kind === 'speak') : [];
     if (!useLive) { live.timerPlan = null; live.timerFinished = false; return; }
     live.timerFinished = !plan && run.done;
@@ -299,7 +306,7 @@
   }
 
   $effect(() => {
-    void [run.stepIndex, run.done, running, useLive, planNonce, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, JSON.stringify(trainingState.timerCues.announce)];
+    void [run.stepIndex, run.done, running, useLive, planNonce, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, JSON.stringify(trainingState.timerCues.announce), JSON.stringify(trainingState.timerCues.speech)];
     untrack(() => {
       syncLive();
       syncTicker();

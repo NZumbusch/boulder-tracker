@@ -19,6 +19,8 @@
  */
 import { type IntervalSpec, buildTimeline, clampSpec, phaseLabel, stepStartSeconds, timelineSeconds } from "./intervalTimer";
 import { type Clock, clockElapsedMs, countdownRemainingMs } from "./clock";
+import type { AnnounceRules } from "./timerCues";
+import { type SpeechMeasure, nextText, planRestSpeech } from "./announcePlan";
 import { type SetRunState, isResting, restRemainingSeconds, setRunPhase } from "./setRun";
 
 export type CueKind = "work" | "rest" | "setRest" | "leadIn" | "done" | "tick" | "warn";
@@ -66,6 +68,11 @@ export interface LiveInput {
   /** Name of the exercise, for the notification. */
   label: string;
   workLabel: string;
+  /** Spoken "next: set 3 of 5" during a self-paced rest; off when absent or disabled. */
+  announce?: AnnounceRules;
+  /** The voice's speaking speed and the engine's own timing of phrases (Android), for fitting the words to the rest. */
+  speechRate?: number;
+  measure?: SpeechMeasure;
 }
 
 function fmt(ms: number): string {
@@ -76,6 +83,30 @@ function fmt(ms: number): string {
 /** 3-2-1 before `end`, only those still ahead. */
 function ticksBefore(end: number, now: number): LiveCue[] {
   return [3000, 2000, 1000].map((d) => ({ at: end - d, kind: "tick" as const })).filter((c) => c.at > now);
+}
+
+/**
+ * What is said during a self-paced rest: which set comes next. Auto fits it to
+ * the rest's length (and says it again near the end of a long one); Custom
+ * follows the manual rules. Only what is still ahead of `now`.
+ */
+function restSpeech(input: LiveInput, set: number, sets: number, restStart: number, restEnd: number, now: number): LiveCue[] {
+  const say = input.announce;
+  if (!say?.enabled) return [];
+  const what = `set ${set} of ${sets}`;
+  const seconds = (restEnd - restStart) / 1000;
+  const cues: LiveCue[] = [];
+  if (say.mode === "auto") {
+    const plan = planRestSpeech({
+      kind: "roundRest", seconds, name: what, target: "", rate: input.speechRate ?? 1, measure: input.measure,
+      trimmed: set > 2, ticks: input.ticks, warningSeconds: input.warningSeconds,
+    });
+    for (const c of plan.cues) cues.push({ at: restStart + c.offset * 1000, kind: "speak", text: c.text });
+  } else {
+    if (say.restStart) cues.push({ at: restStart + say.restStartDelay * 1000, kind: "speak", text: `Rest. ${nextText(what)}` });
+    if (say.restEnd > 0 && seconds > say.restEnd + say.restStartDelay + 4) cues.push({ at: restEnd - say.restEnd * 1000, kind: "speak", text: nextText(what) });
+  }
+  return cues.filter((c) => c.at >= now - 100);
 }
 
 /**
@@ -145,6 +176,7 @@ export function buildLiveTimer(input: LiveInput, now: number): LiveTimerConfig |
       if (input.warningSeconds > 0 && left > input.warningSeconds * 1000) cues.push({ at: end - input.warningSeconds * 1000, kind: "warn" });
       if (input.ticks) cues.push(...ticksBefore(end, now));
       cues.push({ at: end, kind: "work" });
+      cues.push(...restSpeech(input, run.currentSet, spec.sets, restStart, restStart + run.sinceLastSetMs + left, now));
       return {
         segments: [{ endsAt: end, title: `Rest · next: ${setText}`, body }, { startedAt: end, title: `Rest over · ${setText}`, body }],
         cues,

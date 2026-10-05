@@ -10,6 +10,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import RangeSlider from '../common/RangeSlider.svelte';
   import { speakText } from '../../lib/timer/speech';
+  import { SPEECH_PAUSE } from '../../lib/timer/announcePlan';
   import { liveTimerAvailable, loadSpeechChoices, previewNativeSpeech, type SpeechChoices } from '../../lib/native/timerService';
 
   const cues = $derived(trainingState.timerCues);
@@ -47,7 +48,7 @@
   const voiceLabel = (v: { name: string; locale: string; network: boolean }) => `${v.locale} · ${v.name}${v.network ? ' (online)' : ''}`;
 
   function tryIt() {
-    const text = 'Rest. Next: Front lever progressions';
+    const text = `Rest. Next${SPEECH_PAUSE}Front lever progressions, 6 reps`;
     if (native) void previewNativeSpeech(text, $state.snapshot(sp), cues.volume, cues.volumeSetsMedia);
     else speakText(text, cues.volume, sp.rate, sp.pitch);
   }
@@ -69,8 +70,26 @@
     </label>
 
     {#if a.enabled}
-      <div class="py-3 space-y-3">
+      <div class="py-3 space-y-2">
         <p class="text-label text-content-subtle">When</p>
+        <div class="flex gap-1 p-1 rounded-control bg-surface-elevated border border-border-strong">
+          {#each [['auto', 'Auto'], ['custom', 'Custom']] as [mode, label]}
+            <button
+              type="button"
+              onclick={() => trainingState.setTimerCues({ announce: { mode: mode as 'auto' | 'custom' } })}
+              class="flex-1 py-1.5 rounded-control text-label font-bold transition-colors {a.mode === mode ? 'bg-primary text-white' : 'text-content-muted'}"
+            >{label}</button>
+          {/each}
+        </div>
+        {#if a.mode === 'auto'}
+          <p class="text-caption text-content-subtle leading-relaxed">
+            The timer fits the announcements to each rest: it estimates how long the words take, says what's next (with the reps or time) early enough to finish before the set,
+            shortens it on short rests, says it again near the end of a long rest, and keeps clear of the countdown beeps.
+          </p>
+        {/if}
+      </div>
+      {#if a.mode === 'custom'}
+      <div class="py-3 space-y-3">
         <label class="flex items-center justify-between gap-3 cursor-pointer">
           <span class="text-body text-content">Name the exercise when a set starts</span>
           <input type="checkbox" checked={a.work} onchange={(e) => trainingState.setTimerCues({ announce: { work: e.currentTarget.checked } })} class="w-5 h-5 rounded accent-primary shrink-0" />
@@ -107,6 +126,7 @@
           </select>
         </label>
       </div>
+      {/if}
 
       <div class="py-3 space-y-3">
         <p class="text-label text-content-subtle">How it sounds</p>

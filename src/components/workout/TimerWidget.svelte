@@ -54,6 +54,8 @@
   import { hasIntervalTiming } from "../../lib/timer/intervalTimer";
   import { buildLiveTimer } from "../../lib/timer/liveTimer";
   import { liveTimerAvailable, type LiveAction } from "../../lib/native/timerService";
+  import { speakText } from "../../lib/timer/speech";
+  import { measureMissing, measurerFor } from "../../lib/timer/speechMeter";
   import { live, onLiveAction, collectLiveActions } from "../../lib/native/liveNotification.svelte";
   import { slotTypeName } from "../../lib/exerciseSlot";
   import SetRunView from "./SetRunView.svelte";
@@ -334,14 +336,14 @@
    * `lib/native/liveNotification`, which combines it with the session and
    * talks to Android). Null when no timer runs.
    */
+  /** Spoken rest announcements still to come - for when the page (not the service) is the one speaking. */
+  let speakQueue: { at: number; text?: string }[] = [];
+  let planNonce = $state(0);
   function syncLive() {
     // A running circuit owns the timer plan (CircuitRunner) - don't overwrite it.
     if (live.circuitRunning) return;
-    if (!useLive) {
-      live.timerPlan = null;
-      live.timerFinished = false;
-      return;
-    }
+    const speech = $state.snapshot(trainingState.timerCues.speech);
+    const meter = measurerFor(speech);
     const config = buildLiveTimer({
       mode,
       targetSeconds: targetTime,
@@ -354,7 +356,18 @@
       warningSeconds: trainingState.timerWarnBeforeEnd ? WARN_SECONDS : 0,
       label: currentSlot ? slotTypeName(currentSlot, trainingState.exerciseTypes) : 'Session timer',
       workLabel,
+      announce: trainingState.timerCues.announce,
+      speechRate: speech.rate,
+      measure: liveTimerAvailable() ? meter.measure : undefined,
     }, Date.now());
+    const unknown = meter.missing();
+    if (unknown.length > 0) void measureMissing(unknown, speech).then((learned) => { if (learned) planNonce++; });
+    speakQueue = config ? config.cues.filter((c) => c.kind === 'speak') : [];
+    if (!useLive) {
+      live.timerPlan = null;
+      live.timerFinished = false;
+      return;
+    }
     // Ran out by itself: the service plays the finish and moves on by itself.
     live.timerFinished = !config && (
       (mode === 'timer' && basic.bankedMs > 0 && countdownRemainingMs(targetTime, basic, Date.now()) <= 0)
@@ -367,7 +380,8 @@
     void [mode, targetTime, basic.bankedMs, basic.runningSince, spec, bankedMs, runningSince, timingMode, selfPaced,
       setRun.currentSet, setRun.completed.length, setRun.done, setRun.leadInRemainingMs > 0, currentSlot?.id,
       trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, trainingState.timerBeepEnabled,
-      trainingState.timerVibrateEnabled, useLive, live.circuitRunning];
+      trainingState.timerVibrateEnabled, useLive, live.circuitRunning, planNonce,
+      JSON.stringify(trainingState.timerCues.announce), JSON.stringify(trainingState.timerCues.speech)];
     untrack(syncLive);
   });
 
@@ -525,6 +539,16 @@
     return hasIntervalTiming(currentSlot ? slotValues(currentSlot) : undefined);
   }
 
+  /** Speaks what has come due - unless the service does, or the page is hidden. */
+  function speakDue(t: number) {
+    if (speakQueue.length === 0 || speakQueue[0].at > t) return;
+    const due = speakQueue.filter((c) => c.at <= t);
+    speakQueue = speakQueue.filter((c) => c.at > t);
+    const last = due[due.length - 1];
+    const cues = trainingState.timerCues;
+    if (last?.text && !liveActive && document.visibilityState !== 'hidden') speakText(last.text, cues.volume, cues.speech.rate, cues.speech.pitch);
+  }
+
   // --- Interval controls ------------------------------------------------
 
   function syncTicker() {
@@ -543,6 +567,7 @@
         // derived from a start time, because only its rests are on a
         // clock - the sets themselves end when the user says so.
         if (selfPaced && !setRun.done) setRun = tickSetRun(setRun, delta);
+        speakDue(at);
       }, 100);
     } else if (!shouldTick && ticker !== null) {
       clearInterval(ticker);

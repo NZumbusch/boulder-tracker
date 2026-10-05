@@ -83,4 +83,17 @@ describe("buildLiveTimer", () => {
     expect(live.segments[0]).toEqual({ endsAt: NOW + 100_000, title: "Rest · next: Set 2 of 4", body: "Max Hangs" });
     expect(live.cues.at(-1)).toEqual({ at: NOW + 100_000, kind: "work" });
   });
+
+  it("speaks the next set during a self-paced rest in Auto: at the start, and again near the end of a long rest", () => {
+    const spec = { ...DEFAULT_SPEC, sets: 4, setRestSeconds: 120, leadInSeconds: 0 };
+    const run = { ...finishSet(startSetRun(spec), spec, 8), sinceLastSetMs: 0 };
+    const announce = { enabled: true, mode: "auto" as const, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 0 };
+    const live = buildLiveTimer({ ...base, mode: "interval", spec, selfPaced: true, setRun: run, intervalClock: startClock(STOPPED_CLOCK, NOW), announce }, NOW)!;
+    const spoken = live.cues.filter((c) => c.kind === "speak");
+    expect(spoken.map((c) => c.text)).toEqual(["Rest. Next\u001fset 2 of 4", "Next\u001fset 2 of 4"]);
+    expect(spoken[1].at).toBeLessThan(NOW + 120_000);
+    expect(live.cues.some((c) => c.kind === "speak")).toBe(true);
+    const off = buildLiveTimer({ ...base, mode: "interval", spec, selfPaced: true, setRun: run, intervalClock: startClock(STOPPED_CLOCK, NOW) }, NOW)!;
+    expect(off.cues.some((c) => c.kind === "speak")).toBe(false);
+  });
 });

@@ -4,6 +4,7 @@ import { toRepsArray } from "../exercise/reps";
 import { restSeconds } from "../exercise/rest";
 import type { LiveCue, LiveSegment, LiveTimerConfig } from "./liveTimer";
 import type { AnnounceRules } from "./timerCues";
+import { type SpeechMeasure, START_MARGIN, exercisePhrase, nextText, planRestSpeech, targetSpeech } from "./announcePlan";
 
 /**
  * Running a circuit or superset live: one timeline across its members,
@@ -247,6 +248,10 @@ export interface CircuitLiveInput {
   warningSeconds: number;
   /** Spoken announcements of the exercises; off when absent or disabled. */
   announce?: AnnounceRules;
+  /** The voice's speaking speed - Auto estimates how long the words take from it. */
+  speechRate?: number;
+  /** The speech engine's own timing of phrases (Android), when known. */
+  measure?: SpeechMeasure;
 }
 
 /**
@@ -277,21 +282,38 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
   const speak = (at: number, text: string) => {
     if (at >= now - 100) cues.push({ at, kind: "speak", text });
   };
+  let covered = false;
   let t = now - state.stepElapsedMs;
   for (let i = state.stepIndex; i < steps.length; i++) {
     const step = steps[i];
     const title = describe(step, input);
     const seconds = step.seconds;
     if (i > state.stepIndex) cues.push({ at: t, kind: step.kind === "work" ? "work" : step.kind === "leadIn" ? "leadIn" : "rest" });
-    if (say) {
+    if (say?.mode === "auto") {
+      if (step.kind === "work") {
+        // The rest before already named it, or there was none: say it as the set begins.
+        if (!covered) speak(t + START_MARGIN * 1000, exercisePhrase(input.memberName(step.member), saidTarget(steps, i)));
+        covered = false;
+      } else {
+        const nextStep = steps[i + 1];
+        if (nextStep?.kind === "work" && seconds !== undefined) {
+          const plan = planRestSpeech({
+            kind: step.kind, seconds, name: input.memberName(nextStep.member), target: saidTarget(steps, i + 1),
+            rate: input.speechRate ?? 1, measure: input.measure, trimmed: nextStep.round >= 1, ticks: input.ticks, warningSeconds: input.warningSeconds,
+          });
+          plan.cues.forEach((c) => speak(t + c.offset * 1000, c.text));
+          covered = plan.covered;
+        }
+      }
+    } else if (say) {
       if (step.kind === "work" && say.work) speak(t - say.workLead * 1000, input.memberName(step.member));
       if (step.kind !== "work" && say.restStart) {
         const first = step.kind === "leadIn" ? steps.find((s): s is Extract<CircuitStep, { kind: "work" }> => s.kind === "work") : undefined;
         const next = step.kind === "leadIn" ? first?.member : step.next;
-        if (next !== undefined) speak(t + say.restStartDelay * 1000, `${step.kind === "roundRest" ? "Rest. " : step.kind === "leadIn" ? "Get ready. " : ""}Next: ${input.memberName(next)}`);
+        if (next !== undefined) speak(t + say.restStartDelay * 1000, `${step.kind === "roundRest" ? "Rest. " : step.kind === "leadIn" ? "Get ready. " : ""}${nextText(input.memberName(next))}`);
       }
       if (step.kind !== "work" && step.kind !== "leadIn" && say.restEnd > 0 && seconds !== undefined && seconds > say.restEnd + say.restStartDelay + 4) {
-        speak(t + seconds * 1000 - say.restEnd * 1000, `Next: ${input.memberName(step.next)}`);
+        speak(t + seconds * 1000 - say.restEnd * 1000, nextText(input.memberName(step.next)));
       }
     }
     if (seconds === undefined) {
@@ -306,6 +328,19 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
   }
   cues.push({ at: t, kind: "done" });
   return { segments, cues: cues.filter((c) => c.kind === "speak" || c.at > now).sort((a, b) => a.at - b.at), actions: ["pause"], finishedTitle: `${input.name} done` };
+}
+
+/**
+ * The target to say for the work step at `at`: always in the first round; later
+ * ones only when it differs from what that member did the round before.
+ */
+function saidTarget(steps: CircuitStep[], at: number): string {
+  const step = steps[at];
+  if (step?.kind !== "work") return "";
+  const target = targetSpeech(step);
+  if (step.round === 0) return target;
+  const before = steps.find((s) => s.kind === "work" && s.slotId === step.slotId && s.round === step.round - 1);
+  return before?.kind === "work" && targetSpeech(before) === target ? "" : target;
 }
 
 /** The title: the phase and the exercise - "Go · Twists", "Rest · next: Push-ups". */

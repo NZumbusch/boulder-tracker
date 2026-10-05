@@ -98,7 +98,10 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 7.9 | Quick log notes | Finish a timed exercise or circuit member and open its log sheet. | "How it went" is empty (the plan note is shown above it, not copied in). | | |
 | 7.10 | Sound style | Settings → Timer, sound & voice → Sound: pick each style. | Each plays a preview; the choice is used by the page and with the screen locked. | | |
 | 7.11 | Volume | Move the slider (Settings and the speaker icon on a timer screen); turn on "also sets the media volume" with music playing. | Cues get quieter/louder; with the option, the music's volume returns afterwards. | | |
-| 7.12 | Speaking | Turn on "Speak the exercises"; run a circuit with the screen off. | The exercise is named at set start, and "Rest. Next: …" when a rest begins; "again before a rest ends" works on a long rest. | | |
+| 7.12 | Speaking | Leave "Speak the exercises" on Auto; run a circuit with the screen off, with a short switch, a long round rest and short rests (and try a slow voice speed). | "Next", a short beat, then the exercise and its reps/time; short rests get a shorter phrase and never run into the 3-2-1 beeps; the long rest repeats it near the end. Custom mode keeps the manual timings. | | |
+| 7.12a | Speech timing | With Auto speech on (Android), run a circuit with a slow voice speed (try 0.6×, then 1.8×) and a 6-8 s switch. | The announcement always finishes before the set starts and never covers the 3-2-1 beeps; slow voices get shorter phrases. | | |
+| 7.12b | Saying less | Run a 3-round circuit with Auto speech. | Round 1 says "Rest. Next, X, 12 reps"; later rounds just "Next, X" (reps only if they changed). | | |
+| 7.12c | Set timer speech | In a self-paced set (e.g. 4 sets, 2 min rest) with Auto speech on, finish a set. | "Rest. Next, set 2 of 4" as the rest begins, again near its end; later rests drop "Rest." Works with the screen off. | | |
 | 7.13 | Voice | Change the speech engine, voice, speed and pitch; tap Try it. | The sample changes; the timer uses the same. | | |
 
 ## 8. AI prompts

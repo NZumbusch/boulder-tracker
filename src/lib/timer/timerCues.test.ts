@@ -12,8 +12,15 @@ describe("validateTimerCues", () => {
     const v = validateTimerCues({ volume: 7, volumeSetsMedia: true, announce: { enabled: true, workLead: -4, restStartDelay: 99, restEnd: 12.4, work: "yes" } });
     expect(v.volume).toBe(1);
     expect(v.volumeSetsMedia).toBe(true);
-    expect(v.announce).toEqual({ enabled: true, work: true, workLead: 0, restStart: true, restStartDelay: 30, restEnd: 12 });
+    expect(v.announce).toEqual({ enabled: true, mode: "custom", work: true, workLead: 0, restStart: true, restStartDelay: 30, restEnd: 12 });
     expect(validateTimerCues({ volume: 0 }).volume).toBe(0.1);
+  });
+
+  it("is on in Auto by default, and keeps a hand-tuned value in Custom", () => {
+    expect(validateTimerCues(undefined).announce).toMatchObject({ enabled: true, mode: "auto" });
+    expect(validateTimerCues({ announce: { enabled: false, workLead: 5 } }).announce).toMatchObject({ enabled: false, mode: "custom" });
+    expect(validateTimerCues({ announce: { mode: "auto" } }).announce.mode).toBe("auto");
+    expect(validateTimerCues({ announce: { mode: "weird" } }).announce.mode).toBe("auto");
   });
 
   it("keeps a known beep style and a sane voice, and falls back for the rest", () => {

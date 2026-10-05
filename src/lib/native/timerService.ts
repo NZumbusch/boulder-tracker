@@ -50,6 +50,7 @@ interface TimerServicePlugin {
   isRunning(): Promise<{ running: boolean }>;
   takeActions(): Promise<{ actions: LiveAction[] }>;
   speechChoices(options: { engine: string | null }): Promise<SpeechChoices>;
+  measureSpeech(options: { texts: string[] } & SpeechVoice): Promise<{ seconds: number[] }>;
   previewSpeech(options: { text: string; volume: number; volumeSetsMedia: boolean } & SpeechVoice): Promise<void>;
   addListener(event: "action", handler: (action: LiveAction) => void): Promise<PluginListenerHandle>;
 }
@@ -112,5 +113,16 @@ export async function previewNativeSpeech(text: string, speech: SpeechVoice, vol
     return true;
   } catch {
     return false;
+  }
+}
+
+/** How long each text takes to say with this voice (rendered by the engine, not played); `null` for one that could not be told. */
+export async function measureNativeSpeech(texts: string[], speech: SpeechVoice): Promise<(number | null)[] | null> {
+  if (!liveTimerAvailable() || texts.length === 0) return null;
+  try {
+    const { seconds } = await TimerService.measureSpeech({ texts, ...speech });
+    return texts.map((_, i) => (typeof seconds?.[i] === "number" && seconds[i] > 0 ? seconds[i] : null));
+  } catch {
+    return null;
   }
 }

@@ -58,6 +58,7 @@ final class CuePlayer {
     /** The media volume index to put back, or -1 when it is not changed. */
     private int savedMediaVolume = -1;
 
+    private static final long PAUSE_MS = 400;
     private TextToSpeech tts;
     private boolean ttsReady = false;
     private String pendingSpeech;
@@ -238,8 +239,9 @@ final class CuePlayer {
                 tts.setAudioAttributes(attributes);
                 tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                     @Override public void onStart(String id) {}
-                    @Override public void onError(String id) { handler.post(() -> scheduleAbandon(0)); }
-                    @Override public void onDone(String id) { handler.post(() -> scheduleAbandon(0)); }
+                    // Only the last part of an announcement ends it; the earlier parts and the pauses are not "done".
+                    @Override public void onError(String id) { if ("cue".equals(id)) handler.post(() -> scheduleAbandon(0)); }
+                    @Override public void onDone(String id) { if ("cue".equals(id)) handler.post(() -> scheduleAbandon(0)); }
                 });
                 ttsReady = true;
                 if (pendingSpeech != null) {
@@ -263,7 +265,17 @@ final class CuePlayer {
         applySpeechSettings();
         Bundle params = new Bundle();
         params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "cue");
+        // U+001F marks a short silence ("Next" ... the name); the parts are queued with a pause between.
+        String[] parts = text.split("\u001f");
+        int mode = TextToSpeech.QUEUE_FLUSH;
+        for (int i = 0; i < parts.length; i++) {
+            if (parts[i].isEmpty()) continue;
+            if (mode != TextToSpeech.QUEUE_FLUSH) tts.playSilentUtterance(PAUSE_MS, TextToSpeech.QUEUE_ADD, "pause");
+            boolean last = true;
+            for (int j = i + 1; j < parts.length; j++) if (!parts[j].isEmpty()) last = false;
+            tts.speak(parts[i], mode, params, last ? "cue" : "part");
+            mode = TextToSpeech.QUEUE_ADD;
+        }
         // Safety net if no "done" arrives; the utterance listener normally ends focus sooner.
         scheduleAbandon(8000);
     }

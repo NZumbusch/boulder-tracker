@@ -8,6 +8,11 @@
 export interface AnnounceRules {
   /** Master switch. */
   enabled: boolean;
+  /**
+   * "auto": the timer works out what to say and when from each rest's length and how long the words take (the rules below are ignored).
+   * "custom": the rules below, to the second.
+   */
+  mode: "auto" | "custom";
   /** Say the exercise's name when its set starts... */
   work: boolean;
   /** ...this many seconds before it starts (0 = on the start; up to 30, during the rest before). */
@@ -45,7 +50,7 @@ export interface TimerCues {
   speech: SpeechVoice;
 }
 
-export const DEFAULT_ANNOUNCE: AnnounceRules = { enabled: false, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 0 };
+export const DEFAULT_ANNOUNCE: AnnounceRules = { enabled: true, mode: "auto", work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 0 };
 export const DEFAULT_SPEECH: SpeechVoice = { engine: null, voice: null, rate: 1, pitch: 1 };
 export const DEFAULT_TIMER_CUES: TimerCues = { volume: 1, volumeSetsMedia: false, sound: "classic", announce: { ...DEFAULT_ANNOUNCE }, speech: { ...DEFAULT_SPEECH } };
 
@@ -69,6 +74,8 @@ export function validateTimerCues(raw: unknown): TimerCues {
     sound: SOUND_PRESETS.includes(c.sound as SoundPreset) ? (c.sound as SoundPreset) : d.sound,
     announce: {
       enabled: bool(a.enabled, DEFAULT_ANNOUNCE.enabled),
+      // A value saved before Auto existed was tuned by hand: it stays as it was.
+      mode: a.mode === "auto" || a.mode === "custom" ? a.mode : typeof a.enabled === "boolean" ? "custom" : DEFAULT_ANNOUNCE.mode,
       work: bool(a.work, DEFAULT_ANNOUNCE.work),
       workLead: secs(a.workLead, DEFAULT_ANNOUNCE.workLead, L.workLead.min, L.workLead.max),
       restStart: bool(a.restStart, DEFAULT_ANNOUNCE.restStart),

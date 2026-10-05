@@ -137,20 +137,44 @@ describe("buildCircuitLive", () => {
   });
 
   it("speaks the exercises when asked: the set's name on its start, \"next\" when a rest begins and before it ends", () => {
-    const announce = { enabled: true, work: true, workLead: 3, restStart: true, restStartDelay: 1, restEnd: 5 };
+    const announce = { enabled: true, mode: "custom" as const, work: true, workLead: 3, restStart: true, restStartDelay: 1, restEnd: 5 };
     const at = 1_000_000;
     // Twists 5 s in: transition (15 s) next, then push-ups (open), nothing further is scheduled past it.
     const plan = buildCircuitLive({ ...input({ ...startCircuitRun(), stepIndex: 1, stepElapsedMs: 10_000 }), announce }, at)!;
     const spoken = plan.cues.filter((c) => c.kind === "speak").map((c) => [c.text, c.at - at]);
     expect(spoken).toEqual([
-      ["Next: Push-ups", 50_000 + 1000], // transition begins when the 60 s twists end; +1 s delay
-      ["Next: Push-ups", 50_000 + 15_000 - 5000], // 5 s before the switch ends
+      ["Next\u001fPush-ups", 50_000 + 1000], // transition begins when the 60 s twists end; +1 s delay
+      ["Next\u001fPush-ups", 50_000 + 15_000 - 5000], // 5 s before the switch ends
       ["Push-ups", 65_000 - 3000], // the set's name 3 s before it starts
     ].sort((a, b) => (a[1] as number) - (b[1] as number)));
   });
 
+  it("in Auto, names each set once - in the rest before it when it fits, as the set starts when it does not", () => {
+    const at = 1_000_000;
+    const auto = { enabled: true, mode: "auto" as const, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 0 };
+    const plan = buildCircuitLive({ ...input(), announce: auto }, at)!;
+    const spoken = plan.cues.filter((c) => c.kind === "speak").map((c) => [c.text, (c.at - at) / 1000]);
+    expect(spoken.map((s) => s[0])).toEqual([
+      "Get ready. Next\u001fTwists, 1 minute", // 5 s lead-in has room for it
+      "Next\u001fPush-ups, 12 reps", // the 15 s switch
+    ]);
+    // Twists are named by the lead-in, so there is no second "Twists" as the set starts.
+    expect(spoken.filter((s) => String(s[0]).startsWith("Twists"))).toHaveLength(0);
+  });
+
+  it("in Auto, later rounds say less: no 'Rest.' and no target that has not changed", () => {
+    const at = 1_000_000;
+    const auto = { enabled: true, mode: "auto" as const, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 0 };
+    // Round 1 done: now in the 60 s rest before round 2 (twists, 1 minute, same as before).
+    const rest = steps.findIndex((s) => s.kind === "roundRest");
+    const plan = buildCircuitLive({ ...input({ ...startCircuitRun(), stepIndex: rest, stepElapsedMs: 0 }), announce: auto }, at)!;
+    const spoken = plan.cues.filter((c) => c.kind === "speak").map((c) => c.text);
+    expect(spoken[0]).toBe("Next\u001fTwists");
+    expect(spoken.some((t) => String(t).includes("Rest."))).toBe(false);
+  });
+
   it("says nothing when announcements are off", () => {
-    const plan = buildCircuitLive({ ...input(), announce: { enabled: false, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 5 } }, 0)!;
+    const plan = buildCircuitLive({ ...input(), announce: { enabled: false, mode: "custom" as const, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 5 } }, 0)!;
     expect(plan.cues.some((c) => c.kind === "speak")).toBe(false);
   });
 

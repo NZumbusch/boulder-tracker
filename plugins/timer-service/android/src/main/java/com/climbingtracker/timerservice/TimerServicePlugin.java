@@ -140,6 +140,25 @@ public class TimerServicePlugin extends Plugin {
         }
     }
 
+    /** How long each text takes to say with the chosen engine, voice, speed and pitch (rendered, not played); -1 where it could not be told. */
+    @PluginMethod
+    public void measureSpeech(PluginCall call) {
+        com.getcapacitor.JSArray list = call.getArray("texts");
+        java.util.List<String> texts = new java.util.ArrayList<>();
+        if (list != null) {
+            for (int i = 0; i < list.length(); i++) texts.add(list.optString(i, ""));
+        }
+        SpeechMeter.measure(getContext(), call.getString("engine"), call.getString("voice"), call.getFloat("rate", 1f), call.getFloat("pitch", 1f), texts, seconds -> {
+            com.getcapacitor.JSArray out = new com.getcapacitor.JSArray();
+            for (double s : seconds) {
+                try { out.put(s); } catch (Exception e) { out.put(-1); }
+            }
+            JSObject result = new JSObject();
+            result.put("seconds", out);
+            call.resolve(result);
+        });
+    }
+
     private CuePlayer preview;
 
     /** Says a sample with the chosen engine, voice, speed and pitch - what the timer service will do. */
