@@ -1,5 +1,6 @@
 <script lang="ts">
   import { sheetDrag } from '../../lib/ui/sheetDrag';
+  import { keyboardAware } from '../../lib/ui/keyboardAware';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * "What did you actually do?" - the step between finishing an exercise
@@ -222,7 +223,7 @@
   role="presentation"
   onclick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
 >
-  <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[88vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onCancel()}>
+  <div class="group bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[88vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onCancel()} use:keyboardAware>
     <div class="sticky top-0 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
       <div class="min-w-0">
         <p class="text-caption uppercase text-content-subtle">What you did</p>
@@ -332,7 +333,7 @@
       </label>
     </div>
 
-    <div class="sticky bottom-0 bg-surface/95 backdrop-blur-sm border-t border-border px-5 py-4 space-y-3">
+    <div class="sticky group-data-[typing]:static bottom-0 bg-surface/95 backdrop-blur-sm border-t border-border px-5 py-4 space-y-3">
       <div class="flex gap-2">
         {#if slot.prescribed}
           <button

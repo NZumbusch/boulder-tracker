@@ -1,4 +1,4 @@
-import type { ExerciseSlot, ExerciseValues, ParameterBlock, Workout } from '../types';
+import type { ExerciseGroup, ExerciseSlot, ExerciseValues, ParameterBlock, Workout } from '../types';
 import type { AddedExerciseTarget } from '../preferences/migrate';
 import {
   type ActiveSession,
@@ -20,6 +20,7 @@ import {
   updateSlot,
   removeSlot,
   reorderSlots,
+  regroupSlots,
   focusSlot,
   updateWorkout,
   toCompletedWorkout,
@@ -228,6 +229,11 @@ export class SessionStore {
 
   reorderExercises(exercises: ExerciseSlot[]) {
     this.#apply((s) => reorderSlots(s, $state.snapshot(exercises) as ExerciseSlot[]));
+  }
+
+  /** Replaces the exercise order and the circuits together (make a circuit, dissolve one, take a member out). */
+  regroupExercises(next: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }) {
+    this.#apply((s) => regroupSlots(s, $state.snapshot(next) as { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }));
   }
 
   focusExercise(index: number) {

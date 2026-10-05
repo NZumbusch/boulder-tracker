@@ -20,6 +20,7 @@ import {
   updateSlot,
   removeSlot,
   reorderSlots,
+  regroupSlots,
   focusSlot,
   updateWorkout,
   toCompletedWorkout,
@@ -358,6 +359,18 @@ describe("editing the session's exercise list", () => {
     s = reorderSlots(s, [b, c, a]);
     expect(currentSlot(s)?.id).toBe("a");
     expect(s.currentIndex).toBe(2);
+  });
+
+  it("regroups slots without moving focus off the exercise it was on", () => {
+    let s = focusSlot(threeSlotSession(), 2); // "c"
+    const [a, b, c] = s.workout.exercises;
+    const group = { id: "g", rounds: 2, transition: 15, roundRest: 60 };
+    s = regroupSlots(s, { exercises: [{ ...b, groupId: "g" }, { ...c, groupId: "g" }, a], groups: [group] });
+    expect(s.workout.groups).toEqual([group]);
+    expect(currentSlot(s)?.id).toBe("c");
+    s = regroupSlots(s, { exercises: s.workout.exercises.map(({ groupId: _g, ...rest }) => rest), groups: undefined });
+    expect(s.workout.groups).toBeUndefined();
+    expect(s.workout.exercises.some((e) => e.groupId)).toBe(false);
   });
 
   it("survives an empty exercise list without an out-of-range index", () => {

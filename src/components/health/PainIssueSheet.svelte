@@ -6,6 +6,7 @@
    */
   import { portal } from '../../lib/ui/portal';
   import { sheetDrag } from '../../lib/ui/sheetDrag';
+  import { keyboardAware } from '../../lib/ui/keyboardAware';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { localIsoDate, formatDate } from '../../lib/dateUtils';
@@ -62,7 +63,7 @@
 
 {#if issue && st}
   <div use:portal class="fixed inset-0 pb-safe z-[117] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div use:sheetDrag={onClose} class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200">
+    <div use:sheetDrag={onClose} use:keyboardAware class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200">
       <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
         <div class="min-w-0">
           <p class="text-caption flex items-center gap-2">

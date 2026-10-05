@@ -1,4 +1,4 @@
-import type { ExerciseSlot, ExerciseValues, ParameterBlock, Workout } from "../types";
+import type { ExerciseGroup, ExerciseSlot, ExerciseValues, ParameterBlock, Workout } from "../types";
 import type { AddedExerciseTarget } from "../preferences/migrate";
 import { estimateSessionDuration } from "../planning/sessionDuration";
 
@@ -344,6 +344,19 @@ export function reorderSlots(session: ActiveSession, exercises: ExerciseSlot[]):
   if (!focused) return next;
   const index = exercises.findIndex((s) => s.id === focused.id);
   return index === -1 ? next : { ...next, currentIndex: index };
+}
+
+/**
+ * Applies a grouping change (make / dissolve a circuit, take a member out):
+ * the new exercise list and groups together. Focus stays on the same slot.
+ */
+export function regroupSlots(session: ActiveSession, next: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }): ActiveSession {
+  const focused = currentSlot(session);
+  const moved = withExercises(session, next.exercises);
+  const grouped = { ...moved, workout: { ...moved.workout, groups: next.groups } };
+  if (!focused) return grouped;
+  const index = next.exercises.findIndex((s) => s.id === focused.id);
+  return index === -1 ? grouped : { ...grouped, currentIndex: index };
 }
 
 /** Moves focus, ignoring an out-of-range index rather than throwing. */
