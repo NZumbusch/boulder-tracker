@@ -48,6 +48,8 @@
   import ExerciseDetails from './ExerciseDetails.svelte';
   import VolumeControl from './VolumeControl.svelte';
   import VolumeBar from './VolumeBar.svelte';
+  import RangeSlider from '../common/RangeSlider.svelte';
+  import { PARAMETER_LABELS } from '../../lib/constants';
   import {
     type CircuitStep,
     type CircuitRunState,
@@ -266,9 +268,18 @@
     if (typeof value !== 'number') return;
     run = setCircuitResult(run, previous.slotId, previous.round, Math.max(0, value + by));
   }
+  /** How hard the circuit was - optional, and only written to members that track difficulty. */
+  let difficulty = $state<number | undefined>(undefined);
+  const tracksDifficulty = (slot: ExerciseSlot) =>
+    (slot.activeParameters ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? []).includes('difficulty');
+  const anyTracksDifficulty = $derived(members.some((m) => tracksDifficulty(m.slot)));
   function log() {
     forget();
-    onLog($state.snapshot(logged) as Record<string, ExerciseValues | undefined>, !stoppedEarly);
+    const values = $state.snapshot(logged) as Record<string, ExerciseValues | undefined>;
+    if (difficulty !== undefined) {
+      for (const m of members) if (values[m.slot.id] && tracksDifficulty(m.slot)) values[m.slot.id] = { ...values[m.slot.id]!, difficulty };
+    }
+    onLog(values, !stoppedEarly);
   }
   function discard() {
     forget();
@@ -466,6 +477,15 @@
           {#if logged[m.slot.id]}<Icon icon="ic:baseline-check-circle" class="text-lg text-success shrink-0" />{/if}
         </div>
       {/each}
+      {#if anyTracksDifficulty}
+        <div class="space-y-1.5 pt-1">
+          <span class="flex items-baseline justify-between gap-2">
+            <span class="text-label text-content-subtle">{PARAMETER_LABELS.difficulty}</span>
+            <span class="text-caption text-content-muted tabular-nums">{difficulty ?? '—'}</span>
+          </span>
+          <RangeSlider value={difficulty ?? 5} label={PARAMETER_LABELS.difficulty} onchange={(v) => difficulty = v} />
+        </div>
+      {/if}
     </div>
     <div class="shrink-0 px-6 pb-8 space-y-2">
       <button onclick={log} class="w-full py-4 bg-success hover:bg-success-hover text-white rounded-control text-label font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2">

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { portal } from '../../lib/ui/portal';
   import { sheetDrag } from '../../lib/ui/sheetDrag';
+  import { keyboardAware } from '../../lib/ui/keyboardAware';
   /**
    * One exercise in the library, as a sheet: name, group, how-to, which
    * fields it tracks, its chart category and default load. Edits a draft;
@@ -85,7 +86,7 @@
 </script>
 
 <div use:portal class="fixed inset-0 pb-safe {layer} flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-  <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onClose()}>
+  <div class="group bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onClose()} use:keyboardAware>
     <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
       <div class="min-w-0">
         <p class="text-caption uppercase text-content-subtle">{isNew ? 'New exercise' : type.archived ? 'Archived exercise' : 'Exercise'}</p>
@@ -204,7 +205,7 @@
       {/if}
     </div>
 
-    <div class="sticky bottom-0 bg-surface/95 backdrop-blur-sm border-t border-border px-5 py-4 flex gap-2">
+    <div class="sticky group-data-[typing]:static bottom-0 bg-surface/95 backdrop-blur-sm border-t border-border px-5 py-4 flex gap-2">
       <button onclick={save} disabled={!!nameError} class="flex-1 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control disabled:opacity-40 transition-all active:scale-[0.98]">
         {isNew ? 'Add to library' : 'Save'}
       </button>

@@ -13,7 +13,7 @@
   import Icon from '@iconify/svelte';
 
   const store = trainingState.sessionStore;
-  let { onClose }: { onClose: () => void } = $props();
+  let { onClose: close }: { onClose: () => void } = $props();
 
   const workout = $derived(store.workout);
   const weekNote = $derived(workout?.weekId ? trainingState.getWeekNote(workout.weekId) : '');
@@ -32,6 +32,12 @@
   function save() {
     store.updateWorkout({ description: draft.trim() || undefined });
     editing = false;
+  }
+
+  /** Leaving with the editor open keeps what was typed rather than dropping it. */
+  function onClose() {
+    if (editing && draft.trim() !== (workout?.description ?? '').trim()) save();
+    close();
   }
 
   backWhile(() => true, () => onClose());

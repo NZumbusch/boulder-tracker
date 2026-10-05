@@ -33,8 +33,9 @@
   import SessionNotesSheet from './SessionNotesSheet.svelte';
   import TimerWidget from './TimerWidget.svelte';
   import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
-  import { workoutItems, groupSummary, groupSlots, ungroup, takeOutOfGroup, settleAfterMove, normaliseGroups } from '../../lib/exercise/groups';
+  import { workoutItems, groupSummary, groupSlots, ungroup, takeOutOfGroup, addToGroup, updateGroup, settleAfterMove, normaliseGroups } from '../../lib/exercise/groups';
   import { repsPerSet } from '../../lib/exercise/reps';
+  import GroupSettings from './GroupSettings.svelte';
   import CircuitPill from './CircuitPill.svelte';
   import { tonesFor } from '../../lib/timer/cueSound';
   import { circuitHud } from '../../lib/session/circuitHud.svelte';
@@ -63,6 +64,9 @@
   /** Edit mode: picking exercises to turn into a circuit. */
   let isPickingCircuit = $state(false);
   let pickedSlotIds = $state<string[]>([]);
+  /** Edit mode: the circuit whose rounds and rests are open, and the one a new exercise is being added to. */
+  let openGroupId = $state<string | null>(null);
+  let addToGroupId = $state<string | null>(null);
   /**
    * Values handed over by a finished interval run (or the exercise's own
    * clock), seeding the finish sheet once - only for the slot they were
@@ -157,6 +161,8 @@
       isEditingPlan = false;
       isPickingCircuit = false;
       pickedSlotIds = [];
+      openGroupId = null;
+      addToGroupId = null;
       isExiting = false;
       showNotes = false;
     });
@@ -251,7 +257,7 @@
   const sessionOpen = $derived(!!session && store.isModalOpen);
   const formOpen = $derived(isAddingExercise || editingSlotId !== null);
   backWhile(() => sessionOpen, () => store.minimize());
-  backWhile(() => formOpen, () => { isAddingExercise = false; editingSlotId = null; });
+  backWhile(() => formOpen, () => { isAddingExercise = false; editingSlotId = null; addToGroupId = null; });
   const exercises = $derived(store.exercises);
   /** Circuit headers in the list: which slot starts which group. Round-by-round running comes later. */
   const groupStarts = $derived.by(() => {
@@ -337,12 +343,14 @@
 
   // --- Swiping a row ---
   function swipeDone(slot: ExerciseSlot) {
+    if (lockedByRun(slot)) return;
     const name = slotTypeName(slot, trainingState.exerciseTypes);
     store.logExercise(slot.id, { ...(slot.prescribed ?? slotValues(slot)) });
     haptic(store.isComplete ? 'success' : 'tap');
     showUndo(`${name} done as prescribed`, () => store.unfinishExercise(slot.id));
   }
   function swipeSkip(slot: ExerciseSlot) {
+    if (lockedByRun(slot)) return;
     const name = slotTypeName(slot, trainingState.exerciseTypes);
     store.skipExercise(slot.id);
     haptic('tap');
@@ -362,7 +370,16 @@
    */
   function handleFormSave(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues; planNote?: string }) {
     if (isAddingExercise) {
-      store.addExercise({ id: generateId(), ...data }, trainingState.addedExerciseTarget);
+      const id = generateId();
+      store.addExercise({ id, ...data }, trainingState.addedExerciseTarget);
+      const into = addToGroupId;
+      addToGroupId = null;
+      if (into) {
+        // It lands at the end; move it to the end of the circuit it was added to.
+        const base = groupingBase();
+        const added = base.exercises.find((e) => e.id === id);
+        if (added) store.regroupExercises(addToGroup({ ...base, exercises: base.exercises.filter((e) => e.id !== id) }, into, added));
+      }
       isAddingExercise = false;
     } else if (editingSlotId) {
       // Type/parameter changes first, then the log - `logExercise` is what
@@ -388,13 +405,28 @@
   /** The workout as the grouping helpers want it (a plain copy, never the live proxy). */
   const groupingBase = () => ({ exercises: $state.snapshot(store.exercises) as ExerciseSlot[], groups: $state.snapshot(store.workout?.groups) as ExerciseGroup[] | undefined });
 
+  /** A member of the circuit that is running: its run owns it, so it can't be finished, skipped or removed meanwhile. */
+  const lockedByRun = (slot: ExerciseSlot) => !!circuitGroupId && slot.groupId === circuitGroupId;
+
+  /** Removes an exercise (a logged one included) with an Undo that puts back the list, circuits and focus. */
+  function removeWithUndo(slot: ExerciseSlot) {
+    if (lockedByRun(slot)) return;
+    const before = { ...groupingBase(), index: store.currentIndex };
+    store.removeExercise(slot.id);
+    showUndo(`${slotTypeName(slot, trainingState.exerciseTypes)} removed`, () => {
+      store.regroupExercises(before);
+      store.focusExercise(before.index);
+    });
+  }
+
   function dissolveCircuit(groupId: string) {
     if (circuitGroupId === groupId) return; // it is running: finish or stop it first
     store.regroupExercises(ungroup(groupingBase(), groupId));
   }
 
   function leaveCircuit(slotId: string) {
-    if (circuitGroupId && circuitOf(store.exercises.find((s) => s.id === slotId)!)?.id === circuitGroupId) return;
+    const slot = store.exercises.find((s) => s.id === slotId);
+    if (!slot || lockedByRun(slot)) return;
     store.regroupExercises(takeOutOfGroup(groupingBase(), slotId));
   }
 
@@ -404,7 +436,7 @@
 
   /** Turns the picked exercises into a circuit: rounds from the most sets any has, else 3 (as in the plan editor). */
   function makeCircuit() {
-    if (pickedSlotIds.length < 2) return;
+    if (pickedSlotIds.length < 1) return;
     const chosen = store.exercises.filter((e) => pickedSlotIds.includes(e.id));
     const sets = Math.max(0, ...chosen.map((e) => {
       const v = slotValues(e);
@@ -414,6 +446,9 @@
     pickedSlotIds = [];
     isPickingCircuit = false;
   }
+
+  // Back leaves the circuit picker first, then Edit mode, before it would minimise the session.
+  backWhile(() => isEditingPlan && !formOpen, () => { if (isPickingCircuit) { isPickingCircuit = false; pickedSlotIds = []; } else isEditingPlan = false; });
 
   // Edit mode has nothing to show once the list is empty (the empty-state
   // branch takes over), so leave it rather than stranding the toggle on.
@@ -538,7 +573,7 @@
                separate mode rather than handles always on show - the
                normal path is going through the list, not rearranging it. -->
           {#if isPickingCircuit}
-            <p class="px-1 text-caption text-content-subtle">Pick two or more exercises to do in rounds - a circuit, or a superset.</p>
+            <p class="px-1 text-caption text-content-subtle">Pick the exercises to do in rounds - a circuit, or a superset.</p>
             {#each exercises as slot (slot.id)}
               {@const on = pickedSlotIds.includes(slot.id)}
               <button
@@ -559,15 +594,15 @@
             <div class="flex gap-2 pt-1">
               <button
                 onclick={makeCircuit}
-                disabled={pickedSlotIds.length < 2}
+                disabled={pickedSlotIds.length < 1}
                 class="flex-1 py-2.5 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-colors disabled:opacity-40"
-              >Make circuit{pickedSlotIds.length >= 2 ? ` of ${pickedSlotIds.length}` : ''}</button>
+              >Make circuit{pickedSlotIds.length ? ` (${pickedSlotIds.length})` : ''}</button>
               <button onclick={() => { isPickingCircuit = false; pickedSlotIds = []; }} class="px-4 py-2.5 bg-surface-elevated text-content-muted text-label font-bold rounded-control">Cancel</button>
             </div>
           {:else}
           <button
             onclick={() => isPickingCircuit = true}
-            disabled={exercises.length < 2}
+            disabled={exercises.length < 1}
             class="w-full py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
           >
             <Icon icon="ic:baseline-repeat" class="text-base" /> Make a circuit
@@ -584,9 +619,17 @@
               <div animate:flip={{ duration: motionMs(200) }} class="p-3 bg-surface/60 border border-border rounded-card space-y-2 {group ? 'border-l-4 border-l-primary/60' : ''}">
                 {#if group && first}
                   <div class="flex items-center gap-1.5 text-caption text-content-subtle min-w-0">
-                    <Icon icon="ic:baseline-repeat" class="text-sm shrink-0" />
-                    <span class="font-bold text-content-muted truncate">{group.name || 'Circuit'}</span>
-                    <span class="truncate flex-1">· {groupSummary(group)}</span>
+                    <button
+                      onclick={() => { if (circuitGroupId !== group.id) openGroupId = openGroupId === group.id ? null : group.id; }}
+                      class="min-w-0 flex-1 flex items-center gap-1.5 text-left"
+                      aria-expanded={openGroupId === group.id}
+                      title="Rounds and rests"
+                    >
+                      <Icon icon="ic:baseline-repeat" class="text-sm shrink-0" />
+                      <span class="font-bold text-content-muted truncate">{group.name || 'Circuit'}</span>
+                      <span class="truncate">· {groupSummary(group)}</span>
+                      <Icon icon={openGroupId === group.id ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-sm shrink-0" />
+                    </button>
                     <button
                       onclick={() => dissolveCircuit(group.id)}
                       disabled={circuitGroupId === group.id}
@@ -594,17 +637,33 @@
                       title="Turn the circuit back into separate exercises"
                     >Remove circuit</button>
                   </div>
+                  {#if openGroupId === group.id}
+                    <GroupSettings
+                      {group}
+                      nameOf={(id) => { const m = exercises.find((e) => e.id === id); return m ? slotTypeName(m, trainingState.exerciseTypes) : ''; }}
+                      onchange={(g) => store.regroupExercises(updateGroup(groupingBase(), g))}
+                    />
+                  {/if}
                 {/if}
                 <div class="flex items-center gap-2.5">
                   <Icon icon="ic:baseline-drag-indicator" class="text-xl text-content-subtle shrink-0 cursor-grab active:cursor-grabbing" />
-                  <div class="min-w-0 flex-1">
+                  <button onclick={() => { if (!lockedByRun(slot)) editingSlotId = slot.id; }} class="min-w-0 flex-1 text-left" title="Edit what you did">
                     <p class="text-body font-bold text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</p>
-                    <p class="text-caption text-content-subtle truncate">{group && !first ? `${group.name || 'Circuit'} · ` : ''}{slotSummary(slot) || '—'}</p>
-                  </div>
+                    <p class="text-caption text-content-subtle truncate">{slotSummary(slot) || '—'}</p>
+                  </button>
                   {#if group}
                     <button
+                      onclick={() => { addToGroupId = group.id; isAddingExercise = true; }}
+                      class="p-2 text-content-subtle hover:text-primary transition-colors shrink-0 {group.id !== slot.groupId || exercises[exercises.indexOf(slot) + 1]?.groupId === group.id ? 'hidden' : ''}"
+                      aria-label="Add an exercise to this circuit"
+                      title="Add to {group.name || 'the circuit'}"
+                    >
+                      <Icon icon="ic:baseline-plus" class="text-base" />
+                    </button>
+                    <button
                       onclick={() => leaveCircuit(slot.id)}
-                      class="p-2 text-content-subtle hover:text-content transition-colors shrink-0"
+                      disabled={lockedByRun(slot)}
+                      class="p-2 text-content-subtle hover:text-content transition-colors shrink-0 disabled:opacity-40"
                       aria-label="Take out of the circuit"
                       title="Take out of the circuit"
                     >
@@ -612,8 +671,9 @@
                     </button>
                   {/if}
                   <button
-                    onclick={() => store.removeExercise(slot.id)}
-                    class="p-2 text-content-subtle hover:text-danger transition-colors shrink-0"
+                    onclick={() => removeWithUndo(slot)}
+                    disabled={lockedByRun(slot)}
+                    class="p-2 text-content-subtle hover:text-danger transition-colors shrink-0 disabled:opacity-40"
                     aria-label="Remove exercise"
                   >
                     <Icon icon="ic:baseline-delete" class="text-base" />
@@ -650,7 +710,7 @@
             <div class="relative">
               <div
                 class="peer relative z-10 bg-app-bg rounded-card"
-                use:swipeRow={{ enabled: status === 'pending' && !store.isComplete, onRight: () => swipeDone(slot), onLeft: () => swipeSkip(slot) }}
+                use:swipeRow={{ enabled: status === 'pending' && !store.isComplete && !lockedByRun(slot), onRight: () => swipeDone(slot), onLeft: () => swipeSkip(slot) }}
               >
                 <div
                   class="rounded-card border transition-all {isCurrent
@@ -734,8 +794,9 @@
 
                       <div class="flex gap-2">
                         <button
-                          onclick={() => store.skipExercise(slot.id)}
-                          class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98]"
+                          onclick={() => swipeSkip(slot)}
+                          disabled={lockedByRun(slot)}
+                          class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] disabled:opacity-40"
                         >
                           Skip
                         </button>
@@ -766,9 +827,10 @@
                         {/if}
                         <button
                           onclick={() => openFinish(slot)}
+                          disabled={lockedByRun(slot)}
                           class={groupIdOf(slot)
-                            ? 'shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center justify-center gap-2'
-                            : 'flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2'}
+                            ? 'shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40'
+                            : 'flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40'}
                         >
                           <Icon icon="ic:baseline-check" class="text-base" />
                           {groupIdOf(slot) ? 'Finish' : 'Finish exercise'}
@@ -894,7 +956,7 @@
   <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
       <button
-        onclick={() => { isAddingExercise = false; editingSlotId = null; }}
+        onclick={() => { isAddingExercise = false; editingSlotId = null; addToGroupId = null; }}
         class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1"
       >
         <Icon icon="ic:baseline-arrow-back" class="text-sm" />
@@ -933,6 +995,9 @@
             {/if}
           </p>
         </div>
+      {/if}
+      {#if editingSlot}
+        <p class="px-1 text-caption text-content-subtle">Saved as what you did, and counted as done. The plan stays as it was.</p>
       {/if}
       <svelte:boundary onerror={handleEditorError}>
         <ExerciseForm initialSlot={editingSlot} mode="logged" onSave={handleFormSave} />

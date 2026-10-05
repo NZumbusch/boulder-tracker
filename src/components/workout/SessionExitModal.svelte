@@ -11,6 +11,7 @@
    * primary action; discarding is a quiet destructive one below it.
    */
   import type { SessionProgress } from '../../lib/session/activeSession';
+  import { onDestroy } from 'svelte';
   import Icon from '@iconify/svelte';
 
   let { progress, elapsedLabel, onSave, onDiscard, onCancel }: {
@@ -22,6 +23,16 @@
   } = $props();
 
   const pending = $derived(progress.total - progress.settled);
+
+  // Discarding takes two taps: the first arms the button, which disarms itself after a few seconds.
+  let armed = $state(false);
+  let disarm: ReturnType<typeof setTimeout> | undefined;
+  function discard() {
+    if (armed) { clearTimeout(disarm); onDiscard(); return; }
+    armed = true;
+    disarm = setTimeout(() => (armed = false), 4000);
+  }
+  onDestroy(() => clearTimeout(disarm));
 
   // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
   backWhile(() => true, () => onCancel());
@@ -74,11 +85,11 @@
 
     <div class="pt-1 border-t border-border">
       <button
-        onclick={onDiscard}
-        class="w-full py-3 text-label font-bold text-danger hover:bg-danger/10 rounded-control transition-colors flex items-center justify-center gap-2"
+        onclick={discard}
+        class="w-full py-3 text-label font-bold rounded-control transition-colors flex items-center justify-center gap-2 {armed ? 'bg-danger text-white' : 'text-danger hover:bg-danger/10'}"
       >
-        <Icon icon="ic:baseline-delete-outline" class="text-base" />
-        Discard &mdash; log nothing
+        <Icon icon="ic:baseline-delete-outline" class="text-base shrink-0" />
+        {armed ? 'Tap again to discard' : 'Discard — log nothing'}
       </button>
       <p class="text-caption text-content-subtle text-center px-2 mt-1">
         {#if progress.done > 0}
