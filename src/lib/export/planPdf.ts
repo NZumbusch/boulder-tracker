@@ -21,6 +21,10 @@ export interface PlanPdfExercise {
   /** "4 sets · 6 reps · 20 kg" - what it asks for. */
   detail?: string;
   notes?: string;
+  /** First member of a circuit or superset: its name and timing, "Core A · 3 rounds · 15 s between" - shown above it. */
+  circuit?: string;
+  /** Part of a circuit: set in a step. */
+  member?: boolean;
 }
 
 export interface PlanPdfSession {
@@ -149,15 +153,21 @@ function session(s: PlanPdfSession, opts: Required<NonNullable<PlanPdfInput["opt
       margin: [0, 5, 0, 0],
       table: {
         widths: [12, "*"],
-        body: s.exercises.map((e, i): TableCell[] => [
-          { text: String(i + 1), color: FAINT, fontSize: 8.5 },
-          {
-            stack: [
-              { text: [{ text: e.name, color: INK }, ...(e.detail ? [{ text: `   ${e.detail}`, color: MUTED }] : [])], fontSize: 9 },
-              ...(opts.notes && e.notes ? [{ text: e.notes, style: "note", fontSize: 8 }] : []),
-            ],
-          },
-        ]),
+        body: s.exercises.flatMap((e, i): TableCell[][] => {
+          const row: TableCell[] = [
+            { text: String(i + 1), color: FAINT, fontSize: 8.5 },
+            {
+              margin: [e.member ? 10 : 0, 0, 0, 0],
+              stack: [
+                { text: [{ text: e.name, color: INK }, ...(e.detail ? [{ text: `   ${e.detail}`, color: MUTED }] : [])], fontSize: 9 },
+                ...(opts.notes && e.notes ? [{ text: e.notes, style: "note", fontSize: 8 }] : []),
+              ],
+            },
+          ];
+          return e.circuit
+            ? [[{ text: "", fontSize: 8 }, { text: e.circuit.toUpperCase(), color: MUTED, bold: true, fontSize: 7.5, characterSpacing: 0.5, margin: [0, 3, 0, 0] }], row]
+            : [row];
+        }),
       },
       layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 1.5, paddingBottom: () => 1.5 },
     });

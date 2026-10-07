@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { localIsoDate } from '../dateUtils';
+import { localIsoDate, trainingDayDate } from '../dateUtils';
 import type { PainIssue, PainLog } from '../types';
 import type { PainCheckInPrefs } from '../preferences/migrate';
 import { unCheckedFor, inSentence } from '../pain/issues';
@@ -27,14 +27,15 @@ export function painReminderText(issues: PainIssue[], logs: PainLog[], todayIso:
     : `How are ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}? A tap in the app keeps their history straight.`;
 }
 
-export async function syncPainReminder(issues: PainIssue[], logs: PainLog[], prefs: PainCheckInPrefs, asOf: Date = new Date()): Promise<void> {
+export async function syncPainReminder(issues: PainIssue[], logs: PainLog[], prefs: PainCheckInPrefs, asOf: Date = new Date(), dayStartHour = 0): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   if ((await checkNotificationPermission()) !== 'granted') return;
   await cancelRemindersOfType('pain');
   if (!prefs.reminder) return;
-  const body = painReminderText(issues, logs, localIsoDate(asOf), prefs.reminderDays);
+  const day = trainingDayDate(asOf, dayStartHour);
+  const body = painReminderText(issues, logs, localIsoDate(day), prefs.reminderDays);
   if (!body) return;
-  const at = computeDailyMetricsReminderTime(asOf, prefs.reminderTime);
+  const at = computeDailyMetricsReminderTime(day, prefs.reminderTime);
   if (at <= asOf) return;
   await LocalNotifications.schedule({
     notifications: [{ id: painReminderId(), title: 'Pain check-in', body, schedule: { at }, isExactNotification: false }],

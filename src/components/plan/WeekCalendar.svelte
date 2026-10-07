@@ -63,6 +63,8 @@
       {@const showYear = i === 0 || weeks[i].year !== weeks[i - 1].year}
       <button
         onclick={() => onSelectWeek(week.id)}
+        aria-label={`${week.tooltip}${week.isCurrent ? ', this week' : ''}`}
+        aria-pressed={selectedWeekId === week.id}
         class="aspect-square rounded-control transition-all duration-300 relative group hover:z-20
           {week.color || FALLBACK_COLOR}
           {selectedWeekId === week.id ? 'ring-1 ring-primary ring-offset-1 ring-offset-surface scale-110 z-10 shadow-lg' : 'hover:scale-110'}

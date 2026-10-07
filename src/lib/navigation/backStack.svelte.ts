@@ -12,9 +12,12 @@
  * entries.
  *
  * Entries are counted, not identified: what must stay true is "history
- * has exactly as many entries above the base as there are registrations",
- * which holds even when a release's `history.back()` and a new
- * registration's `pushState` race each other.
+ * has exactly as many entries above the base as there are registrations".
+ * A release's `history.back()` is asynchronous, and a `pushState` made
+ * before it lands can cancel it (Chrome does), leaving history one entry
+ * too high - or the back runs past the app's first entry later. So history
+ * is only touched one operation at a time: a push or back waits for the
+ * `popstate` of the back before it.
  *
  * On Android, history is not used at all. The hardware back key arrives
  * through `@capacitor/app`, and closes the top registration directly
@@ -44,14 +47,61 @@ function hasWindow(): boolean {
   return typeof window !== "undefined" && typeof window.history !== "undefined";
 }
 
+/** Longest to wait for the `popstate` of a back we asked for, in case the browser never sends one. */
+const BACK_TIMEOUT_MS = 400;
+/** History operations still to run, in order; `running` while one is in flight. */
+const queue: (() => Promise<void> | void)[] = [];
+let running = false;
+/** Resolves the back in flight when its `popstate` arrives. */
+let backArrived: (() => void) | null = null;
+
+function enqueue(op: () => Promise<void> | void) {
+  queue.push(op);
+  if (!running) drain();
+}
+
+/** Runs the queue; a push is done at once, a back holds the rest until its popstate. */
+function drain() {
+  running = true;
+  while (queue.length > 0) {
+    const pending = queue.shift()!();
+    if (pending) {
+      void pending.then(drain);
+      return;
+    }
+  }
+  running = false;
+}
+
+function stepBack(): Promise<void> {
+  return new Promise((resolve) => {
+    ignorePops++;
+    const timer = setTimeout(() => {
+      if (backArrived === finish) {
+        backArrived = null;
+        ignorePops = Math.max(0, ignorePops - 1);
+        resolve();
+      }
+    }, BACK_TIMEOUT_MS);
+    const finish = () => {
+      clearTimeout(timer);
+      backArrived = null;
+      resolve();
+    };
+    backArrived = finish;
+    window.history.back();
+  });
+}
+
 function pushEntry(entry: Entry) {
   stack.push(entry);
-  if (!nativeMode) window.history.pushState({ backDepth: stack.length }, "");
+  if (!nativeMode) enqueue(() => window.history.pushState({ backDepth: stack.length }, ""));
 }
 
 async function onPopState() {
   if (ignorePops > 0) {
     ignorePops--;
+    backArrived?.();
     return;
   }
   const entry = stack.pop();
@@ -86,8 +136,7 @@ export function registerBack(close: () => unknown, alive: () => boolean = () => 
     if (i === -1) return;
     stack.splice(i, 1);
     if (nativeMode) return;
-    ignorePops++;
-    window.history.back();
+    enqueue(stepBack);
   };
 }
 
@@ -151,6 +200,9 @@ export async function installAndroidBack() {
 export function _resetBackStackForTests(native = false) {
   stack.length = 0;
   ignorePops = 0;
+  queue.length = 0;
+  running = false;
+  backArrived = null;
   installed = false;
   nativeMode = native;
   closing = false;

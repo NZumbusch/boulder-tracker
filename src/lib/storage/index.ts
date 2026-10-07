@@ -56,6 +56,24 @@ export { runDataMigrations, assertMigrationInvariants };
 /**
  * Storage singleton providing a clean interface for data persistence.
  */
+/** Thrown by `importData` when the person declined to go on after seeing what the file holds. */
+export class ImportCancelled extends Error {
+  constructor() {
+    super("Import cancelled");
+    this.name = "ImportCancelled";
+  }
+}
+
+/** Whether `version` ("3.34") is later than the format this app writes. */
+export function isNewerExportVersion(version: string, current: string = DATA_EXPORT_VERSION): boolean {
+  const parts = (v: string) => v.split(".").map((n) => parseInt(n, 10) || 0);
+  const [a, b] = [parts(version), parts(current)];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+  }
+  return false;
+}
+
 export const storage = {
   // --- Private Helpers ---
 
@@ -791,7 +809,16 @@ export const storage = {
     });
   },
 
-  async importData(file: File, onProgress: (label: string, fraction: number) => void = () => {}): Promise<void> {
+  /**
+   * Replaces everything with a backup file. `confirmImport` sees what the
+   * file holds before anything is touched; answering false stops the import
+   * (it rejects with `ImportCancelled`).
+   */
+  async importData(
+    file: File,
+    onProgress: (label: string, fraction: number) => void = () => {},
+    confirmImport: (incoming: { workouts: number; exportVersion: string }) => Promise<boolean> = async () => true,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -801,6 +828,10 @@ export const storage = {
 
           if (!data.workouts || !Array.isArray(data.workouts)) {
             throw new Error("Invalid backup format: workouts missing.");
+          }
+
+          if (!(await confirmImport({ workouts: data.workouts.length, exportVersion: String(data.exportVersion ?? "1.0") }))) {
+            throw new ImportCancelled();
           }
 
           onProgress("Updating to the current format", 0.35);

@@ -4,6 +4,10 @@ import {
   buildCircuitLive,
   circuitLoggedValues,
   previousCircuitStep,
+  repeaterPosition,
+  roundsDone,
+  stepsEndingAfterRound,
+  currentRound,
   circuitProgress,
   circuitSteps,
   currentStep,
@@ -181,5 +185,68 @@ describe("buildCircuitLive", () => {
   it("freezes while paused and is null once done", () => {
     expect(buildCircuitLive(input(startCircuitRun(), false), 0)!.actions).toEqual(["resume"]);
     expect(buildCircuitLive(input({ ...startCircuitRun(), done: true }), 0)).toBeNull();
+  });
+});
+
+describe("repeaters in a circuit", () => {
+  const repGroup: ExerciseGroup = { id: "g", rounds: 2, roundRest: 90 };
+  const hang = member("hang", { reps: 4, timeOn: 7, timeOff: 3 });
+  const rows = member("rows", { reps: 10 });
+  const rsteps = circuitSteps(repGroup, [hang, rows], 0);
+
+  it("keeps one timed step for the set and describes its hang/rest repeats", () => {
+    expect(rsteps[0]).toMatchObject({ kind: "work", seconds: 37, reps: 4, interval: { reps: 4, on: 7, off: 3 } });
+    expect(rsteps.find((s) => s.kind === "work" && s.slotId === "rows")).not.toHaveProperty("interval");
+  });
+
+  it("does not treat a single hang as a repeater", () => {
+    expect(circuitSteps({ id: "g", rounds: 1 }, [member("h", { reps: 1, timeOn: 10 })], 0)[0]).not.toHaveProperty("interval");
+  });
+
+  it("finds the hang or rest the clock is in", () => {
+    const spec = { reps: 4, on: 7, off: 3 };
+    expect(repeaterPosition(spec, 0)).toEqual({ rep: 1, phase: "on", remaining: 7, length: 7 });
+    expect(repeaterPosition(spec, 8_000)).toMatchObject({ rep: 1, phase: "off", remaining: 2, length: 3 });
+    expect(repeaterPosition(spec, 10_000)).toMatchObject({ rep: 2, phase: "on", remaining: 7 });
+    expect(repeaterPosition(spec, 36_000)).toMatchObject({ rep: 4, phase: "on", remaining: 1 });
+  });
+
+  it("splits the notification into hang and rest stretches with a beep at each switch", () => {
+    const plan = buildCircuitLive({ steps: rsteps, state: startCircuitRun(), running: true, name: "Fingers", memberName: (i: number) => ["Repeaters", "Rows"][i], ticks: false, warningSeconds: 0 }, 1_000_000)!;
+    expect(plan.segments.slice(0, 4).map((s) => s.title)).toEqual(["Hang 1/4 · Repeaters", "Rest 1/4 · next hang", "Hang 2/4 · Repeaters", "Rest 2/4 · next hang"]);
+    expect(plan.segments[0].endsAt).toBe(1_007_000);
+    expect(plan.segments[1].endsAt).toBe(1_010_000);
+    expect(plan.cues.slice(0, 3)).toEqual([{ at: 1_007_000, kind: "rest" }, { at: 1_010_000, kind: "work" }, { at: 1_017_000, kind: "rest" }]);
+    expect(plan.segments.at(-1)?.startedAt).toBe(1_037_000); // then the open rows
+  });
+});
+
+describe("ending a circuit early", () => {
+  it("cuts the run after a round, dropping the rest after it and the rounds to come", () => {
+    const cut = stepsEndingAfterRound(steps, 0);
+    expect(cut.map((s) => s.kind)).toEqual(["leadIn", "work", "transition", "work"]);
+    expect(stepsEndingAfterRound(steps, 1)).toEqual(steps);
+  });
+
+  it("is over when that round's last set is done, with the rounds so far to log", () => {
+    const cut = stepsEndingAfterRound(steps, 0);
+    let st = tickCircuitRun(cut, startCircuitRun(), 5_000 + 60_000 + 15_000);
+    st = finishCircuitStep(cut, st, 11);
+    expect(st.done).toBe(true);
+    expect(roundsDone(cut, st, 2)).toEqual({ done: 1, planned: 2 });
+    expect(circuitLoggedValues(members, st)).toMatchObject({ twist: { sets: 1 }, push: { sets: 1, reps: [11] } });
+  });
+
+  it("counts only rounds finished in full", () => {
+    let st = tickCircuitRun(steps, startCircuitRun(), 5_000 + 60_000 + 15_000);
+    expect(roundsDone(steps, st, 2).done).toBe(0);
+    st = finishCircuitStep(steps, st, 12);
+    expect(roundsDone(steps, st, 2).done).toBe(1);
+    expect(currentRound(steps, st)).toBe(1);
+  });
+
+  it("logs nothing for a member the run never reached", () => {
+    const st = tickCircuitRun(steps, startCircuitRun(), 5_000 + 30_000);
+    expect(circuitLoggedValues(members, st).push).toBeUndefined();
   });
 });

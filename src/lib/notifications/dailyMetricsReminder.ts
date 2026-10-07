@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { localIsoDate } from '../dateUtils';
+import { trainingDayDate, localIsoDate } from '../dateUtils';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import type { DailyMetricEntry } from '../types';
 import { reminderId, checkNotificationPermission, cancelRemindersOfType } from './shared';
@@ -49,6 +49,11 @@ export function computeDailyMetricsReminderTime(asOf: Date, timeHHMM: string): D
  * `syncFatigueReminders` already uses) picks up fresh state for whatever
  * day it actually is then.
  *
+ * "Today" starts at `dayStartHour` (the "New day starts at" setting), not
+ * at midnight: opened at 00:40 after an evening session it is still the day
+ * before, whose reminder time has passed, so no new-day reminder appears
+ * until the app is next used after that hour.
+ *
  * No-ops on web and when permission isn't granted, so it's always safe to
  * call from `refresh()` without checking the platform first.
  */
@@ -56,6 +61,7 @@ export async function syncDailyMetricsReminder(
   dailyMetrics: DailyMetricEntry[],
   timeHHMM: string,
   asOf: Date = new Date(),
+  dayStartHour = 0,
 ): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
 
@@ -64,10 +70,10 @@ export async function syncDailyMetricsReminder(
 
   await cancelRemindersOfType('dailyMetrics');
 
-  const todayIso = localIsoDate(asOf);
-  if (!isDailyMetricsEntryMissing(dailyMetrics, todayIso)) return;
+  const day = trainingDayDate(asOf, dayStartHour);
+  if (!isDailyMetricsEntryMissing(dailyMetrics, localIsoDate(day))) return;
 
-  const at = computeDailyMetricsReminderTime(asOf, timeHHMM);
+  const at = computeDailyMetricsReminderTime(day, timeHHMM);
   if (at <= asOf) return;
 
   await LocalNotifications.schedule({

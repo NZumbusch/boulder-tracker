@@ -84,11 +84,12 @@ export function generateICS(workouts: Workout[]): string {
       parseInt(startICS.substring(11, 13)) + durationMins
     );
     
-    const endICS = formatDateToICS(endObj);
+    const endICS = formatDateToICS(endObj, `${endObj.getHours()}:${endObj.getMinutes()}`);
 
     ics.push('BEGIN:VEVENT');
     ics.push(`UID:${w.id}@bouldertracker`);
-    ics.push(`DTSTAMP:${formatDateToICS(new Date())}Z`); // Keep simple local time for local calendar imports
+    const now = new Date();
+    ics.push(`DTSTAMP:${formatDateToICS(new Date(now.getTime() + now.getTimezoneOffset() * 60000), `${now.getUTCHours()}:${now.getUTCMinutes()}`)}Z`);
     ics.push(`DTSTART:${startICS}`);
     ics.push(`DTEND:${endICS}`);
     ics.push(`SUMMARY:${w.notes || 'Workout Session'}`);

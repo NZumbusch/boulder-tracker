@@ -322,7 +322,7 @@ describe("parseAIPlanOutput (JSON.parse + validate)", () => {
     const result = parseAIPlanOutput("Sure! Here's your plan: totally not json {{{");
     expect(result.valid).toBe(false);
     expect(result.data).toBeNull();
-    expect(result.issues[0].message).toMatch(/Could not parse as JSON/);
+    expect(result.issues[0].message).toMatch(/cut off|couldn't read/);
   });
 
   it("rejects empty input", () => {
@@ -337,12 +337,10 @@ describe("parseAIPlanOutput (JSON.parse + validate)", () => {
     expect(result.data).toBeNull();
   });
 
-  it("rejects JSON wrapped in markdown code fences (a common LLM habit)", () => {
+  it("reads JSON wrapped in a code fence, with or without a sentence before it", () => {
     const fenced = "```json\n" + JSON.stringify(VALID_PLAN) + "\n```";
-    const result = parseAIPlanOutput(fenced);
-    // Deliberately not stripped automatically - surfaced as an error so the
-    // user knows to paste raw JSON, rather than silently guessing at intent.
-    expect(result.valid).toBe(false);
+    expect(parseAIPlanOutput(fenced).valid).toBe(true);
+    expect(parseAIPlanOutput("Here's your plan! " + fenced).valid).toBe(true);
   });
 });
 

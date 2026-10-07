@@ -71,6 +71,7 @@ export const TUNABLES: TunableDef[] = [
 
 
   // --- Layout ---
+  { id: "day.startHour", topic: "layout", group: "Day", label: "New day starts at", hint: "Hour of the night (0 = midnight). Until then, after midnight still counts as the day before: no new-day reminders, metric or pain prompts, and Today stays on the day you are finishing. Sessions and logs keep their real time", kind: "number", default: 4, min: 0, max: 8, step: 1, unit: "h" },
   { id: "home.recentActivityCount", topic: "layout", group: "Home lists", label: "Recent Activity items", kind: "number", default: 3, min: 1, max: 10, step: 1 },
   { id: "home.progressBenchmarks", topic: "layout", group: "Home lists", label: "Benchmarks in Progress", kind: "number", default: 3, min: 1, max: 10, step: 1 },
   { id: "progress.retestWeeks", topic: "layout", group: "Progress", label: "Retest nudge after", kind: "number", default: 6, min: 2, max: 26, step: 1, unit: "weeks" },

@@ -5,12 +5,12 @@
    * Replaces the old flat list of entries.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import { localIsoDate, formatDate } from '../../lib/dateUtils';
+  import { formatDate } from '../../lib/dateUtils';
   import { issueState, STATUS_LABELS } from '../../lib/pain/issues';
   import { openPainIssue, openPainReport } from '../../lib/pain/painUi.svelte';
   import Icon from '@iconify/svelte';
 
-  const today = localIsoDate();
+  const today = trainingState.todayIso;
   const withState = $derived(
     trainingState.painIssues
       .map((issue) => ({ issue, st: issueState(issue, trainingState.painLogs, today) }))

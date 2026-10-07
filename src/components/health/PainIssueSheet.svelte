@@ -9,7 +9,7 @@
   import { keyboardAware } from '../../lib/ui/keyboardAware';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { localIsoDate, formatDate } from '../../lib/dateUtils';
+  import { formatDate } from '../../lib/dateUtils';
   import { checkInsFor, issueState, daysBetween, STATUS_LABELS, KIND_LABELS, TIMING_LABELS, TREND_LABELS, REGION_LABELS } from '../../lib/pain/issues';
   import type { PainTrend } from '../../lib/types';
   import PainCheckInButtons from './PainCheckInButtons.svelte';
@@ -19,7 +19,7 @@
 
   let { issueId, onClose }: { issueId: string; onClose: () => void } = $props();
 
-  const today = localIsoDate();
+  const today = trainingState.todayIso;
   const issue = $derived(trainingState.painIssues.find((i) => i.id === issueId) ?? null);
   const checkIns = $derived(issue ? checkInsFor(issue.id, trainingState.painLogs) : []);
   const st = $derived(issue ? issueState(issue, trainingState.painLogs, today) : null);

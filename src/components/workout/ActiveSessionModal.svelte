@@ -38,6 +38,7 @@
   import GroupSettings from './GroupSettings.svelte';
   import CircuitPill from './CircuitPill.svelte';
   import { tonesFor } from '../../lib/timer/cueSound';
+  import { cueMute, setCueMuted } from '../../lib/timer/cueMute.svelte';
   import { circuitHud } from '../../lib/session/circuitHud.svelte';
   import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
   import { reportError } from '../../lib/errorReporting';
@@ -90,6 +91,11 @@
   /** The group a slot is in, for its Circuit button. */
   const groupIdOf = (slot: ExerciseSlot) => (slot.groupId && store.workout?.groups?.some((g) => g.id === slot.groupId) ? slot.groupId : null);
 
+  // Muting the cues lasts for the session; the next one starts with sound.
+  $effect(() => {
+    if (!session) setCueMuted(false);
+  });
+
   // The session ended (finished or discarded): a run in progress goes with it.
   $effect(() => {
     if (!session && circuitGroupId) {
@@ -113,11 +119,15 @@
     circuitVisible = true;
   }
 
-  /** A finished (or stopped) circuit: log what each member did; skip the ones never reached only if it ran to the end. */
-  function handleCircuitLogged(values: Record<string, ExerciseValues | undefined>, complete: boolean) {
+  /**
+   * A finished (or ended-early) circuit: log what each member did and skip
+   * the ones that did no set. A member left pending would count at its full
+   * plan in the session's load, which an early finish must not do.
+   */
+  function handleCircuitLogged(values: Record<string, ExerciseValues | undefined>) {
     for (const [slotId, v] of Object.entries(values)) {
       if (v) store.logExercise(slotId, v);
-      else if (complete) store.skipExercise(slotId);
+      else store.skipExercise(slotId);
     }
     circuitGroupId = null;
     circuitVisible = false;
@@ -175,7 +185,7 @@
     const s = session;
     void [live.timerPlan, live.timerFinished, s?.runningSince, s?.accumulatedMs, store.currentIndex, store.progress.settled,
       s?.workout.notes, s?.workout.exercises.length, trainingState.exerciseTypes.length, trainingState.sessionNotification,
-      trainingState.timerBeepEnabled, trainingState.timerVibrateEnabled, trainingState.timerCues.volume, trainingState.timerCues.volumeSetsMedia, trainingState.timerCues.sound, JSON.stringify(trainingState.timerCues.speech)];
+      trainingState.timerBeepEnabled, cueMute.muted, trainingState.timerVibrateEnabled, trainingState.timerCues.volume, trainingState.timerCues.volumeSetsMedia, trainingState.timerCues.sound, JSON.stringify(trainingState.timerCues.speech)];
     untrack(() => {
       if (!liveTimerAvailable()) return;
       const cur = store.currentSlot;
@@ -190,8 +200,10 @@
       const config = composeLive(live.timerPlan, info, { sessionNotification: trainingState.sessionNotification }, Date.now());
       if (config) {
         notificationSent = true;
-        void sendLiveTimer(config, {
-          sound: trainingState.timerBeepEnabled,
+        // Muted for now: no beeps and no announcements from the service; the notification and haptics go on.
+        const muted = cueMute.muted;
+        void sendLiveTimer(muted ? { ...config, cues: config.cues.filter((c) => c.kind !== 'speak') } : config, {
+          sound: trainingState.timerBeepEnabled && !muted,
           vibrate: trainingState.timerVibrateEnabled,
           volume: trainingState.timerCues.volume,
           volumeSetsMedia: trainingState.timerCues.volumeSetsMedia,
@@ -485,8 +497,8 @@
   <div class="fixed inset-0 z-[110] safe-y bg-app-bg flex flex-col animate-in fade-in duration-200">
     <!-- Header: identity, clock, and the two ways out -->
     <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
-      <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 space-y-3">
-        <div class="flex items-start gap-3">
+      <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 space-y-3 short:max-w-none short:flex short:items-center short:gap-4 short:py-1 short:space-y-0">
+        <div class="flex items-start gap-3 short:flex-1 short:min-w-0 short:items-center">
           <button
             onclick={() => store.minimize()}
             class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors shrink-0"
@@ -503,7 +515,7 @@
             <h2 class="text-title text-content truncate">{session.workout.notes || 'Session'}</h2>
             {#if session.workout.description}
               <!-- The clamp sits on a span: a button's own display overrides line-clamp, which let long notes fill half the screen. -->
-              <button onclick={() => showNotes = true} class="block w-full text-left mt-0.5 text-caption text-content-subtle hover:text-content" title="Read all notes">
+              <button onclick={() => showNotes = true} class="short:hidden block w-full text-left mt-0.5 text-caption text-content-subtle hover:text-content" title="Read all notes">
                 <span class="line-clamp-2 leading-snug break-words">{session.workout.description}</span>
               </button>
             {/if}
@@ -526,7 +538,7 @@
         </div>
 
         <!-- Clock, progress and pause -->
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 short:w-[42%] short:shrink-0">
           <button
             onclick={() => store.togglePause()}
             class="shrink-0 w-11 h-11 rounded-full grid place-items-center transition-all active:scale-90 {store.isPaused ? 'bg-success text-app-bg' : 'bg-surface-elevated text-content border border-border-strong'}"
@@ -556,7 +568,7 @@
 
     <!-- Exercise list -->
     <div class="flex-1 overflow-y-auto no-scrollbar">
-      <div class="max-w-lg mx-auto w-full px-4 py-4 pb-40 space-y-2.5">
+      <div class="max-w-lg mx-auto w-full px-4 py-4 pb-40 short:pb-24 short:py-2 space-y-2.5">
         <PainHeadsUp workout={session.workout} variant="line" />
         {#if exercises.length === 0}
           <div class="py-12 border-2 border-dashed border-border rounded-card text-center bg-surface/10 space-y-3">
@@ -856,7 +868,7 @@
 
     <!-- Footer: the quiet session-shape controls, and finishing -->
     <footer class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
-      <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center gap-2">
+      <div class="max-w-lg mx-auto w-full px-4 py-3 short:py-1 flex items-center gap-2">
         <button
           onclick={() => { isEditingPlan = !isEditingPlan; isPickingCircuit = false; pickedSlotIds = []; }}
           disabled={exercises.length === 0}
@@ -915,7 +927,7 @@
   <TimerWidget
     bind:this={timer}
     currentSlot={current ?? null}
-    bottomClass="bottom-[80px]"
+    bottomClass="bottom-[80px] short:bottom-[52px]"
     docked
     visible={store.isModalOpen && !circuitRun}
     onLogInterval={current ? handleIntervalLogged : null}

@@ -85,7 +85,7 @@
     const start = getWeekDates(block.startWeekId);
     const end = getWeekDates(block.endWeekId);
     if (!start || !end) return '';
-    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', timeZone: 'UTC' };
     return `${start.start.toLocaleDateString(undefined, opts)} – ${end.end.toLocaleDateString(undefined, opts)}`;
   }
 

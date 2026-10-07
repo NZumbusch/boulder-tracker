@@ -55,6 +55,7 @@
   import { buildLiveTimer } from "../../lib/timer/liveTimer";
   import { liveTimerAvailable, type LiveAction } from "../../lib/native/timerService";
   import { speakText } from "../../lib/timer/speech";
+  import { cueMute } from "../../lib/timer/cueMute.svelte";
   import { measureMissing, measurerFor } from "../../lib/timer/speechMeter";
   import { live, onLiveAction, collectLiveActions } from "../../lib/native/liveNotification.svelte";
   import { slotTypeName } from "../../lib/exerciseSlot";
@@ -198,7 +199,7 @@
   // --- Audio cues -------------------------------------------------------
 
   // The tones and vibrations themselves: lib/timer/cueSound.
-  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume, preset: () => trainingState.timerCues.sound });
+  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled && !cueMute.muted, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume, preset: () => trainingState.timerCues.sound });
   /** Every control that can begin a run calls this synchronously first - Web Audio's unlock (see CueSound.unlock). */
   const unlockAudio = () => sound.unlock();
 
@@ -546,7 +547,7 @@
     speakQueue = speakQueue.filter((c) => c.at > t);
     const last = due[due.length - 1];
     const cues = trainingState.timerCues;
-    if (last?.text && !liveActive && document.visibilityState !== 'hidden') speakText(last.text, cues.volume, cues.speech.rate, cues.speech.pitch);
+    if (last?.text && !liveActive && !cueMute.muted && document.visibilityState !== 'hidden') speakText(last.text, cues.volume, cues.speech.rate, cues.speech.pitch);
   }
 
   // --- Interval controls ------------------------------------------------

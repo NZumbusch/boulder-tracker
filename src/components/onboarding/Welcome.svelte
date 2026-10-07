@@ -56,7 +56,7 @@
   /** The blocks saved from an earlier pick of this step (going back and choosing again replaces them). */
   let planBlockIds = $state<string[]>([]);
   const planStart = getWeekDates(planOptions[0].blocks[0].startWeekId)?.start;
-  const planStartLabel = planStart?.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const planStartLabel = planStart?.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 
   async function choosePlan() {
     applying = true;

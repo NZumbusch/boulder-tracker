@@ -22,6 +22,7 @@
   import { Capacitor } from '@capacitor/core';
   import { shouldAskForNotifications } from './lib/notifications/promptRule';
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
+  import { installDialogLayer } from './lib/ui/dialogLayer';
   import { installDeepLinks } from './lib/native/deepLinks';
   import { driveSync } from './lib/sync/driveSync.svelte';
   import { healthConnect } from './lib/health/healthConnect.svelte';
@@ -39,11 +40,13 @@
     window.history.replaceState(null, '', '#/home');
     if (requested && requested !== 'home' && VIEWS.includes(requested)) trainingState.navigate(requested);
     void installAndroidBack();
+    const stopDialogLayer = installDialogLayer();
     void installDeepLinks();
     void driveSync.init();
     void healthConnect.init();
     void updater.init();
     startWidgetSync();
+    return stopDialogLayer;
   });
 
   // --- Derived State ---

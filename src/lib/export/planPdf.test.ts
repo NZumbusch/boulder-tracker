@@ -82,3 +82,21 @@ describe("the training plan PDF", () => {
     expect(phaseHex("bg-made-up")).toBe("#a1a1aa");
   });
 });
+
+describe("circuits in the PDF", () => {
+  it("names a circuit above its members and indents them", () => {
+    const doc = JSON.stringify(
+      buildPlanPdf({
+        range: "x", generatedOn: "x",
+        weeks: [{ title: "Week 1", dates: "d", plannedLoad: 0, sessions: [{ name: "S", exercises: [
+          { name: "Warm-up" },
+          { name: "Plank", circuit: "Core A · 3 rounds · 15 s between", member: true },
+          { name: "Push-ups", member: true },
+        ] }] }],
+      }),
+    );
+    expect(doc).toContain("CORE A · 3 ROUNDS · 15 S BETWEEN");
+    expect(doc.indexOf("CORE A")).toBeGreaterThan(doc.indexOf("Warm-up"));
+    expect(doc.indexOf("CORE A")).toBeLessThan(doc.indexOf("Plank"));
+  });
+});

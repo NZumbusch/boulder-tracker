@@ -1,8 +1,7 @@
 <script lang="ts">
   import { sheetDrag } from '../../lib/ui/sheetDrag';
   import { keyboardAware } from '../../lib/ui/keyboardAware';
-  import { localIsoDate } from '../../lib/dateUtils';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
+    import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * Home's header "+": one sheet for the quick things logged outside a
    * session - pain, bodyweight, an outdoor send, a benchmark. Pain and
@@ -37,7 +36,7 @@
       .filter(Boolean),
   );
 
-  const todayIso = () => localIsoDate();
+  const todayIso = () => trainingState.todayIso;
 
   // --- Send: during a trip, its place is the default crag ---
   const ongoingTrip = $derived(

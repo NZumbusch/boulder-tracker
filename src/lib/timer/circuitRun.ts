@@ -13,6 +13,8 @@ import { type SpeechMeasure, START_MARGIN, exercisePhrase, nextText, planRestSpe
  * Steps are one of:
  * - **work** - a member's set. Timed (`seconds`) counts down and moves on
  *   by itself; counted (no `seconds`) stays open until the user taps Done.
+ *   A repeater set (`interval`) is a timed set made of hang/rest repeats:
+ *   still one step on the timeline, but shown and cued rep by rep.
  * - **transition** - the pause between members inside a round.
  * - **roundRest** - the rest after a round.
  * - **leadIn** - a few seconds to get into position at the start.
@@ -26,9 +28,16 @@ export const CIRCUIT_LEAD_IN_SECONDS = 5;
 
 export type CircuitStep =
   | { kind: "leadIn"; seconds: number }
-  | { kind: "work"; slotId: string; member: number; round: number; seconds?: number; reps?: number }
+  | { kind: "work"; slotId: string; member: number; round: number; seconds?: number; reps?: number; interval?: RepeaterSpec }
   | { kind: "transition"; seconds: number; round: number; next: number }
   | { kind: "roundRest"; seconds: number; round: number; next: number };
+
+/** A repeater set: `reps` hangs of `on` seconds with `off` seconds between them (none after the last). */
+export interface RepeaterSpec {
+  reps: number;
+  on: number;
+  off: number;
+}
 
 export interface CircuitRunState {
   stepIndex: number;
@@ -67,12 +76,17 @@ export function circuitSteps(group: ExerciseGroup, members: GroupMember[], leadI
  * it - a repeater set counts down as one), or a share of a plain
  * `duration`. Anything else is counted: open, with its reps as the target.
  */
-function workTarget(values: ExerciseValues, round: number, m: GroupMember, group: ExerciseGroup): { seconds?: number; reps?: number } {
+function workTarget(values: ExerciseValues, round: number, m: GroupMember, group: ExerciseGroup): { seconds?: number; reps?: number; interval?: RepeaterSpec } {
   const reps = repsAt(values, round);
   const timeOn = Number(values.timeOn);
   if (Number.isFinite(timeOn) && timeOn > 0) {
     const n = reps ?? 1;
-    return { seconds: n * timeOn + Math.max(0, n - 1) * restSeconds(values).betweenReps, ...(reps !== undefined ? { reps } : {}) };
+    const off = restSeconds(values).betweenReps;
+    return {
+      seconds: n * timeOn + Math.max(0, n - 1) * off,
+      ...(reps !== undefined ? { reps } : {}),
+      ...(n > 1 ? { interval: { reps: n, on: timeOn, off } } : {}),
+    };
   }
   if (reps !== undefined) return { reps };
   const duration = Number(values.duration);
@@ -85,6 +99,29 @@ function repsAt(values: ExerciseValues, round: number): number | undefined {
   if (perSet) return perSet[Math.min(round, perSet.length - 1)];
   const n = Number(values.reps);
   return typeof values.reps === "number" && Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+export interface RepeaterPosition {
+  /** 1-based hang the clock is in (or has just finished, during the rest after it). */
+  rep: number;
+  phase: "on" | "off";
+  /** Seconds left in this hang or rest. */
+  remaining: number;
+  /** Seconds this hang or rest lasts. */
+  length: number;
+}
+
+/** Where a repeater set stands `elapsedMs` into it: which hang, and whether it is hanging or resting. */
+export function repeaterPosition(spec: RepeaterSpec, elapsedMs: number): RepeaterPosition {
+  const t = Math.max(0, elapsedMs / 1000);
+  const cycle = spec.on + spec.off;
+  const rep = Math.min(spec.reps, Math.floor(t / cycle) + 1);
+  const into = t - (rep - 1) * cycle;
+  if (into < spec.on || rep === spec.reps) {
+    const left = Math.max(0, spec.on - into);
+    return { rep, phase: "on", remaining: left, length: spec.on };
+  }
+  return { rep, phase: "off", remaining: Math.max(0, cycle - into), length: spec.off };
 }
 
 export function startCircuitRun(): CircuitRunState {
@@ -194,6 +231,25 @@ export function upcomingWork(steps: CircuitStep[], state: CircuitRunState): Extr
     if (s.kind === "work") return s;
   }
   return undefined;
+}
+
+/**
+ * The run cut short after `round` (0-based): the steps up to and including
+ * that round's last set, so the run ends there without the rest, or the
+ * rounds, after it. Rounds that have not begun are dropped; a round that is
+ * under way is kept in full up to its last set.
+ */
+export function stepsEndingAfterRound(steps: CircuitStep[], round: number): CircuitStep[] {
+  let last = -1;
+  steps.forEach((s, i) => {
+    if (s.kind === "work" && s.round <= round) last = i;
+  });
+  return last < 0 ? steps : steps.slice(0, last + 1);
+}
+
+/** The round (0-based) the run is in: the next set's, or the last one's when it is over. */
+export function currentRound(steps: CircuitStep[], state: CircuitRunState): number {
+  return Math.max(0, circuitProgress(steps, state).round - 1);
 }
 
 export interface CircuitProgress {
@@ -321,6 +377,28 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
       return { segments, cues: cues.filter((c) => c.kind === "speak" || c.at > now), actions: ["pause"], finishedTitle: input.name };
     }
     const end = t + seconds * 1000;
+    if (step.kind === "work" && step.interval) {
+      // A repeater set: hang, rest, hang ... each its own stretch of the notification, with the switch beeps between.
+      const { reps, on, off } = step.interval;
+      const name = input.memberName(step.member);
+      let at = t;
+      for (let rep = 1; rep <= reps; rep++) {
+        if (rep > 1) cues.push({ at, kind: "work" });
+        const hangEnd = at + on * 1000;
+        if (hangEnd > now) segments.push({ endsAt: hangEnd, title: `Hang ${rep}/${reps} · ${name}`, body: where(i) });
+        if (input.ticks) cues.push(...[3000, 2000, 1000].map((d) => ({ at: hangEnd - d, kind: "tick" as const })));
+        at = hangEnd;
+        if (rep < reps && off > 0) {
+          cues.push({ at, kind: "rest" });
+          const restEnd = at + off * 1000;
+          if (restEnd > now) segments.push({ endsAt: restEnd, title: `Rest ${rep}/${reps} · next hang`, body: where(i) });
+          if (input.ticks) cues.push(...[3000, 2000, 1000].map((d) => ({ at: restEnd - d, kind: "tick" as const })));
+          at = restEnd;
+        }
+      }
+      t = end;
+      continue;
+    }
     segments.push({ endsAt: end, title, body: where(i) });
     if (input.ticks) cues.push(...[3000, 2000, 1000].map((d) => ({ at: end - d, kind: "tick" as const })));
     if (step.kind === "roundRest" && input.warningSeconds > 0 && seconds > input.warningSeconds + 3) cues.push({ at: end - input.warningSeconds * 1000, kind: "warn" });
@@ -364,4 +442,21 @@ function advance(steps: CircuitStep[], state: CircuitRunState, carryMs: number):
   const stepIndex = state.stepIndex + 1;
   if (stepIndex >= steps.length) return { ...state, stepIndex: steps.length, stepElapsedMs: 0, done: true };
   return { ...state, stepIndex, stepElapsedMs: carryMs };
+}
+
+/**
+ * Rounds of a run that were done in full: every one of its sets settled
+ * (a skipped set counts as settled, as the person chose not to do it).
+ * `planned` is how many the circuit was set up for - "2 of 4 rounds".
+ */
+export function roundsDone(steps: CircuitStep[], state: CircuitRunState, planned = 0): { done: number; planned: number } {
+  const work = steps.filter((s): s is Extract<CircuitStep, { kind: "work" }> => s.kind === "work");
+  const rounds = work.reduce((m, s) => Math.max(m, s.round + 1), 0);
+  let done = 0;
+  for (let r = 0; r < Math.max(rounds, planned); r++) {
+    const inRound = work.filter((s) => s.round === r);
+    if (inRound.length === 0 || !inRound.every((s) => state.results[s.slotId]?.[r] !== undefined)) break;
+    done++;
+  }
+  return { done, planned: Math.max(planned, rounds) };
 }

@@ -38,7 +38,7 @@
   let name = $state(editing?.bodyPart ?? '');
   /** The name was typed by hand - stop rebuilding it from region/side/detail. */
   let nameTouched = $state(!!editing && !editing.region);
-  let startDate = $state(editing?.startDate ?? localIsoDate());
+  let startDate = $state(editing?.startDate ?? trainingState.todayIso);
   let endDate = $state(editing?.endDate ?? '');
   let severity = $state(4);
   let kinds = $state<PainKind[]>([]);

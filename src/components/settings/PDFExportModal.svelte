@@ -16,6 +16,7 @@
   import { summarizeSession } from '../../lib/planning/sessionSummary';
   import { planProgress } from '../../lib/planning/weekRecap';
   import { detailPairs } from '../../lib/session/slotDetails';
+  import { groupSummary } from '../../lib/exercise/groups';
   import { buildPlanPdf, type PlanPdfWeek } from '../../lib/export/planPdf';
   import type { DayOfWeek, Workout } from '../../lib/types';
   import Icon from '@iconify/svelte';
@@ -92,9 +93,13 @@
         meta: [summary.startTime, `${summary.estimated ? '~' : ''}${summary.minutes} min`, summary.plannedLoad > 0 ? `load ${summary.plannedLoad}` : undefined].filter(Boolean).join(' · '),
         ...(done ? { done: { load: w.loadFactor } } : {}),
         description: w.description,
-        exercises: w.exercises.map((slot) => {
+        exercises: w.exercises.map((slot, i) => {
           const values = done ? slot.logged ?? slot.prescribed : slot.prescribed;
+          const group = slot.groupId ? w.groups?.find((g) => g.id === slot.groupId) : undefined;
+          const first = !!group && w.exercises[i - 1]?.groupId !== slot.groupId;
           return {
+            ...(group ? { member: true } : {}),
+            ...(group && first ? { circuit: [group.name || 'Circuit', groupSummary(group)].join(' · ') } : {}),
             name: slotTypeName(slot, trainingState.exerciseTypes),
             detail: exerciseDetail(detailPairs(slot, values)),
             notes: (done ? [planNote(slot), logNote(slot) && `How it went: ${logNote(slot)}`].filter(Boolean).join('\n') : values?.notes?.trim()) || undefined,

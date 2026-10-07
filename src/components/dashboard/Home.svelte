@@ -101,8 +101,11 @@
       <h2 class="text-title text-content flex items-center gap-2 flex-wrap">
         <span>{data.currentPhaseName ?? 'Home'}</span>
         {#if data.blockWeekPosition}
-          <span class="w-1 h-1 bg-surface-elevated-hover rounded-full flex-shrink-0"></span>
-          <span class="text-content-subtle font-normal">Week {data.blockWeekPosition.week} of {data.blockWeekPosition.of}</span>
+          <!-- The dot and the week wrap as one, so a large text size never leaves the dot dangling at a line's end. -->
+          <span class="inline-flex items-center gap-2 whitespace-nowrap">
+            <span class="w-1 h-1 bg-surface-elevated-hover rounded-full flex-shrink-0"></span>
+            <span class="text-content-subtle font-normal">Week {data.blockWeekPosition.week} of {data.blockWeekPosition.of}</span>
+          </span>
         {/if}
       </h2>
     </div>

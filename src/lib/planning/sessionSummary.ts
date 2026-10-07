@@ -18,7 +18,13 @@ export interface SessionSummary {
 
 /** The one-glance facts about a planned session - what Home's Today rows show under the session name. */
 export function summarizeSession(workout: Workout, exerciseTypes: ExerciseTypeDef[]): SessionSummary {
-  const names = workout.exercises.map((slot) => slotTypeName(slot, exerciseTypes));
+  // The same exercise twice reads "Easy Climbing ×2", not "Easy Climbing, Easy Climbing".
+  const counts = new Map<string, number>();
+  for (const slot of workout.exercises) {
+    const name = slotTypeName(slot, exerciseTypes);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  const names = [...counts].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name));
   return {
     startTime: workout.startTime || undefined,
     minutes: Math.round(estimateSessionDuration(workout)),

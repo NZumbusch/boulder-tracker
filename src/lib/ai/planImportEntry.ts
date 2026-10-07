@@ -1,3 +1,4 @@
+import { parseJsonReply } from "./parseJson";
 import { isChangeSetShape, validateChangeSet, type AIChangeSet } from "./changeSet";
 import { validateAIPlanOutput, type ValidationResult } from "./schema";
 import { legacyPlanToChangeSet } from "./legacyPlan";
@@ -15,12 +16,9 @@ export interface ParsedPlanImport {
  * converted, so every import goes through the same planner and preview.
  */
 export function parsePlanImport(text: string, current: { exerciseTypes: ExerciseTypeDef[]; phaseDefs: PhaseDef[] }): ParsedPlanImport {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, ""));
-  } catch (err: any) {
-    return { result: { valid: false, data: null, issues: [{ path: "", message: `Could not parse as JSON: ${err.message}` }], repairs: [] } };
-  }
+  const parsed = parseJsonReply(text);
+  if (!parsed.ok) return { result: { valid: false, data: null, issues: [{ path: "", message: parsed.message }], repairs: [] } };
+  const raw = parsed.value;
   if (isChangeSetShape(raw)) return { result: validateChangeSet(raw) };
   const legacy = validateAIPlanOutput(raw);
   if (!legacy.valid || !legacy.data) {

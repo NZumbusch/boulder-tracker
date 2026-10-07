@@ -39,7 +39,7 @@ describe("parsePlanImport", () => {
   });
 
   it("reports garbage clearly", () => {
-    expect(parsePlanImport("not json", current).result.issues[0].message).toContain("Could not parse");
+    expect(parsePlanImport("not json", current).result.issues[0].message).toMatch(/couldn't read/);
     expect(parsePlanImport("{}", current).result.valid).toBe(false);
   });
 });

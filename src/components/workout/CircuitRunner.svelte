@@ -67,9 +67,14 @@
     circuitProgress,
     circuitLoggedValues,
     buildCircuitLive,
+    repeaterPosition,
+    stepsEndingAfterRound,
+    currentRound,
+    roundsDone,
   } from '../../lib/timer/circuitRun';
   import { CueSound, type CueKind } from '../../lib/timer/cueSound';
   import { speakText } from '../../lib/timer/speech';
+  import { cueMute } from '../../lib/timer/cueMute.svelte';
   import { measureMissing, measurerFor } from '../../lib/timer/speechMeter';
   import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
   import { liveTimerAvailable, type LiveAction } from '../../lib/native/timerService';
@@ -90,8 +95,8 @@
     /** The members, in order, as the session has them now. */
     slots: ExerciseSlot[];
     visible: boolean;
-    /** Log the run: values per member (undefined = no set done); `complete` when every step was reached. */
-    onLog: (values: Record<string, ExerciseValues | undefined>, complete: boolean) => void;
+    /** Log the run: values per member (undefined = no set done, so the member is skipped). */
+    onLog: (values: Record<string, ExerciseValues | undefined>) => void;
     /** Throw the run away. */
     onClose: () => void;
     onMinimize: () => void;
@@ -115,14 +120,20 @@
     }
   }
   const stored = restore();
-  const steps: CircuitStep[] = stored?.steps ?? untrack(() => circuitSteps(group, members));
+  // Replaced when the run is cut short after a round.
+  let steps = $state.raw<CircuitStep[]>(stored?.steps ?? untrack(() => circuitSteps(group, members)));
+  /** Rounds the circuit was set up for, whatever the run was cut to. */
+  const plannedRounds = untrack(() => roundsDone(circuitSteps(group, members), startCircuitRun()).planned);
   // A run that was going when the app closed catches up on the time since.
   let run = $state<CircuitRunState>(
-    !stored ? startCircuitRun() : stored.running ? tickCircuitRun(steps, stored.state, Date.now() - stored.lastTickAt) : stored.state,
+    !stored ? startCircuitRun() : stored.running ? tickCircuitRun(untrack(() => steps), stored.state, Date.now() - stored.lastTickAt) : stored.state,
   );
   let running = $state(stored?.running ?? true);
   let lastTickAt = Date.now();
   let stoppedEarly = $state(stored?.stoppedEarly ?? false);
+  const fullStepCount = untrack(() => circuitSteps(group, members).length);
+  /** Ending after the round under way (chosen in the End menu); shown on the header. */
+  const lastRound = $derived(!run.done && steps.length < fullStepCount);
 
   function save() {
     try {
@@ -134,10 +145,18 @@
   // --- Derived view ---
   const step = $derived(currentStep(steps, run));
   const remaining = $derived(stepRemainingSeconds(steps, run));
+  /** Inside a repeater set: which hang or rest the clock is in. */
+  const rep = $derived(step?.kind === 'work' && step.interval ? repeaterPosition(step.interval, run.stepElapsedMs) : null);
+  /** Seconds left on the dial's clock: the hang or rest of a repeater, else the step's. */
+  const dialRemaining = $derived(rep ? rep.remaining : remaining);
+  const phaseKey = () => `${run.stepIndex}:${rep ? `${rep.rep}${rep.phase}` : ''}`;
+  let lastPhaseKey = '';
   const progress = $derived(circuitProgress(steps, run));
   const previous = $derived(previousWork(steps, run));
   const upcoming = $derived(upcomingWork(steps, run));
   const logged = $derived(circuitLoggedValues(members, run));
+  /** Rounds done in full, of the rounds the circuit was set up for - "2 of 4" when ended early. */
+  const rounds = $derived(roundsDone(steps, run, plannedRounds));
 
   /** Reps staged for the open counted set, prefilled with its target. */
   let stagedReps = $state(0);
@@ -165,6 +184,12 @@
     run = tickCircuitRun(steps, run, t - lastTickAt);
     lastTickAt = t;
     if (run.stepIndex !== before) onStepChanged();
+    else if (phaseKey() !== lastPhaseKey) {
+      // A repeater's hang ended or its rest did: the beep for the switch.
+      lastPhaseKey = phaseKey();
+      lastTickSecond = -1;
+      if (rep) cue(rep.phase === 'on' ? 'work' : 'rest');
+    }
     cueCountdown();
     speakDue(t);
   }
@@ -176,7 +201,7 @@
   }
 
   // --- Cues ---
-  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume, preset: () => trainingState.timerCues.sound });
+  const sound = new CueSound({ sound: () => trainingState.timerBeepEnabled && !cueMute.muted, vibrate: () => trainingState.timerVibrateEnabled, volume: () => trainingState.timerCues.volume, preset: () => trainingState.timerCues.sound });
   const useLive = $derived(liveTimerAvailable() && trainingState.timerBackgroundAlerts);
   const liveActive = $derived(live.timerPlan !== null && live.serviceOk && useLive);
   let lastTickSecond = -1;
@@ -191,13 +216,14 @@
 
   function onStepChanged(immediate = false) {
     lastTickSecond = -1;
+    lastPhaseKey = phaseKey();
     if (run.done) { cue('done', immediate); return; }
     const s = currentStep(steps, run);
     if (s) cue(s.kind === 'work' ? 'work' : s.kind === 'leadIn' ? 'leadIn' : 'rest', immediate);
   }
 
   function cueCountdown() {
-    const left = stepRemainingSeconds(steps, run);
+    const left = dialRemaining;
     if (left === undefined || run.done) return;
     const second = Math.ceil(left);
     if (trainingState.timerWarnBeforeEnd && step?.kind === 'roundRest' && second === WARN_SECONDS && warnedStep !== run.stepIndex) {
@@ -236,9 +262,11 @@
   }
   let confirmRestart = $state(false);
   function restart() {
+    confirmEnd = false;
     sound.unlock();
     confirmRestart = false;
     stoppedEarly = false;
+    steps = circuitSteps(group, members);
     run = startCircuitRun();
     running = true;
     lastTickAt = Date.now();
@@ -257,10 +285,27 @@
     running = !running;
     lastTickAt = Date.now();
   }
-  function stop() {
+  /** The End menu is open: finish now, or after the round under way. */
+  let confirmEnd = $state(false);
+  /** Whether "after this round" means something: a set or switch of a round that is not the last. */
+  const canEndAfterRound = $derived(
+    !!step && (step.kind === 'work' || step.kind === 'transition') && currentRound(steps, run) < progress.rounds - 1,
+  );
+  /** Ends the run here: what was done is logged, the set under way and the rest are dropped. */
+  function endNow() {
     tick();
+    confirmEnd = false;
     stoppedEarly = true;
     run = { ...run, done: true };
+  }
+  /** The round under way is played out, then the run is over: no rest and no further rounds. */
+  function endAfterRound() {
+    tick();
+    confirmEnd = false;
+    stoppedEarly = true;
+    steps = stepsEndingAfterRound(steps, currentRound(steps, run));
+    planNonce++;
+    save();
   }
   function correct(by: number) {
     if (!previous) return;
@@ -279,7 +324,7 @@
     if (difficulty !== undefined) {
       for (const m of members) if (values[m.slot.id] && tracksDifficulty(m.slot)) values[m.slot.id] = { ...values[m.slot.id]!, difficulty };
     }
-    onLog(values, !stoppedEarly);
+    onLog(values);
   }
   function discard() {
     forget();
@@ -313,11 +358,12 @@
     const due = speakQueue.filter((c) => c.at <= t);
     speakQueue = speakQueue.filter((c) => c.at > t);
     const last = due[due.length - 1];
-    if (last?.text && !liveActive && document.visibilityState !== 'hidden') speakText(last.text, trainingState.timerCues.volume, trainingState.timerCues.speech.rate, trainingState.timerCues.speech.pitch);
+    if (last?.text && !liveActive && !cueMute.muted && document.visibilityState !== 'hidden') speakText(last.text, trainingState.timerCues.volume, trainingState.timerCues.speech.rate, trainingState.timerCues.speech.pitch);
   }
 
   $effect(() => {
-    void [run.stepIndex, run.done, running, useLive, planNonce, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, JSON.stringify(trainingState.timerCues.announce), JSON.stringify(trainingState.timerCues.speech)];
+    // exerciseTypes: after a cold restore the notification is made before the names load, and says "Unknown" until the plan is made again.
+    void [run.stepIndex, run.done, running, useLive, planNonce, trainingState.exerciseTypes.length, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, JSON.stringify(trainingState.timerCues.announce), JSON.stringify(trainingState.timerCues.speech)];
     untrack(() => {
       syncLive();
       syncTicker();
@@ -328,6 +374,25 @@
   $effect(() => {
     void JSON.stringify(run.results);
     untrack(save);
+  });
+
+  // Pausing the session pauses the circuit with it (on Android with the timer service, the service does that itself),
+  // and resuming resumes it - but only a circuit this pause stopped: one paused by hand stays paused.
+  let pausedBySession = false;
+  $effect(() => {
+    const paused = trainingState.sessionStore.isPaused;
+    untrack(() => {
+      if (useLive || run.done) return;
+      if (paused && running) {
+        tick();
+        running = false;
+        pausedBySession = true;
+      } else if (!paused && pausedBySession) {
+        pausedBySession = false;
+        running = true;
+        lastTickAt = Date.now();
+      }
+    });
   });
 
   function applyLiveAction({ kind, at }: LiveAction) {
@@ -376,15 +441,16 @@
   // --- Display ---
   /** The exercise on now, or coming up during a rest. */
   const focus = $derived(step?.kind === 'work' ? step.member : upcoming?.member);
-  const phaseLabel = $derived(
-    !running ? 'Paused'
-      : step?.kind === 'leadIn' ? 'Get ready'
-      : step?.kind === 'work' ? 'Go'
+  /** The dial's word: "Go", or "Hang 3/6" / "Rest 3/6" inside a repeater set. */
+  const stepWord = $derived(
+    step?.kind === 'leadIn' ? 'Get ready'
+      : step?.kind === 'work' ? (rep && step.interval ? `${rep.phase === 'on' ? 'Hang' : 'Rest'} ${rep.rep}/${step.interval.reps}` : 'Go')
       : step?.kind === 'roundRest' ? 'Rest'
       : 'Switch',
   );
+  const phaseLabel = $derived(!running ? 'Paused' : stepWord);
   const clockText = $derived(
-    !step ? '' : remaining !== undefined ? formatClock(Math.ceil(remaining) * 1000) : formatClock(run.stepElapsedMs),
+    !step ? '' : dialRemaining !== undefined ? formatClock(Math.ceil(dialRemaining) * 1000) : formatClock(run.stepElapsedMs),
   );
   /** What the minimised pill and the session bubble show. */
   $effect(() => {
@@ -408,14 +474,14 @@
   const accent = $derived(
     run.done ? 'var(--color-success)'
       : step?.kind === 'leadIn' ? 'var(--color-warning)'
-      : step?.kind === 'work' ? 'var(--color-danger)'
+      : step?.kind === 'work' ? (rep?.phase === 'off' ? 'var(--color-primary)' : 'var(--color-danger)')
       : 'var(--color-primary)',
   );
   const RING = 2 * Math.PI * 45;
   const fraction = $derived.by(() => {
-    if (!step || remaining === undefined) return 0;
-    const total = step.kind === 'work' ? step.seconds ?? 0 : step.seconds;
-    return total > 0 ? Math.max(0, Math.min(1, 1 - remaining / total)) : 0;
+    if (!step || dialRemaining === undefined) return 0;
+    const total = rep ? rep.length : step.kind === 'work' ? step.seconds ?? 0 : step.seconds;
+    return total > 0 ? Math.max(0, Math.min(1, 1 - dialRemaining / total)) : 0;
   });
   const correctable = $derived(
     step && step.kind !== 'work' && previous && previous.seconds === undefined && typeof run.results[previous.slotId]?.[previous.round] === 'number',
@@ -428,21 +494,21 @@
 
 <div class="fixed inset-0 z-[112] safe-y bg-app-bg flex flex-col {visible ? '' : 'hidden'}">
   <!-- Header -->
-  <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-2 gap-2">
+  <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-2 short:pt-1 short:pb-0 gap-2">
     <button onclick={onMinimize} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors" aria-label="Minimise — the circuit keeps running">
       <Icon icon="ic:baseline-keyboard-arrow-down" class="text-2xl" />
     </button>
     <div class="text-center min-w-0">
       <p class="text-caption uppercase text-content-subtle tracking-widest truncate">{group.name || 'Circuit'}</p>
-      <p class="text-label text-content-muted tabular-nums">Round {progress.round}/{progress.rounds} · {progress.sets}/{progress.totalSets} sets</p>
+      <p class="text-label text-content-muted tabular-nums">Round {Math.min(progress.round, plannedRounds)}/{plannedRounds} · {progress.sets}/{progress.totalSets} sets{#if lastRound} · <span class="text-warning">last round</span>{/if}</p>
     </div>
     {#if !run.done}
       <div class="flex items-center -mr-2">
         <VolumeControl bind:open={volumeOpen} />
-        <button onclick={() => (confirmRestart = true)} class="p-2 text-content-subtle hover:text-content transition-colors" aria-label="Restart the circuit" title="Restart from the beginning">
+        <button onclick={() => { confirmEnd = false; confirmRestart = true; }} class="p-2 text-content-subtle hover:text-content transition-colors" aria-label="Restart the circuit" title="Restart from the beginning">
           <Icon icon="ic:baseline-restart-alt" class="text-xl" />
         </button>
-        <button onclick={stop} class="p-2 text-label font-bold text-content-subtle hover:text-danger transition-colors">Stop</button>
+        <button onclick={() => { confirmRestart = false; confirmEnd = !confirmEnd; }} aria-expanded={confirmEnd} class="p-2 text-label font-bold transition-colors {confirmEnd ? 'text-danger' : 'text-content-subtle hover:text-danger'}">End</button>
       </div>
     {:else}
       <span class="w-10"></span>
@@ -461,10 +527,27 @@
     </div>
   {/if}
 
+  {#if confirmEnd && !run.done}
+    <!-- End early: a round fewer is a smaller circuit, logged as what was done. -->
+    <div class="shrink-0 mx-4 mb-1 p-3 rounded-control border border-border-strong bg-surface-elevated/60 space-y-2 animate-in fade-in" role="group" aria-label="End the circuit early">
+      <p class="text-label text-content">End the circuit here? Only the sets you did are logged{progress.sets > 0 ? ` (${progress.sets} so far)` : ''}.</p>
+      <div class="flex flex-wrap items-center gap-2">
+        {#if canEndAfterRound}
+          <button onclick={endAfterRound} class="px-3 py-2 rounded-control bg-primary hover:bg-primary-hover text-white text-label font-bold">Finish this round</button>
+        {/if}
+        <button onclick={endNow} class="px-3 py-2 rounded-control {canEndAfterRound ? 'bg-surface-elevated text-danger border border-border-strong' : 'bg-danger text-white'} text-label font-bold">Finish now</button>
+        <button onclick={() => (confirmEnd = false)} class="px-3 py-2 text-label font-bold text-content-subtle hover:text-content ml-auto">Keep going</button>
+      </div>
+    </div>
+  {/if}
+
   {#if run.done}
     <!-- Summary -->
     <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar px-6 py-4 space-y-3">
-      <p class="text-section uppercase text-success text-center tracking-[0.2em]">{stoppedEarly ? 'Stopped' : 'Done'}</p>
+      <div class="text-center space-y-0.5">
+        <p class="text-section uppercase tracking-[0.2em] {rounds.done < rounds.planned ? 'text-warning' : 'text-success'}">{rounds.done < rounds.planned ? 'Ended early' : 'Done'}</p>
+        <p class="text-label text-content-muted tabular-nums">{rounds.done} of {rounds.planned} round{rounds.planned === 1 ? '' : 's'} done</p>
+      </div>
       {#each members as m, i (m.slot.id)}
         {@const results = run.results[m.slot.id] ?? []}
         <div class="p-3 rounded-card border border-border bg-surface/40 flex items-center gap-3">
@@ -487,15 +570,17 @@
         </div>
       {/if}
     </div>
-    <div class="shrink-0 px-6 pb-8 space-y-2">
+    <div class="shrink-0 px-6 pb-8 short:pb-2 space-y-2">
       <button onclick={log} class="w-full py-4 bg-success hover:bg-success-hover text-white rounded-control text-label font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2">
         <Icon icon="ic:baseline-check" class="text-base" /> Log circuit
       </button>
       <button onclick={discard} class="w-full py-2 text-label text-content-subtle hover:text-content transition-colors">Close without logging</button>
     </div>
   {:else if step}
+   <!-- Portrait: the dial over its controls. A landscape phone has no height for that: side by side, extras dropped. -->
+   <div class="flex-1 min-h-0 flex flex-col short:flex-row">
     <!-- The dial -->
-    <div class="flex-1 min-h-0 flex flex-col items-center justify-center px-6 pt-2 pb-5 gap-4">
+    <div class="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-center px-6 pt-2 pb-5 gap-4 short:px-4 short:py-1 short:gap-1">
       <!-- Sized by the room it has on both axes, so the dial fits in landscape too. -->
       <div class="flex-1 min-h-0 w-full grid place-items-center" style="container-type: size;">
         <div class="relative aspect-square" style="width: min(17rem, 100cqw, 100cqh); container-type: inline-size;">
@@ -506,13 +591,13 @@
           </svg>
           <div class="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
             <p class="text-section uppercase tracking-[0.2em]" style="color: {accent};">
-              {step.kind === 'leadIn' ? 'Get ready' : step.kind === 'work' ? 'Go' : step.kind === 'roundRest' ? 'Rest' : 'Switch'}
+              {stepWord}
             </p>
             {#if step.kind === 'work' && step.seconds === undefined}
               <p class="text-[length:min(3.5rem,24cqw)] leading-none font-black text-content tabular-nums my-2">{step.reps ?? '✓'}</p>
               <p class="text-label text-content-subtle tabular-nums">{step.reps ? 'reps · ' : ''}{formatClock(run.stepElapsedMs)}</p>
             {:else}
-              <p class="text-[length:min(3.5rem,24cqw)] leading-none font-black text-content tabular-nums my-2">{formatClock(Math.ceil(remaining ?? 0) * 1000)}</p>
+              <p class="text-[length:min(3.5rem,24cqw)] leading-none font-black text-content tabular-nums my-2">{formatClock(Math.ceil(dialRemaining ?? 0) * 1000)}</p>
             {/if}
             {#if step.kind === 'work'}
               <p class="text-body font-bold text-content mt-1 break-words">{memberName(step.member)}</p>
@@ -522,20 +607,20 @@
       </div>
 
       <!-- What is on, what is next and the round: one block under the dial, so it never runs into the buttons. -->
-      <div class="shrink-0 w-full flex flex-col items-center gap-3">
+      <div class="shrink-0 w-full flex flex-col items-center gap-3 short:gap-1">
         {#if step.kind !== 'work' && upcoming}
           <p class="text-body text-content-muted text-center">Next: <b class="text-content">{memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
         {/if}
         {#if focus !== undefined}
           <!-- The exercise's note on one line; a tap opens what to do (details, notes, how-to) without leaving the run. -->
-          <button onclick={() => (infoMember = focus)} class="w-full max-w-sm flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border text-left hover:border-border-strong transition-colors" aria-label="How to do {memberName(focus)}">
+          <button onclick={() => (infoMember = focus)} class="short:hidden w-full max-w-sm flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border text-left hover:border-border-strong transition-colors" aria-label="How to do {memberName(focus)}">
             <Icon icon="ic:outline-info" class="text-lg text-content-subtle shrink-0" />
             <span class="min-w-0 flex-1 text-caption text-content-muted line-clamp-2 break-words">{members[focus].values.notes?.trim() || `${memberName(focus)} — how to, details`}</span>
             <Icon icon="ic:baseline-chevron-right" class="text-base text-content-subtle shrink-0" />
           </button>
         {/if}
         {#if roundSets.length > 1}
-          <div class="flex flex-wrap items-center justify-center gap-1.5 max-w-sm" aria-label="This round">
+          <div class="short:hidden flex flex-wrap items-center justify-center gap-1.5 max-w-sm" aria-label="This round">
             {#each roundSets as { s, state } (s.slotId)}
               <span class="px-2.5 py-1 rounded-full text-caption border flex items-center gap-1 max-w-full
                 {state === 'now' ? 'border-transparent text-white font-bold' : state === 'done' ? 'border-success/40 text-success bg-success/10' : state === 'skipped' ? 'border-border text-content-subtle line-through' : 'border-border text-content-muted'}"
@@ -563,7 +648,7 @@
     </div>
 
     <!-- Controls -->
-    <div class="shrink-0 px-6 pt-1 pb-8 space-y-3">
+    <div class="shrink-0 px-6 pt-1 pb-8 space-y-3 short:w-[min(24rem,50%)] short:flex short:flex-col short:justify-center short:px-4 short:pb-2 short:space-y-2 short:overflow-y-auto">
       {#if step.kind === 'work' && step.seconds === undefined}
         <div class="flex items-center justify-between gap-3 px-1">
           <span class="text-label text-content-subtle">Reps done{step.reps ? ` (target ${step.reps})` : ''}</span>
@@ -577,31 +662,32 @@
             </button>
           </div>
         </div>
-        <button onclick={finishStep} class="w-full py-5 rounded-control text-white text-label font-bold transition-all active:scale-[0.98] shadow-xl flex items-center justify-center gap-2" style="background: {accent};">
+        <button onclick={finishStep} class="w-full py-5 short:py-3 rounded-control text-white text-label font-bold transition-all active:scale-[0.98] shadow-xl flex items-center justify-center gap-2" style="background: {accent};">
           <Icon icon="ic:baseline-check-circle" class="text-xl" /> Done
         </button>
       {:else if step.kind === 'leadIn'}
         <button onclick={finishStep} class="w-full py-4 bg-primary hover:bg-primary-hover text-white rounded-control text-label font-bold transition-all active:scale-[0.98]">I'm ready</button>
       {/if}
       <div class="flex items-center gap-2">
-        <button onclick={back} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5" aria-label="Back: restart this step, or the previous one">
+        <button onclick={back} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" aria-label="Back: restart this step, or the previous one">
           <Icon icon="ic:baseline-skip-previous" class="text-base" /> Back
         </button>
-        <button onclick={toggle} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5">
+        <button onclick={toggle} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
           <Icon icon={running ? 'ic:baseline-pause' : 'ic:baseline-play-arrow'} class="text-base" /> {running ? 'Pause' : 'Resume'}
         </button>
         {#if step.kind === 'work' && step.seconds !== undefined}
-          <button onclick={finishStep} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5">
+          <button onclick={finishStep} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
             <Icon icon="ic:baseline-check" class="text-base" /> Done early
           </button>
         {/if}
         {#if step.kind !== 'leadIn'}
-        <button onclick={skipStep} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5">
+        <button onclick={skipStep} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap">
           <Icon icon="ic:baseline-skip-next" class="text-base" /> {step.kind === 'work' ? 'Skip set' : 'Skip rest'}
         </button>
         {/if}
       </div>
     </div>
+   </div>
   {/if}
   {#if infoMember !== null && members[infoMember]}
     {@const m = members[infoMember]}

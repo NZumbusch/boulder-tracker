@@ -125,7 +125,7 @@
       {/if}
     </svg>
     <div class="absolute inset-0 flex flex-col items-center justify-center">
-      <span class="text-display text-content tabular-nums leading-none">{readiness.score !== undefined ? Math.round(displayed) : '—'}</span>
+      <!-- The ring is a fixed size, so three digits ("100") are held to what fits inside it, whatever the text size. --><span class="text-display text-content tabular-nums leading-none" style={readiness.score !== undefined && Math.round(displayed) >= 100 ? 'font-size: min(var(--typescale-display), 2.1rem)' : undefined}>{readiness.score !== undefined ? Math.round(displayed) : '—'}</span>
     </div>
     <div class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-surface border-2 border-app-bg shadow-card flex items-center justify-center {STATUS_COLOR[readiness.status]}">
       <Icon icon={STATUS_ICON[readiness.status]} class="text-base" />

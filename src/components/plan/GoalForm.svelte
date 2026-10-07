@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { localIsoDate } from '../../lib/dateUtils';
-  /**
+    /**
    * Add/edit one goal. A competition is a name and a day; a trip adds an
    * end day (defaults to the start - a day trip is fine), a place (search
    * any location, or tap a saved crag) and projects to go for. Notes are
@@ -20,7 +19,7 @@
     onDone: () => void;
   } = $props();
 
-  const todayIso = localIsoDate();
+  const todayIso = trainingState.todayIso;
   // Seeded once from the goal being edited (or a fresh one).
   // svelte-ignore state_referenced_locally
   let draft = $state<GoalEvent>(

@@ -1,3 +1,4 @@
+import { parseJsonReply } from "./parseJson";
 import type { DayOfWeek, ExerciseValues } from "../types";
 import { WEEK_DAYS } from "../constants";
 import { getWeekIdRange } from "../dateUtils";
@@ -776,24 +777,16 @@ export function validateAIWorkoutLogOutput(raw: unknown): ValidationResult<AIWor
  * single clear issue instead of throwing.
  */
 export function parseAIPlanOutput(text: string): ValidationResult<AIPlanOutput> {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch (err: any) {
-    return { valid: false, data: null, issues: [{ path: "", message: `Could not parse as JSON: ${err.message}` }], repairs: [] };
-  }
-  return validateAIPlanOutput(raw);
+  const parsed = parseJsonReply(text);
+  if (!parsed.ok) return { valid: false, data: null, issues: [{ path: "", message: parsed.message }], repairs: [] };
+  return validateAIPlanOutput(parsed.value);
 }
 
 export function parseAIWorkoutLogOutput(text: string): ValidationResult<AIWorkoutLogOutput> {
-  let raw: unknown;
-  try {
-    // Chat apps often wrap the reply in a code fence despite being told not to.
-    raw = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, ""));
-  } catch (err: any) {
-    return { valid: false, data: null, issues: [{ path: "", message: `Could not parse as JSON: ${err.message}` }], repairs: [] };
-  }
-  return validateAIWorkoutLogOutput(raw);
+  // Chat apps often wrap the reply in a code fence, or add a sentence before it.
+  const parsed = parseJsonReply(text);
+  if (!parsed.ok) return { valid: false, data: null, issues: [{ path: "", message: parsed.message }], repairs: [] };
+  return validateAIWorkoutLogOutput(parsed.value);
 }
 
 /** The set of `ExerciseValues` fields an AI import is allowed to set, for prompt text. */

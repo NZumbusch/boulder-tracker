@@ -136,3 +136,37 @@ describe("back stack in the native app", () => {
     expect(backDepth()).toBe(0);
   });
 });
+
+describe("back stack history ordering", () => {
+  it("a push waits for the back before it, however fast the next thing opens", async () => {
+    // "Finish & rate": the session closes and the rating sheet opens in the same tick.
+    registerBack(() => {});
+    const releaseSession = registerBack(() => {});
+    await settle();
+    expect(win.history.index).toBe(2);
+    const order: string[] = [];
+    const push = win.history.pushState;
+    const back = win.history.back;
+    win.history.pushState = (s: unknown) => { order.push("push"); push(s); };
+    win.history.back = () => { order.push("back"); back(); };
+    releaseSession();
+    const releaseRating = registerBack(() => {});
+    await settle();
+    expect(order).toEqual(["back", "push"]);
+    expect(win.history.index).toBe(backDepth() + 0);
+    releaseRating();
+    await settle();
+    expect(win.history.index).toBe(backDepth());
+    expect(win.history.index).toBe(1);
+  });
+
+  it("does not hang if the browser never sends the popstate", async () => {
+    registerBack(() => {});
+    const release = registerBack(() => {});
+    win.history.back = () => {};
+    release();
+    registerBack(() => {});
+    await new Promise((r) => setTimeout(r, 450));
+    expect(win.history.index).toBe(3); // the back never happened, but the push was not held up forever
+  });
+});

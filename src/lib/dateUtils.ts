@@ -127,7 +127,8 @@ export function getWeekDateRange(weekId: string): string {
   const dates = getWeekDates(weekId);
   if (!dates) return '';
 
-  const formatOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  // The week's dates are UTC midnights: format them as UTC or they show a day early west of Greenwich.
+  const formatOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', timeZone: 'UTC' };
   return `${dates.start.toLocaleDateString(undefined, formatOpts)} - ${dates.end.toLocaleDateString(undefined, formatOpts)}`;
 }
 
@@ -152,6 +153,23 @@ export function weekDatesText(firstWeekId: string, lastWeekId: string = firstWee
 export function weekLabel(weekId: string): string {
   const dates = weekDatesText(weekId);
   return dates ? `${weekId} (${dates})` : weekId;
+}
+
+/**
+ * A moment inside "today" for someone whose day doesn't end at midnight:
+ * before `startHour` (04:00 by default in the app) it is still the day
+ * before - the late session, the 00:40 look at the phone - so reminders,
+ * Home's prompts and the Plan's "today" don't jump a day while they are
+ * still up. Anything saved keeps its true date and time; this only decides
+ * what "today" means. Hand the result to `localIsoDate`, `getWeekId`, ...
+ */
+export function trainingDayDate(now: Date = new Date(), startHour = 0): Date {
+  return startHour > 0 ? new Date(now.getTime() - startHour * 3_600_000) : now;
+}
+
+/** `trainingDayDate` as "YYYY-MM-DD". */
+export function trainingDayIso(now: Date = new Date(), startHour = 0): string {
+  return localIsoDate(trainingDayDate(now, startHour));
 }
 
 /**

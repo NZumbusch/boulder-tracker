@@ -2,14 +2,15 @@ import { attachOrphanLogs, checkIn as checkInPainIssue } from './pain/issues';
 import { openWorkout } from './workoutModal.svelte';
 import { toast, showUndo } from './toast.svelte';
 import { copySessionsToWeek } from './planning/copyWeek';
-import { storage } from './storage';
-import { DEFAULT_TEMPLATE_LIBRARY } from './constants';
+import { storage, ImportCancelled, isNewerExportVersion } from './storage';
+import { Capacitor } from '@capacitor/core';
+import { DEFAULT_TEMPLATE_LIBRARY, DATA_EXPORT_VERSION } from './constants';
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
 import { adoptTotalBasis } from './benchmarks/basis';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
-import { getWeekId, localIsoDate } from './dateUtils';
+import { getWeekId, localIsoDate, trainingDayDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
@@ -172,7 +173,7 @@ class TrainingState {
   async setDailyMetricsReminderEnabled(enabled: boolean) {
     this.preferencesStore.setDailyMetricsReminderEnabled(enabled);
     if (enabled) {
-      await syncDailyMetricsReminder(this.dailyMetrics, this.dailyMetricsReminderTime);
+      await syncDailyMetricsReminder(this.dailyMetrics, this.dailyMetricsReminderTime, new Date(), this.tunable('day.startHour'));
     } else {
       await cancelRemindersOfType('dailyMetrics');
     }
@@ -193,7 +194,7 @@ class TrainingState {
   async setDailyMetricsReminderTime(time: string) {
     this.preferencesStore.setDailyMetricsReminderTime(time);
     if (this.dailyMetricsReminderEnabled) {
-      await syncDailyMetricsReminder(this.dailyMetrics, time);
+      await syncDailyMetricsReminder(this.dailyMetrics, time, new Date(), this.tunable('day.startHour'));
     }
   }
 
@@ -219,7 +220,7 @@ class TrainingState {
 
   /** Re-fetches whichever locations are currently set - called from Home on mount, not on every `refresh()` (a network call on every save would be excessive for data that changes over hours, not seconds). */
   async refreshWeather() {
-    const todayIso = localIsoDate();
+    const todayIso = this.todayIso;
     await Promise.all([
       this.weatherStore.loadHome(this.homeLocation),
       this.weatherStore.loadCrags(this.crags),
@@ -343,7 +344,7 @@ class TrainingState {
   async setPainCheckIns(changes: Partial<PainCheckInPrefs>) {
     this.preferencesStore.setPainCheckIns(changes);
     try {
-      await syncPainReminder(this.metricsStore.painIssues, this.metricsStore.painLogs, this.preferencesStore.painCheckIns);
+      await syncPainReminder(this.metricsStore.painIssues, this.metricsStore.painLogs, this.preferencesStore.painCheckIns, new Date(), this.tunable('day.startHour'));
     } catch (err) {
       console.error('Failed to sync the pain check-in reminder:', err);
     }
@@ -522,13 +523,13 @@ class TrainingState {
         }
         if (this.preferencesStore.dailyMetricsReminderEnabled) {
           try {
-            await syncDailyMetricsReminder(this.metricsStore.dailyMetrics, this.preferencesStore.dailyMetricsReminderTime);
+            await syncDailyMetricsReminder(this.metricsStore.dailyMetrics, this.preferencesStore.dailyMetricsReminderTime, new Date(), this.tunable('day.startHour'));
           } catch (err) {
             console.error('Failed to sync daily-metrics reminder notification:', err);
           }
         }
         try {
-          await syncPainReminder(this.metricsStore.painIssues, this.metricsStore.painLogs, this.preferencesStore.painCheckIns);
+          await syncPainReminder(this.metricsStore.painIssues, this.metricsStore.painLogs, this.preferencesStore.painCheckIns, new Date(), this.tunable('day.startHour'));
         } catch (err) {
           console.error('Failed to sync the pain check-in reminder:', err);
         }
@@ -551,8 +552,17 @@ class TrainingState {
 
   // --- Derived State ---
 
+  /** A moment inside today, where today only starts at the "New day starts at" hour (see `trainingDayDate`). */
+  get today(): Date {
+    return trainingDayDate(new Date(), this.tunable('day.startHour'));
+  }
+  /** Today as "YYYY-MM-DD", by the same rule. */
+  get todayIso(): string {
+    return localIsoDate(this.today);
+  }
+
   get currentWeekId() {
-    return getWeekId(new Date());
+    return getWeekId(this.today);
   }
 
   get completedWorkouts() {
@@ -1085,7 +1095,7 @@ class TrainingState {
     const progress = (label: string, fraction: number) => { this.importProgress = { label, fraction }; };
     try {
       progress('Reading backup', 0.1);
-      await this.backupStore.importFile(file, progress);
+      await this.backupStore.importFile(file, progress, (incoming) => this.confirmImport(incoming));
       progress('Loading your data', 0.85);
       await this.refresh();
       progress('Done', 1);
@@ -1097,11 +1107,43 @@ class TrainingState {
       return true;
     } catch (err) {
       this.importProgress = null;
+      if (err instanceof ImportCancelled) return false;
       await showAlert('Import Error', 'Failed to import data. Please check the file format.');
       return false;
     } finally {
       target.value = '';
     }
+  }
+
+  /**
+   * What to check once a backup file has been read, before it replaces
+   * anything: an empty file or one from a newer app is asked about, and a
+   * safety copy of what is here now is saved (the way "Delete all data"
+   * does), so a wrong file can be put right.
+   */
+  private async confirmImport(incoming: { workouts: number; exportVersion: string }): Promise<boolean> {
+    this.importProgress = null;
+    if (incoming.workouts === 0 && this.workouts.length > 0) {
+      const ok = await showConfirm('This backup has no sessions', `It would replace your ${this.workouts.length} sessions with none. Restore it anyway?`);
+      if (!ok) return false;
+    }
+    if (isNewerExportVersion(incoming.exportVersion)) {
+      const ok = await showConfirm('From a newer version of the app', `This backup was made by a newer version (data format ${incoming.exportVersion}; this app reads ${DATA_EXPORT_VERSION}). Parts of it may be lost. Restore it anyway?`);
+      if (!ok) return false;
+    }
+    let saved = true;
+    try {
+      if (Capacitor.isNativePlatform()) await this.backupStore.writeBackupNow();
+      else saved = (await storage.exportData()) !== 'failed';
+    } catch {
+      saved = false;
+    }
+    if (!saved) {
+      const ok = await showConfirm('No safety copy was saved', 'Restore anyway? What is on this device now would be lost.');
+      if (!ok) return false;
+    }
+    this.importProgress = { label: 'Reading backup', fraction: 0.2 };
+    return true;
   }
 
   /**
@@ -1362,7 +1404,7 @@ class TrainingState {
       planAlternatives: this.planAlternatives,
       coachNotes: this.coachNotes,
       circuits: this.circuits,
-      today: localIsoDate(),
+      today: this.todayIso,
       currentWeekId: this.currentWeekId,
     };
   }
@@ -1421,7 +1463,7 @@ class TrainingState {
     const trimmed = text.trim().slice(0, MAX_COACH_NOTE_LENGTH);
     if (!trimmed) return false;
     const notes = $state.snapshot(this.coachNotes) as CoachNote[];
-    const today = localIsoDate();
+    const today = this.todayIso;
     if (id) {
       await storage.saveCoachNotes(notes.map((n) => (n.id === id ? { ...n, text: trimmed, source: 'me' as const, updatedOn: today } : n)));
     } else {
@@ -1507,7 +1549,7 @@ class TrainingState {
   }
 
   /** A check-in on an issue - one tap from Home or after a session. "Gone" closes it today. */
-  async checkInPain(issueId: string, trend: PainTrend, extra: Partial<Pick<PainLog, 'severity' | 'notes' | 'kinds' | 'timing'>> = {}, dateIso = localIsoDate()) {
+  async checkInPain(issueId: string, trend: PainTrend, extra: Partial<Pick<PainLog, 'severity' | 'notes' | 'kinds' | 'timing'>> = {}, dateIso = this.todayIso) {
     const issue = this.metricsStore.painIssues.find((i) => i.id === issueId);
     if (!issue) return;
     const r = checkInPainIssue($state.snapshot(issue) as PainIssue, this.metricsStore.painLogs, trend, dateIso, generateId, extra);

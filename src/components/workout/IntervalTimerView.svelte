@@ -172,8 +172,10 @@
     </div>
   {/if}
 
+  <!-- A landscape phone has no height for the dial over its controls: side by side. -->
+  <div class="flex-1 min-h-0 flex flex-col short:flex-row">
   <!-- The dial -->
-  <div class="flex-1 min-h-0 flex flex-col items-center justify-center px-6 gap-6">
+  <div class="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-center px-6 gap-6 short:gap-1 short:px-4">
     <!-- Sized by the room it has on both axes, so the dial fits in landscape too. -->
     <div class="flex-1 min-h-0 w-full grid place-items-center" style="container-type: size;">
       <div class="relative aspect-square" style="width: min(19rem, 100cqw, 100cqh); container-type: inline-size;">
@@ -195,7 +197,7 @@
             {isFinished ? '✓' : position.remaining}
           </p>
           {#if !isFinished}
-            <p class="text-label text-content-subtle tabular-nums">
+            <p class="text-label text-[length:min(0.875rem,6cqw)] text-content-subtle tabular-nums text-center px-2">
               Set {progress.currentSet}/{spec.sets} &middot; Rep {progress.currentRep}/{spec.reps}
             </p>
           {:else}
@@ -221,7 +223,7 @@
   </div>
 
   <!-- Controls -->
-  <div class="shrink-0 px-6 pb-8 space-y-3">
+  <div class="shrink-0 px-6 pb-8 space-y-3 short:w-[min(22rem,45%)] short:flex short:flex-col short:justify-center short:px-4 short:pb-2 short:space-y-2">
     {#if isFinished}
       <div class="flex gap-2.5">
         <button
@@ -292,5 +294,6 @@
         </button>
       </div>
     {/if}
+  </div>
   </div>
 </div>

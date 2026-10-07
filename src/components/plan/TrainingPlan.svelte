@@ -8,7 +8,7 @@
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId, localIsoDate } from '../../lib/dateUtils';
+  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
   import { getBlocksForWeek, getDominantBlockForWeek } from '../../lib/planning/trainingBlocks';
   import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
@@ -95,7 +95,7 @@
     if (!weekId || !range) return [];
     const start = range.start.toISOString().slice(0, 10);
     const end = range.end.toISOString().slice(0, 10);
-    const today = localIsoDate();
+    const today = trainingState.todayIso;
     const weekWorkouts = trainingState.getWorkoutsForWeek(weekId);
     return trainingState.goals
       .filter((g) => g.kind === 'trip' && g.date <= end && goalEnd(g) >= start)
@@ -360,7 +360,7 @@
   // session (filled = done, ring = planned, dashed = not saved yet).
   const weekStrip = $derived.by(() => {
     const start = trainingState.selectedWeekId ? weekStartDay(trainingState.selectedWeekId) : undefined;
-    const today = localDayIndex(new Date());
+    const today = localDayIndex(trainingState.today);
     return DAYS.map((day, i) => ({
       day,
       date: start !== undefined ? new Date((start + i) * 86400000).getUTCDate() : undefined,

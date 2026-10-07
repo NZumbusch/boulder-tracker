@@ -19,7 +19,7 @@ const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thu
  * it's lazy - a hidden card's inputs are never computed.
  */
 export class HomeData {
-  readonly asOf = new Date();
+  readonly asOf = trainingState.today;
   readonly todayIso = localIsoDate(this.asOf);
   readonly todayName: DayOfWeek = DAY_NAMES[this.asOf.getDay()];
   readonly todayLabel = formatDate(this.asOf.toISOString());

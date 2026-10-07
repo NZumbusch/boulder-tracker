@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { localIsoDate } from '../../lib/dateUtils';
-  /**
+    /**
    * Goals (Plan screen): competitions and outdoor trips in one list, with a
    * countdown to the next one - or "day N of M" while a trip is under way.
    * Replaces the competition-only calendar; see `GoalEvent`.
@@ -13,7 +12,7 @@
   import ListRow from '../common/ListRow.svelte';
   import Icon from "@iconify/svelte";
 
-  const todayIso = localIsoDate();
+  const todayIso = trainingState.todayIso;
   const upcoming = $derived(upcomingGoals(trainingState.goals, todayIso));
   const past = $derived(pastGoals(trainingState.goals, todayIso));
   const next = $derived(upcoming[0]);

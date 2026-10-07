@@ -7,14 +7,13 @@
    * until tomorrow, on this device only.
    */
   import { trainingState } from '../../../lib/state.svelte';
-  import { localIsoDate } from '../../../lib/dateUtils';
-  import { dueToday, issueState } from '../../../lib/pain/issues';
+    import { dueToday, issueState } from '../../../lib/pain/issues';
   import { openPainIssue } from '../../../lib/pain/painUi.svelte';
   import PainCheckInButtons from '../../health/PainCheckInButtons.svelte';
   import Icon from '@iconify/svelte';
 
   const DISMISS_KEY = 'boulder_tracker_pain_card_dismissed';
-  const today = localIsoDate();
+  const today = trainingState.todayIso;
   let dismissed = $state(readDismissed());
   function readDismissed(): boolean {
     try { return localStorage.getItem(DISMISS_KEY) === today; } catch { return false; }

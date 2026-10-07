@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange, weekDatesText, weekLabel } from "./dateUtils";
+import { describe, it, expect, afterEach } from "vitest";
+import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange, weekDatesText, weekLabel, trainingDayIso, trainingDayDate } from "./dateUtils";
 
 describe("getWeekDates", () => {
   it("returns the UTC Monday-start/Sunday-end for a mid-year week", () => {
@@ -123,5 +123,33 @@ describe('weekDatesText / weekLabel', () => {
   it('labels a week id with its dates', () => {
     expect(weekLabel('2026-W40')).toBe('2026-W40 (28 Sep – 4 Oct 2026)');
     expect(weekLabel('x')).toBe('x');
+  });
+});
+
+describe("week dates west of UTC", () => {
+  const original = process.env.TZ;
+  afterEach(() => { if (original === undefined) delete process.env.TZ; else process.env.TZ = original; });
+
+  it.each(["America/Los_Angeles", "America/New_York", "America/Sao_Paulo", "Europe/Berlin", "Asia/Tokyo"])("shows Monday to Sunday in %s", (tz) => {
+    process.env.TZ = tz;
+    expect(getWeekDateRange("2026-W41")).toBe("Oct 5 - Oct 11");
+  });
+});
+
+describe("trainingDayIso", () => {
+  const at = (h: number, m = 0) => new Date(2026, 9, 7, h, m);
+  it("stays on the day before until the start hour", () => {
+    expect(trainingDayIso(at(0, 40), 4)).toBe("2026-10-06");
+    expect(trainingDayIso(at(3, 59), 4)).toBe("2026-10-06");
+    expect(trainingDayIso(at(4, 0), 4)).toBe("2026-10-07");
+    expect(trainingDayIso(at(23, 30), 4)).toBe("2026-10-07");
+  });
+  it("is plain calendar days with a start hour of 0", () => {
+    expect(trainingDayIso(at(0, 40), 0)).toBe("2026-10-07");
+  });
+  it("moves the week over on Monday morning, not at midnight", () => {
+    const mondayEarly = new Date(2026, 9, 12, 0, 30);
+    expect(getWeekId(trainingDayDate(mondayEarly, 4))).toBe("2026-W41");
+    expect(getWeekId(trainingDayDate(mondayEarly, 0))).toBe("2026-W42");
   });
 });

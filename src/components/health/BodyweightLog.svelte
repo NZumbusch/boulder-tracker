@@ -6,14 +6,14 @@
   import { trainingState } from '../../lib/state.svelte';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import { generateId } from '../../lib/utils';
-  import { formatDate, localIsoDate } from '../../lib/dateUtils';
+  import { formatDate } from '../../lib/dateUtils';
   import { loggedMetrics } from '../../lib/analytics/metricValues';
-  import { toKg, formatWeight } from '../../lib/units';
+  import { toKg, displayWeight, formatWeight } from '../../lib/units';
   import type { DailyMetricEntry } from '../../lib/types';
   import Icon from '@iconify/svelte';
 
   function todayIso(): string {
-    return localIsoDate();
+    return trainingState.todayIso;
   }
 
   let date = $state(todayIso());
@@ -44,8 +44,21 @@
     return 10 + ((value - min) / (max - min)) * 80;
   }
 
+  /** What the field can hold, in kg - anything else is a typo, and says so. */
+  const MIN_KG = 20;
+  const MAX_KG = 400;
+  let weightError = $state('');
+
   async function handleSave() {
     if (!weight || weight <= 0) return;
+    const kg = toKg(weight, trainingState.units.weight);
+    if (kg < MIN_KG || kg > MAX_KG) {
+      const unit = trainingState.units.weight;
+      const range = `${Math.round(displayWeight(MIN_KG, unit))}-${Math.round(displayWeight(MAX_KG, unit))} ${unit}`;
+      weightError = `That doesn't look like a bodyweight - it should be ${range}.`;
+      return;
+    }
+    weightError = '';
 
     // Upsert by date - re-logging the same day updates it rather than
     // creating a second entry for that date.
@@ -90,12 +103,13 @@
     </div>
     <div class="space-y-1">
       <label for="bw-weight" class="text-label text-content-subtle ml-1">Weight ({trainingState.units.weight})</label>
-      <input id="bw-weight" type="number" step="0.1" min="0" bind:value={weight} placeholder="70.5" class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+      <input id="bw-weight" type="number" step="0.1" min="0" bind:value={weight} oninput={() => (weightError = '')} aria-invalid={weightError !== ''} aria-describedby={weightError ? 'bw-error' : undefined} placeholder="70.5" class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
     </div>
-    <button type="submit" disabled={!weight} class="p-3 bg-primary hover:bg-primary-hover text-white rounded-control shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
+    <button type="submit" aria-label="Add bodyweight entry" disabled={!weight} class="p-3 bg-primary hover:bg-primary-hover text-white rounded-control shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
       <Icon icon="ic:baseline-add" class="text-xl" />
     </button>
   </form>
+  {#if weightError}<p id="bw-error" class="text-caption text-danger px-1" role="alert">{weightError}</p>{/if}
 
   {#if chartEntries.length > 1}
     <div class="h-28 flex items-end justify-between gap-1.5 px-1">

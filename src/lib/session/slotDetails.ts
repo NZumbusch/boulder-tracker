@@ -10,7 +10,7 @@ import { restSeconds } from '../exercise/rest';
 export function slotSummary(slot: ExerciseSlot): string {
   const v = slotValues(slot);
   const parts: string[] = [];
-  if (v.sets) parts.push(`${v.sets}${v.reps ? `×${v.reps}` : ' sets'}`);
+  if (v.sets) parts.push(`${v.sets}${v.reps ? `×${v.reps}` : Number(v.sets) === 1 ? ' set' : ' sets'}`);
   else if (v.reps) parts.push(`${v.reps} reps`);
   if (v.weight) parts.push(formatWeight(v.weight, trainingState.units.weight));
   if (v.minGrade) parts.push(v.maxGrade && v.maxGrade !== v.minGrade ? `${v.minGrade}–${v.maxGrade}` : v.minGrade);
@@ -90,7 +90,7 @@ export function detailPairs(
 export function valuesLine(v: ExerciseValues): string {
   const parts: string[] = [];
   const reps = Array.isArray(v.reps) ? v.reps.join('/') : v.reps;
-  if (v.sets) parts.push(`${v.sets}${reps ? `×${reps}` : ' sets'}`);
+  if (v.sets) parts.push(`${v.sets}${reps ? `×${reps}` : Number(v.sets) === 1 ? ' set' : ' sets'}`);
   else if (reps) parts.push(`${reps} reps`);
   if (v.weight) parts.push(formatWeight(v.weight, trainingState.units.weight));
   if (v.bodyweightPercent) parts.push(`${v.bodyweightPercent}% BW`);

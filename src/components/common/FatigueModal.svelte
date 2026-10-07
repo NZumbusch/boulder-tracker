@@ -52,6 +52,9 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
    * chart downstream rather than just reading oddly in History.
    */
   let durationMinutes = $state(0);
+  /** No session lasts longer than this; a forgotten running clock should not skew every load chart. */
+  const MAX_SESSION_MINUTES = 12 * 60;
+  const tooLong = $derived(durationMinutes > MAX_SESSION_MINUTES);
   /** What the clock said, kept to show when the number has been corrected. */
   let measuredMinutes = $state(0);
 
@@ -100,7 +103,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
       // Zero means "no meaningful length recorded" - left unset so
       // `sessionDuration` falls back to summing the logged exercises
       // rather than reporting a zero-minute session.
-      actualDuration: durationMinutes > 0 ? durationMinutes : undefined,
+      actualDuration: durationMinutes > 0 ? Math.min(durationMinutes, MAX_SESSION_MINUTES) : undefined,
     });
   }
 
@@ -111,10 +114,10 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
 {#if trainingState.showFatigue}
   <div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[115] backdrop-blur-md transition-all duration-300">
     <!-- Scrolls within the screen: the pain questions made it taller than a phone. -->
-    <div class="bg-surface w-full max-w-lg max-h-[92vh] overflow-y-auto no-scrollbar rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
-      <div class="w-10 h-1 bg-surface-elevated rounded-full mx-auto mb-6 sm:hidden"></div>
+    <div class="bg-surface w-full max-w-lg max-h-[92vh] short:max-h-full overflow-y-auto no-scrollbar rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 short:p-3 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
+      <div class="w-10 h-1 bg-surface-elevated rounded-full mx-auto mb-6 sm:hidden short:hidden"></div>
       
-      <div class="flex items-center justify-between mb-6 px-1">
+      <div class="flex items-center justify-between mb-6 short:mb-2 px-1">
         <div class="min-w-0 flex-1">
           <h3 class="text-title text-content">Post-Session</h3>
           <p class="text-content-subtle text-caption mt-0.5">What this session added, per area (1 = barely anything)</p>
@@ -147,13 +150,18 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
               id="session-duration"
               type="number"
               min="0"
+              max={MAX_SESSION_MINUTES}
               step="5"
               inputmode="numeric"
+              aria-invalid={tooLong}
               bind:value={durationMinutes}
               class="flex-1 min-w-0 bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-sm tabular-nums"
             />
             <span class="text-label text-content-subtle shrink-0">min</span>
           </div>
+          {#if tooLong}
+            <p class="text-caption text-warning ml-1" role="alert">Sessions are saved as 12 h at most. Was the clock left running?</p>
+          {/if}
         </div>
 
         <div class="space-y-3">

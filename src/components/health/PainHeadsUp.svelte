@@ -8,8 +8,7 @@
   import type { Workout } from '../../lib/types';
   import { trainingState } from '../../lib/state.svelte';
   import { issuesTouchedBy, painLevelOn, inSentence } from '../../lib/pain/issues';
-  import { localIsoDate } from '../../lib/dateUtils';
-  import { openPainIssue } from '../../lib/pain/painUi.svelte';
+    import { openPainIssue } from '../../lib/pain/painUi.svelte';
   import Icon from '@iconify/svelte';
 
   let { workout, variant = 'chip' }: { workout: Pick<Workout, 'exercises' | 'status'>; variant?: 'chip' | 'line' } = $props();
@@ -17,7 +16,7 @@
   const touched = $derived(
     workout.status === 'completed' ? [] : issuesTouchedBy(workout, trainingState.painIssues, trainingState.exerciseTypes, trainingState.analyticsCategories),
   );
-  const today = localIsoDate();
+  const today = trainingState.todayIso;
   /** The category names this session's exercises are charted under - the slot's own, else its type's. */
   const sessionCats = $derived(new Set(workout.exercises.map((s) =>
     (s.categoryId ? trainingState.analyticsCategories.find((c) => c.id === s.categoryId)?.name : undefined)

@@ -153,3 +153,29 @@ describe("syncDailyMetricsReminder", () => {
     expect(schedule).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("syncDailyMetricsReminder after midnight", () => {
+  const complete = ["sleep-score", "hrv", "rhr"].map((id) => metric(id, "2026-10-06"));
+
+  it("does not start the new day's reminder at 00:40 - the day's own reminder time has passed", async () => {
+    await syncDailyMetricsReminder([], "20:00", new Date(2026, 9, 7, 0, 40), 4);
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it("without a day start hour, 00:40 is the new day and tonight's reminder is scheduled", async () => {
+    await syncDailyMetricsReminder([], "20:00", new Date(2026, 9, 7, 0, 40), 0);
+    expect(schedule).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads yesterday's entries as today's until the hour", async () => {
+    await syncDailyMetricsReminder(complete, "23:30", new Date(2026, 9, 7, 0, 40), 4);
+    expect(schedule).not.toHaveBeenCalled();
+    await syncDailyMetricsReminder(complete, "23:30", new Date(2026, 9, 7, 5, 0), 4);
+    expect(schedule).toHaveBeenCalledTimes(1);
+  });
+
+  it("still schedules this evening's reminder in the morning", async () => {
+    await syncDailyMetricsReminder([], "20:00", new Date(2026, 9, 7, 9, 0), 4);
+    expect(schedule.mock.calls[0][0].notifications[0].schedule.at).toEqual(new Date(2026, 9, 7, 20, 0));
+  });
+});

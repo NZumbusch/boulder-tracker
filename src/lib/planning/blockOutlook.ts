@@ -13,7 +13,7 @@ export function nextBlock(blocks: TrainingBlock[], currentWeekId: string): Train
 export function daysUntilWeek(weekId: string, todayIso: string): number | undefined {
   const dates = getWeekDates(weekId);
   if (!dates) return undefined;
-  return Math.max(0, toUtcDayIndex(dates.start.toISOString()) - toUtcDayIndex(todayIso));
+  return Math.max(0, toUtcDayIndex(dates.start.toISOString().slice(0, 10)) - toUtcDayIndex(todayIso));
 }
 
 /** How close to an event the taper hint starts appearing. */
