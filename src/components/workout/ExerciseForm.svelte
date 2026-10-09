@@ -55,6 +55,8 @@
   let holdType = $state<ExerciseValues['holdType']>('Half Crimp');
   let timeOn = $state(7);
   let timeOff = $state(3);
+  /** Circuit members: seconds of rest after this exercise as text; blank = the circuit's own switch time. */
+  let restAfterText = $state('');
   let timeBetweenSets = $state(180);
   let weight = $state(0);
   let holdSize = $state(20);
@@ -181,6 +183,7 @@
     // A circuit's timed exercise is usually a minute; a hang is usually 7 seconds.
     timeOn = v.timeOn ?? (inGroup ? 60 : 7);
     timeOff = v.timeOff ?? 3;
+    restAfterText = typeof v.restAfter === 'number' ? String(v.restAfter) : '';
     timeBetweenSets = v.timeBetweenSets ?? 180;
     weight = v.weight !== undefined ? toDisplayWeight(v.weight) : 0;
     holdSize = v.holdSize ?? 20;
@@ -266,6 +269,7 @@
     if (params.includes('holdType')) values.holdType = holdType;
     if (params.includes('timeOn')) values.timeOn = n(timeOn);
     if (params.includes('timeOff')) values.timeOff = n(timeOff);
+    if (inGroup && mode === 'prescribed' && restAfterText.trim() !== '' && Number.isFinite(Number(restAfterText))) values.restAfter = Math.max(0, Math.round(Number(restAfterText)));
     if (params.includes('restTime')) values.timeBetweenSets = n(timeBetweenSets);
     if (params.includes('holdSize')) values.holdSize = cleanSize;
     if (params.includes('weight')) values.weight = cleanWeight;
@@ -504,6 +508,14 @@
         {/each}
       </select>
     </div>
+
+    {#if inGroup && mode === 'prescribed'}
+      <div class="space-y-1.5 pt-4 border-t border-border/50">
+        <label for="ex-rest-after" class="text-label text-content-subtle ml-1">Rest after it (s)</label>
+        <input id="ex-rest-after" type="number" min="0" inputmode="numeric" placeholder="Same as the circuit's switch time" value={restAfterText} oninput={(e) => (restAfterText = e.currentTarget.value)} class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border-strong outline-none text-sm placeholder:text-content-subtle" />
+        <p class="text-caption text-content-subtle ml-1">Only for this exercise, in this circuit. Leave empty to use the circuit's.</p>
+      </div>
+    {/if}
 
     <div class="space-y-1.5 pt-4 border-t border-border/50">
       {#if mode === 'logged' && initialSlot?.prescribed}

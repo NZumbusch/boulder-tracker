@@ -79,7 +79,7 @@
       </div>
     </div>
     <label class="min-w-0 block">
-      <span class="block text-caption text-content-subtle mb-1">Between (s)</span>
+      <span class="block text-caption text-content-subtle mb-1">Switch (s)</span>
       <input
         type="number" min="0" step="5" inputmode="numeric" placeholder="0"
         value={group.transition ?? ''}
@@ -88,7 +88,7 @@
       />
     </label>
     <label class="min-w-0 block">
-      <span class="block text-caption text-content-subtle mb-1">After round (s)</span>
+      <span class="block text-caption text-content-subtle mb-1">Rest after round (s)</span>
       <input
         type="number" min="0" step="15" inputmode="numeric" placeholder={group.transition ? String(group.transition) : '0'}
         value={group.roundRest ?? ''}
@@ -97,6 +97,8 @@
       />
     </label>
   </div>
+
+  <p class="text-caption text-content-subtle">Switch is the pause between exercises; set an exercise's own rest in its details. Each exercise sets its own time or reps.</p>
 
   {#if dropouts.length > 0}
     <div class="space-y-0.5">

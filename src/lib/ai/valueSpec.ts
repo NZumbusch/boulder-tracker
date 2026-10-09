@@ -86,6 +86,7 @@ export const EXERCISE_VALUE_SPEC: Record<BuiltInValueField, ValueFieldSpec> = {
   timeOn: { type: "number", unit: "seconds", description: "Time under tension per rep." },
   timeOff: { type: "number", unit: "seconds", description: "Rest between reps inside a set." },
   timeBetweenSets: { type: "number", unit: "seconds", description: 'Rest between sets. There is NO "restTime" field - this is it.' },
+  restAfter: { type: "number", unit: "seconds", description: "Only for an exercise inside a circuit: rest after this exercise instead of the circuit's own switch time (0 = go straight on)." },
   weight: { type: "number", unit: "kg", description: "Added weight (not bodyweight)." },
   holdSize: { type: "number", unit: "mm", description: "Edge depth." },
   distance: { type: "number", unit: "km", description: "Distance covered, for cardio." },

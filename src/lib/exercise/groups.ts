@@ -166,6 +166,11 @@ export function memberSetSeconds(values: ExerciseValues, group: ExerciseGroup, r
   return DEFAULT_MEMBER_SECONDS;
 }
 
+/** Seconds from the end of a member's set to the start of the next one in the round: its own `restAfter`, else the group's `transition`. */
+export function switchSeconds(group: ExerciseGroup, values: ExerciseValues): number {
+  return nonNegative(values.restAfter) ?? nonNegative(group.transition) ?? 0;
+}
+
 /** Seconds between rounds: `roundRest`, else `transition`, else none. */
 export function restBetweenRounds(group: ExerciseGroup): number {
   return nonNegative(group.roundRest) ?? nonNegative(group.transition) ?? 0;
@@ -195,7 +200,6 @@ export interface GroupTiming {
 export function groupTiming(group: ExerciseGroup, members: GroupMember[]): GroupTiming {
   const counts = members.map((m) => memberRounds(m.values, group));
   const rounds = Math.max(0, ...counts);
-  const transition = nonNegative(group.transition) ?? 0;
   const workSeconds = new Map<string, number>(members.map((m) => [m.slot.id, 0]));
   const roundMembers: number[][] = [];
   let total = 0;
@@ -208,7 +212,7 @@ export function groupTiming(group: ExerciseGroup, members: GroupMember[]): Group
       workSeconds.set(members[i].slot.id, (workSeconds.get(members[i].slot.id) ?? 0) + seconds);
       total += seconds;
     }
-    total += transition * Math.max(0, active.length - 1);
+    for (const i of active.slice(0, -1)) total += switchSeconds(group, members[i].values);
     if (r < rounds - 1) total += restBetweenRounds(group);
   }
   return { rounds, totalSeconds: total, workSeconds, roundMembers };
@@ -286,7 +290,6 @@ export interface RestComparison {
 export function restComparison(group: ExerciseGroup, members: GroupMember[]): RestComparison[] {
   const timing = groupTiming(group, members);
   if (timing.rounds < 2) return [];
-  const transition = nonNegative(group.transition) ?? 0;
   const [first, second] = timing.roundMembers;
   const out: RestComparison[] = [];
 
@@ -295,12 +298,14 @@ export function restComparison(group: ExerciseGroup, members: GroupMember[]): Re
     if (!(wanted > 0) || !second?.includes(i)) return;
     const after = first.slice(first.indexOf(i) + 1);
     const before = second.slice(0, second.indexOf(i));
-    const work = (idx: number[], round: number) =>
-      idx.reduce((sum, j) => sum + memberSetSeconds(members[j].values, group, round), 0);
+    const sets = (idx: number[], round: number) => idx.reduce((sum, j) => sum + memberSetSeconds(members[j].values, group, round), 0);
+    const switches = (idx: number[]) => idx.reduce((sum, j) => sum + switchSeconds(group, members[j].values), 0);
+    // Rest of this round: its own switch, the others' sets with the switches between them (the last one is followed by the round's rest);
+    // then next round up to its turn: the others' sets, each followed by its switch (the last leads into this member).
     const gets =
-      work(after, 0) + transition * after.length +
+      (after.length > 0 ? switchSeconds(group, m.values) + sets(after, 0) + switches(after.slice(0, -1)) : 0) +
       restBetweenRounds(group) +
-      work(before, 1) + transition * before.length;
+      sets(before, 1) + switches(before);
     out.push({ slotId: m.slot.id, wanted, gets: Math.round(gets) });
   });
   return out;
@@ -397,9 +402,9 @@ export function groupSummary(group: ExerciseGroup): string {
   const rounds = validRounds(group.rounds);
   const parts = [`${rounds} round${rounds === 1 ? "" : "s"}`];
   const transition = nonNegative(group.transition);
-  if (transition) parts.push(`${formatSeconds(transition)} between`);
+  if (transition) parts.push(`${formatSeconds(transition)} to switch`);
   const roundRest = nonNegative(group.roundRest);
-  if (roundRest && rounds > 1) parts.push(`${formatSeconds(roundRest)} after each round`);
+  if (roundRest && rounds > 1) parts.push(`${formatSeconds(roundRest)} rest after each round`);
   return parts.join(" · ");
 }
 

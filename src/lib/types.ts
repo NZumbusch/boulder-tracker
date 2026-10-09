@@ -172,6 +172,8 @@ export interface ExerciseValues {
   timeOn?: number; // Time under tension per rep (seconds)
   timeOff?: number; // Rest between reps (seconds)
   timeBetweenSets?: number; // Rest between sets (seconds)
+  /** Circuit members only: seconds of rest after this exercise, instead of the circuit's own switch time. */
+  restAfter?: number;
   weight?: number; // Added weight in kg
   holdSize?: number; // Hold depth in mm
   distance?: number; // Distance in km

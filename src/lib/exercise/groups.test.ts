@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ExerciseGroup, ExerciseSlot, Workout } from "../types";
+import type { ExerciseGroup, ExerciseSlot, ExerciseValues, Workout } from "../types";
 import {
   COUNTED_SECONDS_PER_REP,
   groupMemberMinutes,
@@ -223,7 +223,24 @@ describe("display", () => {
   it("formats rests and sums a group up", () => {
     expect(formatSeconds(15)).toBe("15 s");
     expect(formatSeconds(90)).toBe("1:30");
-    expect(groupSummary(core)).toBe("3 rounds · 15 s between · 1:00 after each round");
+    expect(groupSummary(core)).toBe("3 rounds · 15 s to switch · 1:00 rest after each round");
     expect(groupSummary({ id: "x", rounds: 1, roundRest: 60 })).toBe("1 round");
+  });
+});
+
+describe("a member's own rest after it", () => {
+  const g: ExerciseGroup = { id: "g", rounds: 2, transition: 15, roundRest: 60 };
+  const m = (id: string, values: ExerciseValues) => ({ slot: { id, typeId: "t", prescribed: values } as ExerciseSlot, values });
+
+  it("replaces the circuit's switch time after that member in the total", () => {
+    const plain = groupTiming(g, [m("a", { timeOn: 30 }), m("b", { timeOn: 30 })]);
+    const own = groupTiming(g, [m("a", { timeOn: 30, restAfter: 45 }), m("b", { timeOn: 30 })]);
+    // two rounds, one switch each: +30 s each
+    expect(own.totalSeconds - plain.totalSeconds).toBe(60);
+  });
+
+  it("no switch is counted after the last member of a round", () => {
+    const own = groupTiming(g, [m("a", { timeOn: 30 }), m("b", { timeOn: 30, restAfter: 99 })]);
+    expect(own.totalSeconds).toBe(groupTiming(g, [m("a", { timeOn: 30 }), m("b", { timeOn: 30 })]).totalSeconds);
   });
 });

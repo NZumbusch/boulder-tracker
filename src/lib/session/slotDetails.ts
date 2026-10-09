@@ -17,6 +17,7 @@ export function slotSummary(slot: ExerciseSlot): string {
   // A circuit member's own estimate counts its own set rests, which the
   // circuit replaces - its time only means something as part of the group.
   if (slot.groupId && v.timeOn) parts.push(`${v.timeOn} s`); // a member's one set: how long it runs
+  if (slot.groupId && typeof v.restAfter === 'number') parts.push(`${v.restAfter} s rest`);
   const mins = slot.groupId ? undefined : estimateSlotDuration(slot);
   if (mins) parts.push(`${mins}m`);
   return parts.join(' · ');

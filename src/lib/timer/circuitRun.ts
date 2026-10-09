@@ -1,5 +1,5 @@
 import type { ExerciseGroup, ExerciseValues } from "../types";
-import { groupTiming, memberRounds, restBetweenRounds, type GroupMember } from "../exercise/groups";
+import { groupTiming, memberRounds, restBetweenRounds, switchSeconds, type GroupMember } from "../exercise/groups";
 import { toRepsArray } from "../exercise/reps";
 import { restSeconds } from "../exercise/rest";
 import type { LiveCue, LiveSegment, LiveTimerConfig } from "./liveTimer";
@@ -54,7 +54,6 @@ export interface CircuitRunState {
 /** The whole run, in order. Rests of zero seconds are left out. */
 export function circuitSteps(group: ExerciseGroup, members: GroupMember[], leadIn = CIRCUIT_LEAD_IN_SECONDS): CircuitStep[] {
   const { roundMembers } = groupTiming(group, members);
-  const transition = Math.max(0, Number(group.transition) || 0);
   const roundRest = restBetweenRounds(group);
   const steps: CircuitStep[] = [];
   if (leadIn > 0) steps.push({ kind: "leadIn", seconds: leadIn });
@@ -63,6 +62,7 @@ export function circuitSteps(group: ExerciseGroup, members: GroupMember[], leadI
     active.forEach((member, i) => {
       const values = members[member].values;
       steps.push({ kind: "work", slotId: members[member].slot.id, member, round, ...workTarget(values, round, members[member], group) });
+      const transition = switchSeconds(group, values);
       if (i < active.length - 1 && transition > 0) steps.push({ kind: "transition", seconds: transition, round, next: active[i + 1] });
     });
     const next = roundMembers[round + 1];

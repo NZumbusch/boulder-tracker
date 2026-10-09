@@ -1032,7 +1032,7 @@
       {/if}
       <svelte:boundary onerror={handleEditorError}>
         <!-- A to-do exercise is a target (plan notes); a done one is a log (how it went). Only labels differ for a new one, so no remount. -->
-        <ExerciseForm initialSlot={editingSlot} mode={isAddingExercise && addAsTodo ? 'prescribed' : 'logged'} onSave={handleFormSave} />
+        <ExerciseForm initialSlot={editingSlot} mode={isAddingExercise && addAsTodo ? 'prescribed' : 'logged'} inGroup={!!editingSlot?.groupId || (isAddingExercise && !!addToGroupId)} onSave={handleFormSave} />
       </svelte:boundary>
     </div>
   </div>

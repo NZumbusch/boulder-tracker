@@ -43,6 +43,20 @@ describe("circuitSteps", () => {
     expect(s.map((x) => x.kind === "work" ? `${x.slotId}${x.round}` : x.kind)).toEqual(["a0", "b0", "a1", "a2"]);
   });
 
+  it("gives each exercise its own work time and its own rest after it", () => {
+    // 45 s planche, 20 s rest; 10 s front lever, 5 s rest; 8 pull-ups (circuit's 15 s switch is only for exercises without their own).
+    const g: ExerciseGroup = { id: "g", rounds: 1, transition: 15 };
+    const s = circuitSteps(g, [member("planche", { timeOn: 45, restAfter: 20 }), member("fl", { timeOn: 10, restAfter: 5 }), member("pu", { reps: 8 })], 0);
+    expect(s.map((x) => (x.kind === "work" ? `${x.slotId}:${x.seconds ?? x.reps + "r"}` : `${x.kind}:${x.seconds}`))).toEqual([
+      "planche:45", "transition:20", "fl:10", "transition:5", "pu:8r",
+    ]);
+  });
+
+  it("a rest after of 0 means no pause there, whatever the circuit's switch time", () => {
+    const s = circuitSteps({ id: "g", rounds: 1, transition: 15 }, [member("a", { timeOn: 10, restAfter: 0 }), member("b", { timeOn: 10 })], 0);
+    expect(s.map((x) => x.kind)).toEqual(["work", "work"]);
+  });
+
   it("counts a repeater set down as one: reps x hang with the rest between reps", () => {
     const s = circuitSteps({ id: "g", rounds: 1 }, [member("hang", { reps: 6, timeOn: 7, timeOff: 3 })], 0);
     expect(s[0]).toMatchObject({ kind: "work", seconds: 57, reps: 6 });
