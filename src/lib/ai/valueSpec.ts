@@ -62,7 +62,7 @@ export const LEAD_STYLES = ["Onsight", "Flash", "Redpoint", "Projecting"] as con
 export const ROUTE_DIFFICULTIES = ["Easy", "Moderate", "Hard"] as const;
 
 /** The built-in fields. `custom` (the athlete's own value types) is described per athlete - see `customValuesReference`. */
-export type BuiltInValueField = Exclude<keyof ExerciseValues, "custom">;
+export type BuiltInValueField = Exclude<keyof ExerciseValues, "custom" | "setDetails">;
 
 export const EXERCISE_VALUE_SPEC: Record<BuiltInValueField, ValueFieldSpec> = {
   notes: { type: "string", description: "Free text. The ONLY field that accepts prose - coaching cues, session intent, anything qualitative." },
@@ -210,6 +210,7 @@ export function renderValueFieldReference(): string {
     }
     return line;
   });
+  lines.push(`- perSet (array of objects, optional): ONLY when the sets differ - one object per set with just the numbers that differ or are set per set: "reps", "weight" (kg), "timeOn", "bodyweightPercent", "maxWeightPercent", "boardAngle", "holdSize", "distance". E.g. a pyramid: "perSet": [{"reps": 5, "weight": 60}, {"reps": 3, "weight": 70}, {"reps": 1, "weight": 80}]. When every set is the same use the plain fields ("sets", "reps", "weight") and no perSet.`);
   return lines.join("\n");
 }
 

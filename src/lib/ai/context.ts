@@ -18,6 +18,7 @@ import type {
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
 import { otherValuesText, resolveFields } from "../benchmarks/model";
 import { repsRepresentative } from "../exercise/reps";
+import { hasPerSet, setRows } from "../exercise/setRows";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
 import { exerciseGroup } from "../exercise/library";
@@ -187,6 +188,9 @@ function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], notes: W
         // would double-count. Routed through the helper only because the
         // field may now hold one number or one per set.
         reps: repsRepresentative(v.reps),
+        // What was lifted: the weight, and the sets one by one when they differed.
+        ...(typeof v.weight === "number" ? { weightKg: v.weight } : {}),
+        ...(hasPerSet(v) ? { perSet: setRows(v) } : {}),
         plannedLoad: v.plannedLoad,
         ...(v.custom && Object.keys(v.custom).length ? { custom: v.custom } : {}),
         ...(notes.logNotes && logNote(e) ? { howItWent: logNote(e) } : {}),

@@ -787,3 +787,17 @@ describe("a circuit member's own rest after it", () => {
     expect(buildSessionPrompt as unknown).toBeDefined();
   });
 });
+
+describe("sets that differ (perSet)", () => {
+  it("reads one object per set into the per-set form", () => {
+    const values = validateExerciseValues({ perSet: [{ reps: 5, weight: 60 }, { reps: 3, weight: 70 }, { reps: 1, weight: 80 }] }, "x", [] as never);
+    expect(values.sets).toBe(3);
+    expect(values.reps).toEqual([5, 3, 1]);
+    expect(values.weight).toBe(70);
+    expect(values.setDetails).toEqual([{ weight: 60 }, { weight: 70 }, { weight: 80 }]);
+  });
+
+  it("is described in the value reference", () => {
+    expect(AI_CHANGESET_INSTRUCTIONS).toContain("perSet");
+  });
+});

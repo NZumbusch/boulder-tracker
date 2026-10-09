@@ -116,6 +116,8 @@ export interface ExerciseTypeDef {
   group?: string;
   /** A short, general how-to: setup and key cues - not this week's numbers, which live on the slot. */
   description?: string;
+  /** Which of its parameters can be logged per set (weight on weighted pull-ups, angle on board work). Unset = the app's defaults for the parameters it has. */
+  perSetParameters?: ParameterBlock[];
 }
 
 /**
@@ -192,7 +194,30 @@ export interface ExerciseValues {
 
   /** Values of the athlete's own value types, by `ValueDef.id` - a number, or a pick-list's chosen option. */
   custom?: Record<string, number | string>;
+  /**
+   * One entry per set for the numbers that differ from set to set (weight,
+   * hang time, board angle...), by field name; `reps` keeps its own per-set
+   * array. Only the keys that really vary are in an entry - everything else
+   * is the plain field. The plain field beside it always holds a
+   * representative value (the mean), so anything that reads one number per
+   * exercise keeps working. Read and write through `lib/exercise/setRows.ts`.
+   */
+  setDetails?: SetDetail[];
 }
+
+/** A set's own numbers - see `ExerciseValues.setDetails`. */
+export type SetDetail = Partial<Record<PerSetKey, number>>;
+
+/** The numeric fields that can differ per set. */
+export type PerSetKey =
+  | "reps"
+  | "weight"
+  | "timeOn"
+  | "bodyweightPercent"
+  | "maxWeightPercent"
+  | "boardAngle"
+  | "holdSize"
+  | "distance";
 
 /**
  * A single exercise "row" within a workout or template. References its

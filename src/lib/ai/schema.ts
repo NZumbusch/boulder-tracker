@@ -1,5 +1,6 @@
 import { parseJsonReply } from "./parseJson";
-import type { DayOfWeek, ExerciseValues } from "../types";
+import type { DayOfWeek, ExerciseValues, PerSetKey } from "../types";
+import { PER_SET_KEYS, withSetRows, type SetRow } from "../exercise/setRows";
 import { WEEK_DAYS } from "../constants";
 import { getWeekIdRange } from "../dateUtils";
 import {
@@ -345,6 +346,22 @@ export function validateExerciseValues(
       }
     }
     if (Object.keys(custom).length) values.custom = custom;
+  }
+
+  // Sets that differ: `"perSet": [{ "reps": 6, "weight": 10 }, { "reps": 5, "weight": 12.5 }]` - read into the per-set form.
+  if (Array.isArray(raw.perSet)) {
+    const rows: SetRow[] = [];
+    const used = new Set<PerSetKey>();
+    raw.perSet.forEach((entry, i) => {
+      if (!isPlainObject(entry)) return pushRepair(issues, `${path}.perSet[${i}]`, "Not an object - set ignored.");
+      const row: SetRow = {};
+      for (const key of PER_SET_KEYS) {
+        const n = entry[key] === undefined || entry[key] === null ? undefined : coerceNumber(entry[key]).value;
+        if (typeof n === "number" && Number.isFinite(n) && n >= 0) { row[key] = n; used.add(key); }
+      }
+      rows.push(row);
+    });
+    if (rows.length > 0 && used.size > 0) Object.assign(values, withSetRows(values, rows, [...used]));
   }
 
   if (rescuedText.length) {
