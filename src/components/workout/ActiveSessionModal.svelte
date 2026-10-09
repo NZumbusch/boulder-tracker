@@ -1031,7 +1031,8 @@
         <p class="px-1 text-caption text-content-subtle">Saved as what you did, and counted as done. The plan stays as it was.</p>
       {/if}
       <svelte:boundary onerror={handleEditorError}>
-        <ExerciseForm initialSlot={editingSlot} mode="logged" onSave={handleFormSave} />
+        <!-- A to-do exercise is a target (plan notes); a done one is a log (how it went). Only labels differ for a new one, so no remount. -->
+        <ExerciseForm initialSlot={editingSlot} mode={isAddingExercise && addAsTodo ? 'prescribed' : 'logged'} onSave={handleFormSave} />
       </svelte:boundary>
     </div>
   </div>

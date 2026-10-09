@@ -29,7 +29,7 @@
   import RangeSlider from '../common/RangeSlider.svelte';
   import Icon from '@iconify/svelte';
 
-  let { slot, seed: seedOverride = null, lastTime = null, onSave, onCancel, onEditFull }: {
+  let { slot, seed: seedOverride = null, lastTime = null, saveLabel = 'Save & continue', onSave, onCancel, onEditFull }: {
     slot: ExerciseSlot;
     /** What was logged the last time this exercise was done - one tap copies it in. */
     lastTime?: LastTime | null;
@@ -39,6 +39,8 @@
      * path, where the target is the right starting point.
      */
     seed?: ExerciseValues | null;
+    /** The save button's words, for a caller where "continue" isn't what comes next. */
+    saveLabel?: string;
     onSave: (values: ExerciseValues) => void;
     onCancel: () => void;
     /** The way out to the full form; without it the sheet has no such link. */
@@ -348,7 +350,7 @@
           onclick={handleSave}
           class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98]"
         >
-          Save &amp; continue
+          {saveLabel}
         </button>
       </div>
       {#if onEditFull}

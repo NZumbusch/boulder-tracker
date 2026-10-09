@@ -731,6 +731,7 @@
   {#if editingMember && logged[editingMember.slot.id]}
     <ExerciseLogSheet
       slot={{ ...editingMember.slot, logged: logged[editingMember.slot.id] }}
+      saveLabel="Save"
       onSave={saveEdit}
       onCancel={() => (editingId = null)}
     />
