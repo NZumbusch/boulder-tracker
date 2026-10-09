@@ -11,14 +11,16 @@ describe("shareImageFileName", () => {
   });
 
   it("falls back to today for a planned session with no date", () => {
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; // the file name uses the local day
     expect(shareImageFileName(null)).toBe(`boulder-session-${today}.png`);
     expect(shareImageFileName(undefined)).toBe(`boulder-session-${today}.png`);
     expect(shareImageFileName("")).toBe(`boulder-session-${today}.png`);
   });
 
   it("falls back to today rather than producing an Invalid Date name", () => {
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; // the file name uses the local day
     expect(shareImageFileName("not a date")).toBe(`boulder-session-${today}.png`);
   });
 
