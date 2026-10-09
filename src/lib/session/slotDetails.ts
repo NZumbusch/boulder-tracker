@@ -5,6 +5,14 @@ import { slotValues } from '../exerciseSlot';
 import { estimateSlotDuration } from '../planning/sessionDuration';
 import { paramLabel, formatCustomValue, customParam } from '../exercise/valueDefs';
 import { restSeconds } from '../exercise/rest';
+import { formatPerSet, hasPerSet } from '../exercise/setRows';
+
+/** A weight (or a weight per set: "60 / 70 / 80 kg") for display, in the chosen unit. */
+function weightText(v: ExerciseValues): string | undefined {
+  const unit = trainingState.units.weight;
+  const text = formatPerSet(v, 'weight', (n) => String(Math.round(displayWeight(n, unit) * 10) / 10));
+  return text === undefined ? undefined : `${text} ${unit}`;
+}
 
 /** A one-line summary of what a slot asks for, for the collapsed rows. */
 export function slotSummary(slot: ExerciseSlot): string {
@@ -12,7 +20,7 @@ export function slotSummary(slot: ExerciseSlot): string {
   const parts: string[] = [];
   if (v.sets) parts.push(`${v.sets}${v.reps ? `×${v.reps}` : Number(v.sets) === 1 ? ' set' : ' sets'}`);
   else if (v.reps) parts.push(`${v.reps} reps`);
-  if (v.weight) parts.push(formatWeight(v.weight, trainingState.units.weight));
+  if (v.weight) parts.push(weightText(v) ?? formatWeight(v.weight, trainingState.units.weight));
   if (v.minGrade) parts.push(v.maxGrade && v.maxGrade !== v.minGrade ? `${v.minGrade}–${v.maxGrade}` : v.minGrade);
   // A circuit member's own estimate counts its own set rests, which the
   // circuit replaces - its time only means something as part of the group.
@@ -51,7 +59,8 @@ export function detailPairs(
   push('duration', v.duration, ' min');
   push('sets', v.sets);
   push('reps', v.reps);
-  push('weight', typeof v.weight === 'number' ? Math.round(displayWeight(v.weight, trainingState.units.weight) * 10) / 10 : v.weight, ` ${trainingState.units.weight}`);
+  { const w = weightText(v); if (params.includes('weight') && w) pairs.push({ label: paramLabel('weight', trainingState.valueDefs), value: w }); }
+  if (hasPerSet(v)) for (const [key, label, suffix] of [['timeOn', 'timeOn', ' s'], ['boardAngle', 'boardAngle', '°']] as const) { const t = formatPerSet(v, key); if (t && t.includes('/') && params.includes(label)) { const i = pairs.findIndex((p) => p.label === paramLabel(label, trainingState.valueDefs)); if (i >= 0) pairs[i] = { ...pairs[i], value: t + suffix }; } }
   push('holdSize', v.holdSize, ' mm');
   push('holdType', v.holdType);
   push('timeOn', v.timeOn, ' s');
@@ -95,7 +104,7 @@ export function valuesLine(v: ExerciseValues): string {
   const reps = Array.isArray(v.reps) ? v.reps.join('/') : v.reps;
   if (v.sets) parts.push(`${v.sets}${reps ? `×${reps}` : Number(v.sets) === 1 ? ' set' : ' sets'}`);
   else if (reps) parts.push(`${reps} reps`);
-  if (v.weight) parts.push(formatWeight(v.weight, trainingState.units.weight));
+  if (v.weight) parts.push(weightText(v) ?? formatWeight(v.weight, trainingState.units.weight));
   if (v.bodyweightPercent) parts.push(`${v.bodyweightPercent}% BW`);
   if (v.maxWeightPercent) parts.push(`${v.maxWeightPercent}% max`);
   if (v.holdSize) parts.push(`${v.holdSize} mm`);

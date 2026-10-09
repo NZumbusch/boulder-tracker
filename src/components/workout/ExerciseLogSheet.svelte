@@ -27,6 +27,7 @@
   import type { LastTime } from '../../lib/exercise/lastTime';
   import { valuesLine } from '../../lib/session/slotDetails';
   import RangeSlider from '../common/RangeSlider.svelte';
+  import SetRowsEditor from './SetRowsEditor.svelte';
   import { perSetKeysFor, setCount, setRows, withSetRows, hasPerSet, type SetRow } from '../../lib/exercise/setRows';
   import type { PerSetKey } from '../../lib/types';
   import Icon from '@iconify/svelte';
@@ -95,13 +96,10 @@
   const perSetFields = $derived(fields.filter((f) => perSetKeys.includes(f.key as PerSetKey)));
   /** Rows are open: each set has its own numbers. Opens by itself when what was done already differs per set. */
   let perSetOpen = $state(false);
-  /** Row drafts as text, in the shown weight unit; one per set. */
-  let rowDraft = $state<Record<string, string>[]>([]);
-
-  const shown = (key: PerSetKey, n: number | undefined) => (n === undefined ? '' : String(key === 'weight' ? shownWeight(n) : n));
-  function rowsToDraft(rows: SetRow[]) {
-    return rows.map((r) => Object.fromEntries(perSetKeys.map((k) => [k, shown(k, r[k])])));
-  }
+  /** The sets as the rows editor last reported them (stored units). */
+  let rowsValue = $state<SetRow[]>([]);
+  /** Bumped when the rows are (re)started, so the editor mounts fresh. */
+  let rowsKey = $state(0);
   /** The sets as they stand: the rows when open, else the plain fields repeated `sets` times. */
   function currentRows(): SetRow[] {
     const n = Math.max(1, Math.round(numberOrUndefined('sets') ?? setCount(seed)));
@@ -110,41 +108,9 @@
     return Array.from({ length: n }, () => ({ ...plain }));
   }
   function openPerSet() {
-    rowDraft = rowsToDraft(hasPerSet(seed) ? setRows(seed, perSetKeys) : currentRows());
+    rowsValue = hasPerSet(seed) ? setRows(seed, perSetKeys) : currentRows();
+    rowsKey++;
     perSetOpen = true;
-  }
-  /** A row's numbers as stored (weight in kg); an empty box is no number. */
-  function parsedRows(): SetRow[] {
-    return rowDraft.map((d) => {
-      const row: SetRow = {};
-      for (const k of perSetKeys) {
-        const raw = (d[k] ?? '').trim();
-        const n = Number(raw);
-        if (raw !== '' && Number.isFinite(n) && n >= 0) row[k] = k === 'weight' ? Math.round(toKg(n, trainingState.units.weight) * 100) / 100 : n;
-      }
-      return row;
-    });
-  }
-  /** Typing in a set carries on to the later sets that still had the same number, so one entry fills the rest. */
-  function editRow(i: number, key: PerSetKey, value: string) {
-    const before = rowDraft[i]?.[key] ?? '';
-    for (let j = i + 1; j < rowDraft.length; j++) {
-      if ((rowDraft[j][key] ?? '') === before) rowDraft[j][key] = value;
-      else break;
-    }
-    rowDraft[i][key] = value;
-  }
-  function addRow() {
-    const last = rowDraft[rowDraft.length - 1] ?? Object.fromEntries(perSetKeys.map((k) => [k, '']));
-    rowDraft = [...rowDraft, { ...last }];
-  }
-  function removeRow(i: number) {
-    if (rowDraft.length > 1) rowDraft = rowDraft.filter((_, j) => j !== i);
-  }
-  function bumpRow(i: number, key: PerSetKey, dir: 1 | -1) {
-    const step = key === 'weight' ? (trainingState.units.weight === 'lb' ? 5 : 2.5) : 1;
-    const cur = Number(rowDraft[i][key]);
-    editRow(i, key, String(Math.max(0, Math.round(((Number.isFinite(cur) ? cur : 0) + dir * step) * 100) / 100)));
   }
 
   /** The athlete's own value types this exercise tracks, typed as text per def id ("" = not set). */
@@ -193,7 +159,8 @@
     difficulty = typeof values.difficulty === 'number' ? values.difficulty : undefined;
     // Already different per set (a set timer, a circuit, last time's log): show them as they are.
     if (perSetKeys.length > 0 && hasPerSet(values)) {
-      rowDraft = rowsToDraft(setRows(values, perSetKeys));
+      rowsValue = setRows(values, perSetKeys);
+      rowsKey++;
       perSetOpen = true;
     } else perSetOpen = false;
   });
@@ -231,7 +198,7 @@
     else delete values.custom;
     values.notes = notes.trim() || undefined;
     if (tracksDifficulty && difficulty !== undefined) values.difficulty = difficulty;
-    if (perSetOpen) return withSetRows(values, parsedRows(), perSetKeys);
+    if (perSetOpen) return withSetRows(values, rowsValue, perSetKeys);
     return values;
   }
 
@@ -362,37 +329,9 @@
             <span class="font-normal text-caption">({perSetFields.map((f) => paramLabel(f.param, trainingState.valueDefs)).join(', ')} set by set)</span>
           </button>
         {:else}
-          <div class="space-y-2">
-            <p class="text-label text-content-subtle">Set by set <span class="text-caption">&mdash; a number typed in a set carries on to the later sets that had the same one</span></p>
-            {#each rowDraft as row, i (i)}
-              <div class="rounded-control border border-border bg-surface-elevated/30 p-2 space-y-1.5">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-caption font-bold text-content-muted">Set {i + 1}</span>
-                  {#if rowDraft.length > 1}
-                    <button type="button" onclick={() => removeRow(i)} class="p-1 text-content-subtle hover:text-danger transition-colors" aria-label="Remove set {i + 1}"><Icon icon="ic:baseline-close" class="text-sm" /></button>
-                  {/if}
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  {#each perSetFields as f (f.key)}
-                    {@const key = f.key as PerSetKey}
-                    <label class="min-w-0 block">
-                      <span class="block text-caption text-content-subtle truncate mb-0.5">{paramLabel(f.param, trainingState.valueDefs)}{key === 'weight' ? ` (${trainingState.units.weight})` : f.unit ? ` (${f.unit})` : ''}</span>
-                      <span class="flex items-stretch gap-1">
-                        {#if key === 'reps' || key === 'weight'}
-                          <button type="button" onclick={() => bumpRow(i, key, -1)} class="shrink-0 w-8 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted grid place-items-center active:scale-95" aria-label="Less"><Icon icon="ic:baseline-remove" class="text-base" /></button>
-                        {/if}
-                        <input type="number" inputmode="decimal" step={f.step ?? 1} value={row[key] ?? ''} oninput={(e) => editRow(i, key, e.currentTarget.value)} placeholder="—" class="w-full min-w-0 px-2 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 tabular-nums {key === 'reps' || key === 'weight' ? 'text-center' : ''}" />
-                        {#if key === 'reps' || key === 'weight'}
-                          <button type="button" onclick={() => bumpRow(i, key, 1)} class="shrink-0 w-8 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted grid place-items-center active:scale-95" aria-label="More"><Icon icon="ic:baseline-add" class="text-base" /></button>
-                        {/if}
-                      </span>
-                    </label>
-                  {/each}
-                </div>
-              </div>
-            {/each}
-            <button type="button" onclick={addRow} class="w-full py-2 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1"><Icon icon="ic:baseline-add" class="text-base" /> Add a set</button>
-          </div>
+          {#key rowsKey}
+            <SetRowsEditor keys={perSetFields.map((f) => f.key as PerSetKey)} rows={rowsValue} onchange={(r) => (rowsValue = r)} />
+          {/key}
         {/if}
       {/if}
       {#if customFields.length > 0}

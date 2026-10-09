@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateLoadFactor, calculatePlannedLoad, slotPlannedLoad, slotActualLoad, workoutPlannedLoad } from "./load";
+import { calculateLoadFactor, calculatePlannedLoad, slotPlannedLoad, slotActualLoad, workoutPlannedLoad, weightFactor } from "./load";
 import type { ExerciseSlot } from "../types";
 
 describe("calculatePlannedLoad", () => {
@@ -124,5 +124,36 @@ describe("load of an exercise without a duration", () => {
   it("keeps an explicit duration, and the 60-minute default when there is nothing to go on", () => {
     expect(slotPlannedLoad({ id: "a", typeId: "t", prescribed: { duration: 20 } })).toBe(calculatePlannedLoad({ duration: 20 }));
     expect(slotPlannedLoad({ id: "b", typeId: "t", prescribed: { weight: 20 } })).toBe(calculatePlannedLoad({}));
+  });
+});
+
+describe("weight moves an exercise's load", () => {
+  const slot = (planned?: number, done?: number) => ({
+    id: "a", typeId: "t",
+    prescribed: { duration: 30, plannedLoad: 6, ...(planned !== undefined ? { weight: planned } : {}) },
+    logged: { duration: 30, plannedLoad: 6, ...(done !== undefined ? { weight: done } : {}) },
+  });
+
+  it("is untouched without a planned and a logged weight", () => {
+    expect(weightFactor(slot())).toBe(1);
+    expect(weightFactor(slot(10))).toBe(1);
+    expect(weightFactor(slot(undefined, 10))).toBe(1);
+    expect(weightFactor(slot(0, 10))).toBe(1);
+  });
+
+  it("scales with how much heavier or lighter it was than planned", () => {
+    expect(weightFactor(slot(10, 12.5))).toBeCloseTo(1.25);
+    expect(weightFactor(slot(10, 8))).toBeCloseTo(0.8);
+  });
+
+  it("is capped either way", () => {
+    expect(weightFactor(slot(10, 30))).toBe(1.4);
+    expect(weightFactor(slot(10, 2))).toBe(0.7);
+  });
+
+  it("raises the exercise's actual load, never its planned load", () => {
+    const heavy = slot(10, 15);
+    expect(slotActualLoad(heavy)).toBeGreaterThan(slotActualLoad(slot(10, 10)));
+    expect(slotPlannedLoad(heavy as never)).toBe(slotPlannedLoad(slot(10, 10) as never));
   });
 });

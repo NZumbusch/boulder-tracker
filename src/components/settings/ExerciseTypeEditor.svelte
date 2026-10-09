@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PER_SET_KEYS, DEFAULT_PER_SET } from '../../lib/exercise/setRows';
   import { portal } from '../../lib/ui/portal';
   import { sheetDrag } from '../../lib/ui/sheetDrag';
   import { keyboardAware } from '../../lib/ui/keyboardAware';
@@ -67,6 +68,15 @@
     } else {
       draft.possibleParameters = [...possible, param];
     }
+  }
+
+  /** What can differ set to set: the type's own choice, else the app's defaults - among what it tracks. */
+  const perSetBlocks = $derived(PER_SET_KEYS.filter((k) => (draft.possibleParameters ?? draft.parameters).includes(k as ParameterBlock) || draft.parameters.includes(k as ParameterBlock)));
+  const perSetOn = $derived(new Set<string>(draft.perSetParameters ?? DEFAULT_PER_SET));
+  function togglePerSet(k: string) {
+    const next = new Set(perSetOn);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    draft.perSetParameters = [...next] as ParameterBlock[];
   }
 
   function save() {
@@ -159,6 +169,22 @@
           {/each}
         </div>
       </div>
+
+      {#if perSetBlocks.length > 0}
+        <div class="space-y-2">
+          <span class="text-label text-content-subtle block">Can differ from set to set</span>
+          <p class="text-caption text-content-subtle">When logging, these can get their own number for each set (e.g. the weight of each pull-up set).</p>
+          <div class="flex flex-wrap gap-2">
+            {#each perSetBlocks as k (k)}
+              {@const on = perSetOn.has(k)}
+              <button type="button" onclick={() => togglePerSet(k)} aria-pressed={on} class="px-3 py-1.5 rounded-full text-label border transition-all flex items-center gap-1.5 {on ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-surface border-border-strong text-content-muted'}">
+                <Icon icon={on ? 'ic:baseline-check-box' : 'ic:baseline-check-box-outline-blank'} class="text-sm" />
+                {PARAMETER_LABELS[k as keyof typeof PARAMETER_LABELS] ?? k}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
 
       <label class="block space-y-1.5">
         <span class="text-label text-content-subtle">Analytics category</span>

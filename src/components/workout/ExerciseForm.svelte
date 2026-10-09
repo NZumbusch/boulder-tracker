@@ -1,7 +1,10 @@
 <script lang="ts">
   import { planNote, logNote } from '../../lib/exerciseSlot';
   import RangeSlider from '../common/RangeSlider.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import SetRowsEditor from './SetRowsEditor.svelte';
+  import { perSetKeysFor, setRows, withSetRows, hasPerSet, type SetRow } from '../../lib/exercise/setRows';
+  import type { PerSetKey } from '../../lib/types';
   import { storage } from '../../lib/storage';
   import { trainingState } from '../../lib/state.svelte';
   import type { ExerciseSlot, ExerciseTypeDef, ExerciseValues, ParameterBlock } from '../../lib/types';
@@ -226,6 +229,39 @@
 
   const isValid = $derived(Object.keys(validationErrors).length === 0);
 
+  // --- Per set: rows for the numbers that differ set to set ---
+  const perSetKeys = $derived(perSetKeysFor(activeParams, activeTypeDef?.perSetParameters));
+  let perSetOpen = $state(false);
+  let rowsValue = $state<SetRow[]>([]);
+  let rowsKey = $state(0);
+  /** The plain numbers repeated `sets` times - where the rows start from. */
+  function plainRows(): SetRow[] {
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+    const base: SetRow = {};
+    const set = (k: PerSetKey, v: number | undefined) => { if (v !== undefined && perSetKeys.includes(k)) base[k] = v; };
+    set('reps', num(reps));
+    set('weight', num(weight) === undefined ? undefined : Math.round(toKg(num(weight)!, trainingState.units.weight) * 100) / 100);
+    set('timeOn', num(timeOn));
+    set('bodyweightPercent', num(bodyweightPercent));
+    set('maxWeightPercent', num(maxWeightPercent));
+    set('boardAngle', num(boardAngle));
+    set('holdSize', num(holdSize));
+    set('distance', num(distance));
+    return Array.from({ length: Math.max(1, Math.round(num(sets) ?? 1)) }, () => ({ ...base }));
+  }
+  function openPerSet() {
+    rowsValue = hasPerSet(editingValues) ? setRows(editingValues, perSetKeys) : plainRows();
+    rowsKey++;
+    perSetOpen = true;
+  }
+  $effect(() => {
+    // An exercise that already has sets of its own numbers opens that way.
+    const v = editingValues;
+    untrack(() => {
+      if (perSetKeys.length > 0 && hasPerSet(v)) { rowsValue = setRows(v, perSetKeys); rowsKey++; perSetOpen = true; }
+    });
+  });
+
   // --- Handlers ---
   async function handleSubmit() {
     if (!activeTypeDef) return;
@@ -299,7 +335,7 @@
       typeId: activeTypeDef.id,
       categoryId: categoryOverride || undefined,
       activeParameters: activeParams,
-      values,
+      values: perSetOpen ? withSetRows(values, rowsValue, perSetKeys) : values,
       ...(mode === 'logged' && initialSlot?.prescribed ? { planNote: planNoteText.trim() } : {}),
     });
   }
@@ -393,22 +429,22 @@
       </div>
     {/if}
     {#if activeParams.includes('boardType')}<div class="space-y-1.5"><label for="ex-board-type" class="text-label text-content-subtle ml-1">Board Type</label><select id="ex-board-type" bind:value={boardType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each boardTypes as type} <option value={type}>{type}</option> {/each}</select></div>{/if}
-    {#if activeParams.includes('boardAngle')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-board-angle" class="text-label text-content-subtle">Board Angle (°)</label><TargetHint prescribed={targetValues.boardAngle} current={boardAngle} unit="°" /></div><select id="ex-board-angle" bind:value={boardAngle} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each boardAngles as angle} <option value={angle}>{angle}°</option> {/each}</select></div>{/if}
+    {#if activeParams.includes('boardAngle') && !(perSetOpen && perSetKeys.includes('boardAngle'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-board-angle" class="text-label text-content-subtle">Board Angle (°)</label><TargetHint prescribed={targetValues.boardAngle} current={boardAngle} unit="°" /></div><select id="ex-board-angle" bind:value={boardAngle} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each boardAngles as angle} <option value={angle}>{angle}°</option> {/each}</select></div>{/if}
 
     <div class="grid grid-cols-2 gap-3">
-      {#if activeParams.includes('sets')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-sets" class="text-label text-content-subtle">Sets</label><TargetHint prescribed={targetValues.sets} current={sets} /></div><input id="ex-sets" type="number" bind:value={sets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.sets ? 'border-danger/50' : ''}" />{#if validationErrors.sets}<p class="text-label text-danger ml-1">{validationErrors.sets}</p>{/if}</div>{/if}
-      {#if activeParams.includes('reps')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={repsRepresentative(targetValues.reps)} current={reps} /></div><input id="ex-reps" type="number" bind:value={reps} oninput={() => repsEdited = true} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" />{#if !repsEdited && Array.isArray(originalReps)}<p class="text-caption text-content-subtle ml-1">Per set: {originalReps.join(', ')} &mdash; editing replaces all sets</p>{/if}</div>{/if}
+      {#if activeParams.includes('sets') && !perSetOpen}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-sets" class="text-label text-content-subtle">Sets</label><TargetHint prescribed={targetValues.sets} current={sets} /></div><input id="ex-sets" type="number" bind:value={sets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.sets ? 'border-danger/50' : ''}" />{#if validationErrors.sets}<p class="text-label text-danger ml-1">{validationErrors.sets}</p>{/if}</div>{/if}
+      {#if activeParams.includes('reps') && !(perSetOpen && perSetKeys.includes('reps'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={repsRepresentative(targetValues.reps)} current={reps} /></div><input id="ex-reps" type="number" bind:value={reps} oninput={() => repsEdited = true} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" />{#if !repsEdited && Array.isArray(originalReps)}<p class="text-caption text-content-subtle ml-1">Per set: {originalReps.join(', ')} &mdash; editing replaces all sets</p>{/if}</div>{/if}
       {#if activeParams.includes('movesPerRoute')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-moves" class="text-label text-content-subtle">Moves per route</label><TargetHint prescribed={targetValues.movesPerRoute} current={movesPerRoute} /></div><input id="ex-moves" type="number" bind:value={movesPerRoute} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     </div>
     {#if activeParams.includes('holdType')}<div class="space-y-1.5"><label for="ex-hold" class="text-label text-content-subtle ml-1">Hold Type</label><select id="ex-hold" bind:value={holdType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each holdTypes as h} <option value={h}>{h}</option> {/each}</select></div>{/if}
-    {#if activeParams.includes('timeOn')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-on" class="text-label text-content-subtle">Time On (s)</label><TargetHint prescribed={targetValues.timeOn} current={timeOn} unit="s" /></div><input id="ex-on" type="number" bind:value={timeOn} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
+    {#if activeParams.includes('timeOn') && !(perSetOpen && perSetKeys.includes('timeOn'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-on" class="text-label text-content-subtle">Time On (s)</label><TargetHint prescribed={targetValues.timeOn} current={timeOn} unit="s" /></div><input id="ex-on" type="number" bind:value={timeOn} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('timeOff')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-off" class="text-label text-content-subtle">Time Off (s)</label><TargetHint prescribed={targetValues.timeOff} current={timeOff} unit="s" /></div><input id="ex-off" type="number" bind:value={timeOff} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('restTime')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-rest" class="text-label text-content-subtle">Between Sets (s)</label><TargetHint prescribed={targetValues.timeBetweenSets} current={timeBetweenSets} unit="s" /></div><input id="ex-rest" type="number" bind:value={timeBetweenSets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
-    {#if activeParams.includes('holdSize')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-size" class="text-label text-content-subtle">Hold Size (mm)</label><TargetHint prescribed={targetValues.holdSize} current={holdSize} unit="mm" /></div><input id="ex-size" type="number" bind:value={holdSize} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.holdSize ? 'border-danger/50' : ''}" />{#if validationErrors.holdSize}<p class="text-label text-danger ml-1">{validationErrors.holdSize}</p>{/if}</div>{/if}
-    {#if activeParams.includes('weight')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-weight" class="text-label text-content-subtle">Weight ({trainingState.units.weight})</label><TargetHint prescribed={targetValues.weight !== undefined ? toDisplayWeight(targetValues.weight) : undefined} current={weight} unit={trainingState.units.weight} /></div><input id="ex-weight" type="number" bind:value={weight} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" placeholder="e.g. 10" /></div>{/if}
-    {#if activeParams.includes('bodyweightPercent')}<div class="space-y-4 pt-1"><label for="ex-bw" class="flex justify-between text-label text-content-subtle ml-1"><span>Added Weight (% of BW)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.bodyweightPercent} current={bodyweightPercent} unit="%" /><span class="text-primary font-mono text-caption tabular-nums">{bodyweightPercent}%{#if latestBodyweightKg} <span class="text-content-subtle">(≈ {formatWeight(latestBodyweightKg * bodyweightPercent / 100, trainingState.units.weight)})</span>{/if}</span></span></label><RangeSlider id="ex-bw" min={50} max={220} bind:value={bodyweightPercent} /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>50%</span><span>100% (BW)</span><span>220%</span></div></div>{/if}
-    {#if activeParams.includes('maxWeightPercent')}<div class="space-y-4 pt-1"><label for="ex-mw" class="flex justify-between text-label text-content-subtle ml-1"><span>Load (% of Max)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.maxWeightPercent} current={maxWeightPercent} unit="%" /><span class="text-success font-mono text-caption tabular-nums">{maxWeightPercent}%</span></span></label><RangeSlider id="ex-mw" min={10} max={150} bind:value={maxWeightPercent} tone="success" /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>10%</span><span>100% (Max)</span><span>150%</span></div></div>{/if}
-    {#if activeParams.includes('distance')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-distance" class="text-label text-content-subtle">Distance (km)</label><TargetHint prescribed={targetValues.distance} current={distance} unit="km" /></div><input id="ex-distance" type="number" step="0.1" bind:value={distance} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
+    {#if activeParams.includes('holdSize') && !(perSetOpen && perSetKeys.includes('holdSize'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-size" class="text-label text-content-subtle">Hold Size (mm)</label><TargetHint prescribed={targetValues.holdSize} current={holdSize} unit="mm" /></div><input id="ex-size" type="number" bind:value={holdSize} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.holdSize ? 'border-danger/50' : ''}" />{#if validationErrors.holdSize}<p class="text-label text-danger ml-1">{validationErrors.holdSize}</p>{/if}</div>{/if}
+    {#if activeParams.includes('weight') && !(perSetOpen && perSetKeys.includes('weight'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-weight" class="text-label text-content-subtle">Weight ({trainingState.units.weight})</label><TargetHint prescribed={targetValues.weight !== undefined ? toDisplayWeight(targetValues.weight) : undefined} current={weight} unit={trainingState.units.weight} /></div><input id="ex-weight" type="number" bind:value={weight} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" placeholder="e.g. 10" /></div>{/if}
+    {#if activeParams.includes('bodyweightPercent') && !(perSetOpen && perSetKeys.includes('bodyweightPercent'))}<div class="space-y-4 pt-1"><label for="ex-bw" class="flex justify-between text-label text-content-subtle ml-1"><span>Added Weight (% of BW)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.bodyweightPercent} current={bodyweightPercent} unit="%" /><span class="text-primary font-mono text-caption tabular-nums">{bodyweightPercent}%{#if latestBodyweightKg} <span class="text-content-subtle">(≈ {formatWeight(latestBodyweightKg * bodyweightPercent / 100, trainingState.units.weight)})</span>{/if}</span></span></label><RangeSlider id="ex-bw" min={50} max={220} bind:value={bodyweightPercent} /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>50%</span><span>100% (BW)</span><span>220%</span></div></div>{/if}
+    {#if activeParams.includes('maxWeightPercent') && !(perSetOpen && perSetKeys.includes('maxWeightPercent'))}<div class="space-y-4 pt-1"><label for="ex-mw" class="flex justify-between text-label text-content-subtle ml-1"><span>Load (% of Max)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.maxWeightPercent} current={maxWeightPercent} unit="%" /><span class="text-success font-mono text-caption tabular-nums">{maxWeightPercent}%</span></span></label><RangeSlider id="ex-mw" min={10} max={150} bind:value={maxWeightPercent} tone="success" /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>10%</span><span>100% (Max)</span><span>150%</span></div></div>{/if}
+    {#if activeParams.includes('distance') && !(perSetOpen && perSetKeys.includes('distance'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-distance" class="text-label text-content-subtle">Distance (km)</label><TargetHint prescribed={targetValues.distance} current={distance} unit="km" /></div><input id="ex-distance" type="number" step="0.1" bind:value={distance} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('campusStyle')}<div class="space-y-1.5"><label for="ex-campus" class="text-label text-content-subtle ml-1">Campus Style</label><select id="ex-campus" bind:value={campusType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each campusStyles as c} <option value={c}>{c}</option> {/each}</select></div>{/if}
     {#if activeParams.includes('mobilityType')}
       <div class="space-y-1.5">
@@ -508,6 +544,21 @@
         {/each}
       </select>
     </div>
+
+    {#if perSetKeys.length > 0}
+      <div class="pt-4 border-t border-border/50">
+        {#if !perSetOpen}
+          <button type="button" onclick={openPerSet} class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors">
+            <Icon icon="ic:baseline-format-list-numbered" class="text-base" /> Per set
+            <span class="font-normal text-caption">({perSetKeys.map((k) => PARAMETER_LABELS[k as keyof typeof PARAMETER_LABELS] ?? k).join(', ')} set by set)</span>
+          </button>
+        {:else}
+          {#key rowsKey}
+            <SetRowsEditor keys={perSetKeys} rows={rowsValue} onchange={(r) => (rowsValue = r)} />
+          {/key}
+        {/if}
+      </div>
+    {/if}
 
     {#if inGroup && mode === 'prescribed'}
       <div class="space-y-1.5 pt-4 border-t border-border/50">

@@ -76,7 +76,26 @@ export function slotPlannedLoad(slot: ExerciseSlot, minutes?: number): number {
 export function slotActualLoad(slot: ExerciseSlot, minutes?: number): number {
   if (slot.skipped) return 0;
   const values = slot.logged ?? slot.prescribed;
-  return values ? calculatePlannedLoad(withMinutes(values, minutes)) : 0;
+  if (!values) return 0;
+  const load = calculatePlannedLoad(withMinutes(values, minutes));
+  return Math.round(load * weightFactor(slot));
+}
+
+/** How far a heavy or light day moves an exercise's load: at most this much either way. */
+export const WEIGHT_FACTOR_LIMITS = { min: 0.7, max: 1.4 } as const;
+
+/**
+ * Added weight done against added weight planned: lifting 12.5 kg where
+ * 10 kg was planned makes the exercise count 25 % more, 8 kg 20 % less -
+ * within `WEIGHT_FACTOR_LIMITS`. Needs both a planned and a logged weight above
+ * zero (the mean of the sets when they differ); anything else is 1, so exercises
+ * without weights, and everything logged before this, are exactly as they were.
+ */
+export function weightFactor(slot: ExerciseSlot): number {
+  const planned = slot.prescribed?.weight;
+  const done = slot.logged?.weight;
+  if (typeof planned !== "number" || typeof done !== "number" || !(planned > 0) || !(done > 0)) return 1;
+  return Math.min(WEIGHT_FACTOR_LIMITS.max, Math.max(WEIGHT_FACTOR_LIMITS.min, done / planned));
 }
 
 /**
