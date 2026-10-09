@@ -559,7 +559,7 @@
 
   {#if run.done}
     <!-- Summary -->
-    <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar px-6 py-4 space-y-3">
+    <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar px-6 py-4 short:py-2 w-full max-w-lg mx-auto space-y-3 short:space-y-2">
       <div class="text-center space-y-0.5">
         <p class="text-section uppercase tracking-[0.2em] {rounds.done < rounds.planned ? 'text-warning' : 'text-success'}">{rounds.done < rounds.planned ? 'Ended early' : 'Done'}</p>
         <p class="text-label text-content-muted tabular-nums">{rounds.done} of {rounds.planned} round{rounds.planned === 1 ? '' : 's'} done</p>
@@ -594,7 +594,7 @@
         </div>
       {/if}
     </div>
-    <div class="shrink-0 px-6 pb-8 short:pb-2 space-y-2">
+    <div class="shrink-0 px-6 pb-8 short:pb-2 space-y-2 w-full max-w-lg mx-auto">
       <button onclick={log} class="w-full py-4 bg-success hover:bg-success-hover text-white rounded-control text-label font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2">
         <Icon icon="ic:baseline-check" class="text-base" /> Log circuit
       </button>
@@ -631,7 +631,7 @@
       </div>
 
       <!-- What is on, what is next and the round: one block under the dial, so it never runs into the buttons. -->
-      <div class="shrink-0 w-full flex flex-col items-center gap-3 short:gap-1">
+      <div class="short:hidden shrink-0 w-full flex flex-col items-center gap-3">
         {#if step.kind !== 'work' && upcoming}
           <p class="text-body text-content-muted text-center">Next: <b class="text-content">{memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
         {/if}
@@ -672,7 +672,47 @@
     </div>
 
     <!-- Controls -->
-    <div class="shrink-0 px-6 pt-1 pb-8 space-y-3 short:w-[min(24rem,50%)] short:flex short:flex-col short:justify-center short:px-4 short:pb-2 short:space-y-2 short:overflow-y-auto">
+    <div class="shrink-0 px-6 pt-1 pb-8 space-y-3 short:w-[min(26rem,52%)] short:flex short:flex-col short:justify-center short:px-5 short:pb-2 short:space-y-2.5 short:overflow-y-auto short:min-h-0">
+      <!-- What is on, what is next and the round: one block under the dial, so it never runs into the buttons. -->
+      <div class="hidden short:flex shrink-0 w-full flex-col items-stretch gap-2">
+        {#if step.kind !== 'work' && upcoming}
+          <p class="text-body text-content-muted">Next: <b class="text-content">{memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
+        {/if}
+        {#if focus !== undefined}
+          <!-- The exercise's note on one line; a tap opens what to do (details, notes, how-to) without leaving the run. -->
+          <button onclick={() => (infoMember = focus)} class="w-full max-w-sm flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border text-left hover:border-border-strong transition-colors" aria-label="How to do {memberName(focus)}">
+            <Icon icon="ic:outline-info" class="text-lg text-content-subtle shrink-0" />
+            <span class="min-w-0 flex-1 text-caption text-content-muted line-clamp-2 break-words">{members[focus].values.notes?.trim() || `${memberName(focus)} — how to, details`}</span>
+            <Icon icon="ic:baseline-chevron-right" class="text-base text-content-subtle shrink-0" />
+          </button>
+        {/if}
+        {#if roundSets.length > 1}
+          <div class="flex flex-wrap items-center gap-1.5" aria-label="This round">
+            {#each roundSets as { s, state } (s.slotId)}
+              <span class="px-2.5 py-1 rounded-full text-caption border flex items-center gap-1 max-w-full
+                {state === 'now' ? 'border-transparent text-white font-bold' : state === 'done' ? 'border-success/40 text-success bg-success/10' : state === 'skipped' ? 'border-border text-content-subtle line-through' : 'border-border text-content-muted'}"
+                style={state === 'now' ? `background: ${accent};` : ''}>
+                {#if state === 'done'}<Icon icon="ic:baseline-check" class="text-xs shrink-0" />{/if}
+                <span class="truncate">{memberName(s.member)}</span>
+              </span>
+            {/each}
+          </div>
+        {/if}
+        {#if correctable && previous}
+          <!-- The set just finished, correctable while resting: Done kept the flow, this keeps the record honest. -->
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-label text-content-subtle min-w-0 truncate">{memberName(previous.member)}</span>
+            <button onclick={() => correct(-1)} class="w-9 h-9 rounded-full grid place-items-center bg-surface-elevated text-content border border-border-strong active:scale-90" aria-label="One fewer rep">
+              <Icon icon="ic:baseline-remove" class="text-lg" />
+            </button>
+            <span class="w-8 text-center text-metric text-content tabular-nums">{run.results[previous.slotId]?.[previous.round]}</span>
+            <button onclick={() => correct(1)} class="w-9 h-9 rounded-full grid place-items-center bg-surface-elevated text-content border border-border-strong active:scale-90" aria-label="One more rep">
+              <Icon icon="ic:baseline-add" class="text-lg" />
+            </button>
+          </div>
+        {/if}
+      </div>
+
       {#if step.kind === 'work' && step.seconds === undefined}
         <div class="flex items-center justify-between gap-3 px-1">
           <span class="text-label text-content-subtle">Reps done{step.reps ? ` (target ${step.reps})` : ''}</span>

@@ -129,7 +129,7 @@
 <!-- Above the live session (z-110), below its sheets (z-115+). -->
 <div class="fixed inset-0 z-[112] safe-y bg-app-bg flex flex-col">
   <!-- Header -->
-  <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
+  <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-2 short:pt-1 short:pb-0">
     <button onclick={onMinimize} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors" aria-label="Minimise timer" title="Minimise — the timer keeps running">
       <Icon icon="ic:baseline-keyboard-arrow-down" class="text-2xl" />
     </button>
@@ -202,8 +202,10 @@
     </div>
   {/if}
 
+  <!-- A landscape phone has no height for the dial over its controls: side by side. -->
+  <div class="flex-1 min-h-0 flex flex-col short:flex-row">
   <!-- The dial -->
-  <div class="flex-1 min-h-0 flex flex-col items-center justify-center px-6 gap-5">
+  <div class="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-center px-6 gap-5 short:px-4 short:gap-1 short:py-1">
     <!-- Sized by the room it has on both axes, so the dial fits in landscape too. -->
     <div class="flex-1 min-h-0 w-full grid place-items-center" style="container-type: size;">
       <div class="relative aspect-square" style="width: min(17rem, 100cqw, 100cqh); container-type: inline-size;">
@@ -240,7 +242,7 @@
   </div>
 
   <!-- Controls -->
-  <div class="shrink-0 px-6 pb-8 space-y-3">
+  <div class="shrink-0 px-6 pb-8 space-y-3 short:w-[min(24rem,50%)] short:flex short:flex-col short:justify-center short:px-5 short:pb-2 short:space-y-2.5 short:overflow-y-auto short:min-h-0">
     {#if phase === 'done'}
       <div class="flex gap-2.5">
         <button onclick={onRestart} class="shrink-0 px-5 py-4 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-control border border-border-strong/50 text-label font-bold transition-colors">
@@ -283,7 +285,7 @@
 
       <button
         onclick={onFinishSet}
-        class="w-full py-5 rounded-control text-white text-label font-bold transition-all active:scale-[0.98] shadow-xl flex items-center justify-center gap-2"
+        class="w-full py-5 short:py-3 rounded-control text-white text-label font-bold transition-all active:scale-[0.98] shadow-xl flex items-center justify-center gap-2"
         style="background: {accent};"
       >
         <Icon icon="ic:baseline-check-circle" class="text-xl" />
@@ -308,5 +310,6 @@
         </button>
       </div>
     {/if}
+  </div>
   </div>
 </div>

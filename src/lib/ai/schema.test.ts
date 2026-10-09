@@ -5,6 +5,7 @@ import {
   validateAIWorkoutLogOutput,
   parseAIPlanOutput,
   parseAIWorkoutLogOutput,
+  validateExerciseValues,
 } from "./schema";
 import { AI_CHANGESET_INSTRUCTIONS } from "./changeSetPrompt";
 import { EXERCISE_VALUE_SPEC, EXERCISE_VALUE_FIELD_NAMES } from "./valueSpec";
@@ -771,5 +772,18 @@ describe("validateAIWorkoutLogOutput - circuits", () => {
     expect(r.data!.workouts[0].circuits).toEqual([{ name: "Core", rounds: 3, transition: 15, exercises: [2, 3] }]);
     expect(r.data!.workouts[0].exercises).toHaveLength(3);
     expect(r.repairs.length).toBe(2);
+  });
+});
+
+describe("a circuit member's own rest after it", () => {
+  it("is a known value the AI can give, and survives validation", () => {
+    const issues: never[] = [];
+    const values = validateExerciseValues({ timeOn: 45, restAfter: 20 }, "x", issues as never);
+    expect(values).toMatchObject({ timeOn: 45, restAfter: 20 });
+  });
+
+  it("is described in both prompts so the AI knows it exists", () => {
+    expect(AI_CHANGESET_INSTRUCTIONS).toContain("restAfter");
+    expect(buildSessionPrompt as unknown).toBeDefined();
   });
 });

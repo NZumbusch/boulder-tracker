@@ -894,7 +894,7 @@
      left: 50% only gave it half the screen to lay out in, so the minimised
      interval readout wrapped into a narrow broken column. The row lets taps
      through; only the pill takes them. -->
-<div class="fixed {bottomClass} inset-x-0 px-4 z-[111] flex flex-col items-center gap-2 pointer-events-none [&>*]:pointer-events-auto {!visible || trainingState.timerPillHidden || (mode === 'interval' && expanded) ? 'hidden' : ''}">
+<div class="fixed {bottomClass} inset-x-0 px-4 z-[111] flex flex-col items-center gap-2 short:items-start pointer-events-none [&>*]:pointer-events-auto {!visible || trainingState.timerPillHidden || (mode === 'interval' && expanded) ? 'hidden' : ''}">
   {#if presets.length > 0 && mode !== 'interval'}
     <div class="flex items-center gap-1.5 bg-surface/90 backdrop-blur-md border border-border rounded-control px-2 py-1 shadow-card animate-in fade-in">
       {#each presets as preset}
@@ -909,7 +909,7 @@
   {/if}
 
   <!-- Sized to fit a narrow phone (~360 px) - it used to run off both edges. -->
-  <div class="max-w-full bg-surface/90 backdrop-blur-md border border-border shadow-2xl rounded-full p-1.5 flex items-center gap-2 animate-in slide-in-from-bottom-10">
+  <div class="max-w-full short:scale-90 short:origin-bottom-left bg-surface/90 backdrop-blur-md border border-border shadow-2xl rounded-full p-1.5 flex items-center gap-2 animate-in slide-in-from-bottom-10">
     <div class="shrink-0 flex items-center gap-0.5 bg-surface-elevated rounded-full p-1 border border-border-strong">
       <button
         onclick={() => selectMode('stopwatch')}

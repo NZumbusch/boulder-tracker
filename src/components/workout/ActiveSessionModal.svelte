@@ -61,8 +61,10 @@
   let isAddingExercise = $state(false);
   /** The add form's "Still to do": add the exercise as the next target instead of logging it as done. */
   let addAsTodo = $state(false);
-  /** Edit mode: the list of saved circuits to add is open. */
+  /** Edit mode: the circuit sheet (new / from exercises / saved) is open. */
   let isAddingSavedCircuit = $state(false);
+  /** The add form is for the first exercise of a brand-new circuit. */
+  let startingCircuit = $state(false);
   let isExiting = $state(false);
   let showNotes = $state(false);
   /** The tucked-away "change the session" mode - reorder handles, remove, add. */
@@ -174,6 +176,8 @@
       editingSlotId = null;
       isAddingExercise = false;
       addAsTodo = false;
+      startingCircuit = false;
+      isAddingSavedCircuit = false;
       isEditingPlan = false;
       isPickingCircuit = false;
       pickedSlotIds = [];
@@ -276,7 +280,7 @@
   const sessionOpen = $derived(!!session && store.isModalOpen);
   const formOpen = $derived(isAddingExercise || editingSlotId !== null);
   backWhile(() => sessionOpen, () => store.minimize());
-  backWhile(() => formOpen, () => { isAddingExercise = false; editingSlotId = null; addToGroupId = null; });
+  backWhile(() => formOpen, () => { isAddingExercise = false; editingSlotId = null; addToGroupId = null; startingCircuit = false; });
   const exercises = $derived(store.exercises);
   /** Circuit headers in the list: which slot starts which group. Round-by-round running comes later. */
   const groupStarts = $derived.by(() => {
@@ -392,7 +396,14 @@
   function handleFormSave(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues; planNote?: string }) {
     if (isAddingExercise) {
       const id = generateId();
-      store.addExercise({ id, ...data }, trainingState.addedExerciseTarget, { pending: addAsTodo });
+      store.addExercise({ id, ...data }, trainingState.addedExerciseTarget, { pending: addAsTodo || startingCircuit });
+      if (startingCircuit) {
+        // The first member of a new circuit: it becomes the circuit, with its settings open to adjust.
+        const gid = generateId();
+        store.regroupExercises(groupSlots(groupingBase(), [id], { id: gid, rounds: 3, transition: 15, roundRest: 60 }));
+        openGroupId = gid;
+        startingCircuit = false;
+      }
       const into = addToGroupId;
       addToGroupId = null;
       if (into) {
@@ -423,6 +434,8 @@
     const added = insertCircuit({ exercises: [], groups: base.groups }, circuit, generateId);
     const exercises = [...base.exercises.slice(0, at), ...added.exercises, ...base.exercises.slice(at)];
     store.regroupExercises(normaliseGroups({ exercises, groups: added.groups }));
+    const made = added.groups?.[added.groups.length - 1];
+    if (made) openGroupId = made.id;
     isAddingSavedCircuit = false;
   }
 
@@ -634,24 +647,12 @@
               <button onclick={() => { isPickingCircuit = false; pickedSlotIds = []; }} class="px-4 py-2.5 bg-surface-elevated text-content-muted text-label font-bold rounded-control">Cancel</button>
             </div>
           {:else}
-          <div class="flex gap-2">
-            <button
-              onclick={() => isPickingCircuit = true}
-              disabled={exercises.length < 1}
-              class="flex-1 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
-            >
-              <Icon icon="ic:baseline-repeat" class="text-base" /> Make a circuit
-            </button>
-            {#if trainingState.circuits.length > 0}
-              <button
-                onclick={() => (isAddingSavedCircuit = true)}
-                class="px-4 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
-                title="Add a circuit you saved"
-              >
-                <Icon icon="ic:baseline-bookmarks" class="text-base" /> Saved
-              </button>
-            {/if}
-          </div>
+          <button
+            onclick={() => (isAddingSavedCircuit = true)}
+            class="w-full py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
+          </button>
           <section
             class="space-y-2.5 outline-none"
             use:dndzone={{ items: exercises, dropTargetStyle: {}, delayTouchStart: true }}
@@ -1004,7 +1005,7 @@
   <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
       <button
-        onclick={() => { isAddingExercise = false; editingSlotId = null; addToGroupId = null; }}
+        onclick={() => { isAddingExercise = false; editingSlotId = null; addToGroupId = null; startingCircuit = false; }}
         class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1"
       >
         <Icon icon="ic:baseline-arrow-back" class="text-sm" />
@@ -1017,6 +1018,9 @@
              really did change, you just couldn't see it. Bouncing someone
              out to Settings mid-session would be the wrong answer even if
              it had worked; this writes the same preference in place. -->
+        {#if startingCircuit}
+          <p class="px-1 text-caption text-content-subtle">First exercise of a new circuit, added to do next. Give it a time or some reps; add the others, rounds and rests afterwards.</p>
+        {:else}
         <div class="px-1 space-y-2">
           <div class="flex bg-surface-elevated/50 p-1 rounded-control">
             <button
@@ -1057,13 +1061,14 @@
             {/if}
           </p>
         </div>
+        {/if}
       {/if}
       {#if editingSlot}
         <p class="px-1 text-caption text-content-subtle">Saved as what you did, and counted as done. The plan stays as it was.</p>
       {/if}
       <svelte:boundary onerror={handleEditorError}>
         <!-- A to-do exercise is a target (plan notes); a done one is a log (how it went). Only labels differ for a new one, so no remount. -->
-        <ExerciseForm initialSlot={editingSlot} mode={isAddingExercise && addAsTodo ? 'prescribed' : 'logged'} inGroup={!!editingSlot?.groupId || (isAddingExercise && !!addToGroupId)} onSave={handleFormSave} />
+        <ExerciseForm initialSlot={editingSlot} mode={isAddingExercise && addAsTodo ? 'prescribed' : 'logged'} inGroup={!!editingSlot?.groupId || (isAddingExercise && (!!addToGroupId || startingCircuit))} onSave={handleFormSave} />
       </svelte:boundary>
     </div>
   </div>
@@ -1073,15 +1078,26 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="fixed inset-0 z-[120] bg-black/40 flex items-end justify-center" onclick={() => (isAddingSavedCircuit = false)}>
-    <div class="w-full max-w-lg max-h-[70vh] overflow-y-auto no-scrollbar bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
-      <p class="text-section uppercase text-content-muted px-1">Add a saved circuit</p>
-      <p class="text-caption text-content-subtle px-1">Added after the exercise you are on, still to do.</p>
+    <div class="w-full max-w-lg max-h-[85%] overflow-y-auto no-scrollbar bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
+      <p class="text-section uppercase text-content-muted px-1">Circuit</p>
+      <button onclick={() => { isAddingSavedCircuit = false; startingCircuit = true; addToGroupId = null; isAddingExercise = true; }} class="w-full p-3 rounded-card border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 text-left">
+        <p class="text-body font-bold text-primary flex items-center gap-1.5"><Icon icon="ic:baseline-plus" class="text-base" /> New circuit</p>
+        <p class="text-caption text-content-subtle">Start with its first exercise; each one is a time or some reps, repeated in rounds.</p>
+      </button>
+      {#if exercises.length > 0}
+        <button onclick={() => { isAddingSavedCircuit = false; isPickingCircuit = true; }} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
+          <p class="text-body font-bold text-content">From exercises already here</p>
+          <p class="text-caption text-content-subtle">Pick some of this session's exercises to do in rounds.</p>
+        </button>
+      {/if}
+      {#if trainingState.circuits.length > 0}<p class="text-caption uppercase text-content-subtle px-1 pt-1">Your saved circuits</p>{/if}
       {#each trainingState.circuits as c (c.id)}
         <button onclick={() => addSavedCircuit(c)} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
           <p class="text-body font-bold text-content truncate">{c.name}</p>
           <p class="text-caption text-content-subtle truncate">{c.exercises.map((x) => slotTypeName(x, trainingState.exerciseTypes)).join(' · ')}</p>
         </button>
       {/each}
+      {#if trainingState.circuits.length > 0}<p class="text-caption text-content-subtle px-1">A saved one is added as a copy after the current exercise, to do; adjust its rounds and rests right after.</p>{/if}
     </div>
   </div>
 {/if}
