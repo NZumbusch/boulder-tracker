@@ -223,6 +223,12 @@ export interface ExerciseSlot {
    */
   skipped?: true;
   /**
+   * Added to a running session as still-to-do while the "extra work" preference
+   * was on: its `prescribed` only holds the entered values until it is logged,
+   * then both go (the work counts as extra, not as plan). See `addSlot`.
+   */
+  addedExtra?: true;
+  /**
    * -> `ExerciseGroup.id` on the same workout/template. Grouped slots sit
    * next to each other; see `lib/exercise/groups.ts` for the rules.
    */

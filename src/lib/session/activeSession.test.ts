@@ -313,6 +313,52 @@ describe("adding an exercise mid-session", () => {
     );
   });
 
+  it("as still-to-do it lands pending, right after the focused exercise", () => {
+    const s = addSlot(threeSlotSession(), added, "mirror", { pending: true });
+    expect(s.workout.exercises.map((e) => e.id)).toEqual(["a", "x", "b", "c"]);
+    expect(slotStatus(s.workout.exercises[1])).toBe("pending");
+    expect(s.workout.exercises[1].prescribed).toEqual({ sets: 3, reps: 8, duration: 10 });
+    expect(s.currentIndex).toBe(0);
+  });
+
+  it("finishing the focused exercise moves on to the one added as next", () => {
+    const s = logSlot(addSlot(threeSlotSession(), added, "mirror", { pending: true }), "a", { duration: 20 });
+    expect(s.currentIndex).toBe(1);
+  });
+
+  it("as still-to-do it goes after a whole circuit, not into it", () => {
+    const base = threeSlotSession();
+    const grouped = {
+      ...base,
+      workout: { ...base.workout, exercises: base.workout.exercises.map((e, i) => (i < 2 ? { ...e, groupId: "g" } : e)) },
+    };
+    const s = addSlot(grouped, added, "mirror", { pending: true });
+    expect(s.workout.exercises.map((e) => e.id)).toEqual(["a", "b", "x", "c"]);
+  });
+
+  it("with the session all done, the to-do one takes focus", () => {
+    let s = threeSlotSession();
+    for (const id of ["a", "b", "c"]) s = logSlot(s, id, {});
+    s = addSlot(s, added, "mirror", { pending: true });
+    expect(s.workout.exercises.at(-1)!.id).toBe("x");
+    expect(s.currentIndex).toBe(3);
+  });
+
+  it("under 'none' a to-do exercise drops its target once logged, so it counts as extra", () => {
+    const s = addSlot(threeSlotSession(), added, "none", { pending: true });
+    const done = logSlot(s, "x", { sets: 4, reps: 8, duration: 10 });
+    const slot = done.workout.exercises.find((e) => e.id === "x")!;
+    expect(slot.prescribed).toBeUndefined();
+    expect(slot.addedExtra).toBeUndefined();
+    expect(slot.logged).toEqual({ sets: 4, reps: 8, duration: 10 });
+  });
+
+  it("under 'mirror' a to-do exercise keeps its target once logged", () => {
+    const s = addSlot(threeSlotSession(), added, "mirror", { pending: true });
+    const done = logSlot(s, "x", { sets: 4, reps: 8, duration: 10 });
+    expect(done.workout.exercises.find((e) => e.id === "x")!.prescribed).toEqual({ sets: 3, reps: 8, duration: 10 });
+  });
+
   it("mirrors by value, so editing the log afterwards does not rewrite the target", () => {
     const s = addSlot(threeSlotSession(), added, "mirror");
     const edited = logSlot(s, "x", { sets: 5, reps: 8, duration: 10 });

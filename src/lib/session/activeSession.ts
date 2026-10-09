@@ -248,7 +248,9 @@ export function toCompletedWorkout(
 /** Replaces a slot's `logged` block and moves focus to whatever is still pending. */
 export function logSlot(session: ActiveSession, slotId: string, values: ExerciseValues): ActiveSession {
   const next = mapSlot(session, slotId, (slot) => {
-    const { skipped: _skipped, ...rest } = slot;
+    const { skipped: _skipped, addedExtra, ...rest } = slot;
+    // Added as to-do under "extra work": its target only held the entered values, and goes now it is done.
+    if (addedExtra) delete rest.prescribed;
     return { ...rest, logged: { ...values } };
   });
   return advanceFrom(next, slotId);
@@ -282,9 +284,9 @@ export function unfinishSlot(session: ActiveSession, slotId: string): ActiveSess
 /**
  * Appends an exercise the user did that wasn't in the plan.
  *
- * It lands **done**, not pending: adding something mid-session is how the user
- * record the extra set they threw in, so the values entered are what was
- * done. Un-finish it if it was meant as an upcoming target instead.
+ * By default it lands **done**: adding something mid-session is how the user
+ * records the extra set they threw in, so the values entered are what was
+ * done. With `pending` it is an upcoming target instead, placed next.
  *
  * `target` decides whether it also counts as *planned*. Under "none" (the
  * default) `prescribed` is left unset, so `workoutPlannedLoad` excludes it
@@ -297,7 +299,29 @@ export function addSlot(
   session: ActiveSession,
   slot: { id: string; typeId: string; categoryId?: string; activeParameters?: ParameterBlock[]; values: ExerciseValues },
   target: AddedExerciseTarget,
+  options: { pending?: boolean } = {},
 ): ActiveSession {
+  if (options.pending) {
+    // Still to do: the values are its target. It goes right after the exercise in focus (after its whole circuit),
+    // so it comes up next when that one is finished.
+    const added: ExerciseSlot = {
+      id: slot.id,
+      typeId: slot.typeId,
+      categoryId: slot.categoryId,
+      activeParameters: slot.activeParameters,
+      prescribed: { ...slot.values },
+      ...(target === "none" ? { addedExtra: true as const } : {}),
+    };
+    const exercises = session.workout.exercises;
+    const focus = exercises[session.currentIndex];
+    let at = exercises.length === 0 ? 0 : session.currentIndex + 1;
+    if (focus?.groupId) {
+      while (at < exercises.length && exercises[at].groupId === focus.groupId) at++;
+    }
+    const next = withExercises(session, [...exercises.slice(0, at), added, ...exercises.slice(at)]);
+    // Nothing left to do on the focused exercise: the new one is what's next.
+    return focus && slotStatus(focus) === "pending" ? next : { ...next, currentIndex: at };
+  }
   const added: ExerciseSlot = {
     id: slot.id,
     typeId: slot.typeId,

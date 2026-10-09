@@ -211,8 +211,9 @@ export class SessionStore {
   addExercise(
     slot: { id: string; typeId: string; categoryId?: string; activeParameters?: ParameterBlock[]; values: ExerciseValues },
     target: AddedExerciseTarget,
+    options: { pending?: boolean } = {},
   ) {
-    this.#apply((s) => addSlot(s, slot, target));
+    this.#apply((s) => addSlot(s, slot, target, options));
   }
 
   updateExercise(
