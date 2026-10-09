@@ -41,7 +41,8 @@
     seed?: ExerciseValues | null;
     onSave: (values: ExerciseValues) => void;
     onCancel: () => void;
-    onEditFull: () => void;
+    /** The way out to the full form; without it the sheet has no such link. */
+    onEditFull?: () => void;
   } = $props();
 
   /**
@@ -350,13 +351,15 @@
           Save &amp; continue
         </button>
       </div>
-      <button
-        onclick={onEditFull}
-        class="w-full text-label text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1.5"
-      >
-        Edit full details
-        <Icon icon="ic:baseline-arrow-forward" class="text-sm" />
-      </button>
+      {#if onEditFull}
+        <button
+          onclick={onEditFull}
+          class="w-full text-label text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1.5"
+        >
+          Edit full details
+          <Icon icon="ic:baseline-arrow-forward" class="text-sm" />
+        </button>
+      {/if}
     </div>
   </div>
 </div>

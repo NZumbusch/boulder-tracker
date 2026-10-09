@@ -48,6 +48,7 @@
   import ExerciseDetails from './ExerciseDetails.svelte';
   import VolumeControl from './VolumeControl.svelte';
   import VolumeBar from './VolumeBar.svelte';
+  import ExerciseLogSheet from './ExerciseLogSheet.svelte';
   import RangeSlider from '../common/RangeSlider.svelte';
   import { PARAMETER_LABELS } from '../../lib/constants';
   import {
@@ -154,7 +155,12 @@
   const progress = $derived(circuitProgress(steps, run));
   const previous = $derived(previousWork(steps, run));
   const upcoming = $derived(upcomingWork(steps, run));
-  const logged = $derived(circuitLoggedValues(members, run));
+  const counted = $derived(circuitLoggedValues(members, run));
+  /** Members corrected on the summary (weight, notes ...) - what they typed replaces what the run counted. */
+  let edits = $state<Record<string, ExerciseValues>>({});
+  const logged = $derived(Object.fromEntries(Object.entries(counted).map(([id, v]) => [id, v && edits[id] ? edits[id] : v])) as Record<string, ExerciseValues | undefined>);
+  let editingId = $state<string | null>(null);
+  const editingMember = $derived(members.find((m) => m.slot.id === editingId) ?? null);
   /** Rounds done in full, of the rounds the circuit was set up for - "2 of 4" when ended early. */
   const rounds = $derived(roundsDone(steps, run, plannedRounds));
 
@@ -325,6 +331,16 @@
       for (const m of members) if (values[m.slot.id] && tracksDifficulty(m.slot)) values[m.slot.id] = { ...values[m.slot.id]!, difficulty };
     }
     onLog(values);
+  }
+  /** A member corrected on the summary: back to the summary with its numbers changed. Per-set reps the sheet can't show are kept. */
+  function saveEdit(values: ExerciseValues) {
+    const id = editingId;
+    if (!id) return;
+    const was = logged[id];
+    const next = { ...values };
+    if (next.reps === undefined && Array.isArray(was?.reps)) next.reps = was.reps;
+    edits[id] = next;
+    editingId = null;
   }
   function discard() {
     forget();
@@ -550,15 +566,23 @@
       </div>
       {#each members as m, i (m.slot.id)}
         {@const results = run.results[m.slot.id] ?? []}
-        <div class="p-3 rounded-card border border-border bg-surface/40 flex items-center gap-3">
+        <svelte:element
+          this={logged[m.slot.id] ? 'button' : 'div'}
+          onclick={logged[m.slot.id] ? () => (editingId = m.slot.id) : undefined}
+          role={logged[m.slot.id] ? 'button' : undefined}
+          class="w-full text-left p-3 rounded-card border border-border bg-surface/40 flex items-center gap-3 {logged[m.slot.id] ? 'hover:bg-surface/70 active:scale-[0.99] transition-all' : ''}"
+        >
           <div class="min-w-0 flex-1">
             <p class="text-body font-bold text-content truncate">{memberName(i)}</p>
             <p class="text-caption text-content-subtle tabular-nums">
               {#if results.length === 0}Not done{:else}{results.map((v) => v === null || v === undefined ? '–' : (m.values.timeOn || (!m.values.reps && m.values.duration)) ? formatClock(v * 1000) : `${v}`).join(' · ')}{/if}
             </p>
           </div>
-          {#if logged[m.slot.id]}<Icon icon="ic:baseline-check-circle" class="text-lg text-success shrink-0" />{/if}
-        </div>
+          {#if logged[m.slot.id]}
+            <Icon icon="ic:baseline-edit" class="text-base text-content-subtle shrink-0" />
+            <Icon icon="ic:baseline-check-circle" class="text-lg text-success shrink-0" />
+          {/if}
+        </svelte:element>
       {/each}
       {#if anyTracksDifficulty}
         <div class="space-y-1.5 pt-1">
@@ -702,5 +726,13 @@
         <ExerciseDetails slot={m.slot} values={m.values} inGroup showHowTo />
       </div>
     </div>
+  {/if}
+
+  {#if editingMember && logged[editingMember.slot.id]}
+    <ExerciseLogSheet
+      slot={{ ...editingMember.slot, logged: logged[editingMember.slot.id] }}
+      onSave={saveEdit}
+      onCancel={() => (editingId = null)}
+    />
   {/if}
 </div>
