@@ -431,7 +431,7 @@
     {#if activeParams.includes('boardType')}<div class="space-y-1.5"><label for="ex-board-type" class="text-label text-content-subtle ml-1">Board Type</label><select id="ex-board-type" bind:value={boardType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each boardTypes as type} <option value={type}>{type}</option> {/each}</select></div>{/if}
     {#if activeParams.includes('boardAngle') && !(perSetOpen && perSetKeys.includes('boardAngle'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-board-angle" class="text-label text-content-subtle">Board Angle (°)</label><TargetHint prescribed={targetValues.boardAngle} current={boardAngle} unit="°" /></div><select id="ex-board-angle" bind:value={boardAngle} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each boardAngles as angle} <option value={angle}>{angle}°</option> {/each}</select></div>{/if}
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class="contents">
       {#if activeParams.includes('sets') && !perSetOpen}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-sets" class="text-label text-content-subtle">Sets</label><TargetHint prescribed={targetValues.sets} current={sets} /></div><input id="ex-sets" type="number" bind:value={sets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.sets ? 'border-danger/50' : ''}" />{#if validationErrors.sets}<p class="text-label text-danger ml-1">{validationErrors.sets}</p>{/if}</div>{/if}
       {#if activeParams.includes('reps') && !(perSetOpen && perSetKeys.includes('reps'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={repsRepresentative(targetValues.reps)} current={reps} /></div><input id="ex-reps" type="number" bind:value={reps} oninput={() => repsEdited = true} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" />{#if !repsEdited && Array.isArray(originalReps)}<p class="text-caption text-content-subtle ml-1">Per set: {originalReps.join(', ')} &mdash; editing replaces all sets</p>{/if}</div>{/if}
       {#if activeParams.includes('movesPerRoute')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-moves" class="text-label text-content-subtle">Moves per route</label><TargetHint prescribed={targetValues.movesPerRoute} current={movesPerRoute} /></div><input id="ex-moves" type="number" bind:value={movesPerRoute} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
@@ -611,7 +611,7 @@
 
 <style>
   /* Number fields sit two to a row, in equal columns, so singles and pairs line up; everything else spans the width. */
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 0.75rem; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: row dense; gap: 1rem 0.75rem; }
   .fields-grid { row-gap: 1.25rem; }
   .form-grid > :global(*) { grid-column: 1 / -1; }
   .form-grid > :global(div:has(> input[type='number'])) { grid-column: auto; }
