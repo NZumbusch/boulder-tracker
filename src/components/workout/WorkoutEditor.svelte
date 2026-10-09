@@ -65,6 +65,8 @@
   let addingToGroup = $state<string | null>(null);
   /** The circuit picker ("Add circuit") is open. */
   let pickingCircuit = $state(false);
+  /** The form open for a circuit's first exercise: saving it makes the circuit. */
+  let startingCircuit = $state(false);
   /** A group being saved to the library that already came from a circuit: update it, or save a new one? */
   let savingGroup = $state<ExerciseGroup | null>(null);
 
@@ -153,7 +155,8 @@
     if (data.planNote !== undefined && formSlot && formSlot !== 'new' && formSlot.prescribed) fields.prescribed = { ...formSlot.prescribed, notes: data.planNote || undefined };
     if (formSlot === 'new') {
       const slot = { id: generateId(), ...fields };
-      if (addingToGroup) regroup(addToGroup(workout, addingToGroup, slot));
+      if (startingCircuit) regroup(groupSlots({ ...workout, exercises: [...workout.exercises, slot] }, [slot.id], { id: generateId(), rounds: 3, transition: 15, roundRest: 60 }));
+      else if (addingToGroup) regroup(addToGroup(workout, addingToGroup, slot));
       else workout.exercises = [...workout.exercises, slot];
     } else if (formSlot) {
       const id = formSlot.id;
@@ -161,6 +164,7 @@
     }
     formSlot = null;
     addingToGroup = null;
+    startingCircuit = false;
   }
 
   const undoable = scopedUndo();
@@ -418,12 +422,10 @@
         <button onclick={() => formSlot = 'new'} class="flex-1 py-3.5 text-label font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5">
           <Icon icon="ic:baseline-plus" class="text-base" /> Add exercise
         </button>
-        {#if trainingState.circuits.length > 0}
-          <div class="w-px bg-border"></div>
-          <button onclick={() => pickingCircuit = true} class="px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Add a saved circuit">
-            <Icon icon="ic:baseline-bookmarks" class="text-base" /> Circuit
-          </button>
-        {/if}
+        <div class="w-px bg-border"></div>
+        <button onclick={() => pickingCircuit = true} class="px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Add a circuit: new, or one you saved">
+          <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
+        </button>
         <div class="w-px bg-border"></div>
         <button onclick={() => isImportingAI = true} class="px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Build or log this session with an AI chat">
           <Icon icon="ic:baseline-auto-awesome" class="text-base" /> Ask AI
@@ -450,7 +452,7 @@
         class="px-3 py-2.5 rounded-control text-label font-bold transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isGrouping ? 'bg-primary/15 text-primary' : 'text-content-subtle hover:text-content'}"
       >
         <Icon icon={isGrouping ? 'ic:baseline-close' : 'ic:baseline-repeat'} class="text-base" />
-        {isGrouping ? 'Cancel' : 'Group'}
+        {isGrouping ? 'Cancel' : 'Circuit'}
       </button>
     {/if}
     <div class="flex-1"></div>
@@ -477,7 +479,7 @@
 {#if formSlot}
   <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
-      <button onclick={() => { formSlot = null; addingToGroup = null; }} class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1">
+      <button onclick={() => { formSlot = null; addingToGroup = null; startingCircuit = false; }} class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1">
         <Icon icon="ic:baseline-arrow-back" class="text-sm" />
         Back to session
       </button>
@@ -487,7 +489,7 @@
           <span>Part of <b class="text-content-muted">{formGroup.name || 'a circuit'}</b>: set up one set of it (a time, or reps). Rounds and rests come from the circuit; sets only matter if it should drop out early.</span>
         </p>
       {/if}
-      <ExerciseForm initialSlot={formSlot === 'new' ? null : formSlot} mode={bucket} inGroup={!!formGroup} onSave={saveExercise} />
+      <ExerciseForm initialSlot={formSlot === 'new' ? null : formSlot} mode={bucket} inGroup={!!formGroup || startingCircuit} onSave={saveExercise} />
     </div>
   </div>
 {/if}
@@ -498,6 +500,17 @@
   <div class="fixed inset-0 z-[120] bg-black/40 flex items-end justify-center" onclick={() => pickingCircuit = false}>
     <div class="w-full max-w-lg max-h-[70vh] overflow-y-auto no-scrollbar bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
       <p class="text-section uppercase text-content-muted px-1">Add a circuit</p>
+      <button onclick={() => { pickingCircuit = false; startingCircuit = true; formSlot = 'new'; }} class="w-full p-3 rounded-card border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 text-left">
+        <p class="text-body font-bold text-primary flex items-center gap-1.5"><Icon icon="ic:baseline-plus" class="text-base" /> New circuit</p>
+        <p class="text-caption text-content-subtle">Start with its first exercise; each one is a time or some reps, and the circuit repeats them in rounds.</p>
+      </button>
+      {#if workout.exercises.length > 1}
+        <button onclick={() => { pickingCircuit = false; isGrouping = true; picked = []; }} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
+          <p class="text-body font-bold text-content">From exercises already here</p>
+          <p class="text-caption text-content-subtle">Pick some of this session's exercises to do in rounds.</p>
+        </button>
+      {/if}
+      {#if trainingState.circuits.length > 0}<p class="text-caption uppercase text-content-subtle px-1 pt-1">Your saved circuits</p>{/if}
       {#each trainingState.circuits as c (c.id)}
         <button onclick={() => addCircuit(c)} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
           <p class="text-body font-bold text-content truncate">{c.name}</p>

@@ -18,7 +18,8 @@
    * can't compete with the bubble's own elapsed readout.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import type { ExerciseSlot, ExerciseValues, ParameterBlock, ExerciseGroup } from '../../lib/types';
+  import type { ExerciseSlot, ExerciseValues, ParameterBlock, ExerciseGroup, Circuit } from '../../lib/types';
+  import { insertCircuit } from '../../lib/exercise/circuits';
   import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
   import { slotStatus } from '../../lib/session/activeSession';
   import { formatClock, formatMinutes } from '../../lib/session/formatSession';
@@ -33,7 +34,7 @@
   import SessionNotesSheet from './SessionNotesSheet.svelte';
   import TimerWidget from './TimerWidget.svelte';
   import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
-  import { workoutItems, groupSummary, groupSlots, ungroup, takeOutOfGroup, addToGroup, updateGroup, settleAfterMove, normaliseGroups } from '../../lib/exercise/groups';
+  import { workoutItems, groupMinutes, groupSummary, groupSlots, ungroup, takeOutOfGroup, addToGroup, updateGroup, settleAfterMove, normaliseGroups } from '../../lib/exercise/groups';
   import { repsPerSet } from '../../lib/exercise/reps';
   import GroupSettings from './GroupSettings.svelte';
   import CircuitPill from './CircuitPill.svelte';
@@ -60,6 +61,8 @@
   let isAddingExercise = $state(false);
   /** The add form's "Still to do": add the exercise as the next target instead of logging it as done. */
   let addAsTodo = $state(false);
+  /** Edit mode: the list of saved circuits to add is open. */
+  let isAddingSavedCircuit = $state(false);
   let isExiting = $state(false);
   let showNotes = $state(false);
   /** The tucked-away "change the session" mode - reorder handles, remove, add. */
@@ -283,6 +286,8 @@
     }
     return starts;
   });
+  /** Each circuit's estimated length in minutes, for its card. */
+  const groupMins = $derived(groupMinutes({ exercises, groups: store.workout?.groups }, 'estimate'));
   const progress = $derived(store.progress);
   const current = $derived(store.currentSlot);
   const expected = $derived(store.expectedMinutes);
@@ -407,6 +412,18 @@
       store.logExercise(editingSlotId, data.values);
       editingSlotId = null;
     }
+  }
+
+  /** Edit mode: a saved circuit goes in as a copy, after the focused exercise (or its circuit), still to do. */
+  function addSavedCircuit(circuit: Circuit) {
+    const base = groupingBase();
+    const focus = base.exercises[store.currentIndex];
+    let at = base.exercises.length === 0 ? 0 : store.currentIndex + 1;
+    if (focus?.groupId) while (at < base.exercises.length && base.exercises[at].groupId === focus.groupId) at++;
+    const added = insertCircuit({ exercises: [], groups: base.groups }, circuit, generateId);
+    const exercises = [...base.exercises.slice(0, at), ...added.exercises, ...base.exercises.slice(at)];
+    store.regroupExercises(normaliseGroups({ exercises, groups: added.groups }));
+    isAddingSavedCircuit = false;
   }
 
   function handleDnd(e: CustomEvent<DndEvent<ExerciseSlot>>) {
@@ -617,13 +634,24 @@
               <button onclick={() => { isPickingCircuit = false; pickedSlotIds = []; }} class="px-4 py-2.5 bg-surface-elevated text-content-muted text-label font-bold rounded-control">Cancel</button>
             </div>
           {:else}
-          <button
-            onclick={() => isPickingCircuit = true}
-            disabled={exercises.length < 1}
-            class="w-full py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
-          >
-            <Icon icon="ic:baseline-repeat" class="text-base" /> Make a circuit
-          </button>
+          <div class="flex gap-2">
+            <button
+              onclick={() => isPickingCircuit = true}
+              disabled={exercises.length < 1}
+              class="flex-1 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
+            >
+              <Icon icon="ic:baseline-repeat" class="text-base" /> Make a circuit
+            </button>
+            {#if trainingState.circuits.length > 0}
+              <button
+                onclick={() => (isAddingSavedCircuit = true)}
+                class="px-4 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
+                title="Add a circuit you saved"
+              >
+                <Icon icon="ic:baseline-bookmarks" class="text-base" /> Saved
+              </button>
+            {/if}
+          </div>
           <section
             class="space-y-2.5 outline-none"
             use:dndzone={{ items: exercises, dropTargetStyle: {}, delayTouchStart: true }}
@@ -706,20 +734,23 @@
             {@const isCurrent = index === store.currentIndex}
             {@const groupStart = groupStarts.get(slot.id)}
             {#if groupStart}
-              <p class="px-1 pt-1 text-caption text-content-subtle flex items-center gap-1 min-w-0">
-                <Icon icon="ic:baseline-repeat" class="text-sm shrink-0" />
-                <span class="font-bold text-content-muted truncate">{groupStart.name || 'Circuit'}</span>
-                <span class="truncate flex-1">· {groupSummary(groupStart)}</span>
+              <!-- A circuit is one thing to start: its card heads its members, which carry the same bar down the side. -->
+              <div class="mt-1 p-3 rounded-card border border-primary/30 bg-primary/5 flex items-center gap-3 min-w-0">
+                <Icon icon="ic:baseline-repeat" class="text-xl text-primary shrink-0" />
+                <div class="min-w-0 flex-1">
+                  <p class="text-body font-bold text-content truncate">{groupStart.name || 'Circuit'}</p>
+                  <p class="text-caption text-content-subtle truncate">{groupSummary(groupStart)}{groupMins.get(groupStart.id) ? ` · ~${formatMinutes(Math.ceil(groupMins.get(groupStart.id)!))}` : ''}</p>
+                </div>
                 {#if !store.isComplete}
                   <button
                     onclick={() => openCircuit(groupStart.id)}
                     disabled={!!circuitGroupId && circuitGroupId !== groupStart.id}
-                    class="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold transition-colors disabled:opacity-40 {circuitGroupId === groupStart.id ? 'bg-primary text-white' : 'bg-primary/10 text-primary hover:bg-primary/20'} flex items-center gap-0.5"
+                    class="shrink-0 px-3.5 py-2 rounded-control text-label font-bold transition-colors disabled:opacity-40 {circuitGroupId === groupStart.id ? 'bg-primary text-white' : 'bg-primary text-white hover:bg-primary-hover'} flex items-center gap-1"
                   >
-                    <Icon icon="ic:baseline-play-arrow" class="text-sm" /> {circuitGroupId === groupStart.id ? 'Resume' : 'Start'}
+                    <Icon icon="ic:baseline-play-arrow" class="text-base" /> {circuitGroupId === groupStart.id ? 'Resume' : 'Start circuit'}
                   </button>
                 {/if}
-              </p>
+              </div>
             {/if}
             <!-- Swipe a pending exercise: right = done as prescribed,
                  left = skip (both with Undo). The solid backing hides
@@ -730,7 +761,7 @@
                 use:swipeRow={{ enabled: status === 'pending' && !store.isComplete && !lockedByRun(slot), onRight: () => swipeDone(slot), onLeft: () => swipeSkip(slot) }}
               >
                 <div
-                  class="rounded-card border transition-all {isCurrent
+                  class="rounded-card border transition-all {slot.groupId ? 'border-l-4 border-l-primary/60' : ''} {isCurrent
                     ? 'bg-surface border-primary/50 shadow-card'
                     : status === 'pending'
                       ? 'bg-surface/40 border-border'
@@ -1034,6 +1065,23 @@
         <!-- A to-do exercise is a target (plan notes); a done one is a log (how it went). Only labels differ for a new one, so no remount. -->
         <ExerciseForm initialSlot={editingSlot} mode={isAddingExercise && addAsTodo ? 'prescribed' : 'logged'} inGroup={!!editingSlot?.groupId || (isAddingExercise && !!addToGroupId)} onSave={handleFormSave} />
       </svelte:boundary>
+    </div>
+  </div>
+{/if}
+
+{#if isAddingSavedCircuit}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="fixed inset-0 z-[120] bg-black/40 flex items-end justify-center" onclick={() => (isAddingSavedCircuit = false)}>
+    <div class="w-full max-w-lg max-h-[70vh] overflow-y-auto no-scrollbar bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
+      <p class="text-section uppercase text-content-muted px-1">Add a saved circuit</p>
+      <p class="text-caption text-content-subtle px-1">Added after the exercise you are on, still to do.</p>
+      {#each trainingState.circuits as c (c.id)}
+        <button onclick={() => addSavedCircuit(c)} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
+          <p class="text-body font-bold text-content truncate">{c.name}</p>
+          <p class="text-caption text-content-subtle truncate">{c.exercises.map((x) => slotTypeName(x, trainingState.exerciseTypes)).join(' · ')}</p>
+        </button>
+      {/each}
     </div>
   </div>
 {/if}

@@ -60,6 +60,7 @@ export function detailPairs(
   const setRestOnly = inGroup && restSeconds(v).betweenReps === 0;
   if (!setRestOnly) push('timeOff', v.timeOff, ' s');
   if (!inGroup) push('restTime', v.timeBetweenSets, ' s');
+  if (inGroup && typeof v.restAfter === 'number') pairs.push({ label: 'Rest after it', value: `${v.restAfter} s` });
   push('cadence', v.cadence);
   push('distance', v.distance, ' km');
   push('boardType', v.boardType);

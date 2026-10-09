@@ -85,7 +85,7 @@ export const TOUR_STEPS: TourStep[] = ([
     target: "workout-circuit",
     openWorkout: DEMO_CIRCUIT_SESSION_ID,
     title: "Circuits and supersets",
-    body: "Exercises done in rounds: a core circuit, or antagonist work in the rests between hard sets. Each exercise is one set; the circuit sets the rounds and rests. In a session a circuit runs on its own timer - holds count down, reps get a Done button. Group exercises in the editor, or save a circuit and reuse it.",
+    body: "Exercises done one after another in rounds: a core circuit, or antagonist work in the rests between hard sets. Each exercise has its own time or reps (45 s of planche, 10 s of front lever, 8 pull-ups) and can have its own rest after it; the circuit sets the rounds and the rest between them. Make one with Circuit in the session editor, then in a live session tap Start circuit: holds count down, reps get a Done button. Save a circuit to reuse it.",
   },
   {
     view: "plan",
