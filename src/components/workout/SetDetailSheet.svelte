@@ -26,6 +26,9 @@
   const label = (k: PerSetKey) => PARAMETER_LABELS[k as keyof typeof PARAMETER_LABELS] ?? k;
   const shown = (k: PerSetKey, n: number | undefined) => (n === undefined ? '' : String(isWeight(k) ? Math.round(displayWeight(n, trainingState.units.weight) * 10) / 10 : n));
 
+  const GRID: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-2 short:grid-cols-3', 4: 'grid-cols-2' };
+  const cell = (i: number) => (keys.length % 2 === 1 && keys.length > 1 && i === keys.length - 1 ? 'col-span-2 short:col-span-1' : '');
+
   let draft = $state<Record<string, string>>(Object.fromEntries(untrackKeys().map((k) => [k, shown(k, initial[k])])));
   function untrackKeys() { return keys; }
 
@@ -55,9 +58,9 @@
       </div>
       <button onclick={onCancel} class="p-2 -mr-2 text-content-subtle hover:text-content" aria-label="Cancel"><Icon icon="ic:baseline-close" class="text-xl" /></button>
     </div>
-    <div class="p-5 grid grid-cols-2 gap-3">
-      {#each keys as k (k)}
-        <label class="space-y-1.5 min-w-0">
+    <div class="p-5 grid {GRID[Math.min(keys.length, 4)] ?? 'grid-cols-2'} gap-3">
+      {#each keys as k, ki (k)}
+        <label class="space-y-1.5 min-w-0 {cell(ki)}">
           <span class="block text-label text-content-subtle truncate">{label(k)}{isWeight(k) ? ` (${trainingState.units.weight})` : UNITS[k] ? ` (${UNITS[k]})` : ''}</span>
           <span class="flex items-stretch gap-1">
             <button type="button" onclick={() => bump(k, -1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted active:scale-95 grid place-items-center" aria-label="Less {label(k)}"><Icon icon="ic:baseline-remove" class="text-lg" /></button>

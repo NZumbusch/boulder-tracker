@@ -260,8 +260,8 @@
   role="presentation"
   onclick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
 >
-  <div class="group bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[88vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onCancel()} use:keyboardAware>
-    <div class="sticky top-0 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
+  <div class="group bg-surface w-full max-w-lg short:max-w-3xl rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[88vh] short:max-h-[96vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onCancel()} use:keyboardAware>
+    <div class="sticky top-0 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 short:py-2 flex items-start justify-between gap-3">
       <div class="min-w-0">
         <p class="text-caption uppercase text-content-subtle">What you did</p>
         <h3 class="text-title text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</h3>
@@ -271,7 +271,7 @@
       </button>
     </div>
 
-    <div class="p-5 space-y-4">
+    <div class="p-5 short:py-3 space-y-4 short:space-y-3">
       {#if lastTime && lastLine}
         <button type="button" onclick={useLastTime} class="w-full flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border-strong/40 text-left hover:border-primary/40 transition-colors">
           <Icon icon="ic:baseline-history" class="text-base text-content-subtle shrink-0" />
@@ -286,7 +286,7 @@
           This exercise tracks no numeric values &mdash; log it as done, or open the full editor to change what it tracks.
         </p>
       {:else}
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 short:grid-cols-4 gap-3">
           {#each fields.filter((f) => !(perSetOpen && (perSetKeys.includes(f.key as PerSetKey) || f.key === 'sets'))) as field (field.key)}
             <label class="space-y-1.5 min-w-0">
               <span class="flex items-baseline justify-between gap-2">
@@ -382,8 +382,8 @@
       </label>
     </div>
 
-    <div class="sticky group-data-[typing]:static bottom-0 bg-surface/95 backdrop-blur-sm border-t border-border px-5 py-4 space-y-3">
-      <div class="flex gap-2">
+    <div class="sticky group-data-[typing]:static bottom-0 bg-surface/95 backdrop-blur-sm border-t border-border px-5 py-4 short:py-2 space-y-3 short:space-y-0 short:flex short:items-center short:gap-3">
+      <div class="flex gap-2 short:flex-1">
         {#if slot.prescribed}
           <button
             onclick={handleAsPrescribed}
@@ -402,7 +402,7 @@
       {#if onEditFull}
         <button
           onclick={onEditFull}
-          class="w-full text-label text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1.5"
+          class="w-full short:w-auto short:shrink-0 whitespace-nowrap text-label text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1.5"
         >
           Edit full details
           <Icon icon="ic:baseline-arrow-forward" class="text-sm" />
