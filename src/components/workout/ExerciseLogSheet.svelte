@@ -260,7 +260,7 @@
   role="presentation"
   onclick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
 >
-  <div class="group bg-surface w-full max-w-lg short:max-w-3xl rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[88vh] short:max-h-[96vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onCancel()} use:keyboardAware>
+  <div class="group bg-surface w-full max-w-lg short:max-w-2xl rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[88vh] short:max-h-[96vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onCancel()} use:keyboardAware>
     <div class="sticky top-0 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 short:py-2 flex items-start justify-between gap-3">
       <div class="min-w-0">
         <p class="text-caption uppercase text-content-subtle">What you did</p>
@@ -286,7 +286,7 @@
           This exercise tracks no numeric values &mdash; log it as done, or open the full editor to change what it tracks.
         </p>
       {:else}
-        <div class="grid grid-cols-2 short:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 short:grid-cols-3 gap-3">
           {#each fields.filter((f) => !(perSetOpen && (perSetKeys.includes(f.key as PerSetKey) || f.key === 'sets'))) as field (field.key)}
             <label class="space-y-1.5 min-w-0">
               <span class="flex items-baseline justify-between gap-2">
