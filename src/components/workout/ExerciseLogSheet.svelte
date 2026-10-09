@@ -297,7 +297,7 @@
                   unit={field.key === 'weight' ? trainingState.units.weight : field.unit}
                 />
               </span>
-              <span class="flex items-stretch gap-1">
+              <span class="flex items-stretch gap-1 max-w-[12rem]">
                 {#if stepOf(field.key)}
                   <button type="button" onclick={() => bump(field.key, -1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="Less {paramLabel(field.param, trainingState.valueDefs)}">
                     <Icon icon="ic:baseline-remove" class="text-lg" />
@@ -345,7 +345,7 @@
                 {/if}
               </span>
               {#if def.kind === 'number'}
-                <span class="flex items-stretch gap-2">
+                <span class="flex items-stretch gap-2 max-w-[12rem]">
                   <input type="number" inputmode="decimal" step="any" value={customDraft[def.id] ?? ''} oninput={(e) => customDraft[def.id] = e.currentTarget.value} placeholder="—" class="w-full min-w-0 px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums" />
                   {#if def.unit}<span class="self-center text-caption text-content-subtle shrink-0">{def.unit}</span>{/if}
                 </span>

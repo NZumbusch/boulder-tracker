@@ -608,3 +608,8 @@
     onClose={() => pickerOpen = false}
   />
 {/if}
+
+<style>
+  /* A single number never needs the full width: cap its box. */
+  input[type='number'] { max-width: 12rem; }
+</style>

@@ -62,7 +62,7 @@
       {#each keys as k, ki (k)}
         <label class="space-y-1.5 min-w-0 {cell(ki)}">
           <span class="block text-label text-content-subtle truncate">{label(k)}{isWeight(k) ? ` (${trainingState.units.weight})` : UNITS[k] ? ` (${UNITS[k]})` : ''}</span>
-          <span class="flex items-stretch gap-1">
+          <span class="flex items-stretch gap-1 max-w-[12rem]">
             <button type="button" onclick={() => bump(k, -1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted active:scale-95 grid place-items-center" aria-label="Less {label(k)}"><Icon icon="ic:baseline-remove" class="text-lg" /></button>
             <input type="number" inputmode="decimal" step="any" value={draft[k] ?? ''} oninput={(e) => (draft[k] = e.currentTarget.value)} placeholder="—" class="w-full min-w-0 px-1 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm text-center outline-none focus:border-primary/50 tabular-nums" />
             <button type="button" onclick={() => bump(k, 1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted active:scale-95 grid place-items-center" aria-label="More {label(k)}"><Icon icon="ic:baseline-add" class="text-lg" /></button>
