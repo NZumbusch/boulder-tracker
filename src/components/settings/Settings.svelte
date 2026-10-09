@@ -26,6 +26,7 @@
   import SessionSettings from './SessionSettings.svelte';
   import TimerSettings from './TimerSettings.svelte';
   import SoundSettings from './SoundSettings.svelte';
+  import AudioLevelSettings from './AudioLevelSettings.svelte';
   import VoiceSettings from './VoiceSettings.svelte';
   import PainCheckInSettings from './PainCheckInSettings.svelte';
   import WeatherSettings from './WeatherSettings.svelte';
@@ -300,6 +301,7 @@
     <div class="space-y-4"><SessionSettings /></div>
   {:else if page === 'timer'}
     <div class="space-y-4">
+      <AudioLevelSettings />
       <TimerSettings />
       <SoundSettings />
       <VoiceSettings />

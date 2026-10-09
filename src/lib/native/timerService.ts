@@ -29,6 +29,8 @@ export interface ServiceOptions {
   volume: number;
   /** Set the phone's media volume to `volume` while a cue plays, then restore it. */
   volumeSetsMedia: boolean;
+  /** Other audio: lowered for each cue, or the cue plays over it. */
+  otherAudio: "lower" | "mix";
   /** The beep style's tones: cue kind -> [frequency Hz, length ms, delay ms, gain?][]. */
   tones: Record<string, (number | undefined)[][]>;
   /** How announcements sound. */

@@ -55,6 +55,10 @@ final class CuePlayer {
     private volatile float volume = 1f;
     /** Set the media volume to `volume` while a cue plays. */
     private volatile boolean volumeSetsMedia = false;
+    /** Ask other audio to lower while a cue plays (the default); off = the cue plays over it, which never pauses it. */
+    private volatile boolean lowerOthers = true;
+    /** Focus was really requested (not just held for the volume to be put back). */
+    private boolean focusAsked = false;
     /** The media volume index to put back, or -1 when it is not changed. */
     private int savedMediaVolume = -1;
 
@@ -80,6 +84,11 @@ final class CuePlayer {
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build();
+    }
+
+    /** Whether other audio is asked to lower for the cues, or left alone. */
+    void setLowerOthers(boolean lower) {
+        this.lowerOthers = lower;
     }
 
     void configure(float volume, boolean volumeSetsMedia) {
@@ -326,6 +335,13 @@ final class CuePlayer {
 
     private void requestFocus() {
         if (hasFocus || audioManager == null) return;
+        if (!lowerOthers) {
+            // Played over whatever is on: no focus asked, so a player that pauses for focus never does.
+            hasFocus = true;
+            focusAsked = false;
+            return;
+        }
+        focusAsked = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
                 .setAudioAttributes(attributes)
@@ -340,11 +356,14 @@ final class CuePlayer {
 
     private void releaseFocus() {
         if (!hasFocus || audioManager == null) return;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
-            audioManager.abandonAudioFocusRequest(focusRequest);
-        } else {
-            audioManager.abandonAudioFocus(null);
+        if (focusAsked) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+                audioManager.abandonAudioFocusRequest(focusRequest);
+            } else {
+                audioManager.abandonAudioFocus(null);
+            }
         }
+        focusAsked = false;
         hasFocus = false;
         restoreMediaVolume();
     }

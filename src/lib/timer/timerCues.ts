@@ -46,13 +46,19 @@ export interface TimerCues {
   volumeSetsMedia: boolean;
   /** Which set of beeps. */
   sound: SoundPreset;
+  /**
+   * What happens to a podcast or audiobook playing meanwhile (Android):
+   * "lower" asks it to get quieter for each cue; "mix" plays the cue over it
+   * without asking, for players that stop instead of lowering.
+   */
+  otherAudio: "lower" | "mix";
   announce: AnnounceRules;
   speech: SpeechVoice;
 }
 
 export const DEFAULT_ANNOUNCE: AnnounceRules = { enabled: true, mode: "auto", work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 0 };
 export const DEFAULT_SPEECH: SpeechVoice = { engine: null, voice: null, rate: 1, pitch: 1 };
-export const DEFAULT_TIMER_CUES: TimerCues = { volume: 1, volumeSetsMedia: false, sound: "classic", announce: { ...DEFAULT_ANNOUNCE }, speech: { ...DEFAULT_SPEECH } };
+export const DEFAULT_TIMER_CUES: TimerCues = { volume: 1, volumeSetsMedia: false, sound: "classic", otherAudio: "lower", announce: { ...DEFAULT_ANNOUNCE }, speech: { ...DEFAULT_SPEECH } };
 
 export const ANNOUNCE_LIMITS = { workLead: { min: 0, max: 30 }, restStartDelay: { min: 0, max: 30 }, restEnd: { min: 0, max: 60 } } as const;
 
@@ -72,6 +78,7 @@ export function validateTimerCues(raw: unknown): TimerCues {
     volume: typeof c.volume === "number" && Number.isFinite(c.volume) ? Math.min(1, Math.max(0.1, Math.round(c.volume * 100) / 100)) : d.volume,
     volumeSetsMedia: bool(c.volumeSetsMedia, d.volumeSetsMedia),
     sound: SOUND_PRESETS.includes(c.sound as SoundPreset) ? (c.sound as SoundPreset) : d.sound,
+    otherAudio: c.otherAudio === "mix" ? "mix" : "lower",
     announce: {
       enabled: bool(a.enabled, DEFAULT_ANNOUNCE.enabled),
       // A value saved before Auto existed was tuned by hand: it stays as it was.

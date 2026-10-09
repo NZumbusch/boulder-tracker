@@ -189,6 +189,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "15 second warning", page: "timer", words: "heads-up rest" },
   { label: "Timer in the background", page: "timer", words: "notification locked screen alarms" },
   { label: "Keep screen on while a timer runs", page: "timer" },
+  { label: "How much the timer speaks up", page: "timer", words: "quiet silent loudness audio level podcast audiobook music duck pause mute announcements" },
   { label: "Beep sound style", page: "timer", words: "classic soft sharp chime tone" },
   { label: "Cue volume", page: "timer", words: "loud quiet media volume" },
   { label: "Vibrate with the cues", page: "timer" },

@@ -218,6 +218,7 @@ public class TimerForegroundService extends Service {
             sound = config.optBoolean("sound", true);
             vibrate = config.optBoolean("vibrate", true);
             player.configure((float) config.optDouble("volume", 1.0), config.optBoolean("volumeSetsMedia", false));
+            player.setLowerOthers(!"mix".equals(config.optString("otherAudio", "lower")));
             player.setTones(config.optJSONObject("tones"));
             JSONObject speech = config.optJSONObject("speech");
             if (speech != null) {

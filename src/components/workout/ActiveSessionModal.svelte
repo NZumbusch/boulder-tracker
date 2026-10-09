@@ -58,6 +58,8 @@
   /** The slot open in the full ExerciseForm, or 'new' while adding one. */
   let editingSlotId = $state<string | null>(null);
   let isAddingExercise = $state(false);
+  /** The add form's "Still to do": add the exercise as the next target instead of logging it as done. */
+  let addAsTodo = $state(false);
   let isExiting = $state(false);
   let showNotes = $state(false);
   /** The tucked-away "change the session" mode - reorder handles, remove, add. */
@@ -168,6 +170,7 @@
       seedFor = null;
       editingSlotId = null;
       isAddingExercise = false;
+      addAsTodo = false;
       isEditingPlan = false;
       isPickingCircuit = false;
       pickedSlotIds = [];
@@ -185,7 +188,7 @@
     const s = session;
     void [live.timerPlan, live.timerFinished, s?.runningSince, s?.accumulatedMs, store.currentIndex, store.progress.settled,
       s?.workout.notes, s?.workout.exercises.length, trainingState.exerciseTypes.length, trainingState.sessionNotification,
-      trainingState.timerBeepEnabled, cueMute.muted, trainingState.timerVibrateEnabled, trainingState.timerCues.volume, trainingState.timerCues.volumeSetsMedia, trainingState.timerCues.sound, JSON.stringify(trainingState.timerCues.speech)];
+      trainingState.timerBeepEnabled, cueMute.muted, trainingState.timerVibrateEnabled, trainingState.timerCues.volume, trainingState.timerCues.volumeSetsMedia, trainingState.timerCues.sound, trainingState.timerCues.otherAudio, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, JSON.stringify(trainingState.timerCues.announce), JSON.stringify(trainingState.timerCues.speech)];
     untrack(() => {
       if (!liveTimerAvailable()) return;
       const cur = store.currentSlot;
@@ -207,6 +210,7 @@
           vibrate: trainingState.timerVibrateEnabled,
           volume: trainingState.timerCues.volume,
           volumeSetsMedia: trainingState.timerCues.volumeSetsMedia,
+          otherAudio: trainingState.timerCues.otherAudio,
           tones: tonesFor(trainingState.timerCues.sound),
           speech: $state.snapshot(trainingState.timerCues.speech),
         }).then((ok) => { live.serviceOk = ok; });
@@ -383,7 +387,7 @@
   function handleFormSave(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues; planNote?: string }) {
     if (isAddingExercise) {
       const id = generateId();
-      store.addExercise({ id, ...data }, trainingState.addedExerciseTarget);
+      store.addExercise({ id, ...data }, trainingState.addedExerciseTarget, { pending: addAsTodo });
       const into = addToGroupId;
       addToGroupId = null;
       if (into) {
@@ -393,6 +397,7 @@
         if (added) store.regroupExercises(addToGroup({ ...base, exercises: base.exercises.filter((e) => e.id !== id) }, into, added));
       }
       isAddingExercise = false;
+      addAsTodo = false;
     } else if (editingSlotId) {
       // Type/parameter changes first, then the log - `logExercise` is what
       // settles the slot and moves focus on, so it goes last.
@@ -982,8 +987,22 @@
              out to Settings mid-session would be the wrong answer even if
              it had worked; this writes the same preference in place. -->
         <div class="px-1 space-y-2">
+          <div class="flex bg-surface-elevated/50 p-1 rounded-control">
+            <button
+              onclick={() => (addAsTodo = false)}
+              class="flex-1 py-2 text-label rounded-control transition-all {!addAsTodo ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+            >
+              Already done
+            </button>
+            <button
+              onclick={() => (addAsTodo = true)}
+              class="flex-1 py-2 text-label rounded-control transition-all {addAsTodo ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+            >
+              Still to do
+            </button>
+          </div>
           <p class="text-caption text-content-subtle">
-            Logged as done, with what you enter below. This one counts as:
+            {addAsTodo ? 'Added right after the current exercise, as the target for you to do next. Once done, it counts as:' : 'Logged as done, with what you enter below. This one counts as:'}
           </p>
           <div class="flex bg-surface-elevated/50 p-1 rounded-control">
             <button
