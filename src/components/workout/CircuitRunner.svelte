@@ -49,6 +49,10 @@
   import VolumeControl from './VolumeControl.svelte';
   import VolumeBar from './VolumeBar.svelte';
   import ExerciseLogSheet from './ExerciseLogSheet.svelte';
+  import { displayWeight } from '../../lib/units';
+  import SetDetailSheet from './SetDetailSheet.svelte';
+  import { perSetKeysFor, formatPerSet } from '../../lib/exercise/setRows';
+  import type { PerSetKey } from '../../lib/types';
   import RangeSlider from '../common/RangeSlider.svelte';
   import { PARAMETER_LABELS } from '../../lib/constants';
   import {
@@ -58,6 +62,8 @@
     startCircuitRun,
     tickCircuitRun,
     finishCircuitStep,
+    setCircuitDetail,
+    detailDefaults,
     skipCircuitStep,
     previousCircuitStep,
     setCircuitResult,
@@ -342,6 +348,28 @@
     edits[id] = next;
     editingId = null;
   }
+  // --- Set details: weight, angle... for one set, behind a button ---
+  /** The set whose details are open. */
+  let detailFor = $state<{ member: number; round: number } | null>(null);
+  /** The per-set numbers a member can have besides its reps (which the stepper holds). */
+  function detailKeysOf(member: number): PerSetKey[] {
+    const slot = members[member]?.slot;
+    if (!slot) return [];
+    const tracked = slot.activeParameters ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? [];
+    return perSetKeysFor(tracked, trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.perSetParameters).filter((k) => k !== 'reps');
+  }
+  /** The set the button is about: the one under way, or the one just finished while resting. */
+  const detailTarget = $derived.by(() => {
+    if (step?.kind === 'work') return { member: step.member, round: step.round };
+    if (previous) return { member: previous.member, round: previous.round };
+    return null;
+  });
+  const detailTargetKeys = $derived(detailTarget ? detailKeysOf(detailTarget.member) : []);
+  function saveDetail(row: import('../../lib/exercise/setRows').SetRow) {
+    if (!detailFor) return;
+    run = setCircuitDetail(run, members[detailFor.member].slot.id, detailFor.round, row);
+    detailFor = null;
+  }
   function discard() {
     forget();
     onClose();
@@ -388,7 +416,7 @@
   });
   // Corrections and reps change the saved run but not the plan.
   $effect(() => {
-    void JSON.stringify(run.results);
+    void JSON.stringify([run.results, run.extras]);
     untrack(save);
   });
 
@@ -575,7 +603,7 @@
           <div class="min-w-0 flex-1">
             <p class="text-body font-bold text-content truncate">{memberName(i)}</p>
             <p class="text-caption text-content-subtle tabular-nums">
-              {#if results.length === 0}Not done{:else}{results.map((v) => v === null || v === undefined ? '–' : (m.values.timeOn || (!m.values.reps && m.values.duration)) ? formatClock(v * 1000) : `${v}`).join(' · ')}{/if}
+              {#if results.length === 0}Not done{:else}{#if logged[m.slot.id] && formatPerSet(logged[m.slot.id]!, 'weight', (n) => String(Math.round(displayWeight(n, trainingState.units.weight) * 10) / 10))}{formatPerSet(logged[m.slot.id]!, 'weight', (n) => String(Math.round(displayWeight(n, trainingState.units.weight) * 10) / 10))} {trainingState.units.weight} ·{' '}{/if}{results.map((v) => v === null || v === undefined ? '–' : (m.values.timeOn || (!m.values.reps && m.values.duration)) ? formatClock(v * 1000) : `${v}`).join(' · ')}{/if}
             </p>
           </div>
           {#if logged[m.slot.id]}
@@ -732,6 +760,13 @@
       {:else if step.kind === 'leadIn'}
         <button onclick={finishStep} class="w-full py-4 bg-primary hover:bg-primary-hover text-white rounded-control text-label font-bold transition-all active:scale-[0.98]">I'm ready</button>
       {/if}
+      {#if detailTarget && detailTargetKeys.length > 0}
+        <button onclick={() => (detailFor = detailTarget)} class="w-full py-2 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5">
+          <Icon icon="ic:baseline-tune" class="text-base" />
+          {step?.kind === 'work' ? 'Set' : 'Last set'} details
+          <span class="font-normal text-caption">({detailTargetKeys.map((k) => PARAMETER_LABELS[k as keyof typeof PARAMETER_LABELS] ?? k).join(', ')})</span>
+        </button>
+      {/if}
       <div class="flex items-center gap-2">
         <button onclick={back} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" aria-label="Back: restart this step, or the previous one">
           <Icon icon="ic:baseline-skip-previous" class="text-base" /> Back
@@ -766,6 +801,18 @@
         <ExerciseDetails slot={m.slot} values={m.values} inGroup showHowTo />
       </div>
     </div>
+  {/if}
+
+  {#if detailFor}
+    {@const dm = members[detailFor.member]}
+    <SetDetailSheet
+      title={memberName(detailFor.member)}
+      subtitle="Set {detailFor.round + 1} · its own numbers"
+      keys={detailKeysOf(detailFor.member)}
+      initial={detailDefaults(run, dm.values, dm.slot.id, detailFor.round, detailKeysOf(detailFor.member))}
+      onSave={saveDetail}
+      onCancel={() => (detailFor = null)}
+    />
   {/if}
 
   {#if editingMember && logged[editingMember.slot.id]}

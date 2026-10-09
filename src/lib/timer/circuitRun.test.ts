@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { ExerciseGroup, ExerciseSlot } from "../types";
 import {
   buildCircuitLive,
+  type CircuitRunState,
   circuitLoggedValues,
+  detailDefaults,
+  setCircuitDetail,
   previousCircuitStep,
   repeaterPosition,
   roundsDone,
@@ -262,5 +265,43 @@ describe("ending a circuit early", () => {
   it("logs nothing for a member the run never reached", () => {
     const st = tickCircuitRun(steps, startCircuitRun(), 5_000 + 30_000);
     expect(circuitLoggedValues(members, st).push).toBeUndefined();
+  });
+});
+
+describe("weights per set in a circuit", () => {
+  const g: ExerciseGroup = { id: "g", rounds: 3, transition: 10 };
+  const pull = member("pull", { reps: 6, weight: 10 });
+  const run = (extras: Array<[number, Record<string, number>]>) => {
+    let state: CircuitRunState = { ...startCircuitRun(), results: { pull: [6, 5, 4] } };
+    for (const [round, row] of extras) state = setCircuitDetail(state, "pull", round, row);
+    return state;
+  };
+
+  it("logs the plain plan when nothing was entered", () => {
+    expect(circuitLoggedValues([pull], run([])).pull).toMatchObject({ sets: 3, reps: [6, 5, 4], weight: 10 });
+    expect(circuitLoggedValues([pull], run([])).pull?.setDetails).toBeUndefined();
+  });
+
+  it("logs the weight of each set beside its reps", () => {
+    const v = circuitLoggedValues([pull], run([[0, { weight: 10 }], [1, { weight: 12.5 }], [2, { weight: 15 }]])).pull!;
+    expect(v.reps).toEqual([6, 5, 4]);
+    expect(v.setDetails).toEqual([{ weight: 10 }, { weight: 12.5 }, { weight: 15 }]);
+    expect(v.weight).toBe(12.5);
+  });
+
+  it("a set without its own entry keeps the plan's weight", () => {
+    const v = circuitLoggedValues([pull], run([[1, { weight: 20 }]])).pull!;
+    expect(v.setDetails).toEqual([{ weight: 10 }, { weight: 20 }, { weight: 10 }]);
+  });
+
+  it("opens a set with the last entry before it, so one entry carries on", () => {
+    const state = run([[0, { weight: 12.5 }]]);
+    expect(detailDefaults(state, { reps: 6, weight: 10 }, "pull", 2, ["weight"])).toEqual({ weight: 12.5 });
+    expect(detailDefaults(run([]), { reps: 6, weight: 10 }, "pull", 1, ["weight"])).toEqual({ weight: 10 });
+  });
+
+  it("a skipped set is not a row", () => {
+    const state = { ...run([[0, { weight: 8 }], [2, { weight: 9 }]]), results: { pull: [6, null, 4] } };
+    expect(circuitLoggedValues([pull], state).pull?.setDetails).toEqual([{ weight: 8 }, { weight: 9 }]);
   });
 });

@@ -1,4 +1,5 @@
-import type { ExerciseGroup, ExerciseValues } from "../types";
+import type { ExerciseGroup, ExerciseValues, PerSetKey } from "../types";
+import { setRows, withSetRows, PER_SET_KEYS, type SetRow } from "../exercise/setRows";
 import { groupTiming, memberRounds, restBetweenRounds, switchSeconds, type GroupMember } from "../exercise/groups";
 import { toRepsArray } from "../exercise/reps";
 import { restSeconds } from "../exercise/rest";
@@ -48,6 +49,8 @@ export interface CircuitRunState {
    * seconds for a timed one, `null` for a set that was skipped.
    */
   results: Record<string, (number | null)[]>;
+  /** Numbers entered for a set beyond its reps/time (weight, angle...), by slot id and round. */
+  extras?: Record<string, (SetRow | undefined)[]>;
   done: boolean;
 }
 
@@ -214,6 +217,27 @@ export function setCircuitResult(state: CircuitRunState, slotId: string, round: 
   return { ...state, results: { ...state.results, [slotId]: list } };
 }
 
+/** Sets the details of one set (what weight, which angle...); an empty row clears them. */
+export function setCircuitDetail(state: CircuitRunState, slotId: string, round: number, row: SetRow | undefined): CircuitRunState {
+  const list = [...(state.extras?.[slotId] ?? [])];
+  list[round] = row && Object.keys(row).length > 0 ? row : undefined;
+  return { ...state, extras: { ...(state.extras ?? {}), [slotId]: list } };
+}
+
+/**
+ * The numbers a set starts with when its details open: what was entered for the
+ * latest earlier set of this exercise (so one entry carries on), else the plan's
+ * number for that round.
+ */
+export function detailDefaults(state: CircuitRunState, values: ExerciseValues, slotId: string, round: number, keys: PerSetKey[]): SetRow {
+  const planned = setRows(values, keys)[Math.min(round, Math.max(0, setRows(values, keys).length - 1))] ?? {};
+  const list = state.extras?.[slotId] ?? [];
+  for (let r = round; r >= 0; r--) {
+    if (list[r]) return { ...planned, ...list[r] };
+  }
+  return planned;
+}
+
 /** The last work step before the current one - what the rest after a set lets the user correct. */
 export function previousWork(steps: CircuitStep[], state: CircuitRunState): Extract<CircuitStep, { kind: "work" }> | undefined {
   const upTo = state.done ? steps.length : state.stepIndex;
@@ -277,15 +301,31 @@ export function circuitProgress(steps: CircuitStep[], state: CircuitRunState): C
 export function circuitLoggedValues(members: GroupMember[], state: CircuitRunState): Record<string, ExerciseValues | undefined> {
   const out: Record<string, ExerciseValues | undefined> = {};
   for (const { slot, values } of members) {
-    const done = (state.results[slot.id] ?? []).filter((v): v is number => v !== null && v !== undefined);
-    if (done.length === 0) {
+    const results = state.results[slot.id] ?? [];
+    const doneRounds = results.map((v, r) => ({ v, r })).filter((x): x is { v: number; r: number } => x.v !== null && x.v !== undefined);
+    if (doneRounds.length === 0) {
       out[slot.id] = undefined;
       continue;
     }
     const timed = Number(values.timeOn) > 0 || (!values.reps && Number(values.duration) > 0);
-    const logged: ExerciseValues = { ...values, sets: done.length };
+    const logged: ExerciseValues = { ...values, sets: doneRounds.length };
     delete logged.notes; // the plan's note stays the plan's: "how it went" is the user's to write
-    if (!timed) logged.reps = done;
+    delete logged.setDetails;
+    if (!timed) logged.reps = doneRounds.map((x) => x.v);
+    const extras = state.extras?.[slot.id] ?? [];
+    if (doneRounds.some((x) => extras[x.r])) {
+      // Sets with their own numbers: each done round is a row - the plan's number for that round, the reps counted, then what was entered.
+      const planned = setRows(values);
+      const keys = new Set<PerSetKey>();
+      const rows = doneRounds.map(({ v, r }) => {
+        const row: SetRow = { ...(planned[Math.min(r, planned.length - 1)] ?? {}), ...(extras[r] ?? {}) };
+        if (!timed) row.reps = v;
+        for (const k of Object.keys(row) as PerSetKey[]) if (PER_SET_KEYS.includes(k)) keys.add(k);
+        return row;
+      });
+      out[slot.id] = withSetRows(logged, rows, [...keys]);
+      continue;
+    }
     out[slot.id] = logged;
   }
   return out;
