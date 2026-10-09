@@ -29,7 +29,7 @@
 
   /** One field fills the row; two sit side by side; an odd one out spans the width; landscape spreads up to three. */
   const GRID: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-2 short:grid-cols-3', 4: 'grid-cols-2' };
-  const cell = (i: number) => (keys.length % 2 === 1 && keys.length > 1 && i === keys.length - 1 ? 'col-span-2 short:col-span-1' : '');
+  const cell = (_i: number) => ''; // an odd one out keeps its place in the column grid, same width as the rest
 
   let draft = $state<Record<string, string>[]>(
     // svelte-ignore state_referenced_locally
@@ -80,7 +80,7 @@
       {#each draft as row, i (i)}
         <div class="flex items-center gap-2 px-2.5 py-1.5">
           <span class="w-12 shrink-0 text-caption font-bold text-content-muted">Set {i + 1}</span>
-          <span class="flex-1 min-w-0 max-w-[12rem] flex items-stretch gap-1">
+          <span class="flex-1 min-w-0 max-w-[10rem] flex items-stretch gap-1">
             {#if stepped(k)}
               <button type="button" onclick={() => bump(i, k, -1)} class="shrink-0 w-9 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted grid place-items-center active:scale-95" aria-label="Less {label(k)}"><Icon icon="ic:baseline-remove" class="text-base" /></button>
             {/if}
@@ -111,7 +111,7 @@
             {#each keys as k, ki (k)}
               <label class="min-w-0 block {cell(ki)}">
                 <span class="block text-caption text-content-subtle truncate mb-0.5">{label(k)}{isWeight(k) ? ` (${trainingState.units.weight})` : UNITS[k] ? ` (${UNITS[k]})` : ''}</span>
-                <span class="flex items-stretch gap-1 max-w-[12rem]">
+                <span class="flex items-stretch gap-1">
                   {#if stepped(k)}
                     <button type="button" onclick={() => bump(i, k, -1)} class="shrink-0 w-8 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted grid place-items-center active:scale-95" aria-label="Less {label(k)}"><Icon icon="ic:baseline-remove" class="text-base" /></button>
                   {/if}

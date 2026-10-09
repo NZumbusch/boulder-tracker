@@ -356,7 +356,7 @@
   const leadStyles: NonNullable<ExerciseValues['leadStyle']>[number][] = [...LEAD_STYLES];
 </script>
 
-<div class="bg-surface/50 border border-border rounded-card p-5 space-y-4 backdrop-blur-sm animate-in zoom-in-95 duration-300">
+<div class="form-grid bg-surface/50 border border-border rounded-card p-5 backdrop-blur-sm animate-in zoom-in-95 duration-300">
   <div class="space-y-1.5">
     <span class="text-label text-content-subtle ml-1 block">Exercise</span>
     <button
@@ -390,7 +390,7 @@
     </div>
   {/if}
 
-  <div class="grid grid-cols-1 gap-5 pt-1">
+  <div class="form-grid fields-grid pt-1">
     {#if activeParams.includes('boulderingGrades') || activeParams.includes('grades')}
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1.5"><label for="ex-min-grade" class="text-label text-content-subtle ml-1">Min Grade</label><select id="ex-min-grade" bind:value={minGrade} class="w-full bg-surface-elevated text-content p-2.5 rounded-control border border-border-strong outline-none text-xs">{#each bGrades as g} <option value={g}>{g}</option> {/each}</select></div>
@@ -610,6 +610,9 @@
 {/if}
 
 <style>
-  /* A single number never needs the full width: cap its box. */
-  input[type='number'] { max-width: 12rem; }
+  /* Number fields sit two to a row, in equal columns, so singles and pairs line up; everything else spans the width. */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 0.75rem; }
+  .fields-grid { row-gap: 1.25rem; }
+  .form-grid > :global(*) { grid-column: 1 / -1; }
+  .form-grid > :global(div:has(> input[type='number'])) { grid-column: auto; }
 </style>
