@@ -17,6 +17,11 @@
   import { formatMinutes } from '../../lib/session/formatSession';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { canCopyImages } from '../../lib/share/imageShare';
+  import { describeResult } from '../../lib/benchmarks/model';
+  import { getWeekDates } from '../../lib/dateUtils';
+  import { parseFontGrade } from '../../lib/analytics/grades';
+  import { hasTargets, isFingerSession, weekProgress, weekProgressText } from '../../lib/analytics/targets';
+  import { fingerCategoryIds } from '../../lib/analytics/proMetrics';
   import { copyCard, shareCard } from '../../lib/share/cardShare';
   import Icon from '@iconify/svelte';
 
@@ -43,6 +48,30 @@
       ? { value: Math.round(workouts.reduce((sum, w) => sum + (w.status === 'completed' ? w.loadFactor || 0 : 0), 0)), label: 'Load' }
       : { value: Math.round(workouts.reduce((sum, w) => sum + workoutPlannedLoad(w.exercises, w.groups), 0)), label: 'Planned load' },
   );
+
+  /** What the week held besides sessions: test results, sends and how it measured against the targets - up to three short lines. */
+  const highlights = $derived.by(() => {
+    const lines: string[] = [];
+    const tests = trainingState.benchmarks.filter((b) => b.weekId === weekId).map((b) => { const r = describeResult(b, trainingState.benchmarkTypes, trainingState.valueDefs, trainingState.units.weight); return `${r.title} ${r.value}`.trim(); });
+    if (tests.length) lines.push(`Tests: ${tests.slice(0, 2).join(' · ')}${tests.length > 2 ? ` +${tests.length - 2}` : ''}`);
+    const dates = getWeekDates(weekId);
+    if (dates) {
+      const from = dates.start.toISOString().slice(0, 10);
+      const to = dates.end.toISOString().slice(0, 10);
+      const sends = trainingState.outdoorAscents.filter((a) => a.date.slice(0, 10) >= from && a.date.slice(0, 10) <= to);
+      if (sends.length) {
+        const hardest = sends.reduce((best, a) => ((parseFontGrade(a.grade) ?? -1) > (parseFontGrade(best.grade) ?? -1) ? a : best), sends[0]);
+        lines.push(`${sends.length} outdoor send${sends.length === 1 ? '' : 's'}${hardest.grade ? ` · hardest ${hardest.grade}` : ''}`);
+      }
+    }
+    const targets = trainingState.athleteProfile?.targets;
+    if (hasTargets(targets) && doneCount > 0) {
+      const fingers = fingerCategoryIds(trainingState.analyticsCategories, trainingState.fingerCategoryIds);
+      const text = weekProgressText(weekProgress(targets, workouts.filter((w) => w.status === 'completed'), (w) => isFingerSession(w, trainingState.exerciseTypes, trainingState.analyticsCategories, fingers)));
+      if (text) lines.push(text);
+    }
+    return lines.slice(0, 3);
+  });
 
   function exercisesLine(w: Workout): string {
     const names = w.exercises.map((e) => slotTypeName(e, trainingState.exerciseTypes));
@@ -122,6 +151,12 @@
         {/each}
         <div class="absolute bottom-0 left-0 right-0 h-6 pointer-events-none" style="background: linear-gradient(to bottom, rgba(6,6,7,0), #060607);"></div>
       </div>
+
+      {#if highlights.length}
+        <div class="relative z-10 shrink-0 mb-3 space-y-0.5">
+          {#each highlights as line}<p class="text-[10px] font-bold text-[rgba(255,255,255,0.7)] truncate flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#3b82f6] shrink-0"></span><span class="truncate">{line}</span></p>{/each}
+        </div>
+      {/if}
 
       <!-- Footer -->
       <div class="relative z-10 shrink-0 flex justify-between items-end border-t border-[rgba(255,255,255,0.1)] pt-4">
