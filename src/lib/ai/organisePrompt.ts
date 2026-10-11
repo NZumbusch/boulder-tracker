@@ -1,4 +1,4 @@
-import type { AnalyticsCategory, Circuit, CoachNote, ExerciseTypeDef, PhaseDef, TrainingBlock, Workout, WorkoutTemplate } from "../types";
+import type { AnalyticsCategory, Benchmark, BenchmarkTypeDef, Circuit, CoachNote, ExerciseTypeDef, GoalEvent, PainIssue, PhaseDef, TrainingBlock, ValueDef, Workout, WorkoutTemplate } from "../types";
 import { exerciseGroup } from "../exercise/library";
 import { buildAnalyticsCategorySummaries } from "./context";
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH } from "./coachNotes";
@@ -13,13 +13,17 @@ import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH } from "./coachNotes";
  * Coach modal gathers the inputs and copies it.
  */
 
-export type OrganiseArea = "exercises" | "circuits" | "phases" | "notes";
+export type OrganiseArea = "exercises" | "circuits" | "phases" | "notes" | "values" | "tests" | "goals" | "pain";
 
 export const ORGANISE_AREAS: { id: OrganiseArea; label: string; hint: string }[] = [
   { id: "exercises", label: "Exercises", hint: "Categories, groups, names, how-tos, unused ones" },
   { id: "circuits", label: "Circuits", hint: "Names, descriptions, duplicates" },
   { id: "phases", label: "Phases", hint: "Names, ones nothing uses" },
   { id: "notes", label: "Coach notes", hint: "Merge, trim, remove stale" },
+  { id: "values", label: "Custom fields", hint: "Names, units, unused ones" },
+  { id: "tests", label: "Benchmark tests", hint: "Names, folders, how-to text" },
+  { id: "goals", label: "Goals", hint: "Names, notes, ones that are over" },
+  { id: "pain", label: "Pain issues", hint: "Names, notes, old open ones" },
 ];
 
 export interface OrganisePromptSource {
@@ -31,6 +35,13 @@ export interface OrganisePromptSource {
   trainingBlocks?: TrainingBlock[];
   templates?: Record<string, WorkoutTemplate[]>;
   coachNotes?: CoachNote[];
+  valueDefs?: ValueDef[];
+  benchmarkTypes?: BenchmarkTypeDef[];
+  benchmarks?: Benchmark[];
+  goals?: GoalEvent[];
+  painIssues?: PainIssue[];
+  /** "YYYY-MM-DD" - what "over" and "still open" are measured against. */
+  today?: string;
 }
 
 /** How many completed sessions used each exercise type, by id. */
@@ -133,8 +144,76 @@ function notesPart(source: OrganisePromptSource) {
   };
 }
 
+function valuesPart(source: OrganisePromptSource) {
+  const defs = (source.valueDefs ?? []).filter((v) => !v.archived);
+  const lines = defs
+    .map((v) => JSON.stringify({
+      name: v.name, kind: v.kind, ...(v.unit ? { unit: v.unit } : {}), ...(v.measure ? { measure: v.measure } : {}),
+      onExercises: source.exerciseTypes.filter((t) => !t.archived && (t.parameters as string[]).includes(`v:${v.id}`)).length,
+      inTests: (source.benchmarkTypes ?? []).filter((b) => !b.archived && b.fields?.some((f) => f.valueId === v.id)).length,
+    }))
+    .join("\n");
+  return {
+    intro: `- CUSTOM FIELDS: the extra things I can record on exercises and tests (e.g. "Edge depth", "Hang time").`,
+    shape: `  "valueTypes": [ { "action": "edit", "name": "Edge", "rename": "Edge depth", "unit": "mm" }, { "action": "archive", "name": "Unused field" } ],`,
+    rules: `CUSTOM FIELDS
+- Use only "edit" with "name" plus "rename" and/or "unit" (a plain number's unit - never one with a "measure", which the app converts itself, and never a pick-list), or "archive" for a field with "onExercises": 0 and "inTests": 0. Never add one.
+- Rename for clarity and consistency (same style, no abbreviations that mean nothing to me); everything recorded with a field stays.`,
+    data: `MY CUSTOM FIELDS (name, kind, unit, how many exercises and tests use it):\n${lines || "(none)"}`,
+  };
+}
+
+function testsPart(source: OrganisePromptSource) {
+  const results = new Map<string, { count: number; last: string }>();
+  for (const b of source.benchmarks ?? []) {
+    const r = results.get(b.typeId) ?? { count: 0, last: "" };
+    results.set(b.typeId, { count: r.count + 1, last: r.last > b.date ? r.last : b.date });
+  }
+  const lines = (source.benchmarkTypes ?? [])
+    .filter((b) => !b.archived)
+    .map((b) => JSON.stringify({ name: b.name, ...(b.group ? { folder: b.group } : {}), unit: b.unit, results: results.get(b.id)?.count ?? 0, ...(results.get(b.id)?.last ? { lastResult: results.get(b.id)!.last } : {}), ...(b.protocol?.trim() ? { howTo: b.protocol.trim().slice(0, 140) } : {}) }))
+    .join("\n");
+  return {
+    intro: `- BENCHMARK TESTS: the repeatable tests I log results for (e.g. Max hang, 1RM pull-up), kept in folders.`,
+    shape: `  "benchmarkTypes": [ { "action": "edit", "name": "Max hang", "rename": "Max hang 20 mm", "group": "Fingers", "protocol": "Warm up, then 3 attempts, 3 min rest." }, { "action": "archive", "name": "Old test" } ],`,
+    rules: `BENCHMARK TESTS
+- Use only "edit" with "name" plus "rename", "group" (the folder) and/or "protocol" (how to do it), or "archive" for a test with "results": 0 or one that duplicates another. Never add one or change what it measures.
+- Reuse an existing folder name when one fits. Tidy or shorten a how-to; add one only where its name makes the protocol obvious. Results are never touched.`,
+    data: `MY BENCHMARK TESTS (name, folder, unit, results logged, last result, how-to):\n${lines || "(none)"}`,
+  };
+}
+
+function goalsPart(source: OrganisePromptSource) {
+  const today = source.today ?? new Date().toISOString().slice(0, 10);
+  const lines = (source.goals ?? [])
+    .map((g) => JSON.stringify({ name: g.name, kind: g.kind, date: g.date, ...(g.endDate && g.endDate !== g.date ? { endDate: g.endDate } : {}), status: (g.endDate ?? g.date) < today ? "over" : "upcoming", ...(g.notes?.trim() ? { notes: g.notes.trim().slice(0, 140) } : {}) }))
+    .join("\n");
+  return {
+    intro: `- GOALS: my competitions and outdoor trips.`,
+    shape: `  "goals": [ { "action": "edit", "name": "Font trip", "date": "2026-11-02", "rename": "Fontainebleau trip", "notes": "Tidier notes." }, { "action": "remove", "name": "Old comp", "date": "2025-03-01" } ],`,
+    rules: `GOALS
+- Use only "edit" with "name" (plus "date" when two goals share a name) and "rename" and/or "notes", or "remove" - only for a goal with "status": "over" that is clearly just clutter. Never change dates, places or projects, and never add one.
+- Tidy wordy or duplicated notes; keep anything that records how it went.`,
+    data: `MY GOALS (name, kind, dates, status, notes):\n${lines || "(none)"}`,
+  };
+}
+
+function painPart(source: OrganisePromptSource) {
+  const lines = (source.painIssues ?? [])
+    .map((p) => JSON.stringify({ name: p.bodyPart, startDate: p.startDate, ...(p.endDate ? { endDate: p.endDate, ...(p.endEstimated ? { endEstimated: true } : {}) } : { status: "open" }), ...(p.watchCategories?.length ? { watches: p.watchCategories } : {}), ...(p.notes?.trim() ? { notes: p.notes.trim().slice(0, 140) } : {}) }))
+    .join("\n");
+  return {
+    intro: `- PAIN ISSUES: the aches and injuries I track. Health data - be conservative.`,
+    shape: `  "painIssues": [ { "action": "edit", "name": "Finger", "startDate": "2026-05-01", "rename": "Left ring finger A2", "notes": "Tidier notes." }, { "action": "resolve", "name": "Elbow", "endDate": "2026-08-10" } ],`,
+    rules: `PAIN ISSUES
+- Use only "edit" (with "name", "startDate" when a name recurs, and "rename", "notes" and/or "watchCategories" - existing analytics category names) or "resolve" with an "endDate" (not in the future) for an "open" issue that my notes show is over. If it is unclear whether an issue is over, leave it and mention it in the summary - never guess. Never add or delete one.
+- Make names consistent (body part, side, detail) and notes concise without losing what happened.`,
+    data: `MY PAIN ISSUES (name, start, end or open, watched categories, notes):\n${lines || "(none)"}`,
+  };
+}
+
 export function buildOrganisePrompt(source: OrganisePromptSource, request: string, areas: OrganiseArea[] = ["exercises"]): string {
-  const parts = ORGANISE_AREAS.filter((a) => areas.includes(a.id)).map((a) => (a.id === "exercises" ? exercisesPart(source) : a.id === "circuits" ? circuitsPart(source) : a.id === "phases" ? phasesPart(source) : notesPart(source)));
+  const parts = ORGANISE_AREAS.filter((a) => areas.includes(a.id)).map((a) => ({ exercises: exercisesPart, circuits: circuitsPart, phases: phasesPart, notes: notesPart, values: valuesPart, tests: testsPart, goals: goalsPart, pain: painPart })[a.id](source));
   const what = request.trim() || DEFAULT_REQUEST + (areas.includes("exercises") ? " In particular split any catch-all category (like \"Other\") into real ones, and file every exercise where it belongs." : "");
   return `You are helping me tidy the saved data in a climbing training app. Only these areas, nothing else:
 ${parts.map((p) => p.intro).join("\n") || "(nothing selected)"}

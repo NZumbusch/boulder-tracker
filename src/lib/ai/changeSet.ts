@@ -151,6 +151,26 @@ export type CSCategoryChange =
   | { action: "rename"; name: string; rename: string }
   | { action: "archive"; name: string };
 
+/** Custom value types (the trackable fields): tidy names and units, retire one - ids and stored values are never touched. */
+export type CSValueTypeChange =
+  | { action: "edit"; name: string; rename?: string; unit?: string }
+  | { action: "archive"; name: string };
+
+/** Benchmark tests: tidy the name, folder and protocol text, retire one. Its results are never touched. */
+export type CSBenchmarkTypeChange =
+  | { action: "edit"; name: string; rename?: string; group?: string; protocol?: string }
+  | { action: "archive"; name: string };
+
+/** Competitions and trips, found by name (and date when two share one): tidy the name or notes, remove one that is over. */
+export type CSGoalChange =
+  | { action: "edit"; name: string; date?: string; rename?: string; notes?: string }
+  | { action: "remove"; name: string; date?: string };
+
+/** Pain issues, found by name (and start date when one body part recurs). */
+export type CSPainIssueChange =
+  | { action: "edit"; name: string; startDate?: string; rename?: string; notes?: string; watchCategories?: string[] }
+  | { action: "resolve"; name: string; startDate?: string; endDate: string };
+
 export type CSPhaseChange =
   | { action: "add"; name: string; sessions: CSSession[] }
   | { action: "edit"; name: string; rename?: string; sessions?: CSSession[]; sessionChanges?: CSSessionChange[] }
@@ -207,6 +227,11 @@ export interface AIChangeSet {
   planB: CSPlanB[];
   coachNotes: CoachNoteChange[];
   circuits: CSCircuitChange[];
+  /** Optional, like categories: older change sets have none. */
+  valueTypes?: CSValueTypeChange[];
+  benchmarkTypes?: CSBenchmarkTypeChange[];
+  goals?: CSGoalChange[];
+  painIssues?: CSPainIssueChange[];
 }
 
 // --- Validation -----------------------------------------------------------
@@ -552,6 +577,119 @@ function validateCategoryChange(raw: unknown, path: string, issues: Issues): CSC
   }
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function isoDay(raw: unknown, path: string, issues: Issues): string | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw === "string" && ISO_DAY.test(raw)) return raw;
+  issues.push({ path, message: `Expected a date like "2026-09-30", got ${JSON.stringify(raw)}.` });
+  return undefined;
+}
+
+function trimmed(raw: unknown, path: string, issues: Issues): string | undefined {
+  const v = validateOptionalString(raw, path, issues)?.trim();
+  return v || undefined;
+}
+
+function validateValueTypeChange(raw: unknown, path: string, issues: Issues): CSValueTypeChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a value type change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  if (!name) return null;
+  if (raw.action === "archive") return { action: "archive", name };
+  if (raw.action !== "edit") {
+    issues.push({ path: `${path}.action`, message: `Expected "edit" or "archive", got ${JSON.stringify(raw.action)}.` });
+    return null;
+  }
+  const rename = trimmed(raw.rename, `${path}.rename`, issues);
+  const unit = trimmed(raw.unit, `${path}.unit`, issues);
+  if (!rename && unit === undefined) {
+    issues.push({ path, message: 'A value type "edit" needs "rename" or "unit".' });
+    return null;
+  }
+  return { action: "edit", name, ...(rename ? { rename } : {}), ...(unit !== undefined ? { unit } : {}) };
+}
+
+function validateBenchmarkTypeChange(raw: unknown, path: string, issues: Issues): CSBenchmarkTypeChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a benchmark change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  if (!name) return null;
+  if (raw.action === "archive") return { action: "archive", name };
+  if (raw.action !== "edit") {
+    issues.push({ path: `${path}.action`, message: `Expected "edit" or "archive", got ${JSON.stringify(raw.action)}.` });
+    return null;
+  }
+  const rename = trimmed(raw.rename, `${path}.rename`, issues);
+  const group = trimmed(raw.group, `${path}.group`, issues);
+  const protocol = trimmed(raw.protocol, `${path}.protocol`, issues);
+  if (!rename && !group && !protocol) {
+    issues.push({ path, message: 'A benchmark "edit" needs "rename", "group" or "protocol".' });
+    return null;
+  }
+  return { action: "edit", name, ...(rename ? { rename } : {}), ...(group ? { group } : {}), ...(protocol ? { protocol } : {}) };
+}
+
+function validateGoalChange(raw: unknown, path: string, issues: Issues): CSGoalChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a goal change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  if (!name) return null;
+  const date = isoDay(raw.date, `${path}.date`, issues);
+  if (raw.action === "remove") return { action: "remove", name, ...(date ? { date } : {}) };
+  if (raw.action !== "edit") {
+    issues.push({ path: `${path}.action`, message: `Expected "edit" or "remove", got ${JSON.stringify(raw.action)}.` });
+    return null;
+  }
+  const rename = trimmed(raw.rename, `${path}.rename`, issues);
+  const notes = validateNote(raw.notes, `${path}.notes`, issues);
+  if (!rename && notes === undefined) {
+    issues.push({ path, message: 'A goal "edit" needs "rename" or "notes".' });
+    return null;
+  }
+  return { action: "edit", name, ...(date ? { date } : {}), ...(rename ? { rename } : {}), ...(notes !== undefined ? { notes } : {}) };
+}
+
+function validatePainIssueChange(raw: unknown, path: string, issues: Issues): CSPainIssueChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a pain issue change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues);
+  if (!name) return null;
+  const startDate = isoDay(raw.startDate, `${path}.startDate`, issues);
+  if (raw.action === "resolve") {
+    const endDate = isoDay(raw.endDate, `${path}.endDate`, issues);
+    if (!endDate) {
+      issues.push({ path: `${path}.endDate`, message: 'A "resolve" needs the "endDate".' });
+      return null;
+    }
+    return { action: "resolve", name, ...(startDate ? { startDate } : {}), endDate };
+  }
+  if (raw.action !== "edit") {
+    issues.push({ path: `${path}.action`, message: `Expected "edit" or "resolve", got ${JSON.stringify(raw.action)}.` });
+    return null;
+  }
+  const rename = trimmed(raw.rename, `${path}.rename`, issues);
+  const notes = validateNote(raw.notes, `${path}.notes`, issues);
+  let watchCategories: string[] | undefined;
+  if (raw.watchCategories !== undefined) {
+    if (Array.isArray(raw.watchCategories) && raw.watchCategories.every((c) => typeof c === "string")) watchCategories = raw.watchCategories.map((c: string) => c.trim()).filter(Boolean);
+    else issues.push({ path: `${path}.watchCategories`, message: "Expected an array of category names." });
+  }
+  if (!rename && notes === undefined && !watchCategories) {
+    issues.push({ path, message: 'A pain issue "edit" needs "rename", "notes" or "watchCategories".' });
+    return null;
+  }
+  return { action: "edit", name, ...(startDate ? { startDate } : {}), ...(rename ? { rename } : {}), ...(notes !== undefined ? { notes } : {}), ...(watchCategories ? { watchCategories } : {}) };
+}
+
 function validateExerciseTypeChange(raw: unknown, path: string, issues: Issues): CSExerciseTypeChange | null {
   if (!isPlainObject(raw)) {
     issues.push({ path, message: `Expected an exercise type change, got ${JSON.stringify(raw)}.` });
@@ -802,9 +940,13 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
     planB: validateList(raw.planB, "planB", issues, validatePlanB),
     coachNotes: validateList(raw.coachNotes, "coachNotes", issues, validateCoachNoteChange),
     circuits: validateList(raw.circuits, "circuits", issues, validateCircuitChange),
+    ...(raw.valueTypes !== undefined ? { valueTypes: validateList(raw.valueTypes, "valueTypes", issues, validateValueTypeChange) } : {}),
+    ...(raw.benchmarkTypes !== undefined ? { benchmarkTypes: validateList(raw.benchmarkTypes, "benchmarkTypes", issues, validateBenchmarkTypeChange) } : {}),
+    ...(raw.goals !== undefined ? { goals: validateList(raw.goals, "goals", issues, validateGoalChange) } : {}),
+    ...(raw.painIssues !== undefined ? { painIssues: validateList(raw.painIssues, "painIssues", issues, validatePainIssueChange) } : {}),
   };
-  if (!issues.some(isError) && (set.categories?.length ?? 0) + set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length + set.circuits.length === 0) {
-    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "categories", "exerciseTypes", "circuits", "phases", "weeks", "planB" or "coachNotes".' });
+  if (!issues.some(isError) && (set.categories?.length ?? 0) + set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length + set.circuits.length + (set.valueTypes?.length ?? 0) + (set.benchmarkTypes?.length ?? 0) + (set.goals?.length ?? 0) + (set.painIssues?.length ?? 0) === 0) {
+    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "categories", "exerciseTypes", "circuits", "phases", "weeks", "planB", "coachNotes", "valueTypes", "benchmarkTypes", "goals" or "painIssues".' });
   }
   return split(issues.some(isError) ? null : set, issues);
 }
@@ -812,7 +954,7 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
 /** True if a parsed document looks like a change set rather than the older weekly/phase plan formats. */
 export function isChangeSetShape(raw: unknown): boolean {
   if (!isPlainObject(raw)) return false;
-  if (raw.categories !== undefined || raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined || raw.circuits !== undefined) return true;
+  if (raw.categories !== undefined || raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined || raw.circuits !== undefined || raw.valueTypes !== undefined || raw.benchmarkTypes !== undefined || raw.goals !== undefined || raw.painIssues !== undefined) return true;
   const phases = Array.isArray(raw.phases) ? raw.phases : [];
   const weeks = Array.isArray(raw.weeks) ? raw.weeks : [];
   if (phases.some((p) => isPlainObject(p) && "action" in p)) return true;

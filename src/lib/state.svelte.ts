@@ -1480,6 +1480,8 @@ class TrainingState {
       circuits: this.circuits,
       benchmarkTypes: this.benchmarkTypes,
       valueDefs: this.valueDefs,
+      goals: this.goals,
+      painIssues: this.painIssues,
       today: this.todayIso,
       currentWeekId: this.currentWeekId,
     };
