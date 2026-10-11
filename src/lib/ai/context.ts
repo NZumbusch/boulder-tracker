@@ -16,7 +16,8 @@ import type {
   Workout,
 } from "../types";
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
-import { otherValuesText, resolveFields } from "../benchmarks/model";
+import { conditionFields, otherValuesText, resolveFields } from "../benchmarks/model";
+import { DEFAULT_RETEST_WEEKS, resultForSlot, testStatuses } from "../benchmarks/testSlot";
 import { repsRepresentative } from "../exercise/reps";
 import { hasPerSet, setRows } from "../exercise/setRows";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
@@ -374,6 +375,8 @@ export interface ModelOptions {
   fatigueHalfLife?: number;
   /** Half-life and softening together; wins over `fatigueHalfLife`. */
   fatigueModel?: Partial<FatigueModel>;
+  /** A test is due after this many weeks (Settings); default 6. */
+  retestWeeks?: number;
 }
 
 // --- Readiness / daily metrics --------------------------------------------
@@ -569,6 +572,67 @@ export function describeBenchmarks(results: Benchmark[], types: BenchmarkTypeDef
   });
 }
 
+/**
+ * A benchmark test as the AI is told about it: what it records, when it was
+ * last done and whether it is due, and where it is already scheduled - so it
+ * can plan the next one at a sensible time and not twice.
+ */
+export interface TestSummary {
+  name: string;
+  /** The result as "Added weight (kg)". */
+  result: string;
+  /** Names the AI uses under "conditions" when scheduling it. */
+  conditions?: { name: string; unit?: string; options?: string[]; fixed?: number | string }[];
+  better?: "lower";
+  protocol?: string;
+  last?: { date: string; value: string; conditions?: string };
+  weeksSince?: number;
+  /** Never done, or not for the retest interval. */
+  due: boolean;
+  /** Already planned, not yet done: where. */
+  plannedIn?: { week: string; session?: string; day?: string }[];
+}
+
+/** The tests on offer for a prompt, with their status as of `asOf`. */
+export function buildTestSummaries(source: AIContextSource, asOf: Date, retestWeeks = DEFAULT_RETEST_WEEKS): TestSummary[] {
+  const types = source.benchmarkTypes ?? [];
+  if (types.length === 0) return [];
+  const defs = source.valueDefs ?? [];
+  // Planned test slots with no result yet: where each test is already scheduled.
+  const planned = new Map<string, { week: string; session?: string; day?: string }[]>();
+  for (const w of source.workouts) {
+    if (w.status !== "planned") continue;
+    for (const slot of w.exercises) {
+      if (!slot.test || slot.skipped || resultForSlot(source.benchmarks, slot.id)) continue;
+      const list = planned.get(slot.test.typeId) ?? [];
+      list.push({ week: w.weekId, ...(w.notes ? { session: w.notes } : {}), ...(w.dayOfWeek ? { day: w.dayOfWeek } : {}) });
+      planned.set(slot.test.typeId, list);
+    }
+  }
+  return testStatuses(types, source.benchmarks, asOf, new Set(planned.keys()), retestWeeks).map(({ type, last, weeksSince, due }) => {
+    const fields = resolveFields(type, defs);
+    const primary = fields.find((f) => f.role === "result");
+    const conds = conditionFields(fields).map((f) => ({
+      name: f.label,
+      ...(f.unit ? { unit: f.unit } : {}),
+      ...(f.options.length ? { options: f.options } : {}),
+      ...(f.fixed !== undefined ? { fixed: f.fixed } : {}),
+    }));
+    const lastDescribed = last ? describeBenchmarks([last], types, defs)[0] : undefined;
+    return {
+      name: type.name,
+      result: `${primary?.label ?? "Result"}${primary?.unit || type.unit ? ` (${primary?.unit || type.unit})` : ""}`,
+      ...(conds.length ? { conditions: conds } : {}),
+      ...(type.direction === "lower" ? { better: "lower" as const } : {}),
+      ...(type.protocol ? { protocol: type.protocol.replace(/\s+/g, " ").slice(0, 240) } : {}),
+      ...(lastDescribed ? { last: { date: lastDescribed.date.slice(0, 10), value: `${lastDescribed.value} ${lastDescribed.unit}`.trim(), ...(lastDescribed.conditions ? { conditions: lastDescribed.conditions } : {}) } } : {}),
+      ...(weeksSince !== undefined ? { weeksSince } : {}),
+      due,
+      ...(planned.get(type.id) ? { plannedIn: planned.get(type.id) } : {}),
+    };
+  });
+}
+
 export interface AIContextProfile {
   exerciseModalities?: ExerciseModalitySummary[];
   /** Names only - see `buildArchivedExerciseNames`. */
@@ -582,6 +646,8 @@ export interface AIContextProfile {
   /** One line per older week - not for analyze, which is scoped to its own weeks. */
   weeklyHistory?: WeekHistorySummary[];
   benchmarks: AIBenchmark[];
+  /** The tests that can be scheduled, with when each was last done (not for analyze). */
+  tests?: TestSummary[];
   trainingBlocks?: TrainingBlockSummary[];
   goals?: GoalSummary[];
   readiness?: ReadinessSnapshot;
@@ -628,6 +694,11 @@ export function buildAIContextProfile(
   const windowWeekIds = mode === "context" ? [getWeekId(asOf)] : targetWeekIds;
 
   const profile: AIContextProfile = { recentWorkouts, benchmarks: describeBenchmarks(benchmarks, source.benchmarkTypes, source.valueDefs) };
+
+  if (mode !== "analyze") {
+    const tests = buildTestSummaries(source, asOf, model.retestWeeks);
+    if (tests.length) profile.tests = tests;
+  }
 
   if (mode !== "analyze" && history.summaryWeeks > 0) {
     const phaseOf = sharing.trainingBlocks

@@ -9,7 +9,7 @@
  * exercises[{exerciseTypeName, values}]) so the AI can copy what it sees
  * into an edit. One compact JSON object per line keeps the prompt short.
  */
-import type { Circuit, DayOfWeek, ExerciseGroup, ExerciseSlot, ExerciseTypeDef, PhaseDef, PlanAlternative, TrainingBlock, WeekNote, WeekOverride, Workout, WorkoutTemplate } from "../types";
+import type { BenchmarkTypeDef, ValueDef, Circuit, DayOfWeek, ExerciseGroup, ExerciseSlot, ExerciseTypeDef, PhaseDef, PlanAlternative, TrainingBlock, WeekNote, WeekOverride, Workout, WorkoutTemplate } from "../types";
 import { allOccurrenceKeys, describeChanges, occurrenceFirstDay, weekAndDayOf } from "../planning/planB";
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { sortWorkoutsBySchedule } from "../planning/sortWorkouts";
@@ -17,6 +17,7 @@ import { weekNoteText } from "../planning/notes";
 import { weekDatesText } from "../dateUtils";
 import { slotValues } from "../exerciseSlot";
 import { workoutItems } from "../exercise/groups";
+import { resolveFields } from "../benchmarks/model";
 
 export interface PlanContextInput {
   exerciseTypes: ExerciseTypeDef[];
@@ -33,6 +34,9 @@ export interface PlanContextInput {
   uncertainDays?: DayOfWeek[];
   /** The saved-circuit library, listed so sessions can use a circuit by name. */
   circuits?: Circuit[];
+  /** The tests, so a planned test slot reads as { "test": ..., "conditions": { "Edge depth": 20 } }. */
+  benchmarkTypes?: BenchmarkTypeDef[];
+  valueDefs?: ValueDef[];
 }
 
 type Session = {
@@ -43,48 +47,61 @@ type Session = {
   notes?: string;
   exercises: (Exercise | { circuit: Record<string, unknown>; exercises: Exercise[] })[];
 };
-type Exercise = { exerciseTypeName: string; values?: Record<string, unknown> };
+type Exercise = { exerciseTypeName?: string; test?: string; conditions?: Record<string, unknown>; values?: Record<string, unknown> };
+
+/** What a test slot's conditions mean, by the names the test's fields have. */
+interface TestLookup { types: BenchmarkTypeDef[]; defs: ValueDef[] }
 
 /** Drops undefined/empty fields so the line stays short. */
 function compact<T extends Record<string, unknown>>(o: T): T {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0))) as T;
 }
 
-function exerciseOf(s: ExerciseSlot, types: ExerciseTypeDef[]): Exercise {
+function exerciseOf(s: ExerciseSlot, types: ExerciseTypeDef[], tests: TestLookup): Exercise {
+  if (s.test) {
+    const type = tests.types.find((t) => t.id === s.test!.typeId);
+    const fields = type ? resolveFields(type, tests.defs) : [];
+    const conditions = Object.fromEntries(
+      Object.entries(s.test.conditions ?? {}).map(([id, v]) => [fields.find((f) => f.valueId === id)?.label ?? id, v]),
+    );
+    const notes = (s.prescribed?.notes ?? "").trim();
+    return compact({ test: s.test.name, conditions: Object.keys(conditions).length ? conditions : undefined, values: notes ? { notes } : undefined }) as Exercise;
+  }
   const values = compact({ ...(s.prescribed ?? slotValues(s)) } as Record<string, unknown>);
   return compact({ exerciseTypeName: types.find((t) => t.id === s.typeId)?.name ?? "Unknown", values: Object.keys(values).length ? values : undefined }) as Exercise;
 }
 
 /** A session's exercises in the change-set shape - a circuit spelled out the way an edit would give it. */
-function exercisesOf(w: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }, types: ExerciseTypeDef[]): Session["exercises"] {
+function exercisesOf(w: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }, types: ExerciseTypeDef[], tests: TestLookup): Session["exercises"] {
   return workoutItems(w).map((item) =>
     item.kind === "slot"
-      ? exerciseOf(item.slot, types)
+      ? exerciseOf(item.slot, types, tests)
       : {
           circuit: compact({ name: item.group.name, rounds: item.group.rounds, transition: item.group.transition, roundRest: item.group.roundRest }),
-          exercises: item.members.map((m) => exerciseOf(m.slot, types)),
+          exercises: item.members.map((m) => exerciseOf(m.slot, types, tests)),
         },
   );
 }
 
-function templateSession(t: WorkoutTemplate, types: ExerciseTypeDef[]): Session {
-  return compact({ name: t.name, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, notes: t.description, exercises: exercisesOf({ exercises: t.exercises ?? [], groups: t.groups }, types) }) as Session;
+function templateSession(t: WorkoutTemplate, types: ExerciseTypeDef[], tests: TestLookup): Session {
+  return compact({ name: t.name, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, notes: t.description, exercises: exercisesOf({ exercises: t.exercises ?? [], groups: t.groups }, types, tests) }) as Session;
 }
 
-function workoutSession(w: Workout, types: ExerciseTypeDef[]): Session {
-  return compact({ name: w.notes, dayOfWeek: w.dayOfWeek, startTime: w.startTime, plannedDuration: w.plannedDuration, notes: w.description, exercises: exercisesOf(w, types) }) as Session;
+function workoutSession(w: Workout, types: ExerciseTypeDef[], tests: TestLookup): Session {
+  return compact({ name: w.notes, dayOfWeek: w.dayOfWeek, startTime: w.startTime, plannedDuration: w.plannedDuration, notes: w.description, exercises: exercisesOf(w, types, tests) }) as Session;
 }
 
 export function buildPlanContext(input: PlanContextInput): string {
   const { exerciseTypes: types, phaseDefs, templates, trainingBlocks, workouts, weekOverrides, weekNotes, targetWeekIds } = input;
   const lines: string[] = [];
+  const tests: TestLookup = { types: input.benchmarkTypes ?? [], defs: input.valueDefs ?? [] };
 
   if (input.circuits?.length) {
     lines.push('SAVED CIRCUITS - use one in a session as { "circuit": "<name>" } (add "rounds"/"transition"/"roundRest" to re-time it):');
     for (const c of input.circuits) {
       lines.push(JSON.stringify(compact({
         name: c.name, description: c.description, rounds: c.rounds, transition: c.transition, roundRest: c.roundRest,
-        exercises: c.exercises.map((s) => exerciseOf(s, types)),
+        exercises: c.exercises.map((s) => exerciseOf(s, types, tests)),
       })));
     }
     lines.push("");
@@ -92,7 +109,7 @@ export function buildPlanContext(input: PlanContextInput): string {
 
   lines.push("PHASES - each phase's typical week (what every week following that phase gets):");
   for (const phase of phaseDefs.filter((p) => !p.archived).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {
-    const week = (templates[phase.id] ?? []).map((t) => templateSession(t, types));
+    const week = (templates[phase.id] ?? []).map((t) => templateSession(t, types, tests));
     lines.push(JSON.stringify({ phase: phase.name, typicalWeek: week }));
   }
 
@@ -122,7 +139,7 @@ export function buildPlanContext(input: PlanContextInput): string {
       dates: weekDatesText(weekId),
       phase: phase ?? "none",
       state: weekOverrides.find((o) => o.weekId === weekId)?.customized ? "custom (edited by hand)" : "stored (as generated from its phase)",
-      sessions: planned.map((w) => workoutSession(w, types)),
+      sessions: planned.map((w) => workoutSession(w, types, tests)),
       completed: completed.map((w) => `${w.dayOfWeek ?? w.date?.slice(0, 10) ?? ""} ${w.notes ?? "Session"}`.trim()),
       note,
     })));

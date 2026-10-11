@@ -74,6 +74,9 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
       ? `- Benchmarks Recorded (Target Timeframe):\n${lines(profile.benchmarks)}`
       : `- My Benchmarks:\n${lines(profile.benchmarks)}`,
   );
+  if (profile.tests?.length) {
+    sections.push(`- Tests (benchmark tests I repeat - what each records, when it was last done, and whether it is due. "plannedIn" = already scheduled, don't add it again. In a "Change plan" you may schedule one inside a session; see TEST in the rules below):\n${lines(profile.tests)}`);
+  }
   if (profile.trainingBlocks && mode !== "generate") {
     sections.push(`- Training Blocks (covering or near the timeframe):\n${lines(profile.trainingBlocks)}`);
   }
@@ -182,6 +185,7 @@ export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "target
   readinessConfig?: ModelOptions["readiness"];
   fatigueHalfLife?: number;
   fatigueModel?: ModelOptions["fatigueModel"];
+  retestWeeks?: number;
   /** The same inputs the Insights tab reads - with them (and a change log) the prompt carries "since the last plan". */
   insightInputs?: () => InsightInputs;
 };
@@ -203,7 +207,7 @@ export function buildCoachPromptFor(
     source.aiSharing,
     opts.asOf ?? new Date(),
     mode === "context" ? undefined : targetWeekIds,
-    { readiness: source.readinessConfig, fatigueHalfLife: source.fatigueHalfLife, fatigueModel: source.fatigueModel },
+    { readiness: source.readinessConfig, fatigueHalfLife: source.fatigueHalfLife, fatigueModel: source.fatigueModel, retestWeeks: source.retestWeeks },
     history,
   );
   // Fields named one by one, never spread: `trainingState` exposes them as
@@ -219,6 +223,8 @@ export function buildCoachPromptFor(
         weekNotes: source.weekNotes,
         planAlternatives: source.planAlternatives,
         circuits: source.circuits,
+        benchmarkTypes: source.benchmarkTypes,
+        valueDefs: source.valueDefs,
         targetWeekIds,
         uncertainDays: opts.uncertainDays,
       })

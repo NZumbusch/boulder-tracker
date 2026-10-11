@@ -74,6 +74,7 @@ export const COACH_NOTES_INSTRUCTIONS = `5) "coachNotes" - the coaching memory (
   What they are: short notes that EVERY future AI coach reads at the start of every conversation, in any AI app, next to "About me" and my standing goal (see "Coach notes" above for the current ones, each with its id). They are how what you learned about me survives this chat.
   How they are used: each future prompt lists all of them, so keep each one self-contained, specific and durable - true next month, not just this week.
   What belongs: lasting insights the data doesn't show - how I respond to training ("recovers slowly from max hangs, keep 72 h between"), limitations and injuries to respect, preferences ("hates 4x4s, likes pyramids"), what worked or didn't in past blocks, the long-term direction we agreed. Not: the plan itself or this week's details (use block/week/session notes), my goals and trips, benchmarks, sessions or pain logs (the app already sends those), or anything already in About me.
+  One exception: your TEST PLAN. When you schedule a test or decide one should wait ("retest max hang 20 mm / 7 s after the W44 deload, then every 8 weeks"), keep it as one short note, so the next request knows what you intended; edit it as it happens and remove it once done.
   How to change them:
     { "action": "add", "text": "One short note, at most ${MAX_COACH_NOTE_LENGTH} characters." }
     { "action": "edit", "id": "k3x9", "text": "The updated note." }

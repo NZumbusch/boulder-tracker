@@ -428,6 +428,8 @@ class TrainingState {
       },
     };
   }
+  /** A test is due this many weeks after its last result (Settings -> Home). */
+  get retestWeeks() { return this.tunable('progress.retestWeeks'); }
   get fatigueHalfLife() { return num(this.preferencesStore.tunables, 'fatigue.halfLifeDays'); }
   /** Half-life and softening for accumulated fatigue - see `computeFatigueDecay`. */
   get fatigueModel(): FatigueModel {
@@ -1433,6 +1435,8 @@ class TrainingState {
       planAlternatives: this.planAlternatives,
       coachNotes: this.coachNotes,
       circuits: this.circuits,
+      benchmarkTypes: this.benchmarkTypes,
+      valueDefs: this.valueDefs,
       today: this.todayIso,
       currentWeekId: this.currentWeekId,
     };
