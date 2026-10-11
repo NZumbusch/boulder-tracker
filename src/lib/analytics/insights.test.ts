@@ -191,3 +191,27 @@ describe("deload suggestion", () => {
     expect(buildInsights(inputs(weeks([2000, 2100, 2200, 2300, 0, 2300, 2400]))).some((x) => x.id === "deload")).toBe(false);
   });
 });
+
+describe("taper insight", () => {
+  const goal = { id: "g", kind: "competition" as const, name: "Boulder cup", date: "2026-11-01" };
+  const heavy = (weekId: string): Workout => ({ id: `h${weekId}`, status: "planned", date: null, weekId, dayOfWeek: "Tuesday", loadFactor: 0, exercises: [{ id: "x", typeId: "t", prescribed: { duration: 180, plannedLoad: 8 } }] }) as Workout;
+  const history = (): Workout[] => [34, 35, 36, 37].map((_, k) => session(1, [], { loadFactor: 1500, date: new Date(2026, 8, 7 + k * 7, 12).toISOString(), weekId: getWeekId(new Date(2026, 8, 7 + k * 7, 12)) }));
+
+  it("warns when the plan doesn't ease off before the goal", () => {
+    const planned = [heavy("2026-W43"), heavy("2026-W44")];
+    const t = buildInsights(inputs([...history(), ...planned], { goals: [goal] })).find((x) => x.id === "taper")!;
+    expect(t.tone).toBe("caution");
+    expect(t.title).toBe("Boulder cup in 21 days: the plan doesn't ease off");
+    expect(t.link).toEqual({ kind: "taper", goalId: "g" });
+  });
+
+  it("just notes the goal when the plan eases off", () => {
+    const t = buildInsights(inputs(history(), { goals: [goal] })).find((x) => x.id === "taper")!;
+    expect(t.tone).toBe("info");
+  });
+
+  it("says nothing for a goal far away or none", () => {
+    expect(buildInsights(inputs(history(), { goals: [{ ...goal, date: "2027-03-01" }] })).some((x) => x.id === "taper")).toBe(false);
+    expect(buildInsights(inputs(history())).some((x) => x.id === "taper")).toBe(false);
+  });
+});

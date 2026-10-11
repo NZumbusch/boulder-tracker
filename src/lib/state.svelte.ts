@@ -423,6 +423,7 @@ class TrainingState {
       ascents: this.outdoorAscents,
       targets: this.athleteProfile?.targets,
       blocks: this.trainingBlocks,
+      goals: this.goals,
       fingerIds: fingerCategoryIds(this.analyticsCategories, this.fingerCategoryIds),
       config: {
         acwrZones: this.acwrZones,
