@@ -197,7 +197,7 @@ export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "target
  */
 export function buildCoachPromptFor(
   source: CoachPromptSource,
-  opts: { mode: AIPromptMode; targetWeekIds: string[]; goal: string; history: AIHistoryWindow; asOf?: Date; uncertainDays?: DayOfWeek[]; changeLog?: AiChangeEntry[] },
+  opts: { mode: AIPromptMode; targetWeekIds: string[]; goal: string; history: AIHistoryWindow; asOf?: Date; uncertainDays?: DayOfWeek[]; changeLog?: AiChangeEntry[]; compact?: boolean },
 ): string {
   const { mode, goal, history } = opts;
   const targetWeekIds = mode === "context" ? [] : opts.targetWeekIds;
@@ -207,7 +207,7 @@ export function buildCoachPromptFor(
     source.aiSharing,
     opts.asOf ?? new Date(),
     mode === "context" ? undefined : targetWeekIds,
-    { readiness: source.readinessConfig, fatigueHalfLife: source.fatigueHalfLife, fatigueModel: source.fatigueModel, retestWeeks: source.retestWeeks },
+    { readiness: source.readinessConfig, fatigueHalfLife: source.fatigueHalfLife, fatigueModel: source.fatigueModel, retestWeeks: source.retestWeeks, compact: opts.compact },
     history,
   );
   // Fields named one by one, never spread: `trainingState` exposes them as
@@ -227,6 +227,7 @@ export function buildCoachPromptFor(
         valueDefs: source.valueDefs,
         targetWeekIds,
         uncertainDays: opts.uncertainDays,
+        compact: opts.compact,
       })
     : undefined;
   // "coachNotes" is a newer sharing switch - absent in older saved preferences means on.

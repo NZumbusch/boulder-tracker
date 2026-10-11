@@ -35,6 +35,7 @@
   import { loadChangeLog, appendChange } from '../../lib/ai/changeLog';
   import { markCheckinDone } from '../../lib/home/checkin';
   import AiSendSheet from './AiSendSheet.svelte';
+  import { loadCompact, saveCompact, promptBreakdown } from '../../lib/ai/promptSize';
   import { loadConfig as loadDirectConfig, loadKey as loadDirectKey } from '../../lib/ai/direct/store';
   import { providerInfo, modelInfo } from '../../lib/ai/direct/providers';
   import { estimateCost, formatUsd } from '../../lib/ai/direct/cost';
@@ -139,13 +140,22 @@
     uncertainDays = uncertainDays.includes(day) ? uncertainDays.filter((d) => d !== day) : WEEK_DAYS.filter((d) => d === day || uncertainDays.includes(d));
   }
 
+
+  /** The compact prompt leaves out the detail of phases the target weeks don't use and trims the lists; kept per device. */
+  let compact = $state(loadCompact());
   /** The prompt exactly as it will be copied - also what the size shown is measured on. */
   const prompt = $derived(
     mode === 'organise'
       ? buildOrganisePrompt(trainingState, goal)
-      : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog }),
+      : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog, compact }),
   );
   const tokens = $derived(estimateTokens(prompt));
+  let showBreakdown = $state(false);
+  const breakdown = $derived(showBreakdown ? promptBreakdown(prompt).slice(0, 6) : []);
+  function setCompact(next: boolean) {
+    compact = next;
+    saveCompact(next);
+  }
 
   // --- Ask directly (optional, with the athlete's own key) ---
   const direct = loadDirectConfig();
@@ -485,6 +495,35 @@
           {/if}
         </div>
 
+        {/if}
+
+        {#if mode === 'generate'}
+          <div class="bg-surface/40 border border-border rounded-card p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between gap-3">
+              <span class="min-w-0">
+                <span class="text-label text-content block">Prompt detail</span>
+                <span class="text-caption text-content-subtle block">{compact ? 'Phases the target weeks don\'t use are listed by session name only.' : 'Everything, every phase in full.'}</span>
+              </span>
+              <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0" role="group" aria-label="Prompt detail">
+                <button onclick={() => setCompact(true)} aria-pressed={compact} class="px-2.5 py-1 text-caption rounded-control {compact ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Compact</button>
+                <button onclick={() => setCompact(false)} aria-pressed={!compact} class="px-2.5 py-1 text-caption rounded-control {!compact ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Full</button>
+              </div>
+            </div>
+            <button onclick={() => (showBreakdown = !showBreakdown)} class="text-caption text-primary flex items-center gap-1" aria-expanded={showBreakdown}>
+              <Icon icon={showBreakdown ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-sm" />What takes the space
+            </button>
+            {#if showBreakdown}
+              <ul class="space-y-1">
+                {#each breakdown as part (part.label)}
+                  <li class="flex items-center gap-2 text-caption">
+                    <span class="w-24 shrink-0 h-1.5 rounded-full bg-surface-elevated overflow-hidden"><span class="block h-full bg-primary/60" style="width: {Math.max(4, (part.tokens / breakdown[0].tokens) * 100)}%"></span></span>
+                    <span class="flex-1 min-w-0 truncate text-content-muted">{part.label}</span>
+                    <span class="tabular-nums text-content-subtle shrink-0">{formatTokens(part.tokens)}</span>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
         {/if}
 
         {#if flows && lastAiChange?.source === 'ai'}

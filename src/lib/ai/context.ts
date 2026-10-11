@@ -72,6 +72,8 @@ const BLOCK_WINDOW_MARGIN_WEEKS = 4;
 const COMPETITION_LOOKAHEAD_LIMIT = 5;
 const PAIN_LOG_LIMIT = 10;
 const OUTDOOR_ASCENT_LIMIT = 20;
+/** A compact prompt: only the latest few - the grade history, not the log. */
+const COMPACT_ASCENT_LIMIT = 8;
 const METRIC_TREND_DAYS = 14;
 
 export type AIPromptMode = "generate" | "analyze" | "context";
@@ -377,6 +379,8 @@ export interface ModelOptions {
   fatigueModel?: Partial<FatigueModel>;
   /** A test is due after this many weeks (Settings); default 6. */
   retestWeeks?: number;
+  /** A shorter profile: fewer outdoor ascents. */
+  compact?: boolean;
 }
 
 // --- Readiness / daily metrics --------------------------------------------
@@ -723,7 +727,7 @@ export function buildAIContextProfile(
     profile.painIssues = buildPainIssueContext(source.painLogs, source.painIssues, asOf);
   }
   if (sharing.outdoorAscents) {
-    profile.outdoorAscents = buildOutdoorAscentContext(source.outdoorAscents);
+    profile.outdoorAscents = buildOutdoorAscentContext(source.outdoorAscents, model.compact ? COMPACT_ASCENT_LIMIT : undefined);
   }
   if (sharing.notes) {
     profile.weekNotes = buildWeekNoteContext(source.weekNotes, windowWeekIds);

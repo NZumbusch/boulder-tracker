@@ -14,7 +14,13 @@ import { allOccurrenceKeys, describeChanges, occurrenceFirstDay, weekAndDayOf } 
 import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { sortWorkoutsBySchedule } from "../planning/sortWorkouts";
 import { weekNoteText } from "../planning/notes";
-import { weekDatesText } from "../dateUtils";
+import { incrementWeekId, weekDatesText } from "../dateUtils";
+
+function incrementWeeks(weekId: string, n: number): string {
+  let id = weekId;
+  for (let i = 0; i < n; i++) id = incrementWeekId(id);
+  return id;
+}
 import { slotValues } from "../exerciseSlot";
 import { workoutItems } from "../exercise/groups";
 import { resolveFields } from "../benchmarks/model";
@@ -34,6 +40,8 @@ export interface PlanContextInput {
   uncertainDays?: DayOfWeek[];
   /** The saved-circuit library, listed so sessions can use a circuit by name. */
   circuits?: Circuit[];
+  /** Shorter: phases the target weeks don't use are listed by their session names only. */
+  compact?: boolean;
   /** The tests, so a planned test slot reads as { "test": ..., "conditions": { "Edge depth": 20 } }. */
   benchmarkTypes?: BenchmarkTypeDef[];
   valueDefs?: ValueDef[];
@@ -57,7 +65,7 @@ function compact<T extends Record<string, unknown>>(o: T): T {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0))) as T;
 }
 
-function exerciseOf(s: ExerciseSlot, types: ExerciseTypeDef[], tests: TestLookup): Exercise {
+function exerciseOf(s: ExerciseSlot, types: ExerciseTypeDef[], tests: TestLookup, noNotes = false): Exercise {
   if (s.test) {
     const type = tests.types.find((t) => t.id === s.test!.typeId);
     const fields = type ? resolveFields(type, tests.defs) : [];
@@ -68,23 +76,24 @@ function exerciseOf(s: ExerciseSlot, types: ExerciseTypeDef[], tests: TestLookup
     return compact({ test: s.test.name, conditions: Object.keys(conditions).length ? conditions : undefined, values: notes ? { notes } : undefined }) as Exercise;
   }
   const values = compact({ ...(s.prescribed ?? slotValues(s)) } as Record<string, unknown>);
+  if (noNotes) delete values.notes;
   return compact({ exerciseTypeName: types.find((t) => t.id === s.typeId)?.name ?? "Unknown", values: Object.keys(values).length ? values : undefined }) as Exercise;
 }
 
 /** A session's exercises in the change-set shape - a circuit spelled out the way an edit would give it. */
-function exercisesOf(w: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }, types: ExerciseTypeDef[], tests: TestLookup): Session["exercises"] {
+function exercisesOf(w: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] }, types: ExerciseTypeDef[], tests: TestLookup, noNotes = false): Session["exercises"] {
   return workoutItems(w).map((item) =>
     item.kind === "slot"
-      ? exerciseOf(item.slot, types, tests)
+      ? exerciseOf(item.slot, types, tests, noNotes)
       : {
           circuit: compact({ name: item.group.name, rounds: item.group.rounds, transition: item.group.transition, roundRest: item.group.roundRest }),
-          exercises: item.members.map((m) => exerciseOf(m.slot, types, tests)),
+          exercises: item.members.map((m) => exerciseOf(m.slot, types, tests, noNotes)),
         },
   );
 }
 
-function templateSession(t: WorkoutTemplate, types: ExerciseTypeDef[], tests: TestLookup): Session {
-  return compact({ name: t.name, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, notes: t.description, exercises: exercisesOf({ exercises: t.exercises ?? [], groups: t.groups }, types, tests) }) as Session;
+function templateSession(t: WorkoutTemplate, types: ExerciseTypeDef[], tests: TestLookup, noNotes = false): Session {
+  return compact({ name: t.name, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, notes: t.description, exercises: exercisesOf({ exercises: t.exercises ?? [], groups: t.groups }, types, tests, noNotes) }) as Session;
 }
 
 function workoutSession(w: Workout, types: ExerciseTypeDef[], tests: TestLookup): Session {
@@ -107,9 +116,23 @@ export function buildPlanContext(input: PlanContextInput): string {
     lines.push("");
   }
 
+  // Compact: a phase the target weeks use is given with its values but without the exercise notes (the longest part - a session's cues
+  // and detail), and the others by session names only. Edits merge into what is there, so nothing is lost by not seeing a note.
+  const inPlay = new Set<string>();
+  if (input.compact && targetWeekIds.length) {
+    const first = targetWeekIds[0];
+    const last = targetWeekIds[targetWeekIds.length - 1];
+    for (const b of trainingBlocks) if (b.startWeekId <= incrementWeeks(last, 4) && b.endWeekId >= first) inPlay.add(b.phaseId);
+  }
   lines.push("PHASES - each phase's typical week (what every week following that phase gets):");
+  if (input.compact) lines.push("(Shortened: exercise notes are left out, and phases not near the target weeks list only their sessions. Change a phase with \"sessionChanges\" - they merge into what is there - not by replacing its whole typical week, or the notes are lost.)");
   for (const phase of phaseDefs.filter((p) => !p.archived).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {
-    const week = (templates[phase.id] ?? []).map((t) => templateSession(t, types, tests));
+    if (input.compact && !inPlay.has(phase.id)) {
+      const names = (templates[phase.id] ?? []).map((t) => compact({ name: t.name, dayOfWeek: t.dayOfWeek }));
+      lines.push(JSON.stringify({ phase: phase.name, typicalWeek: names }));
+      continue;
+    }
+    const week = (templates[phase.id] ?? []).map((t) => templateSession(t, types, tests, !!input.compact));
     lines.push(JSON.stringify({ phase: phase.name, typicalWeek: week }));
   }
 
