@@ -15,6 +15,7 @@
   import SendForm from './SendForm.svelte';
   import SendImport from './SendImport.svelte';
   import GradeChart from './GradeChart.svelte';
+  import { sendStats } from '../../lib/sends/stats';
   import { filterSends, type SendPeriod } from '../../lib/sends/filter';
   import Icon from '@iconify/svelte';
 
@@ -85,6 +86,13 @@
   {/if}
 
   {#if mode === 'list' && ascents.length > 0}
+    {@const stats = sendStats(inPeriod)}
+    <div class="grid grid-cols-4 gap-1.5">
+      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border"><p class="text-caption text-content-subtle leading-tight">Sends</p><p class="text-body font-semibold text-content tabular-nums">{stats.count}</p></div>
+      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border"><p class="text-caption text-content-subtle leading-tight">First go</p><p class="text-body font-semibold text-content tabular-nums">{stats.firstGoRate !== undefined ? `${Math.round(stats.firstGoRate * 100)}%` : '–'}</p></div>
+      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border"><p class="text-caption text-content-subtle leading-tight">Hardest</p><p class="text-body font-semibold text-content tabular-nums">{stats.hardest ? G(stats.hardest.grade) : '–'}</p></div>
+      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border"><p class="text-caption text-content-subtle leading-tight">Hardest flash</p><p class="text-body font-semibold text-content tabular-nums">{stats.hardestFirstGo ? G(stats.hardestFirstGo.grade) : '–'}</p></div>
+    </div>
     <GradeChart ascents={inPeriod} bind:period bind:selectedGrade />
     {#if selectedGrade}
       <div class="flex items-center gap-2 px-1">
