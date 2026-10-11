@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { QUICK_ADAPTS, spanWeeks, withGoal, loadLastRequest, saveLastRequest } from "./quickAdapt";
+import { QUICK_ADAPTS, spanWeeks, withGoal, toggleGoal, loadLastRequest, saveLastRequest } from "./quickAdapt";
 
 describe("quick adapt", () => {
   it("covers the weeks each span says, across a year end", () => {
@@ -28,5 +28,15 @@ describe("quick adapt", () => {
     expect(loadLastRequest(store)).toBeUndefined();
     saveLastRequest({ goal: "Plan next week", start: "2026-W42", end: "2026-W42" }, store);
     expect(loadLastRequest(store)?.goal).toBe("Plan next week");
+  });
+});
+
+describe("toggleGoal", () => {
+  const all = ["A text", "B text"];
+  it("selects, swaps to another chip, keeps typed text and deselects", () => {
+    expect(toggleGoal("", "A text", all)).toBe("A text");
+    expect(toggleGoal("A text", "B text", all)).toBe("B text");
+    expect(toggleGoal("Trip Friday\nA text", "B text", all)).toBe("Trip Friday\nB text");
+    expect(toggleGoal("Trip Friday\nB text", "B text", all)).toBe("Trip Friday");
   });
 });

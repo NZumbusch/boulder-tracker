@@ -78,6 +78,24 @@ export function withGoal(existing: string, chipGoal: string): string {
   return `${typed}\n${chipGoal}`;
 }
 
+/** Whether a chip's text is in the goal (the chip then shows as selected). */
+export function hasGoal(existing: string, chipGoal: string): boolean {
+  return existing.includes(chipGoal);
+}
+
+/** The goal without a chip's text, typed text kept. */
+export function withoutGoal(existing: string, chipGoal: string): string {
+  return existing.replace(chipGoal, "").split("\n").filter((l) => l.trim()).join("\n").trim();
+}
+
+/** Tapping a chip: selected -> off; otherwise it replaces any other chip's text and goes in. */
+export function toggleGoal(existing: string, chipGoal: string, allChipGoals: string[]): string {
+  if (hasGoal(existing, chipGoal)) return withoutGoal(existing, chipGoal);
+  let rest = existing;
+  for (const g of allChipGoals) rest = withoutGoal(rest, g);
+  return withGoal(rest, chipGoal);
+}
+
 export const LAST_REQUEST_KEY = "bt.aiLastRequest";
 
 export interface LastRequest { goal: string; start: string; end: string }
