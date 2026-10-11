@@ -9,6 +9,7 @@
   import { describeWeatherCode } from '../../../lib/weather/codes';
   import { T, G, FRICTION_STYLE, dayFriction } from './format';
   import NoteSheet from '../../common/NoteSheet.svelte';
+  import { openTaperView } from '../../../lib/goals/taperView.svelte';
   import SectionHeader from './SectionHeader.svelte';
   import Icon from '@iconify/svelte';
 
@@ -121,6 +122,9 @@
         <Icon icon="ic:baseline-info" class="text-sm mt-px shrink-0" />
         <span>{competitionTaperHint}</span>
       </p>
+    {/if}
+    {#if !nextGoalOngoing && daysUntilCompetition <= 35}
+      <button onclick={() => openTaperView(nextGoal.id)} class="text-caption text-primary flex items-center gap-1"><Icon icon="ic:baseline-trending-down" class="text-sm" />See the taper against your plan</button>
     {/if}
   {:else}
     <p class="text-caption text-content-subtle italic">No competition or trip coming up. Add one under Plan → Goals.</p>

@@ -1,5 +1,6 @@
 import type {
   AnalyticsCategory, Benchmark, BenchmarkTypeDef, DailyMetricEntry, ExerciseSlot, ExerciseTypeDef, OutdoorAscent, ValueDef, Workout,
+  GoalEvent,
   TrainingBlock,
   TrainingTargets,
 } from "../types";
@@ -19,6 +20,8 @@ import { parseFontGrade } from "./grades";
 import { WEEK_DAYS } from "../constants";
 import { hasTargets, isFingerSession, mixGaps, weekProgress } from "./targets";
 import { blockReviewLines, blockToReview, buildBlockReview } from "./blockReview";
+import { baseLoad, taperPlan } from "../goals/taper";
+import { localIsoDate } from "../dateUtils";
 import { buildWeeklyHistory } from "./weekSummary";
 
 /**
@@ -39,6 +42,7 @@ export type InsightLink =
   | { kind: "acwr" }
   | { kind: "plan" }
   | { kind: "block"; blockId: string }
+  | { kind: "taper"; goalId: string }
   | { kind: "panel"; tab: "training" | "body" | "performance"; section: string };
 
 export interface Insight {
@@ -91,6 +95,8 @@ export interface InsightInputs {
   fingerIds?: Iterable<string>;
   /** The training blocks, for the review of one that has just ended. */
   blocks?: TrainingBlock[];
+  /** Competitions and trips, for the taper towards the next one. */
+  goals?: GoalEvent[];
   config: InsightConfig;
 }
 
@@ -450,6 +456,23 @@ function blockInsight(i: InsightInputs): Insight | undefined {
   };
 }
 
+/** The next goal's taper: whether the plan eases off before it, within five weeks of it. */
+function taperInsight(i: InsightInputs): Insight | undefined {
+  const today = localIsoDate(i.asOf);
+  const goal = (i.goals ?? []).filter((g) => g.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
+  if (!goal) return undefined;
+  const plan = taperPlan({ goal, asOf: i.asOf, base: baseLoad(i.workouts, i.asOf), workoutsForWeek: i.workoutsForWeek, scale: ratingScale(i.workouts) });
+  if (!plan || plan.daysToGo > 35) return undefined;
+  const over = plan.weeks.filter((w) => w.over && w.weeksOut <= 1);
+  const link: InsightLink = { kind: "taper", goalId: goal.id };
+  const days = `${plan.daysToGo} day${plan.daysToGo === 1 ? "" : "s"}`;
+  if (over.length > 0) {
+    return { id: "taper", group: "plan", tone: "caution", title: `${goal.name} in ${days}: the plan doesn't ease off`, detail: over.map((w) => `W${w.weekId.split("-W")[1]} has about ${n0((w.done ?? 0) + (w.planned ?? 0))} against a taper of ${n0(w.target)}`).join(" · "), link };
+  }
+  if (plan.daysToGo <= 28) return { id: "taper", group: "plan", tone: "info", title: `${goal.name} in ${days}`, detail: "The plan eases off towards it - open the taper to compare.", link };
+  return undefined;
+}
+
 // --- Targets ----------------------------------------------------------------
 
 const WEEKS_FOR_TARGETS = 4;
@@ -593,6 +616,7 @@ export function buildInsights(input: InsightInputs): Insight[] {
     ...staleInsights(input),
     ...targetInsights(input),
     blockInsight(input),
+    taperInsight(input),
     climbingInsight(input),
     ...recoveryInsights(input),
   ];

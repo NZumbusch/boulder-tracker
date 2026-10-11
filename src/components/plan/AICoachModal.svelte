@@ -31,6 +31,8 @@
   import { WEEK_DAYS } from '../../lib/constants';
   import { hasProfile } from '../../lib/ai/coachNotes';
   import { hasTargets } from '../../lib/analytics/targets';
+  import { baseLoad, taperPlan } from '../../lib/goals/taper';
+  import { ratingScale } from '../../lib/analytics/insights';
   import type { DayOfWeek } from '../../lib/types';
   import { QUICK_ADAPTS, spanWeeks, withGoal, loadLastRequest, saveLastRequest } from '../../lib/ai/quickAdapt';
   import { loadChangeLog, appendChange } from '../../lib/ai/changeLog';
@@ -46,7 +48,7 @@
   /** "organise" is a Change plan flavour (same paste and review) that only regroups exercises and categories. */
   type CoachMode = AIPromptMode | 'organise';
 
-  let { onClose, initialMode = 'generate', preset }: { onClose: () => void; initialMode?: CoachMode; /** A quick-adapt id (`QUICK_ADAPTS`) applied on open - the weekly check-in card uses 'checkin'. */ preset?: string } = $props();
+  let { onClose, initialMode = 'generate', preset, taperFor }: { onClose: () => void; initialMode?: CoachMode; /** A quick-adapt id (`QUICK_ADAPTS`) applied on open - the weekly check-in card uses 'checkin'. */ preset?: string; /** A goal id: ask for the plan to taper towards it. */ taperFor?: string } = $props();
 
   // svelte-ignore state_referenced_locally
   let mode = $state<CoachMode>(initialMode);
@@ -80,6 +82,20 @@
   }
   // svelte-ignore state_referenced_locally
   if (preset) applyQuick(preset);
+  // svelte-ignore state_referenced_locally
+  if (taperFor) applyTaper(taperFor);
+
+  /** The weeks up to the goal, and a request that names the taper's loads. */
+  function applyTaper(goalId: string) {
+    const target = trainingState.goals.find((g) => g.id === goalId);
+    if (!target) return;
+    const plan = taperPlan({ goal: target, asOf: trainingState.today, base: baseLoad(trainingState.workouts, trainingState.today), workoutsForWeek: (id) => trainingState.getWorkoutsForWeek(id), scale: ratingScale(trainingState.workouts) });
+    if (!plan) return;
+    startWeek = plan.weeks[0].weekId;
+    endWeek = plan.weeks[plan.weeks.length - 1].weekId;
+    const loads = plan.weeks.map((w) => `W${w.weekId.split('-W')[1]} about ${Math.round(w.target).toLocaleString()}`).join(', ');
+    goal = `Taper for ${target.name} on ${target.date}: ease the volume off over the last weeks and keep the intensity - no new hard exercises, nothing new in the last days. Weekly load to aim for: ${loads} (my usual week is about ${Math.round(plan.baseLoad).toLocaleString()}). Note the plan in the coach notes.`;
+  }
   /** Analyze/Context: the prompt is on the clipboard - show the "now paste it" note. */
   let copiedFor = $state<CoachMode | null>(null);
   /** Change plan: brief "Copied" feedback on the paste step's copy button. */
