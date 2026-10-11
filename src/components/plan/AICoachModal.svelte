@@ -21,8 +21,7 @@
   import { showAlert } from '../../lib/utils';
   import type { AIPromptMode } from '../../lib/ai/context';
   import { buildCoachPromptFor, estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
-  import type { AIHistoryWindow } from '../../lib/preferences/migrate';
-  import AIHistoryPicker from '../settings/AIHistoryPicker.svelte';
+  import AIPromptTuning from '../settings/AIPromptTuning.svelte';
   import { parsePlanImport } from '../../lib/ai/planImportEntry';
   import { planWithSelection, allItemIds, type ChangeItem, type ChangeSection } from '../../lib/ai/changePlanner';
   import { buildOrganisePrompt } from '../../lib/ai/organisePrompt';
@@ -40,7 +39,7 @@
   import AiSendSheet from './AiSendSheet.svelte';
   import PlanHistorySheet from './PlanHistorySheet.svelte';
   import { looksLikeReply } from '../../lib/ai/clipboardReply';
-  import { loadCompact, saveCompact, promptBreakdown } from '../../lib/ai/promptSize';
+  import { loadCompact } from '../../lib/ai/promptSize';
   import { loadConfig as loadDirectConfig, loadKey as loadDirectKey } from '../../lib/ai/direct/store';
   import { providerInfo, modelInfo } from '../../lib/ai/direct/providers';
   import { estimateCost, formatUsd } from '../../lib/ai/direct/cost';
@@ -135,12 +134,9 @@
     copiedFor = null;
   }
 
-  /** How much history this request sends - starts from the Settings default. */
-  let history = $state<AIHistoryWindow>({ ...trainingState.aiHistory });
-  let showHistory = $state(false);
-  const historyIsDefault = $derived(
-    history.fullWeeks === trainingState.aiHistory.fullWeeks && history.summaryWeeks === trainingState.aiHistory.summaryWeeks,
-  );
+  /** How much history goes along: the Settings choice, changed from the tune panel here or in Settings. */
+  const history = $derived(trainingState.aiHistory);
+  let tuneOpen = $state(false);
 
   /** What of the coaching memory this prompt carries, for the line under the request box. */
   const memoryParts = $derived.by(() => {
@@ -171,12 +167,6 @@
       : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog, compact }),
   );
   const tokens = $derived(estimateTokens(prompt));
-  let showBreakdown = $state(false);
-  const breakdown = $derived(showBreakdown ? promptBreakdown(prompt).slice(0, 6) : []);
-  function setCompact(next: boolean) {
-    compact = next;
-    saveCompact(next);
-  }
 
   // --- Ask directly (optional, with the athlete's own key) ---
   const direct = loadDirectConfig();
@@ -508,91 +498,39 @@
           </div>
         {/if}
 
-        <!-- What history goes along, and what that costs in prompt size. -->
+        <!-- One line for everything about the size of the prompt; the tune icon opens the two settings that drive it. -->
         {#if mode !== 'organise'}
-        <div class="bg-surface/40 border border-border rounded-card">
-          <button
-            onclick={() => showHistory = !showHistory}
-            disabled={mode === 'analyze'}
-            class="w-full p-3.5 flex items-center gap-3 text-left disabled:cursor-default"
-            aria-expanded={showHistory}
-          >
-            <Icon icon="ic:baseline-history" class="text-xl text-content-subtle shrink-0" />
-            <span class="min-w-0 flex-1">
-              <span class="text-label text-content block">
-                {#if mode === 'analyze'}
-                  History: the sessions in the chosen weeks
-                {:else}
-                  History: {history.fullWeeks} week{history.fullWeeks === 1 ? '' : 's'} in full{history.summaryWeeks ? `, ${history.summaryWeeks} summarized` : ''}
-                {/if}
+          <div class="bg-surface/40 border border-border rounded-card">
+            <div class="p-3.5 flex items-center gap-3">
+              <Icon icon="ic:baseline-straighten" class="text-xl text-content-subtle shrink-0" />
+              <span class="min-w-0 flex-1">
+                <span class="text-label text-content block">Prompt size {formatTokens(tokens)}</span>
+                <span class="text-caption text-content-subtle block">
+                  {mode === 'analyze' ? 'The sessions of the chosen weeks' : `${history.fullWeeks} week${history.fullWeeks === 1 ? '' : 's'} in full${history.summaryWeeks ? `, ${history.summaryWeeks} summarized` : ''}`} · {compact ? 'compact' : 'full'}
+                </span>
               </span>
-              <span class="text-caption text-content-subtle block">Prompt size {formatTokens(tokens)}{!historyIsDefault && mode !== 'analyze' ? ' · changed for this request' : ''}</span>
-            </span>
-            {#if mode !== 'analyze'}
-              <Icon icon="ic:baseline-expand-more" class="text-lg text-content-subtle shrink-0 transition-transform {showHistory ? 'rotate-180' : ''}" />
-            {/if}
-          </button>
-          {#if showHistory && mode !== 'analyze'}
-            <div class="px-3.5 pb-3.5 space-y-2.5 animate-in fade-in duration-150">
-              <AIHistoryPicker value={history} onchange={(next) => history = next} />
-              <p class="text-caption text-content-subtle leading-relaxed">
-                Recent weeks go session by session; older weeks as one line each (sessions, minutes per category, load, average ratings).
-              </p>
-              {#if !historyIsDefault}
-                <div class="flex items-center gap-3">
-                  <button onclick={() => history = { ...trainingState.aiHistory }} class="text-label text-content-subtle hover:text-content">Reset</button>
-                  <button onclick={() => trainingState.setAiHistory(history)} class="text-label text-primary hover:underline">Make this my default</button>
-                </div>
-              {/if}
+              <button
+                onclick={() => (tuneOpen = !tuneOpen)}
+                class="shrink-0 p-2 rounded-control transition-colors {tuneOpen ? 'bg-primary/10 text-primary' : 'text-content-subtle hover:text-content'}"
+                aria-label="Prompt settings"
+                aria-expanded={tuneOpen}
+              ><Icon icon="ic:baseline-tune" class="text-xl" /></button>
             </div>
-          {/if}
-        </div>
-
-        {/if}
-
-        {#if mode === 'generate'}
-          <div class="bg-surface/40 border border-border rounded-card p-3.5 space-y-2.5">
-            <div class="flex items-center justify-between gap-3">
-              <span class="min-w-0">
-                <span class="text-label text-content block">Prompt detail</span>
-                <span class="text-caption text-content-subtle block">{compact ? 'Phases the target weeks don\'t use are listed by session name only.' : 'Everything, every phase in full.'}</span>
-              </span>
-              <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0" role="group" aria-label="Prompt detail">
-                <button onclick={() => setCompact(true)} aria-pressed={compact} class="px-2.5 py-1 text-caption rounded-control {compact ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Compact</button>
-                <button onclick={() => setCompact(false)} aria-pressed={!compact} class="px-2.5 py-1 text-caption rounded-control {!compact ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Full</button>
+            {#if tuneOpen}
+              <div class="px-3.5 pb-3.5 pt-3 border-t border-border space-y-3 animate-in fade-in duration-150">
+                <AIPromptTuning bind:compact {prompt} showHistory={mode !== 'analyze'} />
+                <p class="text-caption text-content-subtle">Saved as your settings, for every prompt - what's shared (blocks, readiness, pain…) is set in {settingsPath('aiSharing')}.</p>
               </div>
-            </div>
-            <button onclick={() => (showBreakdown = !showBreakdown)} class="text-caption text-primary flex items-center gap-1" aria-expanded={showBreakdown}>
-              <Icon icon={showBreakdown ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-sm" />What takes the space
-            </button>
-            {#if showBreakdown}
-              <ul class="space-y-1">
-                {#each breakdown as part (part.label)}
-                  <li class="flex items-center gap-2 text-caption">
-                    <span class="w-24 shrink-0 h-1.5 rounded-full bg-surface-elevated overflow-hidden"><span class="block h-full bg-primary/60" style="width: {Math.max(4, (part.tokens / breakdown[0].tokens) * 100)}%"></span></span>
-                    <span class="flex-1 min-w-0 truncate text-content-muted">{part.label}</span>
-                    <span class="tabular-nums text-content-subtle shrink-0">{formatTokens(part.tokens)}</span>
-                  </li>
-                {/each}
-              </ul>
             {/if}
           </div>
         {/if}
 
         {#if flows && lastAiChange?.source === 'ai'}
-          <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-center gap-3">
-            <Icon icon="ic:baseline-history" class="text-xl text-content-subtle shrink-0" />
-            <div class="min-w-0 flex-1">
-              <p class="text-label text-content">Last AI change</p>
-              <p class="text-caption text-content-subtle">
-                Applied {new Date(lastAiChange.appliedAt).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lastAiChange.changedSince ? ' · edited since' : ''}
-              </p>
-            </div>
-            <button onclick={() => (historyOpen = true)} class="shrink-0 px-2 py-1.5 text-label text-content-subtle hover:text-content transition-colors">History</button>
-            <button onclick={() => trainingState.undoPlanChange()} class="shrink-0 px-3 py-1.5 text-label font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-control transition-colors">
-              Undo
-            </button>
-          </div>
+          <p class="text-caption text-content-subtle px-1 flex items-center gap-2 flex-wrap">
+            <span>Last AI change {new Date(lastAiChange.appliedAt).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lastAiChange.changedSince ? ' · edited since' : ''}</span>
+            <button onclick={() => (historyOpen = true)} class="text-primary hover:underline">History</button>
+            <button onclick={() => trainingState.undoPlanChange()} class="text-primary hover:underline">Undo</button>
+          </p>
         {/if}
 
         {#if flows && directReady && (mode === 'organise' || rangeValid)}
@@ -607,12 +545,6 @@
           </button>
         {/if}
 
-        {#if mode !== 'organise'}
-        <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
-          <Icon icon="ic:baseline-info" class="text-sm shrink-0 mt-px" />
-          What's shared (blocks, readiness, pain logs…) is set in {settingsPath('aiSharing')}.
-        </p>
-        {/if}
 
       {:else if step === 'paste'}
         <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-start gap-3">

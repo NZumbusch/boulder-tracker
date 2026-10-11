@@ -16,7 +16,7 @@
   import type { AISharingPreferences } from '../../lib/preferences/migrate';
   import { buildCoachPromptFor, estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
   import { getWeekIdRange, incrementWeekId } from '../../lib/dateUtils';
-  import AIHistoryPicker from './AIHistoryPicker.svelte';
+  import AIPromptTuning from './AIPromptTuning.svelte';
   import { loadCompact } from '../../lib/ai/promptSize';
   import Icon from "@iconify/svelte";
 
@@ -32,6 +32,8 @@
     { id: 'coachNotes', label: 'Coach Notes & About Me', description: 'Your About me, standing goal and the coach notes (Settings → Coach notes) - so you don\'t have to repeat them.' },
   ];
 
+  let compact = $state(loadCompact());
+
   // What the defaults cost: a "Change plan" prompt for the next four weeks,
   // and the context-only one - measured on the real prompts, not estimated.
   const nextFourWeeks = $derived.by(() => {
@@ -39,8 +41,8 @@
     for (let i = 0; i < 3; i++) end = incrementWeekId(end);
     return getWeekIdRange(trainingState.currentWeekId, end);
   });
-  const planTokens = $derived(estimateTokens(buildCoachPromptFor(trainingState, { mode: 'generate', targetWeekIds: nextFourWeeks, goal: '', history: trainingState.aiHistory, compact: loadCompact() })));
-  const contextTokens = $derived(estimateTokens(buildCoachPromptFor(trainingState, { mode: 'context', targetWeekIds: [], goal: '', history: trainingState.aiHistory })));
+  const planTokens = $derived(estimateTokens(buildCoachPromptFor(trainingState, { mode: 'generate', targetWeekIds: nextFourWeeks, goal: '', history: trainingState.aiHistory, compact })));
+  const contextTokens = $derived(estimateTokens(buildCoachPromptFor(trainingState, { mode: 'context', targetWeekIds: [], goal: '', history: trainingState.aiHistory, compact })));
 </script>
 
 <div class="card space-y-4 animate-in fade-in">
@@ -68,16 +70,13 @@
     {/each}
   </div>
 
-  <div class="space-y-2.5 pt-3 border-t border-border">
-    <div>
-      <p class="text-body text-content">Training History</p>
-      <p class="text-caption text-content-subtle mt-0.5">Recent weeks go session by session; older weeks as one line each (sessions, minutes per category, load, average ratings). The AI Coach can change this per request.</p>
-    </div>
-    <AIHistoryPicker value={trainingState.aiHistory} onchange={(next) => trainingState.setAiHistory(next)} />
+  <div class="space-y-3 pt-3 border-t border-border">
+    <AIPromptTuning bind:compact />
     <p class="text-caption text-content-subtle flex items-center gap-1.5">
       <Icon icon="ic:baseline-straighten" class="text-sm shrink-0" />
       Prompt size now: change plan (next 4 weeks) {formatTokens(planTokens)} · context only {formatTokens(contextTokens)}
     </p>
+    <p class="text-caption text-content-subtle">The AI Coach has a tune icon that opens these same two settings, so you can change them there too.</p>
   </div>
 
   <div class="flex items-start gap-2 p-3 rounded-control bg-primary/5 border border-primary/20">
