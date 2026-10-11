@@ -15,6 +15,7 @@
   import AskAboutSheet from './components/plan/AskAboutSheet.svelte';
   import BlockReviewSheet from './components/analytics/BlockReviewSheet.svelte';
   import TaperSheet from './components/dashboard/home/TaperSheet.svelte';
+  import ExerciseProgressSheet from './components/analytics/ExerciseProgressSheet.svelte';
   import Welcome from './components/onboarding/Welcome.svelte';
   import TourOverlay from './components/tour/TourOverlay.svelte';
   import { tour } from './lib/tour/tour.svelte';
@@ -211,6 +212,7 @@
   <AskAboutSheet />
   <BlockReviewSheet />
   <TaperSheet />
+  <ExerciseProgressSheet />
   <TourOverlay />
   <!-- First run only: a fresh install that hasn't been welcomed and has no
        sessions (a restored or synced install skips it). -->
