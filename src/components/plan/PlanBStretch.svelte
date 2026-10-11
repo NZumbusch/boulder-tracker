@@ -19,6 +19,12 @@
   /** Decided by logging a session only one plan has - that can't be undone from here. */
   const decidedByLog = $derived(!!occ.decided && occ.decided !== chosenByHand);
 
+  /** The logged session that locked the stretch, by name - "Konstanz Unseen-Set Session". */
+  const lockedBy = $derived(
+    !decidedByLog ? undefined
+      : (occ.decided === 'B' ? occ.bOnly : occ.aOnly).find((w) => w.status === 'completed')?.notes || 'a session',
+  );
+
   const hints = $derived.by(() => {
     if (!alt.outdoor || occ.decided) return [];
     return outdoorDayHints(sideDates(occ, alt.outdoor), trainingState.outdoorForecasts, trainingState.frictionConfig);
@@ -39,7 +45,7 @@
       <p class="text-caption text-content-subtle">
         {occurrenceDaysLabel(alt, occ.key)}{alt.repeatUntilWeekId ? ' · every week' : ''} ·
         {#if occ.decided}
-          Plan {occ.decided} {decidedByLog ? 'done' : 'chosen'}
+          Plan {occ.decided} {decidedByLog ? 'locked in' : 'chosen'}
         {:else}
           undecided, counting Plan {occ.active}
         {/if}
@@ -98,6 +104,17 @@
       </button>
     {/if}
   </div>
+
+  <!-- Said in words every time: what counts now, why, and what changes it. -->
+  <p class="text-caption text-content-subtle leading-relaxed">
+    {#if !occ.decided}
+      Undecided - the numbers count Plan {occ.active} for now. It locks by itself when you log a session only one plan has, or tap Decide.
+    {:else if decidedByLog}
+      Locked to Plan {occ.decided}: you logged {lockedBy}, which only Plan {occ.decided} has. Plan {occ.decided === 'A' ? 'B' : 'A'}'s sessions stay greyed out; delete the logged session to unlock.
+    {:else}
+      You chose Plan {occ.decided}. Plan {occ.decided === 'A' ? 'B' : 'A'}'s sessions stay greyed out; Reopen to change your mind.
+    {/if}
+  </p>
 
   {#each hints as hint (hint.date)}
     <p class="text-caption flex items-center gap-1.5 {looksGood(hint) ? 'text-status-good' : 'text-content-subtle'}">

@@ -34,7 +34,7 @@ export const GLOSSARY: Record<TermId, Term> = {
   acwr: {
     title: "Acute:chronic ratio (ACWR)",
     paragraphs: [
-      "Your load over the last 7 days divided by your average weekly load over the last 28 days. It shows whether you're suddenly doing much more (or less) than you're used to.",
+      "Your load over the last 7 days (a rolling week ending today, not the calendar week) divided by your average weekly load over the last 28 days. Tap the ACWR chip on Home to see the weeks it is made of. It shows whether you're suddenly doing much more (or less) than you're used to.",
       "Around 0.8–1.3 is the usual sweet spot. Above about 1.5 means a sharp jump, a common time for finger and shoulder injuries. Below 0.8 means you're doing less than usual, which is fine for a rest week.",
       `It needs about four weeks of logged sessions before it's meaningful. You can change the zones under ${settingsPath('model')}.`,
     ],

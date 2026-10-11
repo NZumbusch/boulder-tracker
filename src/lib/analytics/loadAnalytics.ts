@@ -460,3 +460,58 @@ export function correlatePainWithLoadSpikes(
     };
   });
 }
+
+export interface AcwrBlockSession {
+  name: string;
+  /** ISO date of the session. */
+  date: string;
+  load: number;
+}
+
+/** One 7-day block of the ACWR window, newest first - "the last 7 days", "7-13 days ago"... */
+export interface AcwrBlock {
+  /** 0 = the acute block (ending on `asOf`). */
+  index: number;
+  /** First and last calendar day of the block, as ISO dates (YYYY-MM-DD). */
+  from: string;
+  to: string;
+  load: number;
+  sessions: AcwrBlockSession[];
+}
+
+export interface AcwrBreakdown extends RollingAcwrResult {
+  /** The acute block first, then the older ones - the same windows `calculateRollingAcwr` sums. */
+  blocks: AcwrBlock[];
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * What an ACWR number is made of: the same windows `calculateRollingAcwr`
+ * uses, split into 7-day blocks with the sessions (and their load) in each,
+ * so "acute 2870 vs chronic 1850" can be traced to the weeks behind it.
+ */
+export function calculateAcwrBreakdown(
+  workouts: Workout[],
+  asOf: Date,
+  { acuteDays = 7, chronicDays = 28 }: { acuteDays?: number; chronicDays?: number } = {},
+): AcwrBreakdown {
+  const base = calculateRollingAcwr(workouts, asOf, { acuteDays, chronicDays });
+  const asOfDay = toUtcDayIndex(asOf.toISOString());
+  const completed = workouts.filter((w) => w.status === "completed" && w.date);
+  const blocks: AcwrBlock[] = [];
+  const iso = (dayIndex: number) => new Date(dayIndex * DAY_MS).toISOString().slice(0, 10);
+  for (let i = 0; i < Math.ceil(chronicDays / acuteDays); i++) {
+    const to = asOfDay - i * acuteDays;
+    const from = to - acuteDays + 1;
+    const sessions = completed
+      .filter((w) => {
+        const d = toUtcDayIndex(w.date!);
+        return d >= from && d <= to;
+      })
+      .sort((a, b) => a.date!.localeCompare(b.date!))
+      .map((w) => ({ name: w.notes || "Session", date: w.date!, load: w.loadFactor || 0 }));
+    blocks.push({ index: i, from: iso(from), to: iso(to), load: sessions.reduce((s, x) => s + x.load, 0), sessions });
+  }
+  return { ...base, blocks };
+}

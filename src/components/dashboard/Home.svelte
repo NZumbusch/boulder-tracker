@@ -13,6 +13,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { HomeData } from './home/homeData.svelte';
   import QuickLogSheet from './QuickLogSheet.svelte';
+  import AcwrSheet from './home/AcwrSheet.svelte';
   import ChecklistCard from './home/ChecklistCard.svelte';
   import ReadinessCard from './home/ReadinessCard.svelte';
   import { hasAnyData, isHiddenWhileNew } from '../../lib/home/newUser';
@@ -167,6 +168,8 @@
     {/if}
   {/each}
 </div>
+
+<AcwrSheet />
 
 {#if showQuickLog}
   <QuickLogSheet initialKind={quickLogStart} onClose={() => { showQuickLog = false; quickLogStart = null; }} />

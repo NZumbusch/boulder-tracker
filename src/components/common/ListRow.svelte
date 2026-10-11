@@ -11,10 +11,12 @@
   import type { Snippet } from 'svelte';
   import { longPress } from '../../lib/ui/longPress';
 
-  let { title, titleExtra, meta, detail, value, valueHint, muted = false, onclick, onlongpress = null, leading, trailing }: {
+  let { title, titleExtra, metaLead, meta, detail, value, valueHint, muted = false, onclick, onlongpress = null, leading, trailing }: {
     title: string;
     /** Rendered right after the title, e.g. a grade. */
     titleExtra?: Snippet;
+    /** A chip at the start of the meta line - unlike `titleExtra` a long title can't push it out of sight. */
+    metaLead?: Snippet;
     meta?: string;
     /** A second, quieter meta line. */
     detail?: string;
@@ -37,7 +39,9 @@
     <p class="text-body font-semibold text-content truncate {onclick ? 'group-hover:text-primary transition-colors' : ''}">
       {title}{#if titleExtra}{' '}{@render titleExtra()}{/if}
     </p>
-    {#if meta}<p class="text-caption text-content-subtle truncate tabular-nums">{meta}</p>{/if}
+    {#if metaLead}
+      <p class="flex items-center gap-1.5 min-w-0 text-caption text-content-subtle tabular-nums"><span class="shrink-0 empty:hidden">{@render metaLead()}</span>{#if meta}<span class="truncate">{meta}</span>{/if}</p>
+    {:else if meta}<p class="text-caption text-content-subtle truncate tabular-nums">{meta}</p>{/if}
     {#if detail}<p class="text-caption text-content-subtle/70 truncate">{detail}</p>{/if}
   {/snippet}
   {#if onclick}

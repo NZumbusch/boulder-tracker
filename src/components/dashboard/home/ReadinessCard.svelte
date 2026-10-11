@@ -2,6 +2,7 @@
   /** The readiness hero: score ring, status and advice, and a tap-to-open breakdown of what cost points. */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
+  import { showAcwr } from '../../../lib/help/acwrSheet.svelte';
   import { MAX_FATIGUE_PENALTY, MAX_ACWR_PENALTY, MAX_SLEEP_PENALTY, MAX_HRV_PENALTY, MAX_PAIN_PENALTY, type ReadinessStatus } from '../../../lib/analytics/readiness';
   import Icon from '@iconify/svelte';
   import { untrack } from 'svelte';
@@ -146,7 +147,7 @@
   {#if canBreakDown && showBreakdown}
     <div class="mt-4 pt-3 border-t border-border/60 space-y-2" transition:slide={{ duration: motionMs(260), easing: cubicOut }}>
       {#each BREAKDOWN_ROWS as row}
-        <div class="flex items-center gap-3">
+        {#snippet rowBody(row: (typeof BREAKDOWN_ROWS)[number])}
           <span class="w-14 text-label text-content-subtle shrink-0">{row.label}</span>
           <div class="flex-1 h-1.5 bg-surface-elevated rounded-control overflow-hidden border border-border-strong/30">
             <div class="h-full rounded-control origin-left {STATUS_BAR[rowStatus(row.penalty, row.max, row.used)]} breakdown-bar" style="width: {Math.min(100, (row.penalty / row.max) * 100)}%"></div>
@@ -154,9 +155,14 @@
           <span class="w-12 text-right text-label tabular-nums shrink-0 {!row.used ? 'text-content-subtle' : rowStatus(row.penalty, row.max, row.used) === 'good' ? 'text-content' : STATUS_COLOR[rowStatus(row.penalty, row.max, row.used)]}">
             {row.used ? (Math.round(row.penalty) > 0 ? `−${Math.round(row.penalty)}` : '0') : 'no data'}
           </span>
-        </div>
+        {/snippet}
+        {#if row.label === 'Load'}
+          <button class="flex items-center gap-3 w-full text-left" onclick={showAcwr}>{@render rowBody(row)}</button>
+        {:else}
+          <div class="flex items-center gap-3">{@render rowBody(row)}</div>
+        {/if}
       {/each}
-      <p class="text-caption text-content-subtle">Points taken off 100. Each bar is coloured by how much of its maximum it costs.</p>
+      <p class="text-caption text-content-subtle">Points taken off 100. Each bar is coloured by how much of its maximum it costs. Tap Load to see what it is made of.</p>
     </div>
   {/if}
 </div>

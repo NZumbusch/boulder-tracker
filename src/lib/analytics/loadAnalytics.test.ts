@@ -8,6 +8,7 @@ import {
   CONSECUTIVE_TRAINING_DAY_THRESHOLD,
   calculateWeeklyLoad,
   calculateRollingAcwr,
+  calculateAcwrBreakdown,
   calculateRollingAcwrSeries,
   calculateAcwrForWeeks,
   calculateWorkoutAdherence,
@@ -472,5 +473,24 @@ describe("correlatePainWithLoadSpikes", () => {
     ];
     const [result] = correlatePainWithLoadSpikes([makeLog({ id: "9", weekId: "W8" })], acwrSufficient);
     expect(result.loadSpikeNearby).toBe(true);
+  });
+});
+
+describe("calculateAcwrBreakdown", () => {
+  const asOf = new Date(2026, 9, 11, 12);
+  const at = (day: number, load: number, notes?: string) =>
+    makeWorkout({ id: `w${day}`, status: "completed", date: new Date(2026, 9, day, 10).toISOString(), loadFactor: load, notes });
+
+  it("splits the window into 7-day blocks that add up to the acute and chronic loads", () => {
+    const ws = [at(11, 500, "Board"), at(6, 300), at(1, 400)];
+    ws.push(makeWorkout({ id: "old", status: "completed", date: new Date(2026, 8, 20, 10).toISOString(), loadFactor: 200 }));
+    const b = calculateAcwrBreakdown(ws, asOf);
+    expect(b.blocks).toHaveLength(4);
+    expect(b.blocks[0].load).toBe(b.acuteLoad);
+    expect(b.blocks.reduce((s, x) => s + x.load, 0) / 4).toBe(b.chronicLoad);
+    expect(b.blocks[0].sessions.map((s) => s.name)).toEqual(["Session", "Board"]);
+    expect(b.blocks[0].from).toBe("2026-10-05");
+    expect(b.blocks[0].to).toBe("2026-10-11");
+    expect(b.blocks[1].from).toBe("2026-09-28");
   });
 });

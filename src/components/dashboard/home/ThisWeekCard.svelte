@@ -15,6 +15,7 @@
   import { joinParts } from './format';
   import SectionHeader from './SectionHeader.svelte';
   import Icon from '@iconify/svelte';
+  import { showAcwr } from '../../../lib/help/acwrSheet.svelte';
 
   let { data }: { data: HomeData } = $props();
 
@@ -95,12 +96,12 @@
       <span class="text-caption text-content-subtle">load pts{recap.minutes > 0 ? ` · ${formatMinutes(recap.minutes)}` : ''}</span>
     </p>
     {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
-      <span class="px-2 py-0.5 rounded-full border text-caption tabular-nums shrink-0 {acwrZone.class}" title="Acute:chronic workload ratio - last 7 days vs the 28-day average">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}</span>
+      <button onclick={showAcwr} class="px-2 py-0.5 rounded-full border text-caption tabular-nums shrink-0 inline-flex items-center gap-1 {acwrZone.class}" aria-label="ACWR {acwr.ratio!.toFixed(2)}, {acwrZone.label} - what it is made of">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}<Icon icon="ic:baseline-chevron-right" class="text-xs -mr-0.5" /></button>
     {:else if trainingState.homeDetails['thisWeek.acwr'] && acwr.insufficientReason}
       <!-- Said, not just hidden: ACWR needs a real 4-week baseline. -->
-      <span class="text-caption text-content-subtle shrink-0" title="ACWR compares this week with the last four - it needs training logged in at least 3 of them">
-        {acwr.insufficientReason === 'break' ? `ACWR after a break · ${acwr.activeWeeks}/3 weeks` : 'ACWR from 4 weeks in'}
-      </span>
+      <button onclick={showAcwr} class="text-caption text-content-subtle shrink-0 inline-flex items-center gap-0.5" aria-label="Why there is no ACWR yet">
+        {acwr.insufficientReason === 'break' ? `ACWR after a break · ${acwr.activeWeeks}/3 weeks` : 'ACWR from 4 weeks in'}<Icon icon="ic:baseline-chevron-right" class="text-xs" />
+      </button>
     {/if}
   </div>
 
