@@ -18,8 +18,9 @@ function weightText(v: ExerciseValues): string | undefined {
 export function slotSummary(slot: ExerciseSlot): string {
   const v = slotValues(slot);
   const parts: string[] = [];
-  if (v.sets) parts.push(`${v.sets}${v.reps ? `×${v.reps}` : Number(v.sets) === 1 ? ' set' : ' sets'}`);
-  else if (v.reps) parts.push(`${v.reps} reps`);
+  const reps = formatPerSet(v, 'reps');
+  if (v.sets) parts.push(`${v.sets}${reps ? `×${reps}` : Number(v.sets) === 1 ? ' set' : ' sets'}`);
+  else if (reps) parts.push(`${reps} reps`);
   if (v.weight) parts.push(weightText(v) ?? formatWeight(v.weight, trainingState.units.weight));
   if (v.minGrade) parts.push(v.maxGrade && v.maxGrade !== v.minGrade ? `${v.minGrade}–${v.maxGrade}` : v.minGrade);
   // A circuit member's own estimate counts its own set rests, which the
@@ -101,7 +102,7 @@ export function detailPairs(
 /** What was done, in one short line - "3×5 · 12 kg", "20 mm · 7 s · +15%" - for the "Last time" hint. */
 export function valuesLine(v: ExerciseValues): string {
   const parts: string[] = [];
-  const reps = Array.isArray(v.reps) ? v.reps.join('/') : v.reps;
+  const reps = formatPerSet(v, 'reps')?.replace(/ \/ /g, '/');
   if (v.sets) parts.push(`${v.sets}${reps ? `×${reps}` : Number(v.sets) === 1 ? ' set' : ' sets'}`);
   else if (reps) parts.push(`${reps} reps`);
   if (v.weight) parts.push(weightText(v) ?? formatWeight(v.weight, trainingState.units.weight));

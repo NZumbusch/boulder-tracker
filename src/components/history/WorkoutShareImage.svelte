@@ -24,6 +24,7 @@
    * sharing a washed-out card was not the intent.
    */
   import { formatWeight } from '../../lib/units';
+  import { formatPerSet } from '../../lib/exercise/setRows';
   import type { ExerciseSlot, Workout } from '../../lib/types';
   import { formatDate } from '../../lib/dateUtils';
   import { trainingState } from '../../lib/state.svelte';
@@ -68,8 +69,9 @@
 
   function shortValue(slot: ExerciseSlot): string {
     const v = slotValues(slot);
-    const base = v.sets && v.reps
-      ? `${v.sets}x${v.reps}`
+    const reps = formatPerSet(v, 'reps')?.replace(/ \/ /g, '/');
+    const base = v.sets && reps
+      ? `${v.sets}x${reps}`
       : v.duration
         ? `${v.duration}m`
         : v.distance
