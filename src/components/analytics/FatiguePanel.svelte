@@ -119,7 +119,7 @@
         <span class="text-content-muted">{weekLabels[samples[readoutIndex].weekId] ?? ''}</span>
         {#each series as s (s.key)}
           {#if !hidden.has(s.key)}
-            <span><span style="color: {s.color}">●</span> <span class="text-content">{s.values[readoutIndex]?.toFixed(1) ?? '–'}</span></span>
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background: {s.color}"></span><span class="text-content">{s.values[readoutIndex]?.toFixed(1) ?? '–'}</span></span>
           {/if}
         {/each}
       {/if}

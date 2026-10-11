@@ -48,7 +48,7 @@
 
 {#snippet row(insight: Insight)}
   {#snippet body()}
-    <span class="mt-1.5 w-2 h-2 rounded-full shrink-0 {TONE[insight.tone].dot}" role="img" aria-label={TONE[insight.tone].label}></span>
+    <span class="mt-[6.5px] w-2 h-2 rounded-full shrink-0 {TONE[insight.tone].dot}" role="img" aria-label={TONE[insight.tone].label}></span>
     <span class="min-w-0 flex-1 text-left">
       <span class="block text-body font-semibold text-content">{insight.title}</span>
       {#if insight.detail}<span class="block text-caption text-content-subtle leading-relaxed">{insight.detail}</span>{/if}
@@ -58,9 +58,9 @@
     {@const link = insight.link}
     <button type="button" onclick={() => onOpen(link)} class="w-full flex items-start gap-3 py-3 text-left">
       {@render body()}
-      <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0 mt-0.5" />
+      <Icon icon="ic:baseline-chevron-right" class="text-xl text-content-subtle shrink-0 mt-[0.5px]" />
     </button>
   {:else}
-    <div class="flex items-start gap-3 py-3">{@render body()}</div>
+    <div class="flex items-start gap-3 py-3">{@render body()}<span class="w-5 shrink-0" aria-hidden="true"></span></div>
   {/if}
 {/snippet}

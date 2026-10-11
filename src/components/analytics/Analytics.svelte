@@ -136,6 +136,7 @@
   /** An insight's link: the ACWR breakdown, or the chart behind it on its own tab. */
   async function openInsight(link: InsightLink) {
     if (link.kind === 'acwr') { showAcwr(); return; }
+    if (link.kind === 'plan') { trainingState.navigate('plan'); return; }
     tab = link.tab;
     await tick();
     document.getElementById(link.section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

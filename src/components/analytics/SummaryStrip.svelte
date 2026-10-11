@@ -58,8 +58,8 @@
 
 <div class="space-y-1.5">
   <div class="grid grid-cols-3 gap-1.5">
-    {#each tiles as tile (tile.label)}
-      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border">
+    {#each tiles as tile, i (tile.label)}
+      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border {i === tiles.length - 1 && tiles.length % 3 === 1 ? 'col-span-3' : i === tiles.length - 1 && tiles.length % 3 === 2 ? 'col-span-2' : ''}">
         <p class="text-caption text-content-subtle leading-tight">{tile.label}</p>
         <div class="flex items-baseline justify-between gap-1">
           <span class="text-body font-semibold text-content tabular-nums">{tile.value}</span>

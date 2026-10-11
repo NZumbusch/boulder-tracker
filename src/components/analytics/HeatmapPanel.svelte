@@ -59,7 +59,7 @@
   <div class="flex items-start justify-between gap-3">
    <div>
     <h3 class="text-section uppercase text-content-muted">Training Calendar</h3>
-    <p class="text-caption text-content-subtle mt-0.5">{trainingDays} training days in the {wholeYear ? 'year' : 'six months'} to {new Date(`${dayIndexToIso(lastDay)}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</p>
+    <p class="text-caption text-content-subtle mt-0.5">{trainingDays} training day{trainingDays === 1 ? '' : 's'} · last {wholeYear ? 'year' : '6 months'}</p>
    </div>
    <div class="seg shrink-0" role="group" aria-label="Calendar length">
      <button class="seg-item px-2 py-1 text-caption {!wholeYear ? 'bg-primary text-white' : ''}" aria-pressed={!wholeYear} onclick={() => (wholeYear = false)}>6 mo</button>

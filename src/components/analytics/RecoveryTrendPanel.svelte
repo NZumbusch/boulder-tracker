@@ -350,7 +350,7 @@
         {#each readout.metrics as m (m.id)}
           {#if !hidden.has(m.id)}
             <span>
-              <span style="color: {m.color}">●</span>
+              <span class="inline-block w-2 h-2 rounded-full align-middle mr-1" style="background: {m.color}"></span>
               <span class="text-content">{formatValue(m.day?.value, m.unit)}</span><span class="text-content-subtle">{m.day?.value !== undefined ? ` ${m.unit}` : ''}</span>
               {#if m.id === 'sleep-duration' && readoutDay !== null && napsByDay.get(readoutDay)}<span class="text-content-subtle"> +{formatValue(napsByDay.get(readoutDay), 'h')} h nap</span>{/if}
               {#if m.day?.deviation !== undefined}<span class="text-content-subtle"> {formatPct(m.day.deviation)}</span>{/if}

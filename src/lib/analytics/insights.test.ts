@@ -54,7 +54,7 @@ describe("load ratio", () => {
     const list = buildInsights(inputs([session(9, [])]));
     const acwr = list.find((i) => i.id === "acwr")!;
     expect(acwr.tone).toBe("info");
-    expect(acwr.title).toMatch(/isn't counted/);
+    expect(acwr.title).toMatch(/not counted/);
   });
 
   it("calls a heavy week against an even baseline high risk", () => {
@@ -106,6 +106,6 @@ describe("plan insights", () => {
     const ws = [prev(1, "completed"), prev(2, "completed"), prev(3, "planned"), prev(4, "planned", true)];
     const a = buildInsights(inputs(ws)).find((i) => i.id === "adherence");
     // Oct 1-4 is the week before this one (W40); 2 done, 1 missed, 1 skipped
-    expect(a?.title).toBe("You did 67% of the planned sessions over the last 4 weeks");
+    expect(a?.title).toBe("67% of planned sessions done, last 4 weeks");
   });
 });

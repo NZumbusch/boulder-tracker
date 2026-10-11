@@ -31,6 +31,7 @@ export type InsightTone = "risk" | "caution" | "good" | "info";
 /** Where tapping a finding goes: the ACWR sheet, or a chart on one of the Analytics tabs. */
 export type InsightLink =
   | { kind: "acwr" }
+  | { kind: "plan" }
   | { kind: "panel"; tab: "training" | "body" | "performance"; section: string };
 
 export interface Insight {
@@ -107,7 +108,7 @@ function acwrInsight(i: InsightInputs): Insight {
       id: "acwr",
       group: "push",
       tone: "info",
-      title: "Load ratio isn't counted yet",
+      title: "Load ratio not counted yet",
       detail: r.insufficientReason === "break"
         ? `Only ${r.activeWeeks} of the last 4 weeks have a session (3 are needed), so your usual week is too small to compare with.`
         : "It needs 28 days of logged sessions to mean anything.",
@@ -119,8 +120,8 @@ function acwrInsight(i: InsightInputs): Insight {
     id: "acwr",
     group: "push",
     tone,
-    title: `Load is ${r.ratio.toFixed(2)}× your usual week (${zoneName(r.ratio, i.config.acwrZones)})`,
-    detail: `${n0(r.acuteLoad)} in the last 7 days against ${n0(r.chronicLoad)} on average over 4 weeks.`,
+    title: `Load is ${r.ratio.toFixed(2)}× your usual week`,
+    detail: `${zoneName(r.ratio, i.config.acwrZones)[0].toUpperCase()}${zoneName(r.ratio, i.config.acwrZones).slice(1)}: ${n0(r.acuteLoad)} in the last 7 days against ${n0(r.chronicLoad)} on average over 4 weeks.`,
     link,
   };
 }
@@ -174,7 +175,7 @@ function whatIfInsight(i: InsightInputs): Insight | undefined {
     id: "whatif",
     group: "push",
     tone: zoneTone(after.ratio, i.config.acwrZones),
-    title: `The rest of this week as planned takes the ratio to ${after.ratio.toFixed(2)}`,
+    title: `Rest of the week as planned: ratio ${after.ratio.toFixed(2)}`,
     detail: `${left.length} session${left.length === 1 ? "" : "s"} left, about ${n0(added)} load${Math.abs(scale - 1) > 0.15 ? ` (your ratings usually run ${scale.toFixed(1)}× the plan's estimate)` : ""}. An estimate: lighten a session if it lands in the red.`,
     link: { kind: "acwr" },
   };
@@ -194,7 +195,7 @@ function fatigueInsight(i: InsightInputs): Insight | undefined {
     id: "fatigue",
     group: "push",
     tone,
-    title: tone === "good" ? "You're fresh: no area above 4/10" : `${name} fatigue is ${value.toFixed(1)}/10`,
+    title: tone === "good" ? "Fresh: no area above 4/10" : `${name} fatigue ${value.toFixed(1)}/10`,
     detail: tone === "good" ? `Highest is ${name.toLowerCase()} at ${value.toFixed(1)}/10.` : "From your recent session ratings, fading as you rest.",
     link: { kind: "panel", tab: "training", section: "section-fatigue" },
   };
@@ -285,7 +286,7 @@ function retestInsight(i: InsightInputs): Insight | undefined {
     id: "retest",
     group: "strength",
     tone: "info",
-    title: `${first.name} is due for a retest`,
+    title: `Retest due: ${first.name}`,
     detail: `Last tested ${first.weeks} weeks ago${due.length > 1 ? `; ${due.length - 1} more are due too` : ""}.`,
     link: { kind: "panel", tab: "performance", section: "section-benchmarks" },
   };
@@ -310,7 +311,7 @@ function adherenceInsights(i: InsightInputs): Insight[] {
       id: "adherence",
       group: "plan",
       tone: share >= 0.8 ? "good" : share < i.config.adherenceLow ? "caution" : "info",
-      title: `You did ${Math.round(share * 100)}% of the planned sessions over the last 4 weeks`,
+      title: `${Math.round(share * 100)}% of planned sessions done, last 4 weeks`,
       detail: `${done} of ${done + missed} (skipped sessions don't count against you).`,
       link: { kind: "panel", tab: "training", section: "section-load" },
     });
@@ -326,7 +327,8 @@ function adherenceInsights(i: InsightInputs): Insight[] {
       id: "missed-now",
       group: "plan",
       tone: "info",
-      title: `${missedNow.length} planned session${missedNow.length === 1 ? "" : "s"} missed this week`,
+      title: `${missedNow.length} session${missedNow.length === 1 ? "" : "s"} missed this week`,
+      link: { kind: "plan" },
       detail: missedNow.map((s) => s.notes || "Session").slice(0, 3).join(", "),
     });
   }
@@ -380,14 +382,14 @@ function climbingInsight(i: InsightInputs): Insight | undefined {
   }, undefined);
   const link: InsightLink = { kind: "panel", tab: "performance", section: "section-outdoor" };
   if (recent.length === 0) {
-    return { id: "sends", group: "body", tone: "info", title: "No outdoor sends in the last 4 weeks", detail: season.hardest ? `Hardest this season: ${season.hardest.grade} (${season.hardest.name}).` : undefined, link };
+    return { id: "sends", group: "body", tone: "info", title: "No outdoor sends in 4 weeks", detail: season.hardest ? `Hardest this season: ${season.hardest.grade} (${season.hardest.name}).` : undefined, link };
   }
   const hard = hardestIn(recent);
   return {
     id: "sends",
     group: "body",
     tone: "info",
-    title: `${recent.length} outdoor send${recent.length === 1 ? "" : "s"} in the last 4 weeks`,
+    title: `${recent.length} outdoor send${recent.length === 1 ? "" : "s"} in 4 weeks`,
     detail: `${hard ? `Hardest ${hard.grade}` : ""}${season.hardest && hard && season.hardest.id !== hard.id ? `; season best ${season.hardest.grade}` : ""}.`.replace(/^;\s*/, ""),
     link,
   };
@@ -410,7 +412,7 @@ function recoveryInsights(i: InsightInputs): Insight[] {
         id: "hrv",
         group: "body",
         tone: "caution",
-        title: `HRV is ${Math.round(dip * 100)}% below your baseline`,
+        title: `HRV ${Math.round(dip * 100)}% below baseline`,
         detail: `Last 3 days average ${Math.round(avg(hrv))} ms against ${Math.round(baseline)} ms over 14 days.`,
         link: { kind: "panel", tab: "body", section: "section-recoveryTrend" },
       });
@@ -418,7 +420,7 @@ function recoveryInsights(i: InsightInputs): Insight[] {
   }
   const sleep = recentOf("sleep-score", 3);
   if (sleep.length >= 2 && avg(sleep) < i.config.sleepLow) {
-    out.push({ id: "sleep", group: "body", tone: "caution", title: `Sleep score is low: ${Math.round(avg(sleep))} over the last 3 nights`, link: { kind: "panel", tab: "body", section: "section-recoveryTrend" } });
+    out.push({ id: "sleep", group: "body", tone: "caution", title: `Low sleep score: ${Math.round(avg(sleep))} lately`, link: { kind: "panel", tab: "body", section: "section-recoveryTrend" } });
   }
   return out;
 }

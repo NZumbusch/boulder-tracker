@@ -63,15 +63,15 @@
       <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Training Mix <InfoButton term="mix" /></h3>
       <p class="text-caption text-content-subtle mt-0.5">{windowTotal > 0 ? `${hours(windowTotal)} in this window` : 'Time by category'}</p>
     </div>
-    <div class="flex flex-col items-end gap-1 shrink-0">
-      <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
-        <button onclick={() => (showRelative = true)} class="px-2 py-0.5 text-caption rounded-control {showRelative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Share</button>
-        <button onclick={() => (showRelative = false)} class="px-2 py-0.5 text-caption rounded-control {!showRelative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Minutes</button>
-      </div>
-      <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
-        <button onclick={() => (includePlanned = false)} class="px-2 py-0.5 text-caption rounded-control {!includePlanned ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Done</button>
-        <button onclick={() => (includePlanned = true)} class="px-2 py-0.5 text-caption rounded-control {includePlanned ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">+ Planned</button>
-      </div>
+  </div>
+  <div class="flex items-center justify-between gap-2">
+    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
+      <button onclick={() => (showRelative = true)} class="px-2 py-0.5 text-caption rounded-control {showRelative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Share</button>
+      <button onclick={() => (showRelative = false)} class="px-2 py-0.5 text-caption rounded-control {!showRelative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Minutes</button>
+    </div>
+    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
+      <button onclick={() => (includePlanned = false)} class="px-2 py-0.5 text-caption rounded-control {!includePlanned ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Done</button>
+      <button onclick={() => (includePlanned = true)} class="px-2 py-0.5 text-caption rounded-control {includePlanned ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">+ Planned</button>
     </div>
   </div>
 
