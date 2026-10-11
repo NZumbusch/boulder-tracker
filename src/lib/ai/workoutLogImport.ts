@@ -1,0 +1,120 @@
+import type { AnalyticsCategory, ExerciseSlot, ExerciseTypeDef } from "../types";
+import { generateId } from "../utils";
+import type { AIExercise, AIWorkoutLogOutput } from "./schema";
+import {
+  buildExerciseSlot,
+  findExerciseTypeByName,
+  normalizeName,
+  resolveNewExerciseTypeCategory,
+  type NameMapping,
+} from "./planImport";
+
+/**
+ * The "paste free-text training notes, get structured exercises" flow
+ * reuses `AIExercise`/name-resolution from the plan
+ * importer, but its target is a single in-progress workout's exercise list
+ * (`WorkoutEditor.svelte`), not the whole plan/calendar - so unlike
+ * `planImport.ts` there's no `TrainingBlock`/`Workout` to build here. Every
+ * exercise from every parsed "workout" is flattened into one slot list,
+ * since the consuming form only ever edits one workout at a time.
+ */
+
+export interface WorkoutLogPreviewWorkout {
+  name?: string;
+  date?: string;
+  exerciseCount: number;
+}
+
+export interface WorkoutLogPreview {
+  workouts: WorkoutLogPreviewWorkout[];
+  unresolvedExerciseTypeNames: string[];
+  totalExercises: number;
+}
+
+export function buildWorkoutLogPreview(
+  log: AIWorkoutLogOutput,
+  exerciseTypes: ExerciseTypeDef[],
+): WorkoutLogPreview {
+  const names: string[] = [];
+  const workouts = log.workouts.map((w) => {
+    for (const e of w.exercises) names.push(e.exerciseTypeName);
+    return { name: w.name, date: w.date, exerciseCount: w.exercises.length };
+  });
+  const seen = new Set<string>();
+  const unresolvedExerciseTypeNames: string[] = [];
+  for (const name of names) {
+    const key = normalizeName(name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!findExerciseTypeByName(name, exerciseTypes)) unresolvedExerciseTypeNames.push(name);
+  }
+  return { workouts, unresolvedExerciseTypeNames, totalExercises: names.length };
+}
+
+export interface WorkoutLogCommitResult {
+  newExerciseTypes: ExerciseTypeDef[];
+  slots: ExerciseSlot[];
+}
+
+/**
+ * Pure commit builder. Names resolve by case-insensitive exact match, and a
+ * "create" mapping makes a fresh `ExerciseTypeDef`. `bucket` selects which `ExerciseSlot` field the
+ * parsed values land in - "prescribed" for a planned session, "logged" for
+ * a completed one (the same split as `WorkoutEditor.svelte`'s `bucket`).
+ */
+export function buildWorkoutLogCommit(
+  log: AIWorkoutLogOutput,
+  mapping: { exerciseTypes: Record<string, NameMapping> },
+  ctx: { exerciseTypes: ExerciseTypeDef[]; analyticsCategories: AnalyticsCategory[] },
+  bucket: "prescribed" | "logged",
+): WorkoutLogCommitResult {
+  const newExerciseTypes: ExerciseTypeDef[] = [];
+  const typeIdByName = new Map<string, string>();
+
+  const resolveTypeId = (exercise: AIExercise): string => {
+    const name = exercise.exerciseTypeName;
+    const key = normalizeName(name);
+    const cached = typeIdByName.get(key);
+    if (cached) return cached;
+    const existing = findExerciseTypeByName(name, ctx.exerciseTypes);
+    if (existing) {
+      typeIdByName.set(key, existing.id);
+      return existing.id;
+    }
+    const choice = mapping.exerciseTypes[key];
+    if (choice?.action === "map") {
+      typeIdByName.set(key, choice.id);
+      return choice.id;
+    }
+    // See `resolveNewExerciseTypeCategory`'s doc comment (planImport.ts) -
+    // same category-name resolution (and the same pre-existing id-vs-name
+    // bug fix) as the plan importer, shared rather than duplicated.
+    const created: ExerciseTypeDef = {
+      id: generateId(),
+      name,
+      category: resolveNewExerciseTypeCategory(exercise.categoryName, ctx.analyticsCategories),
+      parameters: [],
+    };
+    newExerciseTypes.push(created);
+    typeIdByName.set(key, created.id);
+    return created.id;
+  };
+
+  const slots: ExerciseSlot[] = [];
+  for (const w of log.workouts) {
+    for (const e of w.exercises) {
+      resolveTypeId(e);
+    }
+  }
+  const exerciseTypeById = new Map<string, ExerciseTypeDef>([
+    ...ctx.exerciseTypes.map((t): [string, ExerciseTypeDef] => [t.id, t]),
+    ...newExerciseTypes.map((t): [string, ExerciseTypeDef] => [t.id, t]),
+  ]);
+  for (const w of log.workouts) {
+    for (const e of w.exercises) {
+      slots.push(buildExerciseSlot(e, resolveTypeId(e), exerciseTypeById, bucket));
+    }
+  }
+
+  return { newExerciseTypes, slots };
+}

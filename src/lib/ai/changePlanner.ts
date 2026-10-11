@@ -1,0 +1,1314 @@
+/**
+ * Turns a validated change set (`changeSet.ts`) into a reviewable list of
+ * changes and, for the ticked ones, the exact writes to perform.
+ *
+ * Pure: it works on copies of the user's data and never touches storage.
+ * The preview calls `planChanges` on every tick/untick; the same function's
+ * `writes` are what Apply persists, so what is previewed is what gets written.
+ *
+ * Order matters and follows the contract: exercise types first (so
+ * sessions can use a type added in the same document), then phases (so
+ * weeks can follow a phase added or edited here), then weeks - each week
+ * entry building on the result of the ones before it - and Plan Bs last,
+ * as differences from the plan the other sections leave behind.
+ *
+ * Week semantics (settled with the user):
+ *  - phase only       -> the week follows that phase; its planned sessions
+ *                        are replaced by the phase's (it stays provisional
+ *                        unless it has completed sessions to plan around)
+ *  - "sessions"       -> the week's planned sessions become exactly these
+ *  - "sessionChanges" -> edits applied to the week's current sessions
+ * Completed sessions are never touched. Hand-edited weeks being replaced
+ * are flagged, not refused.
+ */
+import { exerciseGroup } from "../exercise/library";
+import type {
+  Circuit,
+  ExerciseGroup,
+  AnalyticsCategory,
+  ExerciseSlot,
+  ExerciseTypeDef,
+  ExerciseValues,
+  PhaseDef,
+  PlanAlternative,
+  CoachNote,
+  TrainingBlock,
+  WeekNote,
+  WeekOverride,
+  Workout,
+  WorkoutTemplate,
+} from "../types";
+import { workoutPlannedLoad } from "../analytics/load";
+import { generateId } from "../utils";
+import { decrementWeekId, incrementWeekId } from "../dateUtils";
+import { getDominantBlockForWeek } from "../planning/trainingBlocks";
+import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
+import { appendAINote, weekNoteText } from "../planning/notes";
+import { normalizeName, resolveNewExerciseTypeCategory } from "./planImport";
+import { PARAMETER_BLOCKS, isCircuitItem, type AIChangeSet, type CSCircuit, type CSExerciseChange, type CSItem, type CSSession, type CSSessionChange, type CSSessionMatch } from "./changeSet";
+import { normaliseGroups } from "../exercise/groups";
+import type { AIExercise } from "./schema";
+import { slotValues } from "../exerciseSlot";
+import { dayIndexOf, weekAndDayOf, occurrenceOnDay, describeChanges, templateFromWorkout, MAX_PLAN_B_DAYS } from "../planning/planB";
+import { applyCoachNoteChange, newCoachNoteId } from "./coachNotes";
+
+// --- Inputs and outputs -----------------------------------------------------
+
+export interface PlannerState {
+  exerciseTypes: ExerciseTypeDef[];
+  analyticsCategories: AnalyticsCategory[];
+  phaseDefs: PhaseDef[];
+  templates: Record<string, WorkoutTemplate[]>;
+  trainingBlocks: TrainingBlock[];
+  /** Stored workouts (planned and completed). */
+  workouts: Workout[];
+  weekOverrides: WeekOverride[];
+  weekNotes: WeekNote[];
+  /** Existing Plan Bs. */
+  planAlternatives?: PlanAlternative[];
+  /** The coaching memory, and today ("YYYY-MM-DD") for dating new notes. */
+  coachNotes?: CoachNote[];
+  /** The saved-circuit library. */
+  circuits?: Circuit[];
+  today?: string;
+  /** For "this is in the past" warnings. */
+  currentWeekId: string;
+}
+
+export type ChangeSection = "category" | "exercise" | "circuit" | "phase" | "week" | "planB" | "coach";
+
+export interface ChangeItem {
+  id: string;
+  section: ChangeSection;
+  /** One-line headline, e.g. "+ Max Hangs 7s" or "W40–W42 → Power". */
+  title: string;
+  /** Before -> after lines. */
+  details: string[];
+  warnings: string[];
+  /** Why this change can't be applied as things stand (it's then unticked). */
+  errors: string[];
+  /** Other items this one relies on (a new exercise it uses, a phase it follows). */
+  dependsOn: string[];
+}
+
+/** What a week ends up as. `planned: null` = follow its phase (no stored plan). */
+export interface WeekWrite {
+  weekId: string;
+  planned: Workout[] | null;
+  customized: boolean;
+}
+
+export interface PlanWrites {
+  exerciseTypes?: ExerciseTypeDef[];
+  phaseDefs?: PhaseDef[];
+  templates?: Record<string, WorkoutTemplate[]>;
+  trainingBlocks?: TrainingBlock[];
+  /** The whole Plan B list, when it changed. */
+  planAlternatives?: PlanAlternative[];
+  /** The whole coach-notes list, when it changed. */
+  coachNotes?: CoachNote[];
+  /** The whole saved-circuit list, when it changed. */
+  circuits?: Circuit[];
+  /** The whole analytics-category list, when it changed. */
+  analyticsCategories?: AnalyticsCategory[];
+  weeks: WeekWrite[];
+  weekNotes: WeekNote[];
+}
+
+export interface PlanResult {
+  items: ChangeItem[];
+  writes: PlanWrites;
+}
+
+// --- Small helpers ----------------------------------------------------------
+
+const PHASE_COLORS = ["bg-success-hover", "bg-tertiary-hover", "bg-indigo-500", "bg-rose-500", "bg-amber-500", "bg-sky-500", "bg-zinc-500", "bg-warning", "bg-cyan-500", "bg-fuchsia-500", "bg-lime-500", "bg-teal-500", "bg-pink-500"];
+
+const DAY_SHORT: Record<string, string> = { Monday: "Mon", Tuesday: "Tue", Wednesday: "Wed", Thursday: "Thu", Friday: "Fri", Saturday: "Sat", Sunday: "Sun" };
+
+function sessionLabel(s: { notes?: string; dayOfWeek?: string }): string {
+  return [s.dayOfWeek ? DAY_SHORT[s.dayOfWeek] : undefined, s.notes || "Session"].filter(Boolean).join(" ");
+}
+
+function weekRangeLabel(weekIds: string[]): string {
+  const short = (w: string) => w.replace(/^\d{4}-/, "");
+  return weekIds.length === 1 ? short(weekIds[0]) : `${short(weekIds[0])}–${short(weekIds[weekIds.length - 1])}`;
+}
+
+function show(value: unknown): string {
+  if (value === undefined || value === null || value === "") return "—";
+  return Array.isArray(value) ? value.join(", ") : String(value);
+}
+
+/** "sets 5 → 6, weight 10 → —" for the fields that differ. */
+function valueDiff(before: ExerciseValues, after: ExerciseValues): string[] {
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])] as (keyof ExerciseValues)[];
+  return keys
+    .filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]))
+    .map((k) => `${k} ${show(before[k])} → ${show(after[k])}`);
+}
+
+// --- The planner ------------------------------------------------------------
+
+interface Ctx {
+  state: PlannerState;
+  newId: () => string;
+  types: ExerciseTypeDef[];
+  /** Analytics categories as the change set leaves them so far. */
+  categories: AnalyticsCategory[];
+  /** Normalised category name -> the item that added or renamed it. */
+  categoryOrigin: Map<string, string>;
+  untickedCategoryNames: Set<string>;
+  /** Normalised name -> the item that introduced or renamed it (for dependencies). */
+  typeOrigin: Map<string, string>;
+  /** Names added by unticked items (for a clearer error). */
+  untickedTypeNames: Set<string>;
+  phaseDefs: PhaseDef[];
+  templates: Record<string, WorkoutTemplate[]>;
+  phaseOrigin: Map<string, string>;
+  untickedPhaseNames: Set<string>;
+  blocks: TrainingBlock[];
+  /** Weeks touched so far, with their resulting plan. */
+  weekState: Map<string, { planned: Workout[] | null; customized: boolean }>;
+  /** Week id -> the week item that set it (for a Plan B's dependencies). */
+  weekOrigin: Map<string, string>;
+  weekNotes: WeekNote[];
+  /** Saved circuits as the change set leaves them so far. */
+  circuits: Circuit[];
+  circuitOrigin: Map<string, string>;
+  untickedCircuitNames: Set<string>;
+  changed: { categories: boolean; types: boolean; phases: boolean; templates: boolean; blocks: boolean; circuits: boolean };
+}
+
+function findType(ctx: Ctx, name: string): ExerciseTypeDef | undefined {
+  const key = normalizeName(name);
+  const matches = ctx.types.filter((t) => normalizeName(t.name) === key);
+  return matches.find((t) => !t.archived) ?? matches[0];
+}
+
+function findPhase(ctx: Ctx, name: string): PhaseDef | undefined {
+  const key = normalizeName(name);
+  const matches = ctx.phaseDefs.filter((p) => normalizeName(p.name) === key);
+  return matches.find((p) => !p.archived) ?? matches[0];
+}
+
+function typeName(ctx: Ctx, typeId: string): string {
+  return ctx.types.find((t) => t.id === typeId)?.name ?? ctx.state.exerciseTypes.find((t) => t.id === typeId)?.name ?? "Unknown";
+}
+
+/** Resolves an exercise type name, recording the dependency or the error. */
+function resolveType(ctx: Ctx, name: string, item: ChangeItem): ExerciseTypeDef | undefined {
+  const type = findType(ctx, name);
+  if (!type) {
+    item.errors.push(
+      ctx.untickedTypeNames.has(normalizeName(name))
+        ? `Uses the new exercise "${name}", which is unticked.`
+        : `Unknown exercise "${name}" - it isn't in your exercise list and isn't added under "exerciseTypes".`,
+    );
+    return undefined;
+  }
+  const origin = ctx.typeOrigin.get(normalizeName(type.name));
+  if (origin && !item.dependsOn.includes(origin)) item.dependsOn.push(origin);
+  if (type.archived) item.warnings.push(`"${type.name}" is archived in your exercise list.`);
+  return type;
+}
+
+/**
+ * The category an exercise type's `categoryName` means: an existing one, or one
+ * this change set adds (recorded as a dependency). A name that is neither falls
+ * back to the first category, as it always did - now with a warning.
+ */
+function resolveCategory(ctx: Ctx, name: string | undefined, item: ChangeItem): string {
+  if (name) {
+    const key = normalizeName(name);
+    const hit = ctx.categories.find((c) => !c.archived && normalizeName(c.name) === key);
+    if (hit) {
+      const origin = ctx.categoryOrigin.get(key);
+      if (origin && !item.dependsOn.includes(origin)) item.dependsOn.push(origin);
+      return hit.name;
+    }
+    item.warnings.push(
+      ctx.untickedCategoryNames.has(key)
+        ? `The new category "${name}" is unticked - used the default category instead.`
+        : `No category called "${name}" - used the default category instead.`,
+    );
+  }
+  return resolveNewExerciseTypeCategory(undefined, ctx.categories);
+}
+
+function buildSlot(ctx: Ctx, exercise: AIExercise, item: ChangeItem): ExerciseSlot | undefined {
+  const type = resolveType(ctx, exercise.exerciseTypeName, item);
+  if (!type) return undefined;
+  return { id: ctx.newId(), typeId: type.id, activeParameters: [...type.parameters], prescribed: { ...exercise.values } };
+}
+
+function buildSlots(ctx: Ctx, exercises: AIExercise[], item: ChangeItem): ExerciseSlot[] {
+  return exercises.map((e) => buildSlot(ctx, e, item)).filter((s): s is ExerciseSlot => !!s);
+}
+
+type Built = { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] };
+
+function findCircuit(ctx: Ctx, name: string): Circuit | undefined {
+  const key = normalizeName(name);
+  return ctx.circuits.find((c) => normalizeName(c.name) === key);
+}
+
+/**
+ * A circuit item as a group and its member slots: a saved circuit copied in
+ * (re-timed if the item says so), or one spelled out. `undefined` when it
+ * can't be built - the reason is on the item.
+ */
+function buildCircuit(ctx: Ctx, it: CSCircuit, item: ChangeItem): { group: ExerciseGroup; slots: ExerciseSlot[] } | undefined {
+  const groupId = ctx.newId();
+  const timing = (base: { rounds: number; transition?: number; roundRest?: number }) => ({
+    rounds: it.rounds ?? base.rounds,
+    ...((it.transition ?? base.transition) !== undefined ? { transition: it.transition ?? base.transition } : {}),
+    ...((it.roundRest ?? base.roundRest) !== undefined ? { roundRest: it.roundRest ?? base.roundRest } : {}),
+  });
+  if (it.saved) {
+    const circuit = findCircuit(ctx, it.circuit);
+    if (!circuit) {
+      item.errors.push(
+        ctx.untickedCircuitNames.has(normalizeName(it.circuit))
+          ? `Uses the new circuit "${it.circuit}", which is unticked.`
+          : `No saved circuit called "${it.circuit}" - spell it out, or add it under "circuits".`,
+      );
+      return undefined;
+    }
+    const origin = ctx.circuitOrigin.get(normalizeName(circuit.name));
+    if (origin && !item.dependsOn.includes(origin)) item.dependsOn.push(origin);
+    const slots = circuit.exercises.map(({ logged: _l, skipped: _s, groupId: _g, ...slot }) => ({ ...slot, id: ctx.newId(), groupId, ...(slot.prescribed ? { prescribed: { ...slot.prescribed } } : {}) }));
+    return { group: { id: groupId, name: circuit.name, ...timing(circuit), circuitId: circuit.id }, slots };
+  }
+  const slots = buildSlots(ctx, it.exercises, item).map((slot) => ({ ...slot, groupId }));
+  if (slots.length === 0) return undefined;
+  return { group: { id: groupId, ...(it.circuit ? { name: it.circuit } : {}), ...timing({ rounds: it.rounds ?? 1 }) }, slots };
+}
+
+/** Puts one exercise or circuit into a session's list at `at` (0-based). */
+function insertItem(ctx: Ctx, built: Built, it: CSItem, at: number, item: ChangeItem): Built {
+  const exercises = [...built.exercises];
+  if (!isCircuitItem(it)) {
+    const slot = buildSlot(ctx, it, item);
+    if (!slot) return built;
+    // Added between two members of a group, it joins the group - an ungrouped
+    // slot there would split the circuit and drop its tail out of it.
+    const around = exercises[at - 1]?.groupId;
+    if (around !== undefined && exercises[at]?.groupId === around) slot.groupId = around;
+    exercises.splice(at, 0, slot);
+    return { ...built, exercises };
+  }
+  const circuit = buildCircuit(ctx, it, item);
+  if (!circuit) return built;
+  // Never inside another circuit: step past the one `at` would split.
+  let pos = at;
+  const inside = exercises[pos - 1]?.groupId;
+  while (inside !== undefined && exercises[pos]?.groupId === inside) pos++;
+  exercises.splice(pos, 0, ...circuit.slots);
+  return normaliseGroups({ exercises, groups: [...(built.groups ?? []), circuit.group] });
+}
+
+/** A session's exercise list, circuits included. */
+function buildItems(ctx: Ctx, items: CSItem[], item: ChangeItem): Built {
+  return items.reduce<Built>((built, it) => insertItem(ctx, built, it, built.exercises.length, item), { exercises: [] });
+}
+
+function circuitLabel(it: CSItem): string {
+  return isCircuitItem(it) ? `circuit ${it.circuit || "(unnamed)"}` : it.exerciseTypeName;
+}
+
+function templateFromSession(ctx: Ctx, s: CSSession, item: ChangeItem): WorkoutTemplate {
+  const built = buildItems(ctx, s.exercises, item);
+  return {
+    id: ctx.newId(),
+    name: s.name,
+    dayOfWeek: s.dayOfWeek,
+    startTime: s.startTime,
+    plannedDuration: s.plannedDuration,
+    ...(s.notes ? { description: s.notes } : {}),
+    exercises: built.exercises,
+    ...(built.groups?.length ? { groups: built.groups } : {}),
+  };
+}
+
+function workoutFromSession(ctx: Ctx, weekId: string, s: CSSession, item: ChangeItem): Workout {
+  const { exercises, groups } = buildItems(ctx, s.exercises, item);
+  return {
+    id: ctx.newId(),
+    status: "planned",
+    date: null,
+    weekId,
+    dayOfWeek: s.dayOfWeek,
+    startTime: s.startTime,
+    plannedDuration: s.plannedDuration,
+    notes: s.name,
+    ...(s.notes ? { description: s.notes } : {}),
+    loadFactor: 0,
+    plannedLoad: workoutPlannedLoad(exercises, groups),
+    exercises,
+    ...(groups?.length ? { groups } : {}),
+  };
+}
+
+/**
+ * Sessions are edited through one common shape so phase templates and week
+ * workouts share the same change logic. `notes` here is the session NAME
+ * (as on Workout), `description` its note.
+ */
+interface EditableSession {
+  id: string;
+  notes?: string;
+  description?: string;
+  dayOfWeek?: Workout["dayOfWeek"];
+  startTime?: string;
+  plannedDuration?: number;
+  exercises: ExerciseSlot[];
+  groups?: ExerciseGroup[];
+}
+
+function matchSessions<T extends EditableSession>(sessions: T[], match: CSSessionMatch): T[] {
+  return sessions.filter(
+    (s) =>
+      (!match.name || normalizeName(s.notes ?? "") === normalizeName(match.name)) &&
+      (!match.dayOfWeek || s.dayOfWeek === match.dayOfWeek),
+  );
+}
+
+function describeMatch(match: CSSessionMatch): string {
+  return [match.dayOfWeek, match.name && `"${match.name}"`].filter(Boolean).join(" ");
+}
+
+function applyExerciseChanges(
+  ctx: Ctx,
+  slots: ExerciseSlot[],
+  groupsIn: ExerciseGroup[] | undefined,
+  changes: CSExerciseChange[],
+  item: ChangeItem,
+  where: string,
+): { slots: ExerciseSlot[]; groups?: ExerciseGroup[]; lines: string[] } {
+  let result = slots.map((s) => ({ ...s }));
+  let groups = groupsIn?.map((g) => ({ ...g }));
+  const findGroup = (name: string): ExerciseGroup | undefined => {
+    const key = normalizeName(name);
+    const hits = (groups ?? []).filter((g) => normalizeName(g.name || "circuit") === key && result.some((s) => s.groupId === g.id));
+    if (hits.length === 0) item.errors.push(`${where}: no circuit "${name}" in this session.`);
+    else if (hits.length > 1) item.errors.push(`${where}: ${hits.length} circuits are called "${name}".`);
+    return hits.length === 1 ? hits[0] : undefined;
+  };
+  const lines: string[] = [];
+  const find = (name: string, occurrence?: number): number | undefined => {
+    const type = findType(ctx, name);
+    const key = normalizeName(name);
+    const hits = result
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => (type ? s.typeId === type.id : false) || normalizeName(typeName(ctx, s.typeId)) === key);
+    if (hits.length === 0) {
+      item.errors.push(`${where}: no "${name}" exercise to change.`);
+      return undefined;
+    }
+    if (occurrence !== undefined) {
+      if (occurrence > hits.length) {
+        item.errors.push(`${where}: "${name}" appears ${hits.length} time(s), so there is no occurrence ${occurrence}.`);
+        return undefined;
+      }
+      return hits[occurrence - 1].i;
+    }
+    if (hits.length > 1) {
+      item.errors.push(`${where}: "${name}" appears ${hits.length} times - say which with "occurrence".`);
+      return undefined;
+    }
+    return hits[0].i;
+  };
+  for (const change of changes) {
+    if (change.action === "add") {
+      const at = change.position ? Math.min(change.position - 1, result.length) : result.length;
+      const before = result.length;
+      const built = insertItem(ctx, { exercises: result, groups }, change.exercise, at, item);
+      if (built.exercises.length === before) continue;
+      result = built.exercises;
+      groups = built.groups;
+      const it = change.exercise;
+      if (isCircuitItem(it)) lines.push(`+ ${circuitLabel(it)}${it.rounds ? ` (${it.rounds} rounds)` : ""}`);
+      else lines.push(`+ ${it.exerciseTypeName}${Object.keys(it.values).length ? ` (${Object.entries(it.values).filter(([k]) => k !== "notes").map(([k, v]) => `${k} ${show(v)}`).join(", ")})` : ""}`);
+    } else if (change.action === "editCircuit") {
+      const group = findGroup(change.circuit);
+      if (!group) continue;
+      const next: ExerciseGroup = { ...group, ...change.set };
+      const diff = (["name", "rounds", "transition", "roundRest"] as const)
+        .filter((k) => change.set[k] !== undefined && change.set[k] !== group[k])
+        .map((k) => `${k} ${show(group[k])} → ${show(change.set[k])}`);
+      groups = (groups ?? []).map((g) => (g.id === group.id ? next : g));
+      lines.push(`~ circuit ${group.name || "Circuit"}${diff.length ? `: ${diff.join(", ")}` : ""}`);
+    } else if (change.action === "removeCircuit") {
+      const group = findGroup(change.circuit);
+      if (!group) continue;
+      result = result.filter((s) => s.groupId !== group.id);
+      groups = (groups ?? []).filter((g) => g.id !== group.id);
+      lines.push(`− circuit ${group.name || "Circuit"}`);
+    } else if (change.action === "remove") {
+      const i = find(change.match.exerciseTypeName, change.match.occurrence);
+      if (i === undefined) continue;
+      lines.push(`− ${typeName(ctx, result[i].typeId)}`);
+      result.splice(i, 1);
+    } else {
+      const i = find(change.match.exerciseTypeName, change.match.occurrence);
+      if (i === undefined) continue;
+      const slot = result[i];
+      const before = { ...(slot.prescribed ?? slotValues(slot)) };
+      const after: ExerciseValues = { ...before, ...change.values };
+      for (const key of change.clear) delete after[key];
+      let label = typeName(ctx, slot.typeId);
+      let typeId = slot.typeId;
+      if (change.exerciseTypeName) {
+        const newType = resolveType(ctx, change.exerciseTypeName, item);
+        if (newType && newType.id !== slot.typeId) {
+          label = `${label} → ${newType.name}`;
+          typeId = newType.id;
+        }
+      }
+      const diff = valueDiff(before, after);
+      result[i] = {
+        ...slot,
+        typeId,
+        activeParameters: typeId === slot.typeId ? slot.activeParameters : [...new Set([...(slot.activeParameters ?? []), ...(ctx.types.find((t) => t.id === typeId)?.parameters ?? [])])],
+        prescribed: after,
+      };
+      lines.push(`~ ${label}${diff.length ? `: ${diff.join(", ")}` : ""}`);
+    }
+  }
+  const tidy = normaliseGroups({ exercises: result, groups });
+  return { slots: tidy.exercises, groups: tidy.groups, lines };
+}
+
+/** Applies session changes to a list of sessions (template or workout shaped). */
+function applySessionChanges<T extends EditableSession>(
+  ctx: Ctx,
+  sessions: T[],
+  changes: CSSessionChange[],
+  item: ChangeItem,
+  where: string,
+  make: (s: CSSession) => T,
+): { sessions: T[]; lines: string[] } {
+  let result = [...sessions];
+  const lines: string[] = [];
+  for (const change of changes) {
+    if (change.action === "add") {
+      const added = make(change.session);
+      result.push(added);
+      lines.push(`+ ${sessionLabel(added)} (${added.exercises.length} exercise${added.exercises.length === 1 ? "" : "s"})`);
+      continue;
+    }
+    const hits = matchSessions(result, change.match);
+    if (hits.length !== 1) {
+      item.errors.push(
+        hits.length === 0
+          ? `${where}: no session matches ${describeMatch(change.match)}.`
+          : `${where}: ${hits.length} sessions match ${describeMatch(change.match)} - give both "name" and "dayOfWeek".`,
+      );
+      continue;
+    }
+    const target = hits[0];
+    if (change.action === "remove") {
+      result = result.filter((s) => s !== target);
+      lines.push(`− ${sessionLabel(target)}`);
+      continue;
+    }
+    const next: T = { ...target };
+    const fieldLines: string[] = [];
+    const set = change.set;
+    if (set.name !== undefined && set.name !== target.notes) { fieldLines.push(`name ${show(target.notes)} → ${set.name}`); next.notes = set.name; }
+    if (set.dayOfWeek !== undefined && set.dayOfWeek !== target.dayOfWeek) { fieldLines.push(`day ${show(target.dayOfWeek)} → ${set.dayOfWeek}`); next.dayOfWeek = set.dayOfWeek; }
+    if (set.startTime !== undefined && set.startTime !== target.startTime) { fieldLines.push(`start ${show(target.startTime)} → ${set.startTime}`); next.startTime = set.startTime; }
+    if (set.plannedDuration !== undefined && set.plannedDuration !== target.plannedDuration) { fieldLines.push(`length ${show(target.plannedDuration)} → ${set.plannedDuration} min`); next.plannedDuration = set.plannedDuration; }
+    if (set.notes !== undefined && set.notes !== (target.description ?? "")) {
+      fieldLines.push(set.notes ? `note → "${set.notes}"` : "note removed");
+      if (set.notes) next.description = set.notes;
+      else delete next.description;
+    }
+    const label = sessionLabel(target);
+    if (change.exercises) {
+      const built = buildItems(ctx, change.exercises, item);
+      next.exercises = built.exercises;
+      next.groups = built.groups;
+      fieldLines.push(`exercises replaced (${target.exercises.length} → ${next.exercises.length})`);
+    } else if (change.exerciseChanges) {
+      const r = applyExerciseChanges(ctx, target.exercises, target.groups, change.exerciseChanges, item, `${where} ${label}`);
+      next.exercises = r.slots;
+      next.groups = r.groups;
+      fieldLines.push(...r.lines);
+    }
+    result = result.map((s) => (s === target ? next : s));
+    lines.push(`~ ${label}: ${fieldLines.join("; ") || "no change"}`);
+  }
+  return { sessions: result, lines };
+}
+
+/** Before/after of two session lists, matched by id. */
+function sessionListDiff(before: EditableSession[], after: EditableSession[]): string[] {
+  const lines: string[] = [];
+  for (const s of before) if (!after.some((a) => a.id === s.id)) lines.push(`− ${sessionLabel(s)}`);
+  for (const s of after) if (!before.some((b) => b.id === s.id)) lines.push(`+ ${sessionLabel(s)} (${s.exercises.length} exercise${s.exercises.length === 1 ? "" : "s"})`);
+  return lines;
+}
+
+/** Removes [start, end] from every block, splitting blocks that straddle it. */
+export function carveBlocks(blocks: TrainingBlock[], start: string, end: string, newId: () => string): TrainingBlock[] {
+  const result: TrainingBlock[] = [];
+  for (const b of blocks) {
+    if (b.endWeekId < start || b.startWeekId > end) {
+      result.push(b);
+      continue;
+    }
+    if (b.startWeekId < start) result.push({ ...b, endWeekId: decrementWeekId(start) });
+    if (b.endWeekId > end) result.push({ ...b, id: b.startWeekId < start ? newId() : b.id, startWeekId: incrementWeekId(end) });
+  }
+  return result;
+}
+
+function effectivePhaseName(ctx: Ctx, blocks: TrainingBlock[], weekId: string): string | undefined {
+  const block = getDominantBlockForWeek(blocks, weekId);
+  return block ? ctx.phaseDefs.find((p) => p.id === block.phaseId)?.name ?? ctx.state.phaseDefs.find((p) => p.id === block.phaseId)?.name : undefined;
+}
+
+/** A week's sessions right now in the plan being built: touched earlier, stored, or projected from its phase. */
+function currentWeek(ctx: Ctx, weekId: string): { planned: Workout[]; completed: Workout[]; followsPhase: boolean } {
+  const completed = ctx.state.workouts.filter((w) => w.weekId === weekId && w.status === "completed");
+  const touched = ctx.weekState.get(weekId);
+  if (touched) return { planned: touched.planned ?? projected(ctx, weekId), completed, followsPhase: touched.planned === null };
+  const stored = ctx.state.workouts.filter((w) => w.weekId === weekId && w.status === "planned");
+  const hasStored = stored.length > 0 || completed.length > 0;
+  return { planned: hasStored ? stored : projected(ctx, weekId), completed, followsPhase: !hasStored };
+}
+
+function projected(ctx: Ctx, weekId: string): Workout[] {
+  const block = getDominantBlockForWeek(ctx.blocks, weekId);
+  if (!block) return [];
+  return generateWorkoutsFromTemplate(weekId, ctx.templates[block.phaseId] ?? [], { workoutId: () => ctx.newId(), slotId: () => ctx.newId() })
+    .map((w) => ({ ...w, blockId: block.id }));
+}
+
+/**
+ * Plans the change set against `state`. `selected` holds the ids of ticked
+ * items (all items when omitted). Every item is always returned - unticked
+ * ones for display - but only ticked ones affect the result and `writes`.
+ */
+export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Set<string>, newId: () => string = generateId): PlanResult {
+  const isOn = (id: string) => !selected || selected.has(id);
+  const ctx: Ctx = {
+    state,
+    newId,
+    types: state.exerciseTypes.map((t) => ({ ...t })),
+    categories: state.analyticsCategories.map((c) => ({ ...c })),
+    categoryOrigin: new Map(),
+    untickedCategoryNames: new Set(),
+    typeOrigin: new Map(),
+    untickedTypeNames: new Set(),
+    phaseDefs: state.phaseDefs.map((p) => ({ ...p })),
+    templates: Object.fromEntries(Object.entries(state.templates).map(([k, v]) => [k, [...v]])),
+    phaseOrigin: new Map(),
+    untickedPhaseNames: new Set(),
+    blocks: state.trainingBlocks.map((b) => ({ ...b })),
+    weekState: new Map(),
+    weekOrigin: new Map(),
+    weekNotes: [...state.weekNotes],
+    circuits: (state.circuits ?? []).map((c) => ({ ...c })),
+    circuitOrigin: new Map(),
+    untickedCircuitNames: new Set(),
+    changed: { categories: false, types: false, phases: false, templates: false, blocks: false, circuits: false },
+  };
+  const items: ChangeItem[] = [];
+  const noteWrites = new Map<string, string>();
+
+  // --- 0. Analytics categories ---
+  (set.categories ?? []).forEach((change, i) => {
+    const id = `category-${i}`;
+    const item: ChangeItem = { id, section: "category", title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+    const key = normalizeName(change.name);
+    const existing = ctx.categories.find((c) => normalizeName(c.name) === key && !c.archived) ?? ctx.categories.find((c) => normalizeName(c.name) === key);
+    if (change.action === "add") {
+      item.title = `+ ${change.name}`;
+      if (existing && !existing.archived) {
+        item.errors.push(`"${existing.name}" is already a category.`);
+        return;
+      }
+      if (existing) {
+        item.title = `restore ${existing.name}`;
+        item.details.push("from the archive");
+        if (!on) {
+          ctx.untickedCategoryNames.add(key);
+          return;
+        }
+        ctx.categories = ctx.categories.map((c) => (c.id === existing.id ? { ...c, archived: undefined } : c));
+        ctx.categoryOrigin.set(key, id);
+        ctx.changed.categories = true;
+        return;
+      }
+      if (!on) {
+        ctx.untickedCategoryNames.add(key);
+        return;
+      }
+      const used = new Set(ctx.categories.map((c) => c.color));
+      const color = PHASE_COLORS.find((c) => !used.has(c)) ?? PHASE_COLORS[ctx.categories.length % PHASE_COLORS.length];
+      ctx.categories.push({ id: ctx.newId(), name: change.name, color });
+      ctx.categoryOrigin.set(key, id);
+      ctx.changed.categories = true;
+      return;
+    }
+    item.title = `${change.action === "archive" ? "archive" : "~"} ${change.name}`;
+    if (!existing) {
+      item.errors.push(`No category called "${change.name}".`);
+      return;
+    }
+    const inUse = ctx.types.filter((t) => t.category === existing.name && !t.archived).length;
+    if (change.action === "archive") {
+      if (inUse) item.warnings.push(`${inUse} exercise(s) still use it - move them in "exerciseTypes" first, or they keep it.`);
+      if (on) {
+        ctx.categories = ctx.categories.map((c) => (c.id === existing.id ? { ...c, archived: true } : c));
+        ctx.changed.categories = true;
+      }
+      return;
+    }
+    const clash = ctx.categories.find((c) => normalizeName(c.name) === normalizeName(change.rename) && c.id !== existing.id);
+    if (clash) item.errors.push(`Can't rename to "${change.rename}" - that name is taken.`);
+    item.details.push(`name ${existing.name} → ${change.rename}`);
+    if (inUse) item.details.push(`${inUse} exercise(s) follow it`);
+    if (on && item.errors.length === 0) {
+      ctx.categories = ctx.categories.map((c) => (c.id === existing.id ? { ...c, name: change.rename } : c));
+      // Exercises name their category, so they move with the rename.
+      ctx.types = ctx.types.map((t) => (t.category === existing.name ? { ...t, category: change.rename } : t));
+      ctx.categoryOrigin.set(normalizeName(change.rename), id);
+      ctx.changed.categories = true;
+      ctx.changed.types = true;
+    } else if (!on) {
+      ctx.untickedCategoryNames.add(normalizeName(change.rename));
+    }
+  });
+
+  // --- 1. Exercise types ---
+  const newTypeIds: string[] = [];
+  set.exerciseTypes.forEach((change, i) => {
+    const id = `exercise-${i}`;
+    const item: ChangeItem = { id, section: "exercise", title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+    if (change.action === "add") {
+      item.title = `+ ${change.name}`;
+      const existing = findType(ctx, change.name);
+      if (existing && !existing.archived) {
+        item.errors.push(`"${existing.name}" is already in your exercise list - use "edit" to change it.`);
+        return;
+      }
+      if (existing) {
+        // An archived one by that name comes back rather than being
+        // duplicated: history, phases and circuits already point at it.
+        item.title = `restore ${existing.name}`;
+        item.details.push("from the archive");
+        const next: ExerciseTypeDef = { ...existing, archived: undefined };
+        if (change.categoryName) next.category = resolveCategory(ctx, change.categoryName, item);
+        if (change.parameters) next.parameters = change.parameters;
+        if (change.group) {
+          next.group = change.group;
+          item.details.push(`group ${change.group}`);
+        }
+        if (change.description) {
+          next.description = change.description;
+          item.details.push("how-to");
+        }
+        if (!on) {
+          ctx.untickedTypeNames.add(normalizeName(change.name));
+          return;
+        }
+        ctx.types = ctx.types.map((t) => (t.id === existing.id ? next : t));
+        ctx.typeOrigin.set(normalizeName(next.name), id);
+        ctx.changed.types = true;
+        return;
+      }
+      const category = resolveCategory(ctx, change.categoryName, item);
+      item.details.push(`category ${category}`, `tracks ${show(change.parameters ?? [])}`);
+      if (change.group) item.details.push(`group ${change.group}`);
+      if (change.description) item.details.push("how-to");
+      if (!on) {
+        ctx.untickedTypeNames.add(normalizeName(change.name));
+        return;
+      }
+      const def: ExerciseTypeDef = {
+        id: newId(),
+        name: change.name,
+        category,
+        parameters: change.parameters ?? [],
+        ...(change.group ? { group: change.group } : {}),
+        ...(change.description ? { description: change.description } : {}),
+      };
+      ctx.types.push(def);
+      newTypeIds.push(def.id);
+      ctx.typeOrigin.set(normalizeName(def.name), id);
+      ctx.changed.types = true;
+    } else {
+      const type = findType(ctx, change.name);
+      item.title = `${change.action === "archive" ? "archive" : "~"} ${change.name}`;
+      if (!type) {
+        item.errors.push(`No exercise called "${change.name}" in your list.`);
+        return;
+      }
+      if (change.action === "archive") {
+        const uses = Object.values(ctx.templates).flat().filter((t) => t.exercises.some((s) => s.typeId === type.id)).length;
+        if (uses) item.warnings.push(`Still used in ${uses} phase session(s) - they keep working, it just stops being offered for new exercises.`);
+        if (on) {
+          ctx.types = ctx.types.map((t) => (t.id === type.id ? { ...t, archived: true } : t));
+          ctx.changed.types = true;
+        }
+        return;
+      }
+      const next: ExerciseTypeDef = { ...type };
+      if (change.rename && change.rename !== type.name) {
+        const clash = findType(ctx, change.rename);
+        if (clash && clash.id !== type.id) item.errors.push(`Can't rename to "${change.rename}" - that name is taken.`);
+        item.details.push(`name ${type.name} → ${change.rename}`);
+        next.name = change.rename;
+      }
+      if (change.categoryName) {
+        const category = resolveCategory(ctx, change.categoryName, item);
+        if (category !== type.category) item.details.push(`category ${type.category} → ${category}`);
+        next.category = category;
+      }
+      if (change.parameters) {
+        item.details.push(`tracks ${show(type.parameters)} → ${show(change.parameters)}`);
+        next.parameters = change.parameters;
+      }
+      if (change.group) {
+        item.details.push(`group ${exerciseGroup(type)} → ${change.group}`);
+        next.group = change.group;
+      }
+      if (change.description) {
+        item.details.push(type.description ? "how-to rewritten" : "how-to added");
+        next.description = change.description;
+      }
+      if (on && item.errors.length === 0) {
+        ctx.types = ctx.types.map((t) => (t.id === type.id ? next : t));
+        if (change.rename) {
+          ctx.typeOrigin.set(normalizeName(next.name), id);
+          ctx.untickedTypeNames.delete(normalizeName(next.name));
+        }
+        ctx.changed.types = true;
+      } else if (!on && change.rename) {
+        ctx.untickedTypeNames.add(normalizeName(change.rename));
+      }
+    }
+  });
+
+  // --- 1b. Saved circuits (before phases and weeks, so their sessions can use them) ---
+  set.circuits.forEach((change, i) => {
+    const id = `circuit-${i}`;
+    const item: ChangeItem = { id, section: "circuit", title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+    const existing = findCircuit(ctx, change.name);
+    const timingLine = (c: { rounds?: number; transition?: number; roundRest?: number }) =>
+      [c.rounds !== undefined ? `${c.rounds} rounds` : undefined, c.transition !== undefined ? `${c.transition} s between` : undefined, c.roundRest !== undefined ? `${c.roundRest} s after each round` : undefined].filter(Boolean).join(" · ");
+    if (change.action === "add") {
+      item.title = `+ circuit ${change.name}`;
+      if (existing) {
+        item.errors.push(`A circuit called "${existing.name}" is already saved - use "edit" to change it.`);
+        return;
+      }
+      const exercises = buildSlots(ctx, change.exercises, item);
+      item.details.push(timingLine(change), exercises.map((s) => typeName(ctx, s.typeId)).join(" · "));
+      if (!on) {
+        ctx.untickedCircuitNames.add(normalizeName(change.name));
+        return;
+      }
+      if (item.errors.length) return;
+      ctx.circuits.push({
+        id: newId(), name: change.name, ...(change.description ? { description: change.description } : {}),
+        rounds: change.rounds ?? 1, ...(change.transition !== undefined ? { transition: change.transition } : {}), ...(change.roundRest !== undefined ? { roundRest: change.roundRest } : {}),
+        exercises,
+      });
+      ctx.circuitOrigin.set(normalizeName(change.name), id);
+      ctx.changed.circuits = true;
+      return;
+    }
+    item.title = `${change.action === "delete" ? "−" : "~"} circuit ${change.name}`;
+    if (!existing) {
+      item.errors.push(`No saved circuit called "${change.name}".`);
+      return;
+    }
+    if (change.action === "delete") {
+      item.details.push("Sessions that already have it keep their copy.");
+      if (on) {
+        ctx.circuits = ctx.circuits.filter((c) => c.id !== existing.id);
+        ctx.changed.circuits = true;
+      }
+      return;
+    }
+    const next: Circuit = { ...existing };
+    if (change.rename && change.rename !== existing.name) {
+      const clash = findCircuit(ctx, change.rename);
+      if (clash && clash.id !== existing.id) item.errors.push(`Can't rename to "${change.rename}" - that name is taken.`);
+      item.details.push(`name ${existing.name} → ${change.rename}`);
+      next.name = change.rename;
+    }
+    for (const k of ["rounds", "transition", "roundRest"] as const) {
+      if (change[k] !== undefined && change[k] !== existing[k]) {
+        item.details.push(`${k} ${show(existing[k])} → ${change[k]}`);
+        next[k] = change[k] as number;
+      }
+    }
+    if (change.description) {
+      item.details.push(`note → "${change.description}"`);
+      next.description = change.description;
+    }
+    if (change.exercises) {
+      next.exercises = buildSlots(ctx, change.exercises, item);
+      item.details.push(`exercises: ${next.exercises.map((s) => typeName(ctx, s.typeId)).join(" · ")}`);
+    }
+    item.details.push("Only sessions it's added to from now on get the new version.");
+    if (!on) {
+      if (change.rename) ctx.untickedCircuitNames.add(normalizeName(change.rename));
+      return;
+    }
+    if (item.errors.length) return;
+    ctx.circuits = ctx.circuits.map((c) => (c.id === existing.id ? next : c));
+    ctx.circuitOrigin.set(normalizeName(next.name), id);
+    ctx.changed.circuits = true;
+  });
+
+  // --- 2. Phases ---
+  set.phases.forEach((change, i) => {
+    const id = `phase-${i}`;
+    const item: ChangeItem = { id, section: "phase", title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+    if (change.action === "add") {
+      item.title = `+ ${change.name}`;
+      const existing = findPhase(ctx, change.name);
+      if (existing && !existing.archived) {
+        item.errors.push(`A phase called "${existing.name}" already exists - use "edit" to change it.`);
+        return;
+      }
+      const templates = change.sessions.map((s) => templateFromSession(ctx, s, item));
+      item.details.push(templates.length ? `typical week: ${templates.map((t) => sessionLabel({ notes: t.name, dayOfWeek: t.dayOfWeek })).join(", ")}` : "typical week: rest (no sessions)");
+      if (!on) {
+        ctx.untickedPhaseNames.add(normalizeName(change.name));
+        return;
+      }
+      if (item.errors.length) return;
+      const used = new Set(ctx.phaseDefs.filter((p) => !p.archived).map((p) => p.color));
+      const def: PhaseDef = {
+        id: newId(),
+        name: change.name,
+        color: PHASE_COLORS.find((c) => !used.has(c)) ?? PHASE_COLORS[ctx.phaseDefs.length % PHASE_COLORS.length],
+        order: Math.max(0, ...ctx.phaseDefs.map((p) => p.order ?? 0)) + 1,
+      };
+      ctx.phaseDefs.push(def);
+      ctx.templates[def.id] = templates;
+      ctx.phaseOrigin.set(normalizeName(def.name), id);
+      ctx.changed.phases = ctx.changed.templates = true;
+      return;
+    }
+    const phase = findPhase(ctx, change.name);
+    item.title = `${change.action === "delete" ? "delete" : "~"} ${change.name}`;
+    if (!phase) {
+      item.errors.push(`No phase called "${change.name}".`);
+      return;
+    }
+    const origin = ctx.phaseOrigin.get(normalizeName(phase.name));
+    if (origin) item.dependsOn.push(origin);
+    if (change.action === "delete") {
+      const futureWeeks = ctx.blocks.filter((b) => b.phaseId === phase.id && b.endWeekId >= state.currentWeekId);
+      if (futureWeeks.length) item.warnings.push(`Still assigned to ${futureWeeks.length} current/upcoming block(s) - reassign those weeks, or they keep following it.`);
+      item.details.push("archived (kept for your history, no longer offered)");
+      if (on) {
+        ctx.phaseDefs = ctx.phaseDefs.map((p) => (p.id === phase.id ? { ...p, archived: true } : p));
+        ctx.changed.phases = true;
+      }
+      return;
+    }
+    const next: PhaseDef = { ...phase };
+    if (change.rename && change.rename !== phase.name) {
+      const clash = findPhase(ctx, change.rename);
+      if (clash && clash.id !== phase.id) item.errors.push(`Can't rename to "${change.rename}" - that name is taken.`);
+      item.details.push(`name ${phase.name} → ${change.rename}`);
+      next.name = change.rename;
+    }
+    const before = ctx.templates[phase.id] ?? [];
+    let after = before;
+    if (change.sessions) {
+      after = change.sessions.map((s) => templateFromSession(ctx, s, item));
+      item.details.push(`typical week replaced (${before.length} → ${after.length} sessions)`, ...sessionListDiff(asEditable(before), asEditable(after)));
+    } else if (change.sessionChanges) {
+      const r = applySessionChanges(ctx, asEditable(before), change.sessionChanges, item, "Typical week", (s) => asEditable([templateFromSession(ctx, s, item)])[0]);
+      after = fromEditable(r.sessions);
+      item.details.push(...r.lines);
+    }
+    const following = ctx.blocks.filter((b) => b.phaseId === phase.id && b.endWeekId >= state.currentWeekId).length;
+    if (after !== before && following) item.warnings.push("Weeks that follow this phase (and haven't been changed by hand) pick up the new typical week.");
+    if (on && item.errors.length === 0) {
+      ctx.phaseDefs = ctx.phaseDefs.map((p) => (p.id === phase.id ? next : p));
+      ctx.templates[phase.id] = after;
+      if (change.rename) ctx.phaseOrigin.set(normalizeName(next.name), id);
+      ctx.changed.phases = ctx.changed.phases || !!change.rename;
+      ctx.changed.templates = ctx.changed.templates || after !== before;
+    } else if (!on && change.rename) {
+      ctx.untickedPhaseNames.add(normalizeName(change.rename));
+    }
+  });
+
+  // --- 3. Weeks ---
+  set.weeks.forEach((change, i) => {
+    const id = `week-${i}`;
+    const weeks = change.weekIds;
+    const item: ChangeItem = { id, section: "week", title: weekRangeLabel(weeks), details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+
+    let blocksAfter = ctx.blocks;
+    let phase: PhaseDef | undefined;
+    if (change.phase) {
+      phase = findPhase(ctx, change.phase);
+      if (!phase) {
+        item.errors.push(
+          ctx.untickedPhaseNames.has(normalizeName(change.phase))
+            ? `Follows the new phase "${change.phase}", which is unticked.`
+            : `No phase called "${change.phase}" - add it under "phases" first.`,
+        );
+      } else {
+        const origin = ctx.phaseOrigin.get(normalizeName(phase.name));
+        if (origin) item.dependsOn.push(origin);
+        if (phase.archived) item.warnings.push(`"${phase.name}" is archived.`);
+        const start = weeks[0];
+        const end = weeks[weeks.length - 1];
+        const block: TrainingBlock = {
+          id: newId(),
+          name: phase.name,
+          phaseId: phase.id,
+          startWeekId: start,
+          endWeekId: end,
+          ...(change.blockNotes ? { notes: appendAINote(undefined, change.blockNotes) } : {}),
+        };
+        blocksAfter = [...carveBlocks(ctx.blocks, start, end, newId), block];
+        const beforeNames = [...new Set(weeks.map((w) => effectivePhaseName(ctx, ctx.blocks, w) ?? "no phase"))];
+        item.title += ` → ${phase.name}`;
+        item.details.push(`phase ${beforeNames.join(" / ")} → ${phase.name}`);
+        if (change.blockNotes) item.details.push(`block note: "${change.blockNotes}"`);
+      }
+    }
+    if (weeks.some((w) => w < state.currentWeekId)) item.warnings.push("Includes past weeks - their completed sessions are kept, only the plan changes.");
+
+    // Work out each week against the blocks as they'll be after this entry.
+    const savedBlocks = ctx.blocks;
+    ctx.blocks = blocksAfter;
+    // `sessionsTouched: false` = a notes-only entry: the week's sessions stay as they are.
+    const perWeek: { weekId: string; planned: Workout[] | null; customized: boolean; sessionsTouched: boolean; lines: string[] }[] = [];
+    for (const weekId of weeks) {
+      const was = currentWeekStateBefore(ctx, savedBlocks, weekId);
+      const wasCustomized = !!state.weekOverrides.find((o) => o.weekId === weekId)?.customized && !ctx.weekState.has(weekId);
+      const lines: string[] = [];
+      let planned: Workout[] | null = null;
+      let customized = wasCustomized;
+      let sessionsTouched = true;
+      if (change.sessions) {
+        planned = change.sessions.map((s) => ({ ...workoutFromSession(ctx, weekId, s, item), blockId: getDominantBlockForWeek(ctx.blocks, weekId)?.id }));
+        customized = true;
+        lines.push(`sessions replaced (${was.planned.length} → ${planned.length})`, ...sessionListDiff(was.planned, planned));
+        if (wasCustomized && was.planned.length) item.warnings.push(`${weekRangeLabel([weekId])} had hand edits - its planned sessions are replaced.`);
+      } else if (change.sessionChanges) {
+        const base = change.phase ? projected(ctx, weekId) : currentWeek(ctx, weekId).planned;
+        const r = applySessionChanges(ctx, base, change.sessionChanges, item, weekRangeLabel([weekId]), (s) => workoutFromSession(ctx, weekId, s, item));
+        planned = r.sessions.map((w) => ({ ...w, blockId: getDominantBlockForWeek(ctx.blocks, weekId)?.id, plannedLoad: workoutPlannedLoad(w.exercises, w.groups) }));
+        customized = true;
+        lines.push(...r.lines);
+      } else if (change.phase) {
+        // Follow the phase: drop the planned sessions; keep a stored plan only
+        // around completed sessions (a week with those can't be provisional).
+        const next = projected(ctx, weekId);
+        planned = was.completed.length ? next : null;
+        customized = false;
+        if (wasCustomized && was.planned.length) item.warnings.push(`${weekRangeLabel([weekId])} had hand edits - it now follows the phase instead.`);
+        const diff = sessionLabelsDiff(was.planned, next);
+        if (diff.length) lines.push(...diff);
+      } else {
+        sessionsTouched = false;
+      }
+      if (was.completed.length && (change.sessions || change.phase)) lines.push(`${was.completed.length} completed session(s) kept`);
+      perWeek.push({ weekId, planned, customized, sessionsTouched, lines });
+    }
+
+    // Detail lines: identical across a range -> shown once.
+    const rendered = perWeek.map((w) => w.lines.join("\n"));
+    if (perWeek.length > 1 && rendered.every((r) => r === rendered[0])) {
+      if (rendered[0]) item.details.push(...perWeek[0].lines.map((l) => `each week: ${l}`));
+    } else {
+      for (const w of perWeek) for (const l of w.lines) item.details.push(`${weekRangeLabel([w.weekId])}: ${l}`);
+    }
+    if (change.notes) item.details.push(`week note: "${change.notes}"`);
+
+    if (!on || item.errors.length) {
+      ctx.blocks = savedBlocks;
+      return;
+    }
+    if (blocksAfter !== savedBlocks) ctx.changed.blocks = true;
+    for (const w of perWeek) {
+      if (w.sessionsTouched) {
+        ctx.weekState.set(w.weekId, { planned: w.planned, customized: w.customized });
+        ctx.weekOrigin.set(w.weekId, id);
+      }
+      if (change.notes) {
+        const merged = appendAINote(noteWrites.get(w.weekId) ?? weekNoteText(state.weekNotes, w.weekId), change.notes);
+        noteWrites.set(w.weekId, merged);
+      }
+    }
+  });
+
+  // --- 4. Plan B ---
+  let alternatives = [...(state.planAlternatives ?? [])];
+  let alternativesChanged = false;
+  const currentMonday = dayIndexOf(state.currentWeekId, "Monday");
+  const dayShort = (d: number) => weekAndDayOf(d).day.slice(0, 3);
+  set.planB.forEach((change, i) => {
+    const id = `planb-${i}`;
+    const item: ChangeItem = { id, section: "planB", title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    const on = isOn(id);
+    const startDay = dayIndexOf(change.start.weekId, change.start.day);
+
+    if (change.action === "delete") {
+      const hit = occurrenceOnDay(alternatives, startDay);
+      item.title = `delete Plan B · ${dayShort(startDay)} ${weekRangeLabel([change.start.weekId])}`;
+      if (!hit) {
+        item.errors.push(`No Plan B covers ${change.start.day} of ${change.start.weekId}.`);
+        return;
+      }
+      item.title = `delete ${hit.alt.label || "Plan B"} · ${dayShort(startDay)} ${weekRangeLabel([change.start.weekId])}`;
+      item.details.push(...describeChanges(hit.alt, hit.key));
+      if (hit.alt.repeatUntilWeekId) item.warnings.push("It repeats weekly - every week of it goes.");
+      if (on) {
+        alternatives = alternatives.filter((a) => a.id !== hit.alt.id);
+        alternativesChanged = true;
+      }
+      return;
+    }
+
+    const endDay = change.end ? dayIndexOf(change.end.weekId, change.end.day) : startDay;
+    const days = endDay - startDay + 1;
+    const lastWeek = weekAndDayOf(endDay).weekId;
+    item.title = `${change.label || "Plan B"} · ${dayShort(startDay)}${days > 1 ? `–${dayShort(endDay)}` : ""} ${weekRangeLabel(change.start.weekId === lastWeek ? [change.start.weekId] : [change.start.weekId, lastWeek])}`;
+    if (days < 1) {
+      item.errors.push('"end" is before "start".');
+      return;
+    }
+    if (days > MAX_PLAN_B_DAYS) {
+      item.errors.push(`A Plan B covers at most ${MAX_PLAN_B_DAYS} days - this one has ${days}.`);
+      return;
+    }
+    const alt: PlanAlternative = {
+      id: newId(),
+      startWeekId: change.start.weekId,
+      startDay: change.start.day,
+      days,
+      changes: [],
+      ...(change.label ? { label: change.label } : {}),
+      ...(change.likely && change.likely !== "A" ? { likely: change.likely } : {}),
+      ...(change.outdoor ? { outdoor: change.outdoor } : {}),
+      ...(change.repeatUntil ? { repeatUntilWeekId: change.repeatUntil } : {}),
+    };
+    const offsetOf = (w: Workout): number | undefined => {
+      if (!w.dayOfWeek) return undefined;
+      const d = dayIndexOf(w.weekId, w.dayOfWeek);
+      return d >= startDay && d <= endDay ? d - startDay : undefined;
+    };
+    const outside = (w: Workout) => item.errors.push(`${sessionLabel(w)} (${weekRangeLabel([w.weekId])}) is outside this Plan B's days.`);
+    const comparable = (w: Workout) => JSON.stringify([w.notes, w.description, w.dayOfWeek, w.startTime, w.plannedDuration, w.exercises.map((e) => [e.typeId, e.prescribed])]);
+
+    for (const { weekId, sessionChanges } of change.changes) {
+      const origin = ctx.weekOrigin.get(weekId);
+      if (origin && !item.dependsOn.includes(origin)) item.dependsOn.push(origin);
+      const phaseName = effectivePhaseName(ctx, ctx.blocks, weekId);
+      const phaseOrigin = phaseName ? ctx.phaseOrigin.get(normalizeName(phaseName)) : undefined;
+      if (phaseOrigin && !item.dependsOn.includes(phaseOrigin)) item.dependsOn.push(phaseOrigin);
+
+      // Plan A is the week as the sections above leave it. Projected
+      // sessions get fresh ids on every planning pass, so a change only
+      // remembers a Plan A session's id when the week is stored.
+      const week = currentWeek(ctx, weekId);
+      const before = week.planned;
+      const r = applySessionChanges(ctx, before, sessionChanges, item, `Plan B ${weekRangeLabel([weekId])}`, (s) => workoutFromSession(ctx, weekId, s, item));
+      const ref = (w: Workout) => ({ name: w.notes || "Session", ...(week.followsPhase ? {} : { id: w.id }) });
+      for (const b of before) {
+        const a = r.sessions.find((x) => x.id === b.id);
+        if (a && comparable(a) === comparable(b)) continue;
+        const from = offsetOf(b);
+        if (from === undefined) {
+          outside(b);
+          continue;
+        }
+        if (!a) {
+          alt.changes.push({ id: newId(), offset: from, replaces: ref(b) });
+          continue;
+        }
+        const to = offsetOf(a);
+        if (to === undefined) {
+          outside(a);
+          continue;
+        }
+        if (to === from) {
+          alt.changes.push({ id: newId(), offset: from, replaces: ref(b), session: templateFromWorkout(a, newId()) });
+        } else {
+          alt.changes.push({ id: newId(), offset: from, replaces: ref(b) }, { id: newId(), offset: to, session: templateFromWorkout(a, newId()) });
+        }
+      }
+      for (const a of r.sessions) {
+        if (before.some((b) => b.id === a.id)) continue;
+        const to = offsetOf(a);
+        if (to === undefined) {
+          outside(a);
+          continue;
+        }
+        alt.changes.push({ id: newId(), offset: to, session: templateFromWorkout(a, newId()) });
+      }
+    }
+
+    if (alt.changes.length === 0 && item.errors.length === 0) item.errors.push("Plan B would be the same as Plan A - it has no changes.");
+    item.details.push(...describeChanges(alt).map((l) => `Plan B ${l}`));
+    if (alt.repeatUntilWeekId) {
+      item.details.push(`every week through ${alt.repeatUntilWeekId}`);
+      item.warnings.push(`Worked out against ${change.start.weekId}; later weeks find their sessions by name.`);
+    }
+    if (alt.outdoor) item.details.push(`Plan ${alt.outdoor} is the outdoor one`);
+    if (alt.likely === "B") item.details.push("counts as Plan B until you decide");
+    if (!Number.isNaN(currentMonday) && startDay < currentMonday) item.warnings.push("Starts in the past.");
+    const overlapping = new Set<string>();
+    for (let d = startDay; d <= endDay; d++) {
+      const hit = occurrenceOnDay(alternatives, d);
+      if (hit) overlapping.add(hit.alt.label || "Plan B");
+    }
+    if (overlapping.size) item.warnings.push(`Overlaps ${[...overlapping].map((n) => `"${n}"`).join(", ")} - both would apply.`);
+    if (on && item.errors.length === 0) {
+      alternatives.push(alt);
+      alternativesChanged = true;
+    }
+  });
+
+  // --- 5. Coach notes: one tickable item per change, applied in order ---
+  let coachNotes = [...(state.coachNotes ?? [])];
+  let coachNotesChanged = false;
+  const today = state.today ?? new Date().toISOString().slice(0, 10);
+  set.coachNotes.forEach((change, i) => {
+    const id = `coach-${i}`;
+    const outcome = applyCoachNoteChange(coachNotes, change, today, () => newCoachNoteId(coachNotes));
+    const item: ChangeItem = {
+      id,
+      section: "coach",
+      title: change.action === "add" ? "New coach note" : change.action === "edit" ? "Coach note changed" : "Coach note removed",
+      details: [outcome.line],
+      warnings: outcome.warnings,
+      errors: outcome.error ? [outcome.error] : [],
+      dependsOn: [],
+    };
+    items.push(item);
+    if (isOn(id) && !outcome.error) {
+      coachNotes = outcome.notes;
+      coachNotesChanged = true;
+    }
+  });
+
+  // New exercise types with no tracked fields: infer them from what the plan uses.
+  if (newTypeIds.length) {
+    const used = new Map<string, Set<string>>();
+    const collect = (slots: ExerciseSlot[]) => {
+      for (const s of slots) {
+        if (!newTypeIds.includes(s.typeId)) continue;
+        const keys = used.get(s.typeId) ?? new Set();
+        for (const k of Object.keys(s.prescribed ?? {})) if ((PARAMETER_BLOCKS as string[]).includes(k)) keys.add(k);
+        for (const id of Object.keys(s.prescribed?.custom ?? {})) keys.add(`v:${id}`);
+        used.set(s.typeId, keys);
+      }
+    };
+    Object.values(ctx.templates).flat().forEach((t) => collect(t.exercises));
+    for (const w of ctx.weekState.values()) (w.planned ?? []).forEach((p) => collect(p.exercises));
+    ctx.types = ctx.types.map((t) => (newTypeIds.includes(t.id) && t.parameters.length === 0 ? { ...t, parameters: [...(used.get(t.id) ?? [])] as ExerciseTypeDef["parameters"] } : t));
+  }
+
+  const writes: PlanWrites = {
+    ...(ctx.changed.categories ? { analyticsCategories: ctx.categories } : {}),
+    ...(ctx.changed.types ? { exerciseTypes: ctx.types } : {}),
+    ...(ctx.changed.phases ? { phaseDefs: ctx.phaseDefs } : {}),
+    ...(ctx.changed.templates ? { templates: ctx.templates } : {}),
+    ...(ctx.changed.blocks ? { trainingBlocks: ctx.blocks } : {}),
+    ...(alternativesChanged ? { planAlternatives: alternatives } : {}),
+    ...(coachNotesChanged ? { coachNotes } : {}),
+    ...(ctx.changed.circuits ? { circuits: ctx.circuits } : {}),
+    weeks: [...ctx.weekState.entries()].map(([weekId, w]) => ({ weekId, planned: w.planned, customized: w.customized })),
+    weekNotes: [...noteWrites.entries()].map(([weekId, text]) => ({ weekId, text })),
+  };
+  return { items, writes };
+}
+
+/** The week before this entry's own phase change (so diffs compare against what the user has now). */
+function currentWeekStateBefore(ctx: Ctx, blocksBefore: TrainingBlock[], weekId: string) {
+  const blocksNow = ctx.blocks;
+  ctx.blocks = blocksBefore;
+  const result = currentWeek(ctx, weekId);
+  ctx.blocks = blocksNow;
+  return result;
+}
+
+/** Session-level diff by name + day (ids differ between projections). */
+function sessionLabelsDiff(before: Workout[], after: Workout[]): string[] {
+  const key = (w: Workout) => `${w.dayOfWeek ?? ""}|${normalizeName(w.notes ?? "")}`;
+  const b = before.map(key);
+  const a = after.map(key);
+  return [
+    ...before.filter((w) => !a.includes(key(w))).map((w) => `− ${sessionLabel(w)}`),
+    ...after.filter((w) => !b.includes(key(w))).map((w) => `+ ${sessionLabel(w)} (${w.exercises.length} exercise${w.exercises.length === 1 ? "" : "s"})`),
+  ];
+}
+
+function asEditable(templates: WorkoutTemplate[]): EditableSession[] {
+  return templates.map((t) => ({ id: t.id, notes: t.name, description: t.description, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, exercises: t.exercises, ...(t.groups ? { groups: t.groups } : {}) }));
+}
+
+function fromEditable(sessions: EditableSession[]): WorkoutTemplate[] {
+  return sessions.map((s) => ({
+    id: s.id,
+    name: s.notes,
+    dayOfWeek: s.dayOfWeek,
+    startTime: s.startTime,
+    plannedDuration: s.plannedDuration,
+    ...(s.description ? { description: s.description } : {}),
+    exercises: s.exercises,
+    ...(s.groups?.length ? { groups: s.groups } : {}),
+  }));
+}
+
+/**
+ * Plans with the user's ticks, then keeps unticking anything that can't
+ * apply (an error, or a dependency that's unticked) until nothing changes.
+ * Returns the final selection alongside the plan so the preview can show
+ * which items were unticked automatically and why.
+ */
+export function planWithSelection(set: AIChangeSet, state: PlannerState, requested: Set<string>, newId: () => string = generateId): PlanResult & { selected: Set<string> } {
+  const selected = new Set(requested);
+  for (let guard = 0; guard < 50; guard++) {
+    const plan = planChanges(set, state, selected, newId);
+    const broken = plan.items.filter((it) => selected.has(it.id) && (it.errors.length > 0 || it.dependsOn.some((d) => !selected.has(d))));
+    if (broken.length === 0) return { ...plan, selected };
+    for (const b of broken) selected.delete(b.id);
+  }
+  return { ...planChanges(set, state, selected, newId), selected };
+}
+
+/** Every item id, for "all ticked" - the preview's starting point. */
+export function allItemIds(set: AIChangeSet): Set<string> {
+  return new Set([
+    ...(set.categories ?? []).map((_, i) => `category-${i}`),
+    ...set.exerciseTypes.map((_, i) => `exercise-${i}`),
+    ...set.circuits.map((_, i) => `circuit-${i}`),
+    ...set.phases.map((_, i) => `phase-${i}`),
+    ...set.weeks.map((_, i) => `week-${i}`),
+    ...set.planB.map((_, i) => `planb-${i}`),
+    ...set.coachNotes.map((_, i) => `coach-${i}`),
+  ]);
+}
+

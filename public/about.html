@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Boulder Tracker</title>
+  <meta name="description" content="Boulder Tracker – plan, log and analyse your climbing and bouldering training. No account, no server; your data stays yours.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://bouldertracker.nathanzumbusch.de/about.html">
+  <meta name="theme-color" content="#0a0a0b">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Boulder Tracker">
+  <meta property="og:title" content="Boulder Tracker: plan, log and understand your climbing training">
+  <meta property="og:description" content="Free and open source. Training plans, live sessions with timers, load and readiness analytics. No account, your data stays on your device. Android app, iPhone and web.">
+  <meta property="og:url" content="https://bouldertracker.nathanzumbusch.de/about.html">
+  <meta property="og:image" content="https://bouldertracker.nathanzumbusch.de/img/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Boulder Tracker on a phone: the training plan, the Home screen and the analytics charts">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Boulder Tracker: plan, log and understand your climbing training">
+  <meta name="twitter:description" content="Free and open source. No account, your data stays on your device. Android, iPhone and web.">
+  <meta name="twitter:image" content="https://bouldertracker.nathanzumbusch.de/img/og.jpg">
+  <style>
+    :root { --bg: #fafafa; --card: #ffffff; --text: #18181b; --muted: #52525b; --border: #e4e4e7; --accent: #2563eb; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0a0a0b; --card: #18181b; --text: #fafafa; --muted: #a1a1aa; --border: #27272a; --accent: #3b82f6; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 48px 16px 64px; }
+    .hero { display: flex; align-items: center; gap: 16px; }
+    .hero svg { width: 64px; height: 64px; flex: none; }
+    h1 { font-size: 34px; line-height: 1.1; margin: 0; }
+    .tagline { margin: 4px 0 0; color: var(--muted); }
+    h2 { font-size: 18px; margin: 36px 0 8px; }
+    p, li { color: var(--muted); }
+    strong { color: var(--text); }
+    a { color: var(--accent); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
+    .card strong { display: block; margin-bottom: 2px; }
+    .card span { color: var(--muted); font-size: 15px; }
+    .button { display: inline-block; margin-top: 24px; padding: 10px 18px; border-radius: 12px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+    .steps { padding-left: 20px; } .steps li { margin: 6px 0; }
+    code, pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; overflow-x: auto; margin: 8px 0; color: var(--text); }
+    dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 12px 0; }
+    dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; color: var(--text); word-break: break-all; font-size: 14px; }
+    @media (max-width: 520px) { dl.facts { grid-template-columns: 1fr; gap: 0; } dl.facts dd { margin-bottom: 10px; } }
+    .button.alt { background: transparent; color: var(--accent); border: 1px solid var(--border); margin-left: 8px; }
+    table.platforms { border-collapse: collapse; width: 100%; font-size: 14px; margin: 8px 0; }
+    table.platforms th, table.platforms td { text-align: left; padding: 8px 10px 8px 0; border-top: 1px solid var(--border); vertical-align: top; color: var(--text); }
+    table.platforms thead th { border-top: 0; }
+    table.platforms tbody th { color: var(--muted); font-weight: 400; }
+    table.platforms td.no { color: var(--muted); }
+    .cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 6px; }
+    .cta .button { margin-top: 0; margin-left: 0; }
+    .shots { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 12px; margin: 20px -16px 0; padding-left: 16px; padding-right: 16px; scroll-snap-type: x mandatory; scroll-padding: 0 16px; }
+    .shots figure { margin: 0; flex: none; width: 210px; scroll-snap-align: start; }
+    .shots img { width: 100%; height: 330px; object-fit: cover; object-position: top; display: block; border-radius: 18px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.12); background: var(--card); }
+    .shots figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+    .lead { font-size: 18px; }
+    footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 16px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#0a0a0b"/><path fill="#3b82f6" d="m14 6l-3.75 5l2.85 3.8l-1.6 1.2C9.81 13.75 7 10 7 10l-6 8h22z" transform="scale(0.8) translate(3,3)"/></svg>
+    <div>
+      <h1>Boulder Tracker</h1>
+      <p class="tagline">Plan, log and understand your climbing training.</p>
+    </div>
+  </div>
+
+  <p class="lead">A free, open-source training companion for boulderers and climbers, made by <a href="https://nathanzumbusch.de">Nathan Zumbusch</a>. It works offline and keeps your data on your device: no account, no server, no ads.</p>
+
+  <div class="cta">
+    <a class="button" href="android/stable/boulder-tracker.apk" download>Android app (APK)</a>
+    <a class="button alt" href="#install">iPhone: Add to Home Screen</a>
+    <a class="button alt" href="./">Open the web app</a>
+  </div>
+
+  <div class="shots" aria-label="Screenshots">
+    <figure><img src="img/intro-home.webp" alt="Home: readiness score, today's sessions and alerts" width="780" height="1560" loading="lazy"><figcaption>Home: today and readiness</figcaption></figure>
+    <figure><img src="img/intro-plan.webp" alt="Plan: training phases by week, with a Plan B for uncertain days" width="780" height="1560" loading="lazy"><figcaption>Plan: phases and weeks</figcaption></figure>
+    <figure><img src="img/intro-analytics.webp" alt="Analytics: rolling load with the acute to chronic ratio" width="780" height="1560" loading="lazy"><figcaption>Analytics: load and recovery</figcaption></figure>
+  </div>
+
+  <div class="grid">
+    <div class="card"><strong>Plan</strong><span>Training blocks and phases, weekly sessions from templates, goals and trips.</span></div>
+    <div class="card"><strong>Live sessions</strong><span>Guided sessions with an interval and hangboard timer that keeps beeping in the background.</span></div>
+    <div class="card"><strong>Readiness</strong><span>Sleep, HRV and resting heart rate with fatigue and load, as one daily score.</span></div>
+    <div class="card"><strong>Analytics</strong><span>Load and ACWR, monotony and strain, finger load, recovery trends, benchmarks and sends.</span></div>
+    <div class="card"><strong>Your data</strong><span>Stored on your device; optional sync through a private folder in your own Google Drive.</span></div>
+    <div class="card"><strong>Android extras</strong><span>Home-screen widgets, launcher shortcuts, notifications and backups.</span></div>
+  </div>
+
+  <h2 id="install">Install</h2>
+  <p><strong>Android app</strong> (adds Google Drive sync, widgets, reminders and timer sound with the screen off). It is not in the Play Store; you download it from here.</p>
+  <ol class="steps">
+    <li>Tap <a href="android/stable/boulder-tracker.apk" download>Download the APK</a> and open the file when it finishes (browser download bar or your Files app).</li>
+    <li>If Android asks, allow your browser to <strong>install unknown apps</strong>, then go back and tap Install.</li>
+    <li>Play Protect may say it hasn't seen this app before, because it isn't from the Play Store. Tap <strong>More details → Install anyway</strong>.</li>
+    <li>Updates arrive inside the app (Settings → About → App updates), each checked against its checksum first.</li>
+  </ol>
+  <p>Want proof it's the code on GitHub? <a href="#verify">Check the build yourself</a>.</p>
+  <p><strong>iPhone / iPad</strong>: open this page in <strong>Safari</strong>, tap Share → <strong>Add to Home Screen</strong>. In Chrome or Firefox on iOS, use the browser's menu or Share sheet for the same entry. (Links opened inside Reddit or other apps can't install; open them in Safari first.) iOS has no sync, reminders or widgets.</p>
+  <p><strong>Any browser</strong>: just <a href="./">open the web app</a>; it also works offline once loaded.</p>
+
+  <h2 id="platforms">What works where</h2>
+  <div style="overflow-x:auto">
+  <table class="platforms">
+    <thead><tr><th></th><th>Android app</th><th>iPhone Home Screen</th><th>Browser</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Works offline</th><td>Yes</td><td>Yes</td><td>Once loaded</td></tr>
+      <tr><th scope="row">Google Drive sync</th><td>Yes</td><td class="no">No</td><td class="no">No</td></tr>
+      <tr><th scope="row">Reminders</th><td>Yes</td><td class="no">No</td><td class="no">No</td></tr>
+      <tr><th scope="row">Timer sound, screen locked</th><td>Yes</td><td class="no">No: keep the screen on</td><td class="no">No: keep the screen on</td></tr>
+      <tr><th scope="row">Widgets, shortcuts</th><td>Yes</td><td class="no">No</td><td class="no">No</td></tr>
+      <tr><th scope="row">Health Connect import</th><td>Yes</td><td class="no">No</td><td class="no">No</td></tr>
+      <tr><th scope="row">Backups</th><td>Automatic, weekly</td><td class="no">By hand</td><td class="no">By hand</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Planning, logging, analytics, the AI coach prompts and PDF/CSV export work everywhere. A browser (Safari especially) can erase a website's data after a while, so installing to the Home Screen and saving a backup file now and then is worth it.</p>
+
+  <h2 id="verify">Is this APK safe? Check it yourself</h2>
+  <p>The app is open source: <a href="https://github.com/NZumbusch/boulder-tracker">github.com/NZumbusch/boulder-tracker</a>. The APK is built by GitHub's servers from that code on every release, not on a personal computer, and each build records which commit it came from. You don't have to take my word for it:</p>
+  <dl class="facts" id="facts">
+    <dt>Version</dt><dd id="f-version">loading…</dd>
+    <dt>Built from</dt><dd id="f-commit">loading…</dd>
+    <dt>SHA-256 of the APK</dt><dd id="f-sha">loading…</dd>
+    <dt>Signing certificate (SHA-256)</dt><dd id="f-cert">loading…</dd>
+  </dl>
+  <p>On a computer, download the APK and compare:</p>
+<pre>sha256sum boulder-tracker.apk
+apksigner verify --print-certs boulder-tracker.apk
+gh attestation verify boulder-tracker.apk --repo NZumbusch/boulder-tracker</pre>
+  <ul>
+    <li><code>sha256sum</code> must print the SHA-256 above. The app does the same check on every update before it lets Android install anything.</li>
+    <li><code>gh attestation verify</code> asks GitHub to confirm this exact file was produced by the build workflow in that repository, from the commit shown. Builds made before attestations were added won't have one; the next promoted build will.</li>
+    <li><code>apksigner</code> shows who signed it. The certificate is the developer's own key (Android labels such keys "Android Debug"), not a Play Store key; its fingerprint above never changes between versions, and Android refuses an update signed with a different one.</li>
+  </ul>
+  <p>The build recipe is the public file <a href="https://github.com/NZumbusch/boulder-tracker/blob/main/.github/workflows/deploy.yml">.github/workflows/deploy.yml</a>.</p>
+
+
+  <h2>Privacy</h2>
+  <p>No ads, no analytics, no tracking. The developer never receives your data. Read the full <a href="privacy.html">privacy policy</a>.</p>
+
+  <h2>Contact</h2>
+  <p>Nathan Zumbusch · <a href="mailto:info@nathanzumbusch.de">info@nathanzumbusch.de</a> · <a href="https://nathanzumbusch.de">nathanzumbusch.de</a></p>
+
+  <footer>
+    <a href="privacy.html">Privacy Policy</a>
+    <a href="https://github.com/NZumbusch/boulder-tracker">Source code</a>
+    <a href="https://github.com/NZumbusch/boulder-tracker/blob/main/LICENSE">MIT licence</a>
+    <a href="https://nathanzumbusch.de">nathanzumbusch.de</a>
+    <span>Weather data by <a href="https://open-meteo.com">Open-Meteo.com</a></span>
+  </footer>
+</main>
+<script>
+  // Live values from the published (stable) build's version file, so this page can't go stale.
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var none = 'not published with this build';
+    fetch('android/stable/version.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (m) {
+      $('f-version').textContent = (m.versionName || '?') + ' (build ' + m.versionCode + (m.publishedAt ? ', ' + m.publishedAt.slice(0, 10) : '') + ')';
+      var c = $('f-commit');
+      if (/^[0-9a-f]{40}$/i.test(m.commit || '')) {
+        var a = document.createElement('a'); a.href = 'https://github.com/NZumbusch/boulder-tracker/commit/' + m.commit; a.textContent = m.commit.slice(0, 12);
+        c.textContent = ''; c.appendChild(a);
+      } else c.textContent = none;
+      $('f-sha').textContent = m.sha256 || none;
+      $('f-cert').textContent = (m.signing && m.signing.sha256) || none + ' (the next promoted build will list it)';
+    }).catch(function () {
+      ['f-version', 'f-commit', 'f-sha', 'f-cert'].forEach(function (id) { $(id).textContent = 'No build has been published yet, or this page is offline.'; });
+    });
+  })();
+</script>
+</body>
+</html>

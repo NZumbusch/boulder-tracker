@@ -1,0 +1,15 @@
+{
+  "name": "capacitor-app-updater",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Android self-update for a sideloaded app: downloads an APK, checks its SHA-256, and hands it to the system installer.",
+  "files": ["android/src/main/", "android/build.gradle"],
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  },
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}

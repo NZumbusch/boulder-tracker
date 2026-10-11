@@ -1,0 +1,100 @@
+import { defineConfig } from 'vite'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { VitePWA } from 'vite-plugin-pwa'
+import { execFileSync } from 'node:child_process'
+import { appVersion } from './scripts/app-version.mjs'
+
+// "1.2.9" - see scripts/app-version.mjs. Outside a git checkout (a zip of
+// the source) there is nothing to count, so it says so.
+function versionName() {
+  try { return appVersion().versionName } catch { return 'dev' }
+}
+
+// The commit this build was made from, so About can link to it ('' outside git).
+function commitHash() {
+  try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() } catch { return '' }
+}
+
+// https://vite.dev/config/
+export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(versionName()),
+    __APP_COMMIT__: JSON.stringify(commitHash()),
+  },
+  plugins: [
+    svelte(),
+    // Installable web app (iOS "Add to Home Screen", Android Chrome
+    // install): the manifest plus a service worker that precaches the whole
+    // build, so the app opens without signal. `registerType: 'prompt'`
+    // because an update must never reload mid-session on its own - the
+    // app shows a "Reload" toast instead (lib/pwa/registerSW.ts), and
+    // registration is skipped inside the Android app, which ships its own
+    // files and has no use for a cache in front of them.
+    VitePWA({
+      registerType: 'prompt',
+      injectRegister: false,
+      manifest: {
+        id: './',
+        name: 'Boulder Tracker',
+        short_name: 'Boulder Tracker',
+        description: 'Training planner and log for bouldering and climbing.',
+        start_url: './#/home',
+        scope: './',
+        display: 'standalone',
+        // Free: a tablet on a stand, or a phone against the wall during a
+        // hangboard session, is as likely landscape as portrait.
+        orientation: 'any',
+        categories: ['sports', 'health', 'fitness'],
+        background_color: '#0a0a0b',
+        theme_color: '#0a0a0b',
+        // Long-press the installed icon (Android/desktop Chrome). Hash routes: App.svelte opens the tab.
+        shortcuts: [
+          { name: 'Start a session', short_name: 'Session', url: './#/add', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Training plan', short_name: 'Plan', url: './#/plan', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Analytics', short_name: 'Analytics', url: './#/analytics', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+        ],
+        // Chrome's richer install dialog on Android needs narrow screenshots.
+        screenshots: [
+          { src: 'img/intro-home.webp', sizes: '780x1560', type: 'image/webp', form_factor: 'narrow', label: "Home: today's session and readiness" },
+          { src: 'img/intro-plan.webp', sizes: '780x1560', type: 'image/webp', form_factor: 'narrow', label: 'Plan: phases and weeks' },
+          { src: 'img/intro-analytics.webp', sizes: '780x1560', type: 'image/webp', form_factor: 'narrow', label: 'Analytics: load and recovery' },
+        ],
+        icons: [
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,webmanifest}'],
+        // The PDF and share-image libraries are big (pdfmake + its fonts are
+        // about 1.8 MB) and only load when someone exports, so they are not
+        // downloaded at install: they are cached the first time they're used
+        // (runtimeCaching below). Trade-off: a first-ever export with no signal fails.
+        globIgnores: ['**/assets/pdfmake-*.js', '**/assets/vfs_fonts-*.js', '**/assets/planPdfRender-*.js', '**/assets/html2canvas-*.js'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/(pdfmake|vfs_fonts|planPdfRender|html2canvas)-[^/]+\.js$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'export-libraries', expiration: { maxEntries: 8 }, cacheableResponse: { statuses: [200] } },
+          },
+        ],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        navigateFallback: 'index.html',
+        // The public pages are real documents, not app routes, and so are
+        // the Android downloads under /android/ (the APK, its version file):
+        // with the fallback they'd open index.html instead of downloading
+        // for anyone who has the web app installed.
+        navigateFallbackDenylist: [/about\.html$/, /privacy\.html$/, /\/android\//],
+      },
+    }),
+  ],
+  // Relative, so one build serves both targets: GitHub Pages hosts the app
+  // under /boulder-tracker/, while the Capacitor WebView serves it from the
+  // root of https://localhost. An absolute '/boulder-tracker/' base makes
+  // every asset 404 inside the APK - a silent white screen.
+  base: './',
+  optimizeDeps: {
+    include: ['html2pdf.js', 'svelte-dnd-action']
+  }
+})

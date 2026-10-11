@@ -1,0 +1,202 @@
+name: Deploy web app and Android update to Pages
+
+# One site: the web app (PWA) at the root, and the Android app's two
+# update channels (see src/lib/update/):
+#
+#   /android/          Testing - a signed APK built from every push to main
+#   /android/stable/   Stable  - only builds that were promoted
+#
+# Promote: Actions -> this workflow -> "Run workflow" -> mode "promote".
+# That takes the test build that is live right now - the same file testers
+# installed, not a rebuild - and makes it the stable one. Stable builds are
+# kept as the assets of the GitHub release "stable-channel", so every later
+# deploy (which replaces the whole site) puts them back.
+#
+# The signing key never leaves GitHub's secrets: it is decoded into the
+# runner's temp directory (outside the checkout, so it can't end up in the
+# uploaded site), used by Gradle, and deleted again even if the build fails.
+# Without the secrets set, only the web app deploys.
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "deploy = build and publish as usual; promote = make the current test build the stable one"
+        type: choice
+        options: [deploy, promote]
+        default: deploy
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://bouldertracker.nathanzumbusch.de
+  STABLE_RELEASE: stable-channel
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      PROMOTE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'promote' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # The build number is the commit count, and the version name counts
+          # from the last stable/<n> tag - needs the whole history and tags.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Setup Java (Android build)
+        if: env.HAS_KEYSTORE == 'true' && env.PROMOTE != 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Build signed APK
+        id: apk
+        if: env.HAS_KEYSTORE == 'true' && env.PROMOTE != 'true'
+        # A broken APK build must not keep the web app from deploying - the
+        # last step fails the run afterwards, so it still shows up red.
+        continue-on-error: true
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/signing.keystore"
+          # Pasted secrets often pick up spaces or line breaks - drop them.
+          if ! printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$ANDROID_KEYSTORE_PATH" 2>/dev/null; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 isn't valid base64. Copy it again with: base64 -w0 ~/.android/debug.keystore"
+            exit 1
+          fi
+          for name in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then echo "::error::The secret $name is missing or empty."; exit 1; fi
+          done
+          if ! keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error::The keystore doesn't open with ANDROID_KEYSTORE_PASSWORD, or has no key called ANDROID_KEY_ALIAS (for the debug keystore: android / androiddebugkey)."
+            exit 1
+          fi
+          # The certificate fingerprint is public (every APK carries it) - compare it with a local one.
+          echo "Signing with certificate:"
+          keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" | grep -E "SHA1:"
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          cd ..
+          # The signing certificate's fingerprints go into version.json, so the
+          # site can show people what to compare the APK's certificate against.
+          cert=$(keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS")
+          export APK_CERT_SHA256=$(printf '%s\n' "$cert" | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -1)
+          export APK_CERT_SHA1=$(printf '%s\n' "$cert" | sed -n 's/^[[:space:]]*SHA1:[[:space:]]*//p' | head -1)
+          # keytool indents these lines with a tab, so match any whitespace; an empty value would silently drop the fingerprint.
+          [ -n "$APK_CERT_SHA256" ] || echo "::warning::Could not read the signing certificate fingerprint; version.json will not list it."
+          node scripts/write-update-manifest.mjs android/app/build/outputs/apk/release/app-release.apk dist/android
+
+      # A signed statement from GitHub that this exact file was built by this
+      # workflow from this commit. Anyone can check it with
+      #   gh attestation verify boulder-tracker.apk --repo NZumbusch/boulder-tracker
+      # Needs a public repository; if it fails the deploy goes on without it.
+      - name: Attest the APK's origin
+        if: steps.apk.outcome == 'success'
+        continue-on-error: true
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist/android/boulder-tracker.apk
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/signing.keystore"
+
+      - name: Promote the live test build to stable
+        if: env.PROMOTE == 'true'
+        run: |
+          set -euo pipefail
+          # The test build as published right now (cache-busted), checked
+          # against its own checksum before anything is promoted.
+          mkdir -p dist/android
+          curl -fsSL "$SITE_URL/android/version.json?t=$(date +%s)" -o dist/android/version.json
+          curl -fsSL "$SITE_URL/android/boulder-tracker.apk?t=$(date +%s)" -o dist/android/boulder-tracker.apk
+          expected=$(node -p "require('./dist/android/version.json').sha256")
+          actual=$(sha256sum dist/android/boulder-tracker.apk | cut -d' ' -f1)
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::The live test APK doesn't match its version file (a deploy may still be in progress) - try again in a few minutes."
+            exit 1
+          fi
+          build=$(node -p "require('./dist/android/version.json').versionCode")
+          commit=$(node -p "require('./dist/android/version.json').commit || ''")
+          if ! gh release view "$STABLE_RELEASE" > /dev/null 2>&1; then
+            gh release create "$STABLE_RELEASE" --title "Stable Android build" --notes "Created by the deploy workflow." ${commit:+--target "$commit"}
+          fi
+          gh release upload "$STABLE_RELEASE" dist/android/version.json dist/android/boulder-tracker.apk --clobber
+          name=$(node -p "require('./dist/android/version.json').versionName")
+          gh release edit "$STABLE_RELEASE" --notes "$name (build $build${commit:+, commit $commit}), promoted $(date -u +%Y-%m-%d). The app's stable update channel serves these two files."
+          # Tag the promoted commit stable/<n>: version names count stable
+          # releases and the commits since the last one from these tags
+          # (scripts/app-version.mjs). Promoting the same build again adds none.
+          if [ -n "$commit" ] && [ -z "$(git tag --points-at "$commit" --list 'stable/*')" ]; then
+            n=$(( $(git tag --list 'stable/*' | wc -l) + 1 ))
+            git tag "stable/$n" "$commit"
+            git push origin "stable/$n"
+            echo "Tagged $commit as stable/$n."
+          fi
+          echo "Promoted $name (build $build) to stable."
+
+      - name: Include the stable build
+        run: |
+          mkdir -p dist/android/stable
+          if gh release download "$STABLE_RELEASE" -D dist/android/stable -p version.json -p boulder-tracker.apk --clobber; then
+            echo "Stable: build $(node -p "require('./dist/android/stable/version.json').versionCode")"
+          else
+            echo "Nothing promoted to stable yet."
+            rm -rf dist/android/stable
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Fail if the APK didn't build
+        if: steps.apk.outcome == 'failure'
+        run: |
+          echo "::error::The web app deployed, but the Android APK didn't build - see the 'Build signed APK' step."
+          exit 1

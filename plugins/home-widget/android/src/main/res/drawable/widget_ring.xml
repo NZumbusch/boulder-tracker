@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The readiness ring: a track, and the score as an arc from 12 o'clock (ProgressBar level). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="ring" android:innerRadiusRatio="2.5" android:thicknessRatio="11" android:useLevel="false">
+            <solid android:color="@color/widget_track" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <rotate android:fromDegrees="270" android:toDegrees="270" android:pivotX="50%" android:pivotY="50%">
+            <shape android:shape="ring" android:innerRadiusRatio="2.5" android:thicknessRatio="11" android:useLevel="true">
+                <solid android:color="@color/widget_accent" />
+            </shape>
+        </rotate>
+    </item>
+</layer-list>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app's light theme; values-night has the dark one. -->
+<resources>
+    <color name="widget_bg">#FFFFFF</color>
+    <color name="widget_text">#18181B</color>
+    <color name="widget_muted">#71717A</color>
+    <color name="widget_track">#E4E4E7</color>
+    <color name="widget_accent">#2563EB</color>
+    <color name="widget_button_alt">#F4F4F5</color>
+</resources>

@@ -1,0 +1,743 @@
+{
+  "analyticsCategories": [
+    { "id": "cat-1", "name": "Technique Bouldering", "color": "bg-emerald-500" },
+    { "id": "cat-2", "name": "Power Bouldering", "color": "bg-purple-500" },
+    { "id": "cat-3", "name": "Fingers", "color": "bg-indigo-500" },
+    { "id": "cat-4", "name": "Arms", "color": "bg-rose-500" },
+    { "id": "cat-5", "name": "Legs", "color": "bg-amber-500" },
+    { "id": "cat-6", "name": "Core", "color": "bg-sky-500" },
+    { "id": "cat-7", "name": "Other", "color": "bg-zinc-500" }
+  ],
+  "exerciseTypes": [
+    {
+      "id": "free-bouldering",
+      "name": "Free Bouldering",
+      "category": "Technique Bouldering",
+      "parameters": ["duration", "boulderingGrades", "climbingStyle"],
+      "possibleParameters": ["duration", "boulderingGrades", "cadence", "climbingStyle", "variant"],
+      "defaultPlannedLoad": 5
+    },
+    {
+      "id": "board-session",
+      "name": "Board Session",
+      "category": "Power Bouldering",
+      "parameters": ["duration", "boulderingGrades", "boardType", "boardAngle"],
+      "possibleParameters": ["duration", "boulderingGrades", "boardType", "boardAngle", "variant"],
+      "defaultPlannedLoad": 8
+    },
+    {
+      "id": "time-based-intervals",
+      "name": "Time-Based Intervals",
+      "category": "Power Bouldering",
+      "parameters": ["duration", "sets", "timeOn", "restTime", "routeDifficulty"],
+      "possibleParameters": ["duration", "sets", "timeOn", "timeOff", "restTime", "routeDifficulty"],
+      "defaultPlannedLoad": 7
+    },
+    {
+      "id": "rep-based-intervals",
+      "name": "Rep-Based Intervals",
+      "category": "Power Bouldering",
+      "parameters": ["duration", "sets", "reps", "restTime", "routeDifficulty"],
+      "possibleParameters": ["duration", "sets", "reps", "restTime", "movesPerRoute", "routeDifficulty"],
+      "defaultPlannedLoad": 7
+    },
+    {
+      "id": "max-hangs",
+      "name": "Max Hangs",
+      "category": "Fingers",
+      "parameters": ["holdType", "holdSize", "bodyweightPercent", "sets", "timeOn", "restTime"],
+      "possibleParameters": ["holdType", "holdSize", "bodyweightPercent", "maxWeightPercent", "weight", "sets", "reps", "timeOn", "timeOff", "restTime"],
+      "defaultPlannedLoad": 6
+    },
+    {
+      "id": "weighted-pullups",
+      "name": "Weighted Pull-ups",
+      "category": "Arms",
+      "parameters": ["weight", "sets", "reps"],
+      "possibleParameters": ["weight", "bodyweightPercent", "maxWeightPercent", "sets", "reps", "difficulty"],
+      "defaultPlannedLoad": 5
+    },
+    {
+      "id": "campus-board",
+      "name": "Campus Board",
+      "category": "Power Bouldering",
+      "parameters": ["duration", "campusStyle", "sets", "reps"],
+      "possibleParameters": ["duration", "campusStyle", "sets", "reps", "timeOn", "timeOff", "restTime"],
+      "defaultPlannedLoad": 9
+    },
+    {
+      "id": "core-training",
+      "name": "Core Training",
+      "category": "Core",
+      "parameters": ["duration"],
+      "possibleParameters": ["duration", "difficulty"],
+      "defaultPlannedLoad": 4
+    },
+    {
+      "id": "running",
+      "name": "Running",
+      "category": "Other",
+      "parameters": ["duration", "distance"],
+      "possibleParameters": ["duration", "distance"],
+      "defaultPlannedLoad": 4
+    },
+    {
+      "id": "mobility",
+      "name": "Mobility",
+      "category": "Other",
+      "parameters": ["duration", "mobilityType"],
+      "possibleParameters": ["duration", "mobilityType"],
+      "defaultPlannedLoad": 2
+    },
+    {
+      "id": "lead-climbing",
+      "name": "Lead Climbing",
+      "category": "Power Endurance",
+      "parameters": ["duration", "routeGrades", "leadStyle"],
+      "possibleParameters": ["duration", "routeGrades", "cadence", "leadStyle"],
+      "defaultPlannedLoad": 7
+    }
+  ],
+  "phaseDefs": [
+    { "id": "phase-capacity", "name": "Capacity", "color": "bg-success-hover", "order": 1 },
+    { "id": "phase-strength", "name": "Strength", "color": "bg-rose-500", "order": 2 },
+    { "id": "phase-power", "name": "Power", "color": "bg-amber-500", "order": 3 },
+    { "id": "phase-power-endurance", "name": "Power Endurance", "color": "bg-tertiary-hover", "order": 4 },
+    { "id": "phase-performance", "name": "Performance", "color": "bg-sky-500", "order": 5 },
+    { "id": "phase-taper", "name": "Taper", "color": "bg-cyan-500", "order": 6 },
+    { "id": "phase-deload", "name": "Deload", "color": "bg-zinc-500", "order": 7 }
+  ],
+  "templates": {
+    "phase-capacity": [
+      {
+        "id": "tmpl-gs-capacity-1",
+        "name": "Volume Bouldering",
+        "dayOfWeek": "Monday",
+        "exercises": [
+          {
+            "id": "1",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 75,
+              "climbingStyle": [
+                "Slab",
+                "Coordination"
+              ],
+              "plannedLoad": 5
+            }
+          },
+          {
+            "id": "2",
+            "typeId": "mobility",
+            "prescribed": {
+              "duration": 15,
+              "mobilityType": [
+                "Shoulders",
+                "Hips"
+              ],
+              "plannedLoad": 2
+            }
+          }
+        ],
+        "notes": "Lots of problems well below your limit. Focus on quiet feet and smooth movement."
+      },
+      {
+        "id": "tmpl-gs-capacity-2",
+        "name": "Mileage & Core",
+        "dayOfWeek": "Thursday",
+        "exercises": [
+          {
+            "id": "3",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 60,
+              "climbingStyle": [
+                "Coordination"
+              ],
+              "plannedLoad": 5
+            }
+          },
+          {
+            "id": "4",
+            "typeId": "core-training",
+            "prescribed": {
+              "duration": 15,
+              "difficulty": 5,
+              "plannedLoad": 3
+            }
+          }
+        ],
+        "notes": "Easy to moderate problems, short rests. Stop while you still climb cleanly."
+      }
+    ],
+    "phase-strength": [
+      {
+        "id": "tmpl-gs-strength-1",
+        "name": "Hard Bouldering",
+        "dayOfWeek": "Tuesday",
+        "exercises": [
+          {
+            "id": "1",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 75,
+              "climbingStyle": [
+                "Power"
+              ],
+              "plannedLoad": 7
+            }
+          },
+          {
+            "id": "2",
+            "typeId": "core-training",
+            "prescribed": {
+              "duration": 15,
+              "difficulty": 6,
+              "plannedLoad": 3
+            }
+          }
+        ],
+        "notes": "Warm up well, then work problems near your limit with 3-4 min rest between tries."
+      },
+      {
+        "id": "tmpl-gs-strength-2",
+        "name": "Projecting",
+        "dayOfWeek": "Friday",
+        "exercises": [
+          {
+            "id": "3",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 75,
+              "climbingStyle": [
+                "Power"
+              ],
+              "plannedLoad": 7
+            }
+          },
+          {
+            "id": "4",
+            "typeId": "mobility",
+            "prescribed": {
+              "duration": 15,
+              "mobilityType": [
+                "Shoulders",
+                "Wrists"
+              ],
+              "plannedLoad": 2
+            }
+          }
+        ],
+        "notes": "Pick 2-3 hard problems and work the moves. Quality over quantity."
+      }
+    ],
+    "phase-power": [
+      {
+        "id": "tmpl-gs-power-1",
+        "name": "Dynamic Moves",
+        "dayOfWeek": "Wednesday",
+        "exercises": [
+          {
+            "id": "1",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 60,
+              "climbingStyle": [
+                "Coordination",
+                "Power"
+              ],
+              "plannedLoad": 7
+            }
+          }
+        ],
+        "notes": "Short, explosive problems with full rest. End the session before you get sloppy."
+      },
+      {
+        "id": "tmpl-gs-power-2",
+        "name": "Board Session",
+        "dayOfWeek": "Saturday",
+        "exercises": [
+          {
+            "id": "2",
+            "typeId": "board-session",
+            "prescribed": {
+              "duration": 45,
+              "boardType": "Spraywall",
+              "boardAngle": 30,
+              "plannedLoad": 6
+            }
+          },
+          {
+            "id": "3",
+            "typeId": "core-training",
+            "prescribed": {
+              "duration": 15,
+              "difficulty": 5,
+              "plannedLoad": 3
+            }
+          }
+        ],
+        "notes": "Moderate angle, moves you can do in a few tries."
+      }
+    ],
+    "phase-power-endurance": [
+      {
+        "id": "tmpl-gs-power-endurance-1",
+        "name": "4x4s",
+        "dayOfWeek": "Tuesday",
+        "exercises": [
+          {
+            "id": "1",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 20,
+              "climbingStyle": [
+                "Coordination"
+              ],
+              "plannedLoad": 4
+            }
+          },
+          {
+            "id": "2",
+            "typeId": "rep-based-intervals",
+            "prescribed": {
+              "duration": 40,
+              "sets": 4,
+              "reps": 4,
+              "timeBetweenSets": 240,
+              "plannedLoad": 7
+            }
+          }
+        ],
+        "notes": "Four problems back to back, four rounds, about 4 min rest between rounds. Choose problems a few grades below your max."
+      },
+      {
+        "id": "tmpl-gs-power-endurance-2",
+        "name": "Volume Bouldering",
+        "dayOfWeek": "Friday",
+        "exercises": [
+          {
+            "id": "3",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 60,
+              "climbingStyle": [
+                "Slab",
+                "Coordination"
+              ],
+              "plannedLoad": 5
+            }
+          }
+        ],
+        "notes": "Steady climbing on moderate problems."
+      }
+    ],
+    "phase-performance": [
+      {
+        "id": "tmpl-gs-performance-1",
+        "name": "Flash Practice",
+        "dayOfWeek": "Wednesday",
+        "exercises": [
+          {
+            "id": "1",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 60,
+              "climbingStyle": [
+                "Coordination"
+              ],
+              "plannedLoad": 5
+            }
+          }
+        ],
+        "notes": "Read each problem carefully and give it one good go."
+      },
+      {
+        "id": "tmpl-gs-performance-2",
+        "name": "Projecting Day",
+        "dayOfWeek": "Saturday",
+        "exercises": [
+          {
+            "id": "2",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 90,
+              "climbingStyle": [
+                "Power"
+              ],
+              "plannedLoad": 7
+            }
+          }
+        ],
+        "notes": "Your hardest problems, fully rested."
+      }
+    ],
+    "phase-taper": [
+      {
+        "id": "tmpl-gs-taper-1",
+        "name": "Short & Sharp",
+        "dayOfWeek": "Thursday",
+        "exercises": [
+          {
+            "id": "1",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 45,
+              "climbingStyle": [
+                "Coordination"
+              ],
+              "plannedLoad": 4
+            }
+          }
+        ],
+        "notes": "A few quality attempts, then go home fresh."
+      }
+    ],
+    "phase-deload": [
+      {
+        "id": "tmpl-gs-deload-1",
+        "name": "Easy Climbing",
+        "dayOfWeek": "Tuesday",
+        "exercises": [
+          {
+            "id": "1",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 45,
+              "climbingStyle": [
+                "Slab"
+              ],
+              "plannedLoad": 3
+            }
+          },
+          {
+            "id": "2",
+            "typeId": "mobility",
+            "prescribed": {
+              "duration": 15,
+              "mobilityType": [
+                "Hips",
+                "Spine"
+              ],
+              "plannedLoad": 2
+            }
+          }
+        ],
+        "notes": "Climb for fun, well below your limit."
+      },
+      {
+        "id": "tmpl-gs-deload-2",
+        "name": "Easy Climbing",
+        "dayOfWeek": "Thursday",
+        "exercises": [
+          {
+            "id": "3",
+            "typeId": "free-bouldering",
+            "prescribed": {
+              "duration": 45,
+              "climbingStyle": [
+                "Coordination"
+              ],
+              "plannedLoad": 3
+            }
+          }
+        ],
+        "notes": "Climb for fun, well below your limit."
+      }
+    ]
+  },
+  "templateLibrary": [
+    {
+      "id": "advanced",
+      "name": "Advanced",
+      "description": "For experienced climbers: max hangs, campus board, weighted pull-ups and long limit sessions. Build up to finger training over months, not weeks.",
+      "templates": {
+        "phase-capacity": [
+          {
+            "id": "tmpl-capacity-1",
+            "name": "Volume Day: Focus on perfect technique below flash level.",
+            "dayOfWeek": "Monday",
+            "exercises": [
+              {
+                "id": "1",
+                "typeId": "free-bouldering",
+                "prescribed": {
+                  "duration": 120,
+                  "climbingStyle": [
+                    "Slab"
+                  ],
+                  "cadence": 10,
+                  "plannedLoad": 5
+                }
+              },
+              {
+                "id": "2",
+                "typeId": "core-training",
+                "prescribed": {
+                  "duration": 30,
+                  "difficulty": 6,
+                  "plannedLoad": 4
+                }
+              }
+            ]
+          },
+          {
+            "id": "tmpl-capacity-2",
+            "name": "Pulling Capacity & Capacity Bouldering",
+            "dayOfWeek": "Wednesday",
+            "exercises": [
+              {
+                "id": "3",
+                "typeId": "free-bouldering",
+                "prescribed": {
+                  "duration": 90,
+                  "climbingStyle": [
+                    "Power"
+                  ],
+                  "plannedLoad": 6
+                }
+              },
+              {
+                "id": "4",
+                "typeId": "weighted-pullups",
+                "prescribed": {
+                  "weight": 10,
+                  "sets": 4,
+                  "plannedLoad": 5
+                }
+              }
+            ]
+          }
+        ],
+        "phase-strength": [
+          {
+            "id": "tmpl-strength-1",
+            "name": "Limit Bouldering & Max Hangs",
+            "dayOfWeek": "Tuesday",
+            "exercises": [
+              {
+                "id": "1",
+                "typeId": "free-bouldering",
+                "prescribed": {
+                  "duration": 90,
+                  "climbingStyle": [
+                    "Power"
+                  ],
+                  "plannedLoad": 8
+                }
+              },
+              {
+                "id": "2",
+                "typeId": "max-hangs",
+                "prescribed": {
+                  "holdType": "Half Crimp",
+                  "holdSize": 20,
+                  "bodyweightPercent": 125,
+                  "sets": 5,
+                  "plannedLoad": 6
+                }
+              }
+            ]
+          },
+          {
+            "id": "tmpl-strength-2",
+            "name": "Heavy Board Session",
+            "dayOfWeek": "Thursday",
+            "exercises": [
+              {
+                "id": "3",
+                "typeId": "board-session",
+                "prescribed": {
+                  "duration": 90,
+                  "boardType": "Kilterboard",
+                  "boardAngle": 45,
+                  "plannedLoad": 9
+                }
+              },
+              {
+                "id": "4",
+                "typeId": "core-training",
+                "prescribed": {
+                  "duration": 20,
+                  "difficulty": 9,
+                  "plannedLoad": 4
+                }
+              }
+            ]
+          }
+        ],
+        "phase-power": [
+          {
+            "id": "tmpl-power-1",
+            "name": "Explosive Power Day",
+            "dayOfWeek": "Wednesday",
+            "exercises": [
+              {
+                "id": "1",
+                "typeId": "free-bouldering",
+                "prescribed": {
+                  "duration": 90,
+                  "climbingStyle": [
+                    "Coordination"
+                  ],
+                  "plannedLoad": 7
+                }
+              },
+              {
+                "id": "2",
+                "typeId": "campus-board",
+                "prescribed": {
+                  "duration": 20,
+                  "campusType": "Jumps",
+                  "plannedLoad": 9
+                }
+              }
+            ]
+          },
+          {
+            "id": "tmpl-power-2",
+            "name": "Board Power",
+            "dayOfWeek": "Friday",
+            "exercises": [
+              {
+                "id": "3",
+                "typeId": "board-session",
+                "prescribed": {
+                  "duration": 120,
+                  "boardType": "Moonboard",
+                  "boardAngle": 40,
+                  "plannedLoad": 9
+                }
+              },
+              {
+                "id": "4",
+                "typeId": "weighted-pullups",
+                "prescribed": {
+                  "weight": 30,
+                  "sets": 3,
+                  "plannedLoad": 6
+                }
+              }
+            ]
+          }
+        ],
+        "phase-power-endurance": [
+          {
+            "id": "tmpl-power-endurance-1",
+            "name": "Lactic Tolerance",
+            "dayOfWeek": "Tuesday",
+            "exercises": [
+              {
+                "id": "1",
+                "typeId": "rep-based-intervals",
+                "prescribed": {
+                  "reps": 4,
+                  "sets": 4,
+                  "duration": 60,
+                  "plannedLoad": 8
+                }
+              },
+              {
+                "id": "2",
+                "typeId": "core-training",
+                "prescribed": {
+                  "duration": 25,
+                  "difficulty": 8,
+                  "plannedLoad": 4
+                }
+              }
+            ]
+          }
+        ],
+        "phase-performance": [
+          {
+            "id": "tmpl-performance-1",
+            "name": "Projecting Day",
+            "dayOfWeek": "Saturday",
+            "exercises": [
+              {
+                "id": "1",
+                "typeId": "free-bouldering",
+                "prescribed": {
+                  "duration": 120,
+                  "climbingStyle": [
+                    "Board"
+                  ],
+                  "plannedLoad": 9
+                }
+              }
+            ]
+          }
+        ],
+        "phase-taper": [
+          {
+            "id": "tmpl-taper-1",
+            "name": "Active Recovery",
+            "dayOfWeek": "Thursday",
+            "exercises": [
+              {
+                "id": "2",
+                "typeId": "free-bouldering",
+                "prescribed": {
+                  "duration": 60,
+                  "climbingStyle": [
+                    "Slab"
+                  ],
+                  "plannedLoad": 3
+                }
+              }
+            ]
+          }
+        ],
+        "phase-deload": [
+          {
+            "id": "tmpl-deload-1",
+            "name": "Light Activation Session",
+            "dayOfWeek": "Tuesday",
+            "exercises": [
+              {
+                "id": "1",
+                "typeId": "free-bouldering",
+                "prescribed": {
+                  "duration": 60,
+                  "climbingStyle": [
+                    "Slab"
+                  ],
+                  "cadence": 6,
+                  "plannedLoad": 2
+                }
+              }
+            ]
+          },
+          {
+            "id": "tmpl-deload-2",
+            "name": "Light Activation Session",
+            "dayOfWeek": "Thursday",
+            "exercises": [
+              {
+                "id": "2",
+                "typeId": "free-bouldering",
+                "prescribed": {
+                  "duration": 60,
+                  "climbingStyle": [
+                    "Power"
+                  ],
+                  "cadence": 4,
+                  "plannedLoad": 2
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "benchmarkTypes": [
+    { "id": "max-hang", "name": "Max Hang", "unit": "kg", "fields": [{ "valueId": "edge", "role": "condition" }, { "valueId": "weight", "role": "result", "label": "Added weight" }] },
+    { "id": "1rm-weighted-pullup", "name": "1RM Weighted Pullup", "unit": "kg", "fields": [{ "valueId": "weight", "role": "result", "label": "Added weight" }, { "valueId": "reps", "role": "condition", "fixed": 1 }] },
+    { "id": "1rm-weighted-dip", "name": "1RM Weighted Dip", "unit": "kg", "fields": [{ "valueId": "weight", "role": "result", "label": "Added weight" }, { "valueId": "reps", "role": "condition", "fixed": 1 }] },
+    { "id": "max-pullups", "name": "Max Pullups", "unit": "reps", "fields": [{ "valueId": "reps", "role": "result" }] },
+    { "id": "lsit-duration", "name": "L-Sit Duration", "unit": "s", "fields": [{ "valueId": "time", "role": "result" }] },
+    { "id": "front-lever-duration", "name": "Front Lever Duration", "unit": "s", "fields": [{ "valueId": "time", "role": "result" }] }
+  ]
+}

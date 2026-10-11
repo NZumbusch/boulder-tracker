@@ -1,0 +1,98 @@
+apply plugin: 'com.android.application'
+
+// Every build's versionCode is the number of commits on its branch, so
+// builds from CI and from Android Studio agree, and each push to main is a
+// higher number than the last - which is what lets one install over the
+// other and what the in-app updater compares (lib/update/). `-PversionCode`
+// overrides it.
+def commitCount = {
+    try {
+        return providers.exec { commandLine 'git', 'rev-list', '--count', 'HEAD' }.standardOutput.asText.get().trim().toInteger()
+    } catch (ignored) {
+        return 1
+    }
+}
+def appVersionCode = project.hasProperty('versionCode') ? project.property('versionCode').toString().toInteger() : commitCount()
+
+// The name shown to people, "1.<stable release it heads to>.<commits since
+// the last stable>" - worked out by scripts/app-version.mjs, the same script
+// the update manifest and the web app use. `-PversionName` overrides it.
+def versionNameFromGit = {
+    try {
+        return providers.exec { commandLine 'node', "${rootDir}/../scripts/app-version.mjs"; workingDir "${rootDir}/.." }.standardOutput.asText.get().trim()
+    } catch (ignored) {
+        return "1.0.${appVersionCode}"
+    }
+}
+def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : versionNameFromGit()
+
+// Release signing comes from the environment (CI decodes the keystore from a
+// repository secret into a temp file). Without it, release builds are
+// signed with this machine's debug key, like debug builds. Either way it
+// must be the SAME key every time: Android only installs an update signed
+// by the key the installed app was signed with.
+def releaseKeystore = System.getenv('ANDROID_KEYSTORE_PATH')
+
+android {
+    namespace = "com.nzumbusch.bouldertracker"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.nzumbusch.bouldertracker"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode appVersionCode
+        versionName appVersionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (releaseKeystore) {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig releaseKeystore ? signingConfigs.release : signingConfigs.debug
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
