@@ -52,7 +52,7 @@
 
   // Analytics: a header (range preset, window paging, CSV export, the
   // window's dates), a summary of the window against the one before it,
-  // then the cards - grouped into Training / Body / Performance tabs, in
+  // then the cards - grouped into Training / Body / Progress tabs, in
   // the order and with the visibility chosen in Settings. This file owns
   // the window and the data every panel reads from it; each panel draws
   // itself.
@@ -116,7 +116,7 @@
     { id: 'insights', label: 'Insights' },
     { id: 'training', label: 'Training' },
     { id: 'body', label: 'Body' },
-    { id: 'performance', label: 'Performance' },
+    { id: 'performance', label: 'Progress' },
   ];
   const TAB_OF: Record<string, Tab> = {
     load: 'training',
@@ -390,7 +390,7 @@
     ['ic:baseline-show-chart', 'Load & training mix', 'after your first completed sessions'],
     ['ic:baseline-battery-charging-full', 'Fatigue & recovery', 'when you rate how a session felt'],
     ['ic:baseline-monitor-heart', 'Body', 'when you log sleep, HRV, bodyweight or pain'],
-    ['ic:baseline-emoji-events', 'Performance', 'from benchmarks and outdoor sends'],
+    ['ic:baseline-emoji-events', 'Progress', 'from benchmarks and outdoor sends'],
   ];
 </script>
 
@@ -458,13 +458,13 @@
     </div>
 
 
-    <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="tablist" data-tour="analytics-tabs">
+    <div class="grid grid-cols-4 gap-0.5 bg-surface-elevated/50 p-1 rounded-control" role="tablist" data-tour="analytics-tabs">
       {#each TABS as t}
         <button
           role="tab"
           aria-selected={tab === t.id}
           onclick={() => (tab = t.id)}
-          class="flex-1 py-1.5 text-label rounded-control transition-colors {tab === t.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+          class="min-w-0 py-1.5 text-label rounded-control transition-colors {tab === t.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
         >
           {t.label}
         </button>

@@ -150,8 +150,8 @@ export const TOUR_STEPS: TourStep[] = ([
   {
     view: "analytics",
     target: "analytics-tabs",
-    title: "Insights, training, body, performance",
-    body: "Insights first; then fatigue, recovery and training mix under Training; sleep, HRV, bodyweight and pain under Body; benchmarks and sends under Performance.",
+    title: "Insights, training, body, progress",
+    body: "Insights first; then fatigue, recovery and training mix under Training; sleep, HRV, bodyweight and pain under Body; benchmarks and sends under Progress.",
   },
   {
     view: "settings",
