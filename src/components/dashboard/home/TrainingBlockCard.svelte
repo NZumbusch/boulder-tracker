@@ -29,7 +29,7 @@
   <SectionHeader label="Training Block"
   note={dominantBlock && trainingState.homeDetails['trainingBlock.note'] ? { has: !!dominantBlock.notes, open: () => noteOpen = true, what: 'block' } : undefined} />
   {#if dominantBlock}
-    <p class="text-body text-content font-bold">{dominantBlock.name}{currentPhaseName ? ` · ${currentPhaseName}` : ''}</p>
+    <p class="text-body text-content font-bold">{dominantBlock.name}{currentPhaseName && currentPhaseName !== dominantBlock.name ? ` · ${currentPhaseName}` : ''}</p>
     {#if blockWeekPosition}
       <div class="flex items-center gap-3">
         <span class="text-caption text-content-subtle shrink-0">Week {blockWeekPosition.week} of {blockWeekPosition.of}</span>

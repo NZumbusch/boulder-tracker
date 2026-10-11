@@ -296,7 +296,9 @@
   const fatigueSamples = $derived(buckets.map((b) => {
     // Nothing to sample in a column that hasn't started yet.
     if (b.startDay > today) return { weekId: b.id };
-    const decay = computeFatigueDecay(trainingState.completedWorkouts, new Date(b.endDay * 86400000), trainingState.fatigueModel);
+    // Only what had happened by the column's end: a later session would count as 'that day' and make every column before the first one read max fatigue.
+    const sofar = trainingState.completedWorkouts.filter((w) => w.date && toUtcDayIndex(w.date) <= b.endDay);
+    const decay = computeFatigueDecay(sofar, new Date(b.endDay * 86400000), trainingState.fatigueModel);
     return { weekId: b.id, fingers: decay.fingers, arms: decay.arms, core: decay.core, systemic: decay.systemic };
   }));
   const fatigueCoverage = $derived.by(() => {
