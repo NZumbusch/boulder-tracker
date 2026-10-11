@@ -425,6 +425,7 @@ class TrainingState {
         adherenceLow: this.tunable('insights.adherenceLow'),
         hrvDip: this.tunable('readiness.hrvDip'),
         sleepLow: this.tunable('readiness.sleepLow'),
+        retestWeeks: this.tunable('progress.retestWeeks'),
       },
     };
   }

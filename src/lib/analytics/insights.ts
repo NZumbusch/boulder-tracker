@@ -7,7 +7,8 @@ import { calculateRollingAcwr, CONSECUTIVE_TRAINING_DAY_THRESHOLD } from "./load
 import { computeFatigueDecay, computeHrvBaseline, type FatigueModel } from "./readiness";
 import { workoutPlannedLoad, workoutActualLoad } from "./load";
 import { loggedMetrics } from "./metricValues";
-import { benchmarkChanges, latestBenchmarks, retestDue, sendsSummary } from "./progress";
+import { benchmarkChanges, sendsSummary } from "./progress";
+import { plannedTestsByType, testStatuses, DEFAULT_RETEST_WEEKS } from "../benchmarks/testSlot";
 import { bodyweightsOf } from "../benchmarks/series";
 import { isSkippedWorkout, workoutDay, isoDayIndex } from "../planning/weekStatus";
 import { slotTypeName, slotValues } from "../exerciseSlot";
@@ -52,6 +53,8 @@ export interface InsightConfig {
   adherenceLow: number;
   hrvDip: number;
   sleepLow: number;
+  /** A test is due this many weeks after its last result. */
+  retestWeeks: number;
 }
 
 export const DEFAULT_INSIGHT_CONFIG: Omit<InsightConfig, "fatigueModel"> = {
@@ -60,6 +63,7 @@ export const DEFAULT_INSIGHT_CONFIG: Omit<InsightConfig, "fatigueModel"> = {
   adherenceLow: 0.6,
   hrvDip: 0.1,
   sleepLow: 60,
+  retestWeeks: DEFAULT_RETEST_WEEKS,
 };
 
 export interface InsightInputs {
@@ -279,17 +283,26 @@ function benchmarkInsights(i: InsightInputs): Insight[] {
 }
 
 function retestInsight(i: InsightInputs): Insight | undefined {
-  const due = retestDue(latestBenchmarks(i.benchmarks, i.benchmarkTypes, i.valueDefs, i.weightUnit), i.asOf);
-  if (due.length === 0) return undefined;
-  const first = due[0];
-  return {
-    id: "retest",
-    group: "strength",
-    tone: "info",
-    title: `Retest due: ${first.name}`,
-    detail: `Last tested ${first.weeks} weeks ago${due.length > 1 ? `; ${due.length - 1} more are due too` : ""}.`,
-    link: { kind: "panel", tab: "performance", section: "section-benchmarks" },
-  };
+  const planned = plannedTestsByType(i.workouts, i.benchmarks);
+  const status = testStatuses(i.benchmarkTypes, i.benchmarks, i.asOf, new Set(planned.keys()), i.config.retestWeeks);
+  const due = status.filter((s) => s.due).sort((a, b) => (b.weeksSince ?? 0) - (a.weeksSince ?? 0));
+  const link: InsightLink = { kind: "panel", tab: "performance", section: "section-benchmarks" };
+  const open = due.filter((s) => !s.scheduled);
+  if (open.length > 0) {
+    const first = open[0];
+    return {
+      id: "retest",
+      group: "strength",
+      tone: "info",
+      title: `Retest due: ${first.type.name}`,
+      detail: `Last done ${first.weeksSince} weeks ago${open.length > 1 ? `; ${open.length - 1} more are due too` : ""}. Plan one in a session, or have the AI schedule them.`,
+      link,
+    };
+  }
+  const next = status.find((s) => s.scheduled);
+  if (!next) return undefined;
+  const where = planned.get(next.type.id)?.[0];
+  return { id: "retest", group: "strength", tone: "info", title: `Test planned: ${next.type.name}`, detail: where ? `${where.day ?? "In"} ${where.session ? `${where.session}, ` : ""}week ${where.week.split("-W")[1]}.` : undefined, link };
 }
 
 // --- Following a balanced plan ---------------------------------------------------
