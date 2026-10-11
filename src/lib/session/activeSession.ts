@@ -312,15 +312,7 @@ export function addSlot(
       prescribed: { ...slot.values },
       ...(target === "none" ? { addedExtra: true as const } : {}),
     };
-    const exercises = session.workout.exercises;
-    const focus = exercises[session.currentIndex];
-    let at = exercises.length === 0 ? 0 : session.currentIndex + 1;
-    if (focus?.groupId) {
-      while (at < exercises.length && exercises[at].groupId === focus.groupId) at++;
-    }
-    const next = withExercises(session, [...exercises.slice(0, at), added, ...exercises.slice(at)]);
-    // Nothing left to do on the focused exercise: the new one is what's next.
-    return focus && slotStatus(focus) === "pending" ? next : { ...next, currentIndex: at };
+    return placeNext(session, added);
   }
   const added: ExerciseSlot = {
     id: slot.id,
@@ -331,6 +323,27 @@ export function addSlot(
     prescribed: target === "mirror" ? { ...slot.values } : undefined,
   };
   return withExercises(session, [...session.workout.exercises, added]);
+}
+
+/**
+ * Puts a ready-made slot right after the exercise in focus (after its whole
+ * circuit), still to do, so it comes up next when that one is finished.
+ */
+function placeNext(session: ActiveSession, added: ExerciseSlot): ActiveSession {
+  const exercises = session.workout.exercises;
+  const focus = exercises[session.currentIndex];
+  let at = exercises.length === 0 ? 0 : session.currentIndex + 1;
+  if (focus?.groupId) {
+    while (at < exercises.length && exercises[at].groupId === focus.groupId) at++;
+  }
+  const next = withExercises(session, [...exercises.slice(0, at), added, ...exercises.slice(at)]);
+  // Nothing left to do on the focused exercise: the new one is what's next.
+  return focus && slotStatus(focus) === "pending" ? next : { ...next, currentIndex: at };
+}
+
+/** Adds a slot that is still to do - a planned benchmark test - next up. */
+export function addPlannedSlot(session: ActiveSession, slot: ExerciseSlot): ActiveSession {
+  return placeNext(session, slot);
 }
 
 /** Edits a slot's plan/type in place - the tucked-away "edit session" path, not the finish path. */

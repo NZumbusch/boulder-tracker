@@ -260,6 +260,21 @@ export interface ExerciseSlot {
    * next to each other; see `lib/exercise/groups.ts` for the rules.
    */
   groupId?: string;
+  /**
+   * A benchmark test planned as part of the session (`lib/benchmarks/testSlot.ts`):
+   * which test, and the conditions it is to be done under. Logging the slot
+   * records a `Benchmark` result linked to it; `typeId` is then `TEST_SLOT_TYPE_ID`.
+   */
+  test?: TestSlotInfo;
+}
+
+/** The test a slot stands for. `name` is kept so the slot reads without the test list (a test since renamed shows its old name until edited). */
+export interface TestSlotInfo {
+  /** -> BenchmarkTypeDef.id */
+  typeId: string;
+  name: string;
+  /** Planned conditions by `ValueDef.id`, weights in kg - what the result form starts from. */
+  conditions?: Record<string, number | string>;
 }
 
 /**
@@ -712,6 +727,10 @@ export interface Benchmark {
   weekId: string;
   /** Every field's value by `ValueDef.id` - the primary result too, and the conditions it was done under. */
   values?: Record<string, number | string>;
+  /** Set when the result was entered on a planned test in a session: that slot (`ExerciseSlot.id`). */
+  slotId?: string;
+  /** ... and the session it is in. */
+  workoutId?: string;
 }
 
 /**
