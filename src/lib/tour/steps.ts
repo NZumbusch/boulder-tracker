@@ -131,9 +131,15 @@ export const TOUR_STEPS: TourStep[] = ([
   },
   {
     view: "analytics",
+    target: "analytics-insights",
+    title: "Insights",
+    body: "What your numbers say right now, in plain words: whether to push or rest (load ratio, fatigue, and what the rest of the week would do to it), new bests, benchmark change, plan adherence, and what you've neglected. Tap a finding for the chart behind it.",
+  },
+  {
+    view: "analytics",
     target: "analytics-range",
-    title: "Analytics",
-    body: "Pick how far back to look. Swipe sideways to page through earlier windows.",
+    title: "Looking back",
+    body: "The charts under the other tabs cover a window you pick. Swipe sideways to page through earlier ones.",
   },
   {
     view: "analytics",
@@ -144,8 +150,8 @@ export const TOUR_STEPS: TourStep[] = ([
   {
     view: "analytics",
     target: "analytics-tabs",
-    title: "Training, body, performance",
-    body: "Fatigue, recovery and training mix under Training; sleep, HRV, bodyweight and pain under Body; benchmarks and sends under Performance.",
+    title: "Insights, training, body, performance",
+    body: "Insights first; then fatigue, recovery and training mix under Training; sleep, HRV, bodyweight and pain under Body; benchmarks and sends under Performance.",
   },
   {
     view: "settings",

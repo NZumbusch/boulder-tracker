@@ -11,6 +11,7 @@
   import InAppBrowserBanner from './components/common/InAppBrowserBanner.svelte';
   import ExampleDataBanner from './components/common/ExampleDataBanner.svelte';
   import InfoSheet from './components/common/InfoSheet.svelte';
+  import AcwrSheet from './components/dashboard/home/AcwrSheet.svelte';
   import Welcome from './components/onboarding/Welcome.svelte';
   import TourOverlay from './components/tour/TourOverlay.svelte';
   import { tour } from './lib/tour/tour.svelte';
@@ -203,6 +204,7 @@
   <WorkoutModal />
   <Toast />
   <InfoSheet />
+  <AcwrSheet />
   <TourOverlay />
   <!-- First run only: a fresh install that hasn't been welcomed and has no
        sessions (a restored or synced install skips it). -->

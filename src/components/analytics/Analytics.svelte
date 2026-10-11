@@ -1,9 +1,13 @@
 <script lang="ts" module>
   // The open tab survives leaving Analytics and coming back within a visit.
-  let rememberedTab: 'training' | 'body' | 'performance' = 'training';
+  let rememberedTab: 'insights' | 'training' | 'body' | 'performance' = 'insights';
 </script>
 
 <script lang="ts">
+  import { tick } from 'svelte';
+  import InsightsPanel from './InsightsPanel.svelte';
+  import type { InsightLink } from '../../lib/analytics/insights';
+  import { showAcwr } from '../../lib/help/acwrSheet.svelte';
   import { tour } from '../../lib/tour/tour.svelte';
   import { settingsPath } from '../../lib/settings/tree';
   import { motionReduced } from '../../lib/motion';
@@ -67,6 +71,12 @@
   $effect(() => {
     rememberedTab = tab;
   });
+  // The tour's stops sit on specific tabs: Insights for its own, Training for the load chart.
+  $effect(() => {
+    if (!tour.active || tour.step.view !== 'analytics') return;
+    const target = tour.step.target;
+    tab = target === 'analytics-insights' ? 'insights' : 'training';
+  });
   let selectedIndex = $state<number | null>(null);
 
   const buckets = $derived(buildBuckets(range, viewOffset));
@@ -101,8 +111,9 @@
 
   // --- Tabs. Each card belongs to one; within a tab, cards keep the order
   // and visibility chosen under Settings -> History & Analytics.
-  type Tab = 'training' | 'body' | 'performance';
+  type Tab = 'insights' | 'training' | 'body' | 'performance';
   const TABS: { id: Tab; label: string }[] = [
+    { id: 'insights', label: 'Insights' },
     { id: 'training', label: 'Training' },
     { id: 'body', label: 'Body' },
     { id: 'performance', label: 'Performance' },
@@ -121,6 +132,14 @@
     benchmarkOverview: 'performance',
   };
   const tabSections = $derived(trainingState.analyticsSections.filter((s) => s.visible && TAB_OF[s.id] === tab));
+
+  /** An insight's link: the ACWR breakdown, or the chart behind it on its own tab. */
+  async function openInsight(link: InsightLink) {
+    if (link.kind === 'acwr') { showAcwr(); return; }
+    tab = link.tab;
+    await tick();
+    document.getElementById(link.section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   // --- Handlers ---
   function navigate(direction: 'prev' | 'next' | 'today') {
@@ -404,6 +423,7 @@
       <h2 class="text-title text-content">Analytics</h2>
       <!-- Window paging and CSV export share one quiet row of controls. -->
       <div class="flex items-center gap-1">
+        {#if tab !== 'insights'}
         <button
           onclick={() => navigate('prev')}
           class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
@@ -424,6 +444,7 @@
         >
           <Icon icon="ic:baseline-chevron-right" class="text-lg" />
         </button>
+        {/if}
         <button
           onclick={() => trainingState.exportToCSV()}
           class="p-1.5 ml-1 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
@@ -435,6 +456,21 @@
       </div>
     </div>
 
+
+    <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="tablist" data-tour="analytics-tabs">
+      {#each TABS as t}
+        <button
+          role="tab"
+          aria-selected={tab === t.id}
+          onclick={() => (tab = t.id)}
+          class="flex-1 py-1.5 text-label rounded-control transition-colors {tab === t.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+        >
+          {t.label}
+        </button>
+      {/each}
+    </div>
+
+    {#if tab !== 'insights'}
     <!-- Range preset, and what it covers in dates. -->
     <div class="flex items-center justify-between gap-3 px-1">
       <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Range" data-tour="analytics-range">
@@ -451,25 +487,14 @@
       </div>
       <span class="text-caption text-content-subtle/80 text-right leading-tight">{windowDateRange}</span>
     </div>
+    {/if}
   </div>
 
   <!-- touch-action keeps vertical scrolling native while a sideways swipe
        pages the window (see lib/analytics/swipe.ts). -->
   <div class="space-y-4 touch-pan-y" bind:this={panelsEl} use:swipePaging={(d) => navigate(d)}>
-    <SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} logged={summaryLogged} />
+    {#if tab !== 'insights'}<SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} logged={summaryLogged} />{/if}
 
-    <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="tablist" data-tour="analytics-tabs">
-      {#each TABS as t}
-        <button
-          role="tab"
-          aria-selected={tab === t.id}
-          onclick={() => (tab = t.id)}
-          class="flex-1 py-1.5 text-label rounded-control transition-colors {tab === t.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-        >
-          {t.label}
-        </button>
-      {/each}
-    </div>
 
     <div class="space-y-5">
       {#snippet loadSection()}
@@ -520,6 +545,10 @@
       <BenchmarkOverviewPanel series={benchmarkSeries} {firstDay} {lastDay} />
       {/snippet}
 
+      {#if tab === 'insights'}
+        <InsightsPanel onOpen={openInsight} />
+      {/if}
+
       {#each tabSections as section (section.id)}
         {#if section.id === 'load'}{@render loadSection()}
         {:else if section.id === 'strain'}{@render strainSection()}
@@ -535,7 +564,7 @@
         {/if}
       {/each}
 
-      {#if tabSections.length === 0}
+      {#if tabSections.length === 0 && tab !== 'insights'}
         <p class="text-caption text-content-subtle italic text-center py-8 px-8 leading-relaxed">
           Every card on this tab is hidden - turn them back on under {settingsPath('history')}
         </p>
