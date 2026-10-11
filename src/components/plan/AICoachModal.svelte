@@ -341,6 +341,13 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onClose(); }} />
 
+{#snippet heading(title: string, hint: string)}
+  <div class="flex items-baseline justify-between gap-3 px-1">
+    <h3 class="text-label text-content">{title}</h3>
+    {#if hint}<span class="text-caption text-content-subtle text-right">{hint}</span>{/if}
+  </div>
+{/snippet}
+
 {#snippet stepper()}
   <ol class="flex items-center gap-2">
     {#each STEPS as s, i}
@@ -386,7 +393,6 @@
   <div class="flex-1 overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full px-4 py-4 pb-32 space-y-4">
       {#if step === 'ask'}
-        <p class="text-caption text-content-subtle leading-relaxed px-1">An AI's training suggestions are ideas to check, not medical advice. For pain or injury, ask a doctor or physiotherapist.</p>
         {#if mode === 'context'}
           <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-1.5">
             <p class="text-body text-content">Just your training profile, with no question attached.</p>
@@ -408,34 +414,10 @@
           </label>
           <p class="text-caption text-content-subtle px-1 flex items-center gap-1.5"><Icon icon="ic:baseline-straighten" class="text-sm shrink-0" /> Prompt size {formatTokens(tokens)}</p>
         {:else}
-          <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-2.5">
-            <p class="text-label text-content-subtle flex items-center justify-between">
-              <span>{mode === 'generate' ? 'Weeks the AI may change' : 'Weeks to analyze'}</span>
-              {#if rangeValid}<span class="text-caption tabular-nums">{selectedWeekIds.length} week{selectedWeekIds.length === 1 ? '' : 's'}</span>{/if}
-            </p>
-            <div class="grid grid-cols-2 gap-2">
-              <label class="space-y-1 min-w-0">
-                <span class="text-caption text-content-subtle block">From</span>
-                <select bind:value={startWeek} class="w-full bg-surface-elevated text-content px-3 py-2 rounded-control border border-border-strong outline-none text-label">
-                  {#each weekOptions as opt}<option value={opt.id}>{opt.label}</option>{/each}
-                </select>
-              </label>
-              <label class="space-y-1 min-w-0">
-                <span class="text-caption text-content-subtle block">To</span>
-                <select bind:value={endWeek} class="w-full bg-surface-elevated text-content px-3 py-2 rounded-control border border-border-strong outline-none text-label">
-                  {#each weekOptions as opt}<option value={opt.id}>{opt.label}</option>{/each}
-                </select>
-              </label>
-            </div>
-            {#if !rangeValid}
-              <p class="text-caption text-danger flex items-center gap-1"><Icon icon="ic:baseline-error-outline" class="text-sm" /> "From" has to be before "To".</p>
-            {/if}
-          </div>
-
-          {#if mode === 'generate'}
-            <!-- Usual requests in one tap: sets the weeks and the request, both still editable. -->
-            <div class="space-y-1.5">
-              <span class="text-label text-content-subtle px-1 block">Quick start</span>
+          <!-- 1. What you want (with the usual requests above it), 2. which weeks, 3. optional extras. -->
+          <section class="space-y-2.5">
+            {@render heading(mode === 'generate' ? 'What do you want?' : 'What were you going for?', mode === 'generate' ? 'Tap a starting point or write your own' : 'Optional')}
+            {#if mode === 'generate'}
               <div class="flex flex-wrap gap-1.5">
                 {#each QUICK_ADAPTS as q (q.id)}
                   <button onclick={() => applyQuick(q.id)} class="chip transition-colors {hasGoal(goal, q.goal) ? 'text-primary border-primary/40 bg-primary/10' : 'text-content-muted hover:text-content'}" aria-pressed={hasGoal(goal, q.goal)}>{q.label}</button>
@@ -444,11 +426,7 @@
                   <button onclick={applyLast} class="chip text-primary border-primary/30 hover:bg-primary/10 transition-colors" title={lastRequest.goal}>Same as last time</button>
                 {/if}
               </div>
-            </div>
-          {/if}
-
-          <label class="block space-y-1.5">
-            <span class="text-label text-content-subtle px-1 block">{mode === 'generate' ? 'What do you want?' : 'What were you going for?'}</span>
+            {/if}
             <textarea
               bind:value={goal}
               rows="4"
@@ -457,38 +435,45 @@
                 : 'e.g. I was building finger strength for a comp - did it work?'}
               class="w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-y placeholder:text-content-subtle"
             ></textarea>
-          </label>
-          {#if memoryParts.length}
-            <!-- The coaching memory goes along with every prompt - no need to retype it. -->
-            <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
-              <Icon icon="ic:baseline-psychology" class="text-sm shrink-0 mt-0.5" />
-              <span>Sent along: {memoryParts.join(' · ')} <span class="text-content-subtle/70">({settingsPath('coach')})</span></span>
-            </p>
-          {/if}
+            {#if memoryParts.length}
+              <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
+                <Icon icon="ic:baseline-psychology" class="text-sm shrink-0 mt-0.5" />
+                <span>Sent along: {memoryParts.join(' · ')} <span class="text-content-subtle/70">({settingsPath('coach')})</span></span>
+              </p>
+            {/if}
+          </section>
+
+          <section class="space-y-2.5">
+            {@render heading(mode === 'generate' ? 'Weeks the AI may change' : 'Weeks to analyze', rangeValid ? `${selectedWeekIds.length} week${selectedWeekIds.length === 1 ? '' : 's'}` : '')}
+            <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <select bind:value={startWeek} aria-label="From" class="w-full min-w-0 bg-surface-elevated text-content px-3 py-2.5 rounded-control border border-border-strong outline-none text-label">
+                {#each weekOptions as opt}<option value={opt.id}>{opt.label}</option>{/each}
+              </select>
+              <Icon icon="ic:baseline-arrow-forward" class="text-content-subtle" />
+              <select bind:value={endWeek} aria-label="To" class="w-full min-w-0 bg-surface-elevated text-content px-3 py-2.5 rounded-control border border-border-strong outline-none text-label">
+                {#each weekOptions as opt}<option value={opt.id}>{opt.label}</option>{/each}
+              </select>
+            </div>
+            {#if !rangeValid}
+              <p class="text-caption text-danger flex items-center gap-1"><Icon icon="ic:baseline-error-outline" class="text-sm" /> "From" has to be before "To".</p>
+            {/if}
+          </section>
 
           {#if mode === 'generate'}
-            <div class="space-y-1.5">
-              <span class="text-label text-content-subtle px-1 block">Uncertain days <span class="text-caption">(optional - they get a Plan B, e.g. outdoor if dry)</span></span>
+            <section class="space-y-2.5">
+              {@render heading('Uncertain days', 'Optional - they get a Plan B, e.g. outdoor if dry')}
               <div class="grid grid-cols-7 gap-1" role="group" aria-label="Uncertain days">
                 {#each WEEK_DAYS as day}
                   {@const on = uncertainDays.includes(day)}
                   <button
                     onclick={() => toggleUncertain(day)}
                     aria-pressed={on}
-                    class="py-1.5 rounded-control text-label border transition-colors {on ? 'bg-primary text-white border-primary' : 'border-border text-content-subtle hover:text-content'}"
+                    class="py-2 rounded-control text-label border transition-colors {on ? 'bg-primary text-white border-primary' : 'border-border text-content-subtle hover:text-content'}"
                   >{day.slice(0, 2)}</button>
                 {/each}
               </div>
-            </div>
+            </section>
           {/if}
-
-          <p class="text-caption text-content-subtle px-1 leading-relaxed">
-            {#if mode === 'generate'}
-              The AI sees your phases' typical weeks and these weeks, and can change anything from the whole plan to one exercise. Its reply comes back here, and you review every change before anything is applied.
-            {:else}
-              The AI replies with feedback to read in the chat. Nothing comes back into the app.
-            {/if}
-          </p>
         {/if}
 
         {#if copiedFor === mode}
@@ -545,6 +530,8 @@
           </button>
         {/if}
 
+
+        <p class="text-caption text-content-subtle leading-relaxed px-1">{mode === 'generate' ? 'You review every change before anything is applied. ' : mode === 'analyze' ? 'The reply is for reading in the chat. ' : ''}An AI's suggestions are ideas to check, not medical advice - for pain or injury, ask a doctor or physiotherapist.</p>
 
       {:else if step === 'paste'}
         <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-start gap-3">
