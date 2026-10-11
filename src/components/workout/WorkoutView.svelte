@@ -1,5 +1,6 @@
 <script lang="ts">
   import { askAboutSession } from '../../lib/ai/askAbout.svelte';
+  import SessionReviewCard from './SessionReviewCard.svelte';
   import { RATING_AXES } from '../../lib/constants';
   /**
    * The workout modal's default mode: a read-only look at a session, laid
@@ -210,6 +211,10 @@
           class="shrink-0 px-2.5 py-1.5 text-label text-primary bg-primary/10 hover:bg-primary/20 rounded-control transition-colors"
         >Re-rate</button>
       </div>
+    {/if}
+
+    {#if isCompleted}
+      <SessionReviewCard {workout} />
     {/if}
 
     {#each items as item (item.kind === 'slot' ? item.slot.id : `group:${item.group.id}`)}
