@@ -171,3 +171,23 @@ describe("target insights", () => {
     expect(i.find((x) => x.id === "target-mix-Technique")?.title).toBe("Technique is 0% of your time, target 50%");
   });
 });
+
+describe("deload suggestion", () => {
+  // One session per week for the seven full weeks before the running one (Aug 17 - Oct 4), with these loads, oldest first.
+  const weeks = (loads: number[]): Workout[] =>
+    loads.map((load, k) => session(1, [], { loadFactor: load, date: new Date(2026, 7, 17 + k * 7, 12).toISOString(), weekId: getWeekId(new Date(2026, 7, 17 + k * 7, 12)) }));
+
+  it("suggests a lighter week after four weeks in a row without an easy one", () => {
+    const d = buildInsights(inputs(weeks([2000, 2100, 2200, 2300, 2400, 2500, 2600]))).find((x) => x.id === "deload");
+    expect(d?.title).toBe("4 weeks without an easier one: time for a lighter week");
+    expect(d?.detail).toContain("W37 2,300");
+  });
+
+  it("says nothing when one of the last four was an easy week", () => {
+    expect(buildInsights(inputs(weeks([2000, 2100, 2200, 2300, 900, 2300, 2400]))).some((x) => x.id === "deload")).toBe(false);
+  });
+
+  it("says nothing with a week off in the last four (nothing to ease off from)", () => {
+    expect(buildInsights(inputs(weeks([2000, 2100, 2200, 2300, 0, 2300, 2400]))).some((x) => x.id === "deload")).toBe(false);
+  });
+});

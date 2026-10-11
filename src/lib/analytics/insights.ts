@@ -1,5 +1,6 @@
 import type {
   AnalyticsCategory, Benchmark, BenchmarkTypeDef, DailyMetricEntry, ExerciseSlot, ExerciseTypeDef, OutdoorAscent, ValueDef, Workout,
+  TrainingBlock,
   TrainingTargets,
 } from "../types";
 import type { WeightUnit } from "../units";
@@ -17,6 +18,7 @@ import { setRows } from "../exercise/setRows";
 import { parseFontGrade } from "./grades";
 import { WEEK_DAYS } from "../constants";
 import { hasTargets, isFingerSession, mixGaps, weekProgress } from "./targets";
+import { blockReviewLines, blockToReview, buildBlockReview } from "./blockReview";
 import { buildWeeklyHistory } from "./weekSummary";
 
 /**
@@ -36,6 +38,7 @@ export type InsightTone = "risk" | "caution" | "good" | "info";
 export type InsightLink =
   | { kind: "acwr" }
   | { kind: "plan" }
+  | { kind: "block"; blockId: string }
   | { kind: "panel"; tab: "training" | "body" | "performance"; section: string };
 
 export interface Insight {
@@ -86,6 +89,8 @@ export interface InsightInputs {
   /** The weekly targets, if the athlete set any, and the categories that count as finger work. */
   targets?: TrainingTargets;
   fingerIds?: Iterable<string>;
+  /** The training blocks, for the review of one that has just ended. */
+  blocks?: TrainingBlock[];
   config: InsightConfig;
 }
 
@@ -219,6 +224,39 @@ function streakInsight(i: InsightInputs): Insight | undefined {
   for (let d = days.has(today) ? today : today - 1; days.has(d); d--) run++;
   if (run < CONSECUTIVE_TRAINING_DAY_THRESHOLD) return undefined;
   return { id: "streak", group: "push", tone: "caution", title: `${run} training days in a row`, detail: "A rest day soon keeps recovery ahead of load." };
+}
+
+/** A week this much under the three before it counts as an easy week. */
+const EASY_WEEK_SHARE = 0.7;
+
+/** Weeks of training in a row, with no easier one among them, before a lighter week is suggested. */
+const HARD_WEEKS_BEFORE_DELOAD = 4;
+
+/**
+ * Whether it is time for a lighter week: the last four full weeks all carried
+ * training and none of them was an easy one (a deload) - judged by load
+ * against the weeks before it, so it works however the plan names its weeks.
+ */
+function deloadInsight(i: InsightInputs): Insight | undefined {
+  const weekIds: string[] = [];
+  for (let w = decrementWeekId(getWeekId(i.asOf)), k = 0; k < HARD_WEEKS_BEFORE_DELOAD + 3; k++, w = decrementWeekId(w)) weekIds.unshift(w);
+  const loads = weekIds.map((id) => i.workoutsForWeek(id).filter((w) => w.status === "completed").reduce((s, w) => s + (w.loadFactor || 0), 0));
+  const recent = loads.slice(-HARD_WEEKS_BEFORE_DELOAD);
+  if (recent.some((l) => l <= 0)) return undefined;
+  for (let k = loads.length - HARD_WEEKS_BEFORE_DELOAD; k < loads.length; k++) {
+    const before = loads.slice(Math.max(0, k - 3), k).filter((l) => l > 0);
+    if (before.length >= 2 && loads[k] <= EASY_WEEK_SHARE * (before.reduce((a, b) => a + b, 0) / before.length)) return undefined;
+  }
+  const r = calculateRollingAcwr(i.workouts, i.asOf);
+  const last = weekIds.slice(-HARD_WEEKS_BEFORE_DELOAD);
+  return {
+    id: "deload",
+    group: "push",
+    tone: r.sufficient && r.ratio !== undefined && r.ratio > i.config.acwrZones.caution ? "caution" : "info",
+    title: `${HARD_WEEKS_BEFORE_DELOAD} weeks without an easier one: time for a lighter week`,
+    detail: `${last.map((id, k) => `W${id.split("-W")[1]} ${n0(recent[k])}`).join(" · ")}. The AI can plan one: "Tired or sore" in Change plan.`,
+    link: { kind: "panel", tab: "training", section: "section-load" },
+  };
 }
 
 // --- Getting stronger ------------------------------------------------------------
@@ -388,6 +426,30 @@ function staleInsights(i: InsightInputs): Insight[] {
     }));
 }
 
+/** The block that has just ended (or the running one, for its last weeks): how it went, in short. */
+export function blockInputsFrom(i: InsightInputs, block: TrainingBlock) {
+  return {
+    block, asOf: i.asOf, workoutsForWeek: i.workoutsForWeek, workouts: i.workouts, exerciseTypes: i.exerciseTypes, analyticsCategories: i.analyticsCategories,
+    benchmarks: i.benchmarks, benchmarkTypes: i.benchmarkTypes, valueDefs: i.valueDefs, weightUnit: i.weightUnit, bodyweights: bodyweightsOf(i.dailyMetrics), ascents: i.ascents,
+  };
+}
+
+function blockInsight(i: InsightInputs): Insight | undefined {
+  const block = i.blocks ? blockToReview(i.blocks, i.asOf) : undefined;
+  if (!block) return undefined;
+  const review = buildBlockReview(blockInputsFrom(i, block));
+  if (!review || review.sessions.planned === 0) return undefined;
+  const lines = blockReviewLines(review).slice(1);
+  return {
+    id: `block-${block.id}`,
+    group: "plan",
+    tone: "info",
+    title: `${block.name} is done: ${review.sessions.done} of ${review.sessions.planned} sessions`,
+    detail: lines.filter((l) => !l.startsWith("Sessions:")).slice(0, 3).join(" · "),
+    link: { kind: "block", blockId: block.id },
+  };
+}
+
 // --- Targets ----------------------------------------------------------------
 
 const WEEKS_FOR_TARGETS = 4;
@@ -523,12 +585,14 @@ export function buildInsights(input: InsightInputs): Insight[] {
     whatIfInsight(input),
     fatigueInsight(input),
     streakInsight(input),
+    deloadInsight(input),
     ...recordInsights(input),
     ...benchmarkInsights(input),
     retestInsight(input),
     ...adherenceInsights(input),
     ...staleInsights(input),
     ...targetInsights(input),
+    blockInsight(input),
     climbingInsight(input),
     ...recoveryInsights(input),
   ];

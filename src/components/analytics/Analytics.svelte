@@ -8,6 +8,7 @@
   import InsightsPanel from './InsightsPanel.svelte';
   import type { InsightLink } from '../../lib/analytics/insights';
   import { showAcwr } from '../../lib/help/acwrSheet.svelte';
+  import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
   import { tour } from '../../lib/tour/tour.svelte';
   import { settingsPath } from '../../lib/settings/tree';
   import { motionReduced } from '../../lib/motion';
@@ -137,6 +138,7 @@
   async function openInsight(link: InsightLink) {
     if (link.kind === 'acwr') { showAcwr(); return; }
     if (link.kind === 'plan') { trainingState.navigate('plan'); return; }
+    if (link.kind === 'block') { openBlockReview(link.blockId); return; }
     tab = link.tab;
     await tick();
     document.getElementById(link.section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

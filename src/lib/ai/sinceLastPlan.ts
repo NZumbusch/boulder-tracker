@@ -3,7 +3,8 @@ import { decrementWeekId, getWeekId } from "../dateUtils";
 import { isSkippedWorkout, workoutDay, isoDayIndex } from "../planning/weekStatus";
 import { planProgress } from "../planning/weekRecap";
 import { WEEK_DAYS } from "../constants";
-import { buildInsights, type InsightInputs } from "../analytics/insights";
+import { blockInputsFrom, buildInsights, type InsightInputs } from "../analytics/insights";
+import { blockReviewLines, blockToReview, buildBlockReview } from "../analytics/blockReview";
 import type { AiChangeEntry } from "./changeLog";
 
 /**
@@ -74,6 +75,13 @@ export function buildSinceLastPlan({ inputs, changeLog, share }: SinceLastPlanOp
   if (weeks.length) {
     out.push("", "How the recent weeks went against their plans:");
     for (const w of weeks) out.push(weekLine(w.id, w.sessions, w.id === thisWeek, todayIndex, loadOf(decrementWeekId(w.id))));
+  }
+
+  const ended = inputs.blocks ? blockToReview(inputs.blocks, inputs.asOf) : undefined;
+  const review = ended ? buildBlockReview(blockInputsFrom(inputs, ended)) : undefined;
+  if (review && review.sessions.planned > 0) {
+    out.push("", "The block that just ended:");
+    for (const line of blockReviewLines(review)) out.push(`- ${line}`);
   }
 
   const hidden = new Set<string>();

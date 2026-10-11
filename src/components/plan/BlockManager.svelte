@@ -13,6 +13,7 @@
   import type { TrainingBlock } from '../../lib/types';
   import { sortBlocks, upcomingWindow } from '../../lib/planning/blockPaging';
   import BlockBrowser from './BlockBrowser.svelte';
+  import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
   import Icon from "@iconify/svelte";
 
   let { onClose } = $props<{ onClose: () => void }>();
@@ -153,6 +154,9 @@
               </div>
             </div>
             <div class="flex items-center gap-1 ml-2">
+              {#if block.startWeekId <= trainingState.currentWeekId}
+                <button onclick={() => openBlockReview(block.id)} class="p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Review this block" title="How the block went"><Icon icon="ic:baseline-insights" class="text-sm" /></button>
+              {/if}
               <button onclick={() => startEdit(block)} class="p-1.5 text-content-subtle hover:text-content transition-colors"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
               <button onclick={() => handleDelete(block.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
             </div>

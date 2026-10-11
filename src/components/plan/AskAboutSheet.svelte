@@ -15,7 +15,9 @@
   import { loadChangeLog } from '../../lib/ai/changeLog';
   import { renderCoachMemory } from '../../lib/ai/coachNotes';
   import { workoutNoteSharing } from '../../lib/ai/context';
-  import { buildInsightAskPrompt, buildSessionAskPrompt, DEFAULT_INSIGHT_QUESTION, DEFAULT_SESSION_QUESTION } from '../../lib/ai/askPrompt';
+  import { buildBlockAskPrompt, buildInsightAskPrompt, buildSessionAskPrompt, DEFAULT_BLOCK_QUESTION, DEFAULT_INSIGHT_QUESTION, DEFAULT_SESSION_QUESTION } from '../../lib/ai/askPrompt';
+  import { blockInputsFrom } from '../../lib/analytics/insights';
+  import { blockReviewLines, buildBlockReview } from '../../lib/analytics/blockReview';
   import { estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
   import { loadConfig, loadKey } from '../../lib/ai/direct/store';
   import { modelInfo, providerInfo } from '../../lib/ai/direct/providers';
@@ -37,7 +39,7 @@
     const key = subject ? JSON.stringify(subject) : '';
     if (key === lastKey) return;
     lastKey = key;
-    question = subject ? (subject.kind === 'insights' ? DEFAULT_INSIGHT_QUESTION : DEFAULT_SESSION_QUESTION) : '';
+    question = subject ? (subject.kind === 'insights' ? DEFAULT_INSIGHT_QUESTION : subject.kind === 'block' ? DEFAULT_BLOCK_QUESTION : DEFAULT_SESSION_QUESTION) : '';
     copied = false;
     reply = '';
     replyInfo = '';
@@ -46,6 +48,7 @@
   const title = $derived.by(() => {
     if (!subject) return '';
     if (subject.kind === 'insights') return INSIGHT_GROUPS.find((g) => g.id === subject.group)?.label ?? 'Insights';
+    if (subject.kind === 'block') return trainingState.trainingBlocks.find((b) => b.id === subject.blockId)?.name ?? 'This block';
     return trainingState.getWorkoutById(subject.workoutId)?.notes || 'This session';
   });
 
@@ -59,6 +62,14 @@
       const findings = buildInsights(inputs).filter((i) => i.group === subject.group);
       const sinceLast = buildSinceLastPlan({ inputs, changeLog: loadChangeLog(), share: { readinessMetrics: sharing.readinessMetrics, outdoorAscents: sharing.outdoorAscents } });
       return buildInsightAskPrompt({ groupLabel: group?.label ?? '', findings, sinceLast, coachMemory, question });
+    }
+    if (subject.kind === 'block') {
+      const block = trainingState.trainingBlocks.find((b) => b.id === subject.blockId);
+      const inputs = trainingState.insightInputs();
+      const review = block ? buildBlockReview(blockInputsFrom(inputs, block)) : undefined;
+      if (!review) return '';
+      const sinceLast = buildSinceLastPlan({ inputs, changeLog: loadChangeLog(), share: { readinessMetrics: sharing.readinessMetrics, outdoorAscents: sharing.outdoorAscents } });
+      return buildBlockAskPrompt({ reviewLines: blockReviewLines(review), sinceLast, coachMemory, question });
     }
     const workout = trainingState.getWorkoutById(subject.workoutId);
     if (!workout) return '';

@@ -422,6 +422,7 @@ class TrainingState {
       dailyMetrics: this.dailyMetrics,
       ascents: this.outdoorAscents,
       targets: this.athleteProfile?.targets,
+      blocks: this.trainingBlocks,
       fingerIds: fingerCategoryIds(this.analyticsCategories, this.fingerCategoryIds),
       config: {
         acwrZones: this.acwrZones,
