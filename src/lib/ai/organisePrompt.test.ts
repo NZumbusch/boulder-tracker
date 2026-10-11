@@ -22,15 +22,28 @@ describe("buildOrganisePrompt", () => {
     const p = buildOrganisePrompt(source, "");
     expect(p).toContain('{"name":"Other","exercises":1}');
     expect(p).not.toContain("Gone");
-    expect(p).toContain('{"name":"Pigeon pose","category":"Other","group":"Stretching","sessionsLogged":1}');
+    expect(p).toContain('{"name":"Pigeon pose","category":"Other","group":"Stretching","sessionsLogged":1,"lastLogged":"2026-09-01","plannedIn":0}');
     expect(p).not.toContain('"Old"');
     expect(p).toContain("split any catch-all");
   });
   it("uses the request when there is one", () => {
     expect(buildOrganisePrompt(source, "separate legs from core")).toContain("separate legs from core");
   });
+  it("lists only the chosen areas", () => {
+    const more = { ...source, circuits: [{ id: "c1", name: "Core A", rounds: 3, exercises: [{ id: "x", typeId: "a" }] }], phaseDefs: [{ id: "p1", name: "Base" }], trainingBlocks: [], templates: { p1: [] }, coachNotes: [{ id: "k3x9", text: "Recovers slowly", source: "ai", addedOn: "2026-09-01" }] } as never;
+    const all = buildOrganisePrompt(more, "", ["exercises", "circuits", "phases", "notes"]);
+    expect(all).toContain('"Core A"');
+    expect(all).toContain('{"name":"Base","blocks":0,"typicalSessions":0}');
+    expect(all).toContain("[k3x9] Recovers slowly");
+    const only = buildOrganisePrompt(more, "", ["notes"]);
+    expect(only).toContain("[k3x9]");
+    expect(only).not.toContain("Pigeon pose");
+    expect(only).not.toContain("Core A");
+  });
   it("the reply shape it asks for is a valid change set", () => {
     const reply = { summary: "x", categories: [{ action: "add", name: "Mobility" }], exerciseTypes: [{ action: "edit", name: "Pigeon pose", categoryName: "Mobility", group: "Stretching" }] };
     expect(validateChangeSet(reply).valid).toBe(true);
+    const wide = { summary: "x", exerciseTypes: [{ action: "edit", name: "Pigeon pose", rename: "Pigeon stretch", description: "d" }, { action: "archive", name: "Old" }], circuits: [{ action: "edit", name: "Core A", rename: "Core" }, { action: "delete", name: "Dup" }], phases: [{ action: "edit", name: "Phase 1", rename: "Base" }, { action: "delete", name: "Unused" }], coachNotes: [{ action: "edit", id: "k3x9", text: "t" }, { action: "remove", id: "p2m4" }] };
+    expect(validateChangeSet(wide).valid).toBe(true);
   });
 });
