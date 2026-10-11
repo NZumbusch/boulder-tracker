@@ -25,7 +25,7 @@ import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
 import { localIsoDate } from "../dateUtils";
 import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
-import { getDominantBlockForWeek } from "../planning/trainingBlocks";
+import { coalesceBlocks, getDominantBlockForWeek } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
 import { toStoredWorkout } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
@@ -72,6 +72,19 @@ export function isNewerExportVersion(version: string, current: string = DATA_EXP
     if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
   }
   return false;
+}
+
+/**
+ * Joins consecutive blocks of the same phase into one (see `coalesceBlocks`)
+ * in `db`, pointing the sessions of a merged-away block at the one that
+ * took its place. Returns whether anything changed; the caller flushes.
+ */
+function coalesceBlocksInDb(db: { trainingBlocks: TrainingBlock[]; workouts: Workout[] }): boolean {
+  const r = coalesceBlocks(db.trainingBlocks);
+  if (Object.keys(r.remap).length === 0) return false;
+  db.trainingBlocks = toPlain(r.blocks);
+  db.workouts = toPlain(db.workouts.map((w) => (w.blockId && r.remap[w.blockId] ? { ...w, blockId: r.remap[w.blockId] } : w)));
+  return true;
 }
 
 export const storage = {
@@ -246,6 +259,16 @@ export const storage = {
       blocks.push(block);
     }
     await this._saveTrainingBlocks(blocks);
+    // A new block next to one of the same phase is one block with it.
+    if (coalesceBlocksInDb(_dbState)) await flushDB(["trainingBlocks", "workouts"]);
+  },
+
+  /** Merges blocks that are really one - run when the app loads, so blocks split up earlier read as one. */
+  async coalesceTrainingBlocks(): Promise<boolean> {
+    await initDB();
+    if (!coalesceBlocksInDb(_dbState)) return false;
+    await flushDB(["trainingBlocks", "workouts"]);
+    return true;
   },
 
   async deleteTrainingBlock(id: string): Promise<void> {
@@ -302,6 +325,8 @@ export const storage = {
     let notes = db.weekNotes as WeekNote[];
     for (const n of writes.weekNotes) notes = upsertWeekNote(notes, n.weekId, n.text);
     db.weekNotes = toPlain(notes);
+    // Blocks the change added next to one of the same phase are one block with it.
+    coalesceBlocksInDb(db);
     await flushDB();
     await writePlanUndo({ source, appliedAt: new Date().toISOString(), before, after: planTables(db) } satisfies PlanUndoRecord);
   },

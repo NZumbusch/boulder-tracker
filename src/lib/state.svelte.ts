@@ -519,6 +519,8 @@ class TrainingState {
     try {
       // Run migrations on the local database before loading
       await storage.runStartupMigrations();
+      // Blocks split into one-week pieces by earlier AI runs read as one block.
+      await storage.coalesceTrainingBlocks();
 
       await Promise.all([
         this.workoutStore.load(),
