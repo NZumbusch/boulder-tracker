@@ -6,10 +6,12 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import InsightsPanel from './InsightsPanel.svelte';
+  import ExerciseProgressPanel from './ExerciseProgressPanel.svelte';
   import type { InsightLink } from '../../lib/analytics/insights';
   import { showAcwr } from '../../lib/help/acwrSheet.svelte';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
   import { openTaperView } from '../../lib/goals/taperView.svelte';
+  import { openExerciseProgress } from '../../lib/analytics/exerciseProgress.svelte';
   import { tour } from '../../lib/tour/tour.svelte';
   import { settingsPath } from '../../lib/settings/tree';
   import { motionReduced } from '../../lib/motion';
@@ -141,6 +143,7 @@
     if (link.kind === 'plan') { trainingState.navigate('plan'); return; }
     if (link.kind === 'block') { openBlockReview(link.blockId); return; }
     if (link.kind === 'taper') { openTaperView(link.goalId); return; }
+    if (link.kind === 'exercise') { openExerciseProgress(link.typeId); return; }
     tab = link.tab;
     await tick();
     document.getElementById(link.section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -552,6 +555,10 @@
 
       {#if tab === 'insights'}
         <InsightsPanel onOpen={openInsight} />
+      {/if}
+
+      {#if tab === 'performance'}
+        <ExerciseProgressPanel />
       {/if}
 
       {#each tabSections as section (section.id)}

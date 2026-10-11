@@ -15,10 +15,10 @@ import { plannedTestsByType, testStatuses, DEFAULT_RETEST_WEEKS } from "../bench
 import { bodyweightsOf } from "../benchmarks/series";
 import { isSkippedWorkout, workoutDay, isoDayIndex } from "../planning/weekStatus";
 import { slotTypeName, slotValues } from "../exerciseSlot";
-import { setRows } from "../exercise/setRows";
 import { parseFontGrade } from "./grades";
 import { WEEK_DAYS } from "../constants";
 import { hasTargets, isFingerSession, mixGaps, weekProgress } from "./targets";
+import { bestOfSlot } from "./exerciseProgress";
 import { blockReviewLines, blockToReview, buildBlockReview } from "./blockReview";
 import { baseLoad, taperPlan } from "../goals/taper";
 import { localIsoDate } from "../dateUtils";
@@ -43,6 +43,7 @@ export type InsightLink =
   | { kind: "plan" }
   | { kind: "block"; blockId: string }
   | { kind: "taper"; goalId: string }
+  | { kind: "exercise"; typeId: string }
   | { kind: "panel"; tab: "training" | "body" | "performance"; section: string };
 
 export interface Insight {
@@ -267,17 +268,6 @@ function deloadInsight(i: InsightInputs): Insight | undefined {
 
 // --- Getting stronger ------------------------------------------------------------
 
-/** The one number to follow for an exercise: its heaviest set, else its longest hold, else its most reps. */
-function bestOfSlot(slot: ExerciseSlot): { value: number; unit: "kg" | "s" | "reps" } | undefined {
-  if (slot.skipped || !slot.logged) return undefined;
-  const rows = setRows(slotValues(slot), ["weight", "timeOn", "reps"]);
-  const max = (k: "weight" | "timeOn" | "reps") => Math.max(0, ...rows.map((r) => r[k] ?? 0));
-  if (max("weight") > 0) return { value: max("weight"), unit: "kg" };
-  if (max("timeOn") > 0) return { value: max("timeOn"), unit: "s" };
-  if (max("reps") > 0) return { value: max("reps"), unit: "reps" };
-  return undefined;
-}
-
 function recordInsights(i: InsightInputs): Insight[] {
   const today = dayIndex(i.asOf);
   const byType = new Map<string, { name: string; day: number; value: number; unit: "kg" | "s" | "reps" }[]>();
@@ -306,7 +296,7 @@ function recordInsights(i: InsightInputs): Insight[] {
     const fmt = (v: number) => (latest.unit === "kg" ? `${Math.round(v * 10) / 10} kg` : latest.unit === "s" ? `${v} s` : `${v} reps`);
     out.push({
       day: latest.day,
-      insight: { id: `record-${typeId}`, group: "strength", tone: "good", title: `New best: ${latest.name} ${fmt(latest.value)}`, detail: `Up from ${fmt(before)} over ${series.length} sessions.`, link: { kind: "panel", tab: "performance", section: "section-benchmarks" } },
+      insight: { id: `record-${typeId}`, group: "strength", tone: "good", title: `New best: ${latest.name} ${fmt(latest.value)}`, detail: `Up from ${fmt(before)} over ${series.length} sessions.`, link: { kind: "exercise", typeId } },
     });
   }
   return out.sort((a, b) => b.day - a.day).slice(0, 3).map((o) => o.insight);
