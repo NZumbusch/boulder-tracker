@@ -1,12 +1,13 @@
 import type {
   AnalyticsCategory, Benchmark, BenchmarkTypeDef, DailyMetricEntry, ExerciseSlot, ExerciseTypeDef, OutdoorAscent, ValueDef, Workout,
   GoalEvent,
+  PainLog,
   TrainingBlock,
   TrainingTargets,
 } from "../types";
 import type { WeightUnit } from "../units";
 import { getWeekDates, getWeekId, decrementWeekId, toUtcDayIndex } from "../dateUtils";
-import { calculateRollingAcwr, CONSECUTIVE_TRAINING_DAY_THRESHOLD } from "./loadAnalytics";
+import { calculateAcwrForWeeks, calculateRollingAcwr, correlatePainWithLoadSpikes, CONSECUTIVE_TRAINING_DAY_THRESHOLD } from "./loadAnalytics";
 import { computeFatigueDecay, computeHrvBaseline, type FatigueModel } from "./readiness";
 import { workoutPlannedLoad, workoutActualLoad } from "./load";
 import { loggedMetrics } from "./metricValues";
@@ -98,6 +99,8 @@ export interface InsightInputs {
   blocks?: TrainingBlock[];
   /** Competitions and trips, for the taper towards the next one. */
   goals?: GoalEvent[];
+  /** Pain check-ins, for how pain follows load. */
+  painLogs?: PainLog[];
   config: InsightConfig;
 }
 
@@ -589,6 +592,79 @@ function recoveryInsights(i: InsightInputs): Insight[] {
   return out;
 }
 
+// --- Patterns in your own data ---------------------------------------------------
+
+const PATTERN_WEEKS = 16;
+/** A week this far above the median counts as heavy. */
+const HEAVY_WEEK = 1.25;
+/** HRV this far under its baseline counts as a dip. */
+const HRV_DIP_FOR_PATTERN = 0.05;
+
+function lastWeekIds(asOf: Date, n: number): string[] {
+  const ids: string[] = [];
+  for (let w = getWeekId(asOf), k = 0; k < n; k++, w = decrementWeekId(w)) ids.unshift(w);
+  return ids;
+}
+
+/** Whether HRV tends to fall in the week after a heavy week - from the athlete's own weeks, once there are enough of them. */
+function hrvPatternInsight(i: InsightInputs): Insight | undefined {
+  const weeks = lastWeekIds(i.asOf, PATTERN_WEEKS);
+  const load = weeks.map((id) => i.workouts.filter((w) => w.status === "completed" && w.weekId === id).reduce((s, w) => s + (w.loadFactor || 0), 0));
+  const sums = new Map<string, { sum: number; n: number }>();
+  for (const m of loggedMetrics(i.dailyMetrics)) {
+    if (m.metricId !== "hrv") continue;
+    const id = getWeekId(new Date(`${m.date.slice(0, 10)}T12:00:00`));
+    const cur = sums.get(id) ?? { sum: 0, n: 0 };
+    sums.set(id, { sum: cur.sum + m.value, n: cur.n + 1 });
+  }
+  const hrv = weeks.map((id) => (sums.get(id) && sums.get(id)!.n >= 3 ? sums.get(id)!.sum / sums.get(id)!.n : undefined));
+  const trained = load.filter((l) => l > 0).sort((a, b) => a - b);
+  if (trained.length < 8) return undefined;
+  const median = trained[Math.floor(trained.length / 2)];
+  const drops: number[] = [];
+  let heavy = 0;
+  // The last week is the running one: it can't have a "week after".
+  for (let k = 3; k < weeks.length - 2; k++) {
+    if (load[k] < HEAVY_WEEK * median) continue;
+    const before = hrv.slice(k - 3, k).filter((v): v is number => v !== undefined);
+    const after = hrv[k + 1];
+    if (before.length < 2 || after === undefined) continue;
+    heavy++;
+    drops.push(after / (before.reduce((a, b) => a + b, 0) / before.length) - 1);
+  }
+  const dips = drops.filter((d) => d <= -HRV_DIP_FOR_PATTERN).length;
+  if (heavy < 3 || dips / heavy < 0.6) return undefined;
+  const mean = drops.reduce((a, b) => a + b, 0) / drops.length;
+  return {
+    id: "pattern-hrv",
+    group: "body",
+    tone: "info",
+    title: `HRV dips after your heavy weeks`,
+    detail: `It was ${Math.abs(Math.round(mean * 100))}% under its usual in the week after ${dips} of ${heavy} weeks with load over ${n0(HEAVY_WEEK * median)}.`,
+    link: { kind: "panel", tab: "body", section: "section-recoveryTrend" },
+  };
+}
+
+/** Whether pain check-ins cluster around load spikes. */
+function painPatternInsight(i: InsightInputs): Insight | undefined {
+  const logs = (i.painLogs ?? []).filter((l) => l.severity >= 3);
+  if (logs.length < 4) return undefined;
+  const weeks = lastWeekIds(i.asOf, PATTERN_WEEKS + 1);
+  const recent = logs.filter((l) => weeks.includes(l.weekId));
+  if (recent.length < 4) return undefined;
+  const near = correlatePainWithLoadSpikes(recent, calculateAcwrForWeeks(i.workouts, weeks), i.config.acwrZones.highRisk).filter((c) => c.loadSpikeNearby);
+  if (near.length / recent.length < 0.6) return undefined;
+  const parts = [...new Set(near.map((c) => c.bodyPart))].slice(0, 2).join(" and ");
+  return {
+    id: "pattern-pain",
+    group: "body",
+    tone: "caution",
+    title: "Pain shows up around load spikes",
+    detail: `${near.length} of your last ${recent.length} check-ins (${parts}) were within a week of a jump in load. Ramping up more slowly may keep it away.`,
+    link: { kind: "panel", tab: "body", section: "section-pain" },
+  };
+}
+
 // --- All ---------------------------------------------------------------------------
 
 /** Every finding that applies, most serious first within each group. */
@@ -609,6 +685,8 @@ export function buildInsights(input: InsightInputs): Insight[] {
     taperInsight(input),
     climbingInsight(input),
     ...recoveryInsights(input),
+    hrvPatternInsight(input),
+    painPatternInsight(input),
   ];
   const list = found.filter((x): x is Insight => x !== undefined);
   return list.sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone]);

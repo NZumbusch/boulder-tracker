@@ -215,3 +215,50 @@ describe("taper insight", () => {
     expect(buildInsights(inputs(history())).some((x) => x.id === "taper")).toBe(false);
   });
 });
+
+describe("patterns in the athlete's own data", () => {
+  // Sixteen weeks, oldest first, ending with the running one (W41 = Monday Oct 5). Index k = 15 is the running week.
+  const monday = (k: number) => new Date(2026, 9, 5 - 7 * (15 - k), 12);
+  const metric = (date: Date, value: number) => ({ id: `m${date.getTime()}`, metricId: "hrv", date: date.toISOString().slice(0, 10), value });
+
+  function build(opts: { dipAfterHeavy: boolean }) {
+    const heavy = new Set([4, 7, 10, 13]);
+    const workouts: Workout[] = [];
+    const metrics: ReturnType<typeof metric>[] = [];
+    for (let k = 0; k < 16; k++) {
+      const d = monday(k);
+      workouts.push(session(1, [], { loadFactor: heavy.has(k) ? 3000 : 1500, date: d.toISOString(), weekId: getWeekId(d) }));
+      const afterHeavy = heavy.has(k - 1);
+      for (let j = 0; j < 3; j++) metrics.push(metric(new Date(d.getFullYear(), d.getMonth(), d.getDate() + j, 12), afterHeavy && opts.dipAfterHeavy ? 68 : 80));
+    }
+    return { workouts, metrics };
+  }
+
+  it("notices HRV dipping after heavy weeks", () => {
+    const { workouts, metrics } = build({ dipAfterHeavy: true });
+    const p = buildInsights(inputs(workouts, { dailyMetrics: metrics as never[] })).find((x) => x.id === "pattern-hrv")!;
+    expect(p.title).toBe("HRV dips after your heavy weeks");
+    expect(p.detail).toMatch(/after 4 of 4 weeks with load over 1,875/);
+  });
+
+  it("says nothing when HRV doesn't follow load", () => {
+    const { workouts, metrics } = build({ dipAfterHeavy: false });
+    expect(buildInsights(inputs(workouts, { dailyMetrics: metrics as never[] })).some((x) => x.id === "pattern-hrv")).toBe(false);
+  });
+
+  it("says nothing without enough weeks of training", () => {
+    const { workouts, metrics } = build({ dipAfterHeavy: true });
+    expect(buildInsights(inputs(workouts.slice(-5), { dailyMetrics: metrics as never[] })).some((x) => x.id === "pattern-hrv")).toBe(false);
+  });
+
+  it("notices pain check-ins that cluster around load spikes", () => {
+    // Weeks of 1000, then a jump to 3000 (a spike, +200%) in W40, with pain checked in that week and the next.
+    const w = (date: Date, load: number): Workout => session(1, [], { loadFactor: load, date: date.toISOString(), weekId: getWeekId(date) });
+    const workouts = [0, 1, 2, 3, 4].map((k) => w(new Date(2026, 8, 7 + 7 * k, 12), k === 3 ? 3000 : 1000));
+    const log = (date: Date, id: string) => ({ id, date: date.toISOString().slice(0, 10), weekId: getWeekId(date), bodyPart: "Left elbow", severity: 5 });
+    const logs = [log(new Date(2026, 9, 1, 12), "a"), log(new Date(2026, 9, 2, 12), "b"), log(new Date(2026, 9, 5, 12), "c"), log(new Date(2026, 9, 6, 12), "d")];
+    const p = buildInsights(inputs(workouts, { painLogs: logs as never[] })).find((x) => x.id === "pattern-pain");
+    expect(p?.title).toBe("Pain shows up around load spikes");
+    expect(p?.detail).toContain("Left elbow");
+  });
+});
