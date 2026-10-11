@@ -109,3 +109,27 @@ describe("plan insights", () => {
     expect(a?.title).toBe("67% of planned sessions done, last 4 weeks");
   });
 });
+
+describe("test insights", () => {
+  const hang = { id: "hang", name: "Max Hang", unit: "kg" };
+  const old = { id: "r", typeId: "hang", type: "Max Hang", value: 50, unit: "kg", date: new Date(2026, 6, 1, 12).toISOString(), weekId: "2026-W27" };
+
+  it("says a test is due, and offers the way to plan it", () => {
+    const i = buildInsights(inputs([session(9, [])], { benchmarkTypes: [hang], benchmarks: [old] })).find((x) => x.id === "retest")!;
+    expect(i.title).toBe("Retest due: Max Hang");
+    expect(i.detail).toMatch(/Plan one in a session/);
+  });
+
+  it("notes a test that is already planned instead of nagging", () => {
+    const planned = makeWorkoutWithTest();
+    const i = buildInsights(inputs([session(9, []), planned], { benchmarkTypes: [hang], benchmarks: [old] })).find((x) => x.id === "retest")!;
+    expect(i.title).toBe("Test planned: Max Hang");
+  });
+});
+
+function makeWorkoutWithTest(): Workout {
+  return {
+    id: "plan", status: "planned", date: null, weekId: "2026-W42", dayOfWeek: "Monday", notes: "Board", loadFactor: 0,
+    exercises: [{ id: "ts", typeId: "test", test: { typeId: "hang", name: "Max Hang" }, prescribed: { duration: 10 } } as ExerciseSlot],
+  } as Workout;
+}
