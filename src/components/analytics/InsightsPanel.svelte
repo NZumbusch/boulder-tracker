@@ -7,6 +7,7 @@
    */
   import Icon from '@iconify/svelte';
   import { trainingState } from '../../lib/state.svelte';
+  import { askAboutInsights } from '../../lib/ai/askAbout.svelte';
   import { buildInsights, INSIGHT_GROUPS, type Insight, type InsightLink, type InsightTone } from '../../lib/analytics/insights';
 
   let { onOpen }: { onOpen: (link: InsightLink) => void } = $props();
@@ -25,9 +26,14 @@
 <div class="space-y-4" data-tour="analytics-insights">
   {#each groups as group (group.id)}
     <div class="card space-y-1">
-      <div class="px-1 pb-1">
-        <h3 class="text-section uppercase text-content-muted">{group.label}</h3>
-        <p class="text-caption text-content-subtle">{group.question}</p>
+      <div class="px-1 pb-1 flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="text-section uppercase text-content-muted">{group.label}</h3>
+          <p class="text-caption text-content-subtle">{group.question}</p>
+        </div>
+        <button onclick={() => askAboutInsights(group.id)} class="shrink-0 p-1.5 -mr-1 rounded-control text-content-subtle hover:text-primary hover:bg-surface-elevated transition-colors" aria-label="Ask the AI about {group.label}" title="Ask the AI about this">
+          <Icon icon="ic:baseline-auto-awesome" class="text-lg" />
+        </button>
       </div>
       <div class="divide-y divide-border">
         {#each group.items as insight (insight.id)}

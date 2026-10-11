@@ -35,6 +35,8 @@
   import { loadChangeLog, appendChange } from '../../lib/ai/changeLog';
   import { markCheckinDone } from '../../lib/home/checkin';
   import AiSendSheet from './AiSendSheet.svelte';
+  import PlanHistorySheet from './PlanHistorySheet.svelte';
+  import { looksLikeReply } from '../../lib/ai/clipboardReply';
   import { loadCompact, saveCompact, promptBreakdown } from '../../lib/ai/promptSize';
   import { loadConfig as loadDirectConfig, loadKey as loadDirectKey } from '../../lib/ai/direct/store';
   import { providerInfo, modelInfo } from '../../lib/ai/direct/providers';
@@ -171,6 +173,7 @@
   })();
   const directEstimate = $derived(directPriced ? estimateCost(directPriced, tokens, direct.maxOutputTokens) : undefined);
   let sendOpen = $state(false);
+  let historyOpen = $state(false);
   /** Set when the reply came straight from the service rather than a paste. */
   let directInfo = $state<{ model: string; cost?: number; inputTokens?: number; outputTokens?: number } | null>(null);
   function gotReply(text: string, info: { cost?: number; inputTokens?: number; outputTokens?: number; model: string }) {
@@ -270,6 +273,36 @@
     setTimeout(() => { if (canReview) step = 'review'; }, 0);
   }
 
+  /** Reads the clipboard into the box: the button's job (a tap is what lets a browser or web view allow it). */
+  let clipboardNote = $state('');
+  async function pasteFromClipboard() {
+    clipboardNote = '';
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) { clipboardNote = 'The clipboard is empty - copy the AI\'s reply first.'; return; }
+      pasteText = text;
+      handlePaste();
+    } catch {
+      clipboardNote = 'This browser didn\'t let the app read the clipboard - paste into the box instead.';
+    }
+  }
+
+  /** Coming back from the AI chat with its reply on the clipboard (and the clipboard already allowed): take it, no tap needed. */
+  $effect(() => {
+    if (step !== 'paste') return;
+    const onVisible = async () => {
+      if (document.visibilityState !== 'visible' || pasteText.trim()) return;
+      try {
+        const perm = await navigator.permissions?.query({ name: 'clipboard-read' as PermissionName });
+        if (perm?.state !== 'granted') return;
+        const text = await navigator.clipboard.readText();
+        if (looksLikeReply(text)) { pasteText = text; handlePaste(); }
+      } catch { /* not allowed here: the button is there */ }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  });
+
   async function copyFixRequest() {
     await navigator.clipboard.writeText(formatIssuesForAI(issues));
     copiedErrors = true;
@@ -282,7 +315,8 @@
     try {
       // Re-plan once more for the final writes, so ids are fresh and nothing stale is applied.
       const final = planWithSelection(changeSet, trainingState.plannerState, plan.selected);
-      await trainingState.applyPlanWrites(final.writes);
+      const applied = final.items.filter((i) => final.selected.has(i.id)).map((i) => i.title);
+      await trainingState.applyPlanWrites(final.writes, { goal: goal.trim() || undefined, lines: applied.slice(0, 10) });
       appendChange({ goal, weeks: selectedWeekIds, lines: final.items.filter((i) => final.selected.has(i.id)).map((i) => i.title) });
       onClose();
     } catch (err: any) {
@@ -535,6 +569,7 @@
                 Applied {new Date(lastAiChange.appliedAt).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lastAiChange.changedSince ? ' · edited since' : ''}
               </p>
             </div>
+            <button onclick={() => (historyOpen = true)} class="shrink-0 px-2 py-1.5 text-label text-content-subtle hover:text-content transition-colors">History</button>
             <button onclick={() => trainingState.undoPlanChange()} class="shrink-0 px-3 py-1.5 text-label font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-control transition-colors">
               Undo
             </button>
@@ -573,6 +608,13 @@
             {/if}
           </div>
         </div>
+
+        {#if !pasteText.trim()}
+          <button onclick={pasteFromClipboard} class="w-full py-3 rounded-control border border-border-strong text-label font-bold text-content flex items-center justify-center gap-1.5 hover:bg-surface-elevated/50 transition-colors">
+            <Icon icon="ic:baseline-content-paste-go" class="text-base" />Paste the reply from the clipboard
+          </button>
+          {#if clipboardNote}<p class="text-caption text-content-subtle px-1">{clipboardNote}</p>{/if}
+        {/if}
 
         <textarea
           bind:value={pasteText}
@@ -744,4 +786,8 @@
 
 {#if sendOpen}
   <AiSendSheet {prompt} onReply={gotReply} onClose={() => (sendOpen = false)} />
+{/if}
+
+{#if historyOpen}
+  <PlanHistorySheet onClose={() => (historyOpen = false)} />
 {/if}

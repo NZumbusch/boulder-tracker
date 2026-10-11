@@ -67,8 +67,10 @@ describe("undoing the last AI plan change", () => {
 
   it("leaves a table alone that the undo record predates (made by an older version)", async () => {
     await storage.applyPlanWrites(plan);
-    const key = Object.keys(kv).find((k) => (kv[k] as { before?: unknown })?.before)!;
-    delete (kv[key] as { before: Record<string, unknown> }).before.coachNotes;
+    // The record is kept in a list (a record from before the history existed was a lone object).
+    const lastOf = (v: unknown) => (Array.isArray(v) ? v.at(-1) : v) as { before?: Record<string, unknown> } | undefined;
+    const key = Object.keys(kv).find((k) => lastOf(kv[k])?.before)!;
+    delete lastOf(kv[key])!.before!.coachNotes;
     await storage.saveCoachNotes([{ id: "n1", text: "Mine", source: "me", addedOn: "2026-09-28" }]);
 
     await storage.undoPlanChange();
@@ -89,5 +91,56 @@ describe("Plan Bs from an AI change", () => {
     expect(await storage.getPlanAlternatives()).toEqual([alt]);
     await storage.undoPlanChange();
     expect(await storage.getPlanAlternatives()).toEqual([]);
+  });
+});
+
+describe("the plan history", () => {
+  const weekPlan = (weekId: string, name: string) => ({
+    weeks: [{ weekId, planned: [{ id: `${weekId}-${name}`, status: "planned" as const, date: null, weekId, dayOfWeek: "Monday" as const, notes: name, loadFactor: 0, exercises: [] }], customized: true }],
+    weekNotes: [],
+  });
+
+  it("keeps several changes, newest first, with what each was", async () => {
+    await storage.applyPlanWrites(weekPlan("2026-W42", "One"), "ai", { goal: "First", lines: ["+ One"] });
+    await storage.applyPlanWrites(weekPlan("2026-W43", "Two"), "ai", { goal: "Second", lines: ["+ Two"] });
+    const history = await storage.getPlanHistory();
+    expect(history.map((h) => h.goal)).toEqual(["Second", "First"]);
+    expect(history[0].lines).toEqual(["+ Two"]);
+  });
+
+  it("rolls back to before an older change, taking the later ones with it", async () => {
+    const base = (await storage.getWorkouts()).map((w) => w.id).sort();
+    await storage.applyPlanWrites(weekPlan("2026-W42", "One"), "ai", { goal: "First", lines: [] });
+    await storage.applyPlanWrites(weekPlan("2026-W43", "Two"), "ai", { goal: "Second", lines: [] });
+    const first = (await storage.getPlanHistory()).find((h) => h.goal === "First")!;
+    await storage.undoPlanChangesTo(first.index);
+    expect((await storage.getWorkouts()).map((w) => w.id).sort()).toEqual(base);
+    expect(await storage.getPlanHistory()).toEqual([]);
+  });
+
+  it("rolls back only the latest one when asked to undo", async () => {
+    await storage.applyPlanWrites(weekPlan("2026-W42", "One"), "ai", { goal: "First", lines: [] });
+    await storage.applyPlanWrites(weekPlan("2026-W43", "Two"), "ai", { goal: "Second", lines: [] });
+    await storage.undoPlanChange();
+    const notes = (await storage.getWorkouts()).map((w) => w.notes);
+    expect(notes).toContain("One");
+    expect(notes).not.toContain("Two");
+    expect((await storage.getPlanHistory()).map((h) => h.goal)).toEqual(["First"]);
+  });
+
+  it("holds the last six", async () => {
+    for (let i = 0; i < 8; i++) await storage.applyPlanWrites(weekPlan(`2026-W${40 + i}`, `S${i}`), "ai", { goal: `Change ${i}`, lines: [] });
+    const history = await storage.getPlanHistory();
+    expect(history).toHaveLength(6);
+    expect(history[0].goal).toBe("Change 7");
+  });
+
+  it("keeps sessions logged since", async () => {
+    await storage.applyPlanWrites(weekPlan("2026-W42", "One"), "ai", { goal: "First", lines: [] });
+    await storage.saveWorkout({ id: "done", status: "completed", date: "2026-10-12", weekId: "2026-W42", loadFactor: 100, exercises: [] } as never);
+    await storage.undoPlanChangesTo((await storage.getPlanHistory())[0].index);
+    const ids = (await storage.getWorkouts()).map((w) => w.id);
+    expect(ids).toContain("done");
+    expect(ids).not.toContain("2026-W42-One");
   });
 });
