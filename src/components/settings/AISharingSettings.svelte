@@ -81,6 +81,6 @@
 
   <div class="flex items-start gap-2 p-3 rounded-control bg-primary/5 border border-primary/20">
     <Icon icon="ic:baseline-info" class="text-primary text-lg shrink-0 mt-0.5" />
-    <p class="text-caption text-content-muted leading-relaxed">Exercise catalog, training history, phases and benchmarks are always included - these toggles only cover the categories above.</p>
+    <p class="text-caption text-content-muted leading-relaxed">Exercise catalog, training history, phases and test results are always included - these toggles only cover the categories above.</p>
   </div>
 </div>

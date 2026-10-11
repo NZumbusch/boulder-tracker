@@ -23,6 +23,12 @@ export const QUICK_ADAPTS: QuickAdapt[] = [
     goal: 'Weekly check-in: look at how the last weeks went against their plans (see "Since the plan was last changed"), then plan next week. Keep what is working, fix what was not, and say why in the week note.',
   },
   {
+    id: "tests",
+    label: "Schedule tests",
+    span: "nextTwo",
+    goal: 'Schedule the tests that are due (see "Tests") at sensible points in the next two weeks - when I am fresh, after a rest day or in an easy week, not on top of hard sessions. Keep the conditions of my last result, and note the plan in the coach notes.',
+  },
+  {
     id: "missed",
     label: "Missed sessions",
     span: "thisWeek",

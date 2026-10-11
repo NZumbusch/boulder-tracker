@@ -38,7 +38,7 @@
   {:else}
     <div class="card text-center py-8 px-6 space-y-1">
       <p class="text-body text-content">Nothing to report yet</p>
-      <p class="text-caption text-content-subtle leading-relaxed">Log a few sessions, ratings and a benchmark, and findings about your load, progress and plan show up here.</p>
+      <p class="text-caption text-content-subtle leading-relaxed">Log a few sessions, ratings and a test result, and findings about your load, progress and plan show up here.</p>
     </div>
   {/each}
   {#if groups.length > 0}

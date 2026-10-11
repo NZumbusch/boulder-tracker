@@ -284,7 +284,7 @@
         list="quickLogActions"
         title="Quick log (+)"
         hint="What the + on Home offers, and in which order."
-        labels={{ pain: 'Log pain', bodyweight: 'Bodyweight', send: 'Outdoor send', benchmark: 'Benchmark' }}
+        labels={{ pain: 'Log pain', bodyweight: 'Bodyweight', send: 'Outdoor send', benchmark: 'Test result' }}
       />
       <TunablesSettings topic="layout" title="Home lists" ids={['home.recentActivityCount', 'home.progressBenchmarks']} />
     </div>

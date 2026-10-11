@@ -1,6 +1,7 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
   /**
-   * Benchmark Progress: one test's results in the Analytics window.
+   * Test progress: one test's results in the Analytics window.
    *
    * A test is picked from chips, and - when it was done in different ways
    * (edge depths, loads) - the way, so results are only compared like with
@@ -203,7 +204,7 @@
   <div id="section-benchmarks" class="scroll-mt-4 card space-y-3">
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
-        <h3 class="text-section uppercase text-content-muted">Benchmark Progress</h3>
+        <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Test progress <InfoButton term="tests" /></h3>
         <!-- "–" in an empty window, so the header keeps its height while paging. -->
         <p class="mt-1 flex flex-wrap items-baseline gap-x-2 tabular-nums">
           {#if !latest || !metricA}
@@ -224,7 +225,7 @@
       {#if canCompare}
         <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0">
           <button onclick={() => (mode = 'time')} class="px-2 py-0.5 text-caption rounded-control {mode === 'time' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Over time</button>
-          <button onclick={() => (mode = 'against')} class="px-2 py-0.5 text-caption rounded-control {mode === 'against' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Against</button>
+          <button onclick={() => (mode = 'against')} class="px-2 py-0.5 text-caption rounded-control {mode === 'against' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Compare</button>
         </div>
       {/if}
     </div>
@@ -250,14 +251,14 @@
     {#if mode === 'time'}
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-caption">
         <label class="flex items-center gap-1.5 min-w-0 text-content-subtle"><span class="w-2 h-2 rounded-full shrink-0" style="background: {COLOR_A}"></span>
-          <select class={selectClass} value={metricA?.id ?? ''} onchange={(e) => (metricAId = e.currentTarget.value)} aria-label="Metric">
+          <select class={selectClass} value={metricA?.id ?? ''} onchange={(e) => (metricAId = e.currentTarget.value)} aria-label="What to chart">
             {#each metrics as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
           </select>
         </label>
         {#if canCompare}
           <label class="flex items-center gap-1.5 min-w-0 text-content-subtle"><span class="w-2 h-2 rounded-full shrink-0" style="background: {metricB ? COLOR_B : 'transparent'}; border: 1px solid {COLOR_B}"></span>
-            <select class={selectClass} value={metricB?.id ?? ''} onchange={(e) => (metricBId = e.currentTarget.value)} aria-label="Second metric">
-              <option value="">and… (optional)</option>
+            <select class={selectClass} value={metricB?.id ?? ''} onchange={(e) => (metricBId = e.currentTarget.value)} aria-label="Second line">
+              <option value="">Add a second line…</option>
               {#each metrics.filter((m) => m.id !== metricA?.id) as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
             </select>
           </label>
@@ -268,7 +269,7 @@
         <select class={selectClass} value={yMetric?.id ?? ''} onchange={(e) => (yId = e.currentTarget.value)} aria-label="Up">
           {#each metrics as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
         </select>
-        <span>against</span>
+        <span>plotted against</span>
         <select class={selectClass} value={xMetric?.id ?? ''} onchange={(e) => (xId = e.currentTarget.value)} aria-label="Across">
           {#each metrics as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
         </select>
@@ -340,7 +341,7 @@
                   ? 'Needs a bodyweight logged within two weeks of a result'
                   : metricA?.id === 'estimatedMax'
                     ? 'Needs both weight and reps on a result'
-                    : `No ${type?.name ?? 'benchmark'} results in this range - try 6M or 1Y`}
+                    : `No ${type?.name ?? 'test'} results in this range - try 6M or 1Y`}
               </ChartEmpty>
             {/if}
           </div>

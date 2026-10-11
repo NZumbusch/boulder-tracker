@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
   /**
    * Settings -> Training setup -> Benchmarks: the periodic tests (max hang,
    * max pull-ups ...) and what each one records.
@@ -21,10 +22,11 @@
   import { generateId, showConfirm } from '../../lib/utils';
   import { trainingState } from '../../lib/state.svelte';
   import { usableFor } from '../../lib/exercise/valueDefs';
-  import type { BenchmarkField, BenchmarkScore, BenchmarkTypeDef } from '../../lib/types';
+  import type { Benchmark, BenchmarkField, BenchmarkScore, BenchmarkTypeDef } from '../../lib/types';
   import { finalizeType, groupTypes, resolveFields, typeProblem, type ResolvedField } from '../../lib/benchmarks/model';
   import { BENCHMARK_PRESETS, missingBuiltIns } from '../../lib/benchmarks/presets';
   import { measureOfUnit } from '../../lib/benchmarks/upgrade';
+  import { applyTidy, proposeTidy } from '../../lib/benchmarks/tidy';
   import Icon from '@iconify/svelte';
 
   let { benchmarkTypes = $bindable() }: { benchmarkTypes: BenchmarkTypeDef[] } = $props();
@@ -137,6 +139,28 @@
     editing = null;
   }
 
+  // --- Tidy-up: leftovers of how tests used to be kept ---
+  const proposals = $derived(proposeTidy(benchmarkTypes, trainingState.benchmarks, defs));
+  let ticked = $state<Record<string, boolean>>({});
+  const isTicked = (p: { id: string; defaultOn: boolean }) => ticked[p.id] ?? p.defaultOn;
+  const tickedCount = $derived(proposals.filter(isTicked).length);
+
+  /** Applies the ticked proposals; Undo puts the tests and every moved result back. */
+  async function tidy() {
+    const chosen = proposals.filter(isTicked);
+    if (chosen.length === 0) return;
+    const beforeTypes = $state.snapshot(benchmarkTypes) as BenchmarkTypeDef[];
+    const out = applyTidy(chosen, beforeTypes, trainingState.benchmarks);
+    const beforeResults = out.benchmarks.map((b) => $state.snapshot(trainingState.benchmarks.find((x) => x.id === b.id)) as Benchmark);
+    benchmarkTypes = out.types;
+    for (const b of out.benchmarks) await trainingState.saveBenchmark(b);
+    ticked = {};
+    undoable('Tests tidied up', async () => {
+      benchmarkTypes = beforeTypes;
+      for (const b of beforeResults) await trainingState.saveBenchmark(b);
+    });
+  }
+
   const undoable = scopedUndo();
   /** Logged results stay; they're just unlinked until Undo puts the type back. */
   async function remove(id: string) {
@@ -158,9 +182,30 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Benchmark tests</h3>
+    <h3 class="text-section uppercase text-content-muted px-1 flex items-center gap-1.5">Tests <InfoButton term="tests" /></h3>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight), so results are compared like with like.</p>
   </div>
+
+  {#if proposals.length > 0}
+    <div class="rounded-card bg-status-caution/10 border border-status-caution/30 p-4 space-y-3">
+      <div>
+        <p class="text-label font-semibold text-content">Tidy up your tests</p>
+        <p class="text-caption text-content-subtle leading-relaxed">Some of these look like leftovers: the same test kept twice, or one your daily metrics already cover. Tick what to do; Undo is offered afterwards, and no result is ever deleted.</p>
+      </div>
+      <div class="space-y-2.5">
+        {#each proposals as p (p.id)}
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" checked={isTicked(p)} onchange={(e) => (ticked[p.id] = e.currentTarget.checked)} class="mt-1 w-4 h-4 rounded accent-primary shrink-0" />
+            <span class="min-w-0">
+              <span class="block text-body text-content">{p.label}</span>
+              <span class="block text-caption text-content-subtle leading-relaxed">{p.detail}</span>
+            </span>
+          </label>
+        {/each}
+      </div>
+      <button onclick={tidy} disabled={tickedCount === 0} class="w-full py-2.5 rounded-control bg-primary text-white text-label font-semibold disabled:opacity-40">Apply {tickedCount} change{tickedCount === 1 ? '' : 's'}</button>
+    </div>
+  {/if}
 
   {#each groups as g (g.group)}
     <div class="space-y-1">
@@ -194,7 +239,7 @@
       <div class="divide-y divide-border">
         {#each archived as type (type.id)}
           <button onclick={() => startEdit(type)} class="w-full flex items-center justify-between gap-3 py-2 text-left">
-            <span class="min-w-0"><span class="block text-body text-content-muted truncate">{type.name}</span><span class="block text-caption text-content-subtle">{resultCount(type.id)} results kept</span></span>
+            <span class="min-w-0"><span class="block text-body text-content-muted truncate">{type.name}</span><span class="block text-caption text-content-subtle">{resultCount(type.id)} result{resultCount(type.id) === 1 ? '' : 's'} kept</span></span>
             <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl shrink-0" />
           </button>
         {/each}
@@ -228,7 +273,7 @@
     <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar" use:sheetDrag={sheetClose}>
       <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <p class="text-caption uppercase text-content-subtle">{editing.isNew ? 'New test' : draft.archived ? 'Archived test' : 'Benchmark test'}</p>
+          <p class="text-caption uppercase text-content-subtle">{editing.isNew ? 'New test' : draft.archived ? 'Archived test' : 'Test'}</p>
           <h3 class="text-title text-content truncate">{draft.name.trim() || 'Untitled'}</h3>
         </div>
         <button onclick={sheetClose} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>

@@ -113,8 +113,8 @@
       >
         <Icon icon="ic:baseline-insights" class="text-lg text-content-muted" />
         <span class="min-w-0">
-          <span class="text-label font-bold block truncate">Log Benchmark</span>
-          <span class="text-caption text-content-subtle block truncate">Record a test</span>
+          <span class="text-label font-bold block truncate">Log a test</span>
+          <span class="text-caption text-content-subtle block truncate">Record a result</span>
         </span>
       </button>
     </div>

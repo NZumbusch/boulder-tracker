@@ -59,7 +59,7 @@ describe("test slots", () => {
     const st = testStatuses([hang, pull, archived], [result("a", "2026-08-01T10:00:00Z")], asOf, new Set(["pull"]));
     expect(st.map((s) => s.type.id)).toEqual(["hang", "pull"]);
     expect(st[0]).toMatchObject({ weeksSince: 10, due: true, scheduled: false });
-    expect(st[1]).toMatchObject({ weeksSince: undefined, due: true, scheduled: true });
+    expect(st[1]).toMatchObject({ weeksSince: undefined, due: false, never: true, scheduled: true });
     expect(testStatuses([hang], [result("a", "2026-10-01T10:00:00Z")], asOf)[0].due).toBe(false);
   });
 });

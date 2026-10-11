@@ -110,7 +110,8 @@ describe("what the AI is told about tests", () => {
     expect(h.weeksSince).toBe(5);
     expect(h.due).toBe(false);
     const p = tests.find((t) => t.name === "Max Pull-ups")!;
-    expect(p.due).toBe(true);
+    expect(p.due).toBe(false);
+    expect(p.neverDone).toBe(true);
     expect(p.weeksSince).toBeUndefined();
     expect(p.last).toBeUndefined();
   });

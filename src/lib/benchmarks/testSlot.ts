@@ -79,14 +79,33 @@ export function resultText(b: Benchmark, type: BenchmarkTypeDef | undefined, def
   return cond ? `${main} · ${cond}` : main;
 }
 
+export interface PlannedTest { week: string; session?: string; day?: string }
+
+/** Where each test is already scheduled: planned slots that have no result yet, by test id. */
+export function plannedTestsByType(workouts: readonly { status: string; weekId: string; notes?: string; dayOfWeek?: string; exercises: readonly ExerciseSlot[] }[], benchmarks: readonly Benchmark[]): Map<string, PlannedTest[]> {
+  const out = new Map<string, PlannedTest[]>();
+  for (const w of workouts) {
+    if (w.status !== "planned") continue;
+    for (const slot of w.exercises) {
+      if (!slot.test || slot.skipped || resultForSlot(benchmarks, slot.id)) continue;
+      const list = out.get(slot.test.typeId) ?? [];
+      list.push({ week: w.weekId, ...(w.notes ? { session: w.notes } : {}), ...(w.dayOfWeek ? { day: w.dayOfWeek } : {}) });
+      out.set(slot.test.typeId, list);
+    }
+  }
+  return out;
+}
+
 export interface TestStatus {
   type: BenchmarkTypeDef;
   /** The most recent result. */
   last?: Benchmark;
   /** Whole weeks since it; undefined without a result. */
   weeksSince?: number;
-  /** Never tested, or not for `retestWeeks`. */
+  /** Done before, and not for `retestWeeks`. */
   due: boolean;
+  /** No result yet - optional, never "due" on its own, so a long list of tests isn't a long to-do. */
+  never: boolean;
   /** A planned test slot for it that has no result yet (it is already scheduled). */
   scheduled: boolean;
 }
@@ -105,7 +124,7 @@ export function testStatuses(
     .map((type) => {
       const last = resultsOf(benchmarks, type.id)[0];
       const weeksSince = last ? Math.max(0, Math.floor((today - toUtcDayIndex(last.date)) / 7)) : undefined;
-      return { type, last, weeksSince, due: weeksSince === undefined || weeksSince >= retestWeeks, scheduled: plannedTestTypeIds.has(type.id) };
+      return { type, last, weeksSince, due: weeksSince !== undefined && weeksSince >= retestWeeks, never: weeksSince === undefined, scheduled: plannedTestTypeIds.has(type.id) };
     });
 }
 

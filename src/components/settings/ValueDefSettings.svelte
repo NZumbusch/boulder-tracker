@@ -98,7 +98,7 @@
     const u = usage(def.id);
     const b = benchUsage(def.id);
     if (b.tests > 0) {
-      await showAlert(`${def.name} is in use`, `${b.tests} benchmark ${b.tests === 1 ? 'test records' : 'tests record'} it. Take it out of the test${b.tests === 1 ? '' : 's'} first, or archive it instead - archiving keeps every value.`);
+      await showAlert(`${def.name} is in use`, `${b.tests} ${b.tests === 1 ? 'test records' : 'tests record'} it. Take it out of the test${b.tests === 1 ? '' : 's'} first, or archive it instead - archiving keeps every value.`);
       return;
     }
     const used = u.values > 0 || u.trackedBy > 0;
@@ -128,7 +128,7 @@
   <button onclick={() => open = !open} class="w-full flex items-center justify-between px-1 text-left" aria-expanded={open}>
     <span class="space-y-0.5">
       <span class="block text-section uppercase text-content-muted">Value types</span>
-      <span class="block text-caption text-content-subtle">The numbers and pick-lists you record on exercises and in benchmark tests - weight, reps, time, edge depth, or your own. Never part of load.</span>
+      <span class="block text-caption text-content-subtle">The numbers and pick-lists you record on exercises and in tests - weight, reps, time, edge depth, or your own. Never part of load.</span>
     </span>
     <Icon icon={open ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-xl text-content-subtle shrink-0" />
   </button>
@@ -216,11 +216,11 @@
         <div class="space-y-1.5">
           <span class="text-label text-content-subtle block">Use it for</span>
           <div class="grid grid-cols-2 gap-2">
-            {#each [['exercise', 'Exercises'], ['benchmark', 'Benchmark tests']] as [use, label]}
+            {#each [['exercise', 'Exercises'], ['benchmark', 'Tests']] as [use, label]}
               <button type="button" onclick={() => toggleUse(use as 'exercise' | 'benchmark')} aria-pressed={hasUse(use as 'exercise' | 'benchmark')} class="px-3 py-2 rounded-control text-label border transition-all {hasUse(use as 'exercise' | 'benchmark') ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'bg-surface-elevated border-border-strong text-content-muted'}">{label}</button>
             {/each}
           </div>
-          <p class="text-caption text-content-subtle">Switch it on for an exercise under Exercises → the exercise → What it tracks, or add it to a test under Benchmarks.</p>
+          <p class="text-caption text-content-subtle">Switch it on for an exercise under Exercises → the exercise → What it tracks, or add it to a test under Tests.</p>
         </div>
 
         <div class="flex gap-2">
