@@ -164,7 +164,7 @@ export function workoutNoteSharing(sharing: Pick<AISharingPreferences, "sessionN
   return { logNotes: sharing.sessionNotes !== false, planNotes: sharing.planNotesInHistory === true };
 }
 
-function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], notes: WorkoutNoteSharing = { logNotes: true, planNotes: false }): RecentWorkoutSummary {
+export function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], notes: WorkoutNoteSharing = { logNotes: true, planNotes: false }): RecentWorkoutSummary {
   return {
     date: w.date,
     status: w.status,

@@ -9,6 +9,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { sessionActions, closeSessionActions } from '../../lib/sessionActions.svelte';
   import { openWorkout } from '../../lib/workoutModal.svelte';
+  import { askAboutSession } from '../../lib/ai/askAbout.svelte';
   import { loggedDateFor } from '../../lib/planning/scheduledDate';
   import { occurrenceOnDay, dayIndexOf } from '../../lib/planning/planB';
   import type { DayOfWeek, Workout } from '../../lib/types';
@@ -43,6 +44,7 @@
   const moveTo = (day: DayOfWeek) => run((w) => w.dayOfWeek !== day && trainingState.saveWorkoutQuiet({ ...w, dayOfWeek: day }));
   const duplicate = () => run((w) => trainingState.duplicateWorkout(w));
   const planB = () => run((w) => trainingState.editPlanBAt(w.weekId, w.dayOfWeek));
+  const askAi = () => run((w) => askAboutSession(w.id));
   const remove = () => run((w) => trainingState.deleteWorkout(w.id));
 
   backWhile(() => !!sessionActions.workout, closeSessionActions);
@@ -84,6 +86,7 @@
             </div>
           </div>
         {/if}
+        {@render action('ic:baseline-auto-awesome', 'Ask the AI about it', askAi)}
         {@render action('ic:baseline-content-copy', 'Duplicate', duplicate)}
         {#if canPlanB}
           {@render action('ic:baseline-call-split', planBHere ? 'Edit Plan B' : 'Make a Plan B', planB)}

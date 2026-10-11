@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { askAboutSession } from '../../lib/ai/askAbout.svelte';
   import { RATING_AXES } from '../../lib/constants';
   /**
    * The workout modal's default mode: a read-only look at a session, laid
@@ -149,7 +150,10 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="fixed inset-0 z-10" onclick={() => menuOpen = false}></div>
-        <div class="absolute right-0 top-full mt-1 z-20 w-44 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
+        <div class="absolute right-0 top-full mt-1 z-20 w-52 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <button onclick={() => { menuOpen = false; askAboutSession(workout.id); }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+            <Icon icon="ic:baseline-auto-awesome" class="text-sm" /> Ask the AI about it
+          </button>
           <button onclick={duplicate} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
             <Icon icon="ic:baseline-content-copy" class="text-sm" /> Duplicate
           </button>

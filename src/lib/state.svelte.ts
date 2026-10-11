@@ -1358,11 +1358,38 @@ class TrainingState {
   }
 
   /** Applies an AI change set's result (see `changePlanner.ts`) in one write, then reloads. */
-  async applyPlanWrites(writes: PlanWrites) {
-    await storage.applyPlanWrites(writes);
+  async applyPlanWrites(writes: PlanWrites, label?: { goal?: string; lines: string[] }) {
+    await storage.applyPlanWrites(writes, 'ai', label);
     await this.refresh();
     this.planUndoVersion++;
     showUndo('AI changes applied', async () => { await this.undoPlanChange(); });
+  }
+
+  /** The plan changes that can still be rolled back (AI changes and copied weeks), newest first, with what each asked for and did. */
+  getPlanHistory() {
+    return storage.getPlanHistory();
+  }
+
+  /**
+   * Rolls the plan back to before change `index` of `getPlanHistory`, which
+   * also takes back every change made after it - so that asks first. Sessions
+   * logged since stay logged.
+   */
+  async undoPlanTo(index: number): Promise<boolean> {
+    const history = await storage.getPlanHistory();
+    const entry = history.find((h) => h.index === index);
+    if (!entry) return false;
+    const later = history.filter((h) => h.index > index).length;
+    const ok = await showConfirm(
+      'Go back',
+      `The plan goes back to how it was before this change${later ? `, and the ${later === 1 ? 'change' : `${later} changes`} made after it ${later === 1 ? 'is' : 'are'} taken back too` : ''}. Sessions you logged stay. Go back?`,
+    );
+    if (!ok) return false;
+    await storage.undoPlanChangesTo(index);
+    await this.refresh();
+    this.planUndoVersion++;
+    toast.show('Plan put back');
+    return true;
   }
 
   /** The last bulk plan change (AI or copied week): what, when, and whether the plan was edited since - or null if there's nothing to undo. */

@@ -43,9 +43,28 @@ interface PlanUndoRecord {
   source: "ai" | "copy";
   appliedAt: string;
   before: PlanTables;
-  /** The plan right after applying, to tell whether it was edited since. */
-  after: PlanTables;
+  /** The plan right after applying, to tell whether it was edited since - kept for the latest change only. */
+  after?: PlanTables;
+  /** What was asked and what changed, in words, for the history. */
+  label?: { goal?: string; lines: string[] };
 }
+
+/** The plan changes that can be rolled back, newest last. */
+const PLAN_HISTORY_MAX = 6;
+
+/** What is stored may be one record (before the history existed) or the list. */
+function asHistory(stored: PlanUndoRecord | PlanUndoRecord[] | null): PlanUndoRecord[] {
+  return stored === null ? [] : Array.isArray(stored) ? stored : [stored];
+}
+
+/** A snapshot kept for an older change needs only the planned sessions: logged ones are always today's on a rollback. */
+function slimmed(record: PlanUndoRecord): PlanUndoRecord {
+  const { after: _after, ...rest } = record;
+  return { ...rest, before: { ...rest.before, workouts: (rest.before.workouts as Workout[]).filter((w) => w.status === "planned") } };
+}
+
+export interface PlanHistoryEntry { index: number; source: PlanUndoRecord["source"]; appliedAt: string; goal?: string; lines: string[] }
+
 function planTables(db: any): PlanTables {
   return toPlain(Object.fromEntries(PLAN_TABLE_NAMES.map((t) => [t, db[t]]))) as PlanTables;
 }
@@ -301,7 +320,7 @@ export const storage = {
    * now follows its phase). Completed sessions are never removed. One
    * flush, so a half-applied plan can't be left behind by a failed write.
    */
-  async applyPlanWrites(writes: PlanWrites, source: PlanUndoRecord["source"] = "ai"): Promise<void> {
+  async applyPlanWrites(writes: PlanWrites, source: PlanUndoRecord["source"] = "ai", label?: PlanUndoRecord["label"]): Promise<void> {
     await initDB();
     const db = _dbState;
     const before = planTables(db);
@@ -328,7 +347,8 @@ export const storage = {
     // Blocks the change added next to one of the same phase are one block with it.
     coalesceBlocksInDb(db);
     await flushDB();
-    await writePlanUndo({ source, appliedAt: new Date().toISOString(), before, after: planTables(db) } satisfies PlanUndoRecord);
+    const previous = asHistory(await readPlanUndo<PlanUndoRecord | PlanUndoRecord[]>()).map(slimmed);
+    await writePlanUndo([...previous, { source, appliedAt: new Date().toISOString(), before, after: planTables(db), ...(label ? { label } : {}) }].slice(-PLAN_HISTORY_MAX));
   },
 
   /**
@@ -338,7 +358,7 @@ export const storage = {
    * logged since don't count as edits - undo keeps them.
    */
   async getPlanUndo(): Promise<{ source: PlanUndoRecord["source"]; appliedAt: string; changedSince: boolean } | null> {
-    const record = await readPlanUndo<PlanUndoRecord>();
+    const record = asHistory(await readPlanUndo<PlanUndoRecord | PlanUndoRecord[]>()).at(-1);
     if (!record) return null;
     await initDB();
     const now = planTables(_dbState);
@@ -349,7 +369,7 @@ export const storage = {
         .filter((w) => w.status === "planned" && !completedNow.has(w.id))
         .sort((a, b) => a.id.localeCompare(b.id)),
     });
-    return { source: record.source ?? "ai", appliedAt: record.appliedAt, changedSince: comparable(now) !== comparable(record.after) };
+    return { source: record.source ?? "ai", appliedAt: record.appliedAt, changedSince: record.after ? comparable(now) !== comparable(record.after) : false };
   },
 
   /**
@@ -359,7 +379,23 @@ export const storage = {
    * since the change stays logged.
    */
   async undoPlanChange(): Promise<void> {
-    const record = await readPlanUndo<PlanUndoRecord>();
+    await this.undoPlanChangesTo((asHistory(await readPlanUndo<PlanUndoRecord | PlanUndoRecord[]>()).length || 1) - 1);
+  },
+
+  /** The plan changes that can still be rolled back, newest first. */
+  async getPlanHistory(): Promise<PlanHistoryEntry[]> {
+    const history = asHistory(await readPlanUndo<PlanUndoRecord | PlanUndoRecord[]>());
+    return history.map((r, index) => ({ index, source: r.source ?? "ai", appliedAt: r.appliedAt, goal: r.label?.goal, lines: r.label?.lines ?? [] })).reverse();
+  },
+
+  /**
+   * Rolls the plan back to how it was before change `index` of the history -
+   * which also takes back every change made after it. Sessions logged since
+   * stay logged.
+   */
+  async undoPlanChangesTo(index: number): Promise<void> {
+    const history = asHistory(await readPlanUndo<PlanUndoRecord | PlanUndoRecord[]>());
+    const record = history[index];
     if (!record) return;
     await initDB();
     const db = _dbState;
@@ -374,7 +410,8 @@ export const storage = {
       ...completed,
     ]);
     await flushDB();
-    await writePlanUndo(null);
+    const rest = history.slice(0, index);
+    await writePlanUndo(rest.length ? rest : null);
   },
 
   async clearPlanUndo(): Promise<void> {

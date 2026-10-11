@@ -10,6 +10,7 @@
   import { trainingState } from '../../../lib/state.svelte';
   import { acwrSheet } from '../../../lib/help/acwrSheet.svelte';
   import { showInfo } from '../../../lib/help/infoSheet.svelte';
+  import { askAboutInsights } from '../../../lib/ai/askAbout.svelte';
   import { calculateAcwrBreakdown } from '../../../lib/analytics/loadAnalytics';
 
   const close = () => (acwrSheet.open = false);
@@ -94,7 +95,10 @@
       <div class="text-caption text-content-subtle leading-relaxed space-y-1.5 pt-2 border-t border-border/60">
         <p>This is a rolling 7 days ending today, not the calendar week, so it can differ from "This week's" load. Load is each session's rated load.</p>
         <p>Zones: {zones.sweetMin}-{zones.caution} sweet spot · above {zones.caution} caution · above {zones.highRisk} high risk. Readiness takes points off from the high-risk ratio up.</p>
-        <button class="text-primary font-semibold" onclick={() => showInfo('acwr')}>What is ACWR?</button>
+        <div class="flex items-center gap-4">
+          <button class="text-primary font-semibold" onclick={() => showInfo('acwr')}>What is ACWR?</button>
+          <button class="text-primary font-semibold flex items-center gap-1" onclick={() => { close(); askAboutInsights('push'); }}><Icon icon="ic:baseline-auto-awesome" class="text-sm" />Ask the AI</button>
+        </div>
       </div>
     </div>
   </div>
