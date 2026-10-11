@@ -59,7 +59,6 @@
   <div class="space-y-4">
     <div class="flex items-center justify-between px-1">
       <h2 class="text-title text-content">Start Session</h2>
-      <div class="h-1 w-8 bg-primary-hover rounded-full"></div>
     </div>
 
     <!-- Start Now is the primary, full-width action: going straight into

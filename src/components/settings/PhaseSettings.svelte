@@ -140,8 +140,10 @@
               aria-expanded={expandedPhaseId === phase.id}
             >
               <div class="w-3 h-3 rounded-full flex-shrink-0 {phase.color || 'bg-status-neutral'}"></div>
-              <p class="text-body font-bold text-content truncate">{phase.name}</p>
-              <span class="text-caption text-content-subtle flex-shrink-0">{(templates[phase.id] || []).length} session{(templates[phase.id] || []).length === 1 ? '' : 's'}</span>
+              <div class="min-w-0 flex-1">
+                <p class="text-body font-bold text-content truncate">{phase.name}</p>
+                <p class="text-caption text-content-subtle">{(templates[phase.id] || []).length} session{(templates[phase.id] || []).length === 1 ? '' : 's'}</p>
+              </div>
               <Icon icon="ic:baseline-expand-more" class="text-content-subtle text-lg flex-shrink-0 transition-transform {expandedPhaseId === phase.id ? 'rotate-180' : ''}" />
             </button>
             <div class="flex items-center gap-0.5 flex-shrink-0">

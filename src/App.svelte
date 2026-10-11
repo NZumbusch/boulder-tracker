@@ -156,7 +156,7 @@
   </div>
 
   <nav
-    class="w-full h-[calc(75px+env(safe-area-inset-bottom))] pb-safe border-t flex justify-evenly items-center shrink-0 select-none bg-surface border-border"
+    class="w-full h-[calc(75px+env(safe-area-inset-bottom))] short:h-[calc(52px+env(safe-area-inset-bottom))] pb-safe border-t flex justify-evenly items-center shrink-0 select-none bg-surface border-border"
   >
     {#snippet tab(view: ViewType, icon: string, label: string)}
       {@const active = trainingState.view === view}
@@ -166,7 +166,7 @@
         aria-label={label}
         data-tour="nav-{view}"
       >
-        <Icon {icon} class="text-[24px]" />
+        <Icon {icon} class="text-[24px] short:text-[22px]" />
         {#if trainingState.navLabels}
           <span class="mt-0.5 text-[10px] font-semibold leading-none">{label}</span>
         {:else}
@@ -180,11 +180,11 @@
 
     <button
       onclick={() => trainingState.navigate('add')}
-      class="flex items-center justify-center w-12 h-12 rounded-full cursor-pointer transition-all duration-300 active:scale-90 {trainingState.view === 'add' ? 'bg-success text-app-bg shadow-[0_0_20px_var(--color-success)]' : 'bg-surface-elevated text-content-muted'}"
+      class="flex items-center justify-center w-12 h-12 short:w-10 short:h-10 rounded-full cursor-pointer transition-all duration-300 active:scale-90 {trainingState.view === 'add' ? 'bg-success text-app-bg shadow-[0_0_20px_var(--color-success)]' : 'bg-surface-elevated text-content-muted'}"
       aria-label="Log a workout"
       data-tour="nav-add"
     >
-      <Icon icon="ic:baseline-plus" class="text-[34px]" />
+      <Icon icon="ic:baseline-plus" class="text-[34px] short:text-[28px]" />
     </button>
 
     {@render tab('history', 'ic:baseline-content-paste', 'History')}

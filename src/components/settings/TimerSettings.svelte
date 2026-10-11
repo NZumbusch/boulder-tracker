@@ -36,7 +36,7 @@
 
   <div class="divide-y divide-border">
     <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 min-w-0 pr-3">
         <Icon icon="ic:baseline-looks-3" class="text-lg text-content-muted" />
         <div>
           <span class="block text-body text-content">3-2-1 countdown</span>
@@ -52,7 +52,7 @@
     </label>
 
     <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 min-w-0 pr-3">
         <Icon icon="ic:baseline-notifications-active" class="text-lg text-content-muted" />
         <div>
           <span class="block text-body text-content">15 s warning</span>
@@ -69,7 +69,7 @@
 
     {#if wakeLockSupported}
       <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 min-w-0 pr-3">
           <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted" />
           <span class="text-body text-content">Keep screen on while a timer runs</span>
         </div>
@@ -84,7 +84,7 @@
 
     {#if isNative}
       <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 min-w-0 pr-3">
           <Icon icon="ic:baseline-phone-android" class="text-lg text-content-muted" />
           <div>
             <span class="block text-body text-content">Timer in the background</span>

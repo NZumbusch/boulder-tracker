@@ -344,7 +344,7 @@
                   ratings || undefined,
                 ].filter(Boolean).join(' · ')}
                 detail={[
-                  workout.exercises.map((e) => slotTypeName(e, trainingState.exerciseTypes)).join(', '),
+                  [...new Set(workout.exercises.map((e) => slotTypeName(e, trainingState.exerciseTypes)))].join(', '),
                   block?.name,
                 ].filter(Boolean).join(' · ') || undefined}
                 value={Math.round(workout.loadFactor)}

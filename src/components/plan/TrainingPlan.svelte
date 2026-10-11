@@ -465,7 +465,7 @@
            the actions used to drop onto their own row, leaving a gap. -->
       <div class="flex items-start justify-between gap-2">
         <div class="flex-1 min-w-0 relative">
-          <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : `Week ${selectedWeekData.id.split('-W')[1]}`} <span class="normal-case tracking-normal font-normal text-content-subtle whitespace-nowrap">· {getWeekDateRange(selectedWeekData.id)}</span></span>
+          <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : `Week ${selectedWeekData.id.split('-W')[1]}`} <span class="normal-case tracking-normal font-normal text-content-subtle whitespace-nowrap block min-[380px]:inline"><span class="hidden min-[380px]:inline">· </span>{getWeekDateRange(selectedWeekData.id)}</span></span>
           <div class="flex items-center gap-1.5 flex-wrap">
             <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-0.5" data-tour="plan-phase">
               <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(selectedWeekData.phaseId) ?? 'No Phase'}</h3>
