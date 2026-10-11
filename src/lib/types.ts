@@ -540,6 +540,20 @@ export interface AthleteProfile {
   standingGoal?: string;
   /** Anything else worth knowing. */
   other?: string;
+  /** What a normal training week should add up to - Insights and Home measure against it, and the AI plans to it. */
+  targets?: TrainingTargets;
+}
+
+/** A few numbers a training week should hit. Every one is optional: only what is set is measured. */
+export interface TrainingTargets {
+  sessionsPerWeek?: number;
+  /** A range of weekly load points; either end may be left open. */
+  loadMin?: number;
+  loadMax?: number;
+  /** Days a week with finger work (the categories marked as finger training under Settings). */
+  fingerDays?: number;
+  /** Share of training time per analytics category (`AnalyticsCategory.id` -> 0-1); categories left out have no target. */
+  categoryShares?: Record<string, number>;
 }
 
 /**

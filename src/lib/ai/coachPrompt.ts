@@ -231,7 +231,7 @@ export function buildCoachPromptFor(
       })
     : undefined;
   // "coachNotes" is a newer sharing switch - absent in older saved preferences means on.
-  const coachMemory = source.aiSharing.coachNotes !== false ? renderCoachMemory(source.athleteProfile, source.coachNotes ?? []) : "";
+  const coachMemory = source.aiSharing.coachNotes !== false ? renderCoachMemory(source.athleteProfile, source.coachNotes ?? [], source.analyticsCategories) : "";
   const sinceLast = (mode === "generate" || mode === "context") && source.insightInputs
     ? buildSinceLastPlan({
         inputs: source.insightInputs(),

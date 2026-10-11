@@ -1,5 +1,6 @@
 import type {
   AnalyticsCategory, Benchmark, BenchmarkTypeDef, DailyMetricEntry, ExerciseSlot, ExerciseTypeDef, OutdoorAscent, ValueDef, Workout,
+  TrainingTargets,
 } from "../types";
 import type { WeightUnit } from "../units";
 import { getWeekDates, getWeekId, decrementWeekId, toUtcDayIndex } from "../dateUtils";
@@ -15,6 +16,8 @@ import { slotTypeName, slotValues } from "../exerciseSlot";
 import { setRows } from "../exercise/setRows";
 import { parseFontGrade } from "./grades";
 import { WEEK_DAYS } from "../constants";
+import { hasTargets, isFingerSession, mixGaps, weekProgress } from "./targets";
+import { buildWeeklyHistory } from "./weekSummary";
 
 /**
  * Insights: plain-language findings from the athlete's own data, one list
@@ -80,6 +83,9 @@ export interface InsightInputs {
   weightUnit: WeightUnit;
   dailyMetrics: DailyMetricEntry[];
   ascents: OutdoorAscent[];
+  /** The weekly targets, if the athlete set any, and the categories that count as finger work. */
+  targets?: TrainingTargets;
+  fingerIds?: Iterable<string>;
   config: InsightConfig;
 }
 
@@ -382,6 +388,76 @@ function staleInsights(i: InsightInputs): Insight[] {
     }));
 }
 
+// --- Targets ----------------------------------------------------------------
+
+const WEEKS_FOR_TARGETS = 4;
+const MIX_GAP_POINTS = 0.08;
+
+/** How the last four full weeks measure against the weekly targets, as findings. */
+function targetInsights(i: InsightInputs): Insight[] {
+  const t = i.targets;
+  if (!hasTargets(t)) return [];
+  const out: Insight[] = [];
+  const weekIds: string[] = [];
+  for (let w = decrementWeekId(getWeekId(i.asOf)), k = 0; k < WEEKS_FOR_TARGETS; k++, w = decrementWeekId(w)) weekIds.unshift(w);
+  const isFinger = (w: Workout) => isFingerSession(w, i.exerciseTypes, i.analyticsCategories, i.fingerIds ?? []);
+  const weeks = weekIds.map((id) => {
+    const sessions = i.workoutsForWeek(id).filter((w) => w.status === "completed");
+    return { id, count: sessions.length, p: weekProgress(t, sessions, isFinger) };
+  });
+  const link: InsightLink = { kind: "panel", tab: "training", section: "section-load" };
+  const active = weeks.filter((w) => w.count > 0);
+  if (active.length < 2) return out;
+
+  if (t.sessionsPerWeek !== undefined) {
+    const avg = active.reduce((s, w) => s + w.count, 0) / active.length;
+    const shown = Math.round(avg * 10) / 10;
+    out.push({
+      id: "target-sessions",
+      group: "plan",
+      tone: avg >= t.sessionsPerWeek ? "good" : avg < t.sessionsPerWeek * 0.75 ? "caution" : "info",
+      title: avg >= t.sessionsPerWeek ? `On target: ${shown} sessions a week` : `${shown} sessions a week, target ${t.sessionsPerWeek}`,
+      detail: `Average over the last ${active.length} weeks with training.`,
+      link,
+    });
+  }
+  if (t.loadMin !== undefined || t.loadMax !== undefined) {
+    const inRange = active.filter((w) => w.p.load?.state === "in").length;
+    const off = active.filter((w) => w.p.load && w.p.load.state !== "in");
+    out.push({
+      id: "target-load",
+      group: "plan",
+      tone: off.length === 0 ? "good" : off.some((w) => w.p.load!.state === "above") ? "caution" : "info",
+      title: `Weekly load in your range ${inRange} of ${active.length} weeks`,
+      detail: off.length ? off.map((w) => `W${w.id.split("-W")[1]} ${n0(w.p.load!.value)} (${w.p.load!.state === "above" ? "over" : "under"})`).join(", ") : undefined,
+      link,
+    });
+  }
+  if (t.fingerDays !== undefined) {
+    const last = weeks[weeks.length - 1].p.fingerDays;
+    if (last && last.done !== last.target) {
+      out.push({ id: "target-fingers", group: "plan", tone: last.done < last.target ? "info" : "caution", title: `Finger work on ${last.done} day${last.done === 1 ? "" : "s"} last week, target ${last.target}`, link });
+    }
+  }
+  if (t.categoryShares && Object.keys(t.categoryShares).length) {
+    const history = buildWeeklyHistory(i.workouts, i.exerciseTypes, i.analyticsCategories, weekIds);
+    const minutes: Record<string, number> = {};
+    for (const w of history) for (const [cat, m] of Object.entries(w.minutesByCategory ?? {})) minutes[cat] = (minutes[cat] ?? 0) + m;
+    const gaps = mixGaps(t, minutes, i.analyticsCategories).filter((g) => Math.abs(g.gap) >= MIX_GAP_POINTS).slice(0, 2);
+    for (const g of gaps) {
+      out.push({
+        id: `target-mix-${g.name}`,
+        group: "plan",
+        tone: "caution",
+        title: `${g.name} is ${Math.round(g.actual * 100)}% of your time, target ${Math.round(g.target * 100)}%`,
+        detail: `${g.gap < 0 ? "Short" : "Over"} by ${Math.round(Math.abs(g.gap) * 100)} points over the last ${WEEKS_FOR_TARGETS} weeks.`,
+        link: { kind: "panel", tab: "training", section: "section-mix" },
+      });
+    }
+  }
+  return out;
+}
+
 // --- Climbing and recovery -------------------------------------------------------
 
 function climbingInsight(i: InsightInputs): Insight | undefined {
@@ -452,6 +528,7 @@ export function buildInsights(input: InsightInputs): Insight[] {
     retestInsight(input),
     ...adherenceInsights(input),
     ...staleInsights(input),
+    ...targetInsights(input),
     climbingInsight(input),
     ...recoveryInsights(input),
   ];

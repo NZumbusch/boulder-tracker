@@ -30,6 +30,7 @@
   import Icon from '@iconify/svelte';
   import { WEEK_DAYS } from '../../lib/constants';
   import { hasProfile } from '../../lib/ai/coachNotes';
+  import { hasTargets } from '../../lib/analytics/targets';
   import type { DayOfWeek } from '../../lib/types';
   import { QUICK_ADAPTS, spanWeeks, withGoal, loadLastRequest, saveLastRequest } from '../../lib/ai/quickAdapt';
   import { loadChangeLog, appendChange } from '../../lib/ai/changeLog';
@@ -131,6 +132,7 @@
     const parts: string[] = [];
     if (p?.standingGoal?.trim()) parts.push('your standing goal');
     if (p && hasProfile({ ...p, standingGoal: undefined })) parts.push('About me');
+    if (hasTargets(p?.targets)) parts.push('your targets');
     const n = trainingState.coachNotes.length;
     if (n) parts.push(`${n} coach note${n === 1 ? '' : 's'}`);
     return parts;

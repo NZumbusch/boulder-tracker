@@ -7,7 +7,7 @@
 export type SectionId = "setup" | "display" | "sessions" | "health" | "reminders" | "ai" | "data" | "about";
 
 export type PageId =
-  | "exercises" | "circuits" | "phases" | "benchmarks" | "values"
+  | "exercises" | "circuits" | "phases" | "benchmarks" | "values" | "targets"
   | "general" | "units" | "home" | "history"
   | "live" | "timer"
   | "model" | "pain" | "weather"
@@ -54,6 +54,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       { id: "circuits", label: "Circuits", hint: "Saved circuits and supersets", icon: "ic:baseline-loop" },
       { id: "phases", label: "Phases & templates", hint: "Training phases and the sessions each one starts with", icon: "ic:baseline-calendar-month" },
       { id: "benchmarks", label: "Tests", hint: "Max hang, pull-ups, holds - what each records, how often to retest, and how", icon: "ic:baseline-bar-chart" },
+      { id: "targets", label: "Weekly targets", hint: "Sessions, load range, finger days and time split you aim for", icon: "ic:baseline-flag" },
       { id: "values", label: "Value types", hint: "Weight, reps, time, edge depth or your own - used by exercises and tests", icon: "ic:baseline-tune" },
     ],
   },
@@ -177,6 +178,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Motion", page: "general", words: "animations reduced" },
   { label: "Weight, temperature and grade units", page: "units", words: "kg lb celsius fahrenheit font v-scale" },
   { label: "Home cards and order", page: "home", words: "sections reorder hide simple" },
+  { label: "Weekly targets", page: "targets", words: "sessions load finger days split category share goal aim" },
   { label: "Quick log (+) actions", page: "home", words: "pain bodyweight send benchmark test result" },
   { label: "Recent activity and test list lengths", page: "home" },
   { label: "Analytics cards", page: "history", words: "reorder hide charts" },
