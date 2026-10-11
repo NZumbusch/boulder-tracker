@@ -76,6 +76,14 @@ export interface AIExercise {
    */
   categoryName?: string;
   values: ExerciseValues;
+  /**
+   * A benchmark test planned in the session: the test's name. When set,
+   * `exerciseTypeName` is "Test: <name>" (so changes can match the slot by
+   * it like any exercise) and `conditions` says how the test is to be done,
+   * by the names the test's fields have ("Edge depth": 20).
+   */
+  test?: string;
+  conditions?: Record<string, number | string>;
 }
 
 export interface AIPlanWorkout {
@@ -375,6 +383,29 @@ export function validateExercise(raw: unknown, path: string, issues: ValidationI
   if (!isPlainObject(raw)) {
     issues.push({ path, message: `Expected an exercise object, got ${JSON.stringify(raw)}.` });
     return null;
+  }
+  if (raw.test !== undefined) {
+    // A benchmark test: { "test": "Max Hang", "conditions": { "Edge depth": 20 }, "values": { "notes": "..." } }
+    if (typeof raw.test !== "string" || raw.test.trim() === "") {
+      issues.push({ path: `${path}.test`, message: "Expected the name of a test, e.g. \"Max Hang\"." });
+      return null;
+    }
+    const test = raw.test.trim();
+    let conditions: Record<string, number | string> | undefined;
+    if (raw.conditions !== undefined) {
+      if (!isPlainObject(raw.conditions)) {
+        issues.push({ path: `${path}.conditions`, message: `Expected an object like {"Edge depth": 20}, got ${JSON.stringify(raw.conditions)}.` });
+      } else {
+        conditions = {};
+        for (const [k, v] of Object.entries(raw.conditions)) {
+          if (typeof v === "number" && Number.isFinite(v)) conditions[k] = v;
+          else if (typeof v === "string" && v.trim() !== "") conditions[k] = v.trim();
+          else issues.push({ path: `${path}.conditions.${k}`, message: `Expected a number or text, got ${JSON.stringify(v)}.` });
+        }
+      }
+    }
+    const values = validateExerciseValues(raw.values, `${path}.values`, issues);
+    return { exerciseTypeName: `Test: ${test}`, values, test, ...(conditions && Object.keys(conditions).length ? { conditions } : {}) };
   }
   const name = raw.exerciseTypeName;
   if (typeof name !== "string" || name.trim() === "") {

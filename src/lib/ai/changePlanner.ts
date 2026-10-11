@@ -23,6 +23,8 @@
  */
 import { exerciseGroup } from "../exercise/library";
 import type {
+  BenchmarkTypeDef,
+  ValueDef,
   Circuit,
   ExerciseGroup,
   AnalyticsCategory,
@@ -51,6 +53,8 @@ import type { AIExercise } from "./schema";
 import { slotValues } from "../exerciseSlot";
 import { dayIndexOf, weekAndDayOf, occurrenceOnDay, describeChanges, templateFromWorkout, MAX_PLAN_B_DAYS } from "../planning/planB";
 import { applyCoachNoteChange, newCoachNoteId } from "./coachNotes";
+import { makeTestSlot, testSlotName } from "../benchmarks/testSlot";
+import { conditionFields, resolveFields } from "../benchmarks/model";
 
 // --- Inputs and outputs -----------------------------------------------------
 
@@ -70,6 +74,9 @@ export interface PlannerState {
   coachNotes?: CoachNote[];
   /** The saved-circuit library. */
   circuits?: Circuit[];
+  /** The benchmark tests a session may schedule, and the value types their fields use. */
+  benchmarkTypes?: BenchmarkTypeDef[];
+  valueDefs?: ValueDef[];
   today?: string;
   /** For "this is in the past" warnings. */
   currentWeekId: string;
@@ -192,6 +199,11 @@ function findPhase(ctx: Ctx, name: string): PhaseDef | undefined {
   return matches.find((p) => !p.archived) ?? matches[0];
 }
 
+/** A slot's name as changes refer to it: "Test: Max Hang" for a test, else its exercise type's name. */
+function slotLabel(ctx: Ctx, slot: ExerciseSlot): string {
+  return slot.test ? testSlotName(slot.test.name) : typeName(ctx, slot.typeId);
+}
+
 function typeName(ctx: Ctx, typeId: string): string {
   return ctx.types.find((t) => t.id === typeId)?.name ?? ctx.state.exerciseTypes.find((t) => t.id === typeId)?.name ?? "Unknown";
 }
@@ -236,7 +248,53 @@ function resolveCategory(ctx: Ctx, name: string | undefined, item: ChangeItem): 
   return resolveNewExerciseTypeCategory(undefined, ctx.categories);
 }
 
+function findTest(ctx: Ctx, name: string): BenchmarkTypeDef | undefined {
+  const key = normalizeName(name);
+  const matches = (ctx.state.benchmarkTypes ?? []).filter((t) => normalizeName(t.name) === key);
+  return matches.find((t) => !t.archived) ?? matches[0];
+}
+
+/**
+ * A scheduled test: the test by name, with the conditions the item names
+ * ("Edge depth": 20) matched to the test's own condition fields, by label or
+ * value-type name. What doesn't match is dropped with a warning; a weight is
+ * in kg, a pick-list value must be one of its options.
+ */
+function buildTestSlot(ctx: Ctx, exercise: AIExercise, item: ChangeItem): ExerciseSlot | undefined {
+  const type = findTest(ctx, exercise.test ?? "");
+  const tests = (ctx.state.benchmarkTypes ?? []).filter((t) => !t.archived);
+  if (!type) {
+    item.errors.push(`No test called "${exercise.test}"${tests.length ? ` - your tests are: ${tests.map((t) => t.name).join(", ")}` : " - there are no tests yet"}.`);
+    return undefined;
+  }
+  if (type.archived) item.warnings.push(`"${type.name}" is archived in your tests.`);
+  const fields = conditionFields(resolveFields(type, ctx.state.valueDefs ?? [])).filter((f) => f.fixed === undefined);
+  const conditions: Record<string, number | string> = {};
+  for (const [name, raw] of Object.entries(exercise.conditions ?? {})) {
+    const key = normalizeName(name);
+    const field = fields.find((f) => normalizeName(f.label) === key || normalizeName(f.valueId) === key);
+    if (!field) {
+      item.warnings.push(`${type.name} has no condition "${name}" - ignored${fields.length ? ` (it has: ${fields.map((f) => f.label).join(", ")})` : ""}.`);
+      continue;
+    }
+    if (field.kind === "choice") {
+      const hit = field.options.find((o) => normalizeName(o) === normalizeName(String(raw)));
+      if (hit) conditions[field.valueId] = hit;
+      else item.warnings.push(`"${raw}" isn't one of ${field.label}'s options (${field.options.join(", ")}) - ignored.`);
+    } else if (typeof raw === "number") conditions[field.valueId] = raw;
+    else {
+      const n = Number(String(raw).replace(",", "."));
+      if (Number.isFinite(n)) conditions[field.valueId] = n;
+      else item.warnings.push(`${field.label} "${raw}" isn't a number - ignored.`);
+    }
+  }
+  const slot = makeTestSlot({ id: ctx.newId(), type, conditions });
+  const notes = exercise.values.notes;
+  return notes ? { ...slot, prescribed: { ...(slot.prescribed ?? {}), notes } } : slot;
+}
+
 function buildSlot(ctx: Ctx, exercise: AIExercise, item: ChangeItem): ExerciseSlot | undefined {
+  if (exercise.test !== undefined) return buildTestSlot(ctx, exercise, item);
   const type = resolveType(ctx, exercise.exerciseTypeName, item);
   if (!type) return undefined;
   return { id: ctx.newId(), typeId: type.id, activeParameters: [...type.parameters], prescribed: { ...exercise.values } };
@@ -401,7 +459,7 @@ function applyExerciseChanges(
     const key = normalizeName(name);
     const hits = result
       .map((s, i) => ({ s, i }))
-      .filter(({ s }) => (type ? s.typeId === type.id : false) || normalizeName(typeName(ctx, s.typeId)) === key);
+      .filter(({ s }) => (type && !s.test ? s.typeId === type.id : false) || normalizeName(slotLabel(ctx, s)) === key);
     if (hits.length === 0) {
       item.errors.push(`${where}: no "${name}" exercise to change.`);
       return undefined;
@@ -429,6 +487,7 @@ function applyExerciseChanges(
       groups = built.groups;
       const it = change.exercise;
       if (isCircuitItem(it)) lines.push(`+ ${circuitLabel(it)}${it.rounds ? ` (${it.rounds} rounds)` : ""}`);
+      else if (it.test !== undefined) lines.push(`+ ${it.exerciseTypeName}${it.conditions ? ` (${Object.entries(it.conditions).map(([k, v]) => `${k} ${show(v)}`).join(", ")})` : ""}`);
       else lines.push(`+ ${it.exerciseTypeName}${Object.keys(it.values).length ? ` (${Object.entries(it.values).filter(([k]) => k !== "notes").map(([k, v]) => `${k} ${show(v)}`).join(", ")})` : ""}`);
     } else if (change.action === "editCircuit") {
       const group = findGroup(change.circuit);
@@ -448,7 +507,7 @@ function applyExerciseChanges(
     } else if (change.action === "remove") {
       const i = find(change.match.exerciseTypeName, change.match.occurrence);
       if (i === undefined) continue;
-      lines.push(`− ${typeName(ctx, result[i].typeId)}`);
+      lines.push(`− ${slotLabel(ctx, result[i])}`);
       result.splice(i, 1);
     } else {
       const i = find(change.match.exerciseTypeName, change.match.occurrence);
@@ -457,7 +516,7 @@ function applyExerciseChanges(
       const before = { ...(slot.prescribed ?? slotValues(slot)) };
       const after: ExerciseValues = { ...before, ...change.values };
       for (const key of change.clear) delete after[key];
-      let label = typeName(ctx, slot.typeId);
+      let label = slotLabel(ctx, slot);
       let typeId = slot.typeId;
       if (change.exerciseTypeName) {
         const newType = resolveType(ctx, change.exerciseTypeName, item);
@@ -814,7 +873,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         return;
       }
       const exercises = buildSlots(ctx, change.exercises, item);
-      item.details.push(timingLine(change), exercises.map((s) => typeName(ctx, s.typeId)).join(" · "));
+      item.details.push(timingLine(change), exercises.map((s) => slotLabel(ctx, s)).join(" · "));
       if (!on) {
         ctx.untickedCircuitNames.add(normalizeName(change.name));
         return;
@@ -861,7 +920,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     }
     if (change.exercises) {
       next.exercises = buildSlots(ctx, change.exercises, item);
-      item.details.push(`exercises: ${next.exercises.map((s) => typeName(ctx, s.typeId)).join(" · ")}`);
+      item.details.push(`exercises: ${next.exercises.map((s) => slotLabel(ctx, s)).join(" · ")}`);
     }
     item.details.push("Only sessions it's added to from now on get the new version.");
     if (!on) {

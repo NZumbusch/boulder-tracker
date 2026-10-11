@@ -31,6 +31,8 @@ export interface SessionPromptInput {
 function currentExercises(slots: ExerciseSlot[], bucket: "prescribed" | "logged", types: ExerciseTypeDef[]): string {
   return slots
     .map((s) => {
+      // A benchmark test isn't an exercise the session reply can restate; show it as the test it is.
+      if (s.test) return JSON.stringify({ test: s.test.name });
       const values = Object.fromEntries(Object.entries(s[bucket] ?? {}).filter(([, v]) => v !== undefined && v !== ""));
       const name = types.find((t) => t.id === s.typeId)?.name ?? "Unknown";
       return JSON.stringify(Object.keys(values).length ? { exerciseTypeName: name, values } : { exerciseTypeName: name });
