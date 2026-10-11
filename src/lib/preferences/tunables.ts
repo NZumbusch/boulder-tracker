@@ -63,6 +63,8 @@ export const TUNABLES: TunableDef[] = [
   { id: "checkin.day", topic: "model", group: "Insights", label: "Weekly check-in from", hint: "Home offers the weekly check-in from this weekday until it is done: 1 = Monday ... 7 = Sunday, 0 = never", kind: "number", default: 7, min: 0, max: 7, step: 1 },
   { id: "insights.staleDays", topic: "model", group: "Insights", label: "Call a category stale after", hint: "Insights notes a kind of training you do regularly (in 3+ sessions over 12 weeks) once it has been left this long", kind: "number", default: 14, min: 5, max: 60, step: 1, unit: "days" },
   { id: "insights.adherenceLow", topic: "model", group: "Insights", label: "Plan adherence called low under", hint: "Share of planned sessions done over the last 4 weeks", kind: "number", default: 0.6, min: 0.2, max: 0.95, step: 0.05, percent: true },
+  { id: "alerts.insightNotify", topic: "layout", group: "Heads-ups", label: "Notify me when something needs attention", hint: "One notification in the morning when Insights finds a load spike, a long run of training days or an HRV dip. Android only; it is worked out whenever the app opens", kind: "boolean", default: false },
+  { id: "alerts.insightHour", topic: "layout", group: "Heads-ups", label: "Heads-up at", kind: "number", default: 8, min: 5, max: 12, step: 1, unit: "h" },
   { id: "alerts.restDays", topic: "model", group: "Alerts", label: "Days without rest before warning", kind: "number", default: 6, min: 3, max: 14, step: 1, unit: "days" },
 
   // --- Outdoor ---

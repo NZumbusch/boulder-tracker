@@ -17,7 +17,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
  * is the only `LocalNotifications` user" assumption would have hit the
  * moment a second reminder type existed.
  */
-export type ReminderType = 'fatigue' | 'dailyMetrics' | 'timer' | 'planB' | 'pain';
+export type ReminderType = 'fatigue' | 'dailyMetrics' | 'timer' | 'planB' | 'pain' | 'insight';
 
 // 4 bits -> 16 possible reminder types, far more than this app will ever
 // need, leaving 27 bits (~134M) for each type's own hash space.
@@ -28,6 +28,7 @@ const TYPE_TAGS: Record<ReminderType, number> = {
   timer: 2,
   planB: 3,
   pain: 4,
+  insight: 5,
 };
 const HASH_BITS = 31 - TYPE_BITS;
 const HASH_SPACE = 2 ** HASH_BITS;
