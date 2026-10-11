@@ -32,6 +32,8 @@
   import { toast } from '../../lib/toast.svelte';
   import type { ExerciseGroup, Circuit } from '../../lib/types';
   import ExerciseForm from './ExerciseForm.svelte';
+  import TestSheet from './TestSheet.svelte';
+  import { TEST_SLOT_MINUTES } from '../../lib/benchmarks/testSlot';
   import SessionAIModal from './SessionAIModal.svelte';
   import Icon from '@iconify/svelte';
 
@@ -65,6 +67,8 @@
   let addingToGroup = $state<string | null>(null);
   /** The circuit picker ("Add circuit") is open. */
   let pickingCircuit = $state(false);
+  /** The test sheet: planning one (a new slot, or an existing one's conditions) or recording a result. */
+  let testSheet = $state<{ mode: 'plan' | 'result'; slot?: ExerciseSlot } | null>(null);
   /** The form open for a circuit's first exercise: saving it makes the circuit. */
   let startingCircuit = $state(false);
   /** A group being saved to the library that already came from a circuit: update it, or save a new one? */
@@ -165,6 +169,24 @@
     formSlot = null;
     addingToGroup = null;
     startingCircuit = false;
+  }
+
+  /** Tapping a card: a test opens its own sheet (its result once the session is logged), everything else the exercise form. */
+  function openSlot(exercise: ExerciseSlot) {
+    if (exercise.test) testSheet = { mode: bucket === 'logged' ? 'result' : 'plan', slot: exercise };
+    else formSlot = exercise;
+  }
+
+  function saveTestPlan(slot: ExerciseSlot) {
+    const exists = workout.exercises.some((e) => e.id === slot.id);
+    workout.exercises = exists ? workout.exercises.map((e) => (e.id === slot.id ? slot : e)) : [...workout.exercises, slot];
+    testSheet = null;
+  }
+
+  /** The result is saved as a benchmark; the slot counts as done. */
+  function testRecorded(slotId: string) {
+    workout.exercises = workout.exercises.map((e) => (e.id === slotId ? { ...e, logged: { ...(e.logged ?? {}), duration: e.logged?.duration ?? e.prescribed?.duration ?? TEST_SLOT_MINUTES } } : e));
+    testSheet = null;
   }
 
   const undoable = scopedUndo();
@@ -359,7 +381,7 @@
       <!-- The wrapper keeps Svelte from reading `slot=` as a legacy slot name inside the snippet. -->
       {#snippet card(exercise: ExerciseSlot, index: number)}
         <div>
-          <ExerciseCard slot={exercise} {index} inGroup={!!exercise.groupId} values={exercise[bucket]} showLog={bucket === 'logged'} onclick={() => formSlot = exercise}>
+          <ExerciseCard slot={exercise} {index} inGroup={!!exercise.groupId} values={exercise[bucket]} showLog={bucket === 'logged'} onclick={() => openSlot(exercise)}>
             {#snippet actions()}
               {#if exercise.groupId}
                 <button
@@ -418,18 +440,21 @@
         {/if}
       {/each}
 
-      <div class="flex border-2 border-dashed border-border rounded-card overflow-hidden">
-        <button onclick={() => formSlot = 'new'} class="flex-1 py-3.5 text-label whitespace-nowrap font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5">
+      <div class="border-2 border-dashed border-border rounded-card overflow-hidden">
+        <button onclick={() => formSlot = 'new'} class="w-full py-3.5 text-label whitespace-nowrap font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5">
           <Icon icon="ic:baseline-plus" class="text-base" /> Add exercise
         </button>
-        <div class="w-px bg-border"></div>
-        <button onclick={() => pickingCircuit = true} class="px-3 min-[360px]:px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Add a circuit: new, or one you saved">
-          <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
-        </button>
-        <div class="w-px bg-border"></div>
-        <button onclick={() => isImportingAI = true} class="px-3 min-[360px]:px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Build or log this session with an AI chat">
-          <Icon icon="ic:baseline-auto-awesome" class="text-base" /> Ask AI
-        </button>
+        <div class="grid grid-cols-3 border-t border-border divide-x divide-border">
+          <button onclick={() => pickingCircuit = true} class="py-3 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center justify-center gap-1.5" title="Add a circuit: new, or one you saved">
+            <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
+          </button>
+          <button onclick={() => testSheet = { mode: 'plan' }} class="py-3 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center justify-center gap-1.5" title="Plan a test in this session">
+            <Icon icon="ic:baseline-flag" class="text-base" /> Test
+          </button>
+          <button onclick={() => isImportingAI = true} class="py-3 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center justify-center gap-1.5" title="Build or log this session with an AI chat">
+            <Icon icon="ic:baseline-auto-awesome" class="text-base" /> Ask AI
+          </button>
+        </div>
       </div>
     {/if}
   </div>
@@ -492,6 +517,15 @@
       <ExerciseForm initialSlot={formSlot === 'new' ? null : formSlot} mode={bucket} inGroup={!!formGroup || startingCircuit} onSave={saveExercise} />
     </div>
   </div>
+{/if}
+
+{#if testSheet}
+  {#if testSheet.mode === 'plan'}
+    <TestSheet mode="plan" slot={testSheet.slot} onSave={saveTestPlan} onClose={() => (testSheet = null)} />
+  {:else if testSheet.slot}
+    {@const tslot = testSheet.slot}
+    <TestSheet mode="result" slot={tslot} workout={{ id: workout.id, weekId: workout.weekId, date: workout.date ?? undefined }} onSaved={() => testRecorded(tslot.id)} onClose={() => (testSheet = null)} />
+  {/if}
 {/if}
 
 {#if pickingCircuit}

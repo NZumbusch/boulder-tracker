@@ -30,6 +30,9 @@
   import ExerciseForm from './ExerciseForm.svelte';
   import ExerciseDetails from './ExerciseDetails.svelte';
   import ExerciseLogSheet from './ExerciseLogSheet.svelte';
+  import TestSheet from './TestSheet.svelte';
+  import { TEST_SLOT_MINUTES } from '../../lib/benchmarks/testSlot';
+  import type { ExerciseSlot as TestSlotType } from '../../lib/types';
   import SessionExitModal from './SessionExitModal.svelte';
   import SessionNotesSheet from './SessionNotesSheet.svelte';
   import TimerWidget from './TimerWidget.svelte';
@@ -61,6 +64,8 @@
   let isAddingExercise = $state(false);
   /** The add form's "Still to do": add the exercise as the next target instead of logging it as done. */
   let addAsTodo = $state(false);
+  /** Planning a benchmark test into the running session (it is added as still to do, next up). */
+  let isAddingTest = $state(false);
   /** Edit mode: the circuit sheet (new / from exercises / saved) is open. */
   let isAddingSavedCircuit = $state(false);
   /** The add form is for the first exercise of a brand-new circuit. */
@@ -176,6 +181,7 @@
       editingSlotId = null;
       isAddingExercise = false;
       addAsTodo = false;
+      isAddingTest = false;
       startingCircuit = false;
       isAddingSavedCircuit = false;
       isEditingPlan = false;
@@ -366,9 +372,27 @@
     seedFor = null;
   }
 
+  /** A test's result was saved as a benchmark: the slot counts as done. */
+  function handleTestRecorded(slotId: string) {
+    const slot = exercises.find((e) => e.id === slotId);
+    store.logExercise(slotId, { duration: slot?.prescribed?.duration ?? TEST_SLOT_MINUTES });
+    haptic(store.isComplete ? 'success' : 'tap');
+    loggingSlotId = null;
+    seedFor = null;
+  }
+
+  /** A planned test goes in as the next thing to do. */
+  function handleTestPlanned(slot: TestSlotType) {
+    store.addPlannedExercise(slot);
+    isAddingTest = false;
+    isAddingExercise = false;
+  }
+
   // --- Swiping a row ---
   function swipeDone(slot: ExerciseSlot) {
     if (lockedByRun(slot)) return;
+    // A test is done when its result is in: swiping it away asks for the result instead.
+    if (slot.test) { loggingSlotId = slot.id; return; }
     const name = slotTypeName(slot, trainingState.exerciseTypes);
     store.logExercise(slot.id, { ...(slot.prescribed ?? slotValues(slot)) });
     haptic(store.isComplete ? 'success' : 'tap');
@@ -647,12 +671,20 @@
               <button onclick={() => { isPickingCircuit = false; pickedSlotIds = []; }} class="px-4 py-2.5 bg-surface-elevated text-content-muted text-label font-bold rounded-control">Cancel</button>
             </div>
           {:else}
-          <button
-            onclick={() => (isAddingSavedCircuit = true)}
-            class="w-full py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
-          >
-            <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
-          </button>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              onclick={() => (isAddingSavedCircuit = true)}
+              class="py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
+            </button>
+            <button
+              onclick={() => (isAddingTest = true)}
+              class="py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Icon icon="ic:baseline-flag" class="text-base" /> Test
+            </button>
+          </div>
           <section
             class="space-y-2.5 outline-none"
             use:dndzone={{ items: exercises, dropTargetStyle: {}, delayTouchStart: true }}
@@ -986,7 +1018,16 @@
   {/key}
 {/if}
 
-{#if loggingSlot}
+{#if loggingSlot?.test && session}
+  {@const tslot = loggingSlot}
+  <TestSheet
+    mode="result"
+    slot={tslot}
+    workout={{ id: session.workout.id, weekId: session.workout.weekId }}
+    onSaved={() => handleTestRecorded(tslot.id)}
+    onClose={() => { loggingSlotId = null; seedFor = null; }}
+  />
+{:else if loggingSlot}
   {#key sheetKey}
     <svelte:boundary onerror={handleSheetError}>
       <ExerciseLogSheet
@@ -1011,6 +1052,11 @@
         <Icon icon="ic:baseline-arrow-back" class="text-sm" />
         Back to session
       </button>
+      {#if isAddingExercise && !startingCircuit && !addToGroupId}
+        <button onclick={() => (isAddingTest = true)} class="px-1 text-label text-primary hover:underline flex items-center gap-1.5">
+          <Icon icon="ic:baseline-flag" class="text-sm" /> Add a benchmark test instead
+        </button>
+      {/if}
       {#if isAddingExercise}
         <!-- The setting is changed here rather than linked to. This screen
              is a `fixed inset-0` overlay above the session modal, so the
@@ -1072,6 +1118,10 @@
       </svelte:boundary>
     </div>
   </div>
+{/if}
+
+{#if isAddingTest}
+  <TestSheet mode="plan" onSave={handleTestPlanned} onClose={() => (isAddingTest = false)} />
 {/if}
 
 {#if isAddingSavedCircuit}

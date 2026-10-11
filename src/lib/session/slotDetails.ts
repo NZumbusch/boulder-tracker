@@ -6,6 +6,7 @@ import { estimateSlotDuration } from '../planning/sessionDuration';
 import { paramLabel, formatCustomValue, customParam } from '../exercise/valueDefs';
 import { restSeconds } from '../exercise/rest';
 import { formatPerSet, hasPerSet } from '../exercise/setRows';
+import { plannedConditionsText, resultForSlot, resultText } from '../benchmarks/testSlot';
 
 /** A weight (or a weight per set: "60 / 70 / 80 kg") for display, in the chosen unit. */
 function weightText(v: ExerciseValues): string | undefined {
@@ -14,8 +15,17 @@ function weightText(v: ExerciseValues): string | undefined {
   return text === undefined ? undefined : `${text} ${unit}`;
 }
 
+/** A test slot in words: its result if one is recorded, else the conditions it is planned under. */
+function testSummary(slot: ExerciseSlot): string {
+  const type = trainingState.benchmarkTypes.find((t) => t.id === slot.test?.typeId);
+  const done = resultForSlot(trainingState.benchmarks, slot.id);
+  if (done) return resultText(done, type, trainingState.valueDefs, trainingState.units.weight);
+  return plannedConditionsText(slot, type, trainingState.valueDefs, trainingState.units.weight) || 'Result to record';
+}
+
 /** A one-line summary of what a slot asks for, for the collapsed rows. */
 export function slotSummary(slot: ExerciseSlot): string {
+  if (slot.test) return testSummary(slot);
   const v = slotValues(slot);
   const parts: string[] = [];
   const reps = formatPerSet(v, 'reps');
@@ -43,6 +53,15 @@ export function detailPairs(
   values?: ExerciseValues,
   { inGroup = false }: { inGroup?: boolean } = {},
 ): { label: string; value: string }[] {
+  if (slot.test) {
+    const type = trainingState.benchmarkTypes.find((t) => t.id === slot.test?.typeId);
+    const planned = plannedConditionsText(slot, type, trainingState.valueDefs, trainingState.units.weight);
+    const done = resultForSlot(trainingState.benchmarks, slot.id);
+    return [
+      ...(planned ? [{ label: 'Conditions', value: planned }] : []),
+      { label: 'Result', value: done ? resultText(done, type, trainingState.valueDefs, trainingState.units.weight) : 'Not recorded yet' },
+    ];
+  }
   const v = values ?? slot.prescribed ?? slotValues(slot);
   const params = slot.activeParameters
     ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters

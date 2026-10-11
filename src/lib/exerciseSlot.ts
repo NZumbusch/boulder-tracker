@@ -31,5 +31,6 @@ export function logNote(slot: ExerciseSlot): string {
  * hard-deleted once referenced).
  */
 export function slotTypeName(slot: ExerciseSlot, exerciseTypes: ExerciseTypeDef[]): string {
+  if (slot.test) return `Test: ${slot.test.name}`;
   return exerciseTypes.find(t => t.id === slot.typeId)?.name ?? 'Unknown';
 }

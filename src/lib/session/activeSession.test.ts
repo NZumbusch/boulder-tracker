@@ -17,6 +17,7 @@ import {
   skipSlot,
   unfinishSlot,
   addSlot,
+  addPlannedSlot,
   updateSlot,
   removeSlot,
   reorderSlots,
@@ -319,6 +320,14 @@ describe("adding an exercise mid-session", () => {
     expect(slotStatus(s.workout.exercises[1])).toBe("pending");
     expect(s.workout.exercises[1].prescribed).toEqual({ sets: 3, reps: 8, duration: 10 });
     expect(s.currentIndex).toBe(0);
+  });
+
+  it("a planned test goes in as the next thing to do, keeping what it is", () => {
+    const test: ExerciseSlot = { id: "t", typeId: "test", test: { typeId: "hang", name: "Max Hang", conditions: { edge: 20 } }, prescribed: { duration: 10 } };
+    const s = addPlannedSlot(threeSlotSession(), test);
+    expect(s.workout.exercises.map((e) => e.id)).toEqual(["a", "t", "b", "c"]);
+    expect(s.workout.exercises[1].test?.conditions).toEqual({ edge: 20 });
+    expect(slotStatus(s.workout.exercises[1])).toBe("pending");
   });
 
   it("finishing the focused exercise moves on to the one added as next", () => {

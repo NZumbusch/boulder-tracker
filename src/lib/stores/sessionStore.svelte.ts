@@ -17,6 +17,7 @@ import {
   skipSlot,
   unfinishSlot,
   addSlot,
+  addPlannedSlot,
   updateSlot,
   removeSlot,
   reorderSlots,
@@ -214,6 +215,11 @@ export class SessionStore {
     options: { pending?: boolean } = {},
   ) {
     this.#apply((s) => addSlot(s, slot, target, options));
+  }
+
+  /** A planned benchmark test, still to do, right after the exercise in focus. */
+  addPlannedExercise(slot: ExerciseSlot) {
+    this.#apply((s) => addPlannedSlot(s, slot));
   }
 
   updateExercise(
