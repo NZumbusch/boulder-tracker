@@ -8,6 +8,7 @@
    * external links are whole rows (a comfortable tap target) that say they open
    * in a new tab, and icons beside text are hidden from screen readers.
    */
+  import WhatsNew from './WhatsNew.svelte';
   import Icon from '@iconify/svelte';
   import { Capacitor } from '@capacitor/core';
   import { APP_INFO } from '../../lib/appInfo';
@@ -67,6 +68,9 @@
       {#each LINKS as link}{@render externalRow(link.label, link.hint, link.href)}{/each}
     </div>
   </section>
+
+  <!-- What's new, from git -->
+  <WhatsNew />
 
   <!-- 2. Help and feedback -->
   <section class="card space-y-3 animate-in fade-in" aria-labelledby="about-help">

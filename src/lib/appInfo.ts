@@ -5,6 +5,8 @@
  */
 declare const __APP_VERSION__: string | undefined;
 declare const __APP_COMMIT__: string | undefined;
+export interface ChangelogEntry { hash: string; date: string; title: string; detail?: string }
+declare const __CHANGELOG__: ChangelogEntry[] | undefined;
 
 export const APP_INFO = {
   name: "Boulder Tracker",
@@ -24,3 +26,6 @@ export const APP_INFO = {
   verifyUrl: "https://bouldertracker.nathanzumbusch.de/about.html#verify",
   aboutUrl: "https://bouldertracker.nathanzumbusch.de/about.html",
 } as const;
+
+/** What's new: the latest commits, newest first, as written at build time (empty outside git). */
+export const CHANGELOG: ChangelogEntry[] = typeof __CHANGELOG__ !== "undefined" && Array.isArray(__CHANGELOG__) ? __CHANGELOG__ : [];
