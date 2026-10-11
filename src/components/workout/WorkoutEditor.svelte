@@ -419,15 +419,15 @@
       {/each}
 
       <div class="flex border-2 border-dashed border-border rounded-card overflow-hidden">
-        <button onclick={() => formSlot = 'new'} class="flex-1 py-3.5 text-label font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5">
+        <button onclick={() => formSlot = 'new'} class="flex-1 py-3.5 text-label whitespace-nowrap font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5">
           <Icon icon="ic:baseline-plus" class="text-base" /> Add exercise
         </button>
         <div class="w-px bg-border"></div>
-        <button onclick={() => pickingCircuit = true} class="px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Add a circuit: new, or one you saved">
+        <button onclick={() => pickingCircuit = true} class="px-3 min-[360px]:px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Add a circuit: new, or one you saved">
           <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
         </button>
         <div class="w-px bg-border"></div>
-        <button onclick={() => isImportingAI = true} class="px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Build or log this session with an AI chat">
+        <button onclick={() => isImportingAI = true} class="px-3 min-[360px]:px-4 py-3.5 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center gap-1.5" title="Build or log this session with an AI chat">
           <Icon icon="ic:baseline-auto-awesome" class="text-base" /> Ask AI
         </button>
       </div>

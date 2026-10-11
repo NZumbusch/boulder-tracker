@@ -68,3 +68,16 @@ export function weekDayStrip(weekWorkouts: Workout[], today: DayOfWeek): WeekDay
     };
   });
 }
+
+/**
+ * Whether a planned session's day has gone by without it being logged or
+ * skipped: any day of an earlier week, or an earlier day of this one. The
+ * Plan list marks these instead of offering a plain "Start".
+ */
+export function isMissedSession(workout: Workout, currentWeekId: string, today: DayOfWeek): boolean {
+  if (workout.status !== "planned" || isSkippedWorkout(workout)) return false;
+  if (workout.weekId < currentWeekId) return true;
+  if (workout.weekId > currentWeekId) return false;
+  const day = workoutDay(workout);
+  return day !== undefined && isoDayIndex(day) < isoDayIndex(today);
+}

@@ -119,7 +119,8 @@
     if (current.length > 1) segments.push(current);
     return segments;
   }
-  const acwrRatioSegments = $derived(buildLineSegments(acwrOverlayPoints.map((p) => ({ x: p.x, y: p.ratioY }))));
+  // The line only joins ratios that mean something: after a break the ratio explodes or reads 0, and those points stay as hollow dots without a line through them.
+  const acwrRatioSegments = $derived(buildLineSegments(acwrOverlayPoints.map((p) => ({ x: p.x, y: p.sufficient ? p.ratioY : null }))));
 </script>
 
 <div id="section-load" class="scroll-mt-4 card space-y-3 relative" data-tour="analytics-load">

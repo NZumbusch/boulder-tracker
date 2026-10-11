@@ -13,6 +13,7 @@
   import { getBlocksForWeek, getDominantBlockForWeek } from '../../lib/planning/trainingBlocks';
   import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
   import type { Workout, Benchmark, DayOfWeek } from '../../lib/types';
+  import { isMissedSession } from '../../lib/planning/weekStatus';
   import { dragHandleZone, dragHandle, type DndEvent } from 'svelte-dnd-action';
   import Icon from "@iconify/svelte";
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
@@ -179,6 +180,9 @@
   function isEditedPlanB(w: Workout): boolean {
     return !!w.planB && editingPlanB?.altId === w.planB.altId && editingPlanB?.key === w.planB.occurrence;
   }
+  const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  /** A planned session whose day has gone by unlogged - marked, still startable. Sessions of the Plan B side that doesn't count aren't missed. */
+  const isMissed = (w: Workout) => counts(w) && isMissedSession(w, trainingState.currentWeekId, DAY_NAMES[trainingState.today.getDay()]);
   /** Whether a listed session counts toward the week (and reads at full strength). */
   function counts(w: Workout): boolean {
     if (!w.planB) return true;
@@ -719,6 +723,7 @@
                       <PainHeadsUp {workout} />
                     {/snippet}
                     {#snippet metaLead()}
+                      {#if isMissed(workout)}<span class="inline-flex align-middle px-1.5 py-px rounded-full text-[10px] font-semibold uppercase tracking-wide bg-danger/10 text-danger">Missed</span>{/if}
                       {#if workout.planB}
                         <!-- Which plan this session belongs to - only sessions the two plans don't share get one. On the meta line so a long title can't hide it. -->
                         <span class="inline-flex align-middle px-1.5 py-px rounded-full text-[10px] font-semibold uppercase tracking-wide {workout.planB.side === 'B' ? 'bg-primary/15 text-primary' : 'bg-surface-elevated text-content-muted'}">{planBMeta(workout)}</span>

@@ -17,7 +17,10 @@
 
   const lastDay = $derived(Math.min(endDay, today));
   const grid = $derived(heatmap(dailyLoadByDay(trainingState.workouts), lastDay));
-  const trainingDays = $derived(grid.flat().filter((d) => d.load > 0 && d.day <= lastDay).length);
+  // Half a year by default: a year's 53 columns leave ~5 px cells on a phone, too small to read or tap.
+  let wholeYear = $state(false);
+  const shown = $derived(wholeYear ? grid : grid.slice(-26));
+  const trainingDays = $derived(shown.flat().filter((d) => d.load > 0 && d.day <= lastDay).length);
 
   const LEVEL_CLASS = ['bg-surface-elevated', 'bg-primary/25', 'bg-primary/45', 'bg-primary/70', 'bg-primary'];
 
@@ -26,9 +29,9 @@
    * month is only labelled if it has room before the next label.
    */
   const monthLabels = $derived.by(() => {
-    const labels = grid.map((week, i) => {
+    const labels = shown.map((week, i) => {
       const d = new Date(week[0].day * 86400000);
-      const prev = i > 0 ? new Date(grid[i - 1][0].day * 86400000) : null;
+      const prev = i > 0 ? new Date(shown[i - 1][0].day * 86400000) : null;
       return !prev || prev.getUTCMonth() !== d.getUTCMonth()
         ? d.toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' }).slice(0, 3)
         : '';
@@ -53,9 +56,15 @@
 </script>
 
 <div id="section-heatmap" class="scroll-mt-4 card space-y-3">
-  <div>
+  <div class="flex items-start justify-between gap-3">
+   <div>
     <h3 class="text-section uppercase text-content-muted">Training Calendar</h3>
-    <p class="text-caption text-content-subtle mt-0.5">{trainingDays} training days in the year to {new Date(`${dayIndexToIso(lastDay)}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</p>
+    <p class="text-caption text-content-subtle mt-0.5">{trainingDays} training days in the {wholeYear ? 'year' : 'six months'} to {new Date(`${dayIndexToIso(lastDay)}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</p>
+   </div>
+   <div class="seg shrink-0" role="group" aria-label="Calendar length">
+     <button class="seg-item px-2 py-1 text-caption {!wholeYear ? 'bg-primary text-white' : ''}" aria-pressed={!wholeYear} onclick={() => (wholeYear = false)}>6 mo</button>
+     <button class="seg-item px-2 py-1 text-caption {wholeYear ? 'bg-primary text-white' : ''}" aria-pressed={wholeYear} onclick={() => (wholeYear = true)}>Year</button>
+   </div>
   </div>
 
   <div class="space-y-1" data-no-swipe>
@@ -67,7 +76,7 @@
       {/each}
     </div>
     <div class="flex gap-[2px]">
-      {#each grid as week, wi (wi)}
+      {#each shown as week, wi (wi)}
         <div class="flex-1 min-w-0 flex flex-col gap-[2px]">
           {#each week as cell (cell.day)}
             <button

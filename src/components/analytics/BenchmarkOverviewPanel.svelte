@@ -30,6 +30,9 @@
   const days = $derived(Array.from({ length: dayCount }, (_, i) => firstDay + i));
   const axisStep = $derived(sparseLabelStep(dayCount, 4));
   const fmtDay = (day: number) => new Date(`${dayIndexToIso(day)}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  /** One point sitting on the baseline is the first test itself - nothing to compare yet. */
+  const firstOnly = (s: { points: { pct: number }[] }) => s.points.length === 1 && s.points[0].pct === 0;
+  const allFirst = $derived(colored.length > 0 && colored.every(firstOnly));
   const signed = (pct: number) => `${pct >= 0 ? '+' : '−'}${Math.abs(Math.round(pct))}%`;
 </script>
 
@@ -39,6 +42,7 @@
     <p class="text-caption text-content-subtle mt-0.5">% change since your first test of each</p>
   </div>
 
+    {#if allFirst}<p class="text-caption text-content-subtle">Test again to see how each one changes - the chart compares against the first result.</p>{/if}
     <div class="flex flex-wrap gap-x-3 gap-y-1 min-h-[1.25rem]">
       {#each colored as s (s.typeKey)}
         <button
@@ -47,7 +51,7 @@
         >
           <span class="w-2 h-2 rounded-full" style="background: {s.color}"></span>
           <span class="text-content-muted">{s.name}</span>
-          <span class="text-content tabular-nums">{signed(s.latest.pct)}</span>
+          <span class="text-content tabular-nums">{firstOnly(s) ? 'first test' : signed(s.latest.pct)}</span>
         </button>
       {/each}
     </div>

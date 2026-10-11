@@ -21,7 +21,7 @@
 
   const categories = $derived(trainingState.analyticsCategories.filter((c) => !c.archived));
   let showRelative = $state(true);
-  let includePlanned = $state(true);
+  let includePlanned = $state(false);
   let hiddenCategoryIds = $state<Set<string>>(new Set());
   const visibleCategories = $derived(categories.filter((c) => !hiddenCategoryIds.has(c.id)));
 

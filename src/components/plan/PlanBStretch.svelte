@@ -41,7 +41,7 @@
   <div class="flex items-start gap-2">
     <Icon icon="ic:baseline-call-split" class="text-primary text-lg shrink-0 mt-0.5" />
     <div class="min-w-0 flex-1">
-      <p class="text-label font-semibold text-content truncate">{alt.label || 'Plan B'}</p>
+      <p class="text-label font-semibold text-content break-words">{alt.label || 'Plan B'}</p>
       <p class="text-caption text-content-subtle">
         {occurrenceDaysLabel(alt, occ.key)}{alt.repeatUntilWeekId ? ' · every week' : ''} ·
         {#if occ.decided}
