@@ -31,11 +31,14 @@
   import { WEEK_DAYS } from '../../lib/constants';
   import { hasProfile } from '../../lib/ai/coachNotes';
   import type { DayOfWeek } from '../../lib/types';
+  import { QUICK_ADAPTS, spanWeeks, withGoal, loadLastRequest, saveLastRequest } from '../../lib/ai/quickAdapt';
+  import { loadChangeLog, appendChange } from '../../lib/ai/changeLog';
+  import { markCheckinDone } from '../../lib/home/checkin';
 
   /** "organise" is a Change plan flavour (same paste and review) that only regroups exercises and categories. */
   type CoachMode = AIPromptMode | 'organise';
 
-  let { onClose, initialMode = 'generate' }: { onClose: () => void; initialMode?: CoachMode } = $props();
+  let { onClose, initialMode = 'generate', preset }: { onClose: () => void; initialMode?: CoachMode; /** A quick-adapt id (`QUICK_ADAPTS`) applied on open - the weekly check-in card uses 'checkin'. */ preset?: string } = $props();
 
   // svelte-ignore state_referenced_locally
   let mode = $state<CoachMode>(initialMode);
@@ -45,6 +48,30 @@
   let startWeek = $state(trainingState.currentWeekId);
   let endWeek = $state(trainingState.currentWeekId);
   let goal = $state('');
+  /** The log of applied changes the prompt's "since the last plan" part reads. */
+  const changeLog = loadChangeLog();
+  const lastRequest = loadLastRequest();
+
+  /** The weekly check-in was the starting point - copying the prompt counts it as done for this week. */
+  let usedCheckin = false;
+  function applyQuick(id: string) {
+    const q = QUICK_ADAPTS.find((x) => x.id === id);
+    if (!q) return;
+    const weeks = spanWeeks(q.span, trainingState.currentWeekId);
+    startWeek = weeks.start;
+    endWeek = weeks.end;
+    goal = withGoal(goal, q.goal);
+    if (id === 'checkin') usedCheckin = true;
+  }
+
+  function applyLast() {
+    if (!lastRequest) return;
+    startWeek = lastRequest.start;
+    endWeek = lastRequest.end;
+    goal = lastRequest.goal;
+  }
+  // svelte-ignore state_referenced_locally
+  if (preset) applyQuick(preset);
   /** Analyze/Context: the prompt is on the clipboard - show the "now paste it" note. */
   let copiedFor = $state<CoachMode | null>(null);
   /** Change plan: brief "Copied" feedback on the paste step's copy button. */
@@ -112,7 +139,7 @@
   const prompt = $derived(
     mode === 'organise'
       ? buildOrganisePrompt(trainingState, goal)
-      : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined }),
+      : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog }),
   );
   const tokens = $derived(estimateTokens(prompt));
 
@@ -124,6 +151,8 @@
       await showAlert('Copy failed', 'Your browser blocked the clipboard: ' + (err?.message ?? 'unknown error'));
       return;
     }
+    if (mode === 'generate') saveLastRequest({ goal, start: startWeek, end: endWeek });
+    if (usedCheckin) markCheckinDone(trainingState.currentWeekId);
     if (flows) {
       promptCopied = true;
       step = 'paste';
@@ -213,6 +242,7 @@
       // Re-plan once more for the final writes, so ids are fresh and nothing stale is applied.
       const final = planWithSelection(changeSet, trainingState.plannerState, plan.selected);
       await trainingState.applyPlanWrites(final.writes);
+      appendChange({ goal, weeks: selectedWeekIds, lines: final.items.filter((i) => final.selected.has(i.id)).map((i) => i.title) });
       onClose();
     } catch (err: any) {
       await showAlert('Apply failed', err?.message || 'Something went wrong applying the changes.');
@@ -317,6 +347,21 @@
               <p class="text-caption text-danger flex items-center gap-1"><Icon icon="ic:baseline-error-outline" class="text-sm" /> "From" has to be before "To".</p>
             {/if}
           </div>
+
+          {#if mode === 'generate'}
+            <!-- Usual requests in one tap: sets the weeks and the request, both still editable. -->
+            <div class="space-y-1.5">
+              <span class="text-label text-content-subtle px-1 block">Quick start</span>
+              <div class="flex flex-wrap gap-1.5">
+                {#each QUICK_ADAPTS as q (q.id)}
+                  <button onclick={() => applyQuick(q.id)} class="chip text-content-muted hover:text-content transition-colors">{q.label}</button>
+                {/each}
+                {#if lastRequest}
+                  <button onclick={applyLast} class="chip text-primary border-primary/30 hover:bg-primary/10 transition-colors" title={lastRequest.goal}>Same as last time</button>
+                {/if}
+              </div>
+            </div>
+          {/if}
 
           <label class="block space-y-1.5">
             <span class="text-label text-content-subtle px-1 block">{mode === 'generate' ? 'What do you want?' : 'What were you going for?'}</span>

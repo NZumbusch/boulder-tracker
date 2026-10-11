@@ -1,3 +1,4 @@
+import type { InsightInputs } from "./analytics/insights";
 import { attachOrphanLogs, checkIn as checkInPainIssue } from './pain/issues';
 import { openWorkout } from './workoutModal.svelte';
 import { toast, showUndo } from './toast.svelte';
@@ -398,6 +399,34 @@ class TrainingState {
   get acwrZones() {
     const t = this.preferencesStore.tunables;
     return { sweetMin: num(t, 'acwr.sweetMin'), caution: num(t, 'acwr.caution'), highRisk: num(t, 'acwr.highRisk') };
+  }
+  /**
+   * Everything `buildInsights` reads, from the current data and settings -
+   * the Insights tab and the AI prompt's "since the last plan" section use
+   * the same inputs, so the athlete and the AI see the same findings.
+   */
+  insightInputs(): InsightInputs {
+    return {
+      asOf: this.today,
+      workouts: this.workouts,
+      workoutsForWeek: (weekId) => this.getWorkoutsForWeek(weekId),
+      exerciseTypes: this.exerciseTypes,
+      analyticsCategories: this.analyticsCategories,
+      benchmarks: this.benchmarks,
+      benchmarkTypes: this.benchmarkTypes,
+      valueDefs: this.valueDefs,
+      weightUnit: this.units.weight,
+      dailyMetrics: this.dailyMetrics,
+      ascents: this.outdoorAscents,
+      config: {
+        acwrZones: this.acwrZones,
+        fatigueModel: this.fatigueModel,
+        staleDays: this.tunable('insights.staleDays'),
+        adherenceLow: this.tunable('insights.adherenceLow'),
+        hrvDip: this.tunable('readiness.hrvDip'),
+        sleepLow: this.tunable('readiness.sleepLow'),
+      },
+    };
   }
   get fatigueHalfLife() { return num(this.preferencesStore.tunables, 'fatigue.halfLifeDays'); }
   /** Half-life and softening for accumulated fatigue - see `computeFatigueDecay`. */

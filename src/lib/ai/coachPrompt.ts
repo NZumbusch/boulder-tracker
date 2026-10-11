@@ -1,3 +1,6 @@
+import { buildSinceLastPlan } from "./sinceLastPlan";
+import type { AiChangeEntry } from "./changeLog";
+import type { InsightInputs } from "../analytics/insights";
 import { buildAIContextProfile, type AIContextProfile, type AIContextSource, type AIPromptMode, type ModelOptions } from "./context";
 import { buildPlanContext, type PlanContextInput } from "./planContext";
 import type { AISharingPreferences } from "../preferences/migrate";
@@ -117,10 +120,12 @@ export interface CoachPromptInput {
   history?: AIHistoryWindow;
   /** About me, standing goal and coach notes (`renderCoachMemory`) - empty when there are none or sharing is off. */
   coachMemory?: string;
+  /** What happened since the plan was last changed (`buildSinceLastPlan`) - empty when there's nothing yet. */
+  sinceLast?: string;
 }
 
 export function buildCoachPrompt(input: CoachPromptInput): string {
-  const { mode, profile, targetWeekIds, goal, planContext, history, coachMemory } = input;
+  const { mode, profile, targetWeekIds, goal, planContext, history, coachMemory, sinceLast } = input;
   const profileText = renderProfileSections(profile, mode, history);
   // The coaching memory comes first: it's what every AI coach should know
   // before reading the data. Only a change set can update it.
@@ -131,7 +136,7 @@ export function buildCoachPrompt(input: CoachPromptInput): string {
   if (mode === "context") {
     return `${memory}Here is my condensed training profile (no specific question attached - I'll ask you directly after pasting this):
 
-${profileText}`;
+${profileText}${sinceLast ? `\n\n${sinceLast}` : ""}`;
   }
 
   if (mode === "generate") {
@@ -144,7 +149,7 @@ ${goal.trim() || "No specific goals provided. Optimize for general climbing perf
 
 My training profile:
 ${profileText}
-
+${sinceLast ? `\n${sinceLast}\n` : ""}
 My current plan:
 ${planContext ?? ""}
 
@@ -177,6 +182,8 @@ export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "target
   readinessConfig?: ModelOptions["readiness"];
   fatigueHalfLife?: number;
   fatigueModel?: ModelOptions["fatigueModel"];
+  /** The same inputs the Insights tab reads - with them (and a change log) the prompt carries "since the last plan". */
+  insightInputs?: () => InsightInputs;
 };
 
 /**
@@ -186,7 +193,7 @@ export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "target
  */
 export function buildCoachPromptFor(
   source: CoachPromptSource,
-  opts: { mode: AIPromptMode; targetWeekIds: string[]; goal: string; history: AIHistoryWindow; asOf?: Date; uncertainDays?: DayOfWeek[] },
+  opts: { mode: AIPromptMode; targetWeekIds: string[]; goal: string; history: AIHistoryWindow; asOf?: Date; uncertainDays?: DayOfWeek[]; changeLog?: AiChangeEntry[] },
 ): string {
   const { mode, goal, history } = opts;
   const targetWeekIds = mode === "context" ? [] : opts.targetWeekIds;
@@ -218,5 +225,12 @@ export function buildCoachPromptFor(
     : undefined;
   // "coachNotes" is a newer sharing switch - absent in older saved preferences means on.
   const coachMemory = source.aiSharing.coachNotes !== false ? renderCoachMemory(source.athleteProfile, source.coachNotes ?? []) : "";
-  return buildCoachPrompt({ mode, profile, targetWeekIds, goal, planContext, history, coachMemory });
+  const sinceLast = (mode === "generate" || mode === "context") && source.insightInputs
+    ? buildSinceLastPlan({
+        inputs: source.insightInputs(),
+        changeLog: opts.changeLog ?? [],
+        share: { readinessMetrics: source.aiSharing.readinessMetrics, outdoorAscents: source.aiSharing.outdoorAscents },
+      })
+    : "";
+  return buildCoachPrompt({ mode, profile, targetWeekIds, goal, planContext, history, coachMemory, sinceLast });
 }

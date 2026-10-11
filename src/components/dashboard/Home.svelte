@@ -2,6 +2,7 @@
   import UpdateCard from '../update/UpdateCard.svelte';
   import AndroidAppCard from './AndroidAppCard.svelte';
   import PainCheckInCard from './home/PainCheckInCard.svelte';
+  import CheckinCard from './home/CheckinCard.svelte';
   import { updater } from '../../lib/update/updater.svelte';
   /**
    * Home: a header (date, phase and block week, quick log, settings) and
@@ -144,6 +145,7 @@
   {#if updater.showBanner}<UpdateCard compact />{/if}
   <AndroidAppCard />
   <PainCheckInCard />
+  <CheckinCard />
 
   {#each trainingState.homeSections as section (section.id)}
     {#if section.visible && !isHiddenWhileNew(section.id, trainingState.simpleHome, hasData)}

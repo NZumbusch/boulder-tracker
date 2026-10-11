@@ -8,31 +8,10 @@
   import Icon from '@iconify/svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { buildInsights, INSIGHT_GROUPS, type Insight, type InsightLink, type InsightTone } from '../../lib/analytics/insights';
-  import { DEFAULT_FATIGUE_MODEL } from '../../lib/analytics/readiness';
 
   let { onOpen }: { onOpen: (link: InsightLink) => void } = $props();
 
-  const insights = $derived(buildInsights({
-    asOf: trainingState.today,
-    workouts: trainingState.workouts,
-    workoutsForWeek: (weekId) => trainingState.getWorkoutsForWeek(weekId),
-    exerciseTypes: trainingState.exerciseTypes,
-    analyticsCategories: trainingState.analyticsCategories,
-    benchmarks: trainingState.benchmarks,
-    benchmarkTypes: trainingState.benchmarkTypes,
-    valueDefs: trainingState.valueDefs,
-    weightUnit: trainingState.units.weight,
-    dailyMetrics: trainingState.dailyMetrics,
-    ascents: trainingState.outdoorAscents,
-    config: {
-      acwrZones: trainingState.acwrZones,
-      fatigueModel: trainingState.fatigueModel ?? DEFAULT_FATIGUE_MODEL,
-      staleDays: trainingState.tunable('insights.staleDays'),
-      adherenceLow: trainingState.tunable('insights.adherenceLow'),
-      hrvDip: trainingState.tunable('readiness.hrvDip'),
-      sleepLow: trainingState.tunable('readiness.sleepLow'),
-    },
-  }));
+  const insights = $derived(buildInsights(trainingState.insightInputs()));
   const groups = $derived(INSIGHT_GROUPS.map((g) => ({ ...g, items: insights.filter((i) => i.group === g.id) })).filter((g) => g.items.length > 0));
 
   const TONE: Record<InsightTone, { dot: string; label: string }> = {
