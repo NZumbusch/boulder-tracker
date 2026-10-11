@@ -34,7 +34,7 @@
   import { baseLoad, taperPlan } from '../../lib/goals/taper';
   import { ratingScale } from '../../lib/analytics/insights';
   import type { DayOfWeek } from '../../lib/types';
-  import { QUICK_ADAPTS, spanWeeks, withGoal, loadLastRequest, saveLastRequest } from '../../lib/ai/quickAdapt';
+  import { QUICK_ADAPTS, spanWeeks, withGoal, toggleGoal, hasGoal, loadLastRequest, saveLastRequest } from '../../lib/ai/quickAdapt';
   import { loadChangeLog, appendChange } from '../../lib/ai/changeLog';
   import { markCheckinDone } from '../../lib/home/checkin';
   import AiSendSheet from './AiSendSheet.svelte';
@@ -70,8 +70,9 @@
     const weeks = spanWeeks(q.span, trainingState.currentWeekId);
     startWeek = weeks.start;
     endWeek = weeks.end;
-    goal = withGoal(goal, q.goal);
-    if (id === 'checkin') usedCheckin = true;
+    const wasOn = hasGoal(goal, q.goal);
+    goal = toggleGoal(goal, q.goal, QUICK_ADAPTS.map((x) => x.goal));
+    if (id === 'checkin' && !wasOn) usedCheckin = true;
   }
 
   function applyLast() {
@@ -447,7 +448,7 @@
               <span class="text-label text-content-subtle px-1 block">Quick start</span>
               <div class="flex flex-wrap gap-1.5">
                 {#each QUICK_ADAPTS as q (q.id)}
-                  <button onclick={() => applyQuick(q.id)} class="chip text-content-muted hover:text-content transition-colors">{q.label}</button>
+                  <button onclick={() => applyQuick(q.id)} class="chip transition-colors {hasGoal(goal, q.goal) ? 'text-primary border-primary/40 bg-primary/10' : 'text-content-muted hover:text-content'}" aria-pressed={hasGoal(goal, q.goal)}>{q.label}</button>
                 {/each}
                 {#if lastRequest}
                   <button onclick={applyLast} class="chip text-primary border-primary/30 hover:bg-primary/10 transition-colors" title={lastRequest.goal}>Same as last time</button>
