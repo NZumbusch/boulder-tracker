@@ -20,7 +20,7 @@
 
 <div class="space-y-4">
   <NotificationSettings />
-  <TunablesSettings topic="layout" title="Nudges in the app" ids={['progress.retestWeeks', 'alerts.backupDays']} />
+  <TunablesSettings topic="layout" title="Nudges in the app" ids={['progress.retestWeeks', 'alerts.backupDays', 'alerts.insightNotify', 'alerts.insightHour']} />
   <div class="card py-1 divide-y divide-border animate-in fade-in">
     <p class="text-caption text-content-subtle px-1 pt-3 pb-2 leading-relaxed">{native ? 'These reminders sit with the feature they belong to:' : 'Reminders on the phone need the Android app. These belong to a feature:'}</p>
     {#each elsewhere as e (e.page)}

@@ -74,6 +74,8 @@ import type { TextScale, MotionPreference } from './preferences/migrate';
 import { syncFatigueReminders } from './notifications/fatigueReminder';
 import { syncDailyMetricsReminder } from './notifications/dailyMetricsReminder';
 import { syncPainReminder } from './notifications/painReminder';
+import { syncInsightAlert } from './notifications/insightAlert';
+import { buildInsights } from './analytics/insights';
 import { cancelRemindersOfType } from './notifications/shared';
 import { syncPlanBReminders, type PlanBReminderInput } from './notifications/planBReminder';
 import { outdoorDayHints, hintText } from './weather/planBHint';
@@ -569,6 +571,12 @@ class TrainingState {
           await syncPainReminder(this.metricsStore.painIssues, this.metricsStore.painLogs, this.preferencesStore.painCheckIns, new Date(), this.tunable('day.startHour'));
         } catch (err) {
           console.error('Failed to sync the pain check-in reminder:', err);
+        }
+        try {
+          const notify = flag(this.preferencesStore.tunables, 'alerts.insightNotify');
+          await syncInsightAlert(notify ? buildInsights(this.insightInputs()) : [], notify, this.tunable('alerts.insightHour'), new Date(), this.tunable('day.startHour'));
+        } catch (err) {
+          console.error('Failed to sync the heads-up notification:', err);
         }
         if (this.preferencesStore.planBReminderEnabled) {
           try {
