@@ -17,6 +17,7 @@
   import { buildCoachPromptFor, estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
   import { getWeekIdRange, incrementWeekId } from '../../lib/dateUtils';
   import AIHistoryPicker from './AIHistoryPicker.svelte';
+  import { loadCompact } from '../../lib/ai/promptSize';
   import Icon from "@iconify/svelte";
 
   const CATEGORIES: { id: keyof AISharingPreferences; label: string; description: string }[] = [
@@ -38,7 +39,7 @@
     for (let i = 0; i < 3; i++) end = incrementWeekId(end);
     return getWeekIdRange(trainingState.currentWeekId, end);
   });
-  const planTokens = $derived(estimateTokens(buildCoachPromptFor(trainingState, { mode: 'generate', targetWeekIds: nextFourWeeks, goal: '', history: trainingState.aiHistory })));
+  const planTokens = $derived(estimateTokens(buildCoachPromptFor(trainingState, { mode: 'generate', targetWeekIds: nextFourWeeks, goal: '', history: trainingState.aiHistory, compact: loadCompact() })));
   const contextTokens = $derived(estimateTokens(buildCoachPromptFor(trainingState, { mode: 'context', targetWeekIds: [], goal: '', history: trainingState.aiHistory })));
 </script>
 
