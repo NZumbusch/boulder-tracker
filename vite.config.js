@@ -3,6 +3,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
 import { execFileSync } from 'node:child_process'
 import { appVersion } from './scripts/app-version.mjs'
+import { readChangelog } from './scripts/changelog.mjs'
 
 // "1.2.9" - see scripts/app-version.mjs. Outside a git checkout (a zip of
 // the source) there is nothing to count, so it says so.
@@ -20,6 +21,8 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(versionName()),
     __APP_COMMIT__: JSON.stringify(commitHash()),
+    // What's new in About: the latest commits, from git (scripts/changelog.mjs).
+    __CHANGELOG__: JSON.stringify(readChangelog()),
   },
   plugins: [
     svelte(),

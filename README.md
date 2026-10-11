@@ -89,6 +89,12 @@ npm run icons    # regenerate the offline icon bundle after using a new icon
 
 Icons are bundled rather than fetched from the Iconify API, so the app works offline. A test fails if an icon is used but not bundled; `npm run icons` fixes it.
 
+**What's new** (Settings → About) is written from git when the app is built: each commit is a header (its subject up to the first colon or " - ") that opens to its detail. To word the detail for the people using the app, add a `Changelog:` line to the commit message (it may continue on indented lines), or `Changelog: -` to keep a commit out:
+
+```bash
+git commit -m "Fix the timer" -m "Changelog: The timer no longer jumps after a pause."
+```
+
 ## Android
 
 Needs Android Studio.
