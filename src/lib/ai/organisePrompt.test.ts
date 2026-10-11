@@ -40,6 +40,23 @@ describe("buildOrganisePrompt", () => {
     expect(only).not.toContain("Pigeon pose");
     expect(only).not.toContain("Core A");
   });
+  it("lists custom fields, tests, goals and pain issues with what matters for each", () => {
+    const more = {
+      ...source,
+      today: "2026-10-01",
+      valueDefs: [{ id: "edge", name: "Edge", kind: "number", unit: "mm" }],
+      benchmarkTypes: [{ id: "mh", name: "Max hang", unit: "kg", group: "Fingers" }],
+      benchmarks: [{ id: "r1", typeId: "mh", date: "2026-09-01", value: 1 }],
+      goals: [{ id: "g", kind: "competition", name: "Spring comp", date: "2026-03-01" }],
+      painIssues: [{ id: "p", bodyPart: "Finger", startDate: "2026-05-01" }],
+    } as never;
+    const p = buildOrganisePrompt(more, "", ["values", "tests", "goals", "pain"]);
+    expect(p).toContain('{"name":"Edge","kind":"number","unit":"mm","onExercises":0,"inTests":0}');
+    expect(p).toContain('"results":1,"lastResult":"2026-09-01"');
+    expect(p).toContain('"status":"over"');
+    expect(p).toContain('"status":"open"');
+    expect(p).not.toContain("Pigeon pose");
+  });
   it("the reply shape it asks for is a valid change set", () => {
     const reply = { summary: "x", categories: [{ action: "add", name: "Mobility" }], exerciseTypes: [{ action: "edit", name: "Pigeon pose", categoryName: "Mobility", group: "Stretching" }] };
     expect(validateChangeSet(reply).valid).toBe(true);

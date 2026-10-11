@@ -153,6 +153,19 @@
 
   /** What Organise may tidy: the athlete's pick, everything by default. */
   let organiseAreas = $state<OrganiseArea[]>(ORGANISE_AREAS.map((a) => a.id));
+  /** Areas that hold health or personal data stay out of the prompt when AI Sharing says so. */
+  const blockedAreas = $derived<Partial<Record<OrganiseArea, string>>>({
+    ...(trainingState.aiSharing.painLogs ? {} : { pain: 'Off in AI Sharing' }),
+    ...(trainingState.aiSharing.competitions ? {} : { goals: 'Off in AI Sharing' }),
+    ...(trainingState.aiSharing.coachNotes === false ? { notes: 'Off in AI Sharing' } : {}),
+  });
+  const effectiveAreas = $derived(organiseAreas.filter((a) => !blockedAreas[a]));
+  const organiseSource = $derived({
+    exerciseTypes: trainingState.exerciseTypes, analyticsCategories: trainingState.analyticsCategories, workouts: trainingState.workouts,
+    circuits: trainingState.circuits, phaseDefs: trainingState.phaseDefs, trainingBlocks: trainingState.trainingBlocks, templates: trainingState.templates,
+    coachNotes: trainingState.coachNotes, valueDefs: trainingState.valueDefs, benchmarkTypes: trainingState.benchmarkTypes, benchmarks: trainingState.benchmarks,
+    goals: trainingState.goals, painIssues: trainingState.painIssues, today: trainingState.todayIso,
+  });
   function toggleArea(id: OrganiseArea) {
     organiseAreas = organiseAreas.includes(id) ? organiseAreas.filter((a) => a !== id) : ORGANISE_AREAS.map((a) => a.id).filter((a) => a === id || organiseAreas.includes(a));
   }
@@ -169,7 +182,7 @@
   /** The prompt exactly as it will be copied - also what the size shown is measured on. */
   const prompt = $derived(
     mode === 'organise'
-      ? buildOrganisePrompt(trainingState, goal, organiseAreas)
+      ? buildOrganisePrompt(organiseSource, goal, effectiveAreas)
       : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog, compact }),
   );
   const tokens = $derived(estimateTokens(prompt));
@@ -204,7 +217,7 @@
 
   async function copyPrompt() {
     if (mode !== 'context' && mode !== 'organise' && !rangeValid) return;
-    if (mode === 'organise' && organiseAreas.length === 0) return;
+    if (mode === 'organise' && effectiveAreas.length === 0) return;
     try {
       await navigator.clipboard.writeText(prompt);
     } catch (err: any) {
@@ -266,6 +279,10 @@
     { id: 'week', label: 'Weeks', icon: 'ic:baseline-calendar-month' },
     { id: 'planB', label: 'Plan B', icon: 'ic:baseline-call-split' },
     { id: 'coach', label: 'Coach notes', icon: 'ic:baseline-psychology' },
+    { id: 'valueType', label: 'Custom fields', icon: 'ic:baseline-tune' },
+    { id: 'benchmark', label: 'Benchmark tests', icon: 'ic:baseline-speed' },
+    { id: 'goal', label: 'Goals', icon: 'ic:baseline-flag' },
+    { id: 'pain', label: 'Pain issues', icon: 'ic:baseline-healing' },
   ];
 
   function toggle(id: string) {
@@ -410,18 +427,20 @@
             {@render heading('What may the AI tidy?', 'Pick any')}
             <div class="grid grid-cols-2 gap-2">
               {#each ORGANISE_AREAS as a (a.id)}
-                {@const on = organiseAreas.includes(a.id)}
+                {@const blocked = blockedAreas[a.id]}
+                {@const on = organiseAreas.includes(a.id) && !blocked}
                 <button
                   onclick={() => toggleArea(a.id)}
+                  disabled={!!blocked}
                   aria-pressed={on}
-                  class="p-3 rounded-card border text-left transition-colors {on ? 'border-primary/40 bg-primary/10' : 'border-border bg-surface/40 text-content-subtle hover:text-content'}"
+                  class="p-3 rounded-card border text-left transition-colors disabled:opacity-50 {on ? 'border-primary/40 bg-primary/10' : 'border-border bg-surface/40 text-content-subtle hover:text-content'}"
                 >
                   <span class="text-label block {on ? 'text-primary' : ''}">{a.label}</span>
-                  <span class="text-caption text-content-subtle block leading-snug">{a.hint}</span>
+                  <span class="text-caption text-content-subtle block leading-snug">{blocked ?? a.hint}</span>
                 </button>
               {/each}
             </div>
-            {#if organiseAreas.length === 0}
+            {#if effectiveAreas.length === 0}
               <p class="text-caption text-danger flex items-center gap-1"><Icon icon="ic:baseline-error-outline" class="text-sm" /> Pick at least one.</p>
             {/if}
           </section>
@@ -705,7 +724,7 @@
         <div class="flex-1"></div>
         <button
           onclick={copyPrompt}
-          disabled={(mode !== 'context' && mode !== 'organise' && !rangeValid) || (mode === 'organise' && organiseAreas.length === 0)}
+          disabled={(mode !== 'context' && mode !== 'organise' && !rangeValid) || (mode === 'organise' && effectiveAreas.length === 0)}
           class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
         >
           <Icon icon={copiedFor === mode ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-base" />

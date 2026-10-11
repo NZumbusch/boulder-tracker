@@ -34,6 +34,8 @@ import type {
   PhaseDef,
   PlanAlternative,
   CoachNote,
+  GoalEvent,
+  PainIssue,
   TrainingBlock,
   WeekNote,
   WeekOverride,
@@ -77,12 +79,15 @@ export interface PlannerState {
   /** The benchmark tests a session may schedule, and the value types their fields use. */
   benchmarkTypes?: BenchmarkTypeDef[];
   valueDefs?: ValueDef[];
+  /** Competitions and trips, and pain issues - for the tidy-up sections. */
+  goals?: GoalEvent[];
+  painIssues?: PainIssue[];
   today?: string;
   /** For "this is in the past" warnings. */
   currentWeekId: string;
 }
 
-export type ChangeSection = "category" | "exercise" | "circuit" | "phase" | "week" | "planB" | "coach";
+export type ChangeSection = "category" | "exercise" | "circuit" | "phase" | "week" | "planB" | "coach" | "valueType" | "benchmark" | "goal" | "pain";
 
 export interface ChangeItem {
   id: string;
@@ -118,6 +123,11 @@ export interface PlanWrites {
   circuits?: Circuit[];
   /** The whole analytics-category list, when it changed. */
   analyticsCategories?: AnalyticsCategory[];
+  /** The whole list of custom value types / benchmark tests / goals / pain issues, when it changed. */
+  valueDefs?: ValueDef[];
+  benchmarkTypes?: BenchmarkTypeDef[];
+  goals?: GoalEvent[];
+  painIssues?: PainIssue[];
   weeks: WeekWrite[];
   weekNotes: WeekNote[];
 }
@@ -933,6 +943,164 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     ctx.changed.circuits = true;
   });
 
+  // --- 1c. Tidying the rest of the saved data: value types, benchmark tests, goals, pain issues ---
+  // Each edits one record in place (ids and everything recorded against them stay), and every change is its own tickable item.
+  const tidyItem = (id: string, section: ChangeSection): ChangeItem => {
+    const item: ChangeItem = { id, section, title: "", details: [], warnings: [], errors: [], dependsOn: [] };
+    items.push(item);
+    return item;
+  };
+  const sameName = (a: string, b: string) => normalizeName(a) === normalizeName(b);
+  const pickLive = <T extends { name: string; archived?: boolean }>(list: T[], name: string): T | undefined => list.find((x) => sameName(x.name, name) && !x.archived) ?? list.find((x) => sameName(x.name, name));
+
+  let valueDefs = (state.valueDefs ?? []).map((v) => ({ ...v }));
+  let valueDefsChanged = false;
+  (set.valueTypes ?? []).forEach((change, i) => {
+    const id = `valuetype-${i}`;
+    const item = tidyItem(id, "valueType");
+    const existing = pickLive(valueDefs, change.name);
+    item.title = `${change.action === "archive" ? "archive" : "~"} value ${change.name}`;
+    if (!existing) { item.errors.push(`No value type called "${change.name}".`); return; }
+    let next: ValueDef;
+    if (change.action === "archive") {
+      if (existing.archived) { item.errors.push(`"${existing.name}" is already archived.`); return; }
+      item.details.push("Hidden from the pickers; everything recorded with it stays.");
+      next = { ...existing, archived: true };
+    } else {
+      next = { ...existing };
+      if (change.rename && change.rename !== existing.name) {
+        if (valueDefs.some((v) => v.id !== existing.id && !v.archived && sameName(v.name, change.rename!))) item.errors.push(`Can't rename to "${change.rename}" - that name is taken.`);
+        item.details.push(`name ${existing.name} → ${change.rename}`);
+        next.name = change.rename;
+      }
+      if (change.unit !== undefined && change.unit !== (existing.unit ?? "")) {
+        if (existing.kind === "choice") item.errors.push(`"${existing.name}" is a pick-list - it has no unit.`);
+        else if (existing.measure) item.errors.push(`"${existing.name}" is a ${existing.measure} the app converts itself - its unit isn't changed here.`);
+        else {
+          item.details.push(`unit ${show(existing.unit)} → ${show(change.unit)}`);
+          next.unit = change.unit;
+        }
+      }
+      if (item.details.length === 0 && item.errors.length === 0) item.warnings.push("Nothing changes.");
+    }
+    if (isOn(id) && item.errors.length === 0) {
+      valueDefs = valueDefs.map((v) => (v.id === existing.id ? next : v));
+      valueDefsChanged = true;
+    }
+  });
+
+  let benchmarkTypes = (state.benchmarkTypes ?? []).map((b) => ({ ...b }));
+  let benchmarkTypesChanged = false;
+  (set.benchmarkTypes ?? []).forEach((change, i) => {
+    const id = `benchmark-${i}`;
+    const item = tidyItem(id, "benchmark");
+    const existing = pickLive(benchmarkTypes, change.name);
+    item.title = `${change.action === "archive" ? "archive" : "~"} test ${change.name}`;
+    if (!existing) { item.errors.push(`No benchmark test called "${change.name}".`); return; }
+    let next: BenchmarkTypeDef;
+    if (change.action === "archive") {
+      if (existing.archived) { item.errors.push(`"${existing.name}" is already archived.`); return; }
+      item.details.push("Hidden from the test list; its results stay in your history.");
+      next = { ...existing, archived: true };
+    } else {
+      next = { ...existing };
+      if (change.rename && change.rename !== existing.name) {
+        if (benchmarkTypes.some((b) => b.id !== existing.id && !b.archived && sameName(b.name, change.rename!))) item.errors.push(`Can't rename to "${change.rename}" - that name is taken.`);
+        item.details.push(`name ${existing.name} → ${change.rename}`);
+        next.name = change.rename;
+      }
+      if (change.group && change.group !== existing.group) {
+        item.details.push(`folder ${show(existing.group)} → ${change.group}`);
+        next.group = change.group;
+      }
+      if (change.protocol && change.protocol !== existing.protocol) {
+        item.details.push(`how to do it → "${change.protocol}"`);
+        next.protocol = change.protocol;
+      }
+      if (item.details.length === 0 && item.errors.length === 0) item.warnings.push("Nothing changes.");
+    }
+    if (isOn(id) && item.errors.length === 0) {
+      benchmarkTypes = benchmarkTypes.map((b) => (b.id === existing.id ? next : b));
+      benchmarkTypesChanged = true;
+    }
+  });
+
+  let goals = (state.goals ?? []).map((g) => ({ ...g }));
+  let goalsChanged = false;
+  const goalsToday = state.today ?? new Date().toISOString().slice(0, 10);
+  (set.goals ?? []).forEach((change, i) => {
+    const id = `goal-${i}`;
+    const item = tidyItem(id, "goal");
+    item.title = `${change.action === "remove" ? "−" : "~"} ${change.name}`;
+    const hits = goals.filter((g) => sameName(g.name, change.name) && (!change.date || g.date === change.date));
+    if (hits.length === 0) { item.errors.push(`No goal called "${change.name}"${change.date ? ` on ${change.date}` : ""}.`); return; }
+    if (hits.length > 1) { item.errors.push(`${hits.length} goals are called "${change.name}" - give the "date".`); return; }
+    const existing = hits[0];
+    let next: GoalEvent | null;
+    if (change.action === "remove") {
+      if ((existing.endDate ?? existing.date) >= goalsToday) { item.errors.push(`${existing.name} hasn't happened yet (${existing.date}) - only past goals are removed.`); return; }
+      item.details.push(`${existing.kind === "trip" ? "Trip" : "Competition"} on ${existing.date}, over.`);
+      next = null;
+    } else {
+      next = { ...existing };
+      if (change.rename && change.rename !== existing.name) {
+        item.details.push(`name ${existing.name} → ${change.rename}`);
+        next.name = change.rename;
+      }
+      if (change.notes !== undefined && change.notes !== (existing.notes ?? "")) {
+        item.details.push(`notes → "${change.notes}"`);
+        next.notes = change.notes;
+      }
+      if (item.details.length === 0) item.warnings.push("Nothing changes.");
+    }
+    if (isOn(id) && item.errors.length === 0) {
+      goals = next ? goals.map((g) => (g.id === existing.id ? next! : g)) : goals.filter((g) => g.id !== existing.id);
+      goalsChanged = true;
+    }
+  });
+
+  let painIssues = (state.painIssues ?? []).map((p) => ({ ...p }));
+  let painIssuesChanged = false;
+  (set.painIssues ?? []).forEach((change, i) => {
+    const id = `pain-${i}`;
+    const item = tidyItem(id, "pain");
+    item.title = `${change.action === "resolve" ? "resolve" : "~"} ${change.name}`;
+    const hits = painIssues.filter((p) => sameName(p.bodyPart, change.name) && (!change.startDate || p.startDate === change.startDate));
+    if (hits.length === 0) { item.errors.push(`No pain issue called "${change.name}"${change.startDate ? ` from ${change.startDate}` : ""}.`); return; }
+    if (hits.length > 1) { item.errors.push(`${hits.length} issues are called "${change.name}" - give the "startDate".`); return; }
+    const existing = hits[0];
+    let next: PainIssue = { ...existing };
+    if (change.action === "resolve") {
+      if (existing.endDate) { item.errors.push(`"${existing.bodyPart}" is already resolved (${existing.endDate}).`); return; }
+      if (change.endDate < existing.startDate) item.errors.push(`The end ${change.endDate} is before it started (${existing.startDate}).`);
+      if (change.endDate > goalsToday) item.errors.push(`${change.endDate} is in the future.`);
+      item.details.push(`open since ${existing.startDate} → resolved ${change.endDate}`);
+      next.endDate = change.endDate;
+    } else {
+      if (change.rename && change.rename !== existing.bodyPart) {
+        item.details.push(`name ${existing.bodyPart} → ${change.rename}`);
+        next.bodyPart = change.rename;
+      }
+      if (change.notes !== undefined && change.notes !== (existing.notes ?? "")) {
+        item.details.push(`notes → "${change.notes}"`);
+        next.notes = change.notes;
+      }
+      if (change.watchCategories) {
+        const known = ctx.categories.filter((c) => !c.archived).map((c) => c.name);
+        const unknown = change.watchCategories.filter((c) => !known.some((k) => sameName(k, c)));
+        if (unknown.length) item.errors.push(`Unknown categor${unknown.length === 1 ? "y" : "ies"}: ${unknown.join(", ")}.`);
+        const resolved = change.watchCategories.map((c) => known.find((k) => sameName(k, c)) ?? c);
+        item.details.push(`watches ${show(existing.watchCategories)} → ${show(resolved)}`);
+        next.watchCategories = resolved;
+      }
+      if (item.details.length === 0 && item.errors.length === 0) item.warnings.push("Nothing changes.");
+    }
+    if (isOn(id) && item.errors.length === 0) {
+      painIssues = painIssues.map((p) => (p.id === existing.id ? next : p));
+      painIssuesChanged = true;
+    }
+  });
+
   // --- 2. Phases ---
   set.phases.forEach((change, i) => {
     const id = `phase-${i}`;
@@ -1298,6 +1466,10 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     ...(alternativesChanged ? { planAlternatives: alternatives } : {}),
     ...(coachNotesChanged ? { coachNotes } : {}),
     ...(ctx.changed.circuits ? { circuits: ctx.circuits } : {}),
+    ...(valueDefsChanged ? { valueDefs } : {}),
+    ...(benchmarkTypesChanged ? { benchmarkTypes } : {}),
+    ...(goalsChanged ? { goals } : {}),
+    ...(painIssuesChanged ? { painIssues } : {}),
     weeks: [...ctx.weekState.entries()].map(([weekId, w]) => ({ weekId, planned: w.planned, customized: w.customized })),
     weekNotes: [...noteWrites.entries()].map(([weekId, text]) => ({ weekId, text })),
   };
@@ -1368,6 +1540,10 @@ export function allItemIds(set: AIChangeSet): Set<string> {
     ...set.weeks.map((_, i) => `week-${i}`),
     ...set.planB.map((_, i) => `planb-${i}`),
     ...set.coachNotes.map((_, i) => `coach-${i}`),
+    ...(set.valueTypes ?? []).map((_, i) => `valuetype-${i}`),
+    ...(set.benchmarkTypes ?? []).map((_, i) => `benchmark-${i}`),
+    ...(set.goals ?? []).map((_, i) => `goal-${i}`),
+    ...(set.painIssues ?? []).map((_, i) => `pain-${i}`),
   ]);
 }
 
