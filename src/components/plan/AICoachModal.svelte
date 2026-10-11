@@ -24,7 +24,7 @@
   import AIPromptTuning from '../settings/AIPromptTuning.svelte';
   import { parsePlanImport } from '../../lib/ai/planImportEntry';
   import { planWithSelection, allItemIds, type ChangeItem, type ChangeSection } from '../../lib/ai/changePlanner';
-  import { buildOrganisePrompt } from '../../lib/ai/organisePrompt';
+  import { buildOrganisePrompt, ORGANISE_AREAS, type OrganiseArea } from '../../lib/ai/organisePrompt';
   import { groupIssues, formatIssuesForAI } from '../../lib/ai/issueSummary';
   import Icon from '@iconify/svelte';
   import { WEEK_DAYS } from '../../lib/constants';
@@ -107,7 +107,7 @@
     { id: 'generate', label: 'Change plan', title: 'Change your plan' },
     { id: 'analyze', label: 'Analyze', title: 'Analyze past training' },
     { id: 'context', label: 'Context', title: 'Share your context' },
-    { id: 'organise', label: 'Organise', title: 'Organise your exercises' },
+    { id: 'organise', label: 'Organise', title: 'Tidy your data' },
   ];
   const STEPS = [
     { id: 'ask', label: 'Ask' },
@@ -151,6 +151,12 @@
     return parts;
   });
 
+  /** What Organise may tidy: the athlete's pick, everything by default. */
+  let organiseAreas = $state<OrganiseArea[]>(ORGANISE_AREAS.map((a) => a.id));
+  function toggleArea(id: OrganiseArea) {
+    organiseAreas = organiseAreas.includes(id) ? organiseAreas.filter((a) => a !== id) : ORGANISE_AREAS.map((a) => a.id).filter((a) => a === id || organiseAreas.includes(a));
+  }
+
   /** Days that may go either way every week (e.g. outdoor if dry) - the AI is asked to give them a Plan B. */
   let uncertainDays = $state<DayOfWeek[]>([]);
   function toggleUncertain(day: DayOfWeek) {
@@ -163,7 +169,7 @@
   /** The prompt exactly as it will be copied - also what the size shown is measured on. */
   const prompt = $derived(
     mode === 'organise'
-      ? buildOrganisePrompt(trainingState, goal)
+      ? buildOrganisePrompt(trainingState, goal, organiseAreas)
       : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog, compact }),
   );
   const tokens = $derived(estimateTokens(prompt));
@@ -198,6 +204,7 @@
 
   async function copyPrompt() {
     if (mode !== 'context' && mode !== 'organise' && !rangeValid) return;
+    if (mode === 'organise' && organiseAreas.length === 0) return;
     try {
       await navigator.clipboard.writeText(prompt);
     } catch (err: any) {
@@ -399,20 +406,35 @@
             <p class="text-caption text-content-subtle leading-relaxed">Paste it into any AI chat first, then ask it whatever you like. It knows your exercises, recent sessions, benchmarks, goals and anything else you share.</p>
           </div>
         {:else if mode === 'organise'}
-          <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-1.5">
-            <p class="text-body text-content">Tidy your exercise list.</p>
-            <p class="text-caption text-content-subtle leading-relaxed">The AI sees your exercises, their categories and groups, and how often you have used each - no sessions, no plan. It can add analytics categories (e.g. split "Other") and move exercises between categories and library groups. You review every change before anything is applied.</p>
-          </div>
-          <label class="block space-y-1.5">
-            <span class="text-label text-content-subtle px-1 block">What do you want? <span class="text-caption">(optional)</span></span>
+          <section class="space-y-2.5">
+            {@render heading('What may the AI tidy?', 'Pick any')}
+            <div class="grid grid-cols-2 gap-2">
+              {#each ORGANISE_AREAS as a (a.id)}
+                {@const on = organiseAreas.includes(a.id)}
+                <button
+                  onclick={() => toggleArea(a.id)}
+                  aria-pressed={on}
+                  class="p-3 rounded-card border text-left transition-colors {on ? 'border-primary/40 bg-primary/10' : 'border-border bg-surface/40 text-content-subtle hover:text-content'}"
+                >
+                  <span class="text-label block {on ? 'text-primary' : ''}">{a.label}</span>
+                  <span class="text-caption text-content-subtle block leading-snug">{a.hint}</span>
+                </button>
+              {/each}
+            </div>
+            {#if organiseAreas.length === 0}
+              <p class="text-caption text-danger flex items-center gap-1"><Icon icon="ic:baseline-error-outline" class="text-sm" /> Pick at least one.</p>
+            {/if}
+          </section>
+          <section class="space-y-2.5">
+            {@render heading('What do you want?', 'Optional')}
             <textarea
               bind:value={goal}
               rows="3"
-              placeholder="e.g. Split Other into mobility and conditioning, and keep it to 8 categories."
+              placeholder="e.g. Split Other into mobility and conditioning, keep it to 8 categories, and merge my overlapping coach notes."
               class="w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-y placeholder:text-content-subtle"
             ></textarea>
-          </label>
-          <p class="text-caption text-content-subtle px-1 flex items-center gap-1.5"><Icon icon="ic:baseline-straighten" class="text-sm shrink-0" /> Prompt size {formatTokens(tokens)}</p>
+          </section>
+          <p class="text-caption text-content-subtle px-1 flex items-center gap-1.5"><Icon icon="ic:baseline-straighten" class="text-sm shrink-0" /> Prompt size {formatTokens(tokens)}. The AI only sees the areas you pick - no sessions, no plan - and you review every change before it is applied.</p>
         {:else}
           <!-- 1. What you want (with the usual requests above it), 2. which weeks, 3. optional extras. -->
           <section class="space-y-2.5">
@@ -683,7 +705,7 @@
         <div class="flex-1"></div>
         <button
           onclick={copyPrompt}
-          disabled={mode !== 'context' && mode !== 'organise' && !rangeValid}
+          disabled={(mode !== 'context' && mode !== 'organise' && !rangeValid) || (mode === 'organise' && organiseAreas.length === 0)}
           class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
         >
           <Icon icon={copiedFor === mode ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-base" />
