@@ -1,3 +1,4 @@
+import { fingerCategoryIds } from "./analytics/proMetrics";
 import type { InsightInputs } from "./analytics/insights";
 import { attachOrphanLogs, checkIn as checkInPainIssue } from './pain/issues';
 import { openWorkout } from './workoutModal.svelte';
@@ -418,6 +419,8 @@ class TrainingState {
       weightUnit: this.units.weight,
       dailyMetrics: this.dailyMetrics,
       ascents: this.outdoorAscents,
+      targets: this.athleteProfile?.targets,
+      fingerIds: fingerCategoryIds(this.analyticsCategories, this.fingerCategoryIds),
       config: {
         acwrZones: this.acwrZones,
         fatigueModel: this.fatigueModel,

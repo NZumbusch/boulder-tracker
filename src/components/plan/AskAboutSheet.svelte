@@ -52,7 +52,7 @@
   const prompt = $derived.by(() => {
     if (!subject) return '';
     const sharing = trainingState.aiSharing;
-    const coachMemory = sharing.coachNotes !== false ? renderCoachMemory(trainingState.athleteProfile, trainingState.coachNotes ?? []) : '';
+    const coachMemory = sharing.coachNotes !== false ? renderCoachMemory(trainingState.athleteProfile, trainingState.coachNotes ?? [], trainingState.analyticsCategories) : '';
     if (subject.kind === 'insights') {
       const inputs = trainingState.insightInputs();
       const group = INSIGHT_GROUPS.find((g) => g.id === subject.group);

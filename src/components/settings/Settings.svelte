@@ -18,6 +18,7 @@
   import CircuitSettings from './CircuitSettings.svelte';
   import AISharingSettings from './AISharingSettings.svelte';
   import DirectAISettings from './DirectAISettings.svelte';
+  import TargetsSettings from './TargetsSettings.svelte';
   import GeneralSettings from './GeneralSettings.svelte';
   import UnitsSettings from './UnitsSettings.svelte';
   import HomeLayoutSettings from './HomeLayoutSettings.svelte';
@@ -325,6 +326,8 @@
     <CoachNotesSettings />
   {:else if page === 'aiSharing'}
     <AISharingSettings />
+  {:else if page === 'targets'}
+    <TargetsSettings />
   {:else if page === 'aiDirect'}
     <DirectAISettings />
   {:else if page === 'sync'}

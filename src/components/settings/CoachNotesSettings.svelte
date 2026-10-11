@@ -10,7 +10,7 @@
   import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH } from '../../lib/ai/coachNotes';
   import type { AthleteProfile } from '../../lib/types';
 
-  type Draft = { [K in keyof Omit<AthleteProfile, 'id'>]-?: string };
+  type Draft = { [K in keyof Omit<AthleteProfile, 'id' | 'targets'>]-?: string };
   const FIELDS: { key: keyof Draft; label: string; placeholder: string; kind: 'number' | 'text' | 'area' }[] = [
     { key: 'heightCm', label: 'Height (cm)', placeholder: '178', kind: 'number' },
     { key: 'apeIndexCm', label: 'Ape index (cm)', placeholder: '+4', kind: 'number' },
@@ -48,7 +48,9 @@
       }
     }
     if (draft.standingGoal.trim()) fields.standingGoal = draft.standingGoal.trim();
-    const profile = { ...fields, id: 'me' } as AthleteProfile;
+    // About me is only part of the profile: the targets (Settings -> Targets) are kept as they are.
+    const targets = trainingState.athleteProfile?.targets;
+    const profile = { ...fields, id: 'me', ...(targets ? { targets } : {}) } as AthleteProfile;
     await trainingState.saveAthleteProfile(profile);
     draft = toDraft(profile);
     saved = toDraft(profile);

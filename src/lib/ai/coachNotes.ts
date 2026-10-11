@@ -1,4 +1,5 @@
-import type { AthleteProfile, CoachNote } from "../types";
+import type { AnalyticsCategory, AthleteProfile, CoachNote } from "../types";
+import { describeTargets } from "../analytics/targets";
 
 /**
  * The AI coach's memory: About me (the athlete writes it) and coach notes
@@ -45,12 +46,14 @@ export function hasProfile(profile: AthleteProfile | undefined): boolean {
  * The prompt section: About me, the standing goal, and the coach notes
  * with their ids - or nothing at all when all three are empty.
  */
-export function renderCoachMemory(profile: AthleteProfile | undefined, notes: CoachNote[]): string {
+export function renderCoachMemory(profile: AthleteProfile | undefined, notes: CoachNote[], categories: readonly AnalyticsCategory[] = []): string {
   const parts: string[] = [];
   const about = PROFILE_LINES
     .filter(([key]) => profile?.[key] !== undefined && profile?.[key] !== "")
     .map(([key, label, show]) => `  - ${label}: ${show(profile![key] as never)}`);
   if (about.length) parts.push(`- About me (written by me, always current):\n${about.join("\n")}`);
+  const targets = describeTargets(profile?.targets, categories);
+  if (targets) parts.push(`- My weekly targets (plan to them unless a request says otherwise): ${targets}`);
   if (profile?.standingGoal?.trim()) parts.push(`- My standing goal (what to work towards unless a request says otherwise): ${profile.standingGoal.trim()}`);
   if (notes.length) {
     parts.push(

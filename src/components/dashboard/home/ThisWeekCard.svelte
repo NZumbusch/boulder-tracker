@@ -14,6 +14,8 @@
   import { formatMinutes } from '../../../lib/session/formatSession';
   import { joinParts } from './format';
   import SectionHeader from './SectionHeader.svelte';
+  import { hasTargets, isFingerSession, weekProgress, weekProgressText } from '../../../lib/analytics/targets';
+  import { fingerCategoryIds } from '../../../lib/analytics/proMetrics';
   import Icon from '@iconify/svelte';
   import { showAcwr } from '../../../lib/help/acwrSheet.svelte';
 
@@ -32,6 +34,13 @@
     asOf: data.asOf,
   }));
   const progress = $derived(planProgress(data.weekWorkouts));
+  // The running week against the weekly targets, when there are any.
+  const targets = $derived(trainingState.athleteProfile?.targets);
+  const targetProgress = $derived.by(() => {
+    if (!hasTargets(targets)) return undefined;
+    const fingers = fingerCategoryIds(trainingState.analyticsCategories, trainingState.fingerCategoryIds);
+    return weekProgress(targets, data.weekWorkouts.filter((w) => w.status === 'completed'), (w) => isFingerSession(w, trainingState.exerciseTypes, trainingState.analyticsCategories, fingers));
+  });
   const mixTotal = $derived(recap.mix.reduce((sum, m) => sum + m.minutes, 0));
   const categoryColor = (name: string) => trainingState.analyticsCategories.find((c) => c.name === name)?.color ?? 'bg-primary';
   const weekTripDays = $derived(data.weekTripDays);
@@ -104,6 +113,13 @@
       </button>
     {/if}
   </div>
+
+  {#if targetProgress && weekProgressText(targetProgress)}
+    <p class="text-caption tabular-nums flex items-center gap-1.5 {targetProgress.load?.state === 'above' ? 'text-status-caution' : 'text-content-subtle'}">
+      <Icon icon="ic:baseline-flag" class="text-sm shrink-0" />
+      <span>{weekProgressText(targetProgress)}</span>
+    </p>
+  {/if}
 
   {#if recap.planned > 0}
     <div class="space-y-1.5">

@@ -133,3 +133,41 @@ function makeWorkoutWithTest(): Workout {
     exercises: [{ id: "ts", typeId: "test", test: { typeId: "hang", name: "Max Hang" }, prescribed: { duration: 10 } } as ExerciseSlot],
   } as Workout;
 }
+
+describe("target insights", () => {
+  // Three sessions in each of the four weeks before the running one (Sep 8 - Oct 4), 1000 load each.
+  const month = (): Workout[] => {
+    const out: Workout[] = [];
+    for (const [m, d] of [[8, 8], [8, 10], [8, 12], [8, 15], [8, 17], [8, 19], [8, 22], [8, 24], [8, 26], [8, 29], [9, 1], [9, 3]] as [number, number][]) {
+      out.push(session(d, [slot("hang", { duration: 10 })], { loadFactor: 1000, date: new Date(2026, m, d, 12).toISOString(), weekId: getWeekId(new Date(2026, m, d, 12)) }));
+    }
+    return out;
+  };
+  const types = { exerciseTypes: [{ id: "hang", name: "Hang", category: "fingers" }] as never[], analyticsCategories: [{ id: "fingers", name: "Fingers", color: "x" }, { id: "tech", name: "Technique", color: "y" }] as never[] };
+
+  it("says nothing without targets", () => {
+    expect(buildInsights(inputs(month(), types)).some((i) => i.id.startsWith("target-"))).toBe(false);
+  });
+
+  it("measures sessions and load against the targets", () => {
+    const i = buildInsights(inputs(month(), { ...types, targets: { sessionsPerWeek: 5, loadMax: 2800 } }));
+    const sessions = i.find((x) => x.id === "target-sessions")!;
+    expect(sessions.tone).toBe("caution");
+    expect(sessions.title).toBe("3 sessions a week, target 5");
+    const load = i.find((x) => x.id === "target-load")!;
+    expect(load.title).toBe("Weekly load in your range 0 of 4 weeks");
+    expect(load.tone).toBe("caution");
+    expect(load.detail).toContain("3,000 (over)");
+  });
+
+  it("is pleased when the targets are met", () => {
+    const i = buildInsights(inputs(month(), { ...types, targets: { sessionsPerWeek: 3, loadMin: 2000, loadMax: 4000 } }));
+    expect(i.find((x) => x.id === "target-sessions")).toMatchObject({ tone: "good", title: "On target: 3 sessions a week" });
+    expect(i.find((x) => x.id === "target-load")).toMatchObject({ tone: "good", title: "Weekly load in your range 4 of 4 weeks" });
+  });
+
+  it("points out a time split far from the target", () => {
+    const i = buildInsights(inputs(month(), { ...types, targets: { categoryShares: { tech: 0.5 } } }));
+    expect(i.find((x) => x.id === "target-mix-Technique")?.title).toBe("Technique is 0% of your time, target 50%");
+  });
+});
