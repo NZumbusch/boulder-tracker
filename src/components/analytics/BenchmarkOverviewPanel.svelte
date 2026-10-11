@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InfoButton from '../common/InfoButton.svelte';
   /**
    * Benchmark overview: every benchmark's results in the window as % change
    * from its first result ever, on one axis - kilos, seconds and reps side
@@ -38,8 +39,8 @@
 
 <div id="section-benchmarkOverview" class="scroll-mt-4 card space-y-3">
   <div>
-    <h3 class="text-section uppercase text-content-muted">All Benchmarks</h3>
-    <p class="text-caption text-content-subtle mt-0.5">% change since your first test of each</p>
+    <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">All tests <InfoButton term="tests" /></h3>
+    <p class="text-caption text-content-subtle mt-0.5">% change since the first result of each test</p>
   </div>
 
     {#if allFirst}<p class="text-caption text-content-subtle">Test again to see how each one changes - the chart compares against the first result.</p>{/if}
@@ -76,7 +77,7 @@
               <path d={s.points.map((p) => `M ${xOf(p.day)},${yOf(p.pct)} h 0`).join(' ')} stroke={s.color} stroke-opacity={faded ? 0.2 : 1} stroke-width="6" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
             {/each}
           </svg>
-          {#if colored.length === 0}<ChartEmpty>No benchmark results in this window</ChartEmpty>{/if}
+          {#if colored.length === 0}<ChartEmpty>No test results in this window</ChartEmpty>{/if}
         </div>
         <div class="border-t border-border-strong/60"></div>
         <div class="relative h-4">

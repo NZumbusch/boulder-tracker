@@ -54,7 +54,7 @@ export const TOUR_STEPS: TourStep[] = ([
     view: "home",
     target: "home-quicklog",
     title: "Quick log",
-    body: "Log pain, bodyweight, an outdoor send or a benchmark from anywhere on Home. Every Home card can be hidden or reordered in Settings.",
+    body: "Log pain, bodyweight, an outdoor send or a test result from anywhere on Home. Every Home card can be hidden or reordered in Settings.",
   },
   {
     view: "plan",
@@ -115,7 +115,7 @@ export const TOUR_STEPS: TourStep[] = ([
     view: "add",
     target: "add-plan",
     title: "Plan or test",
-    body: "Plan a session for another day, or record a benchmark test like max pull-ups to track strength over time.",
+    body: "Plan a session for another day, or record a test result like max pull-ups to track strength over time.",
   },
   {
     view: "history",
@@ -133,7 +133,7 @@ export const TOUR_STEPS: TourStep[] = ([
     view: "analytics",
     target: "analytics-insights",
     title: "Insights",
-    body: "What your numbers say right now, in plain words: whether to push or rest (load ratio, fatigue, and what the rest of the week would do to it), new bests, benchmark change, plan adherence, and what you've neglected. Tap a finding for the chart behind it.",
+    body: "What your numbers say right now, in plain words: whether to push or rest (load ratio, fatigue, and what the rest of the week would do to it), new bests, test results, plan adherence, and what you've neglected. Tap a finding for the chart behind it.",
   },
   {
     view: "analytics",
@@ -151,7 +151,7 @@ export const TOUR_STEPS: TourStep[] = ([
     view: "analytics",
     target: "analytics-tabs",
     title: "Insights, training, body, progress",
-    body: "Insights first; then fatigue, recovery and training mix under Training; sleep, HRV, bodyweight and pain under Body; benchmarks and sends under Progress.",
+    body: "Insights first; then fatigue, recovery and training mix under Training; sleep, HRV, bodyweight and pain under Body; tests and sends under Progress.",
   },
   {
     view: "settings",

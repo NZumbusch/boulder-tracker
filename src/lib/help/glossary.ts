@@ -14,6 +14,7 @@ export type TermId =
   | "fatigue"
   | "mix"
   | "phases"
+  | "tests"
   | "notSaved";
 
 export interface Term {
@@ -37,6 +38,14 @@ export const GLOSSARY: Record<TermId, Term> = {
       "Your load over the last 7 days (a rolling week ending today, not the calendar week) divided by your average weekly load over the last 28 days. Tap the ACWR chip on Home to see the weeks it is made of. It shows whether you're suddenly doing much more (or less) than you're used to.",
       "Around 0.8–1.3 is the usual sweet spot. Above about 1.5 means a sharp jump, a common time for finger and shoulder injuries. Below 0.8 means you're doing less than usual, which is fine for a rest week.",
       `It needs about four weeks of logged sessions before it's meaningful. You can change the zones under ${settingsPath('model')}.`,
+    ],
+  },
+  tests: {
+    title: "Tests",
+    paragraphs: [
+      "A test is something you repeat now and then to see whether you are improving: a max hang, max pull-ups, a one-rep max. Each records one result (the number you are chasing) and, where it matters, the conditions it was done under: the edge depth, the hang time, the load on a rep test.",
+      "Results are only compared like with like. A hang on a 20 mm edge is followed on its own, apart from one on 15 mm - which is why a test's chart can have one line per set of conditions.",
+      "Plan a test inside a session (Test in the session editor, or Add → test while you train) and enter the result when you do it; it is saved as a result linked to that session. The Progress tab charts each test, and \"All tests\" shows every one as % change since its first result. The AI sees your results and when each test is due (6 weeks by default, changeable under Reminders), and can schedule one for you.",
     ],
   },
   monotony: {

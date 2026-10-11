@@ -113,7 +113,7 @@
    */
   async function handleSubmit() {
     if (!type || !primary) {
-      await showAlert('Validation Error', 'Please select a benchmark type.');
+      await showAlert('Validation Error', 'Please choose a test.');
       return;
     }
     const values: Record<string, number | string> = {};
@@ -158,7 +158,7 @@
 <!-- UI Structure -->
 <div class="space-y-4 p-5 bg-surface/80 rounded-card border border-border animate-in zoom-in-95 shadow-2xl">
   <div class="flex items-center justify-between px-1">
-    <h3 class="text-title text-content">Benchmark Test</h3>
+    <h3 class="text-title text-content">Record a test result</h3>
     <button onclick={onCancel} class="text-content-subtle hover:text-content transition-colors" aria-label="Close">
       <Icon icon="ic:baseline-close" />
     </button>
@@ -231,6 +231,6 @@
     onclick={handleSubmit}
     class="w-full py-3.5 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-control transition-all shadow-lg active:scale-95"
   >
-    Save Benchmark
+    Save result
   </button>
 </div>

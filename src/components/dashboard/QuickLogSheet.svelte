@@ -26,7 +26,7 @@
     { kind: 'pain', icon: 'ic:baseline-healing', label: 'Pain', hint: 'Open issues, check in, or a new one' },
     { kind: 'bodyweight', icon: 'ic:baseline-monitor-weight', label: 'Bodyweight', hint: 'Today\'s weight' },
     { kind: 'send', icon: 'ic:baseline-terrain', label: 'Outdoor send', hint: 'Problem, grade, crag' },
-    { kind: 'benchmark', icon: 'ic:baseline-straighten', label: 'Benchmark', hint: 'A test result this week' },
+    { kind: 'benchmark', icon: 'ic:baseline-straighten', label: 'Test result', hint: 'A result this week' },
   ];
   // In the order, and with the visibility, chosen under Settings -> Home.
   const ACTIONS = $derived(

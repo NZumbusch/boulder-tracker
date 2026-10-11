@@ -27,7 +27,7 @@ export const SETTINGS_GROUPS: Record<SettingsGroupId, { label: string; descripti
   },
   layout: {
     label: 'Home, Analytics & quick-log layout',
-    description: 'Which cards show and in what order, per-card options, finger and benchmark selections',
+    description: 'Which cards show and in what order, per-card options, finger and test selections',
     keys: ['homeSections', 'simpleHome', 'homeDetails', 'analyticsSections', 'quickLogActions', 'fingerCategoryIds', 'benchmarkTotalTypeIds'],
   },
   tunables: {

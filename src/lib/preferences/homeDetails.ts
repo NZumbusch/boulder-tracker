@@ -73,7 +73,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
   ],
   progress: [
     { id: 'progress.benchmarks', label: 'Latest benchmarks', hint: 'With the change since the previous test', defaultOn: true },
-    { id: 'progress.retest', label: 'Retest nudge', hint: 'Benchmarks not tested in 6 weeks', defaultOn: true },
+    { id: 'progress.retest', label: 'Retest nudge', hint: 'Tests not done for a while', defaultOn: true },
     { id: 'progress.sends', label: 'Outdoor sends', hint: 'Last send and hardest grade this season', defaultOn: true },
     { id: 'progress.consistency', label: 'Consistency', hint: 'Recent planned sessions done, and your weekly streak', defaultOn: true },
     { id: 'progress.lastTrip', label: 'Last trip', hint: 'Sends, hardest grade and projects from your most recent trip', defaultOn: true },

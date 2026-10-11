@@ -17,7 +17,7 @@ import type {
 } from "../types";
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
 import { conditionFields, otherValuesText, resolveFields } from "../benchmarks/model";
-import { DEFAULT_RETEST_WEEKS, resultForSlot, testStatuses } from "../benchmarks/testSlot";
+import { DEFAULT_RETEST_WEEKS, plannedTestsByType, testStatuses } from "../benchmarks/testSlot";
 import { repsRepresentative } from "../exercise/reps";
 import { hasPerSet, setRows } from "../exercise/setRows";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
@@ -587,8 +587,10 @@ export interface TestSummary {
   protocol?: string;
   last?: { date: string; value: string; conditions?: string };
   weeksSince?: number;
-  /** Never done, or not for the retest interval. */
+  /** Done before and not for the retest interval. */
   due: boolean;
+  /** No result yet: optional, schedule it only if I ask for it. */
+  neverDone?: true;
   /** Already planned, not yet done: where. */
   plannedIn?: { week: string; session?: string; day?: string }[];
 }
@@ -598,18 +600,8 @@ export function buildTestSummaries(source: AIContextSource, asOf: Date, retestWe
   const types = source.benchmarkTypes ?? [];
   if (types.length === 0) return [];
   const defs = source.valueDefs ?? [];
-  // Planned test slots with no result yet: where each test is already scheduled.
-  const planned = new Map<string, { week: string; session?: string; day?: string }[]>();
-  for (const w of source.workouts) {
-    if (w.status !== "planned") continue;
-    for (const slot of w.exercises) {
-      if (!slot.test || slot.skipped || resultForSlot(source.benchmarks, slot.id)) continue;
-      const list = planned.get(slot.test.typeId) ?? [];
-      list.push({ week: w.weekId, ...(w.notes ? { session: w.notes } : {}), ...(w.dayOfWeek ? { day: w.dayOfWeek } : {}) });
-      planned.set(slot.test.typeId, list);
-    }
-  }
-  return testStatuses(types, source.benchmarks, asOf, new Set(planned.keys()), retestWeeks).map(({ type, last, weeksSince, due }) => {
+  const planned = plannedTestsByType(source.workouts, source.benchmarks);
+  return testStatuses(types, source.benchmarks, asOf, new Set(planned.keys()), retestWeeks).map(({ type, last, weeksSince, due, never }) => {
     const fields = resolveFields(type, defs);
     const primary = fields.find((f) => f.role === "result");
     const conds = conditionFields(fields).map((f) => ({
@@ -628,6 +620,7 @@ export function buildTestSummaries(source: AIContextSource, asOf: Date, retestWe
       ...(lastDescribed ? { last: { date: lastDescribed.date.slice(0, 10), value: `${lastDescribed.value} ${lastDescribed.unit}`.trim(), ...(lastDescribed.conditions ? { conditions: lastDescribed.conditions } : {}) } } : {}),
       ...(weeksSince !== undefined ? { weeksSince } : {}),
       due,
+      ...(never ? { neverDone: true as const } : {}),
       ...(planned.get(type.id) ? { plannedIn: planned.get(type.id) } : {}),
     };
   });

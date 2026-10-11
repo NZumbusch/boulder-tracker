@@ -3,7 +3,9 @@
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
   import { formatDate } from '../../../lib/dateUtils';
-  import { latestBenchmarks, retestDue, sendsSummary, consistency } from '../../../lib/analytics/progress';
+  import { latestBenchmarks, sendsSummary, consistency } from '../../../lib/analytics/progress';
+  import { plannedTestsByType, testStatuses } from '../../../lib/benchmarks/testSlot';
+  import InfoButton from '../../common/InfoButton.svelte';
   import { pastGoals, daysUntilGoal } from '../../../lib/goals/goals';
   import { tripSummary } from '../../../lib/goals/projects';
   import { G } from './format';
@@ -13,7 +15,11 @@
   let { data }: { data: HomeData } = $props();
 
   const benchmarkProgress = $derived(latestBenchmarks(trainingState.benchmarks, trainingState.benchmarkTypes, trainingState.valueDefs, trainingState.units.weight));
-  const retests = $derived(retestDue(benchmarkProgress, data.asOf, trainingState.tunable('progress.retestWeeks')));
+  // Tests worth a look: overdue for a retest, or already planned into a session.
+  const planned = $derived(plannedTestsByType(trainingState.workouts, trainingState.benchmarks));
+  const statuses = $derived(testStatuses(trainingState.benchmarkTypes, trainingState.benchmarks, data.asOf, new Set(planned.keys()), trainingState.retestWeeks));
+  const watch = $derived(statuses.filter((s) => s.due || s.scheduled).sort((a, b) => Number(b.due) - Number(a.due) || (b.weeksSince ?? 0) - (a.weeksSince ?? 0)).slice(0, 3));
+  let scheduling = $state(false);
   const sends = $derived(sendsSummary(trainingState.outdoorAscents, data.asOf));
   const consistencyStats = $derived(consistency(trainingState.workouts, data.asOf));
   const lastTrip = $derived.by(() => {
@@ -22,7 +28,8 @@
     return { trip, summary: tripSummary(trip, trainingState.outdoorAscents) };
   });
   const showBench = $derived(trainingState.homeDetails['progress.benchmarks'] && benchmarkProgress.length > 0);
-  const showRetest = $derived(trainingState.homeDetails['progress.retest'] && retests.length > 0);
+  const showRetest = $derived(trainingState.homeDetails['progress.retest'] && watch.length > 0);
+  const nothingPlanned = $derived(watch.some((w) => w.due) && !watch.some((w) => w.scheduled));
   const showSends = $derived(trainingState.homeDetails['progress.sends'] && sends.last);
   const showConsistency = $derived(trainingState.homeDetails['progress.consistency'] && consistencyStats.due > 0);
 </script>
@@ -56,10 +63,26 @@
     </div>
   {/if}
   {#if showRetest}
-    <p class="text-caption text-content-subtle flex items-center gap-1">
-      <Icon icon="ic:baseline-update" class="text-sm shrink-0" />
-      <span>Retest {retests.slice(0, 2).map((r) => `${r.name} (${r.weeks} wk)`).join(', ')}</span>
-    </p>
+    <div class="space-y-1.5 pt-2 border-t border-border/60">
+      <p class="text-label text-content-muted flex items-center gap-1.5">Tests <InfoButton term="tests" /></p>
+      {#each watch as t (t.type.id)}
+        {@const where = planned.get(t.type.id)?.[0]}
+        <div class="flex items-baseline justify-between gap-3">
+          <span class="text-label text-content truncate">{t.type.name}</span>
+          <span class="text-caption shrink-0 flex items-baseline gap-1.5 tabular-nums">
+            {#if t.weeksSince !== undefined}<span class="text-content-subtle">{t.weeksSince} wk ago</span>{/if}
+            {#if t.scheduled}
+              <span class="px-1.5 py-px rounded-full bg-primary/10 text-primary">Planned{where?.day ? ` ${where.day.slice(0, 3)}` : ''} W{where?.week.split('-W')[1]}</span>
+            {:else}
+              <span class="px-1.5 py-px rounded-full bg-status-caution/15 text-status-caution">Due</span>
+            {/if}
+          </span>
+        </div>
+      {/each}
+      {#if nothingPlanned}
+        <button onclick={() => (scheduling = true)} class="text-caption text-primary flex items-center gap-1"><Icon icon="ic:baseline-auto-awesome" class="text-sm" />Have the AI schedule them</button>
+      {/if}
+    </div>
   {/if}
   {#if showSends && sends.last}
     <div class="pt-2 border-t border-border/60 space-y-1">
@@ -83,6 +106,12 @@
     </button>
   {/if}
   {#if !showBench && !showRetest && !showSends && !showConsistency && !(lastTrip && trainingState.homeDetails['progress.lastTrip'])}
-    <p class="text-caption text-content-subtle italic">Log sessions, benchmarks or sends to see progress here.</p>
+    <p class="text-caption text-content-subtle italic">Log sessions, tests or sends to see progress here.</p>
   {/if}
 </div>
+
+{#if scheduling}
+  {#await import('../../plan/AICoachModal.svelte') then { default: AICoachModal }}
+    <AICoachModal preset="tests" onClose={() => (scheduling = false)} />
+  {/await}
+{/if}

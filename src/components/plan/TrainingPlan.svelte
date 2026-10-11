@@ -773,8 +773,8 @@
 
       <div class="pt-3 border-t border-border space-y-2">
         <div class="flex items-center justify-between">
-          <h4 class="text-section uppercase text-content-muted">Benchmarks</h4>
-          <button onclick={handleAddBenchmark} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a benchmark result"><Icon icon="ic:baseline-plus" class="text-lg" /></button>
+          <h4 class="text-section uppercase text-content-muted flex items-center gap-1.5">Tests <InfoButton term="tests" /></h4>
+          <button onclick={handleAddBenchmark} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a test result"><Icon icon="ic:baseline-plus" class="text-lg" /></button>
         </div>
 
         {#if isAddingBenchmark}
@@ -791,7 +791,7 @@
             {@const shown = describeResult(benchmark, trainingState.benchmarkTypes, trainingState.valueDefs, trainingState.units.weight)}
             <ListRow title={shown.title} value={shown.value} onclick={() => handleEditBenchmark(benchmark)}>
               {#snippet trailing()}
-                <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete benchmark"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+                <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete test result"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
               {/snippet}
             </ListRow>
           {:else}

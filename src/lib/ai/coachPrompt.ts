@@ -71,11 +71,11 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
   }
   sections.push(
     mode === "analyze"
-      ? `- Benchmarks Recorded (Target Timeframe):\n${lines(profile.benchmarks)}`
-      : `- My Benchmarks:\n${lines(profile.benchmarks)}`,
+      ? `- Test Results Recorded (Target Timeframe):\n${lines(profile.benchmarks)}`
+      : `- My Test Results (every result so far, with the conditions it was done under):\n${lines(profile.benchmarks)}`,
   );
   if (profile.tests?.length) {
-    sections.push(`- Tests (benchmark tests I repeat - what each records, when it was last done, and whether it is due. "plannedIn" = already scheduled, don't add it again. In a "Change plan" you may schedule one inside a session; see TEST in the rules below):\n${lines(profile.tests)}`);
+    sections.push(`- Tests (benchmark tests I repeat - what each records, when it was last done, and whether it is due ("neverDone" = no result yet, optional). "plannedIn" = already scheduled, don't add it again. In a "Change plan" you may schedule one inside a session; see TEST in the rules below):\n${lines(profile.tests)}`);
   }
   if (profile.trainingBlocks && mode !== "generate") {
     sections.push(`- Training Blocks (covering or near the timeframe):\n${lines(profile.trainingBlocks)}`);

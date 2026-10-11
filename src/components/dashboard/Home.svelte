@@ -115,7 +115,7 @@
       <button
           onclick={() => showQuickLog = true}
           class="p-2 rounded-control text-primary hover:bg-surface-elevated transition-colors"
-          aria-label="Quick log: pain, bodyweight, send or benchmark"
+          aria-label="Quick log: pain, bodyweight, send or test result"
           data-tour="home-quicklog"
           title="Quick log"
         >
