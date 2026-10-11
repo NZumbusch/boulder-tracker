@@ -46,7 +46,7 @@
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">AI Sharing</h3>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
-      Controls what the AI Coach (Training Plan screen) includes when you copy a prompt. Nothing here leaves this device automatically - the prompt is only ever sent when you paste it into an AI yourself.
+      Controls what the AI Coach (Training Plan screen) includes in its prompt. Nothing leaves this device automatically: the prompt goes out only when you paste it into an AI yourself - or, if you set up a direct connection, when you confirm "Ask directly" and its cost.
     </p>
   </div>
 

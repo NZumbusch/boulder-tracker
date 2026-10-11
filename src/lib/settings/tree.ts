@@ -12,7 +12,7 @@ export type PageId =
   | "live" | "timer"
   | "model" | "pain" | "weather"
   | "reminders"
-  | "coach" | "aiSharing"
+  | "coach" | "aiSharing" | "aiDirect"
   | "sync" | "healthConnect" | "exports" | "widgets"
   | "about";
 
@@ -105,6 +105,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     pages: [
       { id: "coach", label: "Coach notes", hint: "About me, standing goal and what the coach remembers", icon: "ic:baseline-psychology" },
       { id: "aiSharing", label: "What the AI sees", hint: "What goes into the prompts, and how far back", icon: "ic:baseline-visibility" },
+      { id: "aiDirect", label: "Direct AI connection", hint: "Optional: your own API key, so the app asks Claude, ChatGPT or Gemini itself - with the cost shown first", icon: "ic:baseline-bolt" },
     ],
   },
   {
@@ -208,6 +209,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Backup reminder", page: "reminders", words: "days" },
   { label: "About me and standing goal", page: "coach", words: "memory ai height injuries" },
   { label: "What the AI sees", page: "aiSharing", words: "sharing privacy prompt history weeks" },
+  { label: "Direct AI connection", page: "aiDirect", words: "api key claude openai chatgpt gemini gpt cost price tokens billing" },
   { label: "Google Drive sync", page: "sync", words: "devices conflict" },
   { label: "Backup and restore", page: "sync", words: "export import file json" },
   { label: "Export or import settings", page: "sync", words: "transfer file" },

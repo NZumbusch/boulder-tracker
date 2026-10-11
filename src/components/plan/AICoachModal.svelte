@@ -34,6 +34,10 @@
   import { QUICK_ADAPTS, spanWeeks, withGoal, loadLastRequest, saveLastRequest } from '../../lib/ai/quickAdapt';
   import { loadChangeLog, appendChange } from '../../lib/ai/changeLog';
   import { markCheckinDone } from '../../lib/home/checkin';
+  import AiSendSheet from './AiSendSheet.svelte';
+  import { loadConfig as loadDirectConfig, loadKey as loadDirectKey } from '../../lib/ai/direct/store';
+  import { providerInfo, modelInfo } from '../../lib/ai/direct/providers';
+  import { estimateCost, formatUsd } from '../../lib/ai/direct/cost';
 
   /** "organise" is a Change plan flavour (same paste and review) that only regroups exercises and categories. */
   type CoachMode = AIPromptMode | 'organise';
@@ -142,6 +146,33 @@
       : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog }),
   );
   const tokens = $derived(estimateTokens(prompt));
+
+  // --- Ask directly (optional, with the athlete's own key) ---
+  const direct = loadDirectConfig();
+  const directService = providerInfo(direct.provider).label.split(' (')[0];
+  const directReady = !!loadDirectKey(direct.provider);
+  const directRates = (() => {
+    const listed = modelInfo(direct.provider, direct.model);
+    return direct.priceOverride ?? (listed ? { inputPerM: listed.inputPerM, outputPerM: listed.outputPerM } : undefined);
+  })();
+  const directPriced = (() => {
+    const listed = modelInfo(direct.provider, direct.model);
+    return directRates ? { ...directRates, long: direct.priceOverride ? undefined : listed?.long } : undefined;
+  })();
+  const directEstimate = $derived(directPriced ? estimateCost(directPriced, tokens, direct.maxOutputTokens) : undefined);
+  let sendOpen = $state(false);
+  /** Set when the reply came straight from the service rather than a paste. */
+  let directInfo = $state<{ model: string; cost?: number; inputTokens?: number; outputTokens?: number } | null>(null);
+  function gotReply(text: string, info: { cost?: number; inputTokens?: number; outputTokens?: number; model: string }) {
+    sendOpen = false;
+    pasteText = text;
+    directInfo = info;
+    promptCopied = true;
+    if (mode === 'generate') saveLastRequest({ goal, start: startWeek, end: endWeek });
+    if (usedCheckin) markCheckinDone(trainingState.currentWeekId);
+    // A clean reply goes straight to review, like a clean paste.
+    setTimeout(() => { step = canReview ? 'review' : 'paste'; }, 0);
+  }
 
   async function copyPrompt() {
     if (mode !== 'context' && mode !== 'organise' && !rangeValid) return;
@@ -471,6 +502,18 @@
           </div>
         {/if}
 
+        {#if flows && directReady && (mode === 'organise' || rangeValid)}
+          <!-- Optional: send it from the app with your own key. The price is on the button, and a confirmation follows. -->
+          <button onclick={() => (sendOpen = true)} class="w-full p-3.5 rounded-card border border-border-strong text-left flex items-center gap-3 hover:bg-surface-elevated/50 transition-colors">
+            <Icon icon="ic:baseline-bolt" class="text-xl text-status-caution shrink-0" />
+            <span class="min-w-0 flex-1">
+              <span class="text-label text-content block">Ask {directService} directly</span>
+              <span class="text-caption text-content-subtle block">{directEstimate ? `${formatTokens(tokens)} · about ${formatUsd(directEstimate.typicalUsd)}, at most ${formatUsd(directEstimate.maxUsd)} - you confirm first` : 'No price set for this model - set it in Settings first'}</span>
+            </span>
+            <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0" />
+          </button>
+        {/if}
+
         {#if mode !== 'organise'}
         <p class="text-caption text-content-subtle px-1 flex items-start gap-1.5">
           <Icon icon="ic:baseline-info" class="text-sm shrink-0 mt-px" />
@@ -482,8 +525,13 @@
         <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-start gap-3">
           <Icon icon="ic:baseline-content-paste-go" class="text-xl text-primary shrink-0 mt-0.5" />
           <div class="min-w-0 flex-1 space-y-1">
-            <p class="text-body text-content">{promptCopied ? 'Prompt copied. Paste it into your AI chat and send it.' : 'Paste the reply from your AI chat.'}</p>
-            <p class="text-caption text-content-subtle">Then copy the AI's whole reply and paste it below.</p>
+            {#if directInfo}
+              <p class="text-body text-content">Reply received from {directService}.</p>
+              <p class="text-caption text-content-subtle">{directInfo.model}{directInfo.cost !== undefined ? ` · cost about ${formatUsd(directInfo.cost)}` : ''}{directInfo.inputTokens !== undefined ? ` (${formatTokens(directInfo.inputTokens)} in, ${formatTokens(directInfo.outputTokens ?? 0)} out)` : ''}</p>
+            {:else}
+              <p class="text-body text-content">{promptCopied ? 'Prompt copied. Paste it into your AI chat and send it.' : 'Paste the reply from your AI chat.'}</p>
+              <p class="text-caption text-content-subtle">Then copy the AI's whole reply and paste it below.</p>
+            {/if}
           </div>
         </div>
 
@@ -654,3 +702,7 @@
     </div>
   </footer>
 </div>
+
+{#if sendOpen}
+  <AiSendSheet {prompt} onReply={gotReply} onClose={() => (sendOpen = false)} />
+{/if}
