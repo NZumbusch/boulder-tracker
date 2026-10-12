@@ -70,12 +70,24 @@ describe("test items in a change set", () => {
     expect(r.items.every((i) => i.errors.length === 0)).toBe(true);
   });
 
+  it("sets any field beforehand: a rep count to find the heaviest single, a weight to find the reps", () => {
+    const weighted: BenchmarkTypeDef = { id: "wp", name: "Weighted Pullup", unit: "kg", fields: [{ valueId: "weight", role: "result", label: "Added weight" }, { valueId: "reps", role: "result" }] };
+    const defsWithReps = [...valueDefs, { id: "reps", name: "Reps", unit: "reps", kind: "number" as const, measure: "reps" as const }];
+    const s = state({ benchmarkTypes: [weighted], valueDefs: defsWithReps });
+    const slotOf = (r: ReturnType<typeof plan>) => r.writes.weeks.find((w) => w.weekId === "2026-W42")!.planned!.flatMap((w) => w.exercises).find((e) => e.test)!;
+    const single = plan(addTest({ test: "Weighted Pullup", conditions: { Reps: 1 } }), s);
+    expect(slotOf(single).test?.conditions).toEqual({ reps: 1 });
+    const atLoad = plan(addTest({ test: "Weighted Pullup", conditions: { "Added weight": 10 } }), s);
+    expect(slotOf(atLoad).test?.conditions).toEqual({ weight: 10 });
+    expect(atLoad.items.every((i) => i.errors.length === 0 && i.warnings.length === 0)).toBe(true);
+  });
+
   it("reports an unknown test and ignores unknown conditions", () => {
     const bad = plan(addTest({ test: "Max Squats" }));
     expect(bad.items.some((i) => i.errors.some((e) => e.includes('No test called "Max Squats"') && e.includes("Max Hang")))).toBe(true);
     const warn = plan(addTest({ test: "Max Hang", conditions: { Temperature: 20, Grip: "Pinch" } }));
     const warnings = warn.items.flatMap((i) => i.warnings).join(" ");
-    expect(warnings).toContain('no condition "Temperature"');
+    expect(warnings).toContain('no field "Temperature"');
     expect(warnings).toContain("isn't one of Grip's options");
   });
 
@@ -116,8 +128,9 @@ describe("what the AI is told about tests", () => {
     const tests = buildTestSummaries(source(), asOf);
     const h = tests.find((t) => t.name === "Max Hang")!;
     expect(h.result).toBe("Added weight (kg)");
-    expect(h.conditions?.map((c) => c.name)).toEqual(["Edge depth", "Grip"]);
-    expect(h.conditions?.[1].options).toEqual(["Half crimp", "Open hand"]);
+    expect(h.fields?.map((c) => c.name)).toEqual(["Added weight", "Edge depth", "Grip"]);
+    expect(h.fields?.map((c) => !!c.usuallySame)).toEqual([false, true, true]);
+    expect(h.fields?.[2].options).toEqual(["Half crimp", "Open hand"]);
     expect(h.last?.value).toBe("52 kg");
     expect(h.weeksSince).toBe(5);
     expect(h.due).toBe(false);

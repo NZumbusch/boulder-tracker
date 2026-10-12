@@ -68,7 +68,7 @@
     const named = (f: ResolvedField) => (unitOf(f) && unitOf(f).toLowerCase() !== f.label.toLowerCase() ? `${f.label} (${unitOf(f)})` : f.label);
     const results = fields.filter((f) => f.role === 'result').map(named).join(' + ');
     const by = fields.filter((f) => f.role === 'condition' && f.fixed === undefined).map((f) => f.label.toLowerCase());
-    return [results, by.length ? `by ${by.join(' and ')}` : '', type.direction === 'lower' ? 'lower is better' : ''].filter(Boolean).join(' · ');
+    return [results, by.length ? `with ${by.join(' and ')}` : '', type.direction === 'lower' ? 'lower is better' : ''].filter(Boolean).join(' · ');
   }
 
   // --- The editor ---
@@ -383,7 +383,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <div class="flex rounded-control overflow-hidden border border-border-strong shrink-0">
-                    {#each [['result', 'Result'], ['condition', 'Condition']] as [role, label]}
+                    {#each [['result', 'Result'], ['condition', 'Set-up']] as [role, label]}
                       <button type="button" onclick={() => (row.role = role as Row['role'])} aria-pressed={row.role === role} class="px-3 py-1.5 text-label {row.role === role ? 'bg-primary/10 text-primary font-bold' : 'bg-surface text-content-muted'}">{label}</button>
                     {/each}
                   </div>
@@ -416,7 +416,7 @@
               {#each unusedDefs as d (d.id)}<option value={d.id}>{d.name}{d.unit ? ` (${d.measure === 'weight' ? trainingState.units.weight : d.unit})` : ''}</option>{/each}
             </select>
           {/if}
-          <p class="text-caption text-content-subtle leading-relaxed"><b class="text-content-muted">Result</b>: something you measure and chart - weight, reps, time. <b class="text-content-muted">Condition</b>: how you did it (edge depth, a set load) - results are only compared at the same condition, so each value of it is its own line. The first result is what progress follows. Need another kind of value? Add it under Training setup → Value types.</p>
+          <p class="text-caption text-content-subtle leading-relaxed"><b class="text-content-muted">Result</b>: something you measure - weight, reps, time. <b class="text-content-muted">Set-up</b>: how you did it (edge depth, an added load) - it starts from last time and is what Home compares by. Every value is kept either way: in the chart you can filter, split or plot against any of them, so nothing here locks how you look at the results later. The first result is what progress follows. Need another kind of value? Add it under Training setup → Value types.</p>
         </div>
 
         <div class="space-y-1.5">
