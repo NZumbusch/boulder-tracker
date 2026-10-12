@@ -86,6 +86,7 @@ export const EXERCISE_VALUE_SPEC: Record<BuiltInValueField, ValueFieldSpec> = {
   holdType: { type: "string", enum: HOLD_TYPES, description: "Grip position used." },
   timeOn: { type: "number", unit: "seconds", description: "Time under tension per rep." },
   timeOff: { type: "number", unit: "seconds", description: "Rest between reps inside a set." },
+  leadIn: { type: "number", unit: "seconds", description: "Get-ready seconds the timer counts in before this exercise starts (default 10; give it only to change that, e.g. 20 for a hard hang)." },
   repLabel: { type: "string", enum: REP_LABELS, description: 'What each rep is, for the timer\'s wording. For a hold done per side give "Side" with "reps": 2 (the timer then reads "Side 1/2" and "Switch"); "Arm"/"Leg" likewise. Leave out for ordinary reps.' },
   timeBetweenSets: { type: "number", unit: "seconds", description: 'Rest between sets. There is NO "restTime" field - this is it.' },
   restAfter: { type: "number", unit: "seconds", description: "Only for an exercise inside a circuit: rest after this exercise instead of the circuit's own switch time (0 = go straight on)." },
