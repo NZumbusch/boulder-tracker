@@ -480,9 +480,13 @@
     if (last?.text && !liveActive && !cueMute.muted && document.visibilityState !== 'hidden') speakText(last.text, trainingState.timerCues.volume, trainingState.timerCues.speech.rate, trainingState.timerCues.speech.pitch);
   }
 
+  // `run` is replaced on every 100 ms tick, so an effect that reads it re-runs every tick - sending the whole plan to
+  // Android ten times a second. These deriveds only change when the step or the results do, and the effects follow them.
+  const stepKey = $derived(`${run.stepIndex}:${run.done}`);
+  const resultsKey = $derived(JSON.stringify([run.results, run.extras]));
   $effect(() => {
     // exerciseTypes: after a cold restore the notification is made before the names load, and says "Unknown" until the plan is made again.
-    void [run.stepIndex, run.done, running, useLive, planNonce, trainingState.exerciseTypes.length, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, JSON.stringify(trainingState.timerCues.announce), JSON.stringify(trainingState.timerCues.speech)];
+    void [stepKey, running, useLive, planNonce, trainingState.exerciseTypes.length, trainingState.timerCountdownTicks, trainingState.timerWarnBeforeEnd, JSON.stringify(trainingState.timerCues.announce), JSON.stringify(trainingState.timerCues.speech)];
     untrack(() => {
       syncLive();
       syncTicker();
@@ -491,7 +495,7 @@
   });
   // Corrections and reps change the saved run but not the plan.
   $effect(() => {
-    void JSON.stringify([run.results, run.extras]);
+    void resultsKey;
     untrack(save);
   });
 
@@ -526,14 +530,25 @@
   }
   $effect(() => onLiveAction(applyLiveAction));
 
+  /**
+   * No Android service to carry the timer (it isn't there, or Android refused it): hand the next moments to
+   * scheduled notifications instead. Taken back when the app is shown again.
+   */
+  function scheduleFallbackAlerts() {
+    if (!trainingState.timerBackgroundAlerts || !running || run.done) return;
+    tick();
+    void scheduleTimerAlerts(circuitAlerts({ steps, state: run, running, name: group.name || memberName(0) || 'Timer', memberName, warningSeconds: trainingState.timerWarnBeforeEnd ? WARN_SECONDS : 0 }, Date.now()));
+  }
+  // The service can fail after the app was already hidden (Android answers the first update late): fall back then.
+  $effect(() => {
+    if (live.serviceOk) return;
+    untrack(() => { if (document.visibilityState === 'hidden') scheduleFallbackAlerts(); });
+  });
+
   async function onVisibility() {
     if (document.visibilityState === 'hidden') {
       held = liveActive;
-      // No Android service to carry the timer: hand its next moments to scheduled notifications instead.
-      if (!liveActive && trainingState.timerBackgroundAlerts && running && !run.done) {
-        tick();
-        void scheduleTimerAlerts(circuitAlerts({ steps, state: run, running, name: group.name || memberName(0) || 'Timer', memberName, warningSeconds: trainingState.timerWarnBeforeEnd ? WARN_SECONDS : 0 }, Date.now()));
-      }
+      if (!liveActive) scheduleFallbackAlerts();
       return;
     }
     void cancelTimerAlerts();
