@@ -52,6 +52,11 @@ describe("test slots", () => {
     expect(resultText(result("a", "2026-09-01", { value: 51.5 }), hang, defs, "kg")).toBe("51.5 kg · 20 mm · 7 s");
   });
 
+  it("plans any field beforehand, a result field too: the rest is what the test finds", () => {
+    const slot = makeTestSlot({ id: "s2", type: hang, conditions: { weight: 10, edge: 20 } });
+    expect(plannedConditionsText(slot, hang, defs, "kg")).toBe("Added weight 10 kg · Edge depth 20 mm");
+  });
+
   it("says what is due, and what is already planned", () => {
     const pull: BenchmarkTypeDef = { id: "pull", name: "Pull-ups", unit: "reps" };
     const archived: BenchmarkTypeDef = { id: "old", name: "Old", unit: "s", archived: true };

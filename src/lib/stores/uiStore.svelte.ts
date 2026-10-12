@@ -5,7 +5,7 @@ import type { Workout, ViewType } from '../types';
 import { showConfirm } from '../utils';
 import { requestNotificationPermission, cancelAllReminders } from '../notifications/shared';
 import { registerBack } from '../navigation/backStack.svelte';
-import { settingsPath } from "../settings/tree";
+import { settingsPath, type PageId } from "../settings/tree";
 
 const NOTIFICATIONS_ENABLED_KEY = 'boulder_tracker_notifications_enabled';
 const NOTIFICATIONS_PROMPTED_KEY = 'boulder_tracker_notifications_prompted';
@@ -26,6 +26,8 @@ export class UiStore {
   historyTab = $state<'sessions' | 'sends'>('sessions');
   /** Something a shortcut or the widget asked Home to open (see `navigation/deepLink`); Home clears it once handled. */
   homeRequest = $state<'quickLog' | 'metrics' | null>(null);
+  /** A Settings page to open on arrival ("what's new" sends you to Tests); Settings clears it once handled. */
+  settingsPageRequest = $state<PageId | null>(null);
   /** With a quick-log request: the form to open straight away (the widget's buttons name one). */
   quickLogAction = $state<'pain' | 'bodyweight' | 'send' | 'benchmark' | null>(null);
   theme = $state<ThemePreference>(DEFAULT_THEME);
@@ -57,6 +59,12 @@ export class UiStore {
    * doesn't replay every tab visited). See `navigation/backStack`.
    */
   #tabRelease: (() => void) | null = null;
+
+  /** Opens a Settings page directly. */
+  openSettingsPage(page: PageId) {
+    this.settingsPageRequest = page;
+    this.navigate('settings');
+  }
 
   /** Switches the main view. Workouts open in the workout modal (`lib/workoutModal.svelte.ts`), not through here. */
   navigate(view: ViewType) {

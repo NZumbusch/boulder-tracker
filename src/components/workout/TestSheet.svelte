@@ -34,7 +34,6 @@
   const type = $derived(types.find((t) => t.id === typeId));
   const fields = $derived<ResolvedField[]>(type ? resolveFields(type, defs) : []);
   const primary = $derived(primaryField(fields));
-  const conditionAsked = $derived(askedFields(fields).filter((f) => f.role === 'condition'));
   // The result first, then how it was done.
   const askedAll = $derived([...askedFields(fields)].sort((a, b) => Number(b.role === 'result') - Number(a.role === 'result')));
   const last = $derived(type ? resultsOf(trainingState.benchmarks, type.id)[0] : undefined);
@@ -72,7 +71,7 @@
   function savePlan() {
     if (props.mode !== 'plan') return;
     if (!type) { error = 'Choose a test.'; return; }
-    const conditions = valuesFromInputs(fields, inputs, weight, 'condition');
+    const conditions = valuesFromInputs(fields, inputs, weight);
     // Fixed conditions are the test's own; only what the athlete chose is planned.
     for (const f of fields) if (f.fixed !== undefined) delete conditions[f.valueId];
     const base = props.slot ?? makeTestSlot({ id: generateId(), type });
@@ -151,13 +150,13 @@
         </button>
       {/if}
 
-      {#if props.mode === 'result' || conditionAsked.length > 0}
+      {#if props.mode === 'result' || askedAll.length > 0}
         <div class="grid grid-cols-2 gap-3">
-          {#each (props.mode === 'result' ? askedAll : conditionAsked) as f (f.valueId)}
+          {#each askedAll as f (f.valueId)}
             {@const isPrimary = primary?.valueId === f.valueId}
-            <div class="space-y-1 {isPrimary || (props.mode === 'result' ? askedAll : conditionAsked).length <= 2 ? 'col-span-2' : ''}">
+            <div class="space-y-1 {isPrimary || askedAll.length <= 2 ? 'col-span-2' : ''}">
               <label for="test-{f.valueId}" class="block text-label text-content-subtle ml-1">
-                {f.label}{#if f.role === 'condition' && props.mode === 'result'}<span class="text-content-subtle/70">&nbsp;· condition</span>{/if}{#if unitLabel(f, weight)}<span class="text-content-subtle/70">&nbsp;({unitLabel(f, weight)})</span>{/if}
+                {f.label}{#if props.mode === 'result' && props.slot.test?.conditions?.[f.valueId] !== undefined}<span class="text-content-subtle/70">&nbsp;· planned</span>{/if}{#if unitLabel(f, weight)}<span class="text-content-subtle/70">&nbsp;({unitLabel(f, weight)})</span>{/if}
               </label>
               {#if f.kind === 'choice'}
                 <select id="test-{f.valueId}" bind:value={inputs[f.valueId]} class="{inputClass} appearance-none">
@@ -170,7 +169,7 @@
             </div>
           {/each}
         </div>
-        {#if props.mode === 'plan'}<p class="text-caption text-content-subtle px-1">These are the conditions to test under; the result is entered during the session.</p>{/if}
+        {#if props.mode === 'plan'}<p class="text-caption text-content-subtle px-1">Fill in what is set beforehand (a weight to test at, the reps, the edge) and leave empty what the test is to find; the result is entered during the session.</p>{/if}
       {/if}
 
       <div class="space-y-1">

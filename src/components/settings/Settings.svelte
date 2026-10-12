@@ -77,6 +77,13 @@
     page = id;
     query = '';
   }
+  // Another screen asked for a page (the "what's new" sheet sends you to Tests).
+  $effect(() => {
+    const wanted = trainingState.uiStore.settingsPageRequest;
+    if (!wanted) return;
+    untrack(() => openPage(wanted));
+    trainingState.uiStore.settingsPageRequest = null;
+  });
   function goBack() {
     if (page && !singlePage) page = null;
     else { section = null; page = null; }

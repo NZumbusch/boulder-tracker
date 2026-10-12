@@ -28,9 +28,25 @@ describe("buildSeries", () => {
   ];
   const series = buildSeries(results.slice(0, 4), [hang, circuit], defs, "kg");
 
-  it("groups a test's results by the way it was done, newest tested first", () => {
-    expect(series.map((s) => s.label)).toEqual(["Max Hang · 15 mm", "Max Hang · 20 mm", "Circuit"]);
-    expect(series[1].results.map((x) => x.id)).toEqual(["a", "b"]);
+  it("follows the latest set-up by default, newest tested first", () => {
+    expect(series.map((s) => s.label)).toEqual(["Max Hang · 15 mm", "Circuit"]);
+    expect(series[0].results.map((x) => x.id)).toEqual(["c"]);
+  });
+
+  it("makes a series of every view marked for Home, over all the test's results", () => {
+    const views = [
+      { id: "v20", name: "20 mm", onHome: true, filters: { edge: { op: "eq" as const, value: 20 } } },
+      { id: "all", name: "Everything", onHome: true },
+    ];
+    const s = buildSeries(results.slice(0, 3), [{ ...hang, views }], defs, "kg");
+    expect(s.map((x) => [x.label, x.results.map((b) => b.id)])).toEqual([["Max Hang · Everything", ["a", "b", "c"]], ["Max Hang · 20 mm", ["a", "b"]]]);
+  });
+
+  it("does not split pull-ups by their added weight: blank and zero are the same 'no weight'", () => {
+    const max: BenchmarkTypeDef = { id: "mp", name: "Max Pullups", unit: "reps", fields: [{ valueId: "reps", role: "result" }, { valueId: "weight", role: "condition" }] };
+    const rs = [r("a", "mp", "2026-01-01", 10, { reps: 10 }), r("b", "mp", "2026-02-01", 11, { reps: 11, weight: 0 }), r("c", "mp", "2026-03-01", 8, { reps: 8, weight: 10 })];
+    expect(buildSeries(rs, [max], defs, "kg").map((s) => s.results.length)).toEqual([1]); // like the latest: with 10 kg
+    expect(buildSeries(rs.slice(0, 2), [max], defs, "kg").map((s) => s.results.length)).toEqual([2]);
   });
 
   it("leaves out archived tests, and keeps the results of a deleted test as a plain one", () => {
@@ -81,11 +97,11 @@ describe("metrics", () => {
     expect(metricPoints(est, s, "kg", []).map((p) => p.value)).toEqual([33]); // the second has no reps
   });
 
-  it("splits a series by a condition but not by a result", () => {
+  it("follows a condition's latest value, but a result field is never matched", () => {
     const withCondition = { ...pull, fields: [pull.fields![0], { valueId: "reps", role: "condition" as const }] };
     const rs = [r("a", "pull", "2026-01-01", 30, { weight: 30, reps: 3 }), r("b", "pull", "2026-02-01", 30, { weight: 30, reps: 5 })];
-    expect(buildSeries(rs, [withCondition], defs, "kg")).toHaveLength(2);
-    expect(buildSeries(rs, [pull], defs, "kg")).toHaveLength(1);
+    expect(buildSeries(rs, [withCondition], defs, "kg").map((s) => s.results.length)).toEqual([1]);
+    expect(buildSeries(rs, [pull], defs, "kg").map((s) => s.results.length)).toEqual([2]);
   });
 });
 

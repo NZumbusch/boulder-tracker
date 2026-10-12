@@ -10,8 +10,10 @@ import { DEFAULT_TEMPLATE_LIBRARY, DATA_EXPORT_VERSION, BODYWEIGHT_METRIC_ID } f
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
 import { adoptTotalBasis } from './benchmarks/basis';
+import { adoptWayViews } from './benchmarks/ways';
+import { TEST_VIEWS_ADOPTED_KEY } from './releaseNotes';
 import { bodyweightFromBenchmark, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from './benchmarks/bodyweight';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate, BenchmarkView } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate, trainingDayDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
@@ -522,6 +524,27 @@ class TrainingState {
   }
 
   /**
+   * Tests used to be split into a row per edge depth or load; views replaced
+   * that (`benchmarks/ways.ts`). Once per device, a test that had a few ways
+   * gets a Home view for each so Home reads as before. What was added is
+   * kept for the "what's new" sheet.
+   */
+  private async adoptTestViews() {
+    if (isDemoMode() || typeof localStorage === 'undefined') return;
+    try {
+      if (localStorage.getItem(TEST_VIEWS_ADOPTED_KEY) !== null) return;
+      const { types, added } = adoptWayViews(this.catalogStore.benchmarkTypes, this.benchmarkStore.benchmarks, this.catalogStore.valueDefs, this.preferencesStore.units.weight);
+      if (added.length > 0) {
+        await storage.saveBenchmarkTypes($state.snapshot(types));
+        this.catalogStore.benchmarkTypes = types;
+      }
+      localStorage.setItem(TEST_VIEWS_ADOPTED_KEY, JSON.stringify(added.map((a) => ({ name: a.name, views: a.views }))));
+    } catch (err) {
+      console.error('Failed to carry the test rows over to views:', err);
+    }
+  }
+
+  /**
    * Refreshes all data from storage.
    */
   async refresh() {
@@ -546,6 +569,7 @@ class TrainingState {
 
       await this.reconcileSettings();
       await this.adoptBenchmarkBasis();
+      await this.adoptTestViews();
 
       // The database file was damaged and got restored (storage/persistence.ts) - say so, once.
       const recovery = takeRecoveryNotice();
@@ -1342,6 +1366,19 @@ class TrainingState {
   /**
    * Deletes a benchmark at once, with an Undo toast that saves it back.
    */
+  /** Replaces a test's saved views (the ways of looking at its results); the test itself is untouched. */
+  async saveBenchmarkViews(typeId: string, views: BenchmarkView[]) {
+    const types = this.catalogStore.benchmarkTypes;
+    if (!types.some((t) => t.id === typeId)) return;
+    const next = types.map((t) => {
+      if (t.id !== typeId) return t;
+      const { views: _old, ...rest } = t;
+      return views.length > 0 ? { ...rest, views: $state.snapshot(views) as BenchmarkView[] } : rest;
+    });
+    if (!isDemoMode()) await storage.saveBenchmarkTypes($state.snapshot(next));
+    this.catalogStore.benchmarkTypes = next;
+  }
+
   async deleteBenchmark(id: string) {
     const benchmark = this.benchmarkStore.benchmarks.find((b) => b.id === id);
     if (!benchmark) return;

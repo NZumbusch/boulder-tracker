@@ -36,10 +36,34 @@ export const RETEST_WEEKS = 6;
  */
 export function latestBenchmarks(benchmarks: Benchmark[], types: BenchmarkTypeDef[], defs: ValueDef[] = [], weight: WeightUnit = "kg"): BenchmarkProgress[] {
   return buildSeries(benchmarks, types, defs, weight).map((s) => {
+    const primary = primaryField(s.fields);
+    // A view that follows another number than the test's own (the heaviest single of a pull-up test that also holds max reps) reads that one.
+    const metric = defaultMetric(s, weight);
+    const own = metric && s.view?.y && metric.id !== primary?.valueId ? metric : undefined;
+    if (own) {
+      const pts = metricPoints(own, s, weight, []);
+      if (pts.length > 0) {
+        const last = pts[pts.length - 1];
+        const prev = pts.length > 1 ? pts[pts.length - 2] : undefined;
+        const change = prev ? Math.round((last.value - prev.value) * 100) / 100 : undefined;
+        const text = (v: number) => `${Number(v.toFixed(2))}${own.unit ? ` ${own.unit}` : ""}`;
+        return {
+          typeKey: s.key,
+          name: s.label,
+          unit: own.unit,
+          latest: last.value,
+          latestDate: last.result.date,
+          change,
+          previousDate: prev?.result.date,
+          latestText: text(last.value),
+          changeText: change !== undefined ? `${change > 0 ? "+" : "−"}${text(Math.abs(change))}` : undefined,
+          improved: change !== undefined ? isImprovement(change, {}) : undefined,
+        };
+      }
+    }
     const latest = s.results[s.results.length - 1];
     const previous = s.results.length > 1 ? s.results[s.results.length - 2] : undefined;
     const change = previous ? Math.round((latest.value - previous.value) * 100) / 100 : undefined;
-    const primary = primaryField(s.fields);
     return {
       typeKey: s.key,
       name: s.label,

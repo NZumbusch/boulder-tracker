@@ -43,9 +43,9 @@ export const GLOSSARY: Record<TermId, Term> = {
   tests: {
     title: "Tests",
     paragraphs: [
-      "A test is something you repeat now and then to see whether you are improving: a max hang, max pull-ups, a one-rep max. Each records one result (the number you are chasing) and, where it matters, the conditions it was done under: the edge depth, the hang time, the load on a rep test.",
-      "Results are only compared like with like. A hang on a 20 mm edge is followed on its own, apart from one on 15 mm - which is why a test's chart can have one line per set of conditions.",
-      "Plan a test inside a session (Test in the session editor, or Add → test while you train) and enter the result when you do it; it is saved as a result linked to that session. The Progress tab charts each test, and \"All tests\" shows every one as % change since its first result. The AI sees your results and when each test is due (6 weeks by default, changeable under Reminders), and can schedule one for you.",
+      "A test is something you repeat now and then to see whether you are improving: a max hang, max pull-ups, a one-rep max. Each records a result (the number you are chasing) and whatever else matters: the edge depth, the hang time, the load or the reps - every value is kept.",
+      "In the chart you choose how to look at them: all results, only some (no added weight, 10 kg or more, a 20 mm edge), one line per weight or edge, the best per week or month, or one value against another - reps against weight, best reps at each weight. Save a view with the test and it can show on Home.",
+      "Plan a test inside a session (Test in the session editor, or Add → test while you train), setting beforehand whatever the test is to be done at - the reps to find a heaviest single, a weight to find the reps - and enter the result when you do it; it is saved as a result linked to that session. The Progress tab charts each test, and \"All tests\" shows every one as % change since its first result. The AI sees your results and when each test is due (6 weeks by default, changeable under Reminders), and can schedule one for you.",
     ],
   },
   monotony: {
