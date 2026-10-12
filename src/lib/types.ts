@@ -700,6 +700,41 @@ export interface BenchmarkField {
   basis?: "added" | "total";
 }
 
+/** What a saved view keeps of one field's results: all values, one value, a range, or "none" (not logged, or 0 - no added weight). Numbers as stored (weights in kg). */
+export type BenchmarkFieldFilter =
+  | { op: "eq"; value: number | string }
+  | { op: "range"; min?: number; max?: number }
+  | { op: "none" };
+
+/**
+ * A way of looking at one test's results, saved with the test: which
+ * results (a filter per field), what is plotted (metric ids as in
+ * `lib/benchmarks/series.ts`; no `x` = over time), whether to draw one line
+ * per value of a field, and whether to show every result or the best/average
+ * per week, month or value. Every field is recorded either way - a view only
+ * decides what is shown.
+ */
+export interface BenchmarkView {
+  id: string;
+  name: string;
+  /** By `ValueDef.id`; a field without an entry shows all of its values. */
+  filters?: Record<string, BenchmarkFieldFilter>;
+  /** The metric charted; default the test's own score. */
+  y?: string;
+  /** A second line on its own scale (over time, not split). */
+  y2?: string;
+  /** Plot against this metric instead of the date. */
+  x?: string;
+  /** One line per value of this field (`ValueDef.id`). */
+  splitBy?: string;
+  /** "all" every result; "week"/"month" one point per period; "each" one point per x value. */
+  agg?: "all" | "week" | "month" | "each";
+  /** Which result a period or x value stands for; default best. */
+  stat?: "best" | "average";
+  /** Shown on Home, in the overview and in Insights as its own row. */
+  onHome?: boolean;
+}
+
 /** How a test's results are turned into the one number charted: as logged, as % of bodyweight, or an estimated one-rep max (Epley) from weight and reps. */
 export type BenchmarkScore = "raw" | "relative" | "estimatedMax";
 
@@ -724,6 +759,8 @@ export interface BenchmarkTypeDef {
   protocol?: string;
   /** How the charted number is formed. Default "raw". */
   score?: BenchmarkScore;
+  /** Saved ways of looking at the results (filters, split, aggregate) - see `BenchmarkView`. */
+  views?: BenchmarkView[];
   /** The ids of tests merged into this one by the fields migration, so a setting that named one of them still finds it. */
   mergedFrom?: string[];
 }

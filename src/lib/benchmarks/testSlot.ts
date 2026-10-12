@@ -1,7 +1,7 @@
 import type { Benchmark, BenchmarkTypeDef, ExerciseSlot, ValueDef } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
 import type { WeightUnit } from "../units";
-import { askedFields, conditionFields, conditionsText, formatFieldValue, fromShown, resolveFields, resultValues, toShown, type ResolvedField } from "./model";
+import { askedFields, conditionsText, formatFieldValue, fromShown, resolveFields, resultValues, toShown, type ResolvedField } from "./model";
 
 /**
  * A benchmark test planned as part of a session: an exercise slot that names
@@ -58,11 +58,11 @@ export function lastConditions(type: BenchmarkTypeDef, defs: readonly ValueDef[]
   return out;
 }
 
-/** "Edge depth 20 mm · Time 7 s" - the planned conditions in words (empty without any). */
+/** "Edge depth 20 mm · Time 7 s" - what the plan sets beforehand, in words (empty without any). Any field can be set: the rest is what the test is to find ("Reps 1" -> find the weight). */
 export function plannedConditionsText(slot: Pick<ExerciseSlot, "test">, type: BenchmarkTypeDef | undefined, defs: readonly ValueDef[], weight: WeightUnit): string {
   const conditions = slot.test?.conditions;
   if (!conditions || !type) return "";
-  const fields = conditionFields(resolveFields(type, defs));
+  const fields = resolveFields(type, defs);
   return fields
     .filter((f) => f.fixed === undefined && conditions[f.valueId] !== undefined)
     .map((f) => `${f.label} ${formatFieldValue(f, conditions[f.valueId], weight)}`)
@@ -150,10 +150,9 @@ export function inputsFromValues(fields: readonly ResolvedField[], values: Recor
 }
 
 /** What was typed as stored values (weights in kg); fields left empty are left out, fixed ones are always there. */
-export function valuesFromInputs(fields: readonly ResolvedField[], inputs: Record<string, string>, weight: WeightUnit, only?: "condition"): Record<string, number | string> {
+export function valuesFromInputs(fields: readonly ResolvedField[], inputs: Record<string, string>, weight: WeightUnit): Record<string, number | string> {
   const out: Record<string, number | string> = {};
   for (const f of fields) {
-    if (only && f.role !== only) continue;
     if (f.fixed !== undefined) {
       out[f.valueId] = f.fixed;
       continue;
