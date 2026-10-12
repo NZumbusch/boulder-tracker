@@ -40,8 +40,8 @@ describe("proposeTidy", () => {
     expect(m.kind === "merge" && m.addFields.map((f) => f.valueId)).toEqual(["time"]);
     expect(m.kind === "merge" && m.fill).toEqual([{ resultId: "r1", values: { edge: 20, time: 7 } }]);
   });
-  it("proposes retiring the bodyweight test, on by default", () => {
-    expect(p.find((x) => x.id === "archive-bw")).toMatchObject({ kind: "archive", defaultOn: true });
+  it("leaves the bodyweight test to the weigh-in migration, whatever its results", () => {
+    expect(p.some((x) => x.id === "archive-bw" || (x.kind === "archive" && x.typeIds.includes("bw")))).toBe(false);
   });
   it("offers unused tests too, but off by default", () => {
     const unused = p.find((x) => x.id === "archive-unused")!;
@@ -65,8 +65,8 @@ describe("applyTidy", () => {
     expect(moved).toMatchObject({ typeId: "max-hang", type: "Max Hang", values: { weight: 51.5, edge: 20, time: 7 } });
     expect(out.benchmarks).toHaveLength(1);
   });
-  it("archives rather than deletes, and leaves the rest alone", () => {
-    expect(out.types.find((t) => t.id === "bw")?.archived).toBe(true);
+  it("leaves tests it did not propose alone", () => {
+    expect(out.types.find((t) => t.id === "bw")?.archived).toBeUndefined(); // the weigh-in migration owns that one
     expect(out.types.find((t) => t.id === "pu")?.archived).toBeUndefined();
     expect(out.types.find((t) => t.id === "ls")?.archived).toBeUndefined();
   });

@@ -6,10 +6,11 @@ import { toast, showUndo } from './toast.svelte';
 import { copySessionsToWeek } from './planning/copyWeek';
 import { storage, ImportCancelled, isNewerExportVersion } from './storage';
 import { Capacitor } from '@capacitor/core';
-import { DEFAULT_TEMPLATE_LIBRARY, DATA_EXPORT_VERSION } from './constants';
+import { DEFAULT_TEMPLATE_LIBRARY, DATA_EXPORT_VERSION, BODYWEIGHT_METRIC_ID } from './constants';
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
 import { adoptTotalBasis } from './benchmarks/basis';
+import { bodyweightFromBenchmark } from './benchmarks/bodyweight';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate, trainingDayDate } from './dateUtils';
@@ -442,7 +443,7 @@ class TrainingState {
   /** Half-life and softening for accumulated fatigue - see `computeFatigueDecay`. */
   get fatigueModel(): FatigueModel {
     const t = this.preferencesStore.tunables;
-    return { halfLifeDays: num(t, 'fatigue.halfLifeDays'), soften: flag(t, 'fatigue.soften'), softKnee: num(t, 'fatigue.softKnee') };
+    return { halfLifeDays: num(t, 'fatigue.halfLifeDays'), soften: flag(t, 'fatigue.soften'), softKnee: num(t, 'fatigue.softKnee'), stacking: flag(t, 'fatigue.sumStacking') ? 'sum' : 'capacity' };
   }
   get frictionConfig(): FrictionConfig {
     const t = this.preferencesStore.tunables;
@@ -1321,9 +1322,16 @@ class TrainingState {
   /**
    * Saves a benchmark to storage and refreshes local state.
    */
-  async saveBenchmark(benchmark: Benchmark) {
+  async saveBenchmark(benchmark: Benchmark, opts: { syncBodyweight?: boolean } = {}) {
     await this.benchmarkStore.saveBenchmark(benchmark);
-    await this.refresh();
+    // A weigh-in result is a bodyweight reading as well (Home card, readiness, % of bodyweight). Bulk re-saves
+    // (tidy-up, undo) pass `syncBodyweight: false`: restoring old results must not overwrite readings.
+    const day = benchmark.date.slice(0, 10);
+    const existing = this.metricsStore.dailyMetrics.find((m) => m.metricId === BODYWEIGHT_METRIC_ID && m.date === day);
+    const type = this.catalogStore.benchmarkTypes.find((t) => t.id === benchmark.typeId);
+    const reading = opts.syncBodyweight === false ? null : bodyweightFromBenchmark(benchmark, type, this.catalogStore.valueDefs, existing?.id);
+    if (reading) await this.saveDailyMetric(reading, { id: BODYWEIGHT_METRIC_ID, name: 'Bodyweight', unit: 'kg' });
+    else await this.refresh();
   }
 
   /**
@@ -1335,7 +1343,7 @@ class TrainingState {
     const copy = $state.snapshot(benchmark) as Benchmark;
     await this.benchmarkStore.deleteBenchmark(id);
     await this.refresh();
-    showUndo(`${copy.type} result deleted`, () => this.saveBenchmark(copy));
+    showUndo(`${copy.type} result deleted`, () => this.saveBenchmark(copy, { syncBodyweight: false }));
   }
 
   /**
@@ -1710,6 +1718,12 @@ class TrainingState {
   async importDailyMetrics(entries: DailyMetricEntry[], defs: MetricDef[]) {
     for (const def of defs) await this.metricsStore.ensureMetricDef(def);
     await storage.upsertDailyMetrics(entries);
+    await this.refresh();
+  }
+
+  /** Removes daily metric entries without a toast - for an undo that puts back what an action added. */
+  async removeDailyMetrics(ids: string[]) {
+    for (const id of ids) await this.metricsStore.deleteDailyMetric(id);
     await this.refresh();
   }
 

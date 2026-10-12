@@ -35,7 +35,14 @@ export interface FatigueDecayResult {
  * Training model -> Fatigue).
  *
  * `halfLifeDays` - every session's rating halves over this many days.
- * `soften` / `softKnee` - stacked sessions add up, and without softening
+ * `stacking` - how sessions combine. "capacity" (the default): a session
+ * uses up its rating's share of the capacity that is still free, so two
+ * medium sessions (5 + 5) read 7.5, not 10, a lone session reads exactly
+ * its rating, and the reading only approaches 10 as sessions pile up -
+ * a ceiling that eases in rather than a cliff, as with any fatigue that
+ * can't exceed "can't do more". "sum": ratings simply add (the earlier
+ * behaviour), which `soften` / `softKnee` then act on.
+ * `soften` / `softKnee` - (sum only) stacked sessions add up, and without softening
  * the sum is simply capped at 10. With it, readings up to `softKnee` are
  * left exactly as they are and everything above bends smoothly towards 10
  * (a hard session on its own reads about what it was rated; a third hard
@@ -45,9 +52,10 @@ export interface FatigueModel {
   halfLifeDays: number;
   soften: boolean;
   softKnee: number;
+  stacking: "capacity" | "sum";
 }
 
-export const DEFAULT_FATIGUE_MODEL: FatigueModel = { halfLifeDays: 3, soften: false, softKnee: 6 };
+export const DEFAULT_FATIGUE_MODEL: FatigueModel = { halfLifeDays: 3, soften: false, softKnee: 6, stacking: "capacity" };
 export const FATIGUE_MAX = 10;
 
 /** A decayed sum mapped onto 0-10: capped, or with the soft knee above. */
@@ -85,6 +93,8 @@ export function computeFatigueDecay(workouts: Workout[], asOf: Date, model: numb
 
   const coverage: FatigueCoverage = { total: completed.length, fingers: 0, arms: 0, core: 0, systemic: 0 };
   const sum: Record<FatigueAxis, number> = { fingers: 0, arms: 0, core: 0, systemic: 0 };
+  /** Capacity not yet used on each axis, 0-1: every session leaves (1 - its share) of what was free. */
+  const free: Record<FatigueAxis, number> = { fingers: 1, arms: 1, core: 1, systemic: 1 };
 
   for (const w of completed) {
     const daysAgo = Math.max(0, asOfDay - toUtcDayIndex(w.date!));
@@ -94,11 +104,12 @@ export function computeFatigueDecay(workouts: Workout[], asOf: Date, model: numb
       if (value === undefined) continue;
       coverage[axis]++;
       sum[axis] += weight * value;
+      free[axis] *= 1 - Math.min(1, Math.max(0, (weight * value) / FATIGUE_MAX));
     }
   }
 
   const axisValue = (axis: FatigueAxis): number | undefined =>
-    coverage[axis] > 0 ? fatigueReading(sum[axis], m) : undefined;
+    coverage[axis] === 0 ? undefined : m.stacking === "sum" ? fatigueReading(sum[axis], m) : FATIGUE_MAX * (1 - free[axis]);
 
   return {
     fingers: axisValue("fingers"),

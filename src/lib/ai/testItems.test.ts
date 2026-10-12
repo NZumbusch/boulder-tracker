@@ -79,6 +79,18 @@ describe("test items in a change set", () => {
     expect(warnings).toContain("isn't one of Grip's options");
   });
 
+  it("never schedules a weigh-in: bodyweight is a metric, and the AI is not offered it as a test", () => {
+    const bw: BenchmarkTypeDef = { id: "bw", name: "Bodyweight", unit: "kg", fields: [{ valueId: "weight", role: "result" }] };
+    const s = state({ benchmarkTypes: [hang, bw] });
+    const r = plan(addTest({ test: "Bodyweight" }), s);
+    const exercises = r.writes.weeks.flatMap((w) => w.planned ?? []).flatMap((w) => w.exercises);
+    expect(exercises.some((e) => e.test)).toBe(false);
+    expect(r.items.flatMap((i) => i.warnings).join(" ")).toContain("daily reading");
+    expect(r.items.every((i) => i.errors.length === 0)).toBe(true);
+    const offered = buildTestSummaries({ benchmarkTypes: [hang, bw], benchmarks: [], workouts: [], valueDefs } as never, new Date("2026-10-12"));
+    expect(offered.map((t) => t.name)).toEqual(["Max Hang"]);
+  });
+
   it("finds a planned test by 'Test: name' to move or remove it", () => {
     const testSlot = makeTestSlot({ id: "ts", type: hang, conditions: { edge: 20 } });
     const w: Workout = { id: "w44", status: "planned", date: null, weekId: "2026-W42", dayOfWeek: "Monday", notes: "Board", loadFactor: 0, exercises: [testSlot] } as Workout;
