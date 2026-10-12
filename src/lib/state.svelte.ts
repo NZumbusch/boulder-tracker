@@ -345,6 +345,9 @@ class TrainingState {
   setTimerCountdownTicks(enabled: boolean) { this.preferencesStore.setTimerCountdownTicks(enabled); }
   setTimerWarnBeforeEnd(enabled: boolean) { this.preferencesStore.setTimerWarnBeforeEnd(enabled); }
   setTimerPillHidden(hidden: boolean) { this.preferencesStore.setTimerPillHidden(hidden); }
+  get timerPresets() { return this.preferencesStore.timerPresets; }
+  saveTimerPreset(preset: Parameters<PreferencesStore['saveTimerPreset']>[0]) { this.preferencesStore.saveTimerPreset(preset); }
+  deleteTimerPreset(id: string) { this.preferencesStore.deleteTimerPreset(id); }
   get painCheckIns() { return this.preferencesStore.painCheckIns; }
   async setPainCheckIns(changes: Partial<PainCheckInPrefs>) {
     this.preferencesStore.setPainCheckIns(changes);

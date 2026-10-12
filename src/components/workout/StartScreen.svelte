@@ -11,6 +11,7 @@
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
   import Icon from "@iconify/svelte";
+  import { openQuickTimerSheet } from '../../lib/timer/quickTimer.svelte';
 
   let { plannedWorkouts = [] }: { plannedWorkouts: Workout[] } = $props();
 
@@ -118,6 +119,19 @@
         </span>
       </button>
     </div>
+
+    <button
+      onclick={openQuickTimerSheet}
+      data-tour="add-timer"
+      class="w-full p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card border border-border-strong/50 transition-all active:scale-[0.99] text-left flex items-center gap-3"
+    >
+      <Icon icon="ic:baseline-timer" class="text-lg text-content-muted shrink-0" />
+      <span class="min-w-0 flex-1">
+        <span class="text-label font-bold block truncate">Timer</span>
+        <span class="text-caption text-content-subtle block truncate">Intervals, a pacer, countdown &mdash; no session needed</span>
+      </span>
+      <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle shrink-0" />
+    </button>
 
     {#if isAddingBenchmark}
       <BenchmarkForm
