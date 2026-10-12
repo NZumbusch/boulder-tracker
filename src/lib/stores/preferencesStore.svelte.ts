@@ -1,4 +1,5 @@
 import { type TimerCues, validateTimerCues } from '../timer/timerCues';
+import { type TimerPreset, validateTimerPresets } from '../timer/presets';
 import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
@@ -34,6 +35,7 @@ export class PreferencesStore {
   timerWarnBeforeEnd = $state(false);
   timerPillHidden = $state(false);
   timerCues = $state<TimerCues>(validateTimerCues(undefined));
+  timerPresets = $state<TimerPreset[]>([]);
   sessionKeepAwake = $state(true);
   painCheckIns = $state<PainCheckInPrefs>({ ...DEFAULT_PAIN_CHECK_INS });
   hapticsEnabled = $state(true);
@@ -104,6 +106,7 @@ export class PreferencesStore {
     this.timerWarnBeforeEnd = prefs.timerWarnBeforeEnd;
     this.timerPillHidden = prefs.timerPillHidden;
     this.timerCues = prefs.timerCues;
+    this.timerPresets = prefs.timerPresets;
     this.sessionKeepAwake = prefs.sessionKeepAwake;
     this.painCheckIns = prefs.painCheckIns;
     this.hapticsEnabled = prefs.hapticsEnabled;
@@ -218,6 +221,18 @@ export class PreferencesStore {
       announce: { ...this.timerCues.announce, ...changes.announce },
       speech: { ...this.timerCues.speech, ...changes.speech },
     });
+    this.persist();
+  }
+
+  /** Saves a preset: a new one, or the same id replaced. */
+  saveTimerPreset(preset: TimerPreset) {
+    const rest = this.timerPresets.filter((p) => p.id !== preset.id);
+    this.timerPresets = validateTimerPresets([...rest, preset]);
+    this.persist();
+  }
+
+  deleteTimerPreset(id: string) {
+    this.timerPresets = this.timerPresets.filter((p) => p.id !== id);
     this.persist();
   }
 
@@ -399,6 +414,7 @@ export class PreferencesStore {
       timerWarnBeforeEnd: this.timerWarnBeforeEnd,
       timerPillHidden: this.timerPillHidden,
       timerCues: this.timerCues,
+      timerPresets: this.timerPresets,
       sessionKeepAwake: this.sessionKeepAwake,
       painCheckIns: this.painCheckIns,
       hapticsEnabled: this.hapticsEnabled,

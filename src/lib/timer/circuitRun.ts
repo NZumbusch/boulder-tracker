@@ -344,7 +344,7 @@ export function circuitLoggedValues(members: GroupMember[], state: CircuitRunSta
       out[slot.id] = { ...rest, sets: doneRounds.length, duration: minutes, cadence: Math.round((minutes / doneRounds.length) * 10) / 10 };
       continue;
     }
-    const timed = Number(values.timeOn) > 0 || (!values.reps && Number(values.duration) > 0);
+    const timed = isTimedMember(values);
     const logged: ExerciseValues = { ...values, sets: doneRounds.length };
     delete logged.notes; // the plan's note stays the plan's: "how it went" is the user's to write
     delete logged.setDetails;
@@ -536,4 +536,9 @@ export function roundsDone(steps: CircuitStep[], state: CircuitRunState, planned
     done++;
   }
   return { done, planned: Math.max(planned, rounds) };
+}
+
+/** Whether a member's results are seconds (a timed set, a pacer's problem, a share of a duration) rather than reps. */
+export function isTimedMember(values: ExerciseValues): boolean {
+  return Number(values.timeOn) > 0 || isPacer(values) || (!values.reps && Number(values.duration) > 0);
 }

@@ -36,7 +36,8 @@
   import SessionExitModal from './SessionExitModal.svelte';
   import SessionNotesSheet from './SessionNotesSheet.svelte';
   import TimerWidget from './TimerWidget.svelte';
-  import { hasIntervalTiming } from '../../lib/timer/intervalTimer';
+  import { hasRunnableTiming, isPacer, soloRun } from '../../lib/timer/soloRun';
+  import { CIRCUIT_LEAD_IN_SECONDS } from '../../lib/timer/circuitRun';
   import { workoutItems, groupMinutes, groupSummary, groupSlots, ungroup, takeOutOfGroup, addToGroup, updateGroup, settleAfterMove, normaliseGroups } from '../../lib/exercise/groups';
   import { repsPerSet } from '../../lib/exercise/reps';
   import GroupSettings from './GroupSettings.svelte';
@@ -95,10 +96,19 @@
   let circuitGroupId = $state<string | null>(storedCircuitGroupId(untrack(() => store.session?.startedAt)));
   /** The runner is on screen (it keeps running when minimised). */
   let circuitVisible = $state(false);
+  /** A single exercise's timer is a run of its own: `solo-<slot id>` stands in for a circuit's group id. */
+  const SOLO_PREFIX = 'solo-';
   const circuitRun = $derived.by(() => {
     if (!circuitGroupId) return null;
+    if (circuitGroupId.startsWith(SOLO_PREFIX)) {
+      const slot = store.exercises.find((s) => `${SOLO_PREFIX}${s.id}` === circuitGroupId);
+      if (!slot) return null;
+      const base = slotValues(slot);
+      const made = soloRun(base, { leadIn: trainingState.tunable('timer.leadIn'), setRest: trainingState.tunable('timer.setRest') });
+      return { group: { ...made.group, id: circuitGroupId }, slots: [{ ...slot, prescribed: made.values }], solo: made, baseValues: base };
+    }
     const item = workoutItems({ exercises: store.exercises, groups: store.workout?.groups }).find((i) => i.kind === 'group' && i.group.id === circuitGroupId);
-    return item && item.kind === 'group' ? { group: item.group, slots: item.members.map((m) => m.slot) } : null;
+    return item && item.kind === 'group' ? { group: item.group, slots: item.members.map((m) => m.slot), solo: null, baseValues: undefined } : null;
   });
   /** The group a slot is in, for its Circuit button. */
   const groupIdOf = (slot: ExerciseSlot) => (slot.groupId && store.workout?.groups?.some((g) => g.id === slot.groupId) ? slot.groupId : null);
@@ -124,6 +134,11 @@
       circuitVisible = true;
     }
   });
+
+  /** Opens the timer for one exercise: a repeater, rest-timed sets or a pacer - a run that waits for Start. */
+  function openSolo(slotId: string) {
+    openCircuit(`${SOLO_PREFIX}${slotId}`);
+  }
 
   function openCircuit(groupId: string) {
     if (circuitGroupId && circuitGroupId !== groupId) return; // one at a time: resume or finish that one first
@@ -892,18 +907,18 @@
                             <Icon icon="ic:baseline-play-arrow" class="text-lg" />
                             {circuitGroupId === slot.groupId ? 'Resume circuit' : 'Start circuit'}
                           </button>
-                        {:else if hasIntervalTiming(slotValues(slot))}
-                          <!-- Opens the timer that fits: the interval protocol
-                               for timed work (hangs), the set timer with rests
-                               for strength sets. The floating pill below also
-                               offers stopwatch and countdown for anything else. -->
+                        {:else if hasRunnableTiming(slotValues(slot))}
+                          <!-- The exercise's own timer - a repeater, rest-timed sets or a pacer - the same
+                               runner as a circuit's. It waits for Start. The floating pill also offers a
+                               stopwatch and countdown for anything else. -->
                           <button
-                            onclick={() => timer?.openForExercise()}
-                            class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5"
-                            aria-label="Open the timer for this exercise"
+                            onclick={() => openSolo(slot.id)}
+                            disabled={!!circuitGroupId && circuitGroupId !== `${SOLO_PREFIX}${slot.id}`}
+                            class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-40"
+                            aria-label={circuitGroupId === `${SOLO_PREFIX}${slot.id}` ? 'Resume the timer' : isPacer(slotValues(slot)) ? 'Open the pacer for this exercise' : 'Open the timer for this exercise'}
                           >
                             <Icon icon="ic:baseline-timer" class="text-base" />
-                            Timer
+                            {circuitGroupId === `${SOLO_PREFIX}${slot.id}` ? 'Resume' : isPacer(slotValues(slot)) ? 'Pacer' : 'Timer'}
                           </button>
                         {/if}
                         <button
@@ -1010,6 +1025,11 @@
       sessionKey={session.startedAt}
       group={circuitRun.group}
       slots={circuitRun.slots}
+      variant={circuitRun.solo ? circuitRun.solo.kind : 'circuit'}
+      autoStart={!circuitRun.solo}
+      leadIn={circuitRun.solo ? circuitRun.solo.leadIn : CIRCUIT_LEAD_IN_SECONDS}
+      baseValues={circuitRun.baseValues}
+      logLabel={circuitRun.solo ? 'Log' : undefined}
       visible={store.isModalOpen && circuitVisible}
       onLog={handleCircuitLogged}
       onClose={() => { circuitGroupId = null; circuitVisible = false; }}

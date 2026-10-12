@@ -25,6 +25,7 @@
     readiness: 'Readiness',
     alerts: 'Alerts',
     today: 'Today',
+    timer: 'Timer',
     metrics: 'Metrics',
     fatigue: 'Fatigue',
     thisWeek: 'This Week',
