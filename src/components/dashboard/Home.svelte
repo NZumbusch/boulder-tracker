@@ -22,6 +22,7 @@
   import CragsCard from './home/CragsCard.svelte';
   import TodayCard from './home/TodayCard.svelte';
   import MetricsCard from './home/MetricsCard.svelte';
+  import TimerCard from './home/TimerCard.svelte';
   import FatigueCard from './home/FatigueCard.svelte';
   import ThisWeekCard from './home/ThisWeekCard.svelte';
   import TrainingBlockCard from './home/TrainingBlockCard.svelte';
@@ -156,6 +157,7 @@
       {:else if section.id === 'progress'}<ProgressCard {data} />
       {:else if section.id === 'crags'}<CragsCard {data} />
       {:else if section.id === 'today'}<TodayCard {data} />
+      {:else if section.id === 'timer'}<TimerCard />
       {:else if section.id === 'metrics'}<MetricsCard {data} />
       {:else if section.id === 'fatigue'}<FatigueCard {data} />
       {:else if section.id === 'thisWeek'}<ThisWeekCard {data} />

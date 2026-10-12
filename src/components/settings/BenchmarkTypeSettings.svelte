@@ -27,7 +27,7 @@
   import { BENCHMARK_PRESETS, missingBuiltIns } from '../../lib/benchmarks/presets';
   import { measureOfUnit } from '../../lib/benchmarks/upgrade';
   import { applyTidy, proposeTidy } from '../../lib/benchmarks/tidy';
-  import { planWeighInMigration, weighInTypeIds, withoutWeighInSlots } from '../../lib/benchmarks/bodyweight';
+  import { planWeighInMigration, weighInTypeIds, withoutWeighInSlots, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from '../../lib/benchmarks/bodyweight';
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import type { Workout } from '../../lib/types';
   import Icon from '@iconify/svelte';
@@ -183,8 +183,13 @@
   // --- Weigh-ins: a daily reading, not a test ---
   const weighIn = $derived(planWeighInMigration(benchmarkTypes, trainingState.benchmarks, defs, trainingState.dailyMetrics));
   const weighInSlots = $derived(withoutWeighInSlots(trainingState.workouts, weighInTypeIds(benchmarkTypes, defs)));
-  const weighInSignature = $derived(`weighin:${weighIn.typeIds.join(',')}:${weighIn.entries.length}:${weighInSlots.length}`);
-  const weighInOffer = $derived(weighIn.typeIds.length > 0 || weighIn.entries.length > 0 || weighInSlots.length > 0);
+  /** Weigh-in slots left in the phases' templates and Plan B alternatives. */
+  const weighInPlanSlots = $derived(
+    withoutWeighInSlotsInTemplates(trainingState.templates, weighInTypeIds(benchmarkTypes, defs)).count
+      + withoutWeighInSlotsInAlternatives(trainingState.planAlternatives, weighInTypeIds(benchmarkTypes, defs)).count,
+  );
+  const weighInSignature = $derived(`weighin:${weighIn.typeIds.join(',')}:${weighIn.entries.length}:${weighInSlots.length}:${weighInPlanSlots}`);
+  const weighInOffer = $derived(weighIn.typeIds.length > 0 || weighIn.entries.length > 0 || weighInSlots.length > 0 || weighInPlanSlots > 0);
 
   /** Results become readings, the test is archived, planned weigh-in sessions lose the slot. Undo reverses all three; no result is deleted. */
   async function moveWeighIns() {
@@ -194,10 +199,12 @@
     if (plan.entries.length > 0) await trainingState.importDailyMetrics(plan.entries, [{ id: BODYWEIGHT_METRIC_ID, name: 'Bodyweight', unit: 'kg' }]);
     benchmarkTypes = benchmarkTypes.map((t) => (plan.typeIds.includes(t.id) ? { ...t, archived: true } : t));
     for (const w of weighInSlots) await trainingState.saveWorkoutQuiet($state.snapshot(w) as Workout);
+    const fromPlan = await trainingState.stripTestSlotsFromPlan(weighInTypeIds(beforeTypes, defs));
     undoable(`${plan.entries.length} weigh-in${plan.entries.length === 1 ? '' : 's'} moved to Bodyweight`, async () => {
       await trainingState.removeDailyMetrics(plan.entries.map((e) => e.id));
       benchmarkTypes = beforeTypes;
       for (const w of beforeWorkouts) await trainingState.saveWorkoutQuiet(w);
+      await fromPlan.undo();
     });
   }
 
@@ -238,6 +245,7 @@
           {#if weighIn.entries.length > 0}{weighIn.entries.length} result{weighIn.entries.length === 1 ? '' : 's'} become{weighIn.entries.length === 1 ? 's' : ''} a daily reading{#if weighIn.keptDays > 0}; {weighIn.keptDays} day{weighIn.keptDays === 1 ? '' : 's'} already {weighIn.keptDays === 1 ? 'has' : 'have'} one and keep it{/if}.{/if}
           {#if weighIn.typeIds.length > 0}The test is archived.{/if}
           {#if weighInSlots.length > 0}{weighInSlots.length} planned session{weighInSlots.length === 1 ? '' : 's'} lose{weighInSlots.length === 1 ? 's' : ''} the weigh-in.{/if}
+          {#if weighInPlanSlots > 0}It is also taken out of {weighInPlanSlots} phase or Plan B session{weighInPlanSlots === 1 ? '' : 's'}.{/if}
           {#if weighIn.skipped.length > 0}{weighIn.skipped.length} result{weighIn.skipped.length === 1 ? '' : 's'} had no usable weight or date and stay{weighIn.skipped.length === 1 ? 's' : ''} in history only.{/if}
           No result is deleted; Undo is offered afterwards.
         </p>

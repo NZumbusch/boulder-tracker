@@ -189,6 +189,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Session notification", page: "live", words: "pause resume clock" },
   { label: "Haptic feedback", page: "live", words: "vibration buzz" },
   { label: "3-2-1 countdown", page: "timer", words: "beeps ticks" },
+  { label: "Get-ready time and default rest between sets", page: "timer", words: "lead in countdown rest sets single exercise hang" },
   { label: "15 second warning", page: "timer", words: "heads-up rest" },
   { label: "Timer in the background", page: "timer", words: "notification locked screen alarms" },
   { label: "Keep screen on while a timer runs", page: "timer" },
