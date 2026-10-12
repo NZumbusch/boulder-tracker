@@ -70,7 +70,7 @@
           {selectedWeekId === week.id ? 'ring-1 ring-primary ring-offset-1 ring-offset-surface scale-110 z-10 shadow-lg' : 'hover:scale-110'}
           {week.isCurrent ? 'border-2 border-primary' : ''}"
       >
-        {#if showYear}<div class="absolute -top-1.5 -left-1.5 z-20 px-1 py-px rounded-control bg-surface-elevated text-content border border-border-strong shadow-sm text-caption font-bold whitespace-nowrap">{week.year}</div>{/if}
+        {#if showYear}<div class="absolute -top-3.5 -left-1.5 z-30 px-1 py-px leading-tight rounded-control bg-surface-elevated text-content border border-border-strong shadow-sm text-caption font-bold whitespace-nowrap">{week.year}</div>{/if}
         {#if week.isCurrent}<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary-hover rounded-full border-2 border-app-bg z-20"></div>{/if}
         {#if week.hasOverlap}<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-white rounded-full border border-app-bg z-20" title="Multiple training blocks overlap this week"></div>{/if}
         {#if week.provisional}
