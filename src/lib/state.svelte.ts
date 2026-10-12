@@ -393,6 +393,8 @@ class TrainingState {
   resetTunables(topic: TunableTopic) { this.preferencesStore.resetTunables(topic); }
   /** A number tunable's current value. */
   tunable(id: string): number { return num(this.preferencesStore.tunables, id); }
+  /** A switch tunable's current value. */
+  tunableOn(id: string): boolean { return flag(this.preferencesStore.tunables, id); }
   get readinessConfig(): ReadinessConfig {
     const t = this.preferencesStore.tunables;
     return {
