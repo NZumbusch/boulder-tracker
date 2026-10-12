@@ -2,7 +2,7 @@
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { live, composeLive, onLiveAction, pushTimerAction, timerRunning } from '../../lib/native/liveNotification.svelte';
   import { liveTimerAvailable, sendLiveTimer, stopLiveTimer } from '../../lib/native/timerService';
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { motionMs } from '../../lib/motion';
   /**
    * The running session, full screen.
@@ -171,6 +171,13 @@
     }
     circuitGroupId = null;
     circuitVisible = false;
+    // The next exercise with timing gets its timer opened - ready for Start, never running (Settings -> Timer).
+    if (trainingState.tunableOn('timer.openNext')) {
+      void tick().then(() => {
+        const next = store.currentSlot;
+        if (next && !next.groupId && !next.test && hasRunnableTiming(slotValues(next))) openSolo(next.id);
+      });
+    }
   }
 
   const session = $derived(store.session);
