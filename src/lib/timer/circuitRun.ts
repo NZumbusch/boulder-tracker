@@ -399,11 +399,15 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
   const rounds = circuitProgress(steps, state).rounds;
   const totalSets = steps.filter((s) => s.kind === "work").length;
   /** "Circuit · Round 2/3 · Set 4/6" - the line under the title. `at` is the step's index. */
+  /** A single exercise (or the pacer) has no rounds of members: "Set 2/4" or "Problem 2/12", not "Round 2/4 · Set 2/4". */
+  const single = new Set(steps.filter((s) => s.kind === "work").map((s) => (s as Extract<CircuitStep, { kind: "work" }>).member)).size === 1;
+  const unit = steps.find((s) => s.kind === "work" && s.label !== undefined) ? "Problem" : "Set";
   const where = (at: number) => {
     const step = steps[at];
     const round = step && step.kind !== "leadIn" ? step.round + 1 : 1;
     // A rest names the set it leads into: sets up to and including the next one.
     const set = steps.slice(0, at + 1).filter((s) => s.kind === "work").length + (step && step.kind !== "work" ? 1 : 0);
+    if (single) return `${input.name} · ${unit} ${Math.min(set, totalSets)}/${totalSets}`;
     return `${input.name} · Round ${Math.min(round, rounds)}/${rounds} · Set ${Math.min(set, totalSets)}/${totalSets}`;
   };
   if (!input.running) {
@@ -504,6 +508,7 @@ function describe(step: CircuitStep | undefined, input: CircuitLiveInput): strin
   if (step.kind === "leadIn") return "Get ready";
   if (step.kind === "work") {
     const what = step.seconds === undefined && step.reps ? ` · ${step.reps} reps` : "";
+    if (step.label) return `${step.label} ${step.round + 1} · ${input.memberName(step.member)}`;
     return `Go · ${input.memberName(step.member)}${what}`;
   }
   return `${step.kind === "roundRest" ? "Rest" : "Switch"} · next: ${input.memberName(step.next)}`;
@@ -541,4 +546,59 @@ export function roundsDone(steps: CircuitStep[], state: CircuitRunState, planned
 /** Whether a member's results are seconds (a timed set, a pacer's problem, a share of a duration) rather than reps. */
 export function isTimedMember(values: ExerciseValues): boolean {
   return Number(values.timeOn) > 0 || isPacer(values) || (!values.reps && Number(values.duration) > 0);
+}
+
+
+// --- Background alerts without the Android service ----------------------
+
+export interface CircuitAlert {
+  /** Epoch ms to fire at. */
+  atMs: number;
+  kind: "end" | "warning";
+  title: string;
+  body: string;
+}
+
+/** More than this many upcoming alerts is a very long run; the rest are scheduled on the next return. */
+export const MAX_CIRCUIT_ALERTS = 16;
+
+/**
+ * What to notify about while the app is hidden and the Android service isn't
+ * running (so nothing else will make a sound): a rest between sets or rounds
+ * ending, a pacer's next problem, the finish - and the optional warning
+ * before a rest ends. The short switches inside a round and the on/off rests
+ * inside a repeater are left out: nobody pockets the phone mid-set, and an
+ * alert every few seconds would be noise. Stops at the first open (counted)
+ * set - only the person can end it, and the plan is made again when they do.
+ *
+ * Pure, like the rest: steps, state and the clock in, a list out.
+ */
+export function circuitAlerts(
+  input: { steps: CircuitStep[]; state: CircuitRunState; running: boolean; name: string; memberName: (member: number) => string; warningSeconds: number },
+  now: number,
+): CircuitAlert[] {
+  const { steps, state } = input;
+  if (state.done || !input.running) return [];
+  const alerts: CircuitAlert[] = [];
+  let t = now - state.stepElapsedMs;
+  for (let i = state.stepIndex; i < steps.length; i++) {
+    const step = steps[i];
+    const seconds = step.seconds;
+    if (seconds === undefined) break; // an open counted set: nothing to time
+    t += seconds * 1000;
+    const next = steps[i + 1];
+    if (t <= now) continue;
+    if (!next) {
+      alerts.push({ atMs: t, kind: "end", title: `${input.name} done`, body: "All sets finished" });
+    } else if (step.kind === "roundRest" || (step.kind === "transition" && seconds >= 20)) {
+      const target = next.kind === "work" ? input.memberName(next.member) : "";
+      if (input.warningSeconds > 0 && seconds > input.warningSeconds + 3 && t - input.warningSeconds * 1000 > now) {
+        alerts.push({ atMs: t - input.warningSeconds * 1000, kind: "warning", title: `${input.warningSeconds} s left`, body: `Rest · next: ${target}`.trim() });
+      }
+      alerts.push({ atMs: t, kind: "end", title: "Rest over", body: target ? `Next: ${target}` : input.name });
+    } else if (step.kind === "work" && step.label && next.kind === "work") {
+      alerts.push({ atMs: t, kind: "end", title: `${step.label} ${next.round + 1}`, body: `${input.name} · next ${step.label.toLowerCase()}` });
+    }
+  }
+  return alerts.sort((a, b) => a.atMs - b.atMs).slice(0, MAX_CIRCUIT_ALERTS);
 }

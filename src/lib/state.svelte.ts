@@ -10,8 +10,8 @@ import { DEFAULT_TEMPLATE_LIBRARY, DATA_EXPORT_VERSION, BODYWEIGHT_METRIC_ID } f
 import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
 import { adoptTotalBasis } from './benchmarks/basis';
-import { bodyweightFromBenchmark } from './benchmarks/bodyweight';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef } from './types';
+import { bodyweightFromBenchmark, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from './benchmarks/bodyweight';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate, trainingDayDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
@@ -1807,6 +1807,29 @@ class TrainingState {
     }
     await this.refresh();
     return ids;
+  }
+
+  /**
+   * Takes weigh-in test slots out of the phases' session templates and Plan B alternatives (planned sessions are
+   * handled by the caller). Returns how many went and a function that puts them back.
+   */
+  async stripTestSlotsFromPlan(typeIds: string[]): Promise<{ count: number; undo: () => Promise<void> }> {
+    const templates = withoutWeighInSlotsInTemplates(this.templates, typeIds);
+    const alts = withoutWeighInSlotsInAlternatives(this.planningStore.planAlternatives, typeIds);
+    if (templates.count === 0 && alts.count === 0) return { count: 0, undo: async () => {} };
+    const beforeTemplates = $state.snapshot(this.templates) as Record<string, WorkoutTemplate[]>;
+    const beforeAlts = alts.changed.map((a) => $state.snapshot(this.planningStore.planAlternatives.find((x) => x.id === a.id)) as PlanAlternative);
+    if (templates.count > 0) await storage.saveTemplates({ ...beforeTemplates, ...structuredClone(templates.changed) });
+    for (const a of alts.changed) await storage.savePlanAlternative($state.snapshot(a) as PlanAlternative);
+    await this.refresh();
+    return {
+      count: templates.count + alts.count,
+      undo: async () => {
+        if (templates.count > 0) await storage.saveTemplates(beforeTemplates);
+        for (const a of beforeAlts) await storage.savePlanAlternative(a);
+        await this.refresh();
+      },
+    };
   }
 
   /** Replaces the phases' sessions with a starter set's (welcome screen's level choice). */
