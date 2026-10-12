@@ -858,4 +858,11 @@ HARD RULES for "values" - each of these was a real failure, not a hypothetical:
 - "routeDifficulty" is Easy/Moderate/Hard, NOT a climbing grade. Grades belong in "minGrade"/"maxGrade".
 - There is no "restTime" field. Rest between sets is "timeBetweenSets".
 - "notes" is the only field that takes free text. Put all coaching detail, pacing, intent and conditions there.
-- Omit any field you have no value for. Never write null.`;
+- Omit any field you have no value for. Never write null.
+
+TIMER-READY VALUES - the app's timer runs a timed exercise straight from its "values", so write them to describe exactly what the timer should do, not just the total:
+- A timed hold or repeater: "sets", "reps" (holds per set), "timeOn" (seconds per hold), "timeOff" (seconds between holds in a set), "timeBetweenSets" (seconds between sets). The timer does sets x reps x (timeOn, timeOff), then timeBetweenSets. Give every one of these that matters; a missing one is filled with a default (a 7 s hang, 3 s rest, 3 min between sets).
+- One long hold or stretch: "sets": 1, "reps": 1, "timeOn" = its seconds. Do not use "duration" for something the timer should count down.
+- A hold done per side: "reps": 2, "repLabel": "Side", "timeOn" = seconds per side, "timeOff" = seconds to switch. The note "per side" alone changes nothing.
+- Counted sets (pull-ups, push-ups): "sets", "reps" and "timeBetweenSets" only; no "timeOn".
+- Never describe the timing only in "notes" - whatever the timer must do has to be in the numbers.`;

@@ -2,6 +2,7 @@ import type { ExerciseGroup, ExerciseValues, PerSetKey } from "../types";
 import { setRows, withSetRows, PER_SET_KEYS, type SetRow } from "../exercise/setRows";
 import { groupTiming, memberRounds, restBetweenRounds, switchSeconds, type GroupMember } from "../exercise/groups";
 import { toRepsArray } from "../exercise/reps";
+import { repLabelOf, repRestWord } from "../exercise/repLabel";
 import { restSeconds } from "../exercise/rest";
 import type { LiveCue, LiveSegment, LiveTimerConfig } from "./liveTimer";
 import type { AnnounceRules } from "./timerCues";
@@ -38,6 +39,8 @@ export interface RepeaterSpec {
   reps: number;
   on: number;
   off: number;
+  /** What a rep is called ("Side" for a hold per side); none = "Hang" and "Rest". */
+  label?: string;
 }
 
 export interface CircuitRunState {
@@ -88,7 +91,7 @@ function workTarget(values: ExerciseValues, round: number, m: GroupMember, group
     return {
       seconds: n * timeOn + Math.max(0, n - 1) * off,
       ...(reps !== undefined ? { reps } : {}),
-      ...(n > 1 ? { interval: { reps: n, on: timeOn, off } } : {}),
+      ...(n > 1 ? { interval: { reps: n, on: timeOn, off, ...(repLabelOf(values) ? { label: repLabelOf(values) } : {}) } } : {}),
     };
   }
   if (reps !== undefined) return { reps };
@@ -425,13 +428,13 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
       for (let rep = 1; rep <= reps; rep++) {
         if (rep > 1) cues.push({ at, kind: "work" });
         const hangEnd = at + on * 1000;
-        if (hangEnd > now) segments.push({ endsAt: hangEnd, title: `Hang ${rep}/${reps} · ${name}`, body: where(i) });
+        if (hangEnd > now) segments.push({ endsAt: hangEnd, title: `${step.interval.label ?? "Hang"} ${rep}/${reps} · ${name}`, body: where(i) });
         if (input.ticks) cues.push(...[3000, 2000, 1000].map((d) => ({ at: hangEnd - d, kind: "tick" as const })));
         at = hangEnd;
         if (rep < reps && off > 0) {
           cues.push({ at, kind: "rest" });
           const restEnd = at + off * 1000;
-          if (restEnd > now) segments.push({ endsAt: restEnd, title: `Rest ${rep}/${reps} · next hang`, body: where(i) });
+          if (restEnd > now) segments.push({ endsAt: restEnd, title: `${repRestWord(step.interval.label ?? "Hang")} ${rep}/${reps} · next ${(step.interval.label ?? "hang").toLowerCase()}`, body: where(i) });
           if (input.ticks) cues.push(...[3000, 2000, 1000].map((d) => ({ at: restEnd - d, kind: "tick" as const })));
           at = restEnd;
         }

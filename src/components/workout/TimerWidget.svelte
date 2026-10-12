@@ -167,7 +167,7 @@
   const intervalRunning = $derived(runningSince !== null);
   const intervalFinished = $derived(position.done && elapsedSeconds > 0);
   const intervalStarted = $derived(elapsedMs > 0 || intervalRunning);
-  const workLabel = $derived(workPhaseLabel(currentSlot?.activeParameters));
+  const workLabel = $derived(workPhaseLabel(currentSlot?.activeParameters, currentSlot ? slotValues(currentSlot) : undefined));
   const selfPaced = $derived(isSelfPaced(currentSlot ? slotValues(currentSlot) : undefined, timingMode));
   const setRunDone = $derived(setRun.done);
   const setRunStarted = $derived(setRun.completed.length > 0 || setRun.sinceLastSetMs > 0 || runningSince !== null);

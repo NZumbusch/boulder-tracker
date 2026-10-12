@@ -46,6 +46,7 @@
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { circuitHud, setCircuitToggle, resetCircuitHud } from '../../lib/session/circuitHud.svelte';
   import ExerciseDetails from './ExerciseDetails.svelte';
+  import { repRestWord } from '../../lib/exercise/repLabel';
   import VolumeControl from './VolumeControl.svelte';
   import VolumeBar from './VolumeBar.svelte';
   import ExerciseLogSheet from './ExerciseLogSheet.svelte';
@@ -488,7 +489,7 @@
   /** The dial's word: "Go", or "Hang 3/6" / "Rest 3/6" inside a repeater set. */
   const stepWord = $derived(
     step?.kind === 'leadIn' ? 'Get ready'
-      : step?.kind === 'work' ? (rep && step.interval ? `${rep.phase === 'on' ? 'Hang' : 'Rest'} ${rep.rep}/${step.interval.reps}` : 'Go')
+      : step?.kind === 'work' ? (rep && step.interval ? `${rep.phase === 'on' ? (step.interval.label ?? 'Hang') : repRestWord(step.interval.label ?? 'Hang')} ${rep.rep}/${step.interval.reps}` : 'Go')
       : step?.kind === 'roundRest' ? 'Rest'
       : 'Switch',
   );
@@ -538,7 +539,7 @@
 
 <div class="fixed inset-0 z-[112] safe-y bg-app-bg flex flex-col {visible ? '' : 'hidden'}">
   <!-- Header -->
-  <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-2 short:pt-1 short:pb-0 gap-2">
+  <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-3 short:pt-2 short:pb-2 gap-3">
     <button onclick={onMinimize} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors" aria-label="Minimise — the circuit keeps running">
       <Icon icon="ic:baseline-keyboard-arrow-down" class="text-2xl" />
     </button>
@@ -547,12 +548,12 @@
       <p class="text-label text-content-muted tabular-nums">Round {Math.min(progress.round, plannedRounds)}/{plannedRounds} · {progress.sets}/{progress.totalSets} sets{#if lastRound} · <span class="text-warning">last round</span>{/if}</p>
     </div>
     {#if !run.done}
-      <div class="flex items-center -mr-2">
+      <div class="flex items-center gap-1 -mr-2">
         <VolumeControl bind:open={volumeOpen} />
         <button onclick={() => { confirmEnd = false; confirmRestart = true; }} class="p-2 text-content-subtle hover:text-content transition-colors" aria-label="Restart the circuit" title="Restart from the beginning">
           <Icon icon="ic:baseline-restart-alt" class="text-xl" />
         </button>
-        <button onclick={() => { confirmRestart = false; confirmEnd = !confirmEnd; }} aria-expanded={confirmEnd} class="p-2 text-label font-bold transition-colors {confirmEnd ? 'text-danger' : 'text-content-subtle hover:text-danger'}">End</button>
+        <button onclick={() => { confirmRestart = false; confirmEnd = !confirmEnd; }} aria-expanded={confirmEnd} class="px-3 py-2 text-label font-bold transition-colors {confirmEnd ? 'text-danger' : 'text-content-subtle hover:text-danger'}">End</button>
       </div>
     {:else}
       <span class="w-10"></span>

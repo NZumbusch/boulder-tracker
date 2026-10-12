@@ -9,6 +9,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import type { ExerciseSlot, ExerciseTypeDef, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { PARAMETER_LABELS, BODYWEIGHT_METRIC_ID } from '../../lib/constants';
+  import { REP_LABELS, isRepLabel } from '../../lib/exercise/repLabel';
   import {
     BOULDER_GRADES, ROUTE_GRADES, CLIMBING_STYLES, BOARD_TYPES, BOARD_ANGLES,
     HOLD_TYPES, CAMPUS_TYPES, MOBILITY_TYPES, LEAD_STYLES,
@@ -57,6 +58,8 @@
   let movesPerRoute = $state<number | undefined>();
   let holdType = $state<ExerciseValues['holdType']>('Half Crimp');
   let timeOn = $state(7);
+  /** What a rep is called in the timers ("Side" for a hold per side); '' = the usual Hang/Work. */
+  let repLabel = $state<string>('');
   let timeOff = $state(3);
   /** Circuit members: seconds of rest after this exercise as text; blank = the circuit's own switch time. */
   let restAfterText = $state('');
@@ -185,6 +188,7 @@
     holdType = v.holdType || 'Half Crimp';
     // A circuit's timed exercise is usually a minute; a hang is usually 7 seconds.
     timeOn = v.timeOn ?? (inGroup ? 60 : 7);
+    repLabel = v.repLabel ?? '';
     timeOff = v.timeOff ?? 3;
     restAfterText = typeof v.restAfter === 'number' ? String(v.restAfter) : '';
     timeBetweenSets = v.timeBetweenSets ?? 180;
@@ -304,6 +308,7 @@
 
     if (params.includes('holdType')) values.holdType = holdType;
     if (params.includes('timeOn')) values.timeOn = n(timeOn);
+    if (params.includes('timeOn') && params.includes('reps') && isRepLabel(repLabel)) values.repLabel = repLabel;
     if (params.includes('timeOff')) values.timeOff = n(timeOff);
     if (inGroup && mode === 'prescribed' && restAfterText.trim() !== '' && Number.isFinite(Number(restAfterText))) values.restAfter = Math.max(0, Math.round(Number(restAfterText)));
     if (params.includes('restTime')) values.timeBetweenSets = n(timeBetweenSets);
@@ -438,6 +443,7 @@
     </div>
     {#if activeParams.includes('holdType')}<div class="space-y-1.5"><label for="ex-hold" class="text-label text-content-subtle ml-1">Hold Type</label><select id="ex-hold" bind:value={holdType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each holdTypes as h} <option value={h}>{h}</option> {/each}</select></div>{/if}
     {#if activeParams.includes('timeOn') && !(perSetOpen && perSetKeys.includes('timeOn'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-on" class="text-label text-content-subtle">Time On (s)</label><TargetHint prescribed={targetValues.timeOn} current={timeOn} unit="s" /></div><input id="ex-on" type="number" bind:value={timeOn} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
+    {#if activeParams.includes('timeOn') && activeParams.includes('reps')}<div class="space-y-1.5"><label for="ex-replabel" class="text-label text-content-subtle ml-1">Each rep is a</label><select id="ex-replabel" bind:value={repLabel} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm"><option value="">Hang / work (default)</option>{#each REP_LABELS as l}<option value={l}>{l}{l === 'Side' || l === 'Arm' || l === 'Leg' ? ' - timer says Switch between' : ''}</option>{/each}</select></div>{/if}
     {#if activeParams.includes('timeOff')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-off" class="text-label text-content-subtle">Time Off (s)</label><TargetHint prescribed={targetValues.timeOff} current={timeOff} unit="s" /></div><input id="ex-off" type="number" bind:value={timeOff} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('restTime')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-rest" class="text-label text-content-subtle">Between Sets (s)</label><TargetHint prescribed={targetValues.timeBetweenSets} current={timeBetweenSets} unit="s" /></div><input id="ex-rest" type="number" bind:value={timeBetweenSets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('holdSize') && !(perSetOpen && perSetKeys.includes('holdSize'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-size" class="text-label text-content-subtle">Hold Size (mm)</label><TargetHint prescribed={targetValues.holdSize} current={holdSize} unit="mm" /></div><input id="ex-size" type="number" bind:value={holdSize} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.holdSize ? 'border-danger/50' : ''}" />{#if validationErrors.holdSize}<p class="text-label text-danger ml-1">{validationErrors.holdSize}</p>{/if}</div>{/if}

@@ -305,3 +305,14 @@ describe("weights per set in a circuit", () => {
     expect(circuitLoggedValues([pull], state).pull?.setDetails).toEqual([{ weight: 8 }, { weight: 9 }]);
   });
 });
+
+describe("a rep label on a repeater member", () => {
+  const stretch = member("lat", { timeOn: 30, timeOff: 5, reps: 2, repLabel: "Side" });
+  const plain = member("hang", { timeOn: 7, timeOff: 3, reps: 3 });
+
+  it("is carried on the step so the dial can say Side 1/2 and Switch", () => {
+    const work = circuitSteps({ id: "g", rounds: 1, transition: 10 }, [stretch, plain]).filter((s) => s.kind === "work");
+    expect(work[0]).toMatchObject({ seconds: 65, interval: { reps: 2, on: 30, off: 5, label: "Side" } });
+    expect((work[1] as { interval?: { label?: string } }).interval?.label).toBeUndefined();
+  });
+});
