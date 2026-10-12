@@ -107,6 +107,7 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 7.14c | Exercise timer | Live session with a repeater (7 s / 3 s, 3 sets, 2 min rest) → Timer on its card. | The circuit-style runner: Hang n/N, Rest, set rests, Set 1/3 in the header; Log writes sets/reps/time and the rest between sets into the exercise. | | |
 | 7.14d | Pacer in a session | A planned Free Bouldering exercise with a cadence and duration → Pacer. | Runs a problem per cadence; ending after 3 problems logs 3 sets, the time spent and the pace kept. | | |
 | 7.14e | Next exercise | Log an exercise that has a timer while the next one has timing too. | The next one's timer opens ready for Start (never running); Settings → Timer → "Open the next exercise's timer" turns it off. | | |
+| 7.14g | Timer without the service | Settings → Timer: allow exact alarms; start a pacer or repeater, lock the screen with the service unable to start (or it failing). | Rest-over / next-problem / done notifications arrive on time; opening the app clears them. (With exact alarms off, Android opens its Alarms & reminders setting instead.) | | |
 | 7.14f | Per side | Plan 30 s per side (reps 2, timeOn 30, timeOff 5, repLabel Side). | Dial reads Side 1/2 then Switch. | | |
 | 7.13 | Voice | Change the speech engine, voice, speed and pitch; tap Try it. | The sample changes; the timer uses the same. | | |
 
