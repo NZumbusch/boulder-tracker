@@ -71,3 +71,51 @@ describe("applyTidy", () => {
     expect(out.types.find((t) => t.id === "ls")?.archived).toBeUndefined();
   });
 });
+
+describe("combining a lift kept as max reps and heaviest single", () => {
+  const maxPull: BenchmarkTypeDef = { id: "max-pullups", name: "Max Pullups", unit: "reps", fields: [{ valueId: "reps", role: "result" }] };
+  const oneRm: BenchmarkTypeDef = { id: "1rm-weighted-pullup", name: "1RM Weighted Pullup", unit: "kg", fields: [{ valueId: "weight", role: "result", label: "Added weight" }, { valueId: "reps", role: "condition", fixed: 1 }] };
+  const dip: BenchmarkTypeDef = { id: "1rm-weighted-dip", name: "1RM Weighted Dip", unit: "kg", fields: [{ valueId: "weight", role: "result" }, { valueId: "reps", role: "condition", fixed: 1 }] };
+  const rs = [
+    result("p1", "max-pullups", "Max Pullups", 11, { reps: 11 }),
+    { ...result("w1", "1rm-weighted-pullup", "1RM Weighted Pullup", 30, { weight: 30, reps: 1 }), date: "2026-07-01T12:00:00Z" },
+    result("w2", "1rm-weighted-pullup", "1RM Weighted Pullup", 35, { weight: 35 }), // an old result without the fixed reps stored
+    result("d1", "1rm-weighted-dip", "1RM Weighted Dip", 40, { weight: 40 }),
+  ];
+  const all = [maxPull, oneRm, dip];
+
+  it("proposes one combine for the same lift, not for a lift with nothing to pair", () => {
+    const p = proposeTidy(all, rs, defs).filter((x) => x.kind === "combine");
+    expect(p).toHaveLength(1);
+    expect(p[0]).toMatchObject({ kind: "combine", fromId: "1rm-weighted-pullup", intoId: "max-pullups", defaultOn: true, moves: 2, singleReps: 1 });
+    expect(p[0].label).toBe("Combine Max Pullups and 1RM Weighted Pullup");
+  });
+
+  it("moves the singles over as one rep at their weight, adds the weight, two Home views, archives the old test, and Undo-able data is untouched", () => {
+    const p = proposeTidy(all, rs, defs).filter((x) => x.kind === "combine");
+    const out = applyTidy(p, all, rs);
+    const into = out.types.find((t) => t.id === "max-pullups")!;
+    expect(into.fields).toEqual([{ valueId: "reps", role: "result" }, { valueId: "weight", role: "condition", label: "Added weight" }]);
+    expect(into.views?.map((v) => [v.name, v.y, v.onHome])).toEqual([["Max reps, no weight", "reps", true], ["Heaviest single", "weight", true]]);
+    expect(into.mergedFrom).toContain("1rm-weighted-pullup");
+    expect(out.types.find((t) => t.id === "1rm-weighted-pullup")?.archived).toBe(true);
+    expect(out.types.find((t) => t.id === "1rm-weighted-dip")?.archived).toBeUndefined();
+    expect(out.benchmarks.map((b) => [b.id, b.typeId, b.value, b.values])).toEqual([
+      ["w1", "max-pullups", 1, { weight: 30, reps: 1 }],
+      ["w2", "max-pullups", 1, { weight: 35, reps: 1 }],
+    ]);
+  });
+
+  it("leaves Home as it was: a row for max reps and a row for the heaviest single, each with its own number", async () => {
+    const { buildSeries } = await import("./series");
+    const { latestBenchmarks } = await import("../analytics/progress");
+    const p = proposeTidy(all, rs, defs).filter((x) => x.kind === "combine");
+    const out = applyTidy(p, all, rs);
+    const merged = rs.map((r) => out.benchmarks.find((b) => b.id === r.id) ?? r);
+    const series = buildSeries(merged, out.types, defs, "kg");
+    expect(series.map((s) => s.label).sort()).toEqual(["1RM Weighted Dip", "Max Pullups · Heaviest single", "Max Pullups · Max reps, no weight"]);
+    const rows = latestBenchmarks(merged, out.types, defs, "kg");
+    expect(rows.find((x) => x.name.includes("Heaviest single"))?.latestText).toBe("30 kg"); // w1 is the newer one
+    expect(rows.find((x) => x.name.includes("no weight"))?.latestText).toBe("11 reps");
+  });
+});

@@ -230,7 +230,7 @@
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1 flex items-center gap-1.5">Tests <InfoButton term="tests" /></h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight), so results are compared like with like.</p>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight). Everything is kept, and Analytics lets you filter, split and plot it any way you like.</p>
   </div>
 
   {#if weighInOffer && !dismissed.includes(weighInSignature)}
@@ -261,7 +261,7 @@
           <p class="text-label font-semibold text-content">Tidy up your tests</p>
           <button onclick={() => dismiss(tidySignature)} class="p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
         </div>
-        <p class="text-caption text-content-subtle leading-relaxed">Some of these look like leftovers: the same test kept twice, or one your daily metrics already cover. Tick what to do; Undo is offered afterwards, and no result is ever deleted.</p>
+        <p class="text-caption text-content-subtle leading-relaxed">Some of these look like leftovers: the same test kept twice, one lift kept as a max-reps test and a heaviest-single test, or one your daily metrics already cover. Tick what to do; Undo is offered afterwards, and no result is ever deleted.</p>
       </div>
       <div class="space-y-2.5">
         {#each proposals as p (p.id)}
