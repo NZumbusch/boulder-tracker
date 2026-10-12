@@ -42,7 +42,7 @@
   import GroupSettings from './GroupSettings.svelte';
   import CircuitPill from './CircuitPill.svelte';
   import { tonesFor } from '../../lib/timer/cueSound';
-  import { cueMute, setCueMuted } from '../../lib/timer/cueMute.svelte';
+  import { cueMute, endSessionMute } from '../../lib/timer/cueMute.svelte';
   import { circuitHud } from '../../lib/session/circuitHud.svelte';
   import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
   import { reportError } from '../../lib/errorReporting';
@@ -103,9 +103,9 @@
   /** The group a slot is in, for its Circuit button. */
   const groupIdOf = (slot: ExerciseSlot) => (slot.groupId && store.workout?.groups?.some((g) => g.id === slot.groupId) ? slot.groupId : null);
 
-  // Muting the cues lasts for the session; the next one starts with sound.
+  // A mute from the session's button lasts for the session; the next one starts with sound.
   $effect(() => {
-    if (!session) setCueMuted(false);
+    if (!session) endSessionMute();
   });
 
   // The session ended (finished or discarded): a run in progress goes with it.

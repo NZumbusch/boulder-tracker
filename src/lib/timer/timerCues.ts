@@ -75,7 +75,7 @@ export function validateTimerCues(raw: unknown): TimerCues {
     typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : def;
   const L = ANNOUNCE_LIMITS;
   return {
-    volume: typeof c.volume === "number" && Number.isFinite(c.volume) ? Math.min(1, Math.max(0.1, Math.round(c.volume * 100) / 100)) : d.volume,
+    volume: typeof c.volume === "number" && Number.isFinite(c.volume) ? Math.min(1, Math.max(0, Math.round(c.volume * 100) / 100)) : d.volume,
     volumeSetsMedia: bool(c.volumeSetsMedia, d.volumeSetsMedia),
     sound: SOUND_PRESETS.includes(c.sound as SoundPreset) ? (c.sound as SoundPreset) : d.sound,
     otherAudio: c.otherAudio === "mix" ? "mix" : "lower",

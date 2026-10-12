@@ -13,7 +13,7 @@ describe("validateTimerCues", () => {
     expect(v.volume).toBe(1);
     expect(v.volumeSetsMedia).toBe(true);
     expect(v.announce).toEqual({ enabled: true, mode: "custom", work: true, workLead: 0, restStart: true, restStartDelay: 30, restEnd: 12 });
-    expect(validateTimerCues({ volume: 0 }).volume).toBe(0.1);
+    expect(validateTimerCues({ volume: 0 }).volume).toBe(0);
   });
 
   it("is on in Auto by default, and keeps a hand-tuned value in Custom", () => {

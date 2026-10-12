@@ -68,8 +68,8 @@
           <span class="text-body text-content">Volume</span>
           <span class="text-label text-content-muted tabular-nums">{Math.round(cues.volume * 100)} %</span>
         </div>
-        <RangeSlider value={Math.round(cues.volume * 100)} min={10} max={100} step={5} label="Cue volume" onchange={(v) => trainingState.setTimerCues({ volume: v / 100 })} />
-        <p class="text-caption text-content-subtle">Also on the timer and circuit screens (the speaker icon at the top).</p>
+        <RangeSlider value={Math.round(cues.volume * 100)} min={0} max={100} step={5} label="Cue volume" onchange={(v) => trainingState.setTimerCues({ volume: v / 100 })} />
+        <p class="text-caption text-content-subtle">0 % is muted. Also on the timer and circuit screens (the speaker icon at the top mutes and unmutes).</p>
       </div>
 
       {#if isNative}
