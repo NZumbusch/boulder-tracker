@@ -1,5 +1,6 @@
 import type { ExerciseGroup, ExerciseValues, PerSetKey } from "../types";
-import { setRows, withSetRows, PER_SET_KEYS, type SetRow } from "../exercise/setRows";
+import { setRows, setValue, withSetRows, PER_SET_KEYS, type SetRow } from "../exercise/setRows";
+import { PACER_LABEL, isPacer } from "./soloRun";
 import { groupTiming, memberRounds, restBetweenRounds, switchSeconds, type GroupMember } from "../exercise/groups";
 import { toRepsArray } from "../exercise/reps";
 import { repLabelOf, repRestWord } from "../exercise/repLabel";
@@ -30,7 +31,7 @@ export const CIRCUIT_LEAD_IN_SECONDS = 5;
 
 export type CircuitStep =
   | { kind: "leadIn"; seconds: number }
-  | { kind: "work"; slotId: string; member: number; round: number; seconds?: number; reps?: number; interval?: RepeaterSpec }
+  | { kind: "work"; slotId: string; member: number; round: number; seconds?: number; reps?: number; interval?: RepeaterSpec; label?: string }
   | { kind: "transition"; seconds: number; round: number; next: number }
   | { kind: "roundRest"; seconds: number; round: number; next: number };
 
@@ -82,9 +83,12 @@ export function circuitSteps(group: ExerciseGroup, members: GroupMember[], leadI
  * it - a repeater set counts down as one), or a share of a plain
  * `duration`. Anything else is counted: open, with its reps as the target.
  */
-function workTarget(values: ExerciseValues, round: number, m: GroupMember, group: ExerciseGroup): { seconds?: number; reps?: number; interval?: RepeaterSpec } {
+function workTarget(values: ExerciseValues, round: number, m: GroupMember, group: ExerciseGroup): { seconds?: number; reps?: number; interval?: RepeaterSpec; label?: string } {
+  // A pacer's round is one problem of `cadence` minutes, counted down.
+  if (isPacer(values)) return { seconds: Math.round(Number(values.cadence) * 60), label: PACER_LABEL };
   const reps = repsAt(values, round);
-  const timeOn = Number(values.timeOn);
+  // This set's own hang time where the sets differ (a ramp of 10 s, 8 s, 6 s hangs).
+  const timeOn = Number(setValue(values, round, "timeOn") ?? values.timeOn);
   if (Number.isFinite(timeOn) && timeOn > 0) {
     const n = reps ?? 1;
     const off = restSeconds(values).betweenReps;
@@ -213,6 +217,28 @@ export function previousCircuitStep(steps: CircuitStep[], state: CircuitRunState
   return { ...state, stepIndex: prevIndex, stepElapsedMs: 0, results };
 }
 
+/**
+ * The run's position after its steps were made again from changed numbers
+ * (a different rest, one more problem): the same step - found by what it
+ * is, not by its index, since a rest that appeared or vanished shifts the
+ * indexes - or the end when the run now has no such step. The time spent in
+ * the step carries over; results are by exercise and round, so they stay.
+ */
+export function replanRun(oldSteps: CircuitStep[], state: CircuitRunState, nextSteps: CircuitStep[]): CircuitRunState {
+  if (state.done) return state;
+  const cur = oldSteps[state.stepIndex];
+  const finished = { ...state, stepIndex: nextSteps.length, stepElapsedMs: 0, done: true };
+  if (!cur) return finished;
+  const same = (s: CircuitStep) => {
+    if (s.kind !== cur.kind) return false;
+    if (s.kind === "leadIn") return true;
+    if (s.kind === "work" && cur.kind === "work") return s.slotId === cur.slotId && s.round === cur.round;
+    return (s.kind === "transition" || s.kind === "roundRest") && (cur.kind === "transition" || cur.kind === "roundRest") && s.round === cur.round;
+  };
+  const index = nextSteps.findIndex(same);
+  return index < 0 ? finished : { ...state, stepIndex: index };
+}
+
 /** Corrects what a set recorded - the reps stepper on the rest after it. */
 export function setCircuitResult(state: CircuitRunState, slotId: string, round: number, value: number | null): CircuitRunState {
   const list = [...(state.results[slotId] ?? [])];
@@ -308,6 +334,14 @@ export function circuitLoggedValues(members: GroupMember[], state: CircuitRunSta
     const doneRounds = results.map((v, r) => ({ v, r })).filter((x): x is { v: number; r: number } => x.v !== null && x.v !== undefined);
     if (doneRounds.length === 0) {
       out[slot.id] = undefined;
+      continue;
+    }
+    if (isPacer(values)) {
+      // A pacer logs what happened: the problems done, the time they took, the pace actually kept.
+      const seconds = doneRounds.reduce((sum, x) => sum + x.v, 0);
+      const minutes = Math.max(1, Math.round(seconds / 60));
+      const { notes: _n, setDetails: _s, ...rest } = values;
+      out[slot.id] = { ...rest, sets: doneRounds.length, duration: minutes, cadence: Math.round((minutes / doneRounds.length) * 10) / 10 };
       continue;
     }
     const timed = Number(values.timeOn) > 0 || (!values.reps && Number(values.duration) > 0);

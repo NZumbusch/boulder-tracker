@@ -305,6 +305,7 @@
     <div class="space-y-4">
       <AudioLevelSettings />
       <TimerSettings />
+      <TunablesSettings topic="layout" title="Single-exercise timer" ids={['timer.leadIn', 'timer.setRest']} />
       <SoundSettings />
       <VoiceSettings />
     </div>

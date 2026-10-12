@@ -1,6 +1,7 @@
 import type { ExerciseGroup, ExerciseSlot, ExerciseValues } from "../types";
 import { slotValues } from "../exerciseSlot";
 import { toRepsArray } from "./reps";
+import { setValue } from "./setRows";
 import { restSeconds } from "./rest";
 
 /**
@@ -155,12 +156,14 @@ export function memberRounds(values: ExerciseValues, group: ExerciseGroup): numb
  */
 export function memberSetSeconds(values: ExerciseValues, group: ExerciseGroup, round: number): number {
   const reps = repsInRound(values, round);
-  const timeOn = positive(values.timeOn);
+  const timeOn = positive(setValue(values, round, "timeOn") ?? values.timeOn);
   if (timeOn !== undefined) {
     const n = reps ?? 1;
     return n * timeOn + Math.max(0, n - 1) * restSeconds(values).betweenReps;
   }
   if (reps !== undefined) return reps * COUNTED_SECONDS_PER_REP;
+  const cadence = positive(values.cadence);
+  if (cadence !== undefined) return cadence * 60; // a pacer's problem
   const duration = positive(values.duration);
   if (duration !== undefined) return (duration * 60) / Math.max(1, memberRounds(values, group));
   return DEFAULT_MEMBER_SECONDS;
