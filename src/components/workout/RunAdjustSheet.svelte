@@ -62,8 +62,10 @@
     if (!Number.isFinite(n)) return;
     draft = f.write(draft, Math.max(f.min, n));
   }
-  const changed = $derived(JSON.stringify(draft) !== JSON.stringify(values) || lead !== leadIn);
-  const differsFromBase = $derived(!!baseValues && JSON.stringify(draft) !== JSON.stringify(baseValues));
+  /** Whether two sets of numbers differ in any field the sheet edits. */
+  const differ = (x: ExerciseValues, y: ExerciseValues) => fields.some((f) => (f.read(x) ?? null) !== (f.read(y) ?? null));
+  const changed = $derived(differ(draft, values) || lead !== leadIn);
+  const differsFromBase = $derived(!!baseValues && differ(draft, baseValues));
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->

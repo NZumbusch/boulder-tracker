@@ -37,6 +37,8 @@
   import SessionNotesSheet from './SessionNotesSheet.svelte';
   import TimerWidget from './TimerWidget.svelte';
   import { hasRunnableTiming, isPacer, soloRun } from '../../lib/timer/soloRun';
+  import { openQuickTimerSheet } from '../../lib/timer/quickTimer.svelte';
+  import PresetNameSheet from './PresetNameSheet.svelte';
   import { CIRCUIT_LEAD_IN_SECONDS } from '../../lib/timer/circuitRun';
   import { workoutItems, groupMinutes, groupSummary, groupSlots, ungroup, takeOutOfGroup, addToGroup, updateGroup, settleAfterMove, normaliseGroups } from '../../lib/exercise/groups';
   import { repsPerSet } from '../../lib/exercise/reps';
@@ -51,7 +53,7 @@
   import { haptic } from '../../lib/native/haptics';
   import { findLastLogged } from '../../lib/exercise/lastTime';
   import { swipeRow } from '../../lib/ui/swipeRow';
-  import { showUndo } from '../../lib/toast.svelte';
+  import { showUndo, toast } from '../../lib/toast.svelte';
   import PainHeadsUp from '../health/PainHeadsUp.svelte';
   import Icon from '@iconify/svelte';
 
@@ -135,6 +137,16 @@
     }
   });
 
+  /** A single exercise's run waiting for a preset name. */
+  let namingPreset = $state<{ values: ExerciseValues; leadIn: number } | null>(null);
+
+  /** The pill's "intervals, sets and pacer": this exercise's own timer when it has timing, else the Timer sheet for a made-up one. */
+  function openRun() {
+    const slot = current;
+    if (slot && !slot.groupId && hasRunnableTiming(slotValues(slot))) openSolo(slot.id);
+    else openQuickTimerSheet();
+  }
+
   /** Opens the timer for one exercise: a repeater, rest-timed sets or a pacer - a run that waits for Start. */
   function openSolo(slotId: string) {
     openCircuit(`${SOLO_PREFIX}${slotId}`);
@@ -142,6 +154,7 @@
 
   function openCircuit(groupId: string) {
     if (circuitGroupId && circuitGroupId !== groupId) return; // one at a time: resume or finish that one first
+    if (!circuitGroupId && live.circuitRunning) { toast.show('Finish the timer that is running first'); return; } // a quick timer from outside the session
     circuitGroupId = groupId;
     circuitVisible = true;
   }
@@ -548,14 +561,6 @@
    * rather than logging silently - what the timer counted and what the user did
    * are usually but not always the same thing.
    */
-  function handleIntervalLogged(values: Partial<ExerciseValues>) {
-    const slot = store.currentSlot;
-    if (!slot) return;
-    seedFor = { slotId: slot.id, values: { ...slotValues(slot), ...values } };
-    loggingSlotId = slot.id;
-    sheetKey++;
-  }
-
   function handleSaveAndFinish() {
     isExiting = false;
     trainingState.finishSession();
@@ -1014,7 +1019,7 @@
     bottomClass="bottom-[80px] short:bottom-[52px]"
     docked
     visible={store.isModalOpen && !circuitRun}
-    onLogInterval={current ? handleIntervalLogged : null}
+    onOpenRun={openRun}
   />
 {/if}
 
@@ -1030,12 +1035,17 @@
       leadIn={circuitRun.solo ? circuitRun.solo.leadIn : CIRCUIT_LEAD_IN_SECONDS}
       baseValues={circuitRun.baseValues}
       logLabel={circuitRun.solo ? 'Log' : undefined}
+      onSavePreset={circuitRun.solo ? (values, leadIn) => (namingPreset = { values: $state.snapshot(values) as ExerciseValues, leadIn }) : undefined}
       visible={store.isModalOpen && circuitVisible}
       onLog={handleCircuitLogged}
       onClose={() => { circuitGroupId = null; circuitVisible = false; }}
       onMinimize={() => (circuitVisible = false)}
     />
   {/key}
+{/if}
+
+{#if namingPreset}
+  <PresetNameSheet values={namingPreset.values} leadIn={namingPreset.leadIn} suggestion={current ? slotTypeName(current, trainingState.exerciseTypes) : ''} onDone={() => (namingPreset = null)} />
 {/if}
 
 {#if loggingSlot?.test && session}

@@ -1,5 +1,7 @@
 import type { ExerciseValues } from "../types";
 import type { PresetVariant } from "./presets";
+import { live } from "../native/liveNotification.svelte";
+import { toast } from "../toast.svelte";
 
 /**
  * The timer outside a planned exercise: a run made up on the spot (a
@@ -29,6 +31,12 @@ export function closeQuickTimerSheet() {
 }
 
 export function startQuickRun(run: Omit<QuickRun, "key">) {
+  // One run at a time owns the clock and the notification: a circuit or timer already running comes first.
+  if (live.circuitRunning) {
+    quickTimer.sheetOpen = false;
+    toast.show("Finish the timer that is running first");
+    return;
+  }
   quickTimer.run = { ...run, key: String(Date.now()) };
   quickTimer.sheetOpen = false;
   quickTimer.minimized = false;

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { ExerciseSlot, ExerciseValues } from "../types";
 import { circuitLoggedValues, circuitSteps, replanRun, startCircuitRun, tickCircuitRun, type CircuitStep } from "./circuitRun";
 import { DEFAULT_PACER_PROBLEMS, hasRunnableTiming, isPacer, pacerProblems, soloRun } from "./soloRun";
-import { buildTimeline, specFromExercise, timelineSeconds } from "./intervalTimer";
 
 const slot = (id = "s") => ({ id, typeId: "t" }) as ExerciseSlot;
 const stepsOf = (v: ExerciseValues, leadIn?: number) => {
@@ -12,12 +11,12 @@ const stepsOf = (v: ExerciseValues, leadIn?: number) => {
 const seconds = (steps: CircuitStep[]) => steps.reduce((t, s) => t + (s.kind === "work" ? (s.seconds ?? 0) : s.seconds), 0);
 
 describe("soloRun: one exercise as a run of the circuit engine", () => {
-  it("a repeater runs as long as the old interval timer made it (sets x reps x on/off, set rest, lead-in)", () => {
+  it("a repeater runs sets x reps x on/off with the set rest and the lead-in", () => {
     const values: ExerciseValues = { sets: 4, reps: 6, timeOn: 7, timeOff: 3, timeBetweenSets: 180 };
     const { run, steps } = stepsOf(values);
-    const old = timelineSeconds(buildTimeline(specFromExercise(values)));
     expect(run.kind).toBe("timed");
-    expect(seconds(steps)).toBe(old); // lead-in included: both 10 s
+    // 10 s get-ready + 4 sets of (6 hangs x 7 s + 5 rests x 3 s) + 3 set rests of 180 s
+    expect(seconds(steps)).toBe(10 + 4 * (6 * 7 + 5 * 3) + 3 * 180);
     expect(steps.filter((s) => s.kind === "work")).toHaveLength(4);
     expect(steps.filter((s) => s.kind === "roundRest")).toHaveLength(3);
   });

@@ -204,7 +204,13 @@
   const progress = $derived(circuitProgress(steps, run));
   const previous = $derived(previousWork(steps, run));
   const upcoming = $derived(upcomingWork(steps, run));
-  const counted = $derived(circuitLoggedValues(members, run));
+  /** What each member did. A single exercise keeps the rest between sets it ran with - the group held it, the exercise's own record needs it. */
+  const counted = $derived.by(() => {
+    const out = circuitLoggedValues(members, run);
+    const rest = group.roundRest ?? 0;
+    if (solo && variant !== 'pacer' && rest > 0 && members[0] && out[members[0].slot.id]) out[members[0].slot.id] = { ...out[members[0].slot.id]!, timeBetweenSets: rest };
+    return out;
+  });
   /** Members corrected on the summary (weight, notes ...) - what they typed replaces what the run counted. */
   let edits = $state<Record<string, ExerciseValues>>({});
   const logged = $derived(Object.fromEntries(Object.entries(counted).map(([id, v]) => [id, v && edits[id] ? edits[id] : v])) as Record<string, ExerciseValues | undefined>);
@@ -421,7 +427,7 @@
   // --- Adjusting a single exercise while it runs ---
   let adjusting = $state(false);
   /** The numbers the run uses now: the member's, with the rest between sets that the group holds. */
-  const soloValues = $derived<ExerciseValues>(solo && members[0] ? { ...members[0].values, timeBetweenSets: group.roundRest ?? 0 } : {});
+  const soloValues = $derived<ExerciseValues>(!solo || !members[0] ? {} : variant === 'pacer' ? { ...members[0].values } : { ...members[0].values, timeBetweenSets: group.roundRest ?? 0 });
   /**
    * New numbers for the run, applied from where it stands: the steps are made again and the run keeps its place
    * (and what it has recorded). A longer rest or one more problem shows up at once; nothing already done is lost.
@@ -563,7 +569,7 @@
   const phaseLabel = $derived(neverStarted ? 'Ready' : !running ? 'Paused' : stepWord);
   /** "round" for a circuit, "set" for a single exercise, "problem" for the pacer. */
   const unitWord = $derived(variant === 'pacer' ? 'problem' : solo ? 'set' : 'round');
-  const headline = $derived(solo ? `${unitWord === 'problem' ? 'Problem' : 'Set'} ${Math.min(progress.round, plannedRounds)}/${plannedRounds}` : '');
+  const headline = $derived(solo && !run.done ? `${unitWord === 'problem' ? 'Problem' : 'Set'} ${Math.min(progress.round, plannedRounds)}/${plannedRounds}` : '');
   const clockText = $derived(
     !step ? '' : dialRemaining !== undefined ? formatClock(Math.ceil(dialRemaining) * 1000) : formatClock(run.stepElapsedMs),
   );
@@ -745,9 +751,9 @@
       <!-- What is on, what is next and the round: one block under the dial, so it never runs into the buttons. -->
       <div class="short:hidden shrink-0 w-full flex flex-col items-center gap-3">
         {#if step.kind !== 'work' && upcoming}
-          <p class="text-body text-content-muted text-center">Next: <b class="text-content">{memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
+          <p class="text-body text-content-muted text-center">Next: <b class="text-content">{solo ? `${unitWord === 'problem' ? 'Problem' : 'Set'} ${upcoming.round + 1}` : memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
         {/if}
-        {#if focus !== undefined}
+        {#if focus !== undefined && !title}
           <!-- The exercise's note on one line; a tap opens what to do (details, notes, how-to) without leaving the run. -->
           <button onclick={() => (infoMember = focus)} class="short:hidden w-full max-w-sm flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border text-left hover:border-border-strong transition-colors" aria-label="How to do {memberName(focus)}">
             <Icon icon="ic:outline-info" class="text-lg text-content-subtle shrink-0" />
@@ -788,9 +794,9 @@
       <!-- What is on, what is next and the round: one block under the dial, so it never runs into the buttons. -->
       <div class="hidden short:flex shrink-0 w-full flex-col items-stretch gap-2">
         {#if step.kind !== 'work' && upcoming}
-          <p class="text-body text-content-muted">Next: <b class="text-content">{memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
+          <p class="text-body text-content-muted">Next: <b class="text-content">{solo ? `${unitWord === 'problem' ? 'Problem' : 'Set'} ${upcoming.round + 1}` : memberName(upcoming.member)}</b> · {targetText(upcoming)}</p>
         {/if}
-        {#if focus !== undefined}
+        {#if focus !== undefined && !title}
           <!-- The exercise's note on one line; a tap opens what to do (details, notes, how-to) without leaving the run. -->
           <button onclick={() => (infoMember = focus)} class="w-full max-w-sm flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border text-left hover:border-border-strong transition-colors" aria-label="How to do {memberName(focus)}">
             <Icon icon="ic:outline-info" class="text-lg text-content-subtle shrink-0" />
@@ -855,6 +861,7 @@
           <span class="font-normal text-caption">({detailTargetKeys.map((k) => PARAMETER_LABELS[k as keyof typeof PARAMETER_LABELS] ?? k).join(', ')})</span>
         </button>
       {/if}
+      {#if !neverStarted}
       <div class="flex items-center gap-2">
         <button onclick={back} class="flex-1 py-3 text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap" aria-label="Back: restart this step, or the previous one">
           <Icon icon="ic:baseline-skip-previous" class="text-base" /> Back
@@ -873,6 +880,7 @@
         </button>
         {/if}
       </div>
+      {/if}
     </div>
    </div>
   {/if}
