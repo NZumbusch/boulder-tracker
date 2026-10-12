@@ -196,3 +196,12 @@ export function otherValuesText(b: Benchmark, fields: ResolvedField[]): string {
     .map((f) => `${f.label} ${formatFieldValue(f, values[f.valueId], "kg")}`)
     .join(", ");
 }
+
+/** Every value of a result except one metric, with its name, in the shown unit: "Weight 10 kg · Grip Open hand" - for the chart's readout. */
+export function detailsText(b: Benchmark, fields: ResolvedField[], weight: WeightUnit, skipId?: string): string {
+  const values = resultValues(b, fields);
+  return fields
+    .filter((f) => f.valueId !== skipId && f.fixed === undefined && values[f.valueId] !== undefined)
+    .map((f) => `${f.label} ${formatFieldValue(f, values[f.valueId], weight)}`)
+    .join(" · ");
+}

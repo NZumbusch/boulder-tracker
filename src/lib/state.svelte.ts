@@ -11,7 +11,7 @@ import { isDemoMode, takeRecoveryNotice } from './storage/persistence';
 import type { ThemePreference } from './preferences/theme';
 import { adoptTotalBasis } from './benchmarks/basis';
 import { bodyweightFromBenchmark, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from './benchmarks/bodyweight';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate, BenchmarkView } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate, trainingDayDate } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
@@ -1342,6 +1342,19 @@ class TrainingState {
   /**
    * Deletes a benchmark at once, with an Undo toast that saves it back.
    */
+  /** Replaces a test's saved views (the ways of looking at its results); the test itself is untouched. */
+  async saveBenchmarkViews(typeId: string, views: BenchmarkView[]) {
+    const types = this.catalogStore.benchmarkTypes;
+    if (!types.some((t) => t.id === typeId)) return;
+    const next = types.map((t) => {
+      if (t.id !== typeId) return t;
+      const { views: _old, ...rest } = t;
+      return views.length > 0 ? { ...rest, views: $state.snapshot(views) as BenchmarkView[] } : rest;
+    });
+    if (!isDemoMode()) await storage.saveBenchmarkTypes($state.snapshot(next));
+    this.catalogStore.benchmarkTypes = next;
+  }
+
   async deleteBenchmark(id: string) {
     const benchmark = this.benchmarkStore.benchmarks.find((b) => b.id === id);
     if (!benchmark) return;

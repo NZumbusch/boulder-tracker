@@ -1,62 +1,81 @@
 /**
- * Benchmark results as series and metrics.
+ * Benchmark results as tracked series and metrics.
  *
- * A *series* is one test done one way - "Max Hang at 20 mm" - so results are
- * only compared like with like. A *metric* is a number read from a result:
- * any of its fields, or a score formed from several (an estimated one-rep
- * max from weight and reps, a load as % of bodyweight). Charts pick a
- * series and one or two metrics; "reps against weight" is two metrics of
- * one series plotted against each other.
+ * A *series* is one test seen one way - "Max Hang at 20 mm" - so the number
+ * followed on Home, in the overview and in Insights compares like with like.
+ * The way is a view (`BenchmarkView`): each saved view marked for Home is a
+ * series, and a test with none follows "like your latest" (the set-up fields
+ * match the latest result's). The chart in Analytics explores all results
+ * through any view instead (`explore.ts`).
+ *
+ * A *metric* is a number read from a result: any of its fields, or a score
+ * formed from several (an estimated one-rep max from weight and reps, a load
+ * as % of bodyweight).
  *
  * Values here are in the units shown (weights in the chosen unit), so the
  * charts need no conversion.
  */
-import type { Benchmark, BenchmarkScore, BenchmarkTypeDef, ValueDef } from "../types";
+import type { Benchmark, BenchmarkScore, BenchmarkTypeDef, BenchmarkView, ValueDef } from "../types";
 import type { WeightUnit } from "../units";
 import type { DailyMetricEntry } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
 import { loggedMetrics } from "../analytics/metricValues";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
 import {
-  conditionKey, conditionsText, formatFieldValue, primaryField, resolveFields, resultValues, toShown, unitLabel, type ResolvedField,
+  formatFieldValue, primaryField, resolveFields, resultValues, toShown, unitLabel, conditionsText, type ResolvedField,
 } from "./model";
+import { filterResults, likeLatestView } from "./views";
 
 /** A bodyweight counts for a result this many days either side of it. */
 export const BODYWEIGHT_WINDOW_DAYS = 14;
 
 export interface Series {
-  /** `typeId` and the conditions - unique per test and way of doing it. */
+  /** `typeId` and the view - unique per tracked series. */
   key: string;
   type: BenchmarkTypeDef;
   fields: ResolvedField[];
-  /** "20 mm" - empty for a test with no varying conditions. */
+  /** The way it is seen, in words ("20 mm"); empty when nothing is filtered. */
   conditions: string;
   /** "Max Hang · 20 mm". */
   label: string;
-  /** Oldest first. */
+  /** The results that pass the view, oldest first. */
   results: Benchmark[];
+  /** The view that makes this series (its metric is followed). */
+  view?: BenchmarkView;
 }
 
-/** Every test's results grouped by the conditions they were done under; the one tested most recently first. Archived tests are left out; results of a deleted test form a plain one. */
+/** Every test's tracked series; the one tested most recently first. Archived tests are left out; results of a deleted test form a plain one. */
 export function buildSeries(benchmarks: readonly Benchmark[], types: readonly BenchmarkTypeDef[], defs: readonly ValueDef[], weight: WeightUnit): Series[] {
-  const byKey = new Map<string, Series>();
+  const byType = new Map<string, Benchmark[]>();
   for (const b of benchmarks) {
+    const key = types.some((t) => t.id === b.typeId) ? b.typeId : b.typeId || b.type;
+    byType.set(key, [...(byType.get(key) ?? []), b]);
+  }
+  const out: Series[] = [];
+  for (const [id, all] of byType) {
     // A result whose test was deleted still counts, as a plain test of its own name and unit.
-    const type = types.find((t) => t.id === b.typeId) ?? { id: b.typeId || b.type, name: b.type, unit: b.unit };
+    const first = all[0];
+    const type = types.find((t) => t.id === id) ?? { id, name: first.type, unit: first.unit };
     if (type.archived) continue;
     const fields = resolveFields(type, defs);
-    const key = `${type.id}|${conditionKey(b, fields)}`;
-    let s = byKey.get(key);
-    if (!s) {
-      const conditions = conditionsText(b, fields, weight);
-      s = { key, type, fields, conditions, label: conditions ? `${type.name} · ${conditions}` : type.name, results: [] };
-      byKey.set(key, s);
+    const sorted = [...all].sort((a, b) => a.date.localeCompare(b.date));
+    const latest = sorted[sorted.length - 1];
+    const marked = (type.views ?? []).filter((v) => v.onHome);
+    const views = marked.length > 0 ? marked : [likeLatestView(fields, latest)];
+    for (const view of views) {
+      const results = filterResults(sorted, fields, view.filters);
+      if (results.length === 0) continue;
+      const implicit = marked.length === 0;
+      const conditions = implicit ? conditionsText(latest, fields, weight) : view.name;
+      out.push({
+        key: `${type.id}|${view.id}`,
+        type, fields, conditions, view,
+        label: conditions ? `${type.name} · ${conditions}` : type.name,
+        results,
+      });
     }
-    s.results.push(b);
   }
-  const all = [...byKey.values()];
-  for (const s of all) s.results.sort((a, b) => a.date.localeCompare(b.date));
-  return all.sort((a, b) => b.results[b.results.length - 1].date.localeCompare(a.results[a.results.length - 1].date));
+  return out.sort((a, b) => b.results[b.results.length - 1].date.localeCompare(a.results[a.results.length - 1].date));
 }
 
 // --- Metrics ---------------------------------------------------------------
@@ -123,7 +142,9 @@ export function bodyweightNear(day: number, weights: readonly Bodyweight[]): num
 export function metricValue(metric: Metric, b: Benchmark, fields: ResolvedField[], weight: WeightUnit, bodyweights: readonly Bodyweight[]): number | undefined {
   const values = resultValues(b, fields);
   if (metric.field) {
-    const v = values[metric.field.valueId];
+    let v = values[metric.field.valueId];
+    // An added weight left blank is no added weight (pull-ups with just bodyweight), so it plots at 0.
+    if (v === undefined && metric.field.measure === "weight" && metric.field.basis === "added") v = 0;
     return typeof v === "number" ? Math.round(toShown(metric.field, v, weight) * 100) / 100 : undefined;
   }
   if (metric.id === "estimatedMax") {
@@ -163,7 +184,8 @@ export function isImprovement(delta: number, type: Pick<BenchmarkTypeDef, "direc
 
 /** The score a test charts by default (its own choice, else the primary result as logged). */
 export function defaultMetric(series: Series, weight: WeightUnit): Metric | undefined {
-  return metricsOf(series.type, series.fields, weight)[0];
+  const metrics = metricsOf(series.type, series.fields, weight);
+  return metrics.find((m) => m.id === series.view?.y) ?? metrics[0];
 }
 
 export type { BenchmarkScore };
