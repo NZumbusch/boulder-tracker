@@ -15,14 +15,8 @@ import { computeFatigueReminderTime } from "./notifications/fatigueReminder";
 import { generateICS } from "./ics";
 import { runDataMigrations, assertMigrationInvariants } from "./storage/migrations";
 import { DATA_EXPORT_VERSION } from "./constants";
-import {
-  specFromExercise,
-  buildTimeline,
-  timelineSeconds,
-  positionAt,
-  progressAt,
-  loggedValuesFor,
-} from "./timer/intervalTimer";
+import { soloRun } from "./timer/soloRun";
+import { circuitSteps, circuitLoggedValues, startCircuitRun, tickCircuitRun } from "./timer/circuitRun";
 import { shareImageFileName } from "./share/imageShare";
 import { startSession, logSlot, toCompletedWorkout } from "./session/activeSession";
 
@@ -142,39 +136,34 @@ suite("a real export", () => {
     });
   });
 
-  describe("the interval timer", () => {
+  describe("the single-exercise timer", () => {
+    const runOf = (slot: ExerciseSlot) => {
+      const run = soloRun(slotValues(slot));
+      const members = [{ slot, values: run.values }];
+      return { run, members, steps: circuitSteps(run.group, members, run.leadIn) };
+    };
+    const total = (steps: ReturnType<typeof circuitSteps>) => steps.reduce((t, st) => t + (st.kind === "work" ? (st.seconds ?? 0) : st.seconds), 0);
+
     it("builds a runnable protocol from every exercise", () => {
       for (const slot of slots) {
-        const spec = specFromExercise(slotValues(slot));
-        const timeline = buildTimeline(spec);
-        expect(timeline.length, `empty timeline for ${slot.typeId}`).toBeGreaterThan(0);
-
-        const total = timelineSeconds(timeline);
-        expectSaneNumber(total, `timeline length for ${slot.typeId}`);
-        expect(total, `implausible protocol for ${slot.typeId}`).toBeLessThan(6 * 60 * 60);
-
-        // Position and progress must hold at both ends and in the middle.
-        for (const at of [0, total / 2, total, total + 60]) {
-          const pos = positionAt(timeline, at);
-          expectSaneNumber(pos.remaining, `remaining at ${at}s for ${slot.typeId}`);
-          const prog = progressAt(timeline, spec, at);
-          expectSaneNumber(prog.setsCompleted, `sets at ${at}s`);
-          expectSaneNumber(prog.repsCompleted, `reps at ${at}s`);
-          expect(prog.currentSet).toBeGreaterThanOrEqual(1);
-          expect(prog.currentRep).toBeGreaterThanOrEqual(1);
-        }
+        const { steps } = runOf(slot);
+        expect(steps.length, `empty run for ${slot.typeId}`).toBeGreaterThan(0);
+        const seconds = total(steps);
+        expectSaneNumber(seconds, `run length for ${slot.typeId}`);
+        expect(seconds, `implausible protocol for ${slot.typeId}`).toBeLessThan(6 * 60 * 60);
       }
     });
 
     it("produces loggable values from a finished run of every exercise", () => {
       for (const slot of slots) {
-        const spec = specFromExercise(slotValues(slot));
-        const timeline = buildTimeline(spec);
-        const values = loggedValuesFor(spec, progressAt(timeline, spec, timelineSeconds(timeline)));
-        expectSaneNumber(values.sets!, `logged sets for ${slot.typeId}`);
-        expectSaneNumber(repsRepresentative(values.reps)!, `logged reps for ${slot.typeId}`);
-        expect(values.sets).toBeGreaterThan(0);
-        expect(repsRepresentative(values.reps)).toBeGreaterThan(0);
+        const { steps, members } = runOf(slot);
+        // Timed steps run out by themselves; an open counted set takes its target reps when finished.
+        let state = startCircuitRun();
+        state = tickCircuitRun(steps, state, total(steps) * 1000 + 1000);
+        const logged = circuitLoggedValues(members, state)[slot.id];
+        if (!logged) continue; // a set only a tap can finish stays open under the clock alone
+        expectSaneNumber(logged.sets!, `logged sets for ${slot.typeId}`);
+        expect(logged.sets).toBeGreaterThan(0);
       }
     });
   });
@@ -241,9 +230,9 @@ suite("a real export", () => {
       for (const slot of arrayReps) {
         const estimate = estimateExerciseDuration(slotValues(slot));
         if (estimate !== undefined) expectSaneNumber(estimate, `array-reps exercise ${slot.typeId}`);
-        const spec = specFromExercise(slotValues(slot));
-        expect(Number.isFinite(spec.reps)).toBe(true);
-        expect(spec.reps).toBeGreaterThan(0);
+        const run = soloRun(slotValues(slot));
+        expect(Number.isFinite(run.group.rounds)).toBe(true);
+        expect(run.group.rounds).toBeGreaterThan(0);
       }
     });
 

@@ -10,12 +10,10 @@
   import { quickTimer, endQuickRun, startQuickRun } from '../../lib/timer/quickTimer.svelte';
   import { soloRun, SOLO_GROUP_ID } from '../../lib/timer/soloRun';
   import { variantOf } from '../../lib/timer/presets';
-  import { live } from '../../lib/native/liveNotification.svelte';
-  import { toast } from '../../lib/toast.svelte';
   import CircuitRunner, { CIRCUIT_RUN_KEY, forgetCircuitRun } from './CircuitRunner.svelte';
   import CircuitPill from './CircuitPill.svelte';
   import QuickTimerSheet from './QuickTimerSheet.svelte';
-  import { generateId } from '../../lib/utils';
+  import PresetNameSheet from './PresetNameSheet.svelte';
   import type { ExerciseSlot, ExerciseValues } from '../../lib/types';
 
   const QUICK_KEY = 'quick';
@@ -46,25 +44,8 @@
   }
 
   /** The numbers waiting for a name. */
-  let naming = $state<{ values: ExerciseValues; leadIn: number; name: string } | null>(null);
-  function askName(values: ExerciseValues, leadIn: number) {
-    if (run) naming = { values: $state.snapshot(values) as ExerciseValues, leadIn, name: run.title };
-  }
-  function savePreset() {
-    const n = naming;
-    const name = n?.name.trim();
-    if (!run || !n || !name) return;
-    trainingState.saveTimerPreset({ id: generateId(), name, variant: variantOf(n.values), values: n.values, leadIn: n.leadIn });
-    toast.show(`Saved "${name}"`);
-    naming = null;
-  }
-  // Only one run owns the notification at a time.
-  $effect(() => {
-    if (quickTimer.sheetOpen && live.circuitRunning && !run) {
-      quickTimer.sheetOpen = false;
-      toast.show('Finish the timer that is running first');
-    }
-  });
+  let naming = $state<{ values: ExerciseValues; leadIn: number } | null>(null);
+  const askName = (values: ExerciseValues, leadIn: number) => (naming = { values: $state.snapshot(values) as ExerciseValues, leadIn });
 </script>
 
 {#if quickTimer.sheetOpen}
@@ -93,16 +74,6 @@
   {/key}
 {/if}
 
-{#if naming}
-  <div class="fixed inset-0 z-[120] bg-black/50 flex items-end sm:items-center justify-center">
-    <div class="absolute inset-0" onclick={() => (naming = null)} role="presentation"></div>
-    <form onsubmit={(e) => { e.preventDefault(); savePreset(); }} class="relative w-full max-w-lg bg-surface rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 pb-8 space-y-3 shadow-2xl">
-      <label class="block space-y-1.5">
-        <span class="text-label text-content-subtle">Name this preset</span>
-        <!-- svelte-ignore a11y_autofocus -->
-        <input autofocus bind:value={naming.name} maxlength="40" class="w-full px-3 py-3 bg-surface-elevated text-content rounded-control border border-border-strong text-body outline-none focus:border-primary/50" />
-      </label>
-      <button type="submit" disabled={!naming.name.trim()} class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-control text-label font-bold disabled:opacity-40">Save</button>
-    </form>
-  </div>
+{#if naming && run}
+  <PresetNameSheet values={naming.values} leadIn={naming.leadIn} suggestion={run.title} onDone={() => (naming = null)} />
 {/if}

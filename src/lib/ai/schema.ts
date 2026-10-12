@@ -860,9 +860,12 @@ HARD RULES for "values" - each of these was a real failure, not a hypothetical:
 - "notes" is the only field that takes free text. Put all coaching detail, pacing, intent and conditions there.
 - Omit any field you have no value for. Never write null.
 
-TIMER-READY VALUES - the app's timer runs a timed exercise straight from its "values", so write them to describe exactly what the timer should do, not just the total:
-- A timed hold or repeater: "sets", "reps" (holds per set), "timeOn" (seconds per hold), "timeOff" (seconds between holds in a set), "timeBetweenSets" (seconds between sets). The timer does sets x reps x (timeOn, timeOff), then timeBetweenSets. Give every one of these that matters; a missing one is filled with a default (a 7 s hang, 3 s rest, 3 min between sets).
+TIMER-READY VALUES - the app runs a timed exercise straight from its "values" (the athlete taps Start - it never starts by itself), so write them to describe exactly what the timer should do, not just the total:
+- A timed hold or repeater: "sets", "reps" (holds per set), "timeOn" (seconds per hold), "timeOff" (seconds between holds in a set), "timeBetweenSets" (seconds between sets). The timer does sets x reps x (timeOn, timeOff), then timeBetweenSets. Give every one of these that matters: 0 means no rest, and a rest you leave out is filled with the athlete's default (2 min between sets).
 - One long hold or stretch: "sets": 1, "reps": 1, "timeOn" = its seconds. Do not use "duration" for something the timer should count down.
 - A hold done per side: "reps": 2, "repLabel": "Side", "timeOn" = seconds per side, "timeOff" = seconds to switch. The note "per side" alone changes nothing.
-- Counted sets (pull-ups, push-ups): "sets", "reps" and "timeBetweenSets" only; no "timeOn".
+- Sets that differ (a ramp of hangs 10 s, 8 s, 6 s, or rests that change): give "perSet" with "timeOn" (and "reps"/"weight") per set; the timer runs each set as given.
+- Counted sets (pull-ups, push-ups): "sets", "reps" and "timeBetweenSets" only; no "timeOn". The athlete finishes each set with a tap, and the rest runs on the clock.
+- Free climbing at a set pace (free bouldering, "a problem every 4 minutes"): "cadence" = minutes per problem and "duration" = the session's minutes, with no "reps" or "timeOn". The timer becomes a pacer - a cue every cadence minutes - that the athlete starts, pauses and changes while climbing. What is actually done (problems, time, pace) is logged against the planned load, so give a realistic "duration".
+- "leadIn" (seconds of get-ready before the timer starts, default 10) only when an exercise needs more or less, e.g. 20 for a hard hang or 0 for a stretch.
 - Never describe the timing only in "notes" - whatever the timer must do has to be in the numbers.`;
