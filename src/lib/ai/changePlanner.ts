@@ -57,7 +57,7 @@ import { dayIndexOf, weekAndDayOf, occurrenceOnDay, describeChanges, templateFro
 import { applyCoachNoteChange, newCoachNoteId } from "./coachNotes";
 import { makeTestSlot, testSlotName } from "../benchmarks/testSlot";
 import { isWeighInType } from "../benchmarks/bodyweight";
-import { conditionFields, resolveFields } from "../benchmarks/model";
+import { resolveFields } from "../benchmarks/model";
 
 // --- Inputs and outputs -----------------------------------------------------
 
@@ -266,10 +266,11 @@ function findTest(ctx: Ctx, name: string): BenchmarkTypeDef | undefined {
 }
 
 /**
- * A scheduled test: the test by name, with the conditions the item names
- * ("Edge depth": 20) matched to the test's own condition fields, by label or
- * value-type name. What doesn't match is dropped with a warning; a weight is
- * in kg, a pick-list value must be one of its options.
+ * A scheduled test: the test by name, with the values the item sets
+ * beforehand ("Edge depth": 20, "Reps": 1, "Added weight": 10) matched to any
+ * of the test's fields, by label or value-type name - what is left empty is
+ * what the athlete is to find. What doesn't match is dropped with a warning;
+ * a weight is in kg, a pick-list value must be one of its options.
  */
 function buildTestSlot(ctx: Ctx, exercise: AIExercise, item: ChangeItem): ExerciseSlot | undefined {
   const type = findTest(ctx, exercise.test ?? "");
@@ -283,13 +284,13 @@ function buildTestSlot(ctx: Ctx, exercise: AIExercise, item: ChangeItem): Exerci
     return undefined;
   }
   if (type.archived) item.warnings.push(`"${type.name}" is archived in your tests.`);
-  const fields = conditionFields(resolveFields(type, ctx.state.valueDefs ?? [])).filter((f) => f.fixed === undefined);
+  const fields = resolveFields(type, ctx.state.valueDefs ?? []).filter((f) => f.fixed === undefined);
   const conditions: Record<string, number | string> = {};
   for (const [name, raw] of Object.entries(exercise.conditions ?? {})) {
     const key = normalizeName(name);
     const field = fields.find((f) => normalizeName(f.label) === key || normalizeName(f.valueId) === key);
     if (!field) {
-      item.warnings.push(`${type.name} has no condition "${name}" - ignored${fields.length ? ` (it has: ${fields.map((f) => f.label).join(", ")})` : ""}.`);
+      item.warnings.push(`${type.name} has no field "${name}" - ignored${fields.length ? ` (it has: ${fields.map((f) => f.label).join(", ")})` : ""}.`);
       continue;
     }
     if (field.kind === "choice") {

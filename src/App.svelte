@@ -18,6 +18,7 @@
   import TaperSheet from './components/dashboard/home/TaperSheet.svelte';
   import ExerciseProgressSheet from './components/analytics/ExerciseProgressSheet.svelte';
   import Welcome from './components/onboarding/Welcome.svelte';
+  import WhatsNewSheet from './components/common/WhatsNewSheet.svelte';
   import TourOverlay from './components/tour/TourOverlay.svelte';
   import { tour } from './lib/tour/tour.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
@@ -216,6 +217,7 @@
   <TaperSheet />
   <ExerciseProgressSheet />
   <TourOverlay />
+  <WhatsNewSheet />
   <!-- First run only: a fresh install that hasn't been welcomed and has no
        sessions (a restored or synced install skips it). -->
   {#if !trainingState.isLoading && !trainingState.welcomeDone && !tour.active && trainingState.workouts.length === 0}

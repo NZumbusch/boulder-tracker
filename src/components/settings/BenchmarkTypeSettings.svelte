@@ -68,7 +68,7 @@
     const named = (f: ResolvedField) => (unitOf(f) && unitOf(f).toLowerCase() !== f.label.toLowerCase() ? `${f.label} (${unitOf(f)})` : f.label);
     const results = fields.filter((f) => f.role === 'result').map(named).join(' + ');
     const by = fields.filter((f) => f.role === 'condition' && f.fixed === undefined).map((f) => f.label.toLowerCase());
-    return [results, by.length ? `by ${by.join(' and ')}` : '', type.direction === 'lower' ? 'lower is better' : ''].filter(Boolean).join(' · ');
+    return [results, by.length ? `with ${by.join(' and ')}` : '', type.direction === 'lower' ? 'lower is better' : ''].filter(Boolean).join(' · ');
   }
 
   // --- The editor ---
@@ -230,7 +230,7 @@
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1 flex items-center gap-1.5">Tests <InfoButton term="tests" /></h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight), so results are compared like with like.</p>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight). Everything is kept, and Analytics lets you filter, split and plot it any way you like.</p>
   </div>
 
   {#if weighInOffer && !dismissed.includes(weighInSignature)}
@@ -261,7 +261,7 @@
           <p class="text-label font-semibold text-content">Tidy up your tests</p>
           <button onclick={() => dismiss(tidySignature)} class="p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
         </div>
-        <p class="text-caption text-content-subtle leading-relaxed">Some of these look like leftovers: the same test kept twice, or one your daily metrics already cover. Tick what to do; Undo is offered afterwards, and no result is ever deleted.</p>
+        <p class="text-caption text-content-subtle leading-relaxed">Some of these look like leftovers: the same test kept twice, one lift kept as a max-reps test and a heaviest-single test, or one your daily metrics already cover. Tick what to do; Undo is offered afterwards, and no result is ever deleted.</p>
       </div>
       <div class="space-y-2.5">
         {#each proposals as p (p.id)}
@@ -383,7 +383,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <div class="flex rounded-control overflow-hidden border border-border-strong shrink-0">
-                    {#each [['result', 'Result'], ['condition', 'Condition']] as [role, label]}
+                    {#each [['result', 'Result'], ['condition', 'Set-up']] as [role, label]}
                       <button type="button" onclick={() => (row.role = role as Row['role'])} aria-pressed={row.role === role} class="px-3 py-1.5 text-label {row.role === role ? 'bg-primary/10 text-primary font-bold' : 'bg-surface text-content-muted'}">{label}</button>
                     {/each}
                   </div>
@@ -416,7 +416,7 @@
               {#each unusedDefs as d (d.id)}<option value={d.id}>{d.name}{d.unit ? ` (${d.measure === 'weight' ? trainingState.units.weight : d.unit})` : ''}</option>{/each}
             </select>
           {/if}
-          <p class="text-caption text-content-subtle leading-relaxed"><b class="text-content-muted">Result</b>: something you measure and chart - weight, reps, time. <b class="text-content-muted">Condition</b>: how you did it (edge depth, a set load) - results are only compared at the same condition, so each value of it is its own line. The first result is what progress follows. Need another kind of value? Add it under Training setup → Value types.</p>
+          <p class="text-caption text-content-subtle leading-relaxed"><b class="text-content-muted">Result</b>: something you measure - weight, reps, time. <b class="text-content-muted">Set-up</b>: how you did it (edge depth, an added load) - it starts from last time and is what Home compares by. Every value is kept either way: in the chart you can filter, split or plot against any of them, so nothing here locks how you look at the results later. The first result is what progress follows. Need another kind of value? Add it under Training setup → Value types.</p>
         </div>
 
         <div class="space-y-1.5">

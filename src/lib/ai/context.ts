@@ -16,7 +16,7 @@ import type {
   Workout,
 } from "../types";
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
-import { conditionFields, otherValuesText, resolveFields } from "../benchmarks/model";
+import { otherValuesText, resolveFields } from "../benchmarks/model";
 import { isWeighInType } from "../benchmarks/bodyweight";
 import { DEFAULT_RETEST_WEEKS, plannedTestsByType, testStatuses } from "../benchmarks/testSlot";
 import { repsRepresentative } from "../exercise/reps";
@@ -586,8 +586,8 @@ export interface TestSummary {
   name: string;
   /** The result as "Added weight (kg)". */
   result: string;
-  /** Names the AI uses under "conditions" when scheduling it. */
-  conditions?: { name: string; unit?: string; options?: string[]; fixed?: number | string }[];
+  /** Everything it records, by the names the AI uses under "conditions" when scheduling it: any of these can be set beforehand, the rest is what the test finds. "usually" = the set-up fields results are compared by. */
+  fields?: { name: string; unit?: string; options?: string[]; usuallySame?: true }[];
   better?: "lower";
   protocol?: string;
   last?: { date: string; value: string; conditions?: string };
@@ -610,17 +610,17 @@ export function buildTestSummaries(source: AIContextSource, asOf: Date, retestWe
   return testStatuses(types, source.benchmarks, asOf, new Set(planned.keys()), retestWeeks).map(({ type, last, weeksSince, due, never }) => {
     const fields = resolveFields(type, defs);
     const primary = fields.find((f) => f.role === "result");
-    const conds = conditionFields(fields).map((f) => ({
+    const settable = fields.filter((f) => f.fixed === undefined).map((f) => ({
       name: f.label,
       ...(f.unit ? { unit: f.unit } : {}),
       ...(f.options.length ? { options: f.options } : {}),
-      ...(f.fixed !== undefined ? { fixed: f.fixed } : {}),
+      ...(f.role === "condition" ? { usuallySame: true as const } : {}),
     }));
     const lastDescribed = last ? describeBenchmarks([last], types, defs)[0] : undefined;
     return {
       name: type.name,
       result: `${primary?.label ?? "Result"}${primary?.unit || type.unit ? ` (${primary?.unit || type.unit})` : ""}`,
-      ...(conds.length ? { conditions: conds } : {}),
+      ...(settable.length > 1 ? { fields: settable } : {}),
       ...(type.direction === "lower" ? { better: "lower" as const } : {}),
       ...(type.protocol ? { protocol: type.protocol.replace(/\s+/g, " ").slice(0, 240) } : {}),
       ...(lastDescribed ? { last: { date: lastDescribed.date.slice(0, 10), value: `${lastDescribed.value} ${lastDescribed.unit}`.trim(), ...(lastDescribed.conditions ? { conditions: lastDescribed.conditions } : {}) } } : {}),
