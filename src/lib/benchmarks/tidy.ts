@@ -1,4 +1,4 @@
-import type { Benchmark, BenchmarkField, BenchmarkTypeDef, ValueDef } from "../types";
+import type { Benchmark, BenchmarkField, BenchmarkTypeDef, BenchmarkView, ValueDef } from "../types";
 import { resolveFields } from "./model";
 import { isWeighInType } from "./bodyweight";
 
@@ -24,6 +24,24 @@ export type TidyProposal =
       fill: { resultId: string; values: Record<string, number | string> }[];
       moves: number;
     }
+  | {
+      id: string;
+      kind: "combine";
+      label: string;
+      detail: string;
+      defaultOn: boolean;
+      /** The weighted single ("1RM Weighted Pullup") - its results move over as one rep at their weight, and it is archived. */
+      fromId: string;
+      /** The reps test ("Max Pullups") - gains an added-weight set-up field and a view for each of the two. */
+      intoId: string;
+      weightField: BenchmarkField;
+      weightId: string;
+      repsId: string;
+      /** The reps a single is: its fixed value. */
+      singleReps: number;
+      views: BenchmarkView[];
+      moves: number;
+    }
   | { id: string; kind: "archive"; label: string; detail: string; defaultOn: boolean; typeIds: string[] };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -35,6 +53,28 @@ function isSameTest(a: BenchmarkTypeDef, b: BenchmarkTypeDef, defs: readonly Val
   const rb = resolveFields(b, defs).find((f) => f.role === "result");
   if (!ra || !rb || ra.valueId !== rb.valueId || a.unit !== b.unit) return false;
   return a.id.startsWith(`${b.id}-`) || b.id.startsWith(`${a.id}-`) || compact(a.name) === compact(b.name);
+}
+
+/** The lift a test's name is about: "Max Pullups" and "1RM Weighted Pullup" are both "pullup". */
+const STEM_NOISE = new Set(["1rm", "max", "weighted", "weight", "test", "one", "rep", "reps"]);
+export const liftStem = (name: string): string =>
+  norm(name).split(" ").filter((w) => w && !STEM_NOISE.has(w)).join(" ").replace(/s$/, "");
+
+/** A test of how many reps, with no weight field: "Max Pullups". */
+function repsOnly(t: BenchmarkTypeDef, defs: readonly ValueDef[]) {
+  const fields = resolveFields(t, defs);
+  const results = fields.filter((f) => f.role === "result");
+  if (results.length !== 1 || results[0].measure !== "reps" || fields.some((f) => f.measure === "weight")) return undefined;
+  return results[0];
+}
+
+/** A test of the heaviest single: a weight result with the reps fixed at 1 or more: "1RM Weighted Pullup". */
+function weightedSingle(t: BenchmarkTypeDef, defs: readonly ValueDef[]) {
+  const fields = resolveFields(t, defs);
+  const results = fields.filter((f) => f.role === "result");
+  const reps = fields.find((f) => f.measure === "reps" && typeof f.fixed === "number");
+  if (results.length !== 1 || results[0].measure !== "weight" || !reps) return undefined;
+  return { weight: results[0], reps: reps.valueId, singleReps: reps.fixed as number };
 }
 
 /** "Max Hang 20mm 7s" -> { length: 20, time: 7 }: what a legacy result's name said about how it was done. */
@@ -87,6 +127,38 @@ export function proposeTidy(types: readonly BenchmarkTypeDef[], benchmarks: read
     }
   }
 
+  // 1b. The same lift kept as a max-reps test and a heaviest-single test: one test, with the weight as a set-up and a view for each.
+  for (const reps of active) {
+    const r = repsOnly(reps, defs);
+    if (!r || handled.has(reps.id) || isWeighInType(reps, defs)) continue;
+    const single = active.find((t) => t.id !== reps.id && !handled.has(t.id) && liftStem(t.name) !== "" && liftStem(t.name) === liftStem(reps.name) && weightedSingle(t, defs)?.reps === r.valueId);
+    if (!single) continue;
+    const w = weightedSingle(single, defs)!;
+    const weightField: BenchmarkField = { valueId: w.weight.valueId, role: "condition", label: "Added weight", ...(w.weight.basis === "total" ? { basis: "total" as const } : {}) };
+    const moves = count(single.id);
+    const views: BenchmarkView[] = [
+      { id: `combine-${single.id}-reps`, name: "Max reps, no weight", filters: { [weightField.valueId]: { op: "none" } }, y: r.valueId, onHome: true },
+      { id: `combine-${single.id}-single`, name: w.singleReps === 1 ? "Heaviest single" : `Heaviest for ${w.singleReps} reps`, filters: { [w.reps]: { op: "eq", value: w.singleReps } }, y: w.weight.valueId, onHome: true },
+    ];
+    out.push({
+      id: `combine-${single.id}-${reps.id}`,
+      kind: "combine",
+      label: `Combine ${reps.name} and ${single.name}`,
+      detail: `Both are the same lift. ${reps.name} gains an added weight, ${moves} result${moves === 1 ? "" : "s"} of ${single.name} move over as ${w.singleReps} rep${w.singleReps === 1 ? "" : "s"} at their weight, and ${single.name} is archived. Home keeps both rows (max reps, heaviest single) and the chart can plot reps against weight across all of it.`,
+      defaultOn: true,
+      fromId: single.id,
+      intoId: reps.id,
+      weightField,
+      weightId: weightField.valueId,
+      repsId: r.valueId,
+      singleReps: w.singleReps,
+      views,
+      moves,
+    });
+    handled.add(reps.id);
+    handled.add(single.id);
+  }
+
   // 2. A bodyweight "test" is handled apart: `planWeighInMigration` turns its results into daily readings.
 
   // 3. Tests that never got a result, as one proposal: off by default.
@@ -113,6 +185,26 @@ export function applyTidy(chosen: readonly TidyProposal[], types: readonly Bench
   for (const p of chosen) {
     if (p.kind === "archive") {
       nextTypes = nextTypes.map((t) => (p.typeIds.includes(t.id) ? { ...t, archived: true } : t));
+      continue;
+    }
+    if (p.kind === "combine") {
+      const into = nextTypes.find((t) => t.id === p.intoId);
+      if (!into) continue;
+      const fields = [...(into.fields ?? [{ valueId: p.repsId, role: "result" as const }])];
+      if (!fields.some((f) => f.valueId === p.weightId)) fields.push({ ...p.weightField });
+      // The weighted single stays as an archived test: a session still planned with it keeps resolving.
+      nextTypes = nextTypes.map((t) => {
+        if (t.id === p.fromId) return { ...t, archived: true };
+        if (t.id !== p.intoId) return t;
+        const views = [...(t.views ?? [])];
+        for (const v of p.views) if (!views.some((x) => x.id === v.id)) views.push({ ...v, ...(v.filters ? { filters: { ...v.filters } } : {}) });
+        return { ...t, fields, views, mergedFrom: [...new Set([...(t.mergedFrom ?? []), p.fromId])] };
+      });
+      for (const r of benchmarks) {
+        if (r.typeId !== p.fromId) continue;
+        const weightKg = typeof r.values?.[p.weightId] === "number" ? (r.values![p.weightId] as number) : r.value;
+        changed.set(r.id, { ...r, typeId: p.intoId, type: into.name, unit: into.unit, value: p.singleReps, values: { ...(r.values ?? {}), [p.repsId]: p.singleReps, [p.weightId]: weightKg } });
+      }
       continue;
     }
     const into = nextTypes.find((t) => t.id === p.intoId);
