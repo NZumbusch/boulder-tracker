@@ -6,6 +6,7 @@
   
   import FatigueModal from './components/common/FatigueModal.svelte';
   import ActiveSessionModal from './components/workout/ActiveSessionModal.svelte';
+  import QuickTimerHost from './components/workout/QuickTimerHost.svelte';
   import WorkoutModal from './components/workout/WorkoutModal.svelte';
   import Toast from './components/common/Toast.svelte';
   import InAppBrowserBanner from './components/common/InAppBrowserBanner.svelte';
@@ -202,6 +203,7 @@
        the modal is closed), so the modal's stopwatch never competes with
        the bubble's own elapsed readout. -->
   <ActiveSessionModal />
+  <QuickTimerHost />
   <SessionActionsSheet />
   <PainScreens />
   <SessionBubble />

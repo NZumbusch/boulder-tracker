@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Benchmark, BenchmarkTypeDef, DailyMetricEntry, ValueDef } from "../types";
-import { bodyweightFromBenchmark, isWeighInName, isWeighInType, planWeighInMigration, resultKg, weighInEntryId, withoutWeighInSlots } from "./bodyweight";
+import { bodyweightFromBenchmark, isWeighInName, isWeighInType, planWeighInMigration, resultKg, weighInEntryId, withoutWeighInSlots, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from "./bodyweight";
 
 const defs: ValueDef[] = [
   { id: "weight", name: "Weight", unit: "kg", kind: "number", measure: "weight", builtIn: true, uses: ["benchmark"] },
@@ -114,5 +114,28 @@ describe("withoutWeighInSlots", () => {
     expect(out.map((w) => w.id)).toEqual(["a"]);
     expect(out[0].exercises.map((s) => s.id)).toEqual(["2", "3"]);
     expect(withoutWeighInSlots(ws, [])).toEqual([]);
+  });
+});
+
+describe("weigh-in slots in templates and Plan B", () => {
+  const slot = (id: string, typeId?: string) => (typeId ? { id, test: { typeId } } : { id });
+  it("strips them from phase templates and says which phases changed", () => {
+    const templates = { cap: [{ id: "t1", exercises: [slot("1", "bw"), slot("2")] }, { id: "t2", exercises: [slot("3", "mh")] }], pow: [{ id: "t3", exercises: [slot("4")] }] };
+    const { changed, count } = withoutWeighInSlotsInTemplates(templates, ["bw"]);
+    expect(Object.keys(changed)).toEqual(["cap"]);
+    expect(changed.cap.map((t) => t.exercises.length)).toEqual([1, 1]);
+    expect(changed.cap[1]).toBe(templates.cap[1]); // untouched ones are the same objects
+    expect(count).toBe(1);
+    expect(withoutWeighInSlotsInTemplates({}, ["bw"])).toEqual({ changed: {}, count: 0 });
+  });
+  it("strips them from Plan B sessions, leaving changes without a session alone", () => {
+    const alts = [
+      { id: "a", changes: [{ id: "c1", session: { exercises: [slot("1", "bw"), slot("2")] } }, { id: "c2" }] },
+      { id: "b", changes: [{ id: "c3", session: { exercises: [slot("3")] } }] },
+    ];
+    const { changed, count } = withoutWeighInSlotsInAlternatives(alts, ["bw"]);
+    expect(changed.map((a) => a.id)).toEqual(["a"]);
+    expect(changed[0].changes[0].session!.exercises).toEqual([slot("2")]);
+    expect(count).toBe(1);
   });
 });

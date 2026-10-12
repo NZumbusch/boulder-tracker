@@ -18,6 +18,7 @@
  */
 
 import { type TimerCues, validateTimerCues } from '../timer/timerCues';
+import { type TimerPreset, validateTimerPresets } from '../timer/presets';
 import { ANALYTICS_RANGES, DEFAULT_ANALYTICS_RANGE, type AnalyticsRange } from '../analytics/range';
 import { defaultHomeDetails, validateHomeDetails, type HomeDetails } from './homeDetails';
 import { defaultTunables, validateTunables, type Tunables } from './tunables';
@@ -85,6 +86,8 @@ export interface Preferences {
   timerPillHidden: boolean;
   /** Cue loudness, whether it sets the media volume, and the spoken announcements. */
   timerCues: TimerCues;
+  /** Saved timer runs (Timer sheet, Home). */
+  timerPresets: TimerPreset[];
   /** The screen stays on for the whole running session, not only while a timer runs. */
   sessionKeepAwake: boolean;
   /** Pain check-in prompts - each switchable. */
@@ -238,6 +241,7 @@ export const HOME_SECTION_IDS = [
   'readiness',
   'alerts',
   'today',
+  'timer',
   'metrics',
   'fatigue',
   'thisWeek',
@@ -309,6 +313,7 @@ export function defaultPreferences(): Preferences {
     timerWarnBeforeEnd: false,
     timerPillHidden: false,
     timerCues: validateTimerCues(undefined),
+    timerPresets: [],
     sessionKeepAwake: true,
     painCheckIns: { ...DEFAULT_PAIN_CHECK_INS },
     hapticsEnabled: true,
@@ -534,6 +539,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     timerWarnBeforeEnd: typeof candidate.timerWarnBeforeEnd === 'boolean' ? candidate.timerWarnBeforeEnd : defaults.timerWarnBeforeEnd,
     timerPillHidden: typeof candidate.timerPillHidden === 'boolean' ? candidate.timerPillHidden : defaults.timerPillHidden,
     timerCues: validateTimerCues(candidate.timerCues),
+    timerPresets: validateTimerPresets(candidate.timerPresets),
     sessionKeepAwake: typeof candidate.sessionKeepAwake === 'boolean' ? candidate.sessionKeepAwake : defaults.sessionKeepAwake,
     painCheckIns: validatePainCheckIns(candidate.painCheckIns),
     hapticsEnabled: typeof candidate.hapticsEnabled === 'boolean' ? candidate.hapticsEnabled : defaults.hapticsEnabled,

@@ -17,11 +17,7 @@
  * the timer changes (pause, skip, a finished set), so the schedule only
  * has to describe "if nothing else happens".
  */
-import { type IntervalSpec, buildTimeline, clampSpec, phaseLabel, stepStartSeconds, timelineSeconds } from "./intervalTimer";
 import { type Clock, clockElapsedMs, countdownRemainingMs } from "./clock";
-import type { AnnounceRules } from "./timerCues";
-import { type SpeechMeasure, nextText, planRestSpeech } from "./announcePlan";
-import { type SetRunState, isResting, restRemainingSeconds, setRunPhase } from "./setRun";
 
 export type CueKind = "work" | "rest" | "setRest" | "leadIn" | "done" | "tick" | "warn";
 
@@ -54,25 +50,15 @@ export interface LiveTimerConfig {
 }
 
 export interface LiveInput {
-  mode: "stopwatch" | "timer" | "interval";
+  mode: "stopwatch" | "timer";
   targetSeconds: number;
   basic: Clock;
-  spec: IntervalSpec;
-  intervalClock: Clock;
-  selfPaced: boolean;
-  setRun: SetRunState;
-  /** Beep the last three seconds of phases/rests/countdowns. */
+  /** Beep the last three seconds of a countdown. */
   ticks: boolean;
-  /** Seconds before an end to warn at; 0 = off. */
+  /** Seconds before the end to warn at; 0 = off. */
   warningSeconds: number;
-  /** Name of the exercise, for the notification. */
+  /** The notification's second line. */
   label: string;
-  workLabel: string;
-  /** Spoken "next: set 3 of 5" during a self-paced rest; off when absent or disabled. */
-  announce?: AnnounceRules;
-  /** The voice's speaking speed and the engine's own timing of phrases (Android), for fitting the words to the rest. */
-  speechRate?: number;
-  measure?: SpeechMeasure;
 }
 
 function fmt(ms: number): string {
@@ -86,135 +72,39 @@ function ticksBefore(end: number, now: number): LiveCue[] {
 }
 
 /**
- * What is said during a self-paced rest: which set comes next. Auto fits it to
- * the rest's length (and says it again near the end of a long one); Custom
- * follows the manual rules. Only what is still ahead of `now`.
- */
-function restSpeech(input: LiveInput, set: number, sets: number, restStart: number, restEnd: number, now: number): LiveCue[] {
-  const say = input.announce;
-  if (!say?.enabled) return [];
-  const what = `set ${set} of ${sets}`;
-  const seconds = (restEnd - restStart) / 1000;
-  const cues: LiveCue[] = [];
-  if (say.mode === "auto") {
-    const plan = planRestSpeech({
-      kind: "roundRest", seconds, name: what, target: "", rate: input.speechRate ?? 1, measure: input.measure,
-      trimmed: set > 2, ticks: input.ticks, warningSeconds: input.warningSeconds,
-    });
-    for (const c of plan.cues) cues.push({ at: restStart + c.offset * 1000, kind: "speak", text: c.text });
-  } else {
-    if (say.restStart) cues.push({ at: restStart + say.restStartDelay * 1000, kind: "speak", text: `Rest. ${nextText(what)}` });
-    if (say.restEnd > 0 && seconds > say.restEnd + say.restStartDelay + 4) cues.push({ at: restEnd - say.restEnd * 1000, kind: "speak", text: nextText(what) });
-  }
-  return cues.filter((c) => c.at >= now - 100);
-}
-
-/**
- * The service schedule for the current state, or `null` when there is
- * nothing to run in the background (no timer going, or a finished one).
+ * The service schedule for the stopwatch or countdown, or `null` when there
+ * is nothing to run in the background (no timer going, or a finished one).
+ * Intervals, sets and the pacer are runs of the circuit engine, which makes
+ * its own schedule (`buildCircuitLive`).
  */
 export function buildLiveTimer(input: LiveInput, now: number): LiveTimerConfig | null {
   const body = input.label;
-
-  // --- Stopwatch / countdown
-  if (input.mode !== "interval") {
-    const running = input.basic.runningSince !== null;
-    if (input.mode === "stopwatch") {
-      if (!running) {
-        // Paused part-way: keep the notification, frozen, with Resume.
-        const elapsed = clockElapsedMs(input.basic, now);
-        if (elapsed === 0) return null;
-        return { segments: [{ title: `Stopwatch paused · ${fmt(elapsed)}`, body }], cues: [], actions: ["resume"], finishedTitle: "Stopwatch" };
-      }
-      return {
-        segments: [{ startedAt: now - clockElapsedMs(input.basic, now), title: "Stopwatch", body }],
-        cues: [],
-        actions: ["pause"],
-        finishedTitle: "Stopwatch",
-      };
-    }
-    const remaining = countdownRemainingMs(input.targetSeconds, input.basic, now);
-    if (remaining <= 0) return null;
+  const running = input.basic.runningSince !== null;
+  if (input.mode === "stopwatch") {
     if (!running) {
       // Paused part-way: keep the notification, frozen, with Resume.
-      if (input.basic.bankedMs === 0) return null;
-      return { segments: [{ title: `Countdown paused · ${fmt(remaining)} left`, body }], cues: [], actions: ["resume"], finishedTitle: "Time's up" };
+      const elapsed = clockElapsedMs(input.basic, now);
+      if (elapsed === 0) return null;
+      return { segments: [{ title: `Stopwatch paused · ${fmt(elapsed)}`, body }], cues: [], actions: ["resume"], finishedTitle: "Stopwatch" };
     }
-    const end = now + remaining;
-    const cues: LiveCue[] = [];
-    if (input.warningSeconds > 0 && remaining > input.warningSeconds * 1000) cues.push({ at: end - input.warningSeconds * 1000, kind: "warn" });
-    if (input.ticks) cues.push(...ticksBefore(end, now));
-    cues.push({ at: end, kind: "done" });
-    return { segments: [{ endsAt: end, title: "Countdown", body }], cues, actions: ["pause", "add30"], finishedTitle: "Time's up" };
+    return {
+      segments: [{ startedAt: now - clockElapsedMs(input.basic, now), title: "Stopwatch", body }],
+      cues: [],
+      actions: ["pause"],
+      finishedTitle: "Stopwatch",
+    };
   }
-
-  const spec = clampSpec(input.spec);
-  const running = input.intervalClock.runningSince !== null;
-
-  // --- Self-paced sets: the user ends each set; only the rests are on a clock.
-  if (input.selfPaced) {
-    const run = input.setRun;
-    if (run.done || !running) return null;
-    const setText = `Set ${run.currentSet} of ${spec.sets}`;
-    if (setRunPhase(run) === "leadIn") {
-      const end = now + run.leadInRemainingMs;
-      return {
-        segments: [{ endsAt: end, title: "Get ready", body: `${setText} · ${body}` }, { startedAt: end, title: setText, body }],
-        cues: [...(input.ticks ? ticksBefore(end, now) : []), { at: end, kind: "work" }],
-        actions: [],
-        finishedTitle: setText,
-      };
-    }
-    if (isResting(run)) {
-      const left = restRemainingSeconds(run, spec) * 1000;
-      const restStart = now - run.sinceLastSetMs;
-      if (left <= 0) {
-        return { segments: [{ startedAt: restStart, title: `Rest over · ${setText}`, body }], cues: [], actions: [], finishedTitle: setText };
-      }
-      const end = now + left;
-      const cues: LiveCue[] = [];
-      if (input.warningSeconds > 0 && left > input.warningSeconds * 1000) cues.push({ at: end - input.warningSeconds * 1000, kind: "warn" });
-      if (input.ticks) cues.push(...ticksBefore(end, now));
-      cues.push({ at: end, kind: "work" });
-      cues.push(...restSpeech(input, run.currentSet, spec.sets, restStart, restStart + run.sinceLastSetMs + left, now));
-      return {
-        segments: [{ endsAt: end, title: `Rest · next: ${setText}`, body }, { startedAt: end, title: `Rest over · ${setText}`, body }],
-        cues,
-        actions: [],
-        finishedTitle: setText,
-      };
-    }
-    // In a set: nothing will beep until the user finishes it in the app.
-    return { segments: [{ startedAt: now - run.sinceLastSetMs, title: setText, body }], cues: [], actions: [], finishedTitle: setText };
-  }
-
-  // --- Timed interval protocol
-  const timeline = buildTimeline(spec);
-  const total = timelineSeconds(timeline);
-  const elapsedS = clockElapsedMs(input.intervalClock, now) / 1000;
-  if (elapsedS >= total) return null;
+  const remaining = countdownRemainingMs(input.targetSeconds, input.basic, now);
+  if (remaining <= 0) return null;
   if (!running) {
-    if (elapsedS === 0) return null;
-    return { segments: [{ title: "Interval paused", body }], cues: [], actions: ["resume"], finishedTitle: "Interval done" };
+    // Paused part-way: keep the notification, frozen, with Resume.
+    if (input.basic.bankedMs === 0) return null;
+    return { segments: [{ title: `Countdown paused · ${fmt(remaining)} left`, body }], cues: [], actions: ["resume"], finishedTitle: "Time's up" };
   }
-
-  const at = (seconds: number) => now + (seconds - elapsedS) * 1000;
-  const segments: LiveSegment[] = [];
+  const end = now + remaining;
   const cues: LiveCue[] = [];
-  timeline.forEach((step, i) => {
-    const start = stepStartSeconds(timeline, i);
-    const end = start + step.seconds;
-    if (end <= elapsedS) return;
-    const where = step.phase === "leadIn" ? `Set 1/${spec.sets}` : `Set ${step.set}/${spec.sets}${step.rep ? ` · Rep ${step.rep}/${spec.reps}` : ""}`;
-    segments.push({ endsAt: at(end), title: `${phaseLabel(step.phase, input.workLabel)} · ${where}`, body });
-    if (start > elapsedS) cues.push({ at: at(start), kind: step.phase });
-    if (input.ticks) cues.push(...ticksBefore(at(end), now));
-    if (step.phase === "setRest" && input.warningSeconds > 0 && step.seconds > input.warningSeconds + 3) {
-      const warnAt = at(end) - input.warningSeconds * 1000;
-      if (warnAt > now) cues.push({ at: warnAt, kind: "warn" });
-    }
-  });
-  cues.push({ at: at(total), kind: "done" });
-
-  return { segments, cues: cues.sort((a, b) => a.at - b.at), actions: ["pause"], finishedTitle: "Interval done" };
+  if (input.warningSeconds > 0 && remaining > input.warningSeconds * 1000) cues.push({ at: end - input.warningSeconds * 1000, kind: "warn" });
+  if (input.ticks) cues.push(...ticksBefore(end, now));
+  cues.push({ at: end, kind: "done" });
+  return { segments: [{ endsAt: end, title: "Countdown", body }], cues, actions: ["pause", "add30"], finishedTitle: "Time's up" };
 }

@@ -63,6 +63,8 @@
   let timeOff = $state(3);
   /** Circuit members: seconds of rest after this exercise as text; blank = the circuit's own switch time. */
   let restAfterText = $state('');
+  /** Seconds of get-ready before this exercise's timer; '' = the Settings default. */
+  let leadInText = $state('');
   let timeBetweenSets = $state(180);
   let weight = $state(0);
   let holdSize = $state(20);
@@ -191,6 +193,7 @@
     repLabel = v.repLabel ?? '';
     timeOff = v.timeOff ?? 3;
     restAfterText = typeof v.restAfter === 'number' ? String(v.restAfter) : '';
+    leadInText = typeof v.leadIn === 'number' ? String(v.leadIn) : '';
     timeBetweenSets = v.timeBetweenSets ?? 180;
     weight = v.weight !== undefined ? toDisplayWeight(v.weight) : 0;
     holdSize = v.holdSize ?? 20;
@@ -310,6 +313,7 @@
     if (params.includes('timeOn')) values.timeOn = n(timeOn);
     if (params.includes('timeOn') && params.includes('reps') && isRepLabel(repLabel)) values.repLabel = repLabel;
     if (params.includes('timeOff')) values.timeOff = n(timeOff);
+    if (!inGroup && mode === 'prescribed' && (params.includes('timeOn') || params.includes('cadence') || params.includes('reps')) && leadInText.trim() !== '' && Number.isFinite(Number(leadInText))) values.leadIn = Math.max(0, Math.min(120, Math.round(Number(leadInText))));
     if (inGroup && mode === 'prescribed' && restAfterText.trim() !== '' && Number.isFinite(Number(restAfterText))) values.restAfter = Math.max(0, Math.round(Number(restAfterText)));
     if (params.includes('restTime')) values.timeBetweenSets = n(timeBetweenSets);
     if (params.includes('holdSize')) values.holdSize = cleanSize;
@@ -444,6 +448,7 @@
     {#if activeParams.includes('holdType')}<div class="space-y-1.5"><label for="ex-hold" class="text-label text-content-subtle ml-1">Hold Type</label><select id="ex-hold" bind:value={holdType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each holdTypes as h} <option value={h}>{h}</option> {/each}</select></div>{/if}
     {#if activeParams.includes('timeOn') && !(perSetOpen && perSetKeys.includes('timeOn'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-on" class="text-label text-content-subtle">Time On (s)</label><TargetHint prescribed={targetValues.timeOn} current={timeOn} unit="s" /></div><input id="ex-on" type="number" bind:value={timeOn} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('timeOn') && activeParams.includes('reps')}<div class="space-y-1.5"><label for="ex-replabel" class="text-label text-content-subtle ml-1">Each rep is a</label><select id="ex-replabel" bind:value={repLabel} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm"><option value="">Hang / work (default)</option>{#each REP_LABELS as l}<option value={l}>{l}{l === 'Side' || l === 'Arm' || l === 'Leg' ? ' - timer says Switch between' : ''}</option>{/each}</select></div>{/if}
+    {#if !inGroup && mode === 'prescribed' && (activeParams.includes('timeOn') || activeParams.includes('cadence') || activeParams.includes('reps'))}<div class="space-y-1.5"><label for="ex-leadin" class="text-label text-content-subtle ml-1">Get ready before the timer (s)</label><input id="ex-leadin" type="number" min="0" max="120" inputmode="numeric" placeholder="Default ({trainingState.tunable('timer.leadIn')} s)" value={leadInText} oninput={(e) => (leadInText = e.currentTarget.value)} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('timeOff')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-off" class="text-label text-content-subtle">Time Off (s)</label><TargetHint prescribed={targetValues.timeOff} current={timeOff} unit="s" /></div><input id="ex-off" type="number" bind:value={timeOff} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('restTime')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-rest" class="text-label text-content-subtle">Between Sets (s)</label><TargetHint prescribed={targetValues.timeBetweenSets} current={timeBetweenSets} unit="s" /></div><input id="ex-rest" type="number" bind:value={timeBetweenSets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
     {#if activeParams.includes('holdSize') && !(perSetOpen && perSetKeys.includes('holdSize'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-size" class="text-label text-content-subtle">Hold Size (mm)</label><TargetHint prescribed={targetValues.holdSize} current={holdSize} unit="mm" /></div><input id="ex-size" type="number" bind:value={holdSize} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.holdSize ? 'border-danger/50' : ''}" />{#if validationErrors.holdSize}<p class="text-label text-danger ml-1">{validationErrors.holdSize}</p>{/if}</div>{/if}

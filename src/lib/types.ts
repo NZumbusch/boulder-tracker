@@ -171,6 +171,8 @@ export interface ExerciseValues {
     | "Open Hand"
     | "Sloper"
     | "Pocket";
+  /** Seconds of "get ready" before this exercise's timer starts; unset = the Settings default. */
+  leadIn?: number;
   /** What a rep of a timed set is called in the timers ("Side 1/2" for a hold per side); unset = "Hang"/"Work". See `lib/exercise/repLabel.ts`. */
   repLabel?: "Side" | "Arm" | "Leg" | "Hold" | "Rep" | "Round";
   timeOn?: number; // Time under tension per rep (seconds)

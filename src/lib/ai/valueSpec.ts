@@ -72,7 +72,7 @@ export const EXERCISE_VALUE_SPEC: Record<BuiltInValueField, ValueFieldSpec> = {
 
   minGrade: { type: "string", enum: BOULDER_GRADES, description: "Easiest grade in the working range." },
   maxGrade: { type: "string", enum: BOULDER_GRADES, description: "Hardest grade in the working range." },
-  cadence: { type: "number", unit: "minutes per boulder", description: "Pacing as a NUMBER, e.g. 3 means one problem every 3 minutes. Describe pacing in words in `notes`, never here." },
+  cadence: { type: "number", unit: "minutes per boulder", description: "Pacing as a NUMBER, e.g. 3 means one problem every 3 minutes. With `duration` (and no reps or timeOn) the app runs it as a pacer: a cue every cadence minutes. Describe pacing in words in `notes`, never here." },
   climbingStyle: { type: "string[]", enum: CLIMBING_STYLES, description: "Wall/movement emphasis. Anything outside this list (e.g. steepness, 'Mixed', 'Performance') belongs in `notes`." },
   boardType: { type: "string", enum: BOARD_TYPES, description: 'Systematic board. Note the exact spelling "Kilterboard", not "Kilter".' },
   boardAngle: { type: "number", unit: `degrees, one of ${BOARD_ANGLES.join("/")}`, description: "Board overhang angle." },
@@ -86,6 +86,7 @@ export const EXERCISE_VALUE_SPEC: Record<BuiltInValueField, ValueFieldSpec> = {
   holdType: { type: "string", enum: HOLD_TYPES, description: "Grip position used." },
   timeOn: { type: "number", unit: "seconds", description: "Time under tension per rep." },
   timeOff: { type: "number", unit: "seconds", description: "Rest between reps inside a set." },
+  leadIn: { type: "number", unit: "seconds", description: "Get-ready seconds the timer counts in before this exercise starts (default 10; give it only to change that, e.g. 20 for a hard hang)." },
   repLabel: { type: "string", enum: REP_LABELS, description: 'What each rep is, for the timer\'s wording. For a hold done per side give "Side" with "reps": 2 (the timer then reads "Side 1/2" and "Switch"); "Arm"/"Leg" likewise. Leave out for ordinary reps.' },
   timeBetweenSets: { type: "number", unit: "seconds", description: 'Rest between sets. There is NO "restTime" field - this is it.' },
   restAfter: { type: "number", unit: "seconds", description: "Only for an exercise inside a circuit: rest after this exercise instead of the circuit's own switch time (0 = go straight on)." },

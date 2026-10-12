@@ -1,5 +1,6 @@
 import type { ExerciseGroup, ExerciseValues, PerSetKey } from "../types";
-import { setRows, withSetRows, PER_SET_KEYS, type SetRow } from "../exercise/setRows";
+import { setRows, setValue, withSetRows, PER_SET_KEYS, type SetRow } from "../exercise/setRows";
+import { PACER_LABEL, isPacer } from "./soloRun";
 import { groupTiming, memberRounds, restBetweenRounds, switchSeconds, type GroupMember } from "../exercise/groups";
 import { toRepsArray } from "../exercise/reps";
 import { repLabelOf, repRestWord } from "../exercise/repLabel";
@@ -30,7 +31,7 @@ export const CIRCUIT_LEAD_IN_SECONDS = 5;
 
 export type CircuitStep =
   | { kind: "leadIn"; seconds: number }
-  | { kind: "work"; slotId: string; member: number; round: number; seconds?: number; reps?: number; interval?: RepeaterSpec }
+  | { kind: "work"; slotId: string; member: number; round: number; seconds?: number; reps?: number; interval?: RepeaterSpec; label?: string }
   | { kind: "transition"; seconds: number; round: number; next: number }
   | { kind: "roundRest"; seconds: number; round: number; next: number };
 
@@ -82,9 +83,12 @@ export function circuitSteps(group: ExerciseGroup, members: GroupMember[], leadI
  * it - a repeater set counts down as one), or a share of a plain
  * `duration`. Anything else is counted: open, with its reps as the target.
  */
-function workTarget(values: ExerciseValues, round: number, m: GroupMember, group: ExerciseGroup): { seconds?: number; reps?: number; interval?: RepeaterSpec } {
+function workTarget(values: ExerciseValues, round: number, m: GroupMember, group: ExerciseGroup): { seconds?: number; reps?: number; interval?: RepeaterSpec; label?: string } {
+  // A pacer's round is one problem of `cadence` minutes, counted down.
+  if (isPacer(values)) return { seconds: Math.round(Number(values.cadence) * 60), label: PACER_LABEL };
   const reps = repsAt(values, round);
-  const timeOn = Number(values.timeOn);
+  // This set's own hang time where the sets differ (a ramp of 10 s, 8 s, 6 s hangs).
+  const timeOn = Number(setValue(values, round, "timeOn") ?? values.timeOn);
   if (Number.isFinite(timeOn) && timeOn > 0) {
     const n = reps ?? 1;
     const off = restSeconds(values).betweenReps;
@@ -213,6 +217,28 @@ export function previousCircuitStep(steps: CircuitStep[], state: CircuitRunState
   return { ...state, stepIndex: prevIndex, stepElapsedMs: 0, results };
 }
 
+/**
+ * The run's position after its steps were made again from changed numbers
+ * (a different rest, one more problem): the same step - found by what it
+ * is, not by its index, since a rest that appeared or vanished shifts the
+ * indexes - or the end when the run now has no such step. The time spent in
+ * the step carries over; results are by exercise and round, so they stay.
+ */
+export function replanRun(oldSteps: CircuitStep[], state: CircuitRunState, nextSteps: CircuitStep[]): CircuitRunState {
+  if (state.done) return state;
+  const cur = oldSteps[state.stepIndex];
+  const finished = { ...state, stepIndex: nextSteps.length, stepElapsedMs: 0, done: true };
+  if (!cur) return finished;
+  const same = (s: CircuitStep) => {
+    if (s.kind !== cur.kind) return false;
+    if (s.kind === "leadIn") return true;
+    if (s.kind === "work" && cur.kind === "work") return s.slotId === cur.slotId && s.round === cur.round;
+    return (s.kind === "transition" || s.kind === "roundRest") && (cur.kind === "transition" || cur.kind === "roundRest") && s.round === cur.round;
+  };
+  const index = nextSteps.findIndex(same);
+  return index < 0 ? finished : { ...state, stepIndex: index };
+}
+
 /** Corrects what a set recorded - the reps stepper on the rest after it. */
 export function setCircuitResult(state: CircuitRunState, slotId: string, round: number, value: number | null): CircuitRunState {
   const list = [...(state.results[slotId] ?? [])];
@@ -310,7 +336,15 @@ export function circuitLoggedValues(members: GroupMember[], state: CircuitRunSta
       out[slot.id] = undefined;
       continue;
     }
-    const timed = Number(values.timeOn) > 0 || (!values.reps && Number(values.duration) > 0);
+    if (isPacer(values)) {
+      // A pacer logs what happened: the problems done, the time they took, the pace actually kept.
+      const seconds = doneRounds.reduce((sum, x) => sum + x.v, 0);
+      const minutes = Math.max(1, Math.round(seconds / 60));
+      const { notes: _n, setDetails: _s, ...rest } = values;
+      out[slot.id] = { ...rest, sets: doneRounds.length, duration: minutes, cadence: Math.round((minutes / doneRounds.length) * 10) / 10 };
+      continue;
+    }
+    const timed = isTimedMember(values);
     const logged: ExerciseValues = { ...values, sets: doneRounds.length };
     delete logged.notes; // the plan's note stays the plan's: "how it went" is the user's to write
     delete logged.setDetails;
@@ -365,11 +399,15 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
   const rounds = circuitProgress(steps, state).rounds;
   const totalSets = steps.filter((s) => s.kind === "work").length;
   /** "Circuit · Round 2/3 · Set 4/6" - the line under the title. `at` is the step's index. */
+  /** A single exercise (or the pacer) has no rounds of members: "Set 2/4" or "Problem 2/12", not "Round 2/4 · Set 2/4". */
+  const single = new Set(steps.filter((s) => s.kind === "work").map((s) => (s as Extract<CircuitStep, { kind: "work" }>).member)).size === 1;
+  const unit = steps.find((s) => s.kind === "work" && s.label !== undefined) ? "Problem" : "Set";
   const where = (at: number) => {
     const step = steps[at];
     const round = step && step.kind !== "leadIn" ? step.round + 1 : 1;
     // A rest names the set it leads into: sets up to and including the next one.
     const set = steps.slice(0, at + 1).filter((s) => s.kind === "work").length + (step && step.kind !== "work" ? 1 : 0);
+    if (single) return `${input.name} · ${unit} ${Math.min(set, totalSets)}/${totalSets}`;
     return `${input.name} · Round ${Math.min(round, rounds)}/${rounds} · Set ${Math.min(set, totalSets)}/${totalSets}`;
   };
   if (!input.running) {
@@ -470,6 +508,7 @@ function describe(step: CircuitStep | undefined, input: CircuitLiveInput): strin
   if (step.kind === "leadIn") return "Get ready";
   if (step.kind === "work") {
     const what = step.seconds === undefined && step.reps ? ` · ${step.reps} reps` : "";
+    if (step.label) return `${step.label} ${step.round + 1} · ${input.memberName(step.member)}`;
     return `Go · ${input.memberName(step.member)}${what}`;
   }
   return `${step.kind === "roundRest" ? "Rest" : "Switch"} · next: ${input.memberName(step.next)}`;
@@ -502,4 +541,64 @@ export function roundsDone(steps: CircuitStep[], state: CircuitRunState, planned
     done++;
   }
   return { done, planned: Math.max(planned, rounds) };
+}
+
+/** Whether a member's results are seconds (a timed set, a pacer's problem, a share of a duration) rather than reps. */
+export function isTimedMember(values: ExerciseValues): boolean {
+  return Number(values.timeOn) > 0 || isPacer(values) || (!values.reps && Number(values.duration) > 0);
+}
+
+
+// --- Background alerts without the Android service ----------------------
+
+export interface CircuitAlert {
+  /** Epoch ms to fire at. */
+  atMs: number;
+  kind: "end" | "warning";
+  title: string;
+  body: string;
+}
+
+/** More than this many upcoming alerts is a very long run; the rest are scheduled on the next return. */
+export const MAX_CIRCUIT_ALERTS = 16;
+
+/**
+ * What to notify about while the app is hidden and the Android service isn't
+ * running (so nothing else will make a sound): a rest between sets or rounds
+ * ending, a pacer's next problem, the finish - and the optional warning
+ * before a rest ends. The short switches inside a round and the on/off rests
+ * inside a repeater are left out: nobody pockets the phone mid-set, and an
+ * alert every few seconds would be noise. Stops at the first open (counted)
+ * set - only the person can end it, and the plan is made again when they do.
+ *
+ * Pure, like the rest: steps, state and the clock in, a list out.
+ */
+export function circuitAlerts(
+  input: { steps: CircuitStep[]; state: CircuitRunState; running: boolean; name: string; memberName: (member: number) => string; warningSeconds: number },
+  now: number,
+): CircuitAlert[] {
+  const { steps, state } = input;
+  if (state.done || !input.running) return [];
+  const alerts: CircuitAlert[] = [];
+  let t = now - state.stepElapsedMs;
+  for (let i = state.stepIndex; i < steps.length; i++) {
+    const step = steps[i];
+    const seconds = step.seconds;
+    if (seconds === undefined) break; // an open counted set: nothing to time
+    t += seconds * 1000;
+    const next = steps[i + 1];
+    if (t <= now) continue;
+    if (!next) {
+      alerts.push({ atMs: t, kind: "end", title: `${input.name} done`, body: "All sets finished" });
+    } else if (step.kind === "roundRest" || (step.kind === "transition" && seconds >= 20)) {
+      const target = next.kind === "work" ? input.memberName(next.member) : "";
+      if (input.warningSeconds > 0 && seconds > input.warningSeconds + 3 && t - input.warningSeconds * 1000 > now) {
+        alerts.push({ atMs: t - input.warningSeconds * 1000, kind: "warning", title: `${input.warningSeconds} s left`, body: `Rest · next: ${target}`.trim() });
+      }
+      alerts.push({ atMs: t, kind: "end", title: "Rest over", body: target ? `Next: ${target}` : input.name });
+    } else if (step.kind === "work" && step.label && next.kind === "work") {
+      alerts.push({ atMs: t, kind: "end", title: `${step.label} ${next.round + 1}`, body: `${input.name} · next ${step.label.toLowerCase()}` });
+    }
+  }
+  return alerts.sort((a, b) => a.atMs - b.atMs).slice(0, MAX_CIRCUIT_ALERTS);
 }
