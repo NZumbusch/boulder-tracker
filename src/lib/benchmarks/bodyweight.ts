@@ -161,3 +161,50 @@ export function withoutWeighInSlots<W extends { status?: string; exercises?: { t
   }
   return out;
 }
+
+type SlotLike = { test?: { typeId: string } };
+
+/** A session template without the weigh-in test slots; the same object back when it had none. */
+function strip<T extends { exercises: SlotLike[] }>(t: T, ids: Set<string>): T {
+  const kept = t.exercises.filter((s) => !(s.test && ids.has(s.test.typeId)));
+  return kept.length === t.exercises.length ? t : { ...t, exercises: kept };
+}
+
+/**
+ * The phases' session templates without weigh-in test slots - `changed` lists the phases whose
+ * list is different, as the new lists, `count` the slots dropped. (A template is a plan for
+ * every week a phase covers, so a weigh-in test left in one would keep coming back.)
+ */
+export function withoutWeighInSlotsInTemplates<T extends { exercises: SlotLike[] }>(templates: Record<string, T[]>, typeIds: readonly string[]): { changed: Record<string, T[]>; count: number } {
+  const ids = new Set(typeIds);
+  const changed: Record<string, T[]> = {};
+  let count = 0;
+  for (const [phase, list] of Object.entries(templates ?? {})) {
+    const next = (list ?? []).map((t) => strip(t, ids));
+    if (next.some((t, i) => t !== list[i])) {
+      changed[phase] = next;
+      count += list.reduce((n, t, i) => n + (t.exercises.length - next[i].exercises.length), 0);
+    }
+  }
+  return { changed, count };
+}
+
+/** Plan B alternatives whose sessions held a weigh-in test slot, as the same alternatives without it. */
+export function withoutWeighInSlotsInAlternatives<A extends { changes: { session?: { exercises: SlotLike[] } }[] }>(alternatives: readonly A[], typeIds: readonly string[]): { changed: A[]; count: number } {
+  const ids = new Set(typeIds);
+  const changed: A[] = [];
+  let count = 0;
+  for (const alt of alternatives) {
+    let touched = false;
+    const changes = (alt.changes ?? []).map((c) => {
+      if (!c.session) return c;
+      const session = strip(c.session, ids);
+      if (session === c.session) return c;
+      touched = true;
+      count += c.session.exercises.length - session.exercises.length;
+      return { ...c, session };
+    });
+    if (touched) changed.push({ ...alt, changes });
+  }
+  return { changed, count };
+}

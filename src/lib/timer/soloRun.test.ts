@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ExerciseSlot, ExerciseValues } from "../types";
-import { circuitLoggedValues, circuitSteps, replanRun, startCircuitRun, tickCircuitRun, type CircuitStep } from "./circuitRun";
+import { buildCircuitLive, circuitAlerts, circuitLoggedValues, circuitSteps, replanRun, startCircuitRun, tickCircuitRun, type CircuitStep } from "./circuitRun";
 import { DEFAULT_PACER_PROBLEMS, hasRunnableTiming, isPacer, pacerProblems, soloRun } from "./soloRun";
 
 const slot = (id = "s") => ({ id, typeId: "t" }) as ExerciseSlot;
@@ -131,5 +131,50 @@ describe("replanRun: changing numbers while it runs", () => {
     const mk = (r: typeof a) => circuitSteps(r.group, [{ slot: slot(), values: r.values }], 0);
     let state = tickCircuitRun(mk(a), startCircuitRun(), 3 * 5000 + 100 + 3 * 180_000);
     expect(replanRun(mk(a), state, mk(b)).done).toBe(true);
+  });
+});
+
+describe("background alerts without the service", () => {
+  const names = (m: number) => (m === 0 ? "Pull-ups" : "Push-ups");
+  const NOW = 1_000_000;
+
+  it("alerts at each set rest's end and the finish, not at the short rests inside a repeater", () => {
+    const run = soloRun({ sets: 2, reps: 2, timeOn: 7, timeOff: 3, timeBetweenSets: 120 }, { leadIn: 0 } as never);
+    const steps = circuitSteps(run.group, [{ slot: slot(), values: run.values }], 0);
+    const alerts = circuitAlerts({ steps, state: startCircuitRun(), running: true, name: "Hangs", memberName: names, warningSeconds: 15 }, NOW);
+    // set 1: 7+3+7 = 17 s, rest to 137 s, set 2 ends at 154 s
+    expect(alerts.map((a) => [a.kind, a.title, (a.atMs - NOW) / 1000])).toEqual([["warning", "15 s left", 122], ["end", "Rest over", 137], ["end", "Hangs done", 154]]);
+  });
+
+  it("alerts at each pacer problem, and says nothing paused, finished or for an open counted set", () => {
+    const run = soloRun({ cadence: 6, sets: 3 });
+    const steps = circuitSteps(run.group, [{ slot: slot(), values: run.values }], 0);
+    const alerts = circuitAlerts({ steps, state: startCircuitRun(), running: true, name: "Pacer", memberName: names, warningSeconds: 0 }, NOW);
+    expect(alerts.map((a) => [a.title, (a.atMs - NOW) / 1000])).toEqual([["Problem 2", 360], ["Problem 3", 720], ["Pacer done", 1080]]);
+    expect(circuitAlerts({ steps, state: startCircuitRun(), running: false, name: "Pacer", memberName: names, warningSeconds: 0 }, NOW)).toEqual([]);
+    const counted = soloRun({ sets: 3, reps: 5, timeBetweenSets: 90 });
+    const cs = circuitSteps(counted.group, [{ slot: slot(), values: counted.values }], 0);
+    expect(circuitAlerts({ steps: cs, state: startCircuitRun(), running: true, name: "x", memberName: names, warningSeconds: 0 }, NOW)).toEqual([]);
+  });
+
+  it("counts from where the run is", () => {
+    const run = soloRun({ cadence: 6, sets: 3 });
+    const steps = circuitSteps(run.group, [{ slot: slot(), values: run.values }], 0);
+    const state = tickCircuitRun(steps, startCircuitRun(), 100_000);
+    expect(circuitAlerts({ steps, state, running: true, name: "Pacer", memberName: names, warningSeconds: 0 }, NOW).map((a) => (a.atMs - NOW) / 1000)).toEqual([260, 620, 980]);
+  });
+});
+
+describe("the notification's second line for a single exercise", () => {
+  it("reads Set n/N or Problem n/N, without a round", () => {
+    const set = soloRun({ sets: 3, reps: 5, timeOn: 7, timeBetweenSets: 60 });
+    const steps = circuitSteps(set.group, [{ slot: slot(), values: set.values }], 0);
+    const live = buildCircuitLive({ steps, state: startCircuitRun(), running: true, name: "Hangs", memberName: () => "Hangs", ticks: false, warningSeconds: 0 }, 0)!;
+    expect(live.segments[0].body).toBe("Hangs · Set 1/3");
+    const pace = soloRun({ cadence: 5, sets: 4 });
+    const ps = circuitSteps(pace.group, [{ slot: slot(), values: pace.values }], 0);
+    const pl = buildCircuitLive({ steps: ps, state: startCircuitRun(), running: true, name: "Pacer", memberName: () => "Pacer", ticks: false, warningSeconds: 0 }, 0)!;
+    expect(pl.segments[0].title).toBe("Problem 1 · Pacer");
+    expect(pl.segments[0].body).toBe("Pacer · Problem 1/4");
   });
 });

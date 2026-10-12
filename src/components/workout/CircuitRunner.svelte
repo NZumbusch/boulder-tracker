@@ -79,12 +79,14 @@
     stepsEndingAfterRound,
     currentRound,
     roundsDone,
+    circuitAlerts,
     replanRun,
     isTimedMember,
     CIRCUIT_LEAD_IN_SECONDS,
   } from '../../lib/timer/circuitRun';
   import { soloRun } from '../../lib/timer/soloRun';
   import RunAdjustSheet from './RunAdjustSheet.svelte';
+  import { scheduleTimerAlerts, cancelTimerAlerts, ensureTimerAlertPermission } from '../../lib/notifications/timerAlerts';
   import { CueSound, type CueKind } from '../../lib/timer/cueSound';
   import { speakText } from '../../lib/timer/speech';
   import { cueMute } from '../../lib/timer/cueMute.svelte';
@@ -342,6 +344,7 @@
   let infoMember = $state<number | null>(null);
   function toggle() {
     sound.unlock();
+    if (trainingState.timerBackgroundAlerts) void ensureTimerAlertPermission();
     tick();
     running = !running;
     lastTickAt = Date.now();
@@ -526,8 +529,14 @@
   async function onVisibility() {
     if (document.visibilityState === 'hidden') {
       held = liveActive;
+      // No Android service to carry the timer: hand its next moments to scheduled notifications instead.
+      if (!liveActive && trainingState.timerBackgroundAlerts && running && !run.done) {
+        tick();
+        void scheduleTimerAlerts(circuitAlerts({ steps, state: run, running, name: group.name || memberName(0) || 'Timer', memberName, warningSeconds: trainingState.timerWarnBeforeEnd ? WARN_SECONDS : 0 }, Date.now()));
+      }
       return;
     }
+    void cancelTimerAlerts();
     if (held) await collectLiveActions();
     held = false;
     tick();
@@ -544,6 +553,7 @@
   });
 
   onDestroy(() => {
+    void cancelTimerAlerts();
     if (ticker) clearInterval(ticker);
     screenLock.release();
     resetCircuitHud();
