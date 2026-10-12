@@ -1,4 +1,5 @@
 import type { ExerciseValues, ParameterBlock } from "../types";
+import { repLabelOf, repRestWord } from "../exercise/repLabel";
 import { repsPerSet, setsFromReps, repsRepresentative } from "../exercise/reps";
 
 /**
@@ -307,7 +308,9 @@ export function specsDiffer(a: IntervalSpec, b: IntervalSpec): boolean {
  * "Work". Read from the slot's own tracked parameters rather than its
  * name, so a renamed exercise type doesn't change the wording.
  */
-export function workPhaseLabel(activeParameters: ParameterBlock[] | undefined): string {
+export function workPhaseLabel(activeParameters: ParameterBlock[] | undefined, values?: Pick<ExerciseValues, "repLabel">): string {
+  const named = repLabelOf(values);
+  if (named) return named;
   const params = activeParameters ?? [];
   return params.includes("holdType") || params.includes("holdSize") ? "Hang" : "Work";
 }
@@ -319,7 +322,7 @@ export function phaseLabel(phase: IntervalPhase, workLabel = "Work"): string {
     case "work":
       return workLabel;
     case "rest":
-      return "Rest";
+      return repRestWord(workLabel);
     case "setRest":
       return "Set rest";
   }
