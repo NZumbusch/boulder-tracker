@@ -67,7 +67,7 @@ describe("computeFatigueDecay", () => {
       makeWorkout({ status: "completed", date: "2026-03-28", fingers: 2 }),
       makeWorkout({ status: "completed", date: "2026-03-25", fingers: 8 }),
     ];
-    const r = computeFatigueDecay(workouts, asOf);
+    const r = computeFatigueDecay(workouts, asOf, { stacking: "sum" });
     expect(r.fingers).toBeCloseTo(2 + 4, 10);
   });
 
@@ -84,7 +84,7 @@ describe("computeFatigueDecay", () => {
       // No `arms` - e.g. a pre-arms-slider historical workout.
       makeWorkout({ status: "completed", date: "2026-03-28", fingers: 2 }),
     ];
-    const r = computeFatigueDecay(workouts, asOf);
+    const r = computeFatigueDecay(workouts, asOf, { stacking: "sum" });
     expect(r.arms).toBeCloseTo(3, 10);
     expect(r.fingers).toBeCloseTo(5, 10);
     expect(r.coverage).toEqual({ total: 2, fingers: 2, arms: 1, core: 0, systemic: 0 });
@@ -102,15 +102,29 @@ describe("computeFatigueDecay", () => {
     expect(r.fingers).toBeCloseTo(6, 10);
   });
 
-  it("without softening (the default), stacked sessions are capped at 10", () => {
+  it("adding plainly without softening, stacked sessions are capped at 10", () => {
     const workouts = ["2026-03-26", "2026-03-27", "2026-03-28"].map((date) => makeWorkout({ status: "completed", date, fingers: 7 }));
-    expect(computeFatigueDecay(workouts, asOf).fingers).toBe(10);
+    expect(computeFatigueDecay(workouts, asOf, { stacking: "sum" }).fingers).toBe(10);
+  });
+
+  it("by default two medium sessions on one day read 7.5, not 10, and a lone session reads its rating", () => {
+    const day = (n: number) => Array.from({ length: n }, () => makeWorkout({ status: "completed", date: "2026-03-28", fingers: 5 }));
+    expect(computeFatigueDecay(day(1), asOf).fingers).toBeCloseTo(5, 10);
+    expect(computeFatigueDecay(day(2), asOf).fingers).toBeCloseTo(7.5, 10);
+    expect(computeFatigueDecay(day(3), asOf).fingers!).toBeLessThan(10);
+  });
+
+  it("the capacity combination is never below the highest single session and never reaches 10", () => {
+    const w = [makeWorkout({ status: "completed", date: "2026-03-28", fingers: 9 }), makeWorkout({ status: "completed", date: "2026-03-28", fingers: 9 })];
+    const v = computeFatigueDecay(w, asOf).fingers!;
+    expect(v).toBeGreaterThan(9);
+    expect(v).toBeLessThan(10);
   });
 
   it("with softening, stacked sessions approach 10 without reaching it, and more fatigue still reads higher", () => {
     const days = (n: number) => Array.from({ length: n }, (_, i) => makeWorkout({ status: "completed", date: `2026-03-${28 - i}`, fingers: 7 }));
-    const two = computeFatigueDecay(days(2), asOf, { soften: true }).fingers!;
-    const three = computeFatigueDecay(days(3), asOf, { soften: true }).fingers!;
+    const two = computeFatigueDecay(days(2), asOf, { soften: true, stacking: "sum" }).fingers!;
+    const three = computeFatigueDecay(days(3), asOf, { soften: true, stacking: "sum" }).fingers!;
     expect(two).toBeLessThan(10);
     expect(three).toBeLessThan(10);
     expect(three).toBeGreaterThan(two);

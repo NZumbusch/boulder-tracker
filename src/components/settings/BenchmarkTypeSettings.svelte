@@ -27,6 +27,9 @@
   import { BENCHMARK_PRESETS, missingBuiltIns } from '../../lib/benchmarks/presets';
   import { measureOfUnit } from '../../lib/benchmarks/upgrade';
   import { applyTidy, proposeTidy } from '../../lib/benchmarks/tidy';
+  import { planWeighInMigration, weighInTypeIds, withoutWeighInSlots } from '../../lib/benchmarks/bodyweight';
+  import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
+  import type { Workout } from '../../lib/types';
   import Icon from '@iconify/svelte';
 
   let { benchmarkTypes = $bindable() }: { benchmarkTypes: BenchmarkTypeDef[] } = $props();
@@ -36,11 +39,26 @@
 
   // --- The list ---
   const active = $derived(benchmarkTypes.filter((t) => !t.archived));
-  const archived = $derived(benchmarkTypes.filter((t) => t.archived));
+  const archived = $derived(benchmarkTypes.filter((t) => t.archived && resultCount(t.id) > 0));
+  /** Archived tests with nothing logged are clutter: tucked behind a toggle (they can still be restored from there). */
+  const archivedEmpty = $derived(benchmarkTypes.filter((t) => t.archived && resultCount(t.id) === 0));
+  let showEmptyArchived = $state(false);
+
+  /**
+   * The tidy-up and weigh-in cards can be hidden. What was hidden is remembered as the offer's
+   * signature, so they come back only when there is something new to offer.
+   */
+  const DISMISS_KEY = 'tests.dismissedOffers';
+  const readDismissed = (): string[] => { try { return JSON.parse(localStorage.getItem(DISMISS_KEY) ?? '[]'); } catch { return []; } };
+  let dismissed = $state<string[]>(readDismissed());
+  function dismiss(signature: string) {
+    dismissed = [...dismissed, signature];
+    try { localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed.slice(-20))); } catch { /* stays hidden for this visit */ }
+  }
   const groups = $derived(groupTypes(active));
   const existingGroups = $derived([...new Set(benchmarkTypes.map((t) => t.group?.trim()).filter((g): g is string => !!g))]);
 
-  const resultCount = (id: string) => trainingState.benchmarks.filter((b) => b.typeId === id).length;
+  function resultCount(id: string) { return trainingState.benchmarks.filter((b) => b.typeId === id).length; }
 
   /** What a test records, in a line: "Added weight (kg) · by edge depth", "Reps", "Time (s)". */
   function summary(type: BenchmarkTypeDef): string {
@@ -141,6 +159,7 @@
 
   // --- Tidy-up: leftovers of how tests used to be kept ---
   const proposals = $derived(proposeTidy(benchmarkTypes, trainingState.benchmarks, defs));
+  const tidySignature = $derived(`tidy:${proposals.map((p) => p.id).join(',')}`);
   let ticked = $state<Record<string, boolean>>({});
   const isTicked = (p: { id: string; defaultOn: boolean }) => ticked[p.id] ?? p.defaultOn;
   const tickedCount = $derived(proposals.filter(isTicked).length);
@@ -153,11 +172,32 @@
     const out = applyTidy(chosen, beforeTypes, trainingState.benchmarks);
     const beforeResults = out.benchmarks.map((b) => $state.snapshot(trainingState.benchmarks.find((x) => x.id === b.id)) as Benchmark);
     benchmarkTypes = out.types;
-    for (const b of out.benchmarks) await trainingState.saveBenchmark(b);
+    for (const b of out.benchmarks) await trainingState.saveBenchmark(b, { syncBodyweight: false });
     ticked = {};
     undoable('Tests tidied up', async () => {
       benchmarkTypes = beforeTypes;
-      for (const b of beforeResults) await trainingState.saveBenchmark(b);
+      for (const b of beforeResults) await trainingState.saveBenchmark(b, { syncBodyweight: false });
+    });
+  }
+
+  // --- Weigh-ins: a daily reading, not a test ---
+  const weighIn = $derived(planWeighInMigration(benchmarkTypes, trainingState.benchmarks, defs, trainingState.dailyMetrics));
+  const weighInSlots = $derived(withoutWeighInSlots(trainingState.workouts, weighInTypeIds(benchmarkTypes, defs)));
+  const weighInSignature = $derived(`weighin:${weighIn.typeIds.join(',')}:${weighIn.entries.length}:${weighInSlots.length}`);
+  const weighInOffer = $derived(weighIn.typeIds.length > 0 || weighIn.entries.length > 0 || weighInSlots.length > 0);
+
+  /** Results become readings, the test is archived, planned weigh-in sessions lose the slot. Undo reverses all three; no result is deleted. */
+  async function moveWeighIns() {
+    const plan = weighIn;
+    const beforeTypes = $state.snapshot(benchmarkTypes) as BenchmarkTypeDef[];
+    const beforeWorkouts = weighInSlots.map((w) => $state.snapshot(trainingState.workouts.find((x) => x.id === w.id)) as Workout);
+    if (plan.entries.length > 0) await trainingState.importDailyMetrics(plan.entries, [{ id: BODYWEIGHT_METRIC_ID, name: 'Bodyweight', unit: 'kg' }]);
+    benchmarkTypes = benchmarkTypes.map((t) => (plan.typeIds.includes(t.id) ? { ...t, archived: true } : t));
+    for (const w of weighInSlots) await trainingState.saveWorkoutQuiet($state.snapshot(w) as Workout);
+    undoable(`${plan.entries.length} weigh-in${plan.entries.length === 1 ? '' : 's'} moved to Bodyweight`, async () => {
+      await trainingState.removeDailyMetrics(plan.entries.map((e) => e.id));
+      benchmarkTypes = beforeTypes;
+      for (const w of beforeWorkouts) await trainingState.saveWorkoutQuiet(w);
     });
   }
 
@@ -186,10 +226,33 @@
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight), so results are compared like with like.</p>
   </div>
 
-  {#if proposals.length > 0}
+  {#if weighInOffer && !dismissed.includes(weighInSignature)}
     <div class="rounded-card bg-status-caution/10 border border-status-caution/30 p-4 space-y-3">
       <div>
-        <p class="text-label font-semibold text-content">Tidy up your tests</p>
+        <div class="flex items-start justify-between gap-2">
+          <p class="text-label font-semibold text-content">Weigh-ins are a daily reading now</p>
+          <button onclick={() => dismiss(weighInSignature)} class="p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
+        </div>
+        <p class="text-caption text-content-subtle leading-relaxed">
+          Your bodyweight lives under Home &rarr; Metrics, which is what the Home card, readiness and the % of bodyweight scores read - a Bodyweight test isn't needed, and the AI no longer schedules one.
+          {#if weighIn.entries.length > 0}{weighIn.entries.length} result{weighIn.entries.length === 1 ? '' : 's'} become{weighIn.entries.length === 1 ? 's' : ''} a daily reading{#if weighIn.keptDays > 0}; {weighIn.keptDays} day{weighIn.keptDays === 1 ? '' : 's'} already {weighIn.keptDays === 1 ? 'has' : 'have'} one and keep it{/if}.{/if}
+          {#if weighIn.typeIds.length > 0}The test is archived.{/if}
+          {#if weighInSlots.length > 0}{weighInSlots.length} planned session{weighInSlots.length === 1 ? '' : 's'} lose{weighInSlots.length === 1 ? 's' : ''} the weigh-in.{/if}
+          {#if weighIn.skipped.length > 0}{weighIn.skipped.length} result{weighIn.skipped.length === 1 ? '' : 's'} had no usable weight or date and stay{weighIn.skipped.length === 1 ? 's' : ''} in history only.{/if}
+          No result is deleted; Undo is offered afterwards.
+        </p>
+      </div>
+      <button onclick={moveWeighIns} class="w-full py-2.5 rounded-control bg-primary text-white text-label font-semibold">Move to Bodyweight</button>
+    </div>
+  {/if}
+
+  {#if proposals.length > 0 && !dismissed.includes(tidySignature)}
+    <div class="rounded-card bg-status-caution/10 border border-status-caution/30 p-4 space-y-3">
+      <div>
+        <div class="flex items-start justify-between gap-2">
+          <p class="text-label font-semibold text-content">Tidy up your tests</p>
+          <button onclick={() => dismiss(tidySignature)} class="p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
+        </div>
         <p class="text-caption text-content-subtle leading-relaxed">Some of these look like leftovers: the same test kept twice, or one your daily metrics already cover. Tick what to do; Undo is offered afterwards, and no result is ever deleted.</p>
       </div>
       <div class="space-y-2.5">
@@ -233,17 +296,20 @@
     <Icon icon="ic:baseline-add" class="text-lg" /> New test
   </button>
 
-  {#if archived.length}
+  {#if archived.length || archivedEmpty.length}
     <div class="pt-2 space-y-1">
       <p class="text-caption uppercase text-content-subtle px-1">Archived</p>
       <div class="divide-y divide-border">
-        {#each archived as type (type.id)}
+        {#each showEmptyArchived ? [...archived, ...archivedEmpty] : archived as type (type.id)}
           <button onclick={() => startEdit(type)} class="w-full flex items-center justify-between gap-3 py-2 text-left">
             <span class="min-w-0"><span class="block text-body text-content-muted truncate">{type.name}</span><span class="block text-caption text-content-subtle">{resultCount(type.id)} result{resultCount(type.id) === 1 ? '' : 's'} kept</span></span>
             <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl shrink-0" />
           </button>
         {/each}
       </div>
+      {#if archivedEmpty.length}
+        <button onclick={() => (showEmptyArchived = !showEmptyArchived)} class="px-1 py-1 text-caption text-primary">{showEmptyArchived ? 'Hide' : 'Show'} {archivedEmpty.length} archived without results</button>
+      {/if}
     </div>
   {/if}
 </div>

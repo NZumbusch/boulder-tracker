@@ -56,6 +56,7 @@ import { slotValues } from "../exerciseSlot";
 import { dayIndexOf, weekAndDayOf, occurrenceOnDay, describeChanges, templateFromWorkout, MAX_PLAN_B_DAYS } from "../planning/planB";
 import { applyCoachNoteChange, newCoachNoteId } from "./coachNotes";
 import { makeTestSlot, testSlotName } from "../benchmarks/testSlot";
+import { isWeighInType } from "../benchmarks/bodyweight";
 import { conditionFields, resolveFields } from "../benchmarks/model";
 
 // --- Inputs and outputs -----------------------------------------------------
@@ -275,6 +276,10 @@ function buildTestSlot(ctx: Ctx, exercise: AIExercise, item: ChangeItem): Exerci
   const tests = (ctx.state.benchmarkTypes ?? []).filter((t) => !t.archived);
   if (!type) {
     item.errors.push(`No test called "${exercise.test}"${tests.length ? ` - your tests are: ${tests.map((t) => t.name).join(", ")}` : " - there are no tests yet"}.`);
+    return undefined;
+  }
+  if (isWeighInType(type, ctx.state.valueDefs ?? [])) {
+    item.warnings.push(`"${type.name}" is not scheduled: bodyweight is a daily reading (Home -> Metrics), not a test. Put a reminder to weigh in in the session or week notes instead.`);
     return undefined;
   }
   if (type.archived) item.warnings.push(`"${type.name}" is archived in your tests.`);

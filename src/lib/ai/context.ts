@@ -17,6 +17,7 @@ import type {
 } from "../types";
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
 import { conditionFields, otherValuesText, resolveFields } from "../benchmarks/model";
+import { isWeighInType } from "../benchmarks/bodyweight";
 import { DEFAULT_RETEST_WEEKS, plannedTestsByType, testStatuses } from "../benchmarks/testSlot";
 import { repsRepresentative } from "../exercise/reps";
 import { hasPerSet, setRows } from "../exercise/setRows";
@@ -601,9 +602,10 @@ export interface TestSummary {
 
 /** The tests on offer for a prompt, with their status as of `asOf`. */
 export function buildTestSummaries(source: AIContextSource, asOf: Date, retestWeeks = DEFAULT_RETEST_WEEKS): TestSummary[] {
-  const types = source.benchmarkTypes ?? [];
-  if (types.length === 0) return [];
   const defs = source.valueDefs ?? [];
+  // A weigh-in is the Bodyweight metric, not a test: the AI is never offered one to schedule.
+  const types = (source.benchmarkTypes ?? []).filter((t) => !isWeighInType(t, defs));
+  if (types.length === 0) return [];
   const planned = plannedTestsByType(source.workouts, source.benchmarks);
   return testStatuses(types, source.benchmarks, asOf, new Set(planned.keys()), retestWeeks).map(({ type, last, weeksSince, due, never }) => {
     const fields = resolveFields(type, defs);

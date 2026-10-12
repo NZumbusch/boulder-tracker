@@ -1,9 +1,10 @@
 import type { Benchmark, BenchmarkField, BenchmarkTypeDef, ValueDef } from "../types";
 import { resolveFields } from "./model";
+import { isWeighInType } from "./bodyweight";
 
 /**
  * A guided tidy-up of the tests: the leftovers of how tests used to be
- * kept (one test per edge depth, a bodyweight "test", conditions only in
+ * kept (one test per edge depth, conditions only in
  * the name) turned into proposals the athlete ticks. Nothing here writes
  * anything - `proposeTidy` reads, `applyTidy` returns the new lists.
  */
@@ -86,18 +87,10 @@ export function proposeTidy(types: readonly BenchmarkTypeDef[], benchmarks: read
     }
   }
 
-  // 2. A bodyweight "test": the daily bodyweight already covers it.
-  for (const t of active) {
-    if (handled.has(t.id)) continue;
-    const fields = resolveFields(t, defs);
-    if (/^(body ?weight|weight)$/i.test(t.name.trim()) && fields.length === 1 && fields[0].measure === "weight") {
-      const n = count(t.id);
-      out.push({ id: `archive-${t.id}`, kind: "archive", typeIds: [t.id], label: `Stop testing ${t.name}`, detail: `Your daily bodyweight (Home → Metrics) covers it${n ? `; the ${n} result${n === 1 ? "" : "s"} stay in history` : ""}.`, defaultOn: true });
-    }
-  }
+  // 2. A bodyweight "test" is handled apart: `planWeighInMigration` turns its results into daily readings.
 
   // 3. Tests that never got a result, as one proposal: off by default.
-  const unused = active.filter((t) => !handled.has(t.id) && !out.some((p) => p.kind === "archive" && p.typeIds.includes(t.id)) && count(t.id) === 0);
+  const unused = active.filter((t) => !handled.has(t.id) && !isWeighInType(t, defs) && !out.some((p) => p.kind === "archive" && p.typeIds.includes(t.id)) && count(t.id) === 0);
   if (unused.length > 0) {
     out.push({
       id: "archive-unused",
