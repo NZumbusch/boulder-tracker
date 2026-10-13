@@ -208,8 +208,7 @@
 
   </div>
 
-  <!-- The calendar sits in one soft panel: no border, no shadow, just a tone apart from the page. -->
-  <div class="rounded-2xl bg-app-bg px-2 py-3 sm:px-4 sm:py-4 short:py-2">
+  <!-- Flat, like a calendar app: the grid runs edge to edge on the page, no panel, no border. -->
   {#if mode === 'week' && agenda}
     <CalendarAgenda
       days={Array.from({ length: 7 }, (_, i) => weekStart + i)}
@@ -217,6 +216,7 @@
       events={eventDays}
       {today}
       exerciseTypes={trainingState.exerciseTypes}
+      categories={trainingState.analyticsCategories}
       {isRunning}
       isFaded={faded}
       onOpen={open}
@@ -235,6 +235,7 @@
       events={eventDays}
       {today}
       exerciseTypes={trainingState.exerciseTypes}
+      categories={trainingState.analyticsCategories}
       {isRunning}
       isFaded={faded}
       onOpen={open}
@@ -253,7 +254,7 @@
       <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
     {/if}
   {:else if mode === 'month'}
-    <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} goals={goalsOnDays} />
+    <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} goals={goalsOnDays} exerciseTypes={trainingState.exerciseTypes} categories={trainingState.analyticsCategories} />
   {:else}
     <div class="grid grid-cols-3 gap-x-3 gap-y-4 min-[700px]:grid-cols-4">
       {#each Array.from({ length: 12 }, (_, i) => i) as m (m)}
@@ -261,5 +262,4 @@
       {/each}
     </div>
   {/if}
-  </div>
 </div>

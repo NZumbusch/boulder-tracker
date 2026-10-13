@@ -10,7 +10,8 @@
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { ExerciseTypeDef } from '../../lib/types';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
-  import type { GoalEvent } from '../../lib/types';
+  import type { AnalyticsCategory, GoalEvent } from '../../lib/types';
+  import { sessionColor, exerciseSegments } from '../../lib/planning/sessionColors';
 
   let {
     days,
@@ -25,6 +26,7 @@
     phases = new Map(),
     phaseNames = false,
     goals = new Map(),
+    categories = [],
   }: {
     days: number[];
     byDay: Map<number, CalendarSession[]>;
@@ -40,6 +42,7 @@
     phaseNames?: boolean;
     /** The trips and competitions on each day. */
     goals?: Map<number, GoalEvent[]>;
+    categories?: AnalyticsCategory[];
   } = $props();
 
   const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -66,24 +69,33 @@
       <div class="flex-1 min-w-0 space-y-1.5">
         {#if phaseNames && startsHere}<p class="text-caption text-content-subtle">{mark?.name}</p>{/if}
         {#each goals.get(day) ?? [] as g (g.id)}
-          <p class="flex items-center gap-1 rounded-md px-2 py-0.5 text-label text-content {g.kind === 'trip' ? 'bg-primary/[0.12]' : 'bg-warning/25'}">
-            <Icon icon={g.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="text-sm text-content-muted" />{g.name}
+          <p class="relative overflow-hidden flex items-center gap-1 rounded-md px-2 py-0.5 text-label cal-ink"><span class="absolute inset-0 cal-fill {g.kind === 'trip' ? 'bg-sky-500' : 'bg-amber-500'}"></span>
+            <Icon icon={g.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="relative text-sm" /><span class="relative">{g.name}</span>
           </p>
         {/each}
         {#each sessions as s (s.workout.id)}
           {@const ex = exerciseLines(s.workout, exerciseTypes, 8)}
           <button
             onclick={() => onOpen(s, sessions)}
-            class="w-full text-left rounded-md px-2 py-1 {s.done ? 'bg-success/20' : s.workout.provisional ? 'bg-primary/[0.07]' : 'bg-primary/[0.16]'} {isFaded(s) ? 'opacity-40' : ''} {isRunning(s) ? 'ring-1 ring-success' : ''}"
+            class="relative overflow-hidden w-full text-left rounded-md px-2 py-1 cal-ink {isFaded(s) ? 'opacity-40' : ''} {isRunning(s) ? 'ring-1 ring-success' : ''}"
           >
-            <span class="block text-label font-semibold text-content truncate">{s.workout.notes || 'Session'}</span>
-            <span class="block text-caption text-content-subtle">{meta(s)}</span>
-            {#if ex.names.length}<span class="block text-caption text-content-muted">{ex.names.join(' · ')}{ex.more ? ` +${ex.more}` : ''}</span>{/if}
+            <span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {sessionColor(s.workout, exerciseTypes, categories) ?? 'bg-primary'}"></span>
+            <span class="relative block text-label font-medium truncate">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-sm -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
+            <span class="relative block text-caption opacity-80">{meta(s)}</span>
+            {#if ex.names.length}
+              <!-- Each exercise as a small block in its own category's colour. -->
+              <span class="relative flex flex-wrap gap-1 mt-1">
+                {#each exerciseSegments(s.workout, exerciseTypes, categories).slice(0, 8) as seg (seg.slotId)}
+                  <span class="relative overflow-hidden rounded px-1 text-[11px] leading-[18px]"><span class="absolute inset-0 cal-fill bg-surface"></span><span class="absolute inset-0 cal-fill {seg.color ?? 'bg-primary'}"></span><span class="relative">{seg.name}</span></span>
+                {/each}
+                {#if ex.more}<span class="text-[11px] leading-[18px] opacity-80">+{ex.more}</span>{/if}
+              </span>
+            {/if}
           </button>
         {/each}
         {#each dayEvents as e, i (`${e.id}:${i}`)}
-          <p class="rounded-md bg-content-subtle/10 px-2 py-0.5 text-caption text-content-muted truncate">
-            {e.title}<span class="text-content-subtle"> · {e.allDay ? 'all day' : `${hhmm(e.startMin ?? 0)} – ${hhmm(Math.min(1440, (e.startMin ?? 0) + e.minutes))}`}</span>
+          <p class="relative overflow-hidden rounded-md px-2 py-0.5 text-caption cal-ink truncate"><span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span><span class="relative">
+            {e.title}<span class="opacity-80"> · {e.allDay ? 'all day' : `${hhmm(e.startMin ?? 0)} – ${hhmm(Math.min(1440, (e.startMin ?? 0) + e.minutes))}`}</span></span>
           </p>
         {/each}
         {#if sessions.length === 0 && dayEvents.length === 0 && !goals.get(day)}
