@@ -7,7 +7,7 @@ describe("buildPlanContext", () => {
     exerciseTypes: [{ id: "hb", name: "Hangboard", category: "Fingers", parameters: ["sets"] as any }],
     phaseDefs: [{ id: "p", name: "Capacity", order: 1 }, { id: "old", name: "Old", archived: true }],
     templates: { p: [{ id: "t", name: "Board", dayOfWeek: "Monday" as const, description: "Warm up", exercises: [{ id: "s", typeId: "hb", prescribed: { sets: 5, notes: "" } }] }] },
-    trainingBlocks: [{ id: "b", name: "Base", phaseId: "p", startWeekId: "2026-W38", endWeekId: "2026-W41", notes: "Build volume" }],
+    trainingBlocks: [{ id: "b", name: "Base", phaseId: "p", startDate: "2026-09-14", endDate: "2026-10-11", notes: "Build volume" }],
     workouts: [
       { id: "w", status: "planned", date: null, weekId: "2026-W40", dayOfWeek: "Tuesday", notes: "Extra", loadFactor: 0, exercises: [] },
       { id: "d", status: "completed", date: "2026-09-29", weekId: "2026-W40", dayOfWeek: "Monday", notes: "Board", loadFactor: 1, exercises: [] },

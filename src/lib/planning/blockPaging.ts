@@ -1,4 +1,5 @@
 import type { TrainingBlock } from "../types";
+import { blockFirstWeekId, blockLastWeekId } from "./trainingBlocks";
 
 /**
  * Windowing/paging for the training block list. Kept out of the components
@@ -7,26 +8,27 @@ import type { TrainingBlock } from "../types";
  * place in the plan UI where getting the window wrong silently hides work
  * the user planned.
  *
- * Every comparison here is plain string comparison on "YYYY-Wnn" week ids,
+ * Every comparison here is plain string comparison on "YYYY-Wnn" week ids
+ * (the weeks a block touches) or "YYYY-MM-DD" days,
  * which sorts chronologically (see `trainingBlocks.ts` for why).
  */
 
 export type BlockTimeframe = "past" | "current" | "upcoming";
 
-/** Chronological order: start week, then end week, then name, so the order is stable for blocks that start together. */
+/** Chronological order: first day, then last day, then name, so the order is stable for blocks that start together. */
 export function sortBlocks(blocks: TrainingBlock[]): TrainingBlock[] {
   return [...blocks].sort(
     (a, b) =>
-      a.startWeekId.localeCompare(b.startWeekId) ||
-      a.endWeekId.localeCompare(b.endWeekId) ||
+      a.startDate.localeCompare(b.startDate) ||
+      a.endDate.localeCompare(b.endDate) ||
       a.name.localeCompare(b.name),
   );
 }
 
 /** Where a block sits relative to the current week - drives the list's Past/Now/Next markers. */
 export function classifyBlock(block: TrainingBlock, currentWeekId: string): BlockTimeframe {
-  if (block.endWeekId < currentWeekId) return "past";
-  if (block.startWeekId > currentWeekId) return "upcoming";
+  if (blockLastWeekId(block) < currentWeekId) return "past";
+  if (blockFirstWeekId(block) > currentWeekId) return "upcoming";
   return "current";
 }
 
@@ -38,7 +40,7 @@ export function classifyBlock(block: TrainingBlock, currentWeekId: string): Bloc
  */
 export function currentBlockIndex(sorted: TrainingBlock[], currentWeekId: string): number {
   if (sorted.length === 0) return 0;
-  const index = sorted.findIndex((b) => b.endWeekId >= currentWeekId);
+  const index = sorted.findIndex((b) => blockLastWeekId(b) >= currentWeekId);
   return index === -1 ? sorted.length - 1 : index;
 }
 

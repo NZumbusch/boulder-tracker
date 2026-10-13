@@ -11,9 +11,10 @@ import {
   pageSlice,
 } from "./blockPaging";
 import type { TrainingBlock } from "../types";
+import { weekMondayIso, weekSundayIso } from "../dateUtils";
 
 function block(name: string, startWeekId: string, endWeekId: string): TrainingBlock {
-  return { id: name, name, phaseId: "p1", startWeekId, endWeekId };
+  return { id: name, name, phaseId: "p1", startDate: weekMondayIso(startWeekId), endDate: weekSundayIso(endWeekId) };
 }
 
 /** W10..W29, one block per two weeks - 10 blocks, with "now" (W20) in the middle. */

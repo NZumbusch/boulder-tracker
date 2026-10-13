@@ -131,8 +131,8 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     id: `demo-block-${i}`,
     name: p.name,
     phaseId: p.phaseId,
-    startWeekId: getWeekId(mondayOf(today, p.from)),
-    endWeekId: getWeekId(mondayOf(today, p.to)),
+    startDate: iso(mondayOf(today, p.from)),
+    endDate: iso(addDays(mondayOf(today, p.to), 6)),
   }));
 
   // Every week up to and including this one is stored: past sessions

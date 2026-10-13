@@ -85,7 +85,7 @@ describe("getDateFromWeekId", () => {
 });
 
 describe("exportWeekIds", () => {
-  const blocks = [{ startWeekId: "2026-W40", endWeekId: "2026-W45" }];
+  const blocks = [{ endDate: "2026-11-08" }]; // Sunday of 2026-W45
   it("covers this week to the end of the plan", () => {
     expect(exportWeekIds({ currentWeekId: "2026-W42", workouts: [], blocks, includePast: false })).toEqual([
       "2026-W42", "2026-W43", "2026-W44", "2026-W45",

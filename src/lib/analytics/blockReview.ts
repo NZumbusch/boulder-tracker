@@ -1,5 +1,6 @@
 import type { Benchmark, BenchmarkTypeDef, ExerciseTypeDef, AnalyticsCategory, OutdoorAscent, TrainingBlock, ValueDef, Workout } from "../types";
-import { decrementWeekId, getWeekDates, getWeekId, incrementWeekId, toUtcDayIndex } from "../dateUtils";
+import { decrementWeekId, getWeekId, toUtcDayIndex, weekDayIsos, weekMondayIso, weekSundayIso } from "../dateUtils";
+import { blockFirstWeekId, blockLastWeekId, blockWeekIds } from "../planning/trainingBlocks";
 import { isSkippedWorkout, isoDayIndex, workoutDay } from "../planning/weekStatus";
 import { WEEK_DAYS } from "../constants";
 import { buildWeeklyHistory } from "./weekSummary";
@@ -23,6 +24,8 @@ export interface BlockReview {
   weeks: number;
   /** The block has not finished: its last weeks are still to come. */
   running: boolean;
+  /** The block starts or ends part-way through a week: the weekly figures count those weeks whole, the sessions and tests count from the block's own days. */
+  partial: boolean;
   sessions: { done: number; planned: number };
   /** Load per week, oldest first, for the weeks that have started. */
   weeklyLoad: { weekId: string; load: number }[];
@@ -49,27 +52,27 @@ export interface BlockReviewInputs {
   ascents: OutdoorAscent[];
 }
 
-const DAY_MS = 86_400_000;
-
-function weeksOf(from: string, to: string): string[] {
-  const out: string[] = [];
-  for (let w = from, guard = 0; w <= to && guard < 60; w = incrementWeekId(w), guard++) out.push(w);
-  return out;
-}
-
 export function buildBlockReview(input: BlockReviewInputs): BlockReview | undefined {
   const { block, asOf } = input;
   const current = getWeekId(asOf);
-  if (block.startWeekId > current) return undefined;
-  const all = weeksOf(block.startWeekId, block.endWeekId);
-  const weekIds = all.filter((w) => w <= current);
+  const first = blockFirstWeekId(block);
+  const last = blockLastWeekId(block);
+  if (first > current) return undefined;
+  const weekIds = blockWeekIds(block).filter((w) => w <= current);
   if (weekIds.length === 0) return undefined;
   const todayIndex = isoDayIndex(WEEK_DAYS[(asOf.getDay() + 6) % 7]);
 
   let done = 0;
   let planned = 0;
   const weeklyLoad = weekIds.map((weekId) => {
-    const sessions = input.workoutsForWeek(weekId);
+    // Sessions count by their own day, so a block that starts or ends mid-week takes only its days of that week (one with no day stays with the week).
+    const days = weekDayIsos(weekId);
+    const whole = input.workoutsForWeek(weekId);
+    const sessions = whole.filter((w) => {
+      const d = workoutDay(w);
+      const iso = d === undefined ? undefined : days[isoDayIndex(d)];
+      return iso === undefined || (iso >= block.startDate && iso <= block.endDate);
+    });
     const completed = sessions.filter((w) => w.status === "completed");
     // What was due: a finished week's leftover sessions, or the running week's on days already past.
     const missed = sessions.filter((w) => {
@@ -80,7 +83,7 @@ export function buildBlockReview(input: BlockReviewInputs): BlockReview | undefi
     });
     done += completed.length;
     planned += completed.length + missed.length;
-    return { weekId, load: completed.reduce((s, w) => s + (w.loadFactor || 0), 0) };
+    return { weekId, load: whole.filter((w) => w.status === "completed").reduce((s, w) => s + (w.loadFactor || 0), 0) };
   });
 
   const full = weeklyLoad.filter((w) => w.weekId < current);
@@ -93,8 +96,9 @@ export function buildBlockReview(input: BlockReviewInputs): BlockReview | undefi
   const total = Object.values(minutes).reduce((a, b) => a + b, 0);
   const mix = total > 0 ? Object.entries(minutes).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name, m]) => ({ name, share: m / total })) : [];
 
-  const startDay = Math.floor(getWeekDates(block.startWeekId)!.start.getTime() / DAY_MS);
-  const endDay = Math.floor(getWeekDates(weekIds[weekIds.length - 1])!.end.getTime() / DAY_MS);
+  const startDay = toUtcDayIndex(block.startDate);
+  const lastWeek = weekIds[weekIds.length - 1];
+  const endDay = Math.min(toUtcDayIndex(block.endDate), toUtcDayIndex(weekSundayIso(lastWeek)));
   const tests: BlockReview["tests"] = [];
   for (const s of benchmarkChanges(input.benchmarks, input.benchmarkTypes, 0, endDay, input.valueDefs, input.weightUnit, input.bodyweights ?? [])) {
     const inBlock = s.points.filter((p) => p.day >= startDay);
@@ -116,10 +120,11 @@ export function buildBlockReview(input: BlockReviewInputs): BlockReview | undefi
   return {
     blockId: block.id,
     name: block.name,
-    from: block.startWeekId,
-    to: block.endWeekId,
+    from: first,
+    to: last,
     weeks: weekIds.length,
-    running: block.endWeekId >= current,
+    running: last >= current,
+    partial: block.startDate !== weekMondayIso(first) || block.endDate !== weekSundayIso(last),
     sessions: { done, planned },
     weeklyLoad,
     ...(loadChange !== undefined ? { loadChange } : {}),
@@ -135,7 +140,7 @@ const signed = (v: number) => `${v >= 0 ? "+" : "-"}${Math.abs(Math.round(v))}%`
 
 /** The review as plain lines, for the AI and for a notification-sized summary. */
 export function blockReviewLines(r: BlockReview): string[] {
-  const lines = [`${r.name} ${wk(r.from)}-${wk(r.to)} (${r.weeks} week${r.weeks === 1 ? "" : "s"}${r.running ? ", still running" : ""})`];
+  const lines = [`${r.name} ${wk(r.from)}-${wk(r.to)} (${r.weeks} week${r.weeks === 1 ? "" : "s"}${r.running ? ", still running" : ""}${r.partial ? ", starts or ends mid-week" : ""})`];
   if (r.sessions.planned > 0) lines.push(`Sessions: ${r.sessions.done} of ${r.sessions.planned} done (${Math.round((r.sessions.done / r.sessions.planned) * 100)}%)`);
   const loads = r.weeklyLoad.filter((w) => w.load > 0);
   if (loads.length) lines.push(`Load per week: ${loads.map((w) => `${wk(w.weekId)} ${n0(w.load)}`).join(", ")}${r.loadChange !== undefined ? ` (${signed(r.loadChange)} first to last full week)` : ""}`);
@@ -148,9 +153,9 @@ export function blockReviewLines(r: BlockReview): string[] {
 /** The most recent block that has ended within `withinWeeks`, or the one running - what is worth reviewing now. */
 export function blockToReview(blocks: readonly TrainingBlock[], asOf: Date, withinWeeks = 2): TrainingBlock | undefined {
   const current = getWeekId(asOf);
-  const ended = blocks.filter((b) => b.endWeekId < current).sort((a, b) => b.endWeekId.localeCompare(a.endWeekId))[0];
+  const ended = blocks.filter((b) => blockLastWeekId(b) < current).sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
   if (!ended) return undefined;
   let cutoff = current;
   for (let i = 0; i < withinWeeks; i++) cutoff = decrementWeekId(cutoff);
-  return ended.endWeekId >= cutoff ? ended : undefined;
+  return blockLastWeekId(ended) >= cutoff ? ended : undefined;
 }

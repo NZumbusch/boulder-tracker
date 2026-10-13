@@ -1,5 +1,6 @@
 import type { PhaseDef, TrainingBlock, WorkoutTemplate } from "../types";
-import { getWeekId, getWeekIdRange, incrementWeekId } from "../dateUtils";
+import { getWeekId, getWeekIdRange, incrementWeekId, weekMondayIso, weekSundayIso } from "../dateUtils";
+import { blockWeekIds } from "./trainingBlocks";
 
 /**
  * The plan the welcome offers a new user, so Plan and Home show real
@@ -34,6 +35,9 @@ function weeksFrom(start: string, weeks: number): string[] {
   return getWeekIdRange(start, end);
 }
 
+/** The days of the whole weeks `first` to `last`. */
+const weeks = (first: string, last: string) => ({ startDate: weekMondayIso(first), endDate: weekSundayIso(last) });
+
 export function starterPlanOptions(startWeekId: string): StarterPlanOption[] {
   const four = weeksFrom(startWeekId, 4);
   const three = four.slice(0, 3);
@@ -42,15 +46,15 @@ export function starterPlanOptions(startWeekId: string): StarterPlanOption[] {
       id: "base-4",
       name: "4 weeks of base",
       description: "Volume climbing and easy mileage, the same each week. The simplest way to start.",
-      blocks: [{ name: "Capacity", phaseId: "phase-capacity", startWeekId: four[0], endWeekId: four[3] }],
+      blocks: [{ name: "Capacity", phaseId: "phase-capacity", ...weeks(four[0], four[3]) }],
     },
     {
       id: "base-deload",
       name: "3 weeks of base, then an easy week",
       description: "Three building weeks and a lighter one to absorb them: how blocks usually run.",
       blocks: [
-        { name: "Capacity", phaseId: "phase-capacity", startWeekId: three[0], endWeekId: three[2] },
-        { name: "Deload", phaseId: "phase-deload", startWeekId: four[3], endWeekId: four[3] },
+        { name: "Capacity", phaseId: "phase-capacity", ...weeks(three[0], three[2]) },
+        { name: "Deload", phaseId: "phase-deload", ...weeks(four[3], four[3]) },
       ],
     },
   ];
@@ -67,7 +71,7 @@ export interface StarterPreviewLine {
 export function previewOf(option: StarterPlanOption, templates: Record<string, WorkoutTemplate[]>, phases: PhaseDef[]): StarterPreviewLine[] {
   return option.blocks.map((b) => ({
     phase: phases.find((p) => p.id === b.phaseId)?.name ?? b.name,
-    weeks: getWeekIdRange(b.startWeekId, b.endWeekId).length,
+    weeks: blockWeekIds(b).length,
     sessions: (templates[b.phaseId] ?? []).map((t) => t.name || "Session"),
   }));
 }

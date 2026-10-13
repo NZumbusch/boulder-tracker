@@ -39,7 +39,7 @@ import {
 import { calculateRollingAcwr } from "../analytics/loadAnalytics";
 import { loggedMetrics } from "../analytics/metricValues";
 import { DEFAULT_AI_HISTORY, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
-import { getDominantBlockForWeek } from "../planning/trainingBlocks";
+import { getDominantBlockForWeek, blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
 
 /**
  * Builds the condensed training-profile data embedded in every AI prompt
@@ -303,12 +303,12 @@ export function buildTrainingBlockContext(
   const { start: windowStart, end: windowEnd } = widenedWindow(weekIds);
   const phaseName = (phaseId: string) => phaseDefs.find((p) => p.id === phaseId)?.name ?? "Unknown";
   return blocks
-    .filter((b) => b.startWeekId <= windowEnd && windowStart <= b.endWeekId)
+    .filter((b) => blockFirstWeekId(b) <= windowEnd && windowStart <= blockLastWeekId(b))
     .map((b) => ({
       name: b.name,
       phaseName: phaseName(b.phaseId),
-      startWeekId: b.startWeekId,
-      endWeekId: b.endWeekId,
+      startWeekId: blockFirstWeekId(b),
+      endWeekId: blockLastWeekId(b),
       ...(includeNotes && b.notes ? { notes: b.notes } : {}),
     }))
     .sort((a, b) => (a.startWeekId < b.startWeekId ? -1 : a.startWeekId > b.startWeekId ? 1 : 0));

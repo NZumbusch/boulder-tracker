@@ -3,6 +3,7 @@ import { firstPlanWeek, starterPlanOptions, previewOf } from "./starterPlan";
 import { getBlocksForWeek } from "./trainingBlocks";
 import { getWeekIdRange } from "../dateUtils";
 import { DEFAULT_PHASE_DEFS, DEFAULT_TEMPLATE_LIBRARY } from "../constants";
+import { blockLastWeekId } from "./trainingBlocks";
 
 describe("firstPlanWeek", () => {
   it("starts this week early in the week, next week from Friday on", () => {
@@ -29,7 +30,7 @@ describe("starterPlanOptions", () => {
   it("base-4 is one Capacity block over four weeks, from the first week", () => {
     const [base] = options;
     expect(base.blocks).toHaveLength(1);
-    expect(base.blocks[0]).toMatchObject({ phaseId: "phase-capacity", startWeekId: "2026-W41", endWeekId: "2026-W44" });
+    expect(base.blocks[0]).toMatchObject({ phaseId: "phase-capacity", startDate: "2026-10-05", endDate: "2026-11-01" });
   });
 
   it("base + deload covers four weeks with no gap or overlap, deload last", () => {
@@ -43,7 +44,7 @@ describe("starterPlanOptions", () => {
 
   it("runs across New Year without skipping a week", () => {
     const [base] = starterPlanOptions("2026-W52");
-    expect(base.blocks[0].endWeekId).toBe("2027-W02");
+    expect(blockLastWeekId(base.blocks[0])).toBe("2027-W02");
   });
 
   it("only uses phases that exist", () => {

@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import path from "path";
 import { runDataMigrations } from "./index";
 import { DATA_EXPORT_VERSION } from "../constants";
+import { weekIdOfIso } from "../dateUtils";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -396,7 +397,7 @@ describe("New: 3.13 -> 3.14 phase rename (final phaseId/WorkoutTemplate/Training
 
     expect(data.periodization).toBeUndefined();
     const phaseNameById = new Map(data.phaseDefs.map((p: any) => [p.id, p.name]));
-    const blockByWeek = new Map(data.trainingBlocks.map((b: any) => [b.startWeekId, b]));
+    const blockByWeek = new Map(data.trainingBlocks.map((b: any) => [weekIdOfIso(b.startDate), b]));
     expect((blockByWeek.get("2026-W01") as any).phase).toBeUndefined();
     expect(phaseNameById.get((blockByWeek.get("2026-W01") as any).phaseId)).toBe("Deload");
     expect(phaseNameById.get((blockByWeek.get("2026-W02") as any).phaseId)).toBe("Power Endurance");

@@ -8,7 +8,7 @@ import {
 } from "../constants";
 import { generateId } from "../utils";
 import { upgradeBenchmarks } from "../benchmarks/upgrade";
-import { withBlockDates } from "../planning/trainingBlocks";
+import { normalizeBlocks } from "../planning/trainingBlocks";
 
 // --- Migration Helper ---
 
@@ -1166,10 +1166,10 @@ const MIGRATIONS: MigrationStep[] = [
   {
     from: "3.34",
     to: "3.35",
-    describe: "Training blocks get a first and last day (Monday of the first week, Sunday of the last): a phase is a range of days, so it can start or end mid-week",
+    describe: "Training blocks become ranges of days: startWeekId/endWeekId are replaced by startDate (Monday of the first week) and endDate (Sunday of the last), so a phase can start or end mid-week; blocks with no usable weeks (which covered nothing) are dropped",
     migrate: (data: any) => {
       if (!Array.isArray(data.trainingBlocks)) return;
-      data.trainingBlocks = data.trainingBlocks.map(withBlockDates);
+      data.trainingBlocks = normalizeBlocks(data.trainingBlocks);
     },
   },
 ];

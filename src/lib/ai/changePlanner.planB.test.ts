@@ -21,7 +21,7 @@ function state(planAlternatives: PlanAlternative[] = []): PlannerState {
     analyticsCategories: [{ id: "c1", name: "Fingers", color: "x" }],
     phaseDefs: [{ id: "p-cap", name: "Capacity", order: 1 }],
     templates: { "p-cap": capacity },
-    trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startWeekId: "2026-W40", endWeekId: "2026-W50" }],
+    trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startDate: "2026-09-28", endDate: "2026-12-13" }],
     workouts: [],
     weekOverrides: [],
     weekNotes: [],

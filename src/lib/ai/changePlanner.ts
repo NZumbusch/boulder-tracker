@@ -44,8 +44,8 @@ import type {
 } from "../types";
 import { workoutPlannedLoad } from "../analytics/load";
 import { generateId } from "../utils";
-import { decrementWeekId, incrementWeekId } from "../dateUtils";
-import { getDominantBlockForWeek } from "../planning/trainingBlocks";
+import { addDaysIso, weekMondayIso, weekSundayIso } from "../dateUtils";
+import { getDominantBlockForWeek, blockLastWeekId } from "../planning/trainingBlocks";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
 import { appendAINote, weekNoteText } from "../planning/notes";
 import { normalizeName, resolveNewExerciseTypeCategory } from "./planImport";
@@ -626,16 +626,16 @@ function sessionListDiff(before: EditableSession[], after: EditableSession[]): s
   return lines;
 }
 
-/** Removes [start, end] from every block, splitting blocks that straddle it. */
+/** Removes the days [start, end] ("YYYY-MM-DD") from every block, splitting blocks that straddle them. */
 export function carveBlocks(blocks: TrainingBlock[], start: string, end: string, newId: () => string): TrainingBlock[] {
   const result: TrainingBlock[] = [];
   for (const b of blocks) {
-    if (b.endWeekId < start || b.startWeekId > end) {
+    if (b.endDate < start || b.startDate > end) {
       result.push(b);
       continue;
     }
-    if (b.startWeekId < start) result.push({ ...b, endWeekId: decrementWeekId(start) });
-    if (b.endWeekId > end) result.push({ ...b, id: b.startWeekId < start ? newId() : b.id, startWeekId: incrementWeekId(end) });
+    if (b.startDate < start) result.push({ ...b, endDate: addDaysIso(start, -1) });
+    if (b.endDate > end) result.push({ ...b, id: b.startDate < start ? newId() : b.id, startDate: addDaysIso(end, 1) });
   }
   return result;
 }
@@ -1149,7 +1149,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     const origin = ctx.phaseOrigin.get(normalizeName(phase.name));
     if (origin) item.dependsOn.push(origin);
     if (change.action === "delete") {
-      const futureWeeks = ctx.blocks.filter((b) => b.phaseId === phase.id && b.endWeekId >= state.currentWeekId);
+      const futureWeeks = ctx.blocks.filter((b) => b.phaseId === phase.id && blockLastWeekId(b) >= state.currentWeekId);
       if (futureWeeks.length) item.warnings.push(`Still assigned to ${futureWeeks.length} current/upcoming block(s) - reassign those weeks, or they keep following it.`);
       item.details.push("archived (kept for your history, no longer offered)");
       if (on) {
@@ -1175,7 +1175,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
       after = fromEditable(r.sessions);
       item.details.push(...r.lines);
     }
-    const following = ctx.blocks.filter((b) => b.phaseId === phase.id && b.endWeekId >= state.currentWeekId).length;
+    const following = ctx.blocks.filter((b) => b.phaseId === phase.id && blockLastWeekId(b) >= state.currentWeekId).length;
     if (after !== before && following) item.warnings.push("Weeks that follow this phase (and haven't been changed by hand) pick up the new typical week.");
     if (on && item.errors.length === 0) {
       ctx.phaseDefs = ctx.phaseDefs.map((p) => (p.id === phase.id ? next : p));
@@ -1216,11 +1216,11 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
           id: newId(),
           name: phase.name,
           phaseId: phase.id,
-          startWeekId: start,
-          endWeekId: end,
+          startDate: weekMondayIso(start),
+          endDate: weekSundayIso(end),
           ...(change.blockNotes ? { notes: appendAINote(undefined, change.blockNotes) } : {}),
         };
-        blocksAfter = [...carveBlocks(ctx.blocks, start, end, newId), block];
+        blocksAfter = [...carveBlocks(ctx.blocks, block.startDate, block.endDate, newId), block];
         const beforeNames = [...new Set(weeks.map((w) => effectivePhaseName(ctx, ctx.blocks, w) ?? "no phase"))];
         item.title += ` → ${phase.name}`;
         item.details.push(`phase ${beforeNames.join(" / ")} → ${phase.name}`);

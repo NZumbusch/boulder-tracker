@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import type { ExerciseSlot, TrainingBlock, Workout } from "../types";
 import { blockReviewLines, blockToReview, buildBlockReview, type BlockReviewInputs } from "./blockReview";
 import { getWeekId } from "../dateUtils";
+import { weekMondayIso, weekSundayIso } from "../dateUtils";
 
 const asOf = new Date(2026, 9, 11, 12); // Sunday of W41
-const block = (id: string, name: string, a: string, b: string): TrainingBlock => ({ id, name, phaseId: "cap", startWeekId: a, endWeekId: b });
+const block = (id: string, name: string, a: string, b: string): TrainingBlock => ({ id, name, phaseId: "cap", startDate: weekMondayIso(a), endDate: weekSundayIso(b) });
 const slot = (cat: string, mins: number): ExerciseSlot => ({ id: Math.random().toString(), typeId: cat, logged: { duration: mins } }) as ExerciseSlot;
 const done = (d: Date, load: number, exercises: ExerciseSlot[] = []): Workout => ({ id: `d${d.getTime()}`, status: "completed", date: d.toISOString(), weekId: getWeekId(d), loadFactor: load, exercises }) as Workout;
 const planned = (weekId: string, day: Workout["dayOfWeek"]): Workout => ({ id: `p${weekId}${day}`, status: "planned", date: null, weekId, dayOfWeek: day, loadFactor: 0, exercises: [{ id: "x", typeId: "t", prescribed: {} }] }) as Workout;

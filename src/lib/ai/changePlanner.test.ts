@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { ExerciseSlot, Workout, WorkoutTemplate } from "../types";
 import { validateChangeSet } from "./changeSet";
 import { planChanges, planWithSelection, allItemIds, carveBlocks, type PlannerState } from "./changePlanner";
+import { blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
 
 let n = 0;
 const ids = () => `id${++n}`;
@@ -25,7 +26,7 @@ function state(): PlannerState {
     analyticsCategories: [{ id: "c1", name: "Fingers", color: "x" }, { id: "c2", name: "Power", color: "y" }],
     phaseDefs: [{ id: "p-cap", name: "Capacity", order: 1 }, { id: "p-del", name: "Deload", order: 2 }],
     templates: { "p-cap": capacity, "p-del": [] },
-    trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startWeekId: "2026-W38", endWeekId: "2026-W43" }],
+    trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startDate: "2026-09-14", endDate: "2026-10-25" }],
     workouts: w39,
     weekOverrides: [{ weekId: "2026-W39", customized: true }],
     weekNotes: [{ weekId: "2026-W40", text: "Mine" }],
@@ -42,12 +43,12 @@ function plan(doc: unknown, selected?: Set<string>) {
 describe("carveBlocks", () => {
   it("trims, splits and drops blocks around a range", () => {
     const blocks = [
-      { id: "a", name: "A", phaseId: "p", startWeekId: "2026-W38", endWeekId: "2026-W43" },
-      { id: "b", name: "B", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W41" },
-      { id: "c", name: "C", phaseId: "p", startWeekId: "2026-W50", endWeekId: "2026-W51" },
+      { id: "a", name: "A", phaseId: "p", startDate: "2026-09-14", endDate: "2026-10-25" },
+      { id: "b", name: "B", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-11" },
+      { id: "c", name: "C", phaseId: "p", startDate: "2026-12-07", endDate: "2026-12-20" },
     ];
-    const r = carveBlocks(blocks, "2026-W40", "2026-W41", () => "new");
-    expect(r.map((b) => `${b.id}:${b.startWeekId}-${b.endWeekId}`)).toEqual(["a:2026-W38-2026-W39", "new:2026-W42-2026-W43", "c:2026-W50-2026-W51"]);
+    const r = carveBlocks(blocks, "2026-09-28", "2026-10-11", () => "new");
+    expect(r.map((b) => `${b.id}:${blockFirstWeekId(b)}-${blockLastWeekId(b)}`)).toEqual(["a:2026-W38-2026-W39", "new:2026-W42-2026-W43", "c:2026-W50-2026-W51"]);
   });
 });
 
@@ -146,7 +147,7 @@ describe("planChanges - weeks", () => {
       weeks: [{ from: "2026-W40", to: "2026-W41", phase: "Power", blockNotes: "Peak" }],
     });
     const blocks = r.writes.trainingBlocks!;
-    expect(blocks.map((b) => `${b.name}:${b.startWeekId}-${b.endWeekId}`).sort()).toEqual(["Capacity:2026-W38-2026-W39", "Capacity:2026-W42-2026-W43", "Power:2026-W40-2026-W41"]);
+    expect(blocks.map((b) => `${b.name}:${blockFirstWeekId(b)}-${blockLastWeekId(b)}`).sort()).toEqual(["Capacity:2026-W38-2026-W39", "Capacity:2026-W42-2026-W43", "Power:2026-W40-2026-W41"]);
     expect(blocks.find((b) => b.name === "Power")!.notes).toBe("AI: Peak");
     expect(r.writes.weeks).toEqual([
       { weekId: "2026-W40", planned: null, customized: false },

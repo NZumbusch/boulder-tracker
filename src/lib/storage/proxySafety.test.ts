@@ -99,8 +99,8 @@ describe("storage never persists reactive proxies", () => {
         id: "b1",
         name: "Capacity",
         phaseId: "p1",
-        startWeekId: "2026-W25",
-        endWeekId: "2026-W25",
+        startDate: "2026-06-15",
+        endDate: "2026-06-21",
       }),
     ).resolves.not.toThrow();
     expect(() => structuredClone(_dbState)).not.toThrow();

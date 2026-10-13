@@ -2,8 +2,8 @@
   /** The current training block: name and phase, week position, load trend, what's next, and the block note. */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
-  import { getWeekIdRange } from '../../../lib/dateUtils';
-  import { nextBlock, daysUntilWeek, blockLoadTrend } from '../../../lib/planning/blockOutlook';
+  import { blockWeekIds, blockFirstWeekId, blockLastWeekId } from '../../../lib/planning/trainingBlocks';
+  import { nextBlock, daysUntilDate, blockLoadTrend } from '../../../lib/planning/blockOutlook';
   import NoteSheet from '../../common/NoteSheet.svelte';
   import SectionHeader from './SectionHeader.svelte';
   import Icon from '@iconify/svelte';
@@ -15,11 +15,11 @@
   const currentPhaseName = $derived(data.currentPhaseName);
   const blockWeekPosition = $derived(data.blockWeekPosition);
   let noteOpen = $state(false);
-  const upcomingBlock = $derived(nextBlock(trainingState.trainingBlocks, currentWeekId));
-  const daysToNextBlock = $derived(upcomingBlock ? daysUntilWeek(upcomingBlock.startWeekId, data.todayIso) : undefined);
+  const upcomingBlock = $derived(nextBlock(trainingState.trainingBlocks, data.todayIso));
+  const daysToNextBlock = $derived(upcomingBlock ? daysUntilDate(upcomingBlock.startDate, data.todayIso) : undefined);
   const blockTrend = $derived(
     dominantBlock
-      ? blockLoadTrend(getWeekIdRange(dominantBlock.startWeekId, dominantBlock.endWeekId), (id) => trainingState.getWorkoutsForWeek(id))
+      ? blockLoadTrend(blockWeekIds(dominantBlock), (id) => trainingState.getWorkoutsForWeek(id))
       : [],
   );
   const blockTrendMax = $derived(Math.max(1, ...blockTrend.map((b) => Math.max(b.planned, b.actual))));
@@ -59,7 +59,7 @@
     {@const nextPhase = trainingState.phaseDefs.find((p) => p.id === upcomingBlock.phaseId)?.name}
     <p class="text-caption text-content-subtle flex items-center gap-1 pt-1">
       <Icon icon="ic:baseline-arrow-forward" class="text-xs shrink-0" />
-      <span class="truncate">Next: <span class="text-content-muted">{upcomingBlock.name}{nextPhase && nextPhase !== upcomingBlock.name ? ` · ${nextPhase}` : ''}</span> · {daysToNextBlock === 0 ? 'this week' : `in ${daysToNextBlock} day${daysToNextBlock === 1 ? '' : 's'}`} ({upcomingBlock.startWeekId})</span>
+      <span class="truncate">Next: <span class="text-content-muted">{upcomingBlock.name}{nextPhase && nextPhase !== upcomingBlock.name ? ` · ${nextPhase}` : ''}</span> · {daysToNextBlock === 0 ? 'today' : `in ${daysToNextBlock} day${daysToNextBlock === 1 ? '' : 's'}`} ({upcomingBlock.startDate})</span>
     </p>
   {/if}
 </div>
@@ -68,7 +68,7 @@
   {@const block = dominantBlock}
   <NoteSheet
     title="{block.name} note"
-    subtitle="{currentPhaseName ?? 'Training block'} · {block.startWeekId} – {block.endWeekId}"
+    subtitle="{currentPhaseName ?? 'Training block'} · {blockFirstWeekId(block)} – {blockLastWeekId(block)}"
     text={block.notes ?? ''}
     placeholder="What this block is for, how to progress it…"
     onSave={(text) => trainingState.saveBlockNotes(block.id, text)}

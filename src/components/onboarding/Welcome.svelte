@@ -19,7 +19,7 @@
   import { isAndroidWeb, isInAppBrowser, isIOS, readBrowserInfo, shouldOfferIOSInstall } from '../../lib/pwa/platform';
   import { toast, showUndo } from '../../lib/toast.svelte';
   import { firstPlanWeek, previewOf, starterPlanOptions } from '../../lib/planning/starterPlan';
-  import { getWeekDates } from '../../lib/dateUtils';
+  import { blockFirstWeekId } from '../../lib/planning/trainingBlocks';
   import { tour } from '../../lib/tour/tour.svelte';
   import LocationEditor from '../settings/LocationEditor.svelte';
   import IOSInstallSteps from './IOSInstallSteps.svelte';
@@ -55,7 +55,7 @@
   let planChoice = $state<string>(planOptions[0].id);
   /** The blocks saved from an earlier pick of this step (going back and choosing again replaces them). */
   let planBlockIds = $state<string[]>([]);
-  const planStart = getWeekDates(planOptions[0].blocks[0].startWeekId)?.start;
+  const planStart = new Date(`${planOptions[0].blocks[0].startDate}T00:00:00Z`);
   const planStartLabel = planStart?.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 
   async function choosePlan() {
@@ -135,7 +135,7 @@
     trainingState.setWelcomeDone(true);
     const ids = planBlockIds;
     // Plan opens on the plan's first week, not on an empty current one.
-    if (ids.length) trainingState.selectedWeekId = planOptions[0].blocks[0].startWeekId;
+    if (ids.length) trainingState.selectedWeekId = blockFirstWeekId(planOptions[0].blocks[0]);
     if (ids.length) showUndo('Starter plan added to Plan', async () => { await trainingState.replaceStarterPlan(ids, null); });
     if (startTour) void tour.start();
   }

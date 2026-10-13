@@ -30,8 +30,8 @@ const POWER: WorkoutTemplate[] = [
 ];
 // A phase change between the two weeks of the stretch.
 const BLOCKS: TrainingBlock[] = [
-  { id: "b1", name: "Strength", phaseId: "strength", startWeekId: "2026-W43", endWeekId: "2026-W43" },
-  { id: "b2", name: "Power", phaseId: "power", startWeekId: "2026-W44", endWeekId: "2026-W50" },
+  { id: "b1", name: "Strength", phaseId: "strength", startDate: "2026-10-19", endDate: "2026-10-25" },
+  { id: "b2", name: "Power", phaseId: "power", startDate: "2026-10-26", endDate: "2026-12-13" },
 ];
 
 const OUTDOOR: WorkoutTemplate = { id: "tpl-out", name: "Outdoor bouldering", exercises: [slot("s9")] };

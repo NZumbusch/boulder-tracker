@@ -15,7 +15,7 @@ const w = (id: string, weekId: string, status: Workout["status"] = "planned"): W
 beforeEach(() =>
   setDbState({
     workouts: [w("a", "2026-W40"), w("done", "2026-W40", "completed"), w("b", "2026-W41"), w("c", "2026-W42")],
-    trainingBlocks: [{ id: "old", name: "Old", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W42" }],
+    trainingBlocks: [{ id: "old", name: "Old", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-18" }],
     weekOverrides: [{ weekId: "2026-W41", customized: true }],
     weekNotes: [{ weekId: "2026-W40", text: "Mine" }],
     exerciseTypes: [],
@@ -42,7 +42,7 @@ describe("storage.applyPlanWrites", () => {
 
   it("replaces catalog lists only when the plan changed them", async () => {
     await storage.applyPlanWrites({
-      trainingBlocks: [{ id: "n", name: "New", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W40" }],
+      trainingBlocks: [{ id: "n", name: "New", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-04" }],
       weeks: [],
       weekNotes: [],
     });

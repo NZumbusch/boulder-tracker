@@ -11,10 +11,10 @@
  */
 import type { BenchmarkTypeDef, ValueDef, Circuit, DayOfWeek, ExerciseGroup, ExerciseSlot, ExerciseTypeDef, PhaseDef, PlanAlternative, TrainingBlock, WeekNote, WeekOverride, Workout, WorkoutTemplate } from "../types";
 import { allOccurrenceKeys, describeChanges, occurrenceFirstDay, weekAndDayOf } from "../planning/planB";
-import { getDominantBlockForWeek } from "../planning/trainingBlocks";
+import { getDominantBlockForWeek, blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
 import { sortWorkoutsBySchedule } from "../planning/sortWorkouts";
 import { weekNoteText } from "../planning/notes";
-import { incrementWeekId, weekDatesText } from "../dateUtils";
+import { incrementWeekId, weekDatesText, weekMondayIso, weekSundayIso } from "../dateUtils";
 
 function incrementWeeks(weekId: string, n: number): string {
   let id = weekId;
@@ -122,7 +122,7 @@ export function buildPlanContext(input: PlanContextInput): string {
   if (input.compact && targetWeekIds.length) {
     const first = targetWeekIds[0];
     const last = targetWeekIds[targetWeekIds.length - 1];
-    for (const b of trainingBlocks) if (b.startWeekId <= incrementWeeks(last, 4) && b.endWeekId >= first) inPlay.add(b.phaseId);
+    for (const b of trainingBlocks) if (blockFirstWeekId(b) <= incrementWeeks(last, 4) && blockLastWeekId(b) >= first) inPlay.add(b.phaseId);
   }
   lines.push("PHASES - each phase's typical week (what every week following that phase gets):");
   if (input.compact) lines.push("(Shortened: exercise notes are left out, and phases not near the target weeks list only their sessions. Change a phase with \"sessionChanges\" - they merge into what is there - not by replacing its whole typical week, or the notes are lost.)");
@@ -137,12 +137,15 @@ export function buildPlanContext(input: PlanContextInput): string {
   }
 
   const inRange = trainingBlocks
-    .filter((b) => targetWeekIds.length && b.startWeekId <= targetWeekIds[targetWeekIds.length - 1] && b.endWeekId >= targetWeekIds[0])
-    .sort((a, b) => a.startWeekId.localeCompare(b.startWeekId));
+    .filter((b) => targetWeekIds.length && blockFirstWeekId(b) <= targetWeekIds[targetWeekIds.length - 1] && blockLastWeekId(b) >= targetWeekIds[0])
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
   if (inRange.length) {
     lines.push("", "BLOCKS overlapping the target weeks:");
     for (const b of inRange) {
-      lines.push(JSON.stringify(compact({ block: b.name, phase: phaseDefs.find((p) => p.id === b.phaseId)?.name, from: b.startWeekId, to: b.endWeekId, dates: weekDatesText(b.startWeekId, b.endWeekId), notes: b.notes })));
+      const [first, last] = [blockFirstWeekId(b), blockLastWeekId(b)];
+      // A block that starts or ends mid-week also gives its exact days; a whole-week one is just its weeks.
+      const partial = b.startDate !== weekMondayIso(first) || b.endDate !== weekSundayIso(last);
+      lines.push(JSON.stringify(compact({ block: b.name, phase: phaseDefs.find((p) => p.id === b.phaseId)?.name, from: first, to: last, dates: weekDatesText(first, last), ...(partial ? { startDate: b.startDate, endDate: b.endDate } : {}), notes: b.notes })));
     }
   }
 

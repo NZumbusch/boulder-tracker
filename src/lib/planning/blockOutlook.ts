@@ -1,19 +1,17 @@
 import type { TrainingBlock, Workout } from "../types";
 import { workoutPlannedLoad } from "../analytics/load";
 import { calculateWeeklyAdherence } from "../analytics/loadAnalytics";
-import { getWeekDates, toUtcDayIndex } from "../dateUtils";
+import { toUtcDayIndex } from "../dateUtils";
 import { sortBlocks } from "./blockPaging";
 
-/** The first block starting after `currentWeekId` - what the plan moves into next. */
-export function nextBlock(blocks: TrainingBlock[], currentWeekId: string): TrainingBlock | undefined {
-  return sortBlocks(blocks).find((b) => b.startWeekId > currentWeekId);
+/** The first block starting after `todayIso` - what the plan moves into next. */
+export function nextBlock(blocks: TrainingBlock[], todayIso: string): TrainingBlock | undefined {
+  return sortBlocks(blocks).find((b) => b.startDate > todayIso);
 }
 
-/** Whole days from `todayIso` to the Monday that starts `weekId` (0 if it has already started). */
-export function daysUntilWeek(weekId: string, todayIso: string): number | undefined {
-  const dates = getWeekDates(weekId);
-  if (!dates) return undefined;
-  return Math.max(0, toUtcDayIndex(dates.start.toISOString().slice(0, 10)) - toUtcDayIndex(todayIso));
+/** Whole days from `todayIso` to `isoDate` (0 if it has already come). */
+export function daysUntilDate(isoDate: string, todayIso: string): number {
+  return Math.max(0, toUtcDayIndex(isoDate) - toUtcDayIndex(todayIso));
 }
 
 /** How close to an event the taper hint starts appearing. */

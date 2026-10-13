@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import type { GoalEvent, TrainingBlock } from "../types";
 import { blockSegments, goalsInWindow, painRows, painIssueRows, FALLBACK_BLOCK_COLOR } from "./timeline";
 import { toUtcDayIndex } from "../dateUtils";
+import { weekMondayIso, weekSundayIso } from "../dateUtils";
 
 const block = (id: string, start: string, end: string, extra: Partial<TrainingBlock> = {}): TrainingBlock => ({
-  id, name: id, phaseId: "p", startWeekId: start, endWeekId: end, ...extra,
+  id, name: id, phaseId: "p", startDate: weekMondayIso(start), endDate: weekSundayIso(end), ...extra,
 });
 
 describe("blockSegments", () => {

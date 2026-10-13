@@ -15,7 +15,7 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import type { TrainingBlock } from '../../lib/types';
-  import { getWeekDates } from '../../lib/dateUtils';
+  import { blockFirstWeekId, blockLastWeekId } from '../../lib/planning/trainingBlocks';
   import {
     sortBlocks,
     classifyBlock,
@@ -75,18 +75,11 @@
     upcoming: 'text-content-muted bg-surface-elevated/60',
   };
 
-  /**
-   * The block's real calendar span: the Monday its first week starts on to
-   * the Sunday its last week ends on. Deliberately not two
-   * `getWeekDateRange` calls glued together - that would print two week
-   * ranges ("Jun 16 - Jun 22 – Sep 1 - Sep 7") rather than one span.
-   */
+  /** The block's calendar span, first day to last (one span, not two week ranges glued together). */
   function blockDateRange(block: TrainingBlock): string {
-    const start = getWeekDates(block.startWeekId);
-    const end = getWeekDates(block.endWeekId);
-    if (!start || !end) return '';
     const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', timeZone: 'UTC' };
-    return `${start.start.toLocaleDateString(undefined, opts)} – ${end.end.toLocaleDateString(undefined, opts)}`;
+    const day = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, opts);
+    return `${day(block.startDate)} – ${day(block.endDate)}`;
   }
 
   function go(direction: -1 | 1) {
@@ -131,7 +124,7 @@
                 </span>
               </div>
               <p class="text-caption text-content-subtle mt-0.5 truncate">
-                {phaseName(block.phaseId)} · {block.startWeekId} – {block.endWeekId}{block.priority ? ` · priority ${block.priority}` : ''}
+                {phaseName(block.phaseId)} · {blockFirstWeekId(block)} – {blockLastWeekId(block)}{block.priority ? ` · priority ${block.priority}` : ''}
               </p>
               <p class="text-caption text-content-subtle/70 truncate">
                 {blockDateRange(block)}

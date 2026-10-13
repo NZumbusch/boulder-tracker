@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildDemoData, DEMO_CIRCUIT_SESSION_ID } from "./demoData";
 import { getWeekId } from "../dateUtils";
 import { assertMigrationInvariants } from "../storage/migrations";
+import { blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
 
 const TODAY = new Date("2026-09-24T10:00:00Z"); // a Thursday
 
@@ -31,7 +32,7 @@ describe("tour demo data", () => {
 
   it("covers the current week with a block and has a trip ahead", () => {
     const week = getWeekId(TODAY);
-    expect(data.trainingBlocks.some((b) => b.startWeekId <= week && b.endWeekId >= week)).toBe(true);
+    expect(data.trainingBlocks.some((b) => blockFirstWeekId(b) <= week && blockLastWeekId(b) >= week)).toBe(true);
     expect(data.goals[0].date > "2026-09-24").toBe(true);
   });
 

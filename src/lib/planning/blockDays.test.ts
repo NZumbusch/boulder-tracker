@@ -1,31 +1,48 @@
 import { describe, it, expect } from "vitest";
-import { blockStartDate, blockEndDate, withBlockDates, phaseOnDay, phasesInWeek, winningPhaseOfWeek, getDominantBlockForWeek } from "./trainingBlocks";
-import { getWeekIdRange } from "../dateUtils";
+import { normalizeBlock, normalizeBlocks, blockFirstWeekId, blockLastWeekId, blockWeekIds, blockTouchesWeek, getBlocksForWeek, phaseOnDay, phasesInWeek, winningPhaseOfWeek, getDominantBlockForWeek } from "./trainingBlocks";
+import { getWeekIdRange, weekMondayIso, weekSundayIso } from "../dateUtils";
 import type { TrainingBlock } from "../types";
 
-const b = (id: string, over: Partial<TrainingBlock> = {}): TrainingBlock => ({ id, name: id, phaseId: "phase-x", startWeekId: "2026-W41", endWeekId: "2026-W41", ...over });
+const b = (id: string, over: Partial<TrainingBlock> = {}): TrainingBlock => ({ id, name: id, phaseId: "phase-x", startDate: "2026-10-05", endDate: "2026-10-11", ...over });
 
-describe("a block's days", () => {
-  it("come from the weeks when the block has no dates yet: Monday of the first, Sunday of the last", () => {
-    const block = b("a", { startWeekId: "2026-W40", endWeekId: "2026-W42" });
-    expect(blockStartDate(block)).toBe("2026-09-28");
-    expect(blockEndDate(block)).toBe("2026-10-18");
+describe("normalizeBlock", () => {
+  const legacy = (over: Record<string, unknown> = {}) => ({ id: "a", name: "a", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W42", ...over }) as any;
+
+  it("turns a block of whole weeks into days: Monday of the first, Sunday of the last", () => {
+    expect(normalizeBlock(legacy())).toEqual({ id: "a", name: "a", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-18" });
   });
-
-  it("are the stored dates when there are some", () => {
-    const block = b("a", { startDate: "2026-10-07", endDate: "2026-10-15" });
-    expect(blockStartDate(block)).toBe("2026-10-07");
-    expect(blockEndDate(block)).toBe("2026-10-15");
+  it("keeps the dates it has and drops the week ids", () => {
+    const out = normalizeBlock(legacy({ startDate: "2026-10-07", endDate: "2026-10-15" }))!;
+    expect(out).toMatchObject({ startDate: "2026-10-07", endDate: "2026-10-15" });
+    expect(out).not.toHaveProperty("startWeekId");
+    expect(out).not.toHaveProperty("endWeekId");
   });
-
-  it("withBlockDates writes the dates of the weeks, over whatever was there (the weeks still decide for now)", () => {
-    const out = withBlockDates(b("a", { startWeekId: "2026-W41", endWeekId: "2026-W42", startDate: "2020-01-01", endDate: "2020-01-02" }));
-    expect(out).toMatchObject({ startDate: "2026-10-05", endDate: "2026-10-18" });
+  it("keeps everything else on the block", () => {
+    expect(normalizeBlock(legacy({ priority: 2, notes: "keep", color: "bg-red-500" }))).toMatchObject({ priority: 2, notes: "keep", color: "bg-red-500" });
   });
+  it("gives nothing for a block with no usable days or weeks, which covered nothing", () => {
+    expect(normalizeBlock(legacy({ startWeekId: "", endWeekId: "" }))).toBeUndefined();
+    expect(normalizeBlocks([legacy(), legacy({ id: "x", startWeekId: undefined, endWeekId: undefined })]).map((x) => x.id)).toEqual(["a"]);
+  });
+});
 
-  it("withBlockDates leaves a block with unusable week ids alone instead of inventing dates", () => {
-    const odd = b("a", { startWeekId: "", endWeekId: "" });
-    expect(withBlockDates(odd)).toEqual(odd);
+describe("the weeks a block touches", () => {
+  const mid = b("mid", { startDate: "2026-10-07", endDate: "2026-10-22" }); // Wednesday of W41 to Thursday of W43
+  it("counts a partial week at either end", () => {
+    expect(blockFirstWeekId(mid)).toBe("2026-W41");
+    expect(blockLastWeekId(mid)).toBe("2026-W43");
+    expect(blockWeekIds(mid)).toEqual(["2026-W41", "2026-W42", "2026-W43"]);
+  });
+  it("touches a week by a single day", () => {
+    expect(blockTouchesWeek(mid, "2026-W40")).toBe(false);
+    expect(blockTouchesWeek(mid, "2026-W41")).toBe(true);
+    expect(blockTouchesWeek(mid, "2026-W43")).toBe(true);
+    expect(blockTouchesWeek(mid, "2026-W44")).toBe(false);
+    expect(getBlocksForWeek([mid], "2026-W43")).toEqual([mid]);
+  });
+  it("works over New Year and week 53", () => {
+    const across = b("x", { startDate: "2026-12-28", endDate: "2027-01-04" });
+    expect(blockWeekIds(across)).toEqual(["2026-W53", "2027-W01"]);
   });
 });
 
@@ -92,8 +109,9 @@ describe("winningPhaseOfWeek", () => {
 });
 
 /**
- * Stage 1 changes how a block is stored, not what the app shows: for blocks
- * that are whole weeks, the new answer for every week has to be the old one.
+ * The rule weeks always had: of the blocks covering a week, higher priority
+ * wins, then the one later in the list. Whole-week blocks must still give
+ * every week that answer.
  */
 describe("whole-week blocks give the answers they gave before", () => {
   function rng(seed: number) {
@@ -101,17 +119,20 @@ describe("whole-week blocks give the answers they gave before", () => {
   }
   const weeks = getWeekIdRange("2026-W44", "2027-W06"); // over New Year and week 53
 
-  it.each([1, 2, 3, 4, 5, 6, 7, 8])("random plan %i: dominant block, covering blocks and week answers agree", (seed) => {
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])("random plan %i: the winning block and its days agree with the week-by-week rule", (seed) => {
     const next = rng(seed);
-    const blocks = Array.from({ length: 2 + Math.floor(next() * 6) }, (_, i) => {
+    const spans = Array.from({ length: 2 + Math.floor(next() * 6) }, (_, i) => {
       const from = Math.floor(next() * weeks.length);
       const to = Math.min(weeks.length - 1, from + Math.floor(next() * 6));
-      return withBlockDates(b(`b${i}`, { startWeekId: weeks[from], endWeekId: weeks[to], priority: next() < 0.3 ? Math.floor(next() * 3) : undefined }));
+      return { id: `b${i}`, from: weeks[from], to: weeks[to], priority: next() < 0.3 ? Math.floor(next() * 3) : undefined };
     });
+    const blocks = spans.map((x) => b(x.id, { startDate: weekMondayIso(x.from), endDate: weekSundayIso(x.to), priority: x.priority }));
+    const oldRule = (weekId: string) => spans.filter((x) => x.from <= weekId && weekId <= x.to).reduce<(typeof spans)[number] | undefined>((best, x) => (!best || (x.priority ?? 0) >= (best.priority ?? 0) ? x : best), undefined);
     for (const week of weeks) {
-      expect(winningPhaseOfWeek(blocks, week)?.id).toBe(getDominantBlockForWeek(blocks, week)?.id);
+      expect(winningPhaseOfWeek(blocks, week)?.id).toBe(oldRule(week)?.id);
+      expect(getDominantBlockForWeek(blocks, week)?.id).toBe(oldRule(week)?.id);
+      expect(getBlocksForWeek(blocks, week).map((x) => x.id)).toEqual(spans.filter((x) => x.from <= week && week <= x.to).map((x) => x.id));
       const phases = phasesInWeek(blocks, week);
-      expect(phases.length).toBeLessThanOrEqual(1 + blocks.length);
       if (phases.length) expect(phases.reduce((n, p) => n + p.days.length, 0)).toBe(7);
     }
   });
