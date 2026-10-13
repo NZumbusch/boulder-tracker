@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange, weekDatesText, weekLabel, trainingDayIso, trainingDayDate } from "./dateUtils";
+import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange, weekDatesText, weekLabel, trainingDayIso, trainingDayDate, addDaysIso, weekMondayIso, weekSundayIso, weekDayIsos, weekIdOfIso } from "./dateUtils";
 
 describe("getWeekDates", () => {
   it("returns the UTC Monday-start/Sunday-end for a mid-year week", () => {
@@ -151,5 +151,38 @@ describe("trainingDayIso", () => {
     const mondayEarly = new Date(2026, 9, 12, 0, 30);
     expect(getWeekId(trainingDayDate(mondayEarly, 4))).toBe("2026-W41");
     expect(getWeekId(trainingDayDate(mondayEarly, 0))).toBe("2026-W42");
+  });
+});
+
+describe("days as ISO dates", () => {
+  it("gives a week's Monday, Sunday and seven days", () => {
+    expect(weekMondayIso("2026-W41")).toBe("2026-10-05");
+    expect(weekSundayIso("2026-W41")).toBe("2026-10-11");
+    expect(weekDayIsos("2026-W41")).toEqual(["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11"]);
+    expect(weekMondayIso("nonsense")).toBe("");
+    expect(weekDayIsos("nonsense")).toEqual([]);
+  });
+
+  it("knows the week a day falls in, across New Year and week 53", () => {
+    expect(weekIdOfIso("2026-10-05")).toBe("2026-W41");
+    expect(weekIdOfIso("2026-10-11")).toBe("2026-W41");
+    expect(weekIdOfIso("2026-12-31")).toBe("2026-W53");
+    expect(weekIdOfIso("2027-01-03")).toBe("2026-W53");
+    expect(weekIdOfIso("2027-01-04")).toBe("2027-W01");
+    expect(weekIdOfIso("2024-12-30")).toBe("2025-W01");
+  });
+
+  it("round-trips: every day of every week of several years lands in its own week", () => {
+    for (let id = "2024-W01"; id < "2029-W01"; id = incrementWeekId(id)) {
+      for (const day of weekDayIsos(id)) expect(weekIdOfIso(day)).toBe(id);
+    }
+  });
+
+  it("adds days across month ends, leap days and daylight-saving changes", () => {
+    expect(addDaysIso("2026-01-31", 1)).toBe("2026-02-01");
+    expect(addDaysIso("2028-02-28", 1)).toBe("2028-02-29");
+    expect(addDaysIso("2026-03-29", 1)).toBe("2026-03-30");
+    expect(addDaysIso("2026-10-25", 1)).toBe("2026-10-26");
+    expect(addDaysIso("2026-01-01", -1)).toBe("2025-12-31");
   });
 });

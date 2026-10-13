@@ -11,16 +11,14 @@
  * the previous or next year according to ISO-8601.
  */
 export function getWeekId(date: Date): string {
-  const target = new Date(date.valueOf());
-  const dayNr = (date.getDay() + 6) % 7;
-  target.setDate(target.getDate() - dayNr + 3);
-  const firstThursday = target.valueOf();
-  target.setMonth(0, 1);
-  if (target.getDay() !== 4) {
-    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
-  }
-  const weekNo = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-  const year = new Date(firstThursday).getFullYear();
+  // Calendar arithmetic on the local date as written, in UTC so no daylight-saving hour can leak in
+  // (a millisecond difference rounded up used to give the wrong week from April to October in Auckland).
+  const day = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNr = (day.getUTCDay() + 6) % 7; // Monday = 0
+  day.setUTCDate(day.getUTCDate() - dayNr + 3); // the Thursday of this week decides the year
+  const year = day.getUTCFullYear();
+  const jan1 = Date.UTC(year, 0, 1);
+  const weekNo = 1 + Math.floor((day.getTime() - jan1) / 86_400_000 / 7);
   return `${year}-W${String(weekNo).padStart(2, '0')}`;
 }
 
@@ -203,3 +201,40 @@ export function toUtcDayIndex(isoDate: string): number {
   return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
 }
 
+
+// --- Days as "YYYY-MM-DD" -----------------------------------------------
+// Phases are ranges of days, so the week <-> day conversions live here, all
+// in UTC calendar arithmetic (a day is a calendar date, never a duration, so
+// a daylight-saving change can't move it).
+
+const isoOf = (d: Date) => d.toISOString().slice(0, 10);
+
+/** `iso` plus `days` calendar days (negative goes back). */
+export function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return isoOf(new Date(Date.UTC(y, m - 1, d + days)));
+}
+
+/** The Monday of a week, as "YYYY-MM-DD" ('' for an id that isn't a week). */
+export function weekMondayIso(weekId: string): string {
+  const dates = getWeekDates(weekId);
+  return dates ? isoOf(dates.start) : '';
+}
+
+/** The Sunday of a week, as "YYYY-MM-DD" ('' for an id that isn't a week). */
+export function weekSundayIso(weekId: string): string {
+  const dates = getWeekDates(weekId);
+  return dates ? isoOf(dates.end) : '';
+}
+
+/** The seven days of a week, Monday first. */
+export function weekDayIsos(weekId: string): string[] {
+  const monday = weekMondayIso(weekId);
+  return monday ? Array.from({ length: 7 }, (_, i) => addDaysIso(monday, i)) : [];
+}
+
+/** The week a day falls in. */
+export function weekIdOfIso(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return getWeekId(new Date(y, m - 1, d, 12));
+}
