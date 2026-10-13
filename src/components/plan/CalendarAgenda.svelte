@@ -10,6 +10,7 @@
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { ExerciseTypeDef } from '../../lib/types';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
+  import type { GoalEvent } from '../../lib/types';
 
   let {
     days,
@@ -23,6 +24,7 @@
     onAdd,
     phases = new Map(),
     phaseNames = false,
+    goals = new Map(),
   }: {
     days: number[];
     byDay: Map<number, CalendarSession[]>;
@@ -36,6 +38,8 @@
     /** The phase on each day, drawn as a bar down the row's edge (empty = off). */
     phases?: Map<number, PhaseMark>;
     phaseNames?: boolean;
+    /** The trips and competitions on each day. */
+    goals?: Map<number, GoalEvent[]>;
   } = $props();
 
   const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -61,6 +65,11 @@
       </div>
       <div class="flex-1 min-w-0 space-y-1.5">
         {#if phaseNames && startsHere}<p class="text-caption text-content-subtle">{mark?.name}</p>{/if}
+        {#each goals.get(day) ?? [] as g (g.id)}
+          <p class="flex items-center gap-1 border-l-2 pl-2 text-label text-content {g.kind === 'trip' ? 'border-primary' : 'border-warning'}">
+            <Icon icon={g.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="text-sm text-content-muted" />{g.name}
+          </p>
+        {/each}
         {#each sessions as s (s.workout.id)}
           {@const ex = exerciseLines(s.workout, exerciseTypes, 8)}
           <button
@@ -77,7 +86,7 @@
             {e.title}<span class="text-content-subtle"> · {e.allDay ? 'all day' : `${hhmm(e.startMin ?? 0)} – ${hhmm(Math.min(1440, (e.startMin ?? 0) + e.minutes))}`}</span>
           </p>
         {/each}
-        {#if sessions.length === 0 && dayEvents.length === 0}
+        {#if sessions.length === 0 && dayEvents.length === 0 && !goals.get(day)}
           <p class="text-caption text-content-subtle/60 pt-1">Free</p>
         {/if}
       </div>

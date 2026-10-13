@@ -9,6 +9,10 @@
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { ExerciseTypeDef } from '../../lib/types';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
+  import type { GoalBar } from '../../lib/planning/goalBars';
+  import Icon from '@iconify/svelte';
+  import { dropTarget, DRAG_HOLD_MS, DRAG_SLOP_PX } from '../../lib/planning/calendarDrag';
+  import { onDestroy } from 'svelte';
   import PhaseStrip from './PhaseStrip.svelte';
 
   let {
@@ -25,6 +29,8 @@
     phases = new Map(),
     phaseNames = false,
     onPickPhase,
+    goals = [],
+    onMove,
   }: {
     days: number[];
     byDay: Map<number, CalendarSession[]>;
@@ -43,6 +49,10 @@
     phaseNames?: boolean;
     /** A tap on the phase strip: the first day of that stretch. */
     onPickPhase?: (day: number) => void;
+    /** Trips and competitions among the days, as bars across them. */
+    goals?: GoalBar[];
+    /** A planned session dropped on a day (and, from the hour grid, a time: minutes after midnight). Absent = sessions can't be dragged. */
+    onMove?: (s: CalendarSession, day: number, startMin?: number) => void;
   } = $props();
 
   const compact = $derived(days.length > 1);
@@ -92,6 +102,81 @@
   const gridHeight = $derived((hours.to - hours.from) * HOUR_PX);
   const px = (min: number) => ((min - hours.from * 60) / 60) * HOUR_PX;
 
+  // --- Moving a session by dragging it: hold, then drag; a finger that moves at once is scrolling. ---
+  let colEls = $state<HTMLElement[]>([]);
+  type Press = { s: CalendarSession; timed: boolean; startX: number; startY: number; x: number; y: number; grabOffsetY: number; active: boolean };
+  let press = $state<Press | null>(null);
+  let holdTimer: ReturnType<typeof setTimeout> | undefined;
+  let suppressClickUntil = 0;
+  const movable = (s: CalendarSession) => !!onMove && !s.done && s.workout.status === 'planned' && !s.workout.planB && !isRunning(s);
+
+  function beginPress(e: PointerEvent, s: CalendarSession, timed: boolean) {
+    if (!movable(s) || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    press = { s, timed, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, grabOffsetY: e.clientY - rect.top, active: false };
+    holdTimer = setTimeout(() => {
+      if (!press) return;
+      press.active = true;
+      navigator.vibrate?.(15);
+    }, DRAG_HOLD_MS);
+    window.addEventListener('pointermove', onPressMove);
+    window.addEventListener('pointerup', endPress);
+    window.addEventListener('pointercancel', cancelPress);
+    window.addEventListener('touchmove', blockScroll, { passive: false });
+  }
+  function onPressMove(e: PointerEvent) {
+    if (!press) return;
+    if (!press.active) {
+      // Moved before the hold finished: it is a scroll or a swipe, not a drag.
+      if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) > DRAG_SLOP_PX) cancelPress();
+      return;
+    }
+    press.x = e.clientX;
+    press.y = e.clientY;
+  }
+  /** Once held, the finger moves the block, not the page. */
+  function blockScroll(e: TouchEvent) {
+    if (press?.active && e.cancelable) e.preventDefault();
+  }
+  function stopListening() {
+    clearTimeout(holdTimer);
+    window.removeEventListener('pointermove', onPressMove);
+    window.removeEventListener('pointerup', endPress);
+    window.removeEventListener('pointercancel', cancelPress);
+    window.removeEventListener('touchmove', blockScroll);
+  }
+  function cancelPress() {
+    stopListening();
+    press = null;
+  }
+  function endPress() {
+    const p = press;
+    stopListening();
+    press = null;
+    if (!p?.active) return;
+    suppressClickUntil = performance.now() + 400; // the click that ends a drag must not open the session
+    const hit = dropTarget({
+      pointerX: p.x,
+      pointerY: p.y,
+      grabOffsetY: p.grabOffsetY,
+      columns: days.map((_, i) => {
+        const r = colEls[i]?.getBoundingClientRect();
+        return { left: r?.left ?? -1, right: r?.right ?? -1, top: r?.top ?? 0 };
+      }),
+      hourPx: HOUR_PX,
+      firstHour: hours.from,
+      durationMin: p.s.minutes,
+    });
+    if (hit) onMove?.(p.s, days[hit.column], p.timed ? hit.startMin : undefined);
+  }
+  onDestroy(stopListening);
+  const dragStyle = (s: CalendarSession) => (press?.active && press.s.workout.id === s.workout.id ? `transform: translate(${press.x - press.startX}px, ${press.y - press.startY}px); z-index: 30; touch-action: none;` : '');
+  const isDragged = (s: CalendarSession) => !!press?.active && press.s.workout.id === s.workout.id;
+  const open = (s: CalendarSession, siblings: CalendarSession[]) => {
+    if (performance.now() < suppressClickUntil) return;
+    onOpen(s, siblings);
+  };
+
   function addAt(e: MouseEvent, day: number) {
     if (e.target !== e.currentTarget || !onAdd) return;
     const y = e.offsetY;
@@ -134,6 +219,22 @@
     <div class="pl-8"><PhaseStrip {days} marks={phases} names={phaseNames} onPick={onPickPhase} /></div>
   {/if}
 
+  <!-- Trips and competitions: a bar across the days they cover. -->
+  {#if goals.length > 0}
+    <div class="pl-8 grid gap-y-px" style="grid-template-columns: repeat({days.length}, minmax(0, 1fr))">
+      {#each goals as bar (bar.goal.id)}
+        <div
+          class="flex items-center gap-1 min-w-0 px-1 py-0.5 border-l-2 {bar.goal.kind === 'trip' ? 'bg-primary/10 border-primary' : 'bg-warning/20 border-warning'} {bar.startsBefore ? 'rounded-l-none' : 'rounded-l-control'} {bar.endsAfter ? 'rounded-r-none' : 'rounded-r-control'}"
+          style="grid-column: {bar.from + 1} / span {bar.span}; grid-row: {bar.lane + 1}"
+          title={bar.goal.name}
+        >
+          <Icon icon={bar.goal.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="text-xs shrink-0 text-content-muted" />
+          <span class="truncate {compact ? 'text-[10px] leading-tight' : 'text-label'} text-content">{bar.goal.name}</span>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
   <!-- Sessions with no time of day, and all-day events. -->
   {#if columns.some((c) => c.untimed.length || c.allDayEvents.length)}
     <div class="flex pl-8 gap-px">
@@ -144,8 +245,11 @@
           {/each}
           {#each col.untimed as s (s.workout.id)}
             <button
-              onclick={() => onOpen(s, col.all)}
-              class="w-full text-left rounded-control border-l-2 px-1 py-0.5 {tone(s)} {tint(s)}"
+              onclick={() => open(s, col.all)}
+              onpointerdown={(e) => beginPress(e, s, false)}
+              data-no-swipe
+              class="w-full text-left rounded-control border-l-2 px-1 py-0.5 select-none {tone(s)} {tint(s)} {isDragged(s) ? 'shadow-card ring-1 ring-primary relative' : ''}"
+              style={dragStyle(s)}
             >
               <span class="block truncate {compact ? 'text-[10px] leading-tight' : 'text-label font-semibold'}">{s.workout.notes || 'Session'}</span>
               {#if !compact}
@@ -175,6 +279,7 @@
         <!-- A tap on the empty part of a day adds a session there; the + in the Day view is the other way in. -->
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <div
+          bind:this={colEls[days.indexOf(col.day)]}
           class="relative flex-1 min-w-0 {col.day === today ? 'bg-primary/5' : ''} {compact ? 'border-l border-border/40' : ''}"
           onclick={(e) => addAt(e, col.day)}
         >
@@ -198,9 +303,11 @@
               {@const s = it.s}
               {@const ex = exerciseLines(s.workout, exerciseTypes, compact ? 3 : 8)}
               <button
-                onclick={() => onOpen(s, col.all)}
-                class="absolute overflow-hidden text-left rounded-control border-l-2 px-1 py-0.5 bg-surface {tone(s)}"
-                style={place}
+                onclick={() => open(s, col.all)}
+                onpointerdown={(e) => beginPress(e, s, true)}
+                data-no-swipe
+                class="absolute text-left rounded-control border-l-2 px-1 py-0.5 bg-surface select-none {isDragged(s) ? 'shadow-card ring-1 ring-primary opacity-90' : 'overflow-hidden'} {tone(s)}"
+                style="{place}; {dragStyle(s)}"
                 aria-label="{s.workout.notes || 'Session'}, {meta(s)}"
               >
                 <span class="absolute inset-0 pointer-events-none {tint(s)}"></span>
