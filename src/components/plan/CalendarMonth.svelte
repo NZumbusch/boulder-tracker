@@ -54,6 +54,11 @@
     const same = (j: number) => j >= 0 && j < cells.length && Math.floor(j / 7) === Math.floor(i / 7) && cells[j] !== null && phases.get(cells[j]!)?.key === mark.key;
     return { color: mark.color, joinsPrev: same(i - 1), joinsNext: same(i + 1) };
   }
+  // On a wide screen a day is roomy enough for the sessions' names instead of dots.
+  let gridW = $state(0);
+  const wide = $derived(!mini && gridW / 7 >= 92);
+  const dotTone = (s: CalendarSession) => (s.done ? 'bg-success' : s.workout.provisional ? 'bg-primary/35' : 'bg-primary');
+  const pillTone = (s: CalendarSession) => (s.done ? 'bg-success/20' : s.workout.provisional ? 'bg-primary/[0.07]' : 'bg-primary/[0.16]');
   const monthName = $derived(new Date(Date.UTC(year, month, 1)).toLocaleDateString(undefined, { month: 'long', timeZone: 'UTC' }));
 </script>
 
@@ -62,12 +67,12 @@
     <button onclick={() => onPickMonth?.(month)} class="text-label text-content hover:text-primary transition-colors mb-1">{monthName}</button>
   {:else}
     <div class="grid grid-cols-7 mb-1">
-      {#each ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as d}
-        <span class="text-caption text-content-subtle text-center">{d}</span>
+      {#each ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as d}
+        <span class="text-[10px] uppercase tracking-wide text-content-subtle text-center"><span class="min-[520px]:hidden">{d.slice(0, 1)}</span><span class="hidden min-[520px]:inline">{d}</span></span>
       {/each}
     </div>
   {/if}
-  <div class="grid grid-cols-7 {mini ? 'gap-px' : 'gap-0.5'}">
+  <div class="grid grid-cols-7 {mini ? 'gap-px' : 'gap-0.5'}" bind:clientWidth={gridW}>
     {#each cells as day, i (i)}
       {#if day === null}
         <span></span>
@@ -88,20 +93,32 @@
           <button
             onclick={() => onPickDay(day)}
             aria-label="{date} {monthName}{list.length ? `, ${list.length} session${list.length === 1 ? '' : 's'}` : ''}"
-            class="h-14 flex flex-col items-center gap-1 pt-1.5 rounded-control hover:bg-surface-elevated/60 transition-colors relative"
+            class="{wide ? 'min-h-24 items-stretch px-1 text-left' : 'h-14 items-center'} flex flex-col gap-1 pt-1.5 rounded-control hover:bg-surface/70 transition-colors relative"
           >
             {#if phaseLine(i)}{@const line = phaseLine(i)!}<span class="absolute bottom-0 left-0 h-0.5 {line.color} {line.joinsPrev ? '' : 'rounded-l-full'} {line.joinsNext ? '' : 'rounded-r-full'}" style="right: {line.joinsNext ? '-2px' : '0'}" aria-hidden="true"></span>{/if}
-            {#if goals.get(day)}<span class="absolute inset-x-0 top-0 h-1 {goals.get(day)?.some((g) => g.kind === 'competition') ? 'bg-warning' : 'bg-primary'}" aria-hidden="true"></span>{/if}
-            <span class="text-label tabular-nums w-6 h-6 flex items-center justify-center rounded-full {day === today ? 'bg-primary text-white font-bold' : 'text-content'}">{date}</span>
-            <span class="flex gap-0.5 h-1.5">
-              {#each list.slice(0, 3) as s (s.workout.id)}
-                <span class="w-1.5 h-1.5 rounded-full {s.done ? 'bg-success' : s.workout.provisional ? 'border border-dashed border-primary' : 'border border-primary bg-primary/30'}"></span>
-              {/each}
-              {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as _e, i (i)}
-                <span class="w-1.5 h-1.5 rounded-full bg-content-subtle/40"></span>
-              {/each}
-              {#if list.length + (events.get(day)?.length ?? 0) > 3}<span class="text-[9px] leading-none text-content-subtle">+</span>{/if}
-            </span>
+            {#if goals.get(day)}<span class="absolute inset-x-0 top-0 h-1 rounded-t-full {goals.get(day)?.some((g) => g.kind === 'competition') ? 'bg-warning' : 'bg-primary'}" aria-hidden="true"></span>{/if}
+            <span class="text-label tabular-nums w-6 h-6 flex items-center justify-center rounded-full {wide ? 'self-start' : ''} {day === today ? 'bg-primary text-white font-bold' : 'text-content'}">{date}</span>
+            {#if wide}
+              <span class="flex flex-col gap-0.5 min-w-0">
+                {#each list.slice(0, 3) as s (s.workout.id)}
+                  <span class="block truncate rounded px-1 py-0.5 text-[11px] leading-tight text-content {pillTone(s)}">{s.workout.notes || 'Session'}</span>
+                {/each}
+                {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as e, k (k)}
+                  <span class="block truncate rounded px-1 py-0.5 text-[11px] leading-tight text-content-muted bg-content-subtle/10">{e.title}</span>
+                {/each}
+                {#if list.length + (events.get(day)?.length ?? 0) > 3}<span class="text-[10px] leading-none text-content-subtle px-1">+{list.length + (events.get(day)?.length ?? 0) - 3} more</span>{/if}
+              </span>
+            {:else}
+              <span class="flex gap-0.5 h-1.5">
+                {#each list.slice(0, 3) as s (s.workout.id)}
+                  <span class="w-1.5 h-1.5 rounded-full {dotTone(s)}"></span>
+                {/each}
+                {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as _e, k (k)}
+                  <span class="w-1.5 h-1.5 rounded-full bg-content-subtle/40"></span>
+                {/each}
+                {#if list.length + (events.get(day)?.length ?? 0) > 3}<span class="text-[9px] leading-none text-content-subtle">+</span>{/if}
+              </span>
+            {/if}
           </button>
         {/if}
       {/if}

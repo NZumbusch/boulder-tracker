@@ -51,14 +51,14 @@
   }
 </script>
 
-<div class="divide-y divide-border">
+<div class="divide-y divide-border/70">
   {#each days as day (day)}
     {@const sessions = byDay.get(day) ?? []}
     {@const dayEvents = events.get(day) ?? []}
     {@const mark = phases.get(day)}
     {@const startsHere = mark && phases.get(day - 1)?.key !== mark.key}
     <div class="flex gap-3 py-2.5">
-      {#if phases.size > 0}<span class="w-1 shrink-0 self-stretch rounded-full {mark?.color ?? 'bg-transparent'}" aria-hidden="true"></span>{/if}
+      {#if phases.size > 0}<span class="w-1 shrink-0 self-stretch my-0.5 rounded-full {mark?.color ?? 'bg-transparent'}" aria-hidden="true"></span>{/if}
       <div class="w-9 shrink-0 text-center pt-0.5">
         <p class="text-caption {day === today ? 'text-primary font-bold' : 'text-content-subtle'}">{dayNameOf(day).slice(0, 3)}</p>
         <p class="text-label tabular-nums {day === today ? 'text-primary font-bold' : 'text-content'}">{dateOf(day)}</p>
@@ -66,7 +66,7 @@
       <div class="flex-1 min-w-0 space-y-1.5">
         {#if phaseNames && startsHere}<p class="text-caption text-content-subtle">{mark?.name}</p>{/if}
         {#each goals.get(day) ?? [] as g (g.id)}
-          <p class="flex items-center gap-1 border-l-2 pl-2 text-label text-content {g.kind === 'trip' ? 'border-primary' : 'border-warning'}">
+          <p class="flex items-center gap-1 rounded-md px-2 py-0.5 text-label text-content {g.kind === 'trip' ? 'bg-primary/[0.12]' : 'bg-warning/25'}">
             <Icon icon={g.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="text-sm text-content-muted" />{g.name}
           </p>
         {/each}
@@ -74,7 +74,7 @@
           {@const ex = exerciseLines(s.workout, exerciseTypes, 8)}
           <button
             onclick={() => onOpen(s, sessions)}
-            class="w-full text-left rounded-control border-l-2 pl-2 pr-1 py-0.5 {s.done ? 'border-success' : 'border-primary'} {s.workout.provisional ? 'border-dashed' : ''} {isFaded(s) ? 'opacity-40' : ''} {isRunning(s) ? 'ring-1 ring-success' : ''}"
+            class="w-full text-left rounded-md px-2 py-1 {s.done ? 'bg-success/20' : s.workout.provisional ? 'bg-primary/[0.07]' : 'bg-primary/[0.16]'} {isFaded(s) ? 'opacity-40' : ''} {isRunning(s) ? 'ring-1 ring-success' : ''}"
           >
             <span class="block text-label font-semibold text-content truncate">{s.workout.notes || 'Session'}</span>
             <span class="block text-caption text-content-subtle">{meta(s)}</span>
@@ -82,7 +82,7 @@
           </button>
         {/each}
         {#each dayEvents as e, i (`${e.id}:${i}`)}
-          <p class="border-l-2 border-border-strong pl-2 text-caption text-content-muted truncate">
+          <p class="rounded-md bg-content-subtle/10 px-2 py-0.5 text-caption text-content-muted truncate">
             {e.title}<span class="text-content-subtle"> · {e.allDay ? 'all day' : `${hhmm(e.startMin ?? 0)} – ${hhmm(Math.min(1440, (e.startMin ?? 0) + e.minutes))}`}</span>
           </p>
         {/each}
