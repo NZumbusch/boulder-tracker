@@ -1,30 +1,28 @@
-import type { TrainingBlock, WeekOverride, Workout, WorkoutTemplate } from "../types";
+import type { DismissedSession, TrainingBlock, Workout, WorkoutTemplate } from "../types";
 import { normaliseGroups } from "../exercise/groups";
-import { getDominantBlockForWeek, blockWeekIds } from "./trainingBlocks";
+import { phasesInWeek, winningPhaseOfWeek, blockWeekIds } from "./trainingBlocks";
 import { generateWorkoutsFromTemplate, type TemplateIdFactory } from "./generateWorkoutsFromTemplate";
+import { weekDayIsos, weekIdOfIso } from "../dateUtils";
+import { WEEK_DAYS } from "../constants";
 
 /**
- * Copy-on-write weeks.
+ * Sessions that come from a phase, saved one by one.
  *
- * Assigning a phase to a week used to hard-write one `Workout` row per
- * template into storage immediately, which meant a year-long plan wrote
- * hundreds of sessions nobody had looked at yet - and re-assigning a phase
- * had to delete and re-create them all.
+ * A phase's templates say what a week of it looks like. The sessions they
+ * imply are *projected* at read time - visible and plannable, but not
+ * stored - and become real, one at a time, only when something happens to
+ * that session: it is logged, changed, moved or deleted. Everything else in
+ * the week keeps following the phase, so editing Monday never freezes
+ * Thursday's session (which may belong to the next phase).
  *
- * A week now stores only its `TrainingBlock` (the phase label) until
- * something makes the sessions real. Until then its sessions are
- * *projected* from the phase's templates at read time: visible and
- * plannable, but not yet stored. The first write of any kind to the week
- * materialises the whole week first (see `state.svelte.ts`'s
- * `materializeWeekIfProvisional`) - that is the "copy" in copy-on-write,
- * and it is a whole-week copy because editing one session must not make the
- * week's other projected sessions disappear.
- *
- * A week is materialised when:
- *  - anything in it is saved, edited, duplicated or deleted,
- *  - it falls into the past (checked on app load - history must record what
- *    was actually planned at the time, not what today's templates say),
- *  - or the user commits it explicitly from the Plan screen.
+ * A session's identity is `prov:{weekId}:{templateId}`. The same id marks
+ *  - a stored session as "this one, saved from its template" (so it is not
+ *    projected a second time), and
+ *  - a dismissal as "this one, deleted" (so it does not come back).
+ * A dismissal with the id `prov:{weekId}:*` covers the whole week: nothing in
+ * it is projected (a week that was cleared, planned by hand or by the AI,
+ * or - from the migration - every week that was saved before sessions were
+ * saved one by one).
  *
  * Everything here is pure: the caller supplies the data and persists the
  * result.
@@ -34,22 +32,17 @@ export interface WeekProjectionContext {
   workouts: Workout[];
   trainingBlocks: TrainingBlock[];
   templates: Record<string, WorkoutTemplate[]>;
-  weekOverrides: WeekOverride[];
+  dismissed: DismissedSession[];
 }
 
-/**
- * Marks ids minted for projected sessions. Deterministic rather than random
- * so the same provisional week projects to the same ids on every render.
- * They are kept as-is when the week materialises: `weekId` + the template's
- * own id is already unique, and preserving them means a session the user
- * opened while provisional is still the same session afterwards.
- */
+/** Marks ids minted for projected sessions. Deterministic, so the same week projects to the same ids on every render. */
 export const PROVISIONAL_ID_PREFIX = "prov";
 
-export function provisionalWorkoutId(weekId: string, templateId: string, index: number): string {
-  return `${PROVISIONAL_ID_PREFIX}:${weekId}:${templateId}:${index}`;
+export function provisionalWorkoutId(weekId: string, templateId: string): string {
+  return `${PROVISIONAL_ID_PREFIX}:${weekId}:${templateId}`;
 }
 
+/** Slot ids stay unique per week, template and position, so a session opened while projected is the same one once saved. */
 export function provisionalSlotId(weekId: string, templateId: string, slotId: string, index: number): string {
   return `${PROVISIONAL_ID_PREFIX}:${weekId}:${templateId}:${index}:${slotId}`;
 }
@@ -58,69 +51,78 @@ export function isProvisionalId(id: string): boolean {
   return id.startsWith(`${PROVISIONAL_ID_PREFIX}:`);
 }
 
+/** The dismissal that stops a whole week from projecting anything. */
+export function weekDismissalId(weekId: string): string {
+  return `${PROVISIONAL_ID_PREFIX}:${weekId}:*`;
+}
+
 function projectionIds(weekId: string): TemplateIdFactory {
   return {
-    workoutId: (template, index) => provisionalWorkoutId(weekId, template.id, index),
+    workoutId: (template) => provisionalWorkoutId(weekId, template.id),
     slotId: (template, slot, index) => provisionalSlotId(weekId, template.id, slot.id, index),
   };
 }
 
-/** Whether the week has any stored (materialised) workout at all. */
-export function hasStoredWorkouts(ctx: WeekProjectionContext, weekId: string): boolean {
-  return ctx.workouts.some((w) => w.weekId === weekId);
-}
-
-/** Whether the user has hand-edited this week - the existing "never regenerate over me" flag. */
-export function isWeekCustomized(ctx: WeekProjectionContext, weekId: string): boolean {
-  return !!ctx.weekOverrides.find((o) => o.weekId === weekId)?.customized;
-}
-
-/** The templates a week's sessions would be projected from, via its dominant block's phase. */
-export function templatesForWeek(ctx: WeekProjectionContext, weekId: string): WorkoutTemplate[] {
-  const block = getDominantBlockForWeek(ctx.trainingBlocks, weekId);
-  if (!block) return [];
-  return ctx.templates[block.phaseId] ?? [];
+/** Whether the week has been cut loose from its phase: cleared, planned by hand or by the AI. */
+export function isWeekDismissed(ctx: WeekProjectionContext, weekId: string): boolean {
+  const id = weekDismissalId(weekId);
+  return ctx.dismissed.some((d) => d.id === id);
 }
 
 /**
- * A week is provisional when a phase covers it, that phase has templates,
- * nothing is stored for it yet, and the user has not hand-edited it.
- *
- * The "nothing stored" and "not customized" conditions are what make this
- * safe for existing data: a week that already has hard-saved workouts (every
- * week written before this change) is simply never provisional, so no
- * migration is needed. `customized` additionally covers the case of a user
- * deliberately deleting every session in a week - that stays empty rather
- * than springing back from the templates.
+ * The templates a week's sessions come from, each with the phase (block)
+ * that owns it. A template with a day belongs to the phase that has that
+ * day; one with no day comes once a week from the week's winning phase.
+ * A template id appearing twice (two blocks of one phase in a week) counts once.
  */
-export function isWeekProvisional(ctx: WeekProjectionContext, weekId: string): boolean {
-  if (hasStoredWorkouts(ctx, weekId)) return false;
-  if (isWeekCustomized(ctx, weekId)) return false;
-  return templatesForWeek(ctx, weekId).length > 0;
+export function templatesForWeek(ctx: WeekProjectionContext, weekId: string): { template: WorkoutTemplate; block: TrainingBlock }[] {
+  const days = weekDayIsos(weekId);
+  const winner = winningPhaseOfWeek(ctx.trainingBlocks, weekId);
+  const seen = new Set<string>();
+  const out: { template: WorkoutTemplate; block: TrainingBlock }[] = [];
+  for (const phase of phasesInWeek(ctx.trainingBlocks, weekId)) {
+    for (const template of ctx.templates[phase.block.phaseId] ?? []) {
+      const day = template.dayOfWeek ? days[WEEK_DAYS.indexOf(template.dayOfWeek)] : undefined;
+      const mine = day ? phase.days.includes(day) : phase.block === winner;
+      if (!mine || seen.has(template.id)) continue;
+      seen.add(template.id);
+      out.push({ template, block: phase.block });
+    }
+  }
+  return out;
 }
 
 /**
- * The sessions a provisional week shows: generated from its phase's
- * templates, tagged `provisional` so the UI can mark them and so no write
- * path mistakes one for a stored row. Returns `[]` for a week that isn't
- * provisional.
+ * The sessions a week still gets from its phases: one per template that is
+ * not already stored (saved, logged, moved) and not dismissed, tagged
+ * `provisional` so the UI can mark them and no write path mistakes one for
+ * a stored row.
  */
 export function projectWeekWorkouts(ctx: WeekProjectionContext, weekId: string): Workout[] {
-  if (!isWeekProvisional(ctx, weekId)) return [];
-  const block = getDominantBlockForWeek(ctx.trainingBlocks, weekId);
-  return generateWorkoutsFromTemplate(weekId, templatesForWeek(ctx, weekId), projectionIds(weekId)).map(
-    (w) => ({ ...w, blockId: block?.id, provisional: true as const }),
+  if (isWeekDismissed(ctx, weekId)) return [];
+  const taken = new Set([...ctx.workouts.filter((w) => w.weekId === weekId).map((w) => w.id), ...ctx.dismissed.map((d) => d.id)]);
+  const wanted = templatesForWeek(ctx, weekId).filter(({ template }) => !taken.has(provisionalWorkoutId(weekId, template.id)));
+  const ids = projectionIds(weekId);
+  return wanted.flatMap(({ template, block }) =>
+    generateWorkoutsFromTemplate(weekId, [template], ids).map((w) => ({ ...w, blockId: block.id, provisional: true as const })),
   );
 }
 
 /**
- * What the app should show for a week: its stored workouts, or - if it is
- * still provisional - its projected ones. Never both, since a week stops
- * being provisional the moment it has any stored workout.
+ * What the app shows for a week: its stored sessions (planned and
+ * completed) plus the ones its phases still project.
  */
 export function effectiveWorkoutsForWeek(ctx: WeekProjectionContext, weekId: string): Workout[] {
-  const stored = ctx.workouts.filter((w) => w.weekId === weekId);
-  return stored.length > 0 ? stored : projectWeekWorkouts(ctx, weekId);
+  return [...ctx.workouts.filter((w) => w.weekId === weekId), ...projectWeekWorkouts(ctx, weekId)];
+}
+
+/**
+ * Whether a week differs from what its phases give it - something saved,
+ * deleted or cleared - which is when "reset to the phase" has something to do.
+ */
+export function weekDiffersFromPhase(ctx: WeekProjectionContext, weekId: string): boolean {
+  const prefix = `${PROVISIONAL_ID_PREFIX}:${weekId}:`;
+  return ctx.dismissed.some((d) => d.id.startsWith(prefix)) || ctx.workouts.some((w) => w.weekId === weekId && w.status === "planned");
 }
 
 /**
@@ -144,14 +146,17 @@ export function coveredWeekIds(blocks: TrainingBlock[]): string[] {
 }
 
 /**
- * Provisional weeks that have already finished, oldest first - the weeks an
- * app load must materialise so history records what was planned at the
- * time rather than re-deriving it from whatever the templates say later.
- * The current week is deliberately excluded: it is still in progress, so
- * it stays provisional until something actually happens in it.
+ * Projected sessions whose day has already passed: the ones an app load
+ * saves, so history records what was planned at the time rather than
+ * re-deriving it from whatever the templates say later. A finished week's
+ * sessions all count (a floating one too); in the current week only those
+ * on an earlier day. `todayIso` is the app's "today" (see the day-start hour).
  */
-export function provisionalPastWeeks(ctx: WeekProjectionContext, currentWeekId: string): string[] {
+export function projectedSessionsInThePast(ctx: WeekProjectionContext, todayIso: string): Workout[] {
+  const currentWeek = weekIdOfIso(todayIso);
+  const todayIndex = (new Date(`${todayIso}T00:00:00Z`).getUTCDay() + 6) % 7;
   return coveredWeekIds(ctx.trainingBlocks)
-    .filter((weekId) => weekId < currentWeekId)
-    .filter((weekId) => isWeekProvisional(ctx, weekId));
+    .filter((weekId) => weekId <= currentWeek)
+    .flatMap((weekId) => projectWeekWorkouts(ctx, weekId))
+    .filter((w) => w.weekId < currentWeek || (w.dayOfWeek !== undefined && WEEK_DAYS.indexOf(w.dayOfWeek) < todayIndex));
 }

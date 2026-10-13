@@ -3,7 +3,7 @@ import { validateChangeSet } from "./changeSet";
 import { planChanges, planWithSelection, allItemIds, type PlannerState } from "./changePlanner";
 
 const state = (): PlannerState => ({
-  exerciseTypes: [], analyticsCategories: [{ id: "c1", name: "Fingers", color: "x" }], phaseDefs: [], templates: {}, trainingBlocks: [], workouts: [], weekOverrides: [], weekNotes: [],
+  exerciseTypes: [], analyticsCategories: [{ id: "c1", name: "Fingers", color: "x" }], phaseDefs: [], templates: {}, trainingBlocks: [], workouts: [], dismissedSessions: [], weekNotes: [],
   currentWeekId: "2026-W40", today: "2026-10-01",
   valueDefs: [
     { id: "edge", name: "Edge", kind: "number", unit: "m" },

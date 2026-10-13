@@ -88,8 +88,8 @@ export const GLOSSARY: Record<TermId, Term> = {
   notSaved: {
     title: "Not saved yet",
     paragraphs: [
-      "This week's sessions come straight from its phase. Until you change the week, it simply shows what the phase says, so editing the phase updates it too.",
-      "The week is saved as it is as soon as you log or change anything in it, when the week ends, or when you tap Lock In. After that, changes to the phase no longer touch it.",
+      "A dashed session comes straight from its phase. It stays that way, following the phase, until you log it, change it, move it or delete it - then it is saved on its own.",
+      "The rest of the week keeps following the phase, so changing Monday never freezes Thursday. A day that has passed is saved as it was planned, so your history doesn't change when the phase does.",
     ],
   },
 };

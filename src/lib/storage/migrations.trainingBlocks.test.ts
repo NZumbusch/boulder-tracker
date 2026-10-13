@@ -88,7 +88,8 @@ describe("PeriodizationWeek -> single-week TrainingBlock conversion", () => {
 
     runDataMigrations(data);
 
-    expect(data.weekOverrides).toEqual([{ weekId: "2026-W05", customized: true }]);
+    // The customized flag ends up as a whole-week dismissal (3.36), decoupled from the block.
+    expect(data.dismissedSessions).toEqual([{ id: "prov:2026-W05:*", weekId: "2026-W05" }]);
     // Every trainingBlock is purely a phase/date-range record - `customized`
     // never leaks onto it.
     data.trainingBlocks.forEach((b: any) => expect(b.customized).toBeUndefined());
@@ -145,7 +146,7 @@ describe("full old-to-new roundtrip (old_backup.json)", () => {
 
     expect(after.periodization).toBeUndefined();
     expect(Array.isArray(after.trainingBlocks)).toBe(true);
-    expect(Array.isArray(after.weekOverrides)).toBe(true);
+    expect(Array.isArray(after.dismissedSessions)).toBe(true);
     expect(after.goals).toEqual([]);
 
     const knownPhaseIds = new Set(after.phaseDefs.map((p: any) => p.id));

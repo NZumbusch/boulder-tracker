@@ -123,7 +123,7 @@
 
   const weeks = $derived.by(() => {
     const currentWeekId = trainingState.currentWeekId;
-    const tempWeeks: { id: string; label: string; phaseId?: string; isCurrent: boolean; year: number; hasOverlap: boolean; provisional: boolean }[] = [];
+    const tempWeeks: { id: string; label: string; phaseId?: string; isCurrent: boolean; year: number; hasOverlap: boolean }[] = [];
 
     const startOffset = -25 + (trainingState.weekOffset * 50);
     const endOffset = 24 + (trainingState.weekOffset * 50);
@@ -142,7 +142,6 @@
         isCurrent: id === currentWeekId,
         year: d.getUTCFullYear(),
         hasOverlap: covering.length > 1,
-        provisional: trainingState.isWeekProvisional(id),
       });
     }
     return tempWeeks;
@@ -161,9 +160,8 @@
       // (`bg-surface-elevated/50`) with a flat mid-gray on every unassigned
       // cell. Passing `undefined` here lets that component's own fallback apply.
       color: w.phaseId ? phaseDefById.get(w.phaseId)?.color : undefined,
-      tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}${w.provisional ? ' - not saved yet' : ''}`,
+      tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}`,
       hasOverlap: w.hasOverlap,
-      provisional: w.provisional,
     })),
   );
 
@@ -238,16 +236,12 @@
     return days;
   });
 
-  // A provisional week shows sessions projected from its phase's templates
-  // rather than stored rows - see lib/planning/weekProjection.ts. Nothing
-  // here treats them differently; the copy-on-write gate in state.svelte.ts
-  // materialises the week behind any edit, so every handler below works
-  // unchanged on a projected session.
-  const isProvisionalWeek = $derived(
-    !!trainingState.selectedWeekId && trainingState.isWeekProvisional(trainingState.selectedWeekId),
-  );
+  // Sessions a phase gives the week are projected from its templates rather
+  // than stored (lib/planning/weekProjection.ts) and saved one by one, when
+  // something happens to them - so every handler below works unchanged on a
+  // projected session.
 
-  /** A locked-in (or hand-edited) week that still has a phase to fall back to. */
+  /** A week with sessions saved or deleted that still has a phase to fall back to. */
   const canResetWeek = $derived(
     !!trainingState.selectedWeekId && trainingState.canResetWeekToDefaults(trainingState.selectedWeekId),
   );
@@ -520,16 +514,6 @@
               <span class="text-content-subtle group-hover:text-primary-hover transition-colors"><Icon icon="ic:baseline-arrow-drop-down" class="text-xl" /></span>
             </button>
             <InfoButton term="phases" />
-            {#if isProvisionalWeek}
-              <button
-                onclick={() => showInfo('notSaved')}
-                class="flex items-center gap-1 px-1.5 py-0.5 rounded-control border border-dashed border-primary/40 text-caption text-primary/80 leading-none"
-                aria-label="Not saved yet - what does this mean?"
-              >
-                <Icon icon="ic:outline-cloud-queue" class="text-xs" />
-                Not saved yet
-              </button>
-            {/if}
           </div>
 
           {#if showPhaseDropdown}
@@ -566,20 +550,11 @@
           >
             <Icon icon={selectedWeekNote ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-lg" />
           </button>
-          {#if isProvisionalWeek}
-            <button
-              onclick={() => trainingState.materializeWeek(trainingState.selectedWeekId!)}
-              class="chip border-primary/30 text-primary hover:bg-primary/10 transition-colors"
-              title="Save these sessions into this week so they stop following the phase templates"
-            >
-              <Icon icon="ic:baseline-push-pin" class="text-sm" />
-              Lock In
-            </button>
-          {:else if canResetWeek}
+          {#if canResetWeek}
             <button
               onclick={() => trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!)}
               class="p-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
-              title="Discard this week's planned sessions and follow the phase templates again"
+              title="Discard this week's saved changes and follow the phase templates again"
               aria-label="Reset week to its phase"
             >
               <Icon icon="ic:baseline-restore" class="text-lg" />

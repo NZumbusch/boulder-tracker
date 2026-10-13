@@ -215,7 +215,9 @@ export async function initDB() {
     rawData = {
       workouts: await localforage.getItem("workouts"),
       trainingBlocks: await localforage.getItem("trainingBlocks"),
+      // Pre-3.36 key, read so the startup migration can turn it into dismissedSessions.
       weekOverrides: await localforage.getItem("weekOverrides"),
+      dismissedSessions: await localforage.getItem("dismissedSessions"),
       weekNotes: await localforage.getItem("weekNotes"),
       planAlternatives: await localforage.getItem("planAlternatives"),
       athleteProfile: await localforage.getItem("athleteProfile"),
@@ -244,7 +246,8 @@ export async function initDB() {
   _dbState = {
     workouts: rawData.workouts || [],
     trainingBlocks: rawData.trainingBlocks || [],
-    weekOverrides: rawData.weekOverrides || [],
+    ...(rawData.weekOverrides ? { weekOverrides: rawData.weekOverrides } : {}),
+    dismissedSessions: rawData.dismissedSessions || [],
     weekNotes: rawData.weekNotes || [],
     planAlternatives: rawData.planAlternatives || [],
     athleteProfile: rawData.athleteProfile || [],
@@ -331,7 +334,7 @@ async function startNativeWrite(): Promise<void> {
 
 /** Every table stored under its own localforage key on the web. */
 export const TABLES = [
-  "workouts", "trainingBlocks", "weekOverrides", "weekNotes", "planAlternatives", "athleteProfile", "coachNotes", "circuits", "goals", "templates", "phaseDefs",
+  "workouts", "trainingBlocks", "dismissedSessions", "weekNotes", "planAlternatives", "athleteProfile", "coachNotes", "circuits", "goals", "templates", "phaseDefs",
   "exerciseTypes", "benchmarks", "benchmarkTypes", "analyticsCategories", "metricDefs",
   "dailyMetrics", "painLogs", "painIssues", "outdoorAscents", "settings", "valueDefs",
 ] as const;
@@ -385,10 +388,11 @@ export async function flushDB(tables?: TableName[]) {
     return;
   }
   if (tables) return;
-  // The pre-3.29 key: once its events live in `goals` it would only be a
-  // stale copy, so it's dropped - once per app run is enough.
+  // The pre-3.29 and pre-3.36 keys: once their contents live elsewhere (`goals`,
+  // `dismissedSessions`) they would only be stale copies, so they are dropped - once per app run is enough.
   if (!legacyEventsKeyCleared && typeof localforage.removeItem === "function") {
     await localforage.removeItem("competitionEvents");
+    await localforage.removeItem("weekOverrides");
     legacyEventsKeyCleared = true;
   }
   await localforage.setItem("database_version", _dbState.exportVersion);

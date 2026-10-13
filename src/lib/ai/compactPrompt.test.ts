@@ -21,7 +21,7 @@ function input(compact: boolean): PlanContextInput {
       { id: "b2", name: "Strength", phaseId: "str", startDate: "2026-10-26", endDate: "2026-11-22" },
       { id: "b3", name: "Power", phaseId: "pow", startDate: "2027-03-08", endDate: "2027-04-11" },
     ],
-    workouts: [], weekOverrides: [], weekNotes: [],
+    workouts: [], dismissedSessions: [], weekNotes: [],
     targetWeekIds: ["2026-W41", "2026-W42"],
     compact,
   };
@@ -48,7 +48,7 @@ describe("compact plan context", () => {
   it("leaves the weeks to change in full - notes included", () => {
     const a = input(true);
     a.workouts = [{ id: "w", status: "planned", date: null, weekId: "2026-W41", dayOfWeek: "Monday", notes: "Volume", loadFactor: 0, exercises: [slot("x", LONG)] } as never];
-    a.weekOverrides = [{ weekId: "2026-W41", customized: true }];
+    a.dismissedSessions = [{ id: "prov:2026-W41:*", weekId: "2026-W41" }];
     expect(buildPlanContext(a)).toContain(LONG.trim());
   });
 });

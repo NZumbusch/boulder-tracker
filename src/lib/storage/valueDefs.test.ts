@@ -11,7 +11,7 @@ beforeEach(() => {
   setItem.mockClear();
   setDbState({
     workouts: [{ id: "w1", exercises: [{ id: "s1", activeParameters: ["sets", "v:elevation"], prescribed: { sets: 3, custom: { elevation: 100, speed: 8 } }, logged: { custom: { elevation: 90 } } }] }],
-    trainingBlocks: [], weekOverrides: [], benchmarks: [], benchmarkTypes: [], analyticsCategories: [], circuits: [], planAlternatives: [],
+    trainingBlocks: [], dismissedSessions: [], benchmarks: [], benchmarkTypes: [], analyticsCategories: [], circuits: [], planAlternatives: [],
     templates: { p1: [{ exercises: [{ prescribed: { custom: { elevation: 5 } } }] }] },
     phaseDefs: [], metricDefs: [], dailyMetrics: [], painLogs: [], outdoorAscents: [],
     exerciseTypes: [{ id: "t1", parameters: ["sets", "v:elevation"] }],

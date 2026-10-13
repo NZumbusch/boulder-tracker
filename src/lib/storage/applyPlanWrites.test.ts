@@ -16,7 +16,7 @@ beforeEach(() =>
   setDbState({
     workouts: [w("a", "2026-W40"), w("done", "2026-W40", "completed"), w("b", "2026-W41"), w("c", "2026-W42")],
     trainingBlocks: [{ id: "old", name: "Old", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-18" }],
-    weekOverrides: [{ weekId: "2026-W41", customized: true }],
+    dismissedSessions: [{ id: "prov:2026-W41:*", weekId: "2026-W41" }],
     weekNotes: [{ weekId: "2026-W40", text: "Mine" }],
     exerciseTypes: [],
     phaseDefs: [],
@@ -28,15 +28,16 @@ describe("storage.applyPlanWrites", () => {
   it("swaps each touched week's planned sessions, keeps completed ones and untouched weeks", async () => {
     await storage.applyPlanWrites({
       weeks: [
-        { weekId: "2026-W40", planned: [{ ...w("new", "2026-W40"), provisional: true }], customized: true },
-        { weekId: "2026-W41", planned: null, customized: false },
+        { weekId: "2026-W40", planned: [{ ...w("new", "2026-W40"), provisional: true }] },
+        { weekId: "2026-W41", planned: null },
       ],
       weekNotes: [{ weekId: "2026-W40", text: "Mine\n\nAI: Hi" }],
     });
     const workouts = await storage.getWorkouts();
     expect(workouts.map((x) => x.id).sort()).toEqual(["c", "done", "new"]);
     expect(workouts.find((x) => x.id === "new")).not.toHaveProperty("provisional");
-    expect(await storage.getWeekOverrides()).toEqual([{ weekId: "2026-W40", customized: true }]);
+    // W40 now has its own plan (nothing is projected into it); W41 follows its phase again, so its dismissal is forgotten.
+    expect(await storage.getDismissedSessions()).toEqual([{ id: "prov:2026-W40:*", weekId: "2026-W40" }]);
     expect(await storage.getWeekNotes()).toEqual([{ weekId: "2026-W40", text: "Mine\n\nAI: Hi" }]);
   });
 

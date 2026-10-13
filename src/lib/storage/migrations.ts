@@ -9,6 +9,7 @@ import {
 import { generateId } from "../utils";
 import { upgradeBenchmarks } from "../benchmarks/upgrade";
 import { normalizeBlocks } from "../planning/trainingBlocks";
+import { weekDismissalId } from "../planning/weekProjection";
 
 // --- Migration Helper ---
 
@@ -1170,6 +1171,24 @@ const MIGRATIONS: MigrationStep[] = [
     migrate: (data: any) => {
       if (!Array.isArray(data.trainingBlocks)) return;
       data.trainingBlocks = normalizeBlocks(data.trainingBlocks);
+    },
+  },
+  {
+    from: "3.35",
+    to: "3.36",
+    describe: "Sessions are saved one by one and a deleted one is remembered (dismissedSessions): every week that has anything stored, or was marked customized, is dismissed whole so it shows exactly what it stores; the weekOverrides table goes",
+    migrate: (data: any) => {
+      const dismissed: { id: string; weekId: string }[] = Array.isArray(data.dismissedSessions) ? data.dismissedSessions : [];
+      const weeks = new Set<string>();
+      for (const w of Array.isArray(data.workouts) ? data.workouts : []) if (w.weekId) weeks.add(w.weekId);
+      for (const o of Array.isArray(data.weekOverrides) ? data.weekOverrides : []) if (o.customized && o.weekId) weeks.add(o.weekId);
+      const have = new Set(dismissed.map((d) => d.id));
+      for (const weekId of [...weeks].sort()) {
+        const id = weekDismissalId(weekId);
+        if (!have.has(id)) dismissed.push({ id, weekId });
+      }
+      data.dismissedSessions = dismissed;
+      delete data.weekOverrides;
     },
   },
 ];

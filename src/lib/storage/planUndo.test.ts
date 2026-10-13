@@ -29,7 +29,7 @@ beforeEach(() => {
   setDbState({
     workouts: [w("a", "2026-W40"), w("done", "2026-W39", "completed")],
     trainingBlocks: [{ id: "old", name: "Old", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-18" }],
-    weekOverrides: [],
+    dismissedSessions: [],
     weekNotes: [],
     planAlternatives: [],
     exerciseTypes: [],
@@ -48,7 +48,7 @@ describe("undoing the last AI plan change", () => {
     expect((await storage.getWorkouts()).map((x) => x.id).sort()).toEqual(["a", "done"]);
     expect((await storage.getTrainingBlocks()).map((b) => b.id)).toEqual(["old"]);
     expect(await storage.getWeekNotes()).toEqual([]);
-    expect(await storage.getWeekOverrides()).toEqual([]);
+    expect(await storage.getDismissedSessions()).toEqual([]);
     expect(await storage.getPlanUndo()).toBeNull();
   });
 

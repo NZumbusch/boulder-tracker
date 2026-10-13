@@ -219,7 +219,7 @@ export function buildCoachPromptFor(
         templates: source.templates,
         trainingBlocks: source.trainingBlocks,
         workouts: source.workouts,
-        weekOverrides: source.weekOverrides,
+        dismissedSessions: source.dismissedSessions,
         weekNotes: source.weekNotes,
         planAlternatives: source.planAlternatives,
         circuits: source.circuits,

@@ -25,7 +25,7 @@ function buildFreshInstallDefaults(exportVersion: string) {
   return {
     workouts: [],
     trainingBlocks: [],
-    weekOverrides: [],
+    dismissedSessions: [],
     competitionEvents: [],
     templates: JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)),
     phaseDefs: JSON.parse(JSON.stringify(DEFAULT_PHASE_DEFS)),

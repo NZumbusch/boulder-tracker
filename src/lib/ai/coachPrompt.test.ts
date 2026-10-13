@@ -39,7 +39,7 @@ describe("buildCoachPromptFor", () => {
   const source = {
     exerciseTypes: [{ id: "et", name: "Hangboard", category: "Fingers", parameters: [] }],
     analyticsCategories: [{ id: "c", name: "Fingers", color: "red" }],
-    phaseDefs: [], templates: {}, trainingBlocks: [], weekOverrides: [], weekNotes: [],
+    phaseDefs: [], templates: {}, trainingBlocks: [], dismissedSessions: [], weekNotes: [],
     benchmarks: [], goals: [], dailyMetrics: [], painLogs: [], outdoorAscents: [],
     aiSharing: { trainingBlocks: true, competitions: true, readinessMetrics: false, painLogs: false, outdoorAscents: true, notes: true },
     workouts: [
@@ -70,7 +70,7 @@ describe("buildCoachPromptFor", () => {
       get phaseDefs() { return source.phaseDefs; }
       get templates() { return source.templates; }
       get trainingBlocks() { return source.trainingBlocks; }
-      get weekOverrides() { return source.weekOverrides; }
+      get dismissedSessions() { return source.dismissedSessions; }
       get weekNotes() { return source.weekNotes; }
       get workouts() { return source.workouts; }
       get benchmarks() { return source.benchmarks; }

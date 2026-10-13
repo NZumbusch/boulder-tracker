@@ -30,7 +30,7 @@ function state(extra: Partial<PlannerState> = {}): PlannerState {
     templates: { "p-cap": capacity },
     trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startDate: "2026-09-14", endDate: "2026-10-25" }],
     workouts: [],
-    weekOverrides: [],
+    dismissedSessions: [],
     weekNotes: [],
     currentWeekId: "2026-W41",
     benchmarkTypes: [hang, pull],
@@ -108,7 +108,7 @@ describe("test items in a change set", () => {
     const w: Workout = { id: "w44", status: "planned", date: null, weekId: "2026-W42", dayOfWeek: "Monday", notes: "Board", loadFactor: 0, exercises: [testSlot] } as Workout;
     const r = plan(
       { weeks: [{ week: "2026-W42", sessionChanges: [{ action: "edit", match: { dayOfWeek: "Monday" }, exerciseChanges: [{ action: "remove", match: { exerciseTypeName: "Test: Max Hang" } }] }] }] },
-      state({ workouts: [w], weekOverrides: [{ weekId: "2026-W42", customized: true }] }),
+      state({ workouts: [w], dismissedSessions: [{ id: "prov:2026-W42:*", weekId: "2026-W42" }] }),
     );
     const exercises = r.writes.weeks.find((x) => x.weekId === "2026-W42")!.planned!.flatMap((x) => x.exercises);
     expect(exercises.some((e) => e.test)).toBe(false);
@@ -149,7 +149,7 @@ describe("what the AI is told about tests", () => {
 
   it("shows a planned test to the AI the way it would write one", () => {
     const w: Workout = { id: "w", status: "planned", date: null, weekId: "2026-W42", dayOfWeek: "Monday", notes: "Board", loadFactor: 0, exercises: [makeTestSlot({ id: "ts", type: hang, conditions: { edge: 20, grip: "Half crimp" } })] } as Workout;
-    const text = buildPlanContext({ ...state(), workouts: [w], weekOverrides: [{ weekId: "2026-W42", customized: true }], targetWeekIds: ["2026-W42"] });
+    const text = buildPlanContext({ ...state(), workouts: [w], dismissedSessions: [{ id: "prov:2026-W42:*", weekId: "2026-W42" }], targetWeekIds: ["2026-W42"] });
     expect(text).toContain('"test":"Max Hang"');
     expect(text).toContain('"Edge depth":20');
     expect(text).toContain('"Grip":"Half crimp"');

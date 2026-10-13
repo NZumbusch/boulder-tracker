@@ -494,18 +494,14 @@ export interface GoalEvent {
 }
 
 /**
- * Tracks whether a week's auto-generated workouts were manually edited by
- * the user, kept as a **separate, per-week table decoupled from
- * `TrainingBlock`** (the chosen answer to the
- * "what does 'customized' mean once blocks can overlap" question): "has
- * this week been manually edited" stays a per-week concern independent of
- * "what training emphasis covers this week," which is now a per-block
- * concern. Manual edits always take precedence and are never silently
- * overwritten by template/block regeneration.
+ * A session a phase would give a week, deleted on purpose - remembered so
+ * the template doesn't bring it back. `id` is the projected session's id
+ * (`prov:{weekId}:{templateId}`); `prov:{weekId}:*` dismisses everything the
+ * phases would give that week. See `lib/planning/weekProjection.ts`.
  */
-export interface WeekOverride {
+export interface DismissedSession {
+  id: string;
   weekId: string;
-  customized: boolean;
 }
 
 /**
@@ -912,7 +908,7 @@ export interface OutdoorAscent {
 export interface TrainingData {
   workouts: Workout[];
   trainingBlocks: TrainingBlock[];
-  weekOverrides: WeekOverride[];
+  dismissedSessions: DismissedSession[];
   weekNotes: WeekNote[];
   planAlternatives: PlanAlternative[];
   athleteProfile: AthleteProfile[];

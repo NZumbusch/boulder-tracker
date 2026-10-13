@@ -23,7 +23,7 @@ function state(planAlternatives: PlanAlternative[] = []): PlannerState {
     templates: { "p-cap": capacity },
     trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startDate: "2026-09-28", endDate: "2026-12-13" }],
     workouts: [],
-    weekOverrides: [],
+    dismissedSessions: [],
     weekNotes: [],
     planAlternatives,
     currentWeekId: "2026-W40",
@@ -76,7 +76,7 @@ describe("planChanges - Plan B", () => {
     expect(r.writes.weeks.every((w) => w.planned === null)).toBe(true);
 
     // Applied the way the app reads weeks: both plans, Plan A counting.
-    const base = { workouts: [], trainingBlocks: r.writes.trainingBlocks!, templates: r.writes.templates!, weekOverrides: [] };
+    const base = { workouts: [], trainingBlocks: r.writes.trainingBlocks!, templates: r.writes.templates!, dismissed: [] };
     const ctx = { alternatives: r.writes.planAlternatives!, baseWeek: (w: string) => effectiveWorkoutsForWeek(base, w) };
     expect(applyPlanBsToWeek(ctx, "2026-W43").shown.map((w) => w.notes).sort()).toEqual(["Board", "Outdoor bouldering", "Volume"]);
     expect(applyPlanBsToWeek(ctx, "2026-W44").active.map((w) => w.notes).sort()).toEqual(["Limit", "Max hangs"]);
@@ -107,6 +107,7 @@ describe("planChanges - Plan B", () => {
   it("repeats weekly and remembers stored sessions by id", () => {
     const s = state();
     s.workouts = [{ id: "stored-vol", status: "planned", date: null, weekId: "2026-W43", dayOfWeek: "Thursday", notes: "Volume", loadFactor: 0, exercises: [] }];
+    s.dismissedSessions = [{ id: "prov:2026-W43:*", weekId: "2026-W43" }]; // a week saved before sessions were saved one by one
     const r = plan({ planB: [{ start: { week: "2026-W43", day: "Thursday" }, repeatUntil: "2026-W48", changes: [{ week: "2026-W43", sessionChanges: [{ action: "remove", match: { name: "Volume" } }] }] }] }, s);
     const [alt] = r.writes.planAlternatives!;
     expect(alt.repeatUntilWeekId).toBe("2026-W48");

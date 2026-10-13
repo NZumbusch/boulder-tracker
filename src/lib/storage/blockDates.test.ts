@@ -13,7 +13,7 @@ import type { TrainingBlock } from "../types";
 
 const blk = (id: string, from: string, to: string, over: Partial<TrainingBlock> = {}): TrainingBlock => ({ id, name: "Capacity", phaseId: "phase-capacity", startDate: weekMondayIso(from), endDate: weekSundayIso(to), ...over });
 
-beforeEach(() => setDbState({ workouts: [], benchmarks: [], trainingBlocks: [], weekOverrides: [], weekNotes: [], exerciseTypes: [], phaseDefs: [{ id: "phase-capacity", name: "Capacity", color: "bg-amber-500", order: 1 }], templates: {} }));
+beforeEach(() => setDbState({ workouts: [], benchmarks: [], trainingBlocks: [], dismissedSessions: [], weekNotes: [], exerciseTypes: [], phaseDefs: [{ id: "phase-capacity", name: "Capacity", color: "bg-amber-500", order: 1 }], templates: {} }));
 
 describe("blocks are stored as days", () => {
   it("saveTrainingBlock keeps a mid-week range exactly", async () => {
