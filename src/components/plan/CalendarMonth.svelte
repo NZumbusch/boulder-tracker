@@ -7,7 +7,8 @@
   import { DAY_MS, type CalendarSession } from '../../lib/planning/calendarEvents';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
-  import type { GoalEvent } from '../../lib/types';
+  import type { AnalyticsCategory, ExerciseTypeDef, GoalEvent } from '../../lib/types';
+  import { sessionColor } from '../../lib/planning/sessionColors';
 
   let {
     year,
@@ -20,6 +21,8 @@
     onPickMonth,
     phases = new Map(),
     goals = new Map(),
+    exerciseTypes = [],
+    categories = [],
   }: {
     year: number;
     /** 0-11. */
@@ -35,6 +38,9 @@
     phases?: Map<number, PhaseMark>;
     /** The trips and competitions on each day, as a bar along the top of the day (full size only). */
     goals?: Map<number, GoalEvent[]>;
+    /** With the categories, they colour each session by its main category. */
+    exerciseTypes?: ExerciseTypeDef[];
+    categories?: AnalyticsCategory[];
   } = $props();
 
   const first = $derived(Math.floor(Date.UTC(year, month, 1) / DAY_MS));
@@ -57,8 +63,7 @@
   // On a wide screen a day is roomy enough for the sessions' names instead of dots.
   let gridW = $state(0);
   const wide = $derived(!mini && gridW / 7 >= 92);
-  const dotTone = (s: CalendarSession) => (s.done ? 'bg-success' : s.workout.provisional ? 'bg-primary/35' : 'bg-primary');
-  const pillTone = (s: CalendarSession) => (s.done ? 'bg-success/20' : s.workout.provisional ? 'bg-primary/[0.07]' : 'bg-primary/[0.16]');
+  const colorOf = (s: CalendarSession) => sessionColor(s.workout, exerciseTypes, categories) ?? 'bg-primary';
   const monthName = $derived(new Date(Date.UTC(year, month, 1)).toLocaleDateString(undefined, { month: 'long', timeZone: 'UTC' }));
 </script>
 
@@ -72,7 +77,9 @@
       {/each}
     </div>
   {/if}
-  <div class="grid grid-cols-7 {mini ? 'gap-px' : 'gap-0.5'}" bind:clientWidth={gridW}>
+  <div class="relative grid grid-cols-7 {mini ? 'gap-px' : 'gap-0.5'}">
+    <!-- Measures the width only (see CalendarTimeGrid): the grid's own height changes with it. -->
+    <div class="absolute inset-x-0 top-0 h-0 pointer-events-none" bind:clientWidth={gridW}></div>
     {#each cells as day, i (i)}
       {#if day === null}
         <span></span>
@@ -101,17 +108,17 @@
             {#if wide}
               <span class="flex flex-col gap-0.5 min-w-0">
                 {#each list.slice(0, 3) as s (s.workout.id)}
-                  <span class="block truncate rounded px-1 py-0.5 text-[11px] leading-tight text-content {pillTone(s)}">{s.workout.notes || 'Session'}</span>
+                  <span class="relative block overflow-hidden truncate rounded px-1 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span><span class="relative">{s.done ? '✓ ' : ''}{s.workout.notes || 'Session'}</span></span>
                 {/each}
                 {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as e, k (k)}
-                  <span class="block truncate rounded px-1 py-0.5 text-[11px] leading-tight text-content-muted bg-content-subtle/10">{e.title}</span>
+                  <span class="relative block overflow-hidden truncate rounded px-1 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span><span class="relative">{e.title}</span></span>
                 {/each}
                 {#if list.length + (events.get(day)?.length ?? 0) > 3}<span class="text-[10px] leading-none text-content-subtle px-1">+{list.length + (events.get(day)?.length ?? 0) - 3} more</span>{/if}
               </span>
             {:else}
               <span class="flex gap-0.5 h-1.5">
                 {#each list.slice(0, 3) as s (s.workout.id)}
-                  <span class="w-1.5 h-1.5 rounded-full {dotTone(s)}"></span>
+                  <span class="relative w-1.5 h-1.5 rounded-full overflow-hidden bg-surface"><span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span></span>
                 {/each}
                 {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as _e, k (k)}
                   <span class="w-1.5 h-1.5 rounded-full bg-content-subtle/40"></span>

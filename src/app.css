@@ -377,3 +377,13 @@ body {
 :root:not([data-theme="light"]):not([data-theme="contrast"]) :is(.text-tertiary, .hover\:text-tertiary:hover) {
   color: var(--theme-tertiary-text);
 }
+
+/* The calendar's session blocks: a category colour layer under the text - strong with white text on dark, pastel with dark text on light. */
+.cal-fill { opacity: 0.88; }
+.cal-fill.cal-soft { opacity: 0.5; }
+:root[data-theme="light"] .cal-fill { opacity: 0.42; }
+:root[data-theme="light"] .cal-fill.cal-soft { opacity: 0.2; }
+:root[data-theme="contrast"] .cal-fill { opacity: 1; }
+:root[data-theme="contrast"] .cal-fill.cal-soft { opacity: 0.6; }
+.cal-ink { color: #fff; }
+:root[data-theme="light"] .cal-ink { color: var(--theme-content); }
