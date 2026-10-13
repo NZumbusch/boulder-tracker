@@ -51,6 +51,11 @@ export function isProvisionalId(id: string): boolean {
   return id.startsWith(`${PROVISIONAL_ID_PREFIX}:`);
 }
 
+/** The week a projected id belongs to (`prov:{weekId}:...`) - which is not the week a moved session now sits in. */
+export function provisionalIdWeek(id: string): string | undefined {
+  return isProvisionalId(id) ? id.split(":")[1] : undefined;
+}
+
 /** The dismissal that stops a whole week from projecting anything. */
 export function weekDismissalId(weekId: string): string {
   return `${PROVISIONAL_ID_PREFIX}:${weekId}:*`;
@@ -100,7 +105,8 @@ export function templatesForWeek(ctx: WeekProjectionContext, weekId: string): { 
  */
 export function projectWeekWorkouts(ctx: WeekProjectionContext, weekId: string): Workout[] {
   if (isWeekDismissed(ctx, weekId)) return [];
-  const taken = new Set([...ctx.workouts.filter((w) => w.weekId === weekId).map((w) => w.id), ...ctx.dismissed.map((d) => d.id)]);
+  // Any stored session with the template's id stands in for it - also one moved into another week.
+  const taken = new Set([...ctx.workouts.map((w) => w.id), ...ctx.dismissed.map((d) => d.id)]);
   const wanted = templatesForWeek(ctx, weekId).filter(({ template }) => !taken.has(provisionalWorkoutId(weekId, template.id)));
   const ids = projectionIds(weekId);
   return wanted.flatMap(({ template, block }) =>

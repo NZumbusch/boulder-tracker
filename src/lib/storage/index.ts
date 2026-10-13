@@ -27,7 +27,7 @@ import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
 import { coalesceBlocks, getDominantBlockForWeek, blockTouchesWeek, normalizeBlocks } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
-import { toStoredWorkout, isProvisionalId, weekDismissalId } from "../planning/weekProjection";
+import { toStoredWorkout, provisionalIdWeek, weekDismissalId } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
 import type { SettingsRecord } from "../preferences/portable";
 import { scrubValueDef } from "../exercise/valueDefs";
@@ -225,7 +225,9 @@ export const storage = {
     const workouts = await this._getWorkouts();
     const workout = workouts.find((w) => w.id === id);
     await this._saveWorkouts(workouts.filter((w) => w.id !== id));
-    if (workout?.weekId && isProvisionalId(id)) await this.dismissSession(id, workout.weekId);
+    // Remembered under the week its template belongs to, even when the session was moved to another.
+    const origin = provisionalIdWeek(id);
+    if (workout && origin) await this.dismissSession(id, origin);
   },
 
   /** Remembers that a session a phase would give `weekId` was deleted (it may never have been stored). */

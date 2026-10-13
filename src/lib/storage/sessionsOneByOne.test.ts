@@ -84,6 +84,14 @@ describe("deleting a session", () => {
     expect(await storage.getDismissedSessions()).toEqual([dismissal(BOARD)]);
   });
 
+  it("one moved to another week is remembered under its own week, so resetting the week it sits in doesn't bring it back", async () => {
+    seed({ workouts: [stored("2026-W26", BOARD)] }); // Board belongs to W25's template, now sits in W26
+    await storage.deleteWorkout(BOARD);
+    expect(await storage.getDismissedSessions()).toEqual([dismissal(BOARD, WEEK)]);
+    await storage.resetWeekToPhaseDefaults("2026-W26");
+    expect(await storage.getDismissedSessions()).toEqual([dismissal(BOARD, WEEK)]);
+  });
+
   it("dismissSession remembers a projected session that was never stored, once", async () => {
     await storage.dismissSession(ENDURANCE, WEEK);
     await storage.dismissSession(ENDURANCE, WEEK);
