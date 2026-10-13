@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Read-only: the app never writes to the calendar. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+</manifest>

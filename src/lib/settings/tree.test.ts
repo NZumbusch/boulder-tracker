@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SETTINGS_SECTIONS, findPage, searchSettings, settingsPath, visiblePages, visibleSections, type SettingsContext } from "./tree";
 
-const phone: SettingsContext = { native: true, widgets: true, healthConnect: true };
-const browser: SettingsContext = { native: false, widgets: false, healthConnect: false };
+const phone: SettingsContext = { native: true, widgets: true, healthConnect: true, deviceCalendar: true };
+const browser: SettingsContext = { native: false, widgets: false, healthConnect: false, deviceCalendar: false };
 
 describe("the settings tree", () => {
   it("has unique pages, each in exactly one section", () => {
@@ -13,7 +13,7 @@ describe("the settings tree", () => {
 
   it("leaves out what the device cannot do", () => {
     const data = SETTINGS_SECTIONS.find((s) => s.id === "data")!;
-    expect(visiblePages(data, phone).map((p) => p.id)).toEqual(["sync", "healthConnect", "exports", "widgets"]);
+    expect(visiblePages(data, phone).map((p) => p.id)).toEqual(["sync", "healthConnect", "deviceCalendar", "exports", "widgets"]);
     expect(visiblePages(data, browser).map((p) => p.id)).toEqual(["sync", "exports"]);
     expect(visibleSections(browser)).toHaveLength(8);
   });

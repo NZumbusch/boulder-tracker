@@ -13,7 +13,7 @@ export type PageId =
   | "model" | "pain" | "weather"
   | "reminders"
   | "coach" | "aiSharing" | "aiDirect"
-  | "sync" | "healthConnect" | "exports" | "widgets"
+  | "sync" | "healthConnect" | "deviceCalendar" | "exports" | "widgets"
   | "about";
 
 /** What the running app can offer; pages that need more are left out of the lists. */
@@ -24,6 +24,8 @@ export interface SettingsContext {
   widgets: boolean;
   /** Health Connect is available on this device. */
   healthConnect: boolean;
+  /** The phone's calendars can be read (Android). */
+  deviceCalendar: boolean;
 }
 
 export interface SettingsPage {
@@ -112,11 +114,12 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     id: "data",
     label: "Data & connections",
-    hint: "Sync, backup, Health Connect, exports, widgets",
+    hint: "Sync, backup, Health Connect, phone calendar, exports, widgets",
     icon: "ic:baseline-cloud-sync",
     pages: [
       { id: "sync", label: "Sync & backup", hint: "Google Drive sync, backups, settings file, start over", icon: "ic:baseline-cloud-sync" },
       { id: "healthConnect", label: "Health Connect", hint: "Resting heart rate, weight and sleep from your watch", icon: "ic:baseline-monitor-heart", needs: "healthConnect" },
+      { id: "deviceCalendar", label: "Phone calendar", hint: "Show your calendar's events beside your sessions on the Plan calendar", icon: "ic:baseline-edit-calendar", needs: "deviceCalendar" },
       { id: "exports", label: "Calendar & PDF", hint: "Your plan in your calendar, a printable PDF", icon: "ic:baseline-swap-horiz" },
       { id: "widgets", label: "Widgets", hint: "Today, readiness, this week and quick log for the home screen", icon: "ic:baseline-widgets", needs: "widgets" },
     ],
@@ -218,6 +221,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Export or import settings", page: "sync", words: "transfer file" },
   { label: "Start over", page: "sync", words: "erase delete reset wipe" },
   { label: "Health Connect import", page: "healthConnect", words: "garmin watch rhr sleep weight" },
+  { label: "Phone calendar events", page: "deviceCalendar", words: "google samsung calendar appointments busy plan around" },
   { label: "Calendar file", page: "exports", words: "ics google calendar" },
   { label: "Printable plan PDF", page: "exports" },
   { label: "Test fields and presets", page: "benchmarks", words: "benchmark max hang edge reps weight time condition result test" },

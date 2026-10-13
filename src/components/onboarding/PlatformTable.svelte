@@ -15,6 +15,7 @@
     ['Timer sound, screen locked', ['Yes', true], ['No: keep the screen on', false], ['No: keep the screen on', false]],
     ['Widgets, shortcuts', ['Yes', true], ['No', false], ['No', false]],
     ['Health Connect import', ['Yes', true], ['No', false], ['No', false]],
+    ['Phone calendar on the Plan', ['Yes', true], ['No', false], ['No', false]],
     ['Backups', ['Automatic, weekly', true], ['By hand', false], ['By hand', false]],
   ];
 </script>
