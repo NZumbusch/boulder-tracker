@@ -19,7 +19,7 @@
  */
 import type { DayOfWeek, ExerciseValues, ParameterBlock, PlanSide } from "../types";
 import { PARAMETER_LABELS } from "../constants";
-import { getWeekIdRange } from "../dateUtils";
+import { addDaysIso, getWeekIdRange, weekIdOfIso } from "../dateUtils";
 import { resolveValueFieldName } from "./valueSpec";
 import { MAX_COACH_NOTE_LENGTH, type CoachNoteChange } from "./coachNotes";
 import {
@@ -177,8 +177,11 @@ export type CSPhaseChange =
   | { action: "delete"; name: string };
 
 export interface CSWeekChange {
-  /** Every week this entry applies to, in order (one for "week", the range for "from"/"to"). */
+  /** Every week this entry applies to, in order (one for "week", the range for "from"/"to", the weeks the days touch for "fromDate"/"toDate"). */
   weekIds: string[];
+  /** A phase for exactly these days ("YYYY-MM-DD", both inclusive) instead of whole weeks: it only sets the phase, sessions are not touched. Needs `phase`. */
+  fromDate?: string;
+  toDate?: string;
   /** Assign this phase to the weeks. */
   phase?: string;
   /** Spell the week out: these replace its planned sessions. */
@@ -773,7 +776,25 @@ function validateWeekChange(raw: unknown, path: string, issues: Issues): CSWeekC
     return null;
   }
   let weekIds: string[] = [];
-  if (raw.week !== undefined) {
+  let fromDate: string | undefined;
+  let toDate: string | undefined;
+  if (raw.fromDate !== undefined || raw.toDate !== undefined) {
+    const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && addDaysIso(v, 0) === v;
+    if (raw.week !== undefined || raw.from !== undefined || raw.to !== undefined) {
+      issues.push({ path, message: 'Use "fromDate"/"toDate" (days) or "week"/"from"/"to" (whole weeks), not both.' });
+    } else if (!isDate(raw.fromDate) || !isDate(raw.toDate)) {
+      issues.push({ path, message: 'Needs both "fromDate" and "toDate" as days like "2026-10-15".' });
+    } else if (raw.fromDate > raw.toDate) {
+      issues.push({ path: `${path}.toDate`, message: `"toDate" (${raw.toDate}) is before "fromDate" (${raw.fromDate}).` });
+    } else {
+      [fromDate, toDate] = [raw.fromDate, raw.toDate];
+      weekIds = getWeekIdRange(weekIdOfIso(fromDate), weekIdOfIso(toDate));
+    }
+    if (raw.sessions !== undefined || raw.sessionChanges !== undefined) {
+      issues.push({ path, message: '"fromDate"/"toDate" only set a phase for those days. To change sessions, use a week entry ("week" or "from"/"to").' });
+      return null;
+    }
+  } else if (raw.week !== undefined) {
     if (typeof raw.week === "string" && WEEK_ID.test(raw.week)) weekIds = [raw.week];
     else issues.push({ path: `${path}.week`, message: `Expected a week id like "2026-W25", got ${JSON.stringify(raw.week)}.` });
     if (raw.from !== undefined || raw.to !== undefined) issues.push({ path, message: 'Use "week" for one week or "from"/"to" for a range, not both.' });
@@ -793,6 +814,7 @@ function validateWeekChange(raw: unknown, path: string, issues: Issues): CSWeekC
   }
   const change: CSWeekChange = {
     weekIds,
+    ...(fromDate && toDate ? { fromDate, toDate } : {}),
     phase: validateOptionalString(raw.phase, `${path}.phase`, issues)?.trim() || undefined,
     sessions: raw.sessions === undefined ? undefined : validateSessions(raw.sessions, `${path}.sessions`, issues),
     sessionChanges: raw.sessionChanges === undefined ? undefined : validateSessionChanges(raw.sessionChanges, `${path}.sessionChanges`, issues),
@@ -804,6 +826,10 @@ function validateWeekChange(raw: unknown, path: string, issues: Issues): CSWeekC
     delete change.blockNotes;
   }
   if (weekIds.length === 0) return null;
+  if (fromDate && !change.phase) {
+    issues.push({ path, message: '"fromDate"/"toDate" need a "phase" to start on those days.' });
+    return null;
+  }
   if (!change.phase && !change.sessions && !change.sessionChanges?.length && !change.notes) {
     issues.push({ path, message: 'A week entry needs at least one of "phase", "sessions", "sessionChanges" or "notes".' });
     return null;
@@ -958,6 +984,6 @@ export function isChangeSetShape(raw: unknown): boolean {
   const phases = Array.isArray(raw.phases) ? raw.phases : [];
   const weeks = Array.isArray(raw.weeks) ? raw.weeks : [];
   if (phases.some((p) => isPlainObject(p) && "action" in p)) return true;
-  if (weeks.some((w) => isPlainObject(w) && ("week" in w || "from" in w))) return true;
+  if (weeks.some((w) => isPlainObject(w) && ("week" in w || "from" in w || "fromDate" in w))) return true;
   return false;
 }

@@ -21,7 +21,7 @@ import { isWeighInType } from "../benchmarks/bodyweight";
 import { DEFAULT_RETEST_WEEKS, plannedTestsByType, testStatuses } from "../benchmarks/testSlot";
 import { repsRepresentative } from "../exercise/reps";
 import { hasPerSet, setRows } from "../exercise/setRows";
-import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate } from "../dateUtils";
+import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate, weekMondayIso, weekSundayIso } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
 import { exerciseGroup } from "../exercise/library";
 import { customValuesReference } from "./valueSpec";
@@ -270,6 +270,9 @@ export interface TrainingBlockSummary {
   phaseName: string;
   startWeekId: string;
   endWeekId: string;
+  /** Only for a block that starts or ends mid-week: its exact first and last day. */
+  startDate?: string;
+  endDate?: string;
   /** Only when note sharing is on and the block has one. */
   notes?: string;
 }
@@ -309,6 +312,7 @@ export function buildTrainingBlockContext(
       phaseName: phaseName(b.phaseId),
       startWeekId: blockFirstWeekId(b),
       endWeekId: blockLastWeekId(b),
+      ...(b.startDate !== weekMondayIso(blockFirstWeekId(b)) || b.endDate !== weekSundayIso(blockLastWeekId(b)) ? { startDate: b.startDate, endDate: b.endDate } : {}),
       ...(includeNotes && b.notes ? { notes: b.notes } : {}),
     }))
     .sort((a, b) => (a.startWeekId < b.startWeekId ? -1 : a.startWeekId > b.startWeekId ? 1 : 0));

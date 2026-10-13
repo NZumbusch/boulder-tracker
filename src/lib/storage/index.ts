@@ -796,7 +796,9 @@ export const storage = {
 
           if (data.workouts) _dbState.workouts = data.workouts;
           if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
-          if (data.weekOverrides) _dbState.weekOverrides = data.weekOverrides;
+          // Always set (a backup can have none): the replaced data's dismissals must not outlive it.
+          _dbState.dismissedSessions = data.dismissedSessions ?? [];
+          delete _dbState.weekOverrides;
           if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
           if (data.planAlternatives) _dbState.planAlternatives = data.planAlternatives;
           if (data.athleteProfile) _dbState.athleteProfile = data.athleteProfile;

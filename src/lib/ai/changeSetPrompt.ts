@@ -53,15 +53,17 @@ The app applies "categories" first, then "exerciseTypes", then "circuits", then 
   { "action": "edit", "name": "Capacity", "rename": "Base", "sessions": [ SESSION, ... ] }   (replace the whole typical week)
   { "action": "edit", "name": "Capacity", "sessionChanges": [ SESSION CHANGE, ... ] }   (change individual sessions - preferred for small changes)
   { "action": "delete", "name": "Old Phase" }   (reassign its weeks in "weeks", or they keep following it)
-  - Editing a phase changes every week that follows it. To change one week only, edit the week instead.
+  - Editing a phase changes the sessions that still follow it (every week where the athlete hasn't changed, moved or deleted them). Sessions they have already changed or logged keep what they are. To change one week only, edit the week instead.
 
 3) "weeks" - one entry per week ("week") or per range of weeks ("from" + "to", inclusive). Week ids look like "2026-W40" and should be from the Target Timeframe. Three ways to set a week, pick one per entry:
   a) Follow a phase:     { "from": "2026-W40", "to": "2026-W43", "phase": "Power", "blockNotes": "why this block" }
-     The weeks get the phase's typical week; their planned sessions are replaced by it. Prefer this whenever a week is just "a normal week of phase X" - it keeps the plan short and the weeks follow later phase edits.
+     The weeks get the phase's typical week; their planned sessions are replaced by it (anything the athlete changed or deleted in those weeks is reset to the phase). Prefer this whenever a week is just "a normal week of phase X" - it keeps the plan short and the weeks follow later phase edits.
   b) Spell the week out: { "week": "2026-W44", "phase": "Deload", "sessions": [ SESSION, ... ] }
      The week's planned sessions become exactly these ("phase" optional). Use for a week that differs a lot from its phase (a test week, a trip, a taper week).
   c) Edit the week:      { "week": "2026-W45", "sessionChanges": [ SESSION CHANGE, ... ] }
      Changes what the week has now (see TARGET WEEKS above - a week that "follows its phase" has its phase's typical week). Use for small differences: one extra session, a lighter day, a changed value. Add "phase" too to base the edits on a different phase's typical week.
+  d) A phase for exact days: { "fromDate": "2026-10-15", "toDate": "2026-11-01", "phase": "Deload", "blockNotes": "why" }
+     Phases are ranges of DAYS, so one may start or end mid-week (BLOCKS above show "startDate"/"endDate" for a block that does; a week can hold two phases). This only sets the phase for those days (both inclusive; the blocks there are cut to make room): sessions are NOT touched - ones still following a phase move to the new one by themselves, ones the athlete changed or logged stay. Needs "phase"; don't combine with "week"/"from"/"to", "sessions" or "sessionChanges" (use a week entry for those). Use it only when the boundary really falls mid-week (a trip, a taper that starts Thursday); otherwise whole weeks (a) are simpler.
   Any entry may also carry "notes" (a note for that week - applied to each week of a range). "blockNotes" needs "phase".
   Completed sessions are never changed. Don't include weeks you are not changing.
 

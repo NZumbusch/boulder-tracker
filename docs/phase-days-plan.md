@@ -96,7 +96,11 @@ Kept as a dual model for one commit, then merged: two copies of one fact (weeks 
 - Trips and competitions are bars across their days in Day/Week (rows when they overlap; cut at the edge when they go on), a bar along the top of each day in Month, a line on their days in the week list.
 - Hold-and-drag (~0.35 s, 8 px slop) moves a planned session to another day/time (quarter hours, kept inside the day, the grab point kept); a press that moves at once stays a scroll or swipe; finished, running and Plan B sessions can't be dragged. Verified with emulated touch in headless Chrome, not on a phone.
 
+### Added after the first pass (2026-10-14)
+- **AI day-level phases (open question 3, decided: yes):** a week entry may carry `fromDate`/`toDate` ("YYYY-MM-DD", inclusive) + `phase` instead of `week`/`from`/`to`. It only sets the phase for those days (blocks carved with `carveBlocks`); sessions are not touched - ones still following a phase move to the new one, saved ones stay (the review says how many). Not combinable with weeks, `sessions` or `sessionChanges`. The prompt documents it (form d); the BLOCKS lines and block summaries give `startDate`/`endDate` for a block that starts or ends mid-week.
+- **Year view phases (decided: lines, not per-day bars):** one continuous line per phase along each week row in Month and Year (breaks where the phase changes or the row ends), under the dates; follows "Show phases in the calendar".
+- **Bug found by testing with the real backup path:** backup import never loaded `dismissedSessions` (and kept the replaced data's) - fixed, with tests.
+- `src/lib/storage/realBackup.private.test.ts` (git-ignored, like `stuff/`) runs the migration, projection, AI planner, block reviews and calendar export over Nathan's own backup when it is present. On the 2026-10-11 backup: migrates with its invariants, and every week from W20 2026 to W20 2027 shows exactly what the old model showed.
+
 ### Still open
-- Open question 3: the AI cannot yet set a block's first/last day (it speaks in week ids; it is told the exact days of a block that starts or ends mid-week).
-- A phase mark per week in the Year view.
-- Nothing here has been run on a real phone, and none of the migrations has met Nathan's real data - run `docs/qa-checklist.md` section 12 (12.1 first) before pushing. All devices must update before sync resumes (data 3.36).
+- Nothing here has been run on a real phone; run `docs/qa-checklist.md` section 12 (12.1 and 12.15 first) before pushing. All devices must update before sync resumes (data 3.36).

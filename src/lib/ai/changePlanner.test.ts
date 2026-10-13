@@ -147,6 +147,32 @@ describe("planChanges - weeks", () => {
     expect(week.details).toContain("each week: + Tue Limit (0 exercises)");
   });
 
+  it("a phase for exact days carves the block there and touches no session", () => {
+    // 2026-10-07 is a Wednesday of W41: Capacity (14 Sep - 25 Oct) is cut around Wed 7 - Tue 13 Oct.
+    const r = plan({
+      phases: [{ action: "add", name: "Power", sessions: [{ name: "Limit", dayOfWeek: "Tuesday", exercises: [] }] }],
+      weeks: [{ fromDate: "2026-10-07", toDate: "2026-10-13", phase: "Power", blockNotes: "Peak" }],
+    });
+    expect(r.writes.trainingBlocks!.map((b) => `${b.name}:${b.startDate}..${b.endDate}`).sort()).toEqual(["Capacity:2026-09-14..2026-10-06", "Capacity:2026-10-14..2026-10-25", "Power:2026-10-07..2026-10-13"]);
+    expect(r.writes.trainingBlocks!.find((b) => b.name === "Power")!.notes).toBe("AI: Peak");
+    expect(r.writes.weeks).toEqual([]); // sessions are left to follow their phase, or stay as saved
+    expect(r.items.find((i) => i.section === "week")!.details).toContain("phase Capacity → Power from 2026-10-07 to 2026-10-13");
+  });
+
+  it("says how many saved sessions on those days stay as they are", () => {
+    const s = state();
+    s.workouts = [...s.workouts, { id: "x", status: "planned", date: null, weekId: "2026-W41", dayOfWeek: "Thursday", notes: "Mine", loadFactor: 0, exercises: [] } as Workout, { id: "y", status: "planned", date: null, weekId: "2026-W41", dayOfWeek: "Monday", notes: "Other", loadFactor: 0, exercises: [] } as Workout];
+    const v = validateChangeSet({ weeks: [{ fromDate: "2026-10-07", toDate: "2026-10-13", phase: "Deload" }] });
+    const r = planChanges(v.data!, s, undefined, ids);
+    expect(r.items[0].details.join("\n")).toContain("1 planned session you already changed on those days stays as it is");
+  });
+
+  it("a phase for days needs the phase to exist", () => {
+    const r = plan({ weeks: [{ fromDate: "2026-10-07", toDate: "2026-10-13", phase: "Nope" }] });
+    expect(r.items[0].errors[0]).toContain('No phase called "Nope"');
+    expect(r.writes.trainingBlocks).toBeUndefined();
+  });
+
   it("a week that just follows a phase stores nothing, even around completed sessions", () => {
     const r = plan({ weeks: [{ week: "2026-W39", phase: "Deload" }] });
     const w = r.writes.weeks[0];
