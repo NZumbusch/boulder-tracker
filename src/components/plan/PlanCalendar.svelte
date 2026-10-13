@@ -23,7 +23,8 @@
   import CalendarMonth from './CalendarMonth.svelte';
   import CalendarAgenda from './CalendarAgenda.svelte';
   import { phaseMarks } from '../../lib/planning/phaseStrip';
-  import type { DayOfWeek } from '../../lib/types';
+  import { goalBars, goalsByDay } from '../../lib/planning/goalBars';
+  import type { DayOfWeek, Workout } from '../../lib/types';
 
   type Mode = 'day' | 'week' | 'month' | 'year';
   const MODES: { id: Mode; label: string }[] = [
@@ -141,6 +142,14 @@
     const time = startMin === undefined ? undefined : `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`;
     onAdd(weekIdOfDayIndex(day), dayNameOf(day), time);
   }
+  /** A planned session dragged to another day or time: saved there (the session alone - the rest of its week is untouched). */
+  async function moveSession(s: CalendarSession, day: number, startMin?: number) {
+    const dayName = dayNameOf(day);
+    const weekId = weekIdOfDayIndex(day);
+    const startTime = startMin === undefined ? s.workout.startTime : `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`;
+    if (s.workout.dayOfWeek === dayName && s.workout.weekId === weekId && s.workout.startTime === startTime) return;
+    await trainingState.saveWorkoutQuiet({ ...($state.snapshot(s.workout) as Workout), weekId, dayOfWeek: dayName, startTime });
+  }
   const agenda = $derived(trainingState.tunableOn('plan.weekAgenda'));
   /** The phase on each day shown (Settings -> Plan calendar). The year overview doesn't draw it. */
   const phases = $derived(
@@ -148,6 +157,9 @@
       ? phaseMarks(trainingState.trainingBlocks, trainingState.phaseDefs, Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i))
       : new Map(),
   );
+  /** Trips and competitions among the days shown (not in the year overview). */
+  const shownDays = $derived(Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i));
+  const goalsOnDays = $derived(mode === 'year' ? new Map() : goalsByDay(trainingState.goals, shownDays));
   const phaseNames = $derived(trainingState.tunableOn('plan.calendarPhaseNames'));
   const isRunning = (s: CalendarSession) => trainingState.sessionStore.isRunning(s.workout.id);
 </script>
@@ -201,6 +213,7 @@
       onAdd={(day) => addAt(day)}
       {phases}
       {phaseNames}
+      goals={goalsOnDays}
     />
     {#if noDayCount > 0}
       <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
@@ -220,6 +233,8 @@
       {phases}
       {phaseNames}
       onPickPhase={(day) => onEditPhase?.(dayIndexToIso(day))}
+      goals={goalBars(trainingState.goals, shownDays)}
+      onMove={moveSession}
     />
     {#if sessions.length === 0}
       <p class="text-caption text-content-subtle italic text-center py-4">{mode === 'day' ? 'Nothing planned - tap + to add a session.' : 'Nothing planned this week.'}</p>
@@ -228,7 +243,7 @@
       <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
     {/if}
   {:else if mode === 'month'}
-    <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} />
+    <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} goals={goalsOnDays} />
   {:else}
     <div class="grid grid-cols-3 gap-x-3 gap-y-4">
       {#each Array.from({ length: 12 }, (_, i) => i) as m (m)}

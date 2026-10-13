@@ -7,6 +7,7 @@
   import { DAY_MS, type CalendarSession } from '../../lib/planning/calendarEvents';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
+  import type { GoalEvent } from '../../lib/types';
 
   let {
     year,
@@ -18,6 +19,7 @@
     onPickDay,
     onPickMonth,
     phases = new Map(),
+    goals = new Map(),
   }: {
     year: number;
     /** 0-11. */
@@ -31,6 +33,8 @@
     onPickMonth?: (month: number) => void;
     /** The phase on each day, as a thin bar under the date (full size only; empty = off). */
     phases?: Map<number, PhaseMark>;
+    /** The trips and competitions on each day, as a bar along the top of the day (full size only). */
+    goals?: Map<number, GoalEvent[]>;
   } = $props();
 
   const first = $derived(Math.floor(Date.UTC(year, month, 1) / DAY_MS));
@@ -73,6 +77,7 @@
             class="h-14 flex flex-col items-center gap-1 pt-1.5 rounded-control hover:bg-surface-elevated/60 transition-colors relative overflow-hidden"
           >
             {#if phases.get(day)?.color}<span class="absolute inset-x-0 bottom-0 h-0.5 {phases.get(day)?.color}" aria-hidden="true"></span>{/if}
+            {#if goals.get(day)}<span class="absolute inset-x-0 top-0 h-1 {goals.get(day)?.some((g) => g.kind === 'competition') ? 'bg-warning' : 'bg-primary'}" aria-hidden="true"></span>{/if}
             <span class="text-label tabular-nums w-6 h-6 flex items-center justify-center rounded-full {day === today ? 'bg-primary text-white font-bold' : 'text-content'}">{date}</span>
             <span class="flex gap-0.5 h-1.5">
               {#each list.slice(0, 3) as s (s.workout.id)}
