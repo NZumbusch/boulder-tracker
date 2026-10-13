@@ -1505,9 +1505,8 @@ class TrainingState {
   }
 
   /**
-   * Sets `weekId`'s note (blank deletes it). Deliberately not routed
-   * through the materialise gate: a note belongs to the week, not to its
-   * sessions, so writing one leaves a provisional week provisional.
+   * Sets `weekId`'s note (blank deletes it). A note belongs to the
+   * week, not to its sessions, so writing one saves no session.
    */
   async saveWeekNote(weekId: string, text: string) {
     await this.planningStore.saveWeekNote(weekId, text);

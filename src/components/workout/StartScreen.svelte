@@ -162,7 +162,7 @@
               <span class="text-label font-bold text-content block truncate">{p.notes}</span>
               <span class="text-caption text-content-subtle flex items-center gap-1">
                 {#if p.provisional}
-                  <!-- Still projected from the phase - logging it materialises the week. -->
+                  <!-- Still projected from the phase - logging it saves just this session. -->
                   <Icon icon="ic:outline-cloud-queue" class="text-xs text-primary/70 shrink-0" />
                 {/if}
                 <span class="truncate">

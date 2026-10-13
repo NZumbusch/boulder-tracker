@@ -235,7 +235,7 @@
       // lib/planning/weekProjection.ts) still contributes its planned load
       // and training mix. Reading `trainingState.workouts` directly here
       // would make the target path drop to zero for every
-      // not-yet-materialised week.
+      // week that still follows its phase.
       bucket.weekIds.flatMap((id) => trainingState.getWorkoutsForWeek(id)).forEach((w: Workout) => {
         column.workouts.push(w);
         if (w.status === 'completed') column.load += (w.loadFactor || 0);

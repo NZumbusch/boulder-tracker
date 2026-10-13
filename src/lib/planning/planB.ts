@@ -10,7 +10,7 @@ import { generateWorkoutsFromTemplate } from "./generateWorkoutsFromTemplate";
  * stored. A `PlanAlternative` holds only the differences Plan B makes on
  * top (swap this session, drop that one, add another), and they are
  * applied here whenever a week is read. Nothing about a Plan B is written
- * into weeks, so it never materialises one, crosses week and phase
+ * into weeks, so it never saves a week's sessions, crosses week and phase
  * boundaries freely, and keeps working when the plan under it changes -
  * a change whose Plan A session has gone is reported as stale instead.
  *

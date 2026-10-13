@@ -545,7 +545,7 @@
 
         <div class="flex items-center shrink-0 -mr-1.5 -mt-1">
           <!-- Filled when the week has a note, outline when not. Opening it
-               never materialises the week - see WeekNote. -->
+               saves no session - see WeekNote. -->
           <button
             onclick={() => showWeekNote = true}
             class="p-1.5 rounded-control transition-colors hover:bg-surface-elevated {selectedWeekNote ? 'text-primary' : 'text-content-subtle hover:text-content'}"
