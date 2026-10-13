@@ -19,7 +19,7 @@ const w = (id: string, weekId: string, status: Workout["status"] = "planned"): W
   ({ id, status, date: status === "completed" ? "2026-09-22" : null, weekId, loadFactor: 0, exercises: [] }) as Workout;
 
 const plan = {
-  trainingBlocks: [{ id: "ai", name: "AI block", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W41" }],
+  trainingBlocks: [{ id: "ai", name: "AI block", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-11" }],
   weeks: [{ weekId: "2026-W40", planned: [w("ai1", "2026-W40")], customized: true }],
   weekNotes: [{ weekId: "2026-W40", text: "AI: go" }],
 };
@@ -28,7 +28,7 @@ beforeEach(() => {
   for (const k of Object.keys(kv)) delete kv[k];
   setDbState({
     workouts: [w("a", "2026-W40"), w("done", "2026-W39", "completed")],
-    trainingBlocks: [{ id: "old", name: "Old", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W42" }],
+    trainingBlocks: [{ id: "old", name: "Old", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-18" }],
     weekOverrides: [],
     weekNotes: [],
     planAlternatives: [],
@@ -142,5 +142,16 @@ describe("the plan history", () => {
     const ids = (await storage.getWorkouts()).map((w) => w.id);
     expect(ids).toContain("done");
     expect(ids).not.toContain("2026-W42-One");
+  });
+
+  it("a record written before blocks were days (whole weeks) restores as days", async () => {
+    await storage.applyPlanWrites(plan);
+    const { readPlanUndo, writePlanUndo } = await import("./persistence");
+    const [record] = (await readPlanUndo<any>()) as any[];
+    const old = { id: "old", name: "Old", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W41" };
+    await writePlanUndo([{ ...record, before: { ...record.before, trainingBlocks: [old] }, after: { ...record.after, trainingBlocks: [old] } }]);
+    expect(await storage.getPlanUndo()).toBeTruthy();
+    await storage.undoPlanChange();
+    expect(await storage.getTrainingBlocks()).toEqual([{ id: "old", name: "Old", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-11" }]);
   });
 });

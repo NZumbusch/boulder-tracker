@@ -67,7 +67,7 @@ describe("undoing an AI plan change from its toast", () => {
   it("puts the blocks back", async () => {
     const blocksBefore = trainingState.trainingBlocks.map((b) => b.id);
     await trainingState.applyPlanWrites({
-      trainingBlocks: [{ id: "ai", name: "AI", phaseId: "p", startWeekId: "2026-W40", endWeekId: "2026-W41" }],
+      trainingBlocks: [{ id: "ai", name: "AI", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-11" }],
       weeks: [],
       weekNotes: [],
     });

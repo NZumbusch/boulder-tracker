@@ -68,9 +68,13 @@ Every version bump means all of Nathan's devices must update before sync resumes
 
 ## Progress log
 
-### Stage 1 (done, data 3.35)
-- `startDate`/`endDate` on `TrainingBlock` (optional in the type until stage 6). Migration 3.34 -> 3.35 writes them from the weeks; `withBlockDates` is applied wherever blocks are saved (`_saveTrainingBlocks`, `applyPlanWrites`, import, coalescing). **For now the weeks still decide**: any write path that changes only week ids gets fresh dates. Stage 2 flips this (dates decide, weeks derived) once every writer sets dates.
-- Helpers in `planning/trainingBlocks.ts`: `blockStartDate`, `blockEndDate`, `phaseOnDay`, `phasesInWeek`, `winningPhaseOfWeek`; day helpers in `dateUtils.ts` (`addDaysIso`, `weekMondayIso`, `weekSundayIso`, `weekDayIsos`, `weekIdOfIso`).
-- Neutrality is tested: on random plans (priorities, overlaps, New Year, week 53) `winningPhaseOfWeek` gives what `getDominantBlockForWeek` gave.
+### Stages 1, 2 and 6 (done together, data 3.35)
+Kept as a dual model for one commit, then merged: two copies of one fact (weeks and dates) was a stale-data risk, and the compiler can find every caller once the week fields are gone from the type.
+- `TrainingBlock` is `startDate`/`endDate` only (inclusive "YYYY-MM-DD"). Migration 3.34 -> 3.35 turns whole weeks into Monday/Sunday and drops the week ids (and a block with no usable weeks, which covered nothing). `normalizeBlock(s)` reads the old shape wherever it can still turn up: import, sync of older docs (through the same migration), plan-undo records written before 3.35.
+- Helpers in `planning/trainingBlocks.ts`: `phaseOnDay`, `phasesInWeek`, `winningPhaseOfWeek` (= `getDominantBlockForWeek`, so every existing caller got the day-aware answer), `getBlocksForWeek`/`blockTouchesWeek`, `blockFirstWeekId`/`blockLastWeekId`/`blockWeekIds`. Day helpers in `dateUtils.ts`.
+- Callers moved: block review (sessions counted by their own day, weekly series whole weeks, `partial` flag + line), paging/outlook (`nextBlock` by day, `daysUntilDate`), Home card, Plan-wide week lookups, copy-on-write projection, ICS export, AI context/planContext (week ids as before, plus exact days for a block that starts or ends mid-week), AI planner (`carveBlocks` on days), starter plans, demo data, storage (`assignPhaseToWeek`, `clearWeekData`), Block manager (two date inputs - the redesign is stage 5).
+- Neutrality is tested: on random plans (priorities, overlaps, New Year, week 53) the new rule gives every week the answer the old week-id rule gave, and the migration is checked against the old rule too.
 - **Judgment call - ties**: the plan said a tie in days goes "to the later phase". Implemented as *the block created later* (later in the list), not the later start, so that whole-week overlapping blocks behave exactly as before. It only matters for a week split into equal parts (3+3 days with a gap day).
+- **Judgment call - AI**: AI replies still speak in week ids (phases cover whole weeks); an optional date for mid-week blocks (open question 3) is not built yet.
 - **Found and fixed on the way**: `getWeekId` gave the wrong week from April to October in southern-hemisphere zones (Auckland: a daylight-saving hour made a `Math.ceil` overshoot). It now uses calendar arithmetic; tested in five zones.
+- Not yet checked on a screen: the Block manager's date inputs, Home's "Next block" line (now shows the start date).

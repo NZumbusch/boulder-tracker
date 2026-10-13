@@ -32,8 +32,8 @@ const BLOCK: TrainingBlock = {
   id: "blk1",
   name: "Capacity",
   phaseId: "phase1",
-  startWeekId: "2026-W20",
-  endWeekId: "2026-W23",
+  startDate: "2026-05-11",
+  endDate: "2026-06-07",
 };
 
 function ctx(overrides: Partial<WeekProjectionContext> = {}): WeekProjectionContext {
@@ -160,7 +160,7 @@ describe("coveredWeekIds", () => {
   it("expands each block's range and deduplicates overlaps", () => {
     const ids = coveredWeekIds([
       BLOCK,
-      { ...BLOCK, id: "blk2", startWeekId: "2026-W22", endWeekId: "2026-W24" },
+      { ...BLOCK, id: "blk2", startDate: "2026-05-25", endDate: "2026-06-14" },
     ]);
     expect(ids).toEqual(["2026-W20", "2026-W21", "2026-W22", "2026-W23", "2026-W24"]);
   });

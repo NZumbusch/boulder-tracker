@@ -11,6 +11,7 @@ vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false }
 import { storage } from "./index";
 import { setDbState } from "./persistence";
 import type { ExerciseSlot, TrainingBlock, WeekOverride, Workout, WorkoutTemplate } from "../types";
+import { weekMondayIso, weekSundayIso } from "../dateUtils";
 
 const PHASE_ID = "phase-capacity";
 const WEEK = "2026-W25";
@@ -154,7 +155,7 @@ describe("resetWeekToPhaseDefaults", () => {
     seed({
       workouts: [storedWorkout(WEEK, "done", "completed"), storedWorkout(WEEK, "stale")],
       trainingBlocks: [
-        { id: "b1", name: "Cap", phaseId: PHASE_ID, startWeekId: WEEK, endWeekId: WEEK },
+        { id: "b1", name: "Cap", phaseId: PHASE_ID, startDate: weekMondayIso(WEEK), endDate: weekSundayIso(WEEK) },
       ],
     });
     await storage.resetWeekToPhaseDefaults(WEEK);
@@ -185,7 +186,7 @@ describe("clearWeekData", () => {
     // phase and clearing would appear to do nothing.
     seed({
       trainingBlocks: [
-        { id: "b1", name: "Base", phaseId: PHASE_ID, startWeekId: "2026-W20", endWeekId: "2026-W30" },
+        { id: "b1", name: "Base", phaseId: PHASE_ID, startDate: "2026-05-11", endDate: "2026-07-26" },
       ],
     });
     await storage.clearWeekData(WEEK);
@@ -197,7 +198,7 @@ describe("clearWeekData", () => {
   it("just drops the override when nothing covers the week any more", async () => {
     seed({
       trainingBlocks: [
-        { id: "b1", name: "Base", phaseId: PHASE_ID, startWeekId: WEEK, endWeekId: WEEK },
+        { id: "b1", name: "Base", phaseId: PHASE_ID, startDate: weekMondayIso(WEEK), endDate: weekSundayIso(WEEK) },
       ],
       weekOverrides: [{ weekId: WEEK, customized: true }],
     });

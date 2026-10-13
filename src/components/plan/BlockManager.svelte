@@ -12,6 +12,8 @@
   import { generateId } from '../../lib/utils';
   import type { TrainingBlock } from '../../lib/types';
   import { sortBlocks, upcomingWindow } from '../../lib/planning/blockPaging';
+  import { blockFirstWeekId } from '../../lib/planning/trainingBlocks';
+  import { weekMondayIso, weekSundayIso } from '../../lib/dateUtils';
   import BlockBrowser from './BlockBrowser.svelte';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
   import Icon from "@iconify/svelte";
@@ -48,8 +50,8 @@
       id: generateId(),
       name: 'New Block',
       phaseId: phaseDefs[0]?.id ?? '',
-      startWeekId: currentWeekId,
-      endWeekId: currentWeekId,
+      startDate: weekMondayIso(currentWeekId),
+      endDate: weekSundayIso(currentWeekId),
       priority: 0,
     };
   }
@@ -62,8 +64,9 @@
   async function handleSave() {
     if (!editingBlock) return;
     if (!editingBlock.name.trim() || !editingBlock.phaseId) return;
-    if (editingBlock.endWeekId < editingBlock.startWeekId) {
-      [editingBlock.startWeekId, editingBlock.endWeekId] = [editingBlock.endWeekId, editingBlock.startWeekId];
+    if (!editingBlock.startDate || !editingBlock.endDate) return;
+    if (editingBlock.endDate < editingBlock.startDate) {
+      [editingBlock.startDate, editingBlock.endDate] = [editingBlock.endDate, editingBlock.startDate];
     }
     const { notes, ...block } = $state.snapshot(editingBlock);
     await trainingState.saveTrainingBlock(notes?.trim() ? { ...block, notes: notes.trim() } : block);
@@ -114,12 +117,12 @@
         </div>
         <div class="flex gap-3">
           <div class="flex-1 space-y-1">
-            <label for="block-start" class="text-label text-content-subtle ml-1">Start Week</label>
-            <input id="block-start" type="week" bind:value={editingBlock.startWeekId} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+            <label for="block-start" class="text-label text-content-subtle ml-1">First day</label>
+            <input id="block-start" type="date" bind:value={editingBlock.startDate} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
           </div>
           <div class="flex-1 space-y-1">
-            <label for="block-end" class="text-label text-content-subtle ml-1">End Week</label>
-            <input id="block-end" type="week" bind:value={editingBlock.endWeekId} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+            <label for="block-end" class="text-label text-content-subtle ml-1">Last day</label>
+            <input id="block-end" type="date" bind:value={editingBlock.endDate} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
           </div>
         </div>
         <div class="space-y-1">
@@ -150,11 +153,11 @@
                   <span class="truncate">{block.name}</span>
                   {#if block.notes}<Icon icon="ic:baseline-sticky-note-2" class="text-xs text-primary/70 shrink-0" />{/if}
                 </p>
-                <p class="text-caption text-content-subtle mt-0.5">{phaseName(block.phaseId)} · {block.startWeekId} - {block.endWeekId}{block.priority ? ` · priority ${block.priority}` : ''}</p>
+                <p class="text-caption text-content-subtle mt-0.5">{phaseName(block.phaseId)} · {block.startDate} – {block.endDate}{block.priority ? ` · priority ${block.priority}` : ''}</p>
               </div>
             </div>
             <div class="flex items-center gap-1 ml-2">
-              {#if block.startWeekId <= trainingState.currentWeekId}
+              {#if blockFirstWeekId(block) <= trainingState.currentWeekId}
                 <button onclick={() => openBlockReview(block.id)} class="p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Review this block" title="How the block went"><Icon icon="ic:baseline-insights" class="text-sm" /></button>
               {/if}
               <button onclick={() => startEdit(block)} class="p-1.5 text-content-subtle hover:text-content transition-colors"><Icon icon="ic:baseline-edit" class="text-sm" /></button>

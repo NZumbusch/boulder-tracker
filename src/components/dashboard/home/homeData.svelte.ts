@@ -8,6 +8,7 @@ import { upcomingGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates, c
 import { sessionsDuringTrip } from '../../../lib/goals/tripConflicts';
 import { WEEK_DAYS } from '../../../lib/constants';
 import type { DailyMetricEntry, DayOfWeek } from '../../../lib/types';
+import { blockWeekIds } from '../../../lib/planning/trainingBlocks';
 
 const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -33,7 +34,7 @@ export class HomeData {
   blockWeekPosition = $derived.by(() => {
     const block = this.dominantBlock;
     if (!block) return undefined;
-    const weeks = getWeekIdRange(block.startWeekId, block.endWeekId);
+    const weeks = blockWeekIds(block);
     const index = weeks.indexOf(this.currentWeekId);
     return index >= 0 ? { week: index + 1, of: weeks.length } : undefined;
   });

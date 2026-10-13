@@ -1,8 +1,7 @@
 import type { TrainingBlock, WeekOverride, Workout, WorkoutTemplate } from "../types";
 import { normaliseGroups } from "../exercise/groups";
-import { getDominantBlockForWeek } from "./trainingBlocks";
+import { getDominantBlockForWeek, blockWeekIds } from "./trainingBlocks";
 import { generateWorkoutsFromTemplate, type TemplateIdFactory } from "./generateWorkoutsFromTemplate";
-import { getWeekIdRange } from "../dateUtils";
 
 /**
  * Copy-on-write weeks.
@@ -139,7 +138,7 @@ export function toStoredWorkout(workout: Workout): Workout {
 export function coveredWeekIds(blocks: TrainingBlock[]): string[] {
   const ids = new Set<string>();
   for (const block of blocks) {
-    for (const id of getWeekIdRange(block.startWeekId, block.endWeekId)) ids.add(id);
+    for (const id of blockWeekIds(block)) ids.add(id);
   }
   return [...ids].sort();
 }

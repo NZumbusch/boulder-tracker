@@ -1,5 +1,5 @@
 import type { DayOfWeek, ExerciseTypeDef, Workout } from './types';
-import { getWeekIdRange, localIsoDate } from './dateUtils';
+import { getWeekIdRange, localIsoDate, weekIdOfIso } from './dateUtils';
 import { estimateSessionDuration, sessionDuration } from './planning/sessionDuration';
 import { parseStartTime, sessionDay, DAY_MS } from './planning/calendarEvents';
 import { summarizeSession } from './planning/sessionSummary';
@@ -110,12 +110,12 @@ export function generateICS(workouts: Workout[], { exerciseTypes, now = new Date
 export function exportWeekIds(args: {
   currentWeekId: string;
   workouts: Pick<Workout, 'weekId'>[];
-  blocks: { startWeekId: string; endWeekId: string }[];
+  blocks: { endDate: string }[];
   includePast: boolean;
 }): string[] {
   const stored = args.workouts.map((w) => w.weekId).sort();
   const from = args.includePast && stored.length > 0 && stored[0] < args.currentWeekId ? stored[0] : args.currentWeekId;
-  const ends = [from, ...(stored.length ? [stored[stored.length - 1]] : []), ...args.blocks.map((b) => b.endWeekId)];
+  const ends = [from, ...(stored.length ? [stored[stored.length - 1]] : []), ...args.blocks.map((b) => weekIdOfIso(b.endDate))];
   return getWeekIdRange(from, ends.sort().at(-1)!);
 }
 

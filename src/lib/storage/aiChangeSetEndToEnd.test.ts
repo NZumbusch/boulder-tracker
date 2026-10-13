@@ -10,6 +10,7 @@ import { setDbState } from "./persistence";
 import { parsePlanImport } from "../ai/planImportEntry";
 import { planWithSelection, allItemIds, type PlannerState } from "../ai/changePlanner";
 import { effectiveWorkoutsForWeek } from "../planning/weekProjection";
+import { blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
 
 beforeEach(() =>
   setDbState({
@@ -17,7 +18,7 @@ beforeEach(() =>
     analyticsCategories: [{ id: "c", name: "Fingers", color: "x" }],
     phaseDefs: [{ id: "cap", name: "Capacity", order: 1 }],
     templates: { cap: [{ id: "t", name: "Board", dayOfWeek: "Monday", exercises: [{ id: "s", typeId: "hb", prescribed: { sets: 5 } }] }] },
-    trainingBlocks: [{ id: "b", name: "Capacity", phaseId: "cap", startWeekId: "2026-W40", endWeekId: "2026-W45" }],
+    trainingBlocks: [{ id: "b", name: "Capacity", phaseId: "cap", startDate: "2026-09-28", endDate: "2026-11-08" }],
     workouts: [],
     weekOverrides: [],
     weekNotes: [],
@@ -67,7 +68,7 @@ describe("an AI change set, pasted and applied", () => {
     expect(w42.map((w) => w.exercises[0].prescribed?.sets)).toEqual([2]);
     expect(after.weekOverrides).toEqual([{ weekId: "2026-W42", customized: true }]);
     expect(after.weekNotes).toEqual([{ weekId: "2026-W42", text: "AI: Ease in" }]);
-    expect(after.trainingBlocks.map((b) => `${b.name}:${b.startWeekId}-${b.endWeekId}`).sort()).toEqual([
+    expect(after.trainingBlocks.map((b) => `${b.name}:${blockFirstWeekId(b)}-${blockLastWeekId(b)}`).sort()).toEqual([
       "Capacity:2026-W40-2026-W41",
       "Capacity:2026-W44-2026-W45",
       "Power:2026-W42-2026-W43",

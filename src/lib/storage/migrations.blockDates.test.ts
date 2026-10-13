@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { runDataMigrations, assertMigrationInvariants } from "./index";
 import { DATA_EXPORT_VERSION } from "../constants";
-import { getDominantBlockForWeek, blockStartDate, blockEndDate } from "../planning/trainingBlocks";
+import { getDominantBlockForWeek } from "../planning/trainingBlocks";
 
-// 3.34 -> 3.35: a phase becomes a range of days. Each block keeps its weeks
-// and gets the Monday of its first week and the Sunday of its last.
+// 3.34 -> 3.35: a phase becomes a range of days. A block of whole weeks
+// becomes the Monday of its first week to the Sunday of its last; the week
+// ids go.
 
 describe("3.34 -> 3.35: blocks get dates", () => {
   const data = (): any => ({
@@ -34,21 +35,23 @@ describe("3.34 -> 3.35: blocks get dates", () => {
     ]);
   });
 
-  it("keeps everything else on the block, week ids included", () => {
+  it("keeps everything else on the block and drops the week ids", () => {
     const d = data();
     runDataMigrations(d);
-    expect(d.trainingBlocks[1]).toMatchObject({ id: "b", name: "B", phaseId: "phase-x", startWeekId: "2026-W52", endWeekId: "2027-W02", priority: 2, notes: "keep" });
+    expect(d.trainingBlocks[1]).toMatchObject({ id: "b", name: "B", phaseId: "phase-x", priority: 2, notes: "keep" });
+    expect(d.trainingBlocks[1]).not.toHaveProperty("startWeekId");
+    expect(d.trainingBlocks[1]).not.toHaveProperty("endWeekId");
   });
 
   it("leaves every week with the same dominant block", () => {
     const before = data();
     const after = data();
     runDataMigrations(after);
-    for (const w of ["2026-W41", "2026-W52", "2026-W53", "2027-W01", "2027-W02", "2027-W03"]) {
-      expect(getDominantBlockForWeek(after.trainingBlocks, w)?.id).toBe(getDominantBlockForWeek(before.trainingBlocks, w)?.id);
+    // The answer the weeks gave before: of the covering blocks the highest priority, the later one winning a tie.
+    const oldAnswer = (w: string) => before.trainingBlocks.filter((b: any) => b.startWeekId <= w && w <= b.endWeekId).reduce((best: any, b: any) => (!best || (b.priority ?? 0) >= (best.priority ?? 0) ? b : best), undefined)?.id;
+    for (const w of ["2026-W40", "2026-W41", "2026-W42", "2026-W52", "2026-W53", "2027-W01", "2027-W02", "2027-W03"]) {
+      expect(getDominantBlockForWeek(after.trainingBlocks, w)?.id).toBe(oldAnswer(w));
     }
-    expect(blockStartDate(after.trainingBlocks[0])).toBe("2026-10-05");
-    expect(blockEndDate(after.trainingBlocks[0])).toBe("2026-10-11");
   });
 
   it("passes the migration invariants", () => {
@@ -58,13 +61,13 @@ describe("3.34 -> 3.35: blocks get dates", () => {
     expect(() => assertMigrationInvariants(before, after)).not.toThrow();
   });
 
-  it("copes with no blocks, and with a block whose weeks are unusable (left as it is)", () => {
+  it("copes with no blocks, and drops a block whose weeks are unusable (it covered nothing)", () => {
     const none: any = { exportVersion: "3.34", workouts: [] };
     runDataMigrations(none);
     expect(none.exportVersion).toBe("3.35");
     const odd: any = { exportVersion: "3.34", workouts: [], trainingBlocks: [{ id: "x", name: "X", phaseId: "p", startWeekId: "", endWeekId: "" }] };
     runDataMigrations(odd);
-    expect(odd.trainingBlocks[0].startDate).toBeUndefined();
+    expect(odd.trainingBlocks).toEqual([]);
   });
 
   it("runs from older versions too: a 3.22 period lands as a one-week block with dates", () => {

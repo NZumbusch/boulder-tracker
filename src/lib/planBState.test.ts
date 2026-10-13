@@ -22,6 +22,7 @@ import { DATA_EXPORT_VERSION } from "./constants";
 import { setDbState } from "./storage/persistence";
 import { isPlanBSessionId } from "./planning/planB";
 import type { Workout } from "./types";
+import { weekMondayIso, weekSundayIso } from "./dateUtils";
 
 // Far enough ahead that no app load materialises these weeks as "past".
 const W1 = "2030-W10";
@@ -40,7 +41,7 @@ beforeEach(async () => {
         { id: "tpl-hangs", name: "Max hangs", dayOfWeek: "Monday", exercises: [{ id: "s2", typeId: "t1", prescribed: { duration: 30 } }] },
       ],
     },
-    trainingBlocks: [{ id: "blk", name: "Strength", phaseId: "strength", startWeekId: W1, endWeekId: W2 }],
+    trainingBlocks: [{ id: "blk", name: "Strength", phaseId: "strength", startDate: weekMondayIso(W1), endDate: weekSundayIso(W2) }],
   });
   setDbState(null);
   trainingState.planBEditing = null;

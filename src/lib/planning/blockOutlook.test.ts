@@ -1,22 +1,27 @@
 import { describe, it, expect } from "vitest";
 import type { ExerciseSlot, TrainingBlock, Workout } from "../types";
-import { blockLoadTrend, daysUntilWeek, nextBlock, taperHint } from "./blockOutlook";
+import { blockLoadTrend, daysUntilDate, nextBlock, taperHint } from "./blockOutlook";
+import { weekMondayIso, weekSundayIso } from "../dateUtils";
 
-const block = (id: string, start: string, end: string): TrainingBlock => ({ id, name: id, phaseId: "p", startWeekId: start, endWeekId: end });
+const block = (id: string, start: string, end: string): TrainingBlock => ({ id, name: id, phaseId: "p", startDate: weekMondayIso(start), endDate: weekSundayIso(end) });
 
 describe("nextBlock", () => {
-  it("finds the first block starting after the current week", () => {
+  it("finds the first block starting after today", () => {
     const blocks = [block("later", "2026-W45", "2026-W48"), block("now", "2026-W38", "2026-W41"), block("next", "2026-W42", "2026-W44")];
-    expect(nextBlock(blocks, "2026-W39")?.id).toBe("next");
-    expect(nextBlock(blocks, "2026-W48")).toBeUndefined();
+    expect(nextBlock(blocks, "2026-09-24")?.id).toBe("next"); // a Thursday in W39
+    expect(nextBlock(blocks, "2026-11-30")).toBeUndefined();
+  });
+  it("counts a block that starts later this week, and not one that starts today", () => {
+    const midWeek: TrainingBlock = { id: "mid", name: "mid", phaseId: "p", startDate: "2026-09-26", endDate: "2026-10-04" };
+    expect(nextBlock([midWeek], "2026-09-24")?.id).toBe("mid");
+    expect(nextBlock([midWeek], "2026-09-26")).toBeUndefined();
   });
 });
 
-describe("daysUntilWeek", () => {
-  it("counts days to the week's Monday, never negative", () => {
-    // 2026-W40 starts Monday 2026-09-28.
-    expect(daysUntilWeek("2026-W40", "2026-09-22")).toBe(6);
-    expect(daysUntilWeek("2026-W39", "2026-09-22")).toBe(0);
+describe("daysUntilDate", () => {
+  it("counts the days, never negative", () => {
+    expect(daysUntilDate("2026-09-28", "2026-09-22")).toBe(6);
+    expect(daysUntilDate("2026-09-21", "2026-09-22")).toBe(0);
   });
 });
 

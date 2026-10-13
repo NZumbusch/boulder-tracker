@@ -22,10 +22,10 @@ import type {
   ValueDef,
 } from "../types";
 import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
-import { localIsoDate } from "../dateUtils";
+import { localIsoDate, weekMondayIso, weekSundayIso } from "../dateUtils";
 import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
-import { coalesceBlocks, getDominantBlockForWeek, withBlockDates } from "../planning/trainingBlocks";
+import { coalesceBlocks, getDominantBlockForWeek, blockTouchesWeek, normalizeBlocks } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
 import { toStoredWorkout } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
@@ -133,7 +133,7 @@ export const storage = {
   async _getSettings(): Promise<SettingsRecord[]> { await initDB(); return _dbState.settings ?? []; },
 
   async _saveWorkouts(workouts: Workout[]): Promise<void> { await initDB(); _dbState.workouts = toPlain(workouts); await flushDB(["workouts"]); },
-  async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks.map(withBlockDates)); await flushDB(["trainingBlocks"]); },
+  async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(["trainingBlocks"]); },
   async _saveWeekOverrides(overrides: WeekOverride[]): Promise<void> { await initDB(); _dbState.weekOverrides = toPlain(overrides); await flushDB(["weekOverrides"]); },
   async _saveWeekNotes(notes: WeekNote[]): Promise<void> { await initDB(); _dbState.weekNotes = toPlain(notes); await flushDB(["weekNotes"]); },
   async _saveAthleteProfile(p: AthleteProfile[]): Promise<void> { await initDB(); _dbState.athleteProfile = toPlain(p); await flushDB(["athleteProfile"]); },
@@ -327,7 +327,7 @@ export const storage = {
     if (writes.exerciseTypes) db.exerciseTypes = toPlain(writes.exerciseTypes);
     if (writes.phaseDefs) db.phaseDefs = toPlain(writes.phaseDefs);
     if (writes.templates) db.templates = toPlain(writes.templates);
-    if (writes.trainingBlocks) db.trainingBlocks = toPlain(writes.trainingBlocks.map(withBlockDates));
+    if (writes.trainingBlocks) db.trainingBlocks = toPlain(writes.trainingBlocks);
     if (writes.planAlternatives) db.planAlternatives = toPlain(writes.planAlternatives);
     if (writes.coachNotes) db.coachNotes = toPlain(writes.coachNotes);
     if (writes.circuits) db.circuits = toPlain(writes.circuits);
@@ -367,8 +367,10 @@ export const storage = {
     await initDB();
     const now = planTables(_dbState);
     const completedNow = new Set((now.workouts as Workout[]).filter((w) => w.status === "completed").map((w) => w.id));
+    // A record written before blocks were days holds whole weeks - read it in today's shape.
     const comparable = (t: PlanTables) => JSON.stringify({
       ...t,
+      trainingBlocks: normalizeBlocks((t.trainingBlocks ?? []) as any[]),
       workouts: (t.workouts as Workout[])
         .filter((w) => w.status === "planned" && !completedNow.has(w.id))
         .sort((a, b) => a.id.localeCompare(b.id)),
@@ -407,7 +409,7 @@ export const storage = {
     const completedIds = new Set(completed.map((w) => w.id));
     for (const table of PLAN_TABLE_NAMES) {
       // A record written before a table existed doesn't have it - leave that table alone rather than wiping it.
-      if (table !== "workouts" && record.before[table] !== undefined) db[table] = record.before[table];
+      if (table !== "workouts" && record.before[table] !== undefined) db[table] = table === "trainingBlocks" ? normalizeBlocks(record.before[table] as any[]) : record.before[table];
     }
     db.workouts = toPlain([
       ...(record.before.workouts as Workout[]).filter((w) => w.status === "planned" && !completedIds.has(w.id)),
@@ -692,7 +694,7 @@ export const storage = {
   /**
    * "Quick assign" a phase to a single week - the same interaction the app
    * has always offered, now expressed as a `TrainingBlock` whose range is
-   * exactly that one week (`startWeekId === endWeekId === weekId`), so it
+   * exactly that one week (Monday to Sunday), so it
    * migrates 1:1 from the old `PeriodizationWeek` shape. Multi-week blocks
    * (real overlapping concurrent training emphases) are created/edited
    * directly via `saveTrainingBlock`, not through this method.
@@ -724,9 +726,8 @@ export const storage = {
     const overrides = await this._getWeekOverrides();
     const isCustomized = !!overrides.find((o) => o.weekId === weekId)?.customized;
 
-    const existingIndex = blocks.findIndex(
-      (b) => b.startWeekId === weekId && b.endWeekId === weekId,
-    );
+    const [monday, sunday] = [weekMondayIso(weekId), weekSundayIso(weekId)];
+    const existingIndex = blocks.findIndex((b) => b.startDate === monday && b.endDate === sunday);
     if (existingIndex !== -1) {
       blocks[existingIndex] = { ...blocks[existingIndex], phaseId };
     } else {
@@ -736,8 +737,8 @@ export const storage = {
         id: generateId(),
         name: phase?.name || "Training Block",
         phaseId,
-        startWeekId: weekId,
-        endWeekId: weekId,
+        startDate: monday,
+        endDate: sunday,
       });
     }
     await this._saveTrainingBlocks(blocks);
@@ -829,9 +830,8 @@ export const storage = {
     // merely spans this week among others is left alone - clearing one
     // week can't silently delete data for the other weeks it covers).
     const blocks = await this._getTrainingBlocks();
-    const filteredBlocks = blocks.filter(
-      (b) => !(b.startWeekId === weekId && b.endWeekId === weekId),
-    );
+    const [monday, sunday] = [weekMondayIso(weekId), weekSundayIso(weekId)];
+    const filteredBlocks = blocks.filter((b) => !(b.startDate === monday && b.endDate === sunday));
     await this._saveTrainingBlocks(filteredBlocks);
 
     // 2. Reset the week override. If a *multi-week* block still covers this
@@ -841,9 +841,7 @@ export const storage = {
     // "deliberately empty, don't regenerate" state. Assigning a phase to the
     // week later clears that flag again (see `assignPhaseToWeek`).
     const overrides = await this._getWeekOverrides();
-    const stillCovered = filteredBlocks.some(
-      (b) => b.startWeekId <= weekId && weekId <= b.endWeekId,
-    );
+    const stillCovered = filteredBlocks.some((b) => blockTouchesWeek(b, weekId));
     const withoutThisWeek = overrides.filter((o) => o.weekId !== weekId);
     await this._saveWeekOverrides(
       stillCovered ? [...withoutThisWeek, { weekId, customized: true }] : withoutThisWeek,
@@ -905,7 +903,7 @@ export const storage = {
           onProgress("Saving", 0.6);
 
           if (data.workouts) _dbState.workouts = data.workouts;
-          if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks.map(withBlockDates);
+          if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
           if (data.weekOverrides) _dbState.weekOverrides = data.weekOverrides;
           if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
           if (data.planAlternatives) _dbState.planAlternatives = data.planAlternatives;

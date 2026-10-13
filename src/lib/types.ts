@@ -430,20 +430,15 @@ export interface TrainingBlock {
   name: string;
   /** -> PhaseDef.id, the primary focus of this block */
   phaseId: string;
-  /** ISO-8601 week id, inclusive */
-  startWeekId: string;
-  /** ISO-8601 week id, inclusive */
-  endWeekId: string;
   /**
-   * The same range as days, "YYYY-MM-DD", both ends inclusive. A phase is a
-   * range of days (it can start or end mid-week); the week ids above are the
-   * whole weeks it touches and are being retired - until the Plan's callers
-   * move over, the week ids still decide and these are written from them
-   * (`withBlockDates`). See docs/phase-days-plan.md.
+   * First and last day of the phase, "YYYY-MM-DD", both inclusive. A phase is
+   * a range of days, so it can start or end mid-week and a week can hold
+   * two or three. (Before data 3.35 blocks were whole weeks, `startWeekId` /
+   * `endWeekId`; `normalizeBlock` still reads that shape.)
    */
-  startDate?: string;
-  endDate?: string;
-  /** Higher wins when multiple blocks cover the same week. Default 0. */
+  startDate: string;
+  endDate: string;
+  /** Higher wins when multiple blocks cover the same day. Default 0. */
   priority?: number;
   color?: string;
   /** Free text: why this block exists, what it's for. An AI import's contribution is appended with an "AI:" prefix. */

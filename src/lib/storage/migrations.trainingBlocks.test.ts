@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
 import { runDataMigrations, assertMigrationInvariants } from "./index";
+import { weekIdOfIso } from "../dateUtils";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -15,7 +16,7 @@ function loadFixture(name: string): any {
 }
 
 // The training-block migration: PeriodizationWeek[] -> single-week
-// TrainingBlock[] (startWeekId === endWeekId === the old weekId), the
+// TrainingBlock[] (one week, the old weekId, as Monday to Sunday dates since 3.35), the
 // `customized` flag split out into a decoupled WeekOverride[] table, and a
 // purely-additive `competitionEvents: []`.
 
@@ -36,8 +37,8 @@ describe("PeriodizationWeek -> single-week TrainingBlock conversion", () => {
     expect(data.trainingBlocks).toHaveLength(1);
     const block = data.trainingBlocks[0];
     expect(block.phaseId).toBe("phase-deload");
-    expect(block.startWeekId).toBe("2026-W05");
-    expect(block.endWeekId).toBe("2026-W05");
+    expect(block.startDate).toBe("2026-01-26"); // Monday of 2026-W05
+    expect(block.endDate).toBe("2026-02-01");
     expect(block.name).toBe("Deload");
     expect(typeof block.id).toBe("string");
   });
@@ -149,7 +150,7 @@ describe("full old-to-new roundtrip (old_backup.json)", () => {
 
     const knownPhaseIds = new Set(after.phaseDefs.map((p: any) => p.id));
     after.trainingBlocks.forEach((b: any) => {
-      expect(b.startWeekId).toBe(b.endWeekId);
+      expect(weekIdOfIso(b.startDate)).toBe(weekIdOfIso(b.endDate));
       expect(knownPhaseIds.has(b.phaseId)).toBe(true);
     });
   });

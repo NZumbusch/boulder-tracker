@@ -198,9 +198,9 @@ describe("buildBenchmarksInWeeks", () => {
 
 describe("buildTrainingBlockContext", () => {
   const blocks: TrainingBlock[] = [
-    { id: "b1", name: "Capacity Block", phaseId: "phase-1", startWeekId: "2026-W20", endWeekId: "2026-W22" },
-    { id: "b2", name: "Near Block", phaseId: "phase-1", startWeekId: "2026-W30", endWeekId: "2026-W32" },
-    { id: "b3", name: "Far Block", phaseId: "phase-1", startWeekId: "2026-W40", endWeekId: "2026-W42" },
+    { id: "b1", name: "Capacity Block", phaseId: "phase-1", startDate: "2026-05-11", endDate: "2026-05-31" },
+    { id: "b2", name: "Near Block", phaseId: "phase-1", startDate: "2026-07-20", endDate: "2026-08-09" },
+    { id: "b3", name: "Far Block", phaseId: "phase-1", startDate: "2026-09-28", endDate: "2026-10-18" },
   ];
 
   it("returns an empty list for an empty weekIds window", () => {
@@ -361,7 +361,7 @@ describe("buildAIContextProfile", () => {
     phaseDefs,
     workouts: [makeWorkout({ status: "completed", date: "2026-09-01", weekId: "2026-W25" })],
     benchmarks: [{ id: "b1", typeId: "t1", type: "Max Hang", value: 10, unit: "kg", date: "2026-06-20", weekId: "2026-W25" }],
-    trainingBlocks: [{ id: "tb1", name: "Block", phaseId: "phase-1", startWeekId: "2026-W25", endWeekId: "2026-W25" }],
+    trainingBlocks: [{ id: "tb1", name: "Block", phaseId: "phase-1", startDate: "2026-06-15", endDate: "2026-06-21" }],
     goals: [{ id: "e1", kind: "competition", name: "Comp", date: "2026-12-01" }],
     dailyMetrics: [{ id: "m1", metricId: "hrv", date: "2026-09-17", value: 60 }],
     painLogs: [{ id: "p1", date: "2026-09-01", weekId: "2026-W25", bodyPart: "Finger", severity: 4 }],
@@ -435,7 +435,7 @@ describe("notes in the AI profile", () => {
     workouts: [],
     benchmarks: [],
     trainingBlocks: [
-      { id: "b1", name: "Base", phaseId: "phase-capacity", startWeekId: "2026-W38", endWeekId: "2026-W41", notes: "Rebuild after the trip" },
+      { id: "b1", name: "Base", phaseId: "phase-capacity", startDate: "2026-09-14", endDate: "2026-10-11", notes: "Rebuild after the trip" },
     ],
     goals: [],
     dailyMetrics: [],

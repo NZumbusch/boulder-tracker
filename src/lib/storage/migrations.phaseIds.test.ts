@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import path from "path";
 import { runDataMigrations, assertMigrationInvariants } from "./index";
 import { DEFAULT_TEMPLATES, DEFAULT_PHASE_DEFS, DEFAULT_EXERCISE_TYPES, DEFAULT_TEMPLATE_LIBRARY } from "../constants";
+import { weekIdOfIso } from "../dateUtils";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -46,13 +47,13 @@ describe("all 7 legacy phase names map to the correct phaseIds", () => {
     runDataMigrations(data);
 
     expect(data.periodization).toBeUndefined();
-    const blockByWeek = new Map(data.trainingBlocks.map((b: any) => [b.startWeekId, b]));
+    const blockByWeek = new Map(data.trainingBlocks.map((b: any) => [weekIdOfIso(b.startDate), b]));
     Object.keys(ALL_SEVEN_PHASE_NAMES_TO_IDS).forEach((name, i) => {
       const weekId = `2026-W${String(i + 1).padStart(2, "0")}`;
       const block = blockByWeek.get(weekId) as any;
       expect(block.phase).toBeUndefined();
       expect(block.phaseId).toBe(ALL_SEVEN_PHASE_NAMES_TO_IDS[name]);
-      expect(block.endWeekId).toBe(weekId);
+      expect(weekIdOfIso(block.endDate)).toBe(weekId);
     });
 
     // Seeded even for names never referenced by this fixture's periodization.

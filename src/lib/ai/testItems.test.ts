@@ -28,7 +28,7 @@ function state(extra: Partial<PlannerState> = {}): PlannerState {
     analyticsCategories: [{ id: "c1", name: "Fingers", color: "x" }],
     phaseDefs: [{ id: "p-cap", name: "Capacity", order: 1 }],
     templates: { "p-cap": capacity },
-    trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startWeekId: "2026-W38", endWeekId: "2026-W43" }],
+    trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startDate: "2026-09-14", endDate: "2026-10-25" }],
     workouts: [],
     weekOverrides: [],
     weekNotes: [],

@@ -17,9 +17,9 @@ function input(compact: boolean): PlanContextInput {
       pow: [tpl("p1", "Limit", "Monday", LONG)],
     },
     trainingBlocks: [
-      { id: "b1", name: "Capacity", phaseId: "cap", startWeekId: "2026-W40", endWeekId: "2026-W43" },
-      { id: "b2", name: "Strength", phaseId: "str", startWeekId: "2026-W44", endWeekId: "2026-W47" },
-      { id: "b3", name: "Power", phaseId: "pow", startWeekId: "2027-W10", endWeekId: "2027-W14" },
+      { id: "b1", name: "Capacity", phaseId: "cap", startDate: "2026-09-28", endDate: "2026-10-25" },
+      { id: "b2", name: "Strength", phaseId: "str", startDate: "2026-10-26", endDate: "2026-11-22" },
+      { id: "b3", name: "Power", phaseId: "pow", startDate: "2027-03-08", endDate: "2027-04-11" },
     ],
     workouts: [], weekOverrides: [], weekNotes: [],
     targetWeekIds: ["2026-W41", "2026-W42"],
