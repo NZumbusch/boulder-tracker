@@ -10,6 +10,7 @@ import {
   coveredWeekIds,
   toStoredWorkout,
   isProvisionalId,
+  provisionalIdWeek,
   type WeekProjectionContext,
 } from "./weekProjection";
 import type { TrainingBlock, Workout, WorkoutTemplate } from "../types";
@@ -103,6 +104,12 @@ describe("saving sessions one by one", () => {
     expect(effective[1].provisional).toBe(true);
   });
 
+  it("a session moved to another week still stands in for its template - the original week doesn't get it back", () => {
+    const moved = { ...stored("2026-W22", provisionalWorkoutId("2026-W21", "tpl-board")), dayOfWeek: "Friday" as const };
+    expect(projectWeekWorkouts(ctx({ workouts: [moved] }), "2026-W21").map((w) => w.id)).toEqual(["prov:2026-W21:tpl-endurance"]);
+    expect(effectiveWorkoutsForWeek(ctx({ workouts: [moved] }), "2026-W22").map((w) => w.id)).toEqual([moved.id, "prov:2026-W22:tpl-board", "prov:2026-W22:tpl-endurance"]);
+  });
+
   it("a logged session is the same: it takes its template's place", () => {
     const done = stored("2026-W21", provisionalWorkoutId("2026-W21", "tpl-endurance"), "completed");
     expect(projectWeekWorkouts(ctx({ workouts: [done] }), "2026-W21").map((w) => w.id)).toEqual(["prov:2026-W21:tpl-board"]);
@@ -194,6 +201,14 @@ describe("a week split between phases", () => {
     });
     const ids = projectWeekWorkouts(twice, "2026-W21").map((w) => w.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("provisionalIdWeek", () => {
+  it("is the week the template's session belongs to", () => {
+    expect(provisionalIdWeek("prov:2026-W21:tpl-board")).toBe("2026-W21");
+    expect(provisionalIdWeek("prov:2026-W21:*")).toBe("2026-W21");
+    expect(provisionalIdWeek("some-random-id")).toBeUndefined();
   });
 });
 
