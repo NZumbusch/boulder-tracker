@@ -28,7 +28,7 @@ function state(): PlannerState {
     templates: { "p-cap": capacity, "p-del": [] },
     trainingBlocks: [{ id: "b-cap", name: "Capacity", phaseId: "p-cap", startDate: "2026-09-14", endDate: "2026-10-25" }],
     workouts: w39,
-    weekOverrides: [{ weekId: "2026-W39", customized: true }],
+    dismissedSessions: [{ id: "prov:2026-W39:*", weekId: "2026-W39" }],
     weekNotes: [{ weekId: "2026-W40", text: "Mine" }],
     currentWeekId: "2026-W39",
   };
@@ -150,8 +150,8 @@ describe("planChanges - weeks", () => {
     expect(blocks.map((b) => `${b.name}:${blockFirstWeekId(b)}-${blockLastWeekId(b)}`).sort()).toEqual(["Capacity:2026-W38-2026-W39", "Capacity:2026-W42-2026-W43", "Power:2026-W40-2026-W41"]);
     expect(blocks.find((b) => b.name === "Power")!.notes).toBe("AI: Peak");
     expect(r.writes.weeks).toEqual([
-      { weekId: "2026-W40", planned: null, customized: false },
-      { weekId: "2026-W41", planned: null, customized: false },
+      { weekId: "2026-W40", planned: null },
+      { weekId: "2026-W41", planned: null },
     ]);
     const week = r.items.find((i) => i.section === "week")!;
     expect(week.dependsOn).toEqual(["phase-0"]);
@@ -159,10 +159,10 @@ describe("planChanges - weeks", () => {
     expect(week.details).toContain("each week: + Tue Limit (0 exercises)");
   });
 
-  it("keeps a stored plan around completed sessions when a week just follows a phase", () => {
+  it("a week that just follows a phase stores nothing, even around completed sessions", () => {
     const r = plan({ weeks: [{ week: "2026-W39", phase: "Deload" }] });
     const w = r.writes.weeks[0];
-    expect(w.planned).toEqual([]); // Deload has no sessions, but the week has a completed one
+    expect(w.planned).toBeNull(); // the week has a completed session, which stays; nothing else is stored
     expect(r.items[0].warnings.join(" ")).toContain("had hand edits");
     expect(r.items[0].details.join(" ")).toContain("1 completed session(s) kept");
   });
@@ -170,7 +170,6 @@ describe("planChanges - weeks", () => {
   it("spells out a week, replacing its planned sessions and carrying session notes", () => {
     const r = plan({ weeks: [{ week: "2026-W39", sessions: [{ name: "Easy", dayOfWeek: "Friday", notes: "Keep it light", exercises: [{ exerciseTypeName: "Core", values: { sets: 2 } }] }] }] });
     const w = r.writes.weeks[0];
-    expect(w.customized).toBe(true);
     expect(w.planned!.map((s) => [s.notes, s.description])).toEqual([["Easy", "Keep it light"]]);
     expect(w.planned![0].plannedLoad).toBeGreaterThan(0);
   });

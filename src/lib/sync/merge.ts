@@ -65,7 +65,7 @@ export interface SyncConflict {
 }
 
 /** Tables keyed by something other than `id`. */
-const KEY_FIELD: Record<string, string> = { weekOverrides: "weekId", weekNotes: "weekId" };
+const KEY_FIELD: Record<string, string> = { weekNotes: "weekId" };
 /** Tables that are an object of arrays rather than an array: each property is one record. */
 const OBJECT_TABLES = new Set(["templates"]);
 
@@ -379,7 +379,7 @@ export function mergeDoc(
 const TABLE_NOUN: Record<string, string> = {
   workouts: "Session",
   trainingBlocks: "Training block",
-  weekOverrides: "Week plan",
+  dismissedSessions: "Deleted session",
   weekNotes: "Week note",
   planAlternatives: "Plan B",
   athleteProfile: "About me",

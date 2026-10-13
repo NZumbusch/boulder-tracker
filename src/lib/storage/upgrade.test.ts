@@ -19,8 +19,7 @@ import { storage, runDataMigrations, assertMigrationInvariants } from "./index";
 import { setDbState, _dbState } from "./persistence";
 import { DATA_EXPORT_VERSION } from "../constants";
 import {
-  isWeekProvisional,
-  provisionalPastWeeks,
+  projectedSessionsInThePast,
   effectiveWorkoutsForWeek,
   type WeekProjectionContext,
 } from "../planning/weekProjection";
@@ -40,14 +39,14 @@ function contextFrom(db: any): WeekProjectionContext {
     workouts: db.workouts ?? [],
     trainingBlocks: db.trainingBlocks ?? [],
     templates: db.templates ?? {},
-    weekOverrides: db.weekOverrides ?? [],
+    dismissed: db.dismissedSessions ?? [],
   };
 }
 
 /**
  * Upgrading the app must not change what a returning user sees. These drive
  * a genuine old backup through the migration chain and then through the
- * copy-on-write projection layer added on top of it.
+ * projection layer (sessions saved one by one) added on top of it.
  */
 describe("upgrading an existing install", () => {
   beforeEach(() => setItem.mockClear());
@@ -71,25 +70,24 @@ describe("upgrading an existing install", () => {
     const weeksWithWorkouts = [...new Set(data.workouts.map((w: any) => w.weekId))] as string[];
     expect(weeksWithWorkouts.length).toBeGreaterThan(0);
     for (const weekId of weeksWithWorkouts) {
-      // Stored rows win: an existing week is never provisional, so nothing
-      // it shows can change under the new projection layer.
-      expect(isWeekProvisional(ctx, weekId)).toBe(false);
+      // The migration dismisses a saved week whole, so nothing it shows can
+      // change under the projection layer.
       const effective = effectiveWorkoutsForWeek(ctx, weekId);
       expect(effective).toEqual(data.workouts.filter((w: any) => w.weekId === weekId));
       expect(effective.every((w) => w.provisional === undefined)).toBe(true);
     }
   });
 
-  it("does not rewrite history: no past week with sessions gets materialised on load", () => {
+  it("does not rewrite history: nothing is added to a past week that had sessions", () => {
     const data = legacyBackup();
     runDataMigrations(data);
     const ctx = contextFrom(data);
 
-    // Far-future "now", so every week in the backup counts as past.
-    const stale = provisionalPastWeeks(ctx, "2099-W01");
+    // Far-future "today", so every week in the backup counts as past.
+    const saved = projectedSessionsInThePast(ctx, "2099-01-01");
     const weeksWithWorkouts = new Set(data.workouts.map((w: any) => w.weekId));
-    for (const weekId of stale) {
-      expect(weeksWithWorkouts.has(weekId)).toBe(false);
+    for (const w of saved) {
+      expect(weeksWithWorkouts.has(w.weekId)).toBe(false);
     }
   });
 

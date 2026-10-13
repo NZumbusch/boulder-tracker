@@ -59,12 +59,12 @@ async function makeOutdoorPlanB() {
 }
 
 describe("Plan B mode", () => {
-  it("an edit becomes Plan B's own version - the week stays provisional and Plan A still counts", async () => {
+  it("an edit becomes Plan B's own version - nothing is saved in the week and Plan A still counts", async () => {
     const saved = await makeOutdoorPlanB();
     expect(isPlanBSessionId(saved.id)).toBe(true);
     expect(saved.notes).toBe("Outdoor");
     expect(trainingState.planAlternatives).toHaveLength(1);
-    expect(trainingState.isWeekProvisional(W1)).toBe(true);
+    expect(trainingState.dismissedSessions).toEqual([]); // nothing saved or deleted in W1
     expect(trainingState.workouts).toEqual([]);
 
     expect(names(trainingState.getWorkoutsForWeek(W1))).toEqual(["Board", "Max hangs"]);
@@ -86,7 +86,7 @@ describe("Plan B mode", () => {
     await trainingState.deleteWorkout(hangs.id);
     const alt = trainingState.planAlternatives[0];
     expect(alt).toMatchObject({ startWeekId: W1, startDay: "Saturday", days: 3 });
-    expect(trainingState.isWeekProvisional(W2)).toBe(true);
+    expect(trainingState.dismissedSessions).toEqual([]); // nothing saved or deleted in W2
     // Plan A still has it; Plan B doesn't.
     expect(names(trainingState.getWorkoutsForWeek(W2))).toEqual(["Board", "Max hangs"]);
     await trainingState.setPlanBOccurrence(alt.id, alt.startWeekId, { likely: "B" });

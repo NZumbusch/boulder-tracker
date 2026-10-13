@@ -38,7 +38,7 @@ import type {
   PainIssue,
   TrainingBlock,
   WeekNote,
-  WeekOverride,
+  DismissedSession,
   Workout,
   WorkoutTemplate,
 } from "../types";
@@ -46,7 +46,7 @@ import { workoutPlannedLoad } from "../analytics/load";
 import { generateId } from "../utils";
 import { addDaysIso, weekMondayIso, weekSundayIso } from "../dateUtils";
 import { getDominantBlockForWeek, blockLastWeekId } from "../planning/trainingBlocks";
-import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
+import { projectWeekWorkouts, type WeekProjectionContext } from "../planning/weekProjection";
 import { appendAINote, weekNoteText } from "../planning/notes";
 import { normalizeName, resolveNewExerciseTypeCategory } from "./planImport";
 import { PARAMETER_BLOCKS, isCircuitItem, type AIChangeSet, type CSCircuit, type CSExerciseChange, type CSItem, type CSSession, type CSSessionChange, type CSSessionMatch } from "./changeSet";
@@ -69,7 +69,8 @@ export interface PlannerState {
   trainingBlocks: TrainingBlock[];
   /** Stored workouts (planned and completed). */
   workouts: Workout[];
-  weekOverrides: WeekOverride[];
+  /** Sessions deleted from what their phase gives a week (a whole-week one means the week is planned by hand). */
+  dismissedSessions: DismissedSession[];
   weekNotes: WeekNote[];
   /** Existing Plan Bs. */
   planAlternatives?: PlanAlternative[];
@@ -104,11 +105,14 @@ export interface ChangeItem {
   dependsOn: string[];
 }
 
-/** What a week ends up as. `planned: null` = follow its phase (no stored plan). */
+/**
+ * What a week ends up as. `planned: null` = follow its phases (nothing
+ * saved, nothing deleted); a list = exactly those planned sessions (the
+ * phases project nothing into it).
+ */
 export interface WeekWrite {
   weekId: string;
   planned: Workout[] | null;
-  customized: boolean;
 }
 
 export interface PlanWrites {
@@ -187,7 +191,7 @@ interface Ctx {
   untickedPhaseNames: Set<string>;
   blocks: TrainingBlock[];
   /** Weeks touched so far, with their resulting plan. */
-  weekState: Map<string, { planned: Workout[] | null; customized: boolean }>;
+  weekState: Map<string, { planned: Workout[] | null }>;
   /** Week id -> the week item that set it (for a Plan B's dependencies). */
   weekOrigin: Map<string, string>;
   weekNotes: WeekNote[];
@@ -645,21 +649,27 @@ function effectivePhaseName(ctx: Ctx, blocks: TrainingBlock[], weekId: string): 
   return block ? ctx.phaseDefs.find((p) => p.id === block.phaseId)?.name ?? ctx.state.phaseDefs.find((p) => p.id === block.phaseId)?.name : undefined;
 }
 
-/** A week's sessions right now in the plan being built: touched earlier, stored, or projected from its phase. */
+function projectionContext(ctx: Ctx): WeekProjectionContext {
+  return { workouts: ctx.state.workouts, trainingBlocks: ctx.blocks, templates: ctx.templates, dismissed: ctx.state.dismissedSessions };
+}
+
+/** What the phases give a week right now in the plan being built, whatever is saved or deleted - with the ids the sessions have in the app (`prov:{week}:{template}`), so they stay the same from one planning pass to the next. */
+function projected(ctx: Ctx, weekId: string): Workout[] {
+  return projectWeekWorkouts({ ...projectionContext(ctx), workouts: [], dismissed: [] }, weekId).map(({ provisional: _p, ...w }) => w);
+}
+
+/** A week's sessions right now in the plan being built: touched earlier, or saved plus what its phases still project. */
 function currentWeek(ctx: Ctx, weekId: string): { planned: Workout[]; completed: Workout[]; followsPhase: boolean } {
   const completed = ctx.state.workouts.filter((w) => w.weekId === weekId && w.status === "completed");
   const touched = ctx.weekState.get(weekId);
-  if (touched) return { planned: touched.planned ?? projected(ctx, weekId), completed, followsPhase: touched.planned === null };
+  if (touched) {
+    const standIn = new Set(completed.map((w) => w.id));
+    return { planned: touched.planned ?? projected(ctx, weekId).filter((w) => !standIn.has(w.id)), completed, followsPhase: touched.planned === null };
+  }
   const stored = ctx.state.workouts.filter((w) => w.weekId === weekId && w.status === "planned");
-  const hasStored = stored.length > 0 || completed.length > 0;
-  return { planned: hasStored ? stored : projected(ctx, weekId), completed, followsPhase: !hasStored };
-}
-
-function projected(ctx: Ctx, weekId: string): Workout[] {
-  const block = getDominantBlockForWeek(ctx.blocks, weekId);
-  if (!block) return [];
-  return generateWorkoutsFromTemplate(weekId, ctx.templates[block.phaseId] ?? [], { workoutId: () => ctx.newId(), slotId: () => ctx.newId() })
-    .map((w) => ({ ...w, blockId: block.id }));
+  const rest = projectWeekWorkouts(projectionContext(ctx), weekId).map(({ provisional: _p, ...w }) => w);
+  const followsPhase = stored.length === 0 && !ctx.state.dismissedSessions.some((d) => d.weekId === weekId);
+  return { planned: [...stored, ...rest], completed, followsPhase };
 }
 
 /**
@@ -1233,31 +1243,26 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     const savedBlocks = ctx.blocks;
     ctx.blocks = blocksAfter;
     // `sessionsTouched: false` = a notes-only entry: the week's sessions stay as they are.
-    const perWeek: { weekId: string; planned: Workout[] | null; customized: boolean; sessionsTouched: boolean; lines: string[] }[] = [];
+    const perWeek: { weekId: string; planned: Workout[] | null; sessionsTouched: boolean; lines: string[] }[] = [];
     for (const weekId of weeks) {
       const was = currentWeekStateBefore(ctx, savedBlocks, weekId);
-      const wasCustomized = !!state.weekOverrides.find((o) => o.weekId === weekId)?.customized && !ctx.weekState.has(weekId);
+      const wasCustomized = !ctx.weekState.has(weekId) && (state.dismissedSessions.some((d) => d.weekId === weekId) || state.workouts.some((w) => w.weekId === weekId && w.status === "planned"));
       const lines: string[] = [];
       let planned: Workout[] | null = null;
-      let customized = wasCustomized;
       let sessionsTouched = true;
       if (change.sessions) {
         planned = change.sessions.map((s) => ({ ...workoutFromSession(ctx, weekId, s, item), blockId: getDominantBlockForWeek(ctx.blocks, weekId)?.id }));
-        customized = true;
         lines.push(`sessions replaced (${was.planned.length} → ${planned.length})`, ...sessionListDiff(was.planned, planned));
         if (wasCustomized && was.planned.length) item.warnings.push(`${weekRangeLabel([weekId])} had hand edits - its planned sessions are replaced.`);
       } else if (change.sessionChanges) {
         const base = change.phase ? projected(ctx, weekId) : currentWeek(ctx, weekId).planned;
         const r = applySessionChanges(ctx, base, change.sessionChanges, item, weekRangeLabel([weekId]), (s) => workoutFromSession(ctx, weekId, s, item));
         planned = r.sessions.map((w) => ({ ...w, blockId: getDominantBlockForWeek(ctx.blocks, weekId)?.id, plannedLoad: workoutPlannedLoad(w.exercises, w.groups) }));
-        customized = true;
         lines.push(...r.lines);
       } else if (change.phase) {
-        // Follow the phase: drop the planned sessions; keep a stored plan only
-        // around completed sessions (a week with those can't be provisional).
+        // Follow the phase: drop the planned sessions; completed ones stay, standing in for their templates.
         const next = projected(ctx, weekId);
-        planned = was.completed.length ? next : null;
-        customized = false;
+        planned = null;
         if (wasCustomized && was.planned.length) item.warnings.push(`${weekRangeLabel([weekId])} had hand edits - it now follows the phase instead.`);
         const diff = sessionLabelsDiff(was.planned, next);
         if (diff.length) lines.push(...diff);
@@ -1265,7 +1270,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         sessionsTouched = false;
       }
       if (was.completed.length && (change.sessions || change.phase)) lines.push(`${was.completed.length} completed session(s) kept`);
-      perWeek.push({ weekId, planned, customized, sessionsTouched, lines });
+      perWeek.push({ weekId, planned, sessionsTouched, lines });
     }
 
     // Detail lines: identical across a range -> shown once.
@@ -1284,7 +1289,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     if (blocksAfter !== savedBlocks) ctx.changed.blocks = true;
     for (const w of perWeek) {
       if (w.sessionsTouched) {
-        ctx.weekState.set(w.weekId, { planned: w.planned, customized: w.customized });
+        ctx.weekState.set(w.weekId, { planned: w.planned });
         ctx.weekOrigin.set(w.weekId, id);
       }
       if (change.notes) {
@@ -1476,7 +1481,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     ...(benchmarkTypesChanged ? { benchmarkTypes } : {}),
     ...(goalsChanged ? { goals } : {}),
     ...(painIssuesChanged ? { painIssues } : {}),
-    weeks: [...ctx.weekState.entries()].map(([weekId, w]) => ({ weekId, planned: w.planned, customized: w.customized })),
+    weeks: [...ctx.weekState.entries()].map(([weekId, w]) => ({ weekId, planned: w.planned })),
     weekNotes: [...noteWrites.entries()].map(([weekId, text]) => ({ weekId, text })),
   };
   return { items, writes };

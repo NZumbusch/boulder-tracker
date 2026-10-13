@@ -20,7 +20,7 @@ beforeEach(() =>
     templates: { cap: [{ id: "t", name: "Board", dayOfWeek: "Monday", exercises: [{ id: "s", typeId: "hb", prescribed: { sets: 5 } }] }] },
     trainingBlocks: [{ id: "b", name: "Capacity", phaseId: "cap", startDate: "2026-09-28", endDate: "2026-11-08" }],
     workouts: [],
-    weekOverrides: [],
+    dismissedSessions: [],
     weekNotes: [],
   }),
 );
@@ -33,7 +33,7 @@ async function plannerState(): Promise<PlannerState> {
     templates: await storage.getTemplates(),
     trainingBlocks: await storage.getTrainingBlocks(),
     workouts: await storage.getWorkouts(),
-    weekOverrides: await storage.getWeekOverrides(),
+    dismissedSessions: await storage.getDismissedSessions(),
     weekNotes: await storage.getWeekNotes(),
     currentWeekId: "2026-W39",
   };
@@ -59,14 +59,14 @@ describe("an AI change set, pasted and applied", () => {
     await storage.applyPlanWrites(plan.writes);
 
     const after = await plannerState();
-    const ctx = { workouts: after.workouts, trainingBlocks: after.trainingBlocks, templates: after.templates, weekOverrides: after.weekOverrides };
+    const ctx = { workouts: after.workouts, trainingBlocks: after.trainingBlocks, templates: after.templates, dismissed: after.dismissedSessions };
     // W41 still follows Capacity; W43 follows the new Power phase; W42 is its own lighter week.
     expect(effectiveWorkoutsForWeek(ctx, "2026-W41").map((w) => w.notes)).toEqual(["Board"]);
     const w43 = effectiveWorkoutsForWeek(ctx, "2026-W43");
     expect(w43.map((w) => [w.notes, w.description, w.exercises[0].prescribed?.sets])).toEqual([["Limit", "Full rest", 4]]);
     const w42 = effectiveWorkoutsForWeek(ctx, "2026-W42");
     expect(w42.map((w) => w.exercises[0].prescribed?.sets)).toEqual([2]);
-    expect(after.weekOverrides).toEqual([{ weekId: "2026-W42", customized: true }]);
+    expect(after.dismissedSessions).toEqual([{ id: "prov:2026-W42:*", weekId: "2026-W42" }]);
     expect(after.weekNotes).toEqual([{ weekId: "2026-W42", text: "AI: Ease in" }]);
     expect(after.trainingBlocks.map((b) => `${b.name}:${blockFirstWeekId(b)}-${blockLastWeekId(b)}`).sort()).toEqual([
       "Capacity:2026-W40-2026-W41",

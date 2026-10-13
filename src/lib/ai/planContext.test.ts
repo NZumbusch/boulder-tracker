@@ -12,7 +12,7 @@ describe("buildPlanContext", () => {
       { id: "w", status: "planned", date: null, weekId: "2026-W40", dayOfWeek: "Tuesday", notes: "Extra", loadFactor: 0, exercises: [] },
       { id: "d", status: "completed", date: "2026-09-29", weekId: "2026-W40", dayOfWeek: "Monday", notes: "Board", loadFactor: 1, exercises: [] },
     ] as Workout[],
-    weekOverrides: [{ weekId: "2026-W40", customized: true }],
+    dismissedSessions: [{ id: "prov:2026-W40:*", weekId: "2026-W40" }],
     weekNotes: [{ weekId: "2026-W41", text: "Travel" }],
     targetWeekIds: ["2026-W40", "2026-W41"],
   };
@@ -51,7 +51,7 @@ describe("buildPlanContext", () => {
 
 describe("buildPlanContext - circuits", () => {
   const types = [{ id: "c", name: "Core", category: "Core", parameters: ["timeOn"] as any }, { id: "p", name: "Pull-ups", category: "Strength", parameters: ["reps"] as any }];
-  const base = { exerciseTypes: types, trainingBlocks: [], workouts: [], weekOverrides: [], weekNotes: [], targetWeekIds: [] };
+  const base = { exerciseTypes: types, trainingBlocks: [], workouts: [], dismissedSessions: [], weekNotes: [], targetWeekIds: [] };
 
   it("lists the saved circuits, and shows a session's circuit the way an edit would give it", () => {
     const text = buildPlanContext({

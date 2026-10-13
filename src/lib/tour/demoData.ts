@@ -27,6 +27,7 @@ import {
 } from "../constants";
 import { getWeekDates, getWeekId } from "../dateUtils";
 import { calculateLoadFactor, workoutPlannedLoad } from "../analytics/load";
+import { weekDismissalId } from "../planning/weekProjection";
 
 /**
  * The example climber the tour shows: two months of training around today
@@ -272,7 +273,8 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
   return {
     workouts,
     trainingBlocks,
-    weekOverrides: [],
+    // Every week up to this one is stored whole, as a returning user's are: nothing is projected into it.
+    dismissedSessions: [...new Set(workouts.map((w) => w.weekId))].map((weekId) => ({ id: weekDismissalId(weekId), weekId })),
     weekNotes: [{ weekId: getWeekId(mondayOf(today, -1)), text: "Deload: kept it easy after the strength block." }],
     planAlternatives,
     athleteProfile: [{ id: "me", heightCm: 176, climbingSince: 2019, maxBoulderOutdoor: "7A", standingGoal: "Climb 7A+ in Fontainebleau this autumn" }],

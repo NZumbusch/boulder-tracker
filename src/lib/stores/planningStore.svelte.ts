@@ -1,15 +1,17 @@
 import { storage } from '../storage';
-import type { TrainingBlock, WeekOverride, WeekNote, GoalEvent, WorkoutTemplate, PlanAlternative, AthleteProfile, CoachNote, Circuit } from '../types';
+import type { TrainingBlock, DismissedSession, WeekNote, GoalEvent, WorkoutTemplate, PlanAlternative, AthleteProfile, CoachNote, Circuit } from '../types';
 import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
- * Training blocks (concurrent phase assignments), week overrides, the
+ * Training blocks (concurrent phase assignments), the sessions deleted on
+ * purpose (`dismissedSessions`), week notes, the
  * goals calendar (competitions and outdoor trips), and workout templates.
  * Blocks replaced the old one-phase-per-week `periodization`.
  */
 export class PlanningStore {
   trainingBlocks = $state<TrainingBlock[]>([]);
-  weekOverrides = $state<WeekOverride[]>([]);
+  /** Sessions a phase would give a week that were deleted - remembered so the template doesn't bring them back. */
+  dismissedSessions = $state<DismissedSession[]>([]);
   weekNotes = $state<WeekNote[]>([]);
   /** Plan Bs for uncertain days - see `PlanAlternative`. */
   planAlternatives = $state<PlanAlternative[]>([]);
@@ -22,9 +24,9 @@ export class PlanningStore {
   templates = $state<Record<string, WorkoutTemplate[]>>({});
 
   async load() {
-    const [trainingBlocks, weekOverrides, weekNotes, planAlternatives, athleteProfile, coachNotes, circuits, goals, templates] = await Promise.all([
+    const [trainingBlocks, dismissedSessions, weekNotes, planAlternatives, athleteProfile, coachNotes, circuits, goals, templates] = await Promise.all([
       storage.getTrainingBlocks(),
-      storage.getWeekOverrides(),
+      storage.getDismissedSessions(),
       storage.getWeekNotes(),
       storage.getPlanAlternatives(),
       storage.getAthleteProfile(),
@@ -34,7 +36,7 @@ export class PlanningStore {
       storage.getTemplates(),
     ]);
     this.trainingBlocks = trainingBlocks;
-    this.weekOverrides = weekOverrides;
+    this.dismissedSessions = dismissedSessions;
     this.weekNotes = weekNotes;
     this.planAlternatives = planAlternatives;
     this.athleteProfile = athleteProfile;

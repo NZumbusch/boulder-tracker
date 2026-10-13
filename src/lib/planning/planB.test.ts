@@ -53,7 +53,7 @@ function weekendPlanB(extra: Partial<PlanAlternative> = {}): PlanAlternative {
 }
 
 function setup(alternatives: PlanAlternative[], workouts: Workout[] = [], templates: Record<string, WorkoutTemplate[]> = { strength: STRENGTH, power: POWER }): PlanBContext {
-  const proj: WeekProjectionContext = { workouts, trainingBlocks: BLOCKS, templates, weekOverrides: [] };
+  const proj: WeekProjectionContext = { workouts, trainingBlocks: BLOCKS, templates, dismissed: [] };
   return { alternatives, baseWeek: (weekId) => effectiveWorkoutsForWeek(proj, weekId), blockIdForWeek: () => "b-test" };
 }
 
@@ -119,7 +119,7 @@ describe("applyPlanBsToWeek", () => {
     const id = planBSessionId("alt1", "2026-W43", "c1");
     const logged: Workout = { id, status: "completed", date: "2026-10-24T10:00:00Z", weekId: "2026-W43", dayOfWeek: "Saturday", notes: "Outdoor bouldering", loadFactor: 300, exercises: [] };
     // The week got materialised when the session was saved.
-    const materialised = effectiveWorkoutsForWeek({ workouts: [], trainingBlocks: BLOCKS, templates: { strength: STRENGTH, power: POWER }, weekOverrides: [] }, "2026-W43").map(toStoredWorkout);
+    const materialised = effectiveWorkoutsForWeek({ workouts: [], trainingBlocks: BLOCKS, templates: { strength: STRENGTH, power: POWER }, dismissed: [] }, "2026-W43").map(toStoredWorkout);
     const ctx = setup([weekendPlanB()], [...materialised, logged]);
     const r = applyPlanBsToWeek(ctx, "2026-W43");
     expect(r.shown.filter((w) => w.notes === "Outdoor bouldering")).toHaveLength(1);
@@ -131,7 +131,7 @@ describe("applyPlanBsToWeek", () => {
   });
 
   it("logging a session only Plan A has decides Plan A", () => {
-    const board = effectiveWorkoutsForWeek({ workouts: [], trainingBlocks: BLOCKS, templates: { strength: STRENGTH, power: POWER }, weekOverrides: [] }, "2026-W43").map(toStoredWorkout);
+    const board = effectiveWorkoutsForWeek({ workouts: [], trainingBlocks: BLOCKS, templates: { strength: STRENGTH, power: POWER }, dismissed: [] }, "2026-W43").map(toStoredWorkout);
     const done = board.map((w) => (w.notes === "Board" ? { ...w, status: "completed" as const } : w));
     const ctx = setup([weekendPlanB({ likely: "B" })], done);
     expect(applyPlanBsToWeek(ctx, "2026-W43").occurrences[0].decided).toBe("A");
@@ -149,7 +149,7 @@ describe("applyPlanBsToWeek", () => {
   });
 
   it("matches by id first, so a renamed stored session is still found", () => {
-    const stored = effectiveWorkoutsForWeek({ workouts: [], trainingBlocks: BLOCKS, templates: { strength: STRENGTH, power: POWER }, weekOverrides: [] }, "2026-W43").map(toStoredWorkout);
+    const stored = effectiveWorkoutsForWeek({ workouts: [], trainingBlocks: BLOCKS, templates: { strength: STRENGTH, power: POWER }, dismissed: [] }, "2026-W43").map(toStoredWorkout);
     const board = stored.find((w) => w.notes === "Board")!;
     const renamed = stored.map((w) => (w.id === board.id ? { ...w, notes: "Board (short)" } : w));
     const alt = weekendPlanB({ changes: [{ id: "c1", offset: 0, replaces: { name: "Board", id: board.id }, session: OUTDOOR }] });

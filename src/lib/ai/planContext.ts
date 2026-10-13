@@ -9,7 +9,7 @@
  * exercises[{exerciseTypeName, values}]) so the AI can copy what it sees
  * into an edit. One compact JSON object per line keeps the prompt short.
  */
-import type { BenchmarkTypeDef, ValueDef, Circuit, DayOfWeek, ExerciseGroup, ExerciseSlot, ExerciseTypeDef, PhaseDef, PlanAlternative, TrainingBlock, WeekNote, WeekOverride, Workout, WorkoutTemplate } from "../types";
+import type { BenchmarkTypeDef, ValueDef, Circuit, DayOfWeek, ExerciseGroup, ExerciseSlot, ExerciseTypeDef, PhaseDef, PlanAlternative, TrainingBlock, WeekNote, DismissedSession, Workout, WorkoutTemplate } from "../types";
 import { allOccurrenceKeys, describeChanges, occurrenceFirstDay, weekAndDayOf } from "../planning/planB";
 import { getDominantBlockForWeek, blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
 import { sortWorkoutsBySchedule } from "../planning/sortWorkouts";
@@ -24,6 +24,7 @@ function incrementWeeks(weekId: string, n: number): string {
 import { slotValues } from "../exerciseSlot";
 import { workoutItems } from "../exercise/groups";
 import { resolveFields } from "../benchmarks/model";
+import { projectWeekWorkouts } from "../planning/weekProjection";
 
 export interface PlanContextInput {
   exerciseTypes: ExerciseTypeDef[];
@@ -31,7 +32,8 @@ export interface PlanContextInput {
   templates: Record<string, WorkoutTemplate[]>;
   trainingBlocks: TrainingBlock[];
   workouts: Workout[];
-  weekOverrides: WeekOverride[];
+  /** Sessions deleted from what their phase gives a week. */
+  dismissedSessions: DismissedSession[];
   weekNotes: WeekNote[];
   /** Existing Plan Bs - the ones touching the target weeks are listed. */
   planAlternatives?: PlanAlternative[];
@@ -101,7 +103,7 @@ function workoutSession(w: Workout, types: ExerciseTypeDef[], tests: TestLookup)
 }
 
 export function buildPlanContext(input: PlanContextInput): string {
-  const { exerciseTypes: types, phaseDefs, templates, trainingBlocks, workouts, weekOverrides, weekNotes, targetWeekIds } = input;
+  const { exerciseTypes: types, phaseDefs, templates, trainingBlocks, workouts, dismissedSessions, weekNotes, targetWeekIds } = input;
   const lines: string[] = [];
   const tests: TestLookup = { types: input.benchmarkTypes ?? [], defs: input.valueDefs ?? [] };
 
@@ -153,10 +155,13 @@ export function buildPlanContext(input: PlanContextInput): string {
   for (const weekId of targetWeekIds) {
     const phase = phaseDefs.find((p) => p.id === getDominantBlockForWeek(trainingBlocks, weekId)?.phaseId)?.name;
     const stored = workouts.filter((w) => w.weekId === weekId);
-    const planned = sortWorkoutsBySchedule(stored.filter((w) => w.status === "planned"));
+    // What the week shows: the sessions saved in it plus the ones its phases still give it.
+    const still = projectWeekWorkouts({ workouts, trainingBlocks, templates, dismissed: dismissedSessions }, weekId);
+    const planned = sortWorkoutsBySchedule([...stored.filter((w) => w.status === "planned"), ...still]);
     const completed = stored.filter((w) => w.status === "completed");
     const note = weekNoteText(weekNotes, weekId) || undefined;
-    if (stored.length === 0) {
+    const edited = dismissedSessions.some((d) => d.weekId === weekId) || stored.some((w) => w.status === "planned");
+    if (!edited && completed.length === 0) {
       lines.push(JSON.stringify(compact({ week: weekId, dates: weekDatesText(weekId), phase: phase ?? "none", state: phase ? "follows its phase - no changes" : "empty", note })));
       continue;
     }
@@ -164,7 +169,7 @@ export function buildPlanContext(input: PlanContextInput): string {
       week: weekId,
       dates: weekDatesText(weekId),
       phase: phase ?? "none",
-      state: weekOverrides.find((o) => o.weekId === weekId)?.customized ? "custom (edited by hand)" : "stored (as generated from its phase)",
+      state: edited ? "custom (edited by hand)" : "follows its phase",
       sessions: planned.map((w) => workoutSession(w, types, tests)),
       completed: completed.map((w) => `${w.dayOfWeek ?? w.date?.slice(0, 10) ?? ""} ${w.notes ?? "Session"}`.trim()),
       note,

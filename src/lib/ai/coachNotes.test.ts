@@ -68,7 +68,7 @@ describe("coach notes", () => {
 describe("coach notes in a change set", () => {
   const state = (coachNotes: CoachNote[]): PlannerState => ({
     exerciseTypes: [], analyticsCategories: [], phaseDefs: [], templates: {}, trainingBlocks: [], workouts: [],
-    weekOverrides: [], weekNotes: [], coachNotes, today: "2026-09-27", currentWeekId: "2026-W39",
+    dismissedSessions: [], weekNotes: [], coachNotes, today: "2026-09-27", currentWeekId: "2026-W39",
   });
   const doc = {
     summary: "Noted your elbow.",

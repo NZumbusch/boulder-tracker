@@ -30,7 +30,7 @@ beforeEach(() => {
   setDbState({
     workouts: [],
     trainingBlocks: [],
-    weekOverrides: [],
+    dismissedSessions: [],
     competitionEvents: [],
     benchmarks: [],
     benchmarkTypes: [],
@@ -69,7 +69,7 @@ describe("storage never persists reactive proxies", () => {
   /** A projected session as `weekProjection` builds it: plain at the top, proxies underneath. */
   function projectedWorkout(): Workout {
     return {
-      id: "prov:2026-W25:tpl1:0",
+      id: "prov:2026-W25:tpl1",
       status: "planned",
       date: null,
       weekId: "2026-W25",
@@ -84,8 +84,8 @@ describe("storage never persists reactive proxies", () => {
     } as Workout;
   }
 
-  it("materializeWeek stores a projected week without throwing", async () => {
-    await expect(storage.materializeWeek("2026-W25", [projectedWorkout()])).resolves.not.toThrow();
+  it("saveProjectedSessions stores a projected session without throwing", async () => {
+    await expect(storage.saveProjectedSessions([projectedWorkout()])).resolves.not.toThrow();
     expect(_dbState.workouts).toHaveLength(1);
   });
 
@@ -93,7 +93,7 @@ describe("storage never persists reactive proxies", () => {
     // The original bug: the bad value landed in memory, and the throw
     // surfaced on the *next* write (assigning a phase), which then kept
     // failing forever.
-    await storage.materializeWeek("2026-W25", [projectedWorkout()]);
+    await storage.saveProjectedSessions([projectedWorkout()]);
     await expect(
       storage.saveTrainingBlock({
         id: "b1",
@@ -107,9 +107,9 @@ describe("storage never persists reactive proxies", () => {
   });
 
   it("stores the projected values faithfully, not just safely", async () => {
-    await storage.materializeWeek("2026-W25", [projectedWorkout()]);
+    await storage.saveProjectedSessions([projectedWorkout()]);
     expect(_dbState.workouts[0].exercises[0].prescribed).toEqual({ duration: 30 });
-    expect(_dbState.workouts[0].id).toBe("prov:2026-W25:tpl1:0");
+    expect(_dbState.workouts[0].id).toBe("prov:2026-W25:tpl1");
   });
 
   it("also holds for templates written straight from reactive state", async () => {

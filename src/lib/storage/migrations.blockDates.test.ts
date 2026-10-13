@@ -20,14 +20,10 @@ describe("3.34 -> 3.35: blocks get dates", () => {
     ],
   });
 
-  it("is the current data version", () => {
-    expect(DATA_EXPORT_VERSION).toBe("3.35");
-  });
-
   it("writes Monday of the first week and Sunday of the last, across New Year and week 53", () => {
     const d = data();
     runDataMigrations(d);
-    expect(d.exportVersion).toBe("3.35");
+    expect(d.exportVersion).toBe(DATA_EXPORT_VERSION);
     expect(d.trainingBlocks.map((b: any) => [b.id, b.startDate, b.endDate])).toEqual([
       ["a", "2026-10-05", "2026-10-11"],
       ["b", "2026-12-21", "2027-01-17"],
@@ -64,7 +60,7 @@ describe("3.34 -> 3.35: blocks get dates", () => {
   it("copes with no blocks, and drops a block whose weeks are unusable (it covered nothing)", () => {
     const none: any = { exportVersion: "3.34", workouts: [] };
     runDataMigrations(none);
-    expect(none.exportVersion).toBe("3.35");
+    expect(none.exportVersion).toBe(DATA_EXPORT_VERSION);
     const odd: any = { exportVersion: "3.34", workouts: [], trainingBlocks: [{ id: "x", name: "X", phaseId: "p", startWeekId: "", endWeekId: "" }] };
     runDataMigrations(odd);
     expect(odd.trainingBlocks).toEqual([]);

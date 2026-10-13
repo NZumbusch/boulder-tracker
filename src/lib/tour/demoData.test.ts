@@ -3,11 +3,19 @@ import { buildDemoData, DEMO_CIRCUIT_SESSION_ID } from "./demoData";
 import { getWeekId } from "../dateUtils";
 import { assertMigrationInvariants } from "../storage/migrations";
 import { blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
+import { effectiveWorkoutsForWeek } from "../planning/weekProjection";
 
 const TODAY = new Date("2026-09-24T10:00:00Z"); // a Thursday
 
 describe("tour demo data", () => {
   const data = buildDemoData(TODAY);
+
+  it("shows each stored week exactly as stored - its phase projects nothing extra into it", () => {
+    const ctx = { workouts: data.workouts, trainingBlocks: data.trainingBlocks, templates: data.templates, dismissed: data.dismissedSessions };
+    for (const weekId of new Set(data.workouts.map((w) => w.weekId))) {
+      expect(effectiveWorkoutsForWeek(ctx, weekId).map((w) => w.id).sort()).toEqual(data.workouts.filter((w) => w.weekId === weekId).map((w) => w.id).sort());
+    }
+  });
 
   it("is the same every time for the same day", () => {
     expect(buildDemoData(TODAY)).toEqual(data);

@@ -44,9 +44,14 @@ export class WorkoutStore {
     return this.workouts.filter(w => w.status === 'completed');
   }
 
-  /** Materialises a provisional week: see `storage.materializeWeek`. */
-  async materializeWeek(weekId: string, projected: Workout[]) {
-    await storage.materializeWeek(weekId, projected.map(toStoredWorkout));
+  /** Saves projected sessions as real rows - see `storage.saveProjectedSessions`. */
+  async saveProjectedSessions(projected: Workout[]) {
+    await storage.saveProjectedSessions(projected);
+  }
+
+  /** Remembers a projected session as deleted - see `storage.dismissSession`. */
+  async dismissSession(id: string, weekId: string) {
+    await storage.dismissSession(id, weekId);
   }
 
   /**
