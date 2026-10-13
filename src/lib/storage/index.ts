@@ -25,7 +25,7 @@ import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
 import { localIsoDate } from "../dateUtils";
 import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
-import { coalesceBlocks, getDominantBlockForWeek } from "../planning/trainingBlocks";
+import { coalesceBlocks, getDominantBlockForWeek, withBlockDates } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
 import { toStoredWorkout } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
@@ -133,7 +133,7 @@ export const storage = {
   async _getSettings(): Promise<SettingsRecord[]> { await initDB(); return _dbState.settings ?? []; },
 
   async _saveWorkouts(workouts: Workout[]): Promise<void> { await initDB(); _dbState.workouts = toPlain(workouts); await flushDB(["workouts"]); },
-  async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks); await flushDB(["trainingBlocks"]); },
+  async _saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> { await initDB(); _dbState.trainingBlocks = toPlain(blocks.map(withBlockDates)); await flushDB(["trainingBlocks"]); },
   async _saveWeekOverrides(overrides: WeekOverride[]): Promise<void> { await initDB(); _dbState.weekOverrides = toPlain(overrides); await flushDB(["weekOverrides"]); },
   async _saveWeekNotes(notes: WeekNote[]): Promise<void> { await initDB(); _dbState.weekNotes = toPlain(notes); await flushDB(["weekNotes"]); },
   async _saveAthleteProfile(p: AthleteProfile[]): Promise<void> { await initDB(); _dbState.athleteProfile = toPlain(p); await flushDB(["athleteProfile"]); },
@@ -327,7 +327,7 @@ export const storage = {
     if (writes.exerciseTypes) db.exerciseTypes = toPlain(writes.exerciseTypes);
     if (writes.phaseDefs) db.phaseDefs = toPlain(writes.phaseDefs);
     if (writes.templates) db.templates = toPlain(writes.templates);
-    if (writes.trainingBlocks) db.trainingBlocks = toPlain(writes.trainingBlocks);
+    if (writes.trainingBlocks) db.trainingBlocks = toPlain(writes.trainingBlocks.map(withBlockDates));
     if (writes.planAlternatives) db.planAlternatives = toPlain(writes.planAlternatives);
     if (writes.coachNotes) db.coachNotes = toPlain(writes.coachNotes);
     if (writes.circuits) db.circuits = toPlain(writes.circuits);
@@ -905,7 +905,7 @@ export const storage = {
           onProgress("Saving", 0.6);
 
           if (data.workouts) _dbState.workouts = data.workouts;
-          if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
+          if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks.map(withBlockDates);
           if (data.weekOverrides) _dbState.weekOverrides = data.weekOverrides;
           if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
           if (data.planAlternatives) _dbState.planAlternatives = data.planAlternatives;
