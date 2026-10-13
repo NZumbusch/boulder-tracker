@@ -112,34 +112,6 @@ describe("saveProjectedSessions", () => {
   });
 });
 
-describe("assignPhaseToWeek", () => {
-  it("writes the block but no workouts for an empty week", async () => {
-    await storage.assignPhaseToWeek(WEEK, PHASE_ID);
-    expect(await storage.getTrainingBlocks()).toHaveLength(1);
-    expect(await storage.getWorkouts()).toEqual([]);
-    expect(await storage.getDismissedSessions()).toEqual([]);
-  });
-
-  it("lets a cleared week follow the phase again", async () => {
-    seed({ dismissedSessions: [dismissal(weekDismissalId(WEEK))] });
-    await storage.assignPhaseToWeek(WEEK, PHASE_ID);
-    expect(await storage.getDismissedSessions()).toEqual([]);
-  });
-
-  it("leaves a week that has sessions of its own as it is - they are what you saved", async () => {
-    seed({ workouts: [stored(WEEK, "mine")], dismissedSessions: [dismissal(weekDismissalId(WEEK))] });
-    await storage.assignPhaseToWeek(WEEK, PHASE_ID);
-    expect((await storage.getWorkouts()).map((w) => w.id)).toEqual(["mine"]);
-    expect(await storage.getDismissedSessions()).toEqual([dismissal(weekDismissalId(WEEK))]);
-  });
-
-  it("never touches completed sessions, nor other weeks", async () => {
-    seed({ workouts: [stored(WEEK, "done", "completed"), stored("2026-W30", "other")] });
-    await storage.assignPhaseToWeek(WEEK, PHASE_ID);
-    expect((await storage.getWorkouts()).map((w) => w.id).sort()).toEqual(["done", "other"]);
-  });
-});
-
 describe("resetWeekToPhaseDefaults", () => {
   it("drops the week's saved planned sessions and its dismissals so it follows the phase again", async () => {
     seed({

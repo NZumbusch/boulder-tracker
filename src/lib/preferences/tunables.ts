@@ -78,6 +78,8 @@ export const TUNABLES: TunableDef[] = [
 
   // --- Layout ---
   { id: "plan.weekAgenda", topic: "layout", group: "Plan calendar", label: "Show the week as a list", hint: "On: the calendar's Week view is seven day rows with full session names and exercises. Off: seven narrow columns on an hour grid", kind: "boolean", default: false },
+  { id: "plan.calendarPhases", topic: "layout", group: "Plan calendar", label: "Show phases in the calendar", hint: "A thin colour strip for the phase on each day: under the days in Day and Week, down the week list's rows, under each date in Month. Phases are edited in the Block manager", kind: "boolean", default: true },
+  { id: "plan.calendarPhaseNames", topic: "layout", group: "Plan calendar", label: "Write the phase name on it", hint: "Only with the strip on: the phase's name where it starts", kind: "boolean", default: false },
   { id: "day.startHour", topic: "layout", group: "Day", label: "New day starts at", hint: "Hour of the night (0 = midnight). Until then, after midnight still counts as the day before: no new-day reminders, metric or pain prompts, and Today stays on the day you are finishing. Sessions and logs keep their real time", kind: "number", default: 4, min: 0, max: 8, step: 1, unit: "h" },
   { id: "timer.leadIn", topic: "layout", group: "Single-exercise timer", label: "Get-ready time", hint: "Counted in before a hang, set or pacer starts - an exercise can set its own", kind: "number", default: 10, min: 0, max: 60, step: 1, unit: "s" },
   { id: "timer.setRest", topic: "layout", group: "Single-exercise timer", label: "Rest between sets", hint: "Used when an exercise with several sets doesn't say; a rest it names (even 0) wins", kind: "number", default: 120, min: 0, max: 600, step: 15, unit: "s" },

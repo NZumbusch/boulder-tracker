@@ -66,7 +66,7 @@ export const TOUR_STEPS: TourStep[] = ([
     view: "plan",
     target: "plan-phase",
     title: "Phases",
-    body: "Pick a phase for the week and its typical sessions appear. You can then move, edit or add sessions for just this week.",
+    body: "The phase the week follows, with its typical sessions - shown dashed until you change one, which saves just that session. Tap the phase to edit it: phases are ranges of days, so one can start mid-week.",
   },
   {
     view: "plan",

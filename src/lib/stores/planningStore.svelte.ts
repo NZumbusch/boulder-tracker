@@ -51,19 +51,15 @@ export class PlanningStore {
   }
 
   /**
-   * "Quick assign" a phase to a single week (see `storage.assignPhaseToWeek`).
-   */
-  async assignPhase(weekId: string, phaseId: string) {
-    await storage.assignPhaseToWeek(weekId, phaseId);
-  }
-
-  /**
    * Creates or updates a (possibly multi-week) training block directly -
-   * the concurrent-block / overlapping-emphasis editing path, distinct from
-   * the single-week `assignPhase` quick-assign.
+   * the concurrent-block / overlapping-emphasis editing path.
    */
   async saveTrainingBlock(block: TrainingBlock) {
     await storage.saveTrainingBlock(block);
+  }
+
+  async saveTrainingBlocks(blocks: TrainingBlock[]) {
+    await storage.saveTrainingBlocks(blocks);
   }
 
   async deleteTrainingBlock(id: string) {

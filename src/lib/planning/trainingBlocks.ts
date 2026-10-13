@@ -93,6 +93,43 @@ export function phasesInWeek(blocks: TrainingBlock[], weekId: string): PhaseDays
   return [...byBlock].map(([block, days]) => ({ block, days }));
 }
 
+export interface WeekRun {
+  /** The phase of these days; undefined for days no block has. */
+  block?: TrainingBlock;
+  /** First and last day of the run, 0 = Monday ... 6 = Sunday. */
+  from: number;
+  to: number;
+}
+
+/**
+ * The week cut into runs of consecutive days with the same phase, in day
+ * order - what a week cell draws as side-by-side segments. Days no block
+ * has are runs of their own, so the segments always add up to seven days.
+ */
+export function weekRuns(blocks: TrainingBlock[], weekId: string): WeekRun[] {
+  const runs: WeekRun[] = [];
+  weekDayIsos(weekId).forEach((day, i) => {
+    const block = phaseOnDay(blocks, day);
+    const last = runs[runs.length - 1];
+    if (last && last.block === block) last.to = i;
+    else runs.push({ block, from: i, to: i });
+  });
+  return runs;
+}
+
+const DAY_ABBR = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** "Mon–Wed", or "Thu" for a single day (0 = Monday ... 6 = Sunday). */
+export const dayRangeText = (from: number, to: number): string => (from === to ? DAY_ABBR[from] : `${DAY_ABBR[from]}–${DAY_ABBR[to]}`);
+
+/** The runs of a week in words: "Power Mon–Wed, Deload Thu–Sun". Days with no phase are left out; a week with only one run is just the name. */
+export function describeRuns(runs: { name?: string; from: number; to: number }[]): string {
+  const named = runs.filter((r) => r.name);
+  if (named.length === 0) return "";
+  if (runs.length === 1) return named[0].name!;
+  return named.map((r) => `${r.name} ${dayRangeText(r.from, r.to)}`).join(", ");
+}
+
 /**
  * The phase a week counts as when it needs one (its colour, the templates
  * for sessions with no day): the highest priority, then the most days, a

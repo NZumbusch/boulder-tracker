@@ -18,7 +18,8 @@
     color?: string;
     tooltip: string;
     hasOverlap: boolean;
-    /** Week still projects its sessions from the phase rather than storing them (see lib/planning/weekProjection.ts). */
+    /** Only for a week split between phases: one coloured segment per run of days (0 = Monday ... 6 = Sunday), drawn side by side. */
+    runs?: { color?: string; from: number; to: number }[];
   }
 
   let {
@@ -65,10 +66,18 @@
         aria-label={`${week.tooltip}${week.isCurrent ? ', this week' : ''}`}
         aria-pressed={selectedWeekId === week.id}
         class="aspect-square rounded-control transition-all duration-300 relative group hover:z-20
-          {week.color || FALLBACK_COLOR}
+          {week.runs ? 'overflow-hidden' : (week.color || FALLBACK_COLOR)}
           {selectedWeekId === week.id ? 'ring-1 ring-primary ring-offset-1 ring-offset-surface scale-110 z-10 shadow-lg' : 'hover:scale-110'}
           {week.isCurrent ? 'border-2 border-primary' : ''}"
       >
+        {#if week.runs}
+          <!-- A week split between phases: a segment as wide as its days, per phase. Phase colours are classes, so these are children, not a gradient. -->
+          <span class="absolute inset-0 flex pointer-events-none" aria-hidden="true">
+            {#each week.runs as run}
+              <span class="{run.color || FALLBACK_COLOR.split(' ')[0]} h-full" style="flex: {run.to - run.from + 1} 1 0"></span>
+            {/each}
+          </span>
+        {/if}
         {#if showYear}<div class="absolute -top-3.5 -left-1.5 z-30 px-1 py-px leading-tight rounded-control bg-surface-elevated text-content border border-border-strong shadow-sm text-caption font-bold whitespace-nowrap">{week.year}</div>{/if}
         {#if week.isCurrent}<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary-hover rounded-full border-2 border-app-bg z-20"></div>{/if}
         {#if week.hasOverlap}<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-white rounded-full border border-app-bg z-20" title="Multiple training blocks overlap this week"></div>{/if}

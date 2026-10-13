@@ -8,9 +8,9 @@
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId } from '../../lib/dateUtils';
+  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId, weekMondayIso } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
-  import { getBlocksForWeek, getDominantBlockForWeek } from '../../lib/planning/trainingBlocks';
+  import { getBlocksForWeek, getDominantBlockForWeek, phasesInWeek, weekRuns, describeRuns, dayRangeText } from '../../lib/planning/trainingBlocks';
   import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
   import type { Workout, Benchmark, DayOfWeek } from '../../lib/types';
   import { isMissedSession } from '../../lib/planning/weekStatus';
@@ -54,7 +54,6 @@
 
   // --- State ---
 
-  let showPhaseDropdown = $state(false);
   /** The Plan screen has two views of the same plan: the block grid with its week card, or a calendar (Day/Week/Month/Year). */
   const VIEW_KEY = 'plan.view';
   let view = $state<'blocks' | 'calendar'>((() => {
@@ -64,13 +63,18 @@
   const shownView = $derived(trainingState.planBEditing ? 'blocks' : view);
   function setView(next: 'blocks' | 'calendar') {
     view = next;
-    showPhaseDropdown = false;
     try { localStorage.setItem(VIEW_KEY, next); } catch { /* per-viewer convenience only */ }
   }
   let isAddingBenchmark = $state(false);
   let editingBenchmark = $state<Benchmark | null>(null);
   let showAICoach = $state(false);
   let showBlockManager = $state(false);
+  /** A day to open the Block manager at (from the week card's phase chips); undefined = just the list. */
+  let blockManagerDate = $state<string | undefined>(undefined);
+  function openBlockManager(date?: string) {
+    blockManagerDate = date;
+    showBlockManager = true;
+  }
   let showWeekNote = $state(false);
   /**
    * Arrange mode: drag handles (and every day as a drop zone, rest days
@@ -123,7 +127,7 @@
 
   const weeks = $derived.by(() => {
     const currentWeekId = trainingState.currentWeekId;
-    const tempWeeks: { id: string; label: string; phaseId?: string; isCurrent: boolean; year: number; hasOverlap: boolean }[] = [];
+    const tempWeeks: { id: string; label: string; phaseId?: string; isCurrent: boolean; year: number; hasOverlap: boolean; runs: ReturnType<typeof weekRuns> }[] = [];
 
     const startOffset = -25 + (trainingState.weekOffset * 50);
     const endOffset = 24 + (trainingState.weekOffset * 50);
@@ -142,6 +146,7 @@
         isCurrent: id === currentWeekId,
         year: d.getUTCFullYear(),
         hasOverlap: covering.length > 1,
+        runs: weekRuns(trainingState.trainingBlocks, id),
       });
     }
     return tempWeeks;
@@ -160,15 +165,25 @@
       // (`bg-surface-elevated/50`) with a flat mid-gray on every unassigned
       // cell. Passing `undefined` here lets that component's own fallback apply.
       color: w.phaseId ? phaseDefById.get(w.phaseId)?.color : undefined,
-      tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}`,
+      tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${w.runs.length > 1 ? describeRuns(w.runs.map((r) => ({ name: r.block ? phaseName(r.block.phaseId) : undefined, from: r.from, to: r.to }))) : phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}`,
       hasOverlap: w.hasOverlap,
+      // A week with more than one run is split between phases (or has days no phase has): drawn in segments.
+      runs: w.runs.length > 1 ? w.runs.map((r) => ({ color: r.block ? phaseDefById.get(r.block.phaseId)?.color : undefined, from: r.from, to: r.to })) : undefined,
     })),
   );
 
-  /** Every block covering the selected week, for the "Active Blocks" list - not just the dominant one. */
-  const selectedWeekBlocks = $derived(
-    trainingState.selectedWeekId ? getBlocksForWeek(trainingState.trainingBlocks, trainingState.selectedWeekId) : [],
+  /** The phases the selected week holds, with their days - two usually, three or more work the same. */
+  const selectedWeekPhases = $derived(
+    trainingState.selectedWeekId ? phasesInWeek(trainingState.trainingBlocks, trainingState.selectedWeekId) : [],
   );
+  /** Blocks that touch the selected week without being its phase on any day (a lower-priority emphasis underneath another). */
+  const selectedWeekAlso = $derived(
+    trainingState.selectedWeekId
+      ? getBlocksForWeek(trainingState.trainingBlocks, trainingState.selectedWeekId).filter((b) => !selectedWeekPhases.some((p) => p.block.id === b.id))
+      : [],
+  );
+  /** 0 = Monday ... 6 = Sunday, for a day of the selected week. */
+  const weekDayIndex = (iso: string) => (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
 
   $effect(() => {
     if (!trainingState.selectedWeekId) trainingState.selectedWeekId = trainingState.currentWeekId;
@@ -281,12 +296,6 @@
 
   // --- Handlers ---
 
-  async function handleAssign(phaseId: string) {
-    if (!trainingState.selectedWeekId) return;
-    await trainingState.assignPhase(trainingState.selectedWeekId, phaseId);
-    showPhaseDropdown = false;
-  }
-
   function navigate(direction: 'prev' | 'next' | 'today') {
     if (direction === 'prev') trainingState.weekOffset--;
     else if (direction === 'next') trainingState.weekOffset++;
@@ -294,7 +303,6 @@
       trainingState.weekOffset = 0;
       trainingState.selectedWeekId = trainingState.currentWeekId;
     }
-    showPhaseDropdown = false;
   }
 
   // --- Swiping the week card: one week back or on (same gesture as Analytics) ---
@@ -304,7 +312,6 @@
     if (!from || arranging) return;
     const next = direction === 'next' ? incrementWeekId(from) : decrementWeekId(from);
     trainingState.selectedWeekId = next;
-    showPhaseDropdown = false;
     // The calendar shows 50 weeks at a time - page it along when the week walks off its edge.
     if (!weeks.some((w) => w.id === next)) trainingState.weekOffset += direction === 'next' ? 1 : -1;
     if (weekCardEl?.animate && !motionReduced()) {
@@ -439,7 +446,7 @@
       <div class="flex items-center gap-1">
         {#if shownView === 'blocks'}
         <button
-          onclick={() => showBlockManager = true}
+          onclick={() => openBlockManager()}
           class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
           aria-label="Manage training blocks"
           data-tour="plan-blocks"
@@ -473,7 +480,7 @@
     </div>
 
     {#if shownView === 'calendar'}
-      <PlanCalendar onAdd={handleAddWorkout} />
+      <PlanCalendar onAdd={handleAddWorkout} onEditPhase={openBlockManager} />
     {:else}
     <div class="flex flex-wrap gap-x-3 gap-y-1.5 px-1">
       {#each selectablePhases as phase}
@@ -488,7 +495,7 @@
     <WeekCalendar
       weeks={calendarWeeks}
       selectedWeekId={trainingState.selectedWeekId}
-      onSelectWeek={(weekId) => { trainingState.selectedWeekId = weekId; showPhaseDropdown = false; }}
+      onSelectWeek={(weekId) => { trainingState.selectedWeekId = weekId; }}
     />
     </div>
     {/if}
@@ -499,7 +506,7 @@
          touch-pan-y keeps vertical scrolling native. Off while arranging,
          where a sideways drag moves a session. -->
     <div
-      class="card space-y-4 relative touch-pan-y {showPhaseDropdown ? 'z-30' : ''}"
+      class="card space-y-4 relative touch-pan-y"
       bind:this={weekCardEl}
       use:swipePaging={stepWeek}
     >
@@ -508,28 +515,25 @@
       <div class="flex items-start justify-between gap-2">
         <div class="flex-1 min-w-0 relative">
           <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : `Week ${selectedWeekData.id.split('-W')[1]}`} <span class="normal-case tracking-normal font-normal text-content-subtle whitespace-nowrap block min-[380px]:inline"><span class="hidden min-[380px]:inline">·&nbsp;</span>{getWeekDateRange(selectedWeekData.id)}</span></span>
-          <div class="flex items-center gap-1.5 flex-wrap">
-            <button onclick={() => showPhaseDropdown = !showPhaseDropdown} class="text-left group flex items-center gap-0.5" data-tour="plan-phase">
-              <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(selectedWeekData.phaseId) ?? 'No Phase'}</h3>
-              <span class="text-content-subtle group-hover:text-primary-hover transition-colors"><Icon icon="ic:baseline-arrow-drop-down" class="text-xl" /></span>
-            </button>
+          <!-- The phases the week holds, with their days when it is split. Tapping one opens the Block manager at that day - phases are edited there. -->
+          <div class="flex items-center gap-x-3 gap-y-0.5 flex-wrap" data-tour="plan-phase">
+            {#each selectedWeekPhases as part (part.block.id)}
+              <button onclick={() => openBlockManager(part.days[0])} class="text-left group flex items-baseline gap-1.5" aria-label="Edit the {phaseName(part.block.phaseId)} phase">
+                {#if selectedWeekPhases.length > 1}<span class="w-2 h-2 rounded-full self-center shrink-0 {phaseColor(part.block.phaseId)}"></span>{/if}
+                <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(part.block.phaseId) ?? part.block.name}</h3>
+                {#if selectedWeekPhases.length > 1}<span class="text-caption text-content-subtle whitespace-nowrap">{dayRangeText(weekDayIndex(part.days[0]), weekDayIndex(part.days[part.days.length - 1]))}</span>{/if}
+              </button>
+            {:else}
+              <button onclick={() => openBlockManager(trainingState.selectedWeekId ? weekMondayIso(trainingState.selectedWeekId) : undefined)} class="text-left group">
+                <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">No Phase</h3>
+              </button>
+            {/each}
             <InfoButton term="phases" />
           </div>
 
-          {#if showPhaseDropdown}
-            <div class="absolute left-0 mt-2 w-44 bg-surface border border-border rounded-control shadow-card z-20 overflow-hidden animate-in zoom-in-95 duration-200">
-              <div class="p-2 border-b border-border bg-surface/50"><span class="text-section uppercase text-content-subtle px-1">Select Phase</span></div>
-              {#each selectablePhases as phase}
-                <button onclick={() => handleAssign(phase.id)} class="w-full text-left px-3 py-2.5 text-label text-content-muted hover:bg-surface-elevated hover:text-content transition-colors border-b border-border last:border-0 flex items-center gap-2">
-                  <div class="w-2 h-2 rounded-full {phase.color || FALLBACK_PHASE_COLOR}"></div>{phase.name}
-                </button>
-              {/each}
-            </div>
-          {/if}
-
-          {#if selectedWeekBlocks.length > 1}
+          {#if selectedWeekAlso.length > 0}
             <div class="flex flex-wrap gap-1.5 mt-2">
-              {#each selectedWeekBlocks as block}
+              {#each selectedWeekAlso as block}
                 <span class="flex items-center gap-1.5 px-2 py-1 bg-surface-elevated/70 rounded-control border border-border-strong/50 text-label text-content-muted">
                   <span class="w-1.5 h-1.5 rounded-full {block.color || phaseColor(block.phaseId)}"></span>
                   {block.name}
@@ -839,7 +843,7 @@
 {/if}
 
 {#if showBlockManager}
-  <BlockManager onClose={() => showBlockManager = false} />
+  <BlockManager onClose={() => showBlockManager = false} focusDate={blockManagerDate} />
 {/if}
 
 {#if showWeekNote && trainingState.selectedWeekId}

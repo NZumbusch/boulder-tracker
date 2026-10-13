@@ -165,6 +165,21 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 11.9 | Week as a list | Settings → App & display (layout) → "Show the week as a list" on; Plan calendar → Week. | Seven day rows with full names, times and exercises; phone-calendar events muted beneath; a + on each row adds a session on that day. | | |
 | 11.10 | Tap to add | Plan calendar → Week (grid) → tap an empty stretch of a day. | A new session opens already set to that day and the nearest half hour; closing it leaves nothing behind. | | |
 
+## 12. Phases as days, sessions saved one by one
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 12.1 | Update keeps every week | Update a phone that has weeks you edited, weeks you never touched and past weeks. Open Plan and a few past and future weeks. | Every week shows the sessions it showed before the update; weeks you never touched still follow their phase (edit a phase's template: those weeks change, the edited ones don't). | | |
+| 12.2 | One session at a time | In a week that follows its phase (dashed sessions), change one session's day or time. | Only that session stops being dashed; the others stay dashed. Edit the phase's template: the dashed ones follow, the changed one keeps your change. | | |
+| 12.3 | Delete stays deleted | Delete a dashed session; reopen the app; edit the phase's template. | It stays gone. Undo (from the toast) brings it back. "Reset week to its phase" (the arrow icon on the week card) brings back deleted ones and drops your changes. | | |
+| 12.4 | Log a dashed session | Start or log a dashed session. | It is saved as completed; the rest of the week stays dashed; the phase still shows its other sessions. | | |
+| 12.5 | Past days are fixed | Leave a dashed session undone past its day, reopen the app on a later day, then change the phase's template. | The missed session is now saved (not dashed) and keeps what it was planned as; later weeks follow the new template. | | |
+| 12.6 | Block manager: a phase from a day | Plan (block view) → tap the phase name on the week card. | The Block manager opens on that day: what is there, a list, and "Start a phase on …". Choose a phase and Start: the earlier block ends the day before, the new one runs to where the old one ended; the week's cell in the grid splits in two colours and the week card shows both phases with their days. Undo (toast) puts it back. | | |
+| 12.7 | Block manager: edit dates | Edit a block's First day / Last day to overlap another block of the same priority. | Under the dates it says what happens to the other ("Deload now starts 17 Oct", "… is split …", "… is replaced") and which days are left without a phase; Save does exactly that; Undo reverts. A block with a different priority is left alone (concurrent). | | |
+| 12.8 | Split week sessions | With a phase change mid-week, look at that week (and an untouched next week). | Each day's dashed sessions come from the phase that has that day; a session with no day appears once, from the phase with most days. | | |
+| 12.9 | Phases in the calendar | Plan calendar → Week / Month; Settings → App & display → "Show phases in the calendar", "Write the phase name on it". | A colour strip under the days (Week, Day) and a bar under each date (Month) with the phase on each day; names where a phase starts; off removes them. Tapping the strip opens the Block manager on that day. | | |
+| 12.10 | Sync | On two devices, delete a dashed session on one; wait for sync. | It is gone on the other too, and doesn't come back from the template. (Both devices must be updated first: older versions refuse to sync.) | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.

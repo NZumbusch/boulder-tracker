@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeBlock, normalizeBlocks, blockFirstWeekId, blockLastWeekId, blockWeekIds, blockTouchesWeek, getBlocksForWeek, phaseOnDay, phasesInWeek, winningPhaseOfWeek, getDominantBlockForWeek } from "./trainingBlocks";
+import { normalizeBlock, normalizeBlocks, blockFirstWeekId, blockLastWeekId, blockWeekIds, blockTouchesWeek, getBlocksForWeek, phaseOnDay, phasesInWeek, winningPhaseOfWeek, weekRuns, describeRuns, getDominantBlockForWeek } from "./trainingBlocks";
 import { getWeekIdRange, weekMondayIso, weekSundayIso } from "../dateUtils";
 import type { TrainingBlock } from "../types";
 
@@ -86,6 +86,42 @@ describe("phasesInWeek", () => {
     const blocks = [b("a", { startDate: "2026-10-05", endDate: "2026-10-11" }), b("hi", { startDate: "2026-10-08", endDate: "2026-10-09", priority: 1 })];
     const week = phasesInWeek(blocks, "2026-W41");
     expect(week.map((p) => [p.block.id, p.days.length])).toEqual([["a", 5], ["hi", 2]]);
+  });
+});
+
+describe("weekRuns", () => {
+  it("is one run for a week with one phase", () => {
+    expect(weekRuns([b("a")], "2026-W41").map((r) => [r.block?.id, r.from, r.to])).toEqual([["a", 0, 6]]);
+  });
+  it("cuts a split week where the phase changes - two, or three", () => {
+    const blocks = [b("a", { endDate: "2026-10-07" }), b("b", { startDate: "2026-10-08", endDate: "2026-10-09" }), b("c", { startDate: "2026-10-10", endDate: "2026-10-31" })];
+    expect(weekRuns(blocks, "2026-W41").map((r) => [r.block?.id, r.from, r.to])).toEqual([["a", 0, 2], ["b", 3, 4], ["c", 5, 6]]);
+  });
+  it("keeps days no block has as runs of their own, so the runs always cover the week", () => {
+    const blocks = [b("a", { startDate: "2026-10-06", endDate: "2026-10-08" })];
+    const runs = weekRuns(blocks, "2026-W41");
+    expect(runs.map((r) => [r.block?.id, r.from, r.to])).toEqual([[undefined, 0, 0], ["a", 1, 3], [undefined, 4, 6]]);
+  });
+  it("is one run of no phase for a week nothing covers", () => {
+    expect(weekRuns([], "2026-W41")).toEqual([{ block: undefined, from: 0, to: 6 }]);
+  });
+  it("shows a phase that comes back after another as a second run", () => {
+    const blocks = [b("a"), b("x", { startDate: "2026-10-07", endDate: "2026-10-08", priority: 1 })];
+    expect(weekRuns(blocks, "2026-W41").map((r) => [r.block?.id, r.from, r.to])).toEqual([["a", 0, 1], ["x", 2, 3], ["a", 4, 6]]);
+  });
+});
+
+describe("describeRuns", () => {
+  it("names a split week by its parts", () => {
+    expect(describeRuns([{ name: "Power", from: 0, to: 2 }, { name: "Deload", from: 3, to: 6 }])).toBe("Power Mon–Wed, Deload Thu–Sun");
+    expect(describeRuns([{ name: "Power", from: 0, to: 4 }, { name: "Taper", from: 5, to: 5 }, { name: "Event", from: 6, to: 6 }])).toBe("Power Mon–Fri, Taper Sat, Event Sun");
+  });
+  it("is just the name for a whole week, and leaves out days with no phase", () => {
+    expect(describeRuns([{ name: "Power", from: 0, to: 6 }])).toBe("Power");
+    expect(describeRuns([{ from: 0, to: 1 }, { name: "Power", from: 2, to: 6 }])).toBe("Power Wed–Sun");
+  });
+  it("is empty when nothing has a name", () => {
+    expect(describeRuns([{ from: 0, to: 6 }])).toBe("");
   });
 });
 
