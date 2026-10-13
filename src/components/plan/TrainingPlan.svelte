@@ -416,7 +416,7 @@
   }
 </script>
 
-<div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-12">
+<div class="w-full {shownView === 'calendar' ? 'max-w-5xl' : 'max-w-lg'} space-y-4 animate-in fade-in duration-200 pb-12">
   <div class="flex flex-col gap-4">
     <!-- Same quiet control row as Analytics: tools, then paging. -->
     <div class="flex items-center justify-between gap-2 px-1">

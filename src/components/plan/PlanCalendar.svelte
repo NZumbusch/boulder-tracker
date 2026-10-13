@@ -118,7 +118,13 @@
     if (mode === 'month') return fmt(focusDate, { month: 'long', year: 'numeric' });
     return String(year);
   });
-  const sublabel = $derived(mode === 'week' ? weekIdOfDayIndex(weekStart).replace('-W', ' · week ') : '');
+  /** Always something under the title, so the header keeps its height from view to view: the week (Day, Week) or the totals (Month, Year). */
+  const sublabel = $derived.by(() => {
+    if (mode === 'day' || mode === 'week') return weekIdOfDayIndex(mode === 'day' ? focus : weekStart).replace('-W', ' · week ');
+    const counted = sessions.filter((s) => !faded(s));
+    const done = counted.filter((s) => s.done).length;
+    return counted.length === 0 ? 'Nothing planned' : `${done} done · ${counted.length - done} planned`;
+  });
 
   function step(direction: SwipeDirection) {
     const sign = direction === 'next' ? 1 : -1;
@@ -164,14 +170,16 @@
   const isRunning = (s: CalendarSession) => trainingState.sessionStore.isRunning(s.workout.id);
 </script>
 
-<!-- Flat: no card, the calendar sits on the page. -->
-<div class="space-y-3 touch-pan-y" use:swipePaging={step}>
-  <div class="flex items-center justify-between gap-2">
-    <div class="min-w-0">
-      <h3 class="text-title text-content truncate">{label}</h3>
-      {#if sublabel}<p class="text-caption text-content-subtle">{sublabel}</p>{/if}
+<!-- The header keeps its height in every view, so the box below never moves when you switch Day / Week / Month / Year. -->
+<div class="space-y-3 short:space-y-2 touch-pan-y" use:swipePaging={step}>
+  <!-- On a landscape phone (little height) the two header rows become one, so the calendar gets the screen. -->
+  <div class="flex flex-col gap-3 short:flex-row short:items-center short:gap-3">
+  <div class="flex items-start justify-between gap-2 min-h-[3rem] short:contents">
+    <div class="min-w-0 short:order-1 short:flex-1">
+      <h3 class="text-title text-content truncate leading-tight">{label}</h3>
+      <p class="text-caption text-content-subtle truncate h-4">{sublabel}</p>
     </div>
-    <div class="flex items-center gap-0.5 shrink-0">
+    <div class="flex items-center gap-0.5 shrink-0 short:order-3">
       <button onclick={() => step('prev')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Previous {mode}">
         <Icon icon="ic:baseline-chevron-left" class="text-lg" />
       </button>
@@ -182,8 +190,8 @@
     </div>
   </div>
 
-  <div class="flex items-center justify-between gap-2">
-    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Calendar view">
+  <div class="flex items-center justify-between gap-2 h-9 short:contents">
+    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control short:order-2" role="radiogroup" aria-label="Calendar view">
       {#each MODES as m (m.id)}
         <button
           role="radio"
@@ -193,13 +201,15 @@
         >{m.label}</button>
       {/each}
     </div>
-    {#if mode === 'day'}
-      <button onclick={() => addAt(focus)} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session on {dayNameOf(focus)}">
-        <Icon icon="ic:baseline-plus" class="text-lg" />
-      </button>
-    {/if}
+    <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
+      <Icon icon="ic:baseline-plus" class="text-lg" />
+    </button>
   </div>
 
+  </div>
+
+  <!-- The calendar sits in one soft panel: no border, no shadow, just a tone apart from the page. -->
+  <div class="rounded-2xl bg-app-bg px-2 py-3 sm:px-4 sm:py-4 short:py-2">
   {#if mode === 'week' && agenda}
     <CalendarAgenda
       days={Array.from({ length: 7 }, (_, i) => weekStart + i)}
@@ -245,10 +255,11 @@
   {:else if mode === 'month'}
     <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} goals={goalsOnDays} />
   {:else}
-    <div class="grid grid-cols-3 gap-x-3 gap-y-4">
+    <div class="grid grid-cols-3 gap-x-3 gap-y-4 min-[700px]:grid-cols-4">
       {#each Array.from({ length: 12 }, (_, i) => i) as m (m)}
         <CalendarMonth {year} month={m} byDay={countedByDay} {today} mini onPickDay={openDay} onPickMonth={openMonth} {phases} />
       {/each}
     </div>
   {/if}
+  </div>
 </div>
