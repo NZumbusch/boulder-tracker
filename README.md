@@ -18,7 +18,7 @@ Everything is at **https://bouldertracker.nathanzumbusch.de/**.
 
 ### Android app
 
-It adds Google Drive sync, home-screen widgets, reminders, launcher shortcuts, Health Connect and timer sound with the screen off. It is not in the Play Store, so you install the APK yourself:
+It adds Google Drive sync, home-screen widgets, reminders, launcher shortcuts, Health Connect, your phone's calendar beside the plan, and timer sound with the screen off. It is not in the Play Store, so you install the APK yourself:
 
 1. Download [boulder-tracker.apk](https://bouldertracker.nathanzumbusch.de/android/stable/boulder-tracker.apk) on your phone and open it.
 2. If Android asks, allow your browser to **install unknown apps**, then go back and tap Install.
@@ -45,6 +45,7 @@ Just [open the web app](https://bouldertracker.nathanzumbusch.de/). It works off
 | Timer sound, screen locked | Yes | No (keep the screen on) | No (keep the screen on) |
 | Widgets, shortcuts | Yes | No | No |
 | Health Connect import | Yes | No | No |
+| Phone calendar on the Plan | Yes | No | No |
 | Backups | Automatic, weekly | By hand | By hand |
 
 A browser (Safari especially) can erase a website's data after a while. Installing to the Home Screen and saving a backup file now and then (Settings → Data & connections → Sync & backup) keeps your training safe.
@@ -104,7 +105,7 @@ Needs Android Studio.
 ./run_android.sh     # afterwards: builds, syncs and opens Android Studio
 ```
 
-`android/` is tracked in git (manifest, `MainActivity`, launcher shortcuts in `res/xml/shortcuts.xml`, the widget); local Capacitor plugins live in `plugins/` (`timer-service`, `drive-sync`, `home-widget`, `health-connect`). The app needs Android 8 (API 26) or newer, for Health Connect's client library. The project builds with JDK 21 (Android Studio's own, `/opt/android-studio/jbr`).
+`android/` is tracked in git (manifest, `MainActivity`, launcher shortcuts in `res/xml/shortcuts.xml`, the widget); local Capacitor plugins live in `plugins/` (`timer-service`, `drive-sync`, `home-widget`, `health-connect`, `device-calendar`). The app needs Android 8 (API 26) or newer, for Health Connect's client library. The project builds with JDK 21 (Android Studio's own, `/opt/android-studio/jbr`).
 
 ### Health Connect
 

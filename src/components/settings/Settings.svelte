@@ -1,5 +1,6 @@
 <script lang="ts">
   import HealthConnectSettings from './HealthConnectSettings.svelte';
+  import DeviceCalendarSettings from './DeviceCalendarSettings.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
   import { storage } from '../../lib/storage';
@@ -35,6 +36,7 @@
   import RemindersSettings from './RemindersSettings.svelte';
   import { Capacitor } from '@capacitor/core';
   import { healthConnect } from '../../lib/health/healthConnect.svelte';
+  import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
   import {
     findPage, findSection, searchSettings, visiblePages, visibleSections,
     type PageId, type SectionId, type SettingsContext,
@@ -57,7 +59,7 @@
   // --- Navigation: Settings -> a section -> one of its pages ---
   // What this device can show: the browser has no widgets, notifications or
   // Health Connect, and those pages stay out of the lists (and the search).
-  const ctx: SettingsContext = $derived({ native: Capacitor.isNativePlatform(), widgets: widgetsAvailable(), healthConnect: healthConnect.supported });
+  const ctx: SettingsContext = $derived({ native: Capacitor.isNativePlatform(), widgets: widgetsAvailable(), healthConnect: healthConnect.supported, deviceCalendar: deviceCalendar.supported });
   let section = $state<SectionId | null>(null);
   let page = $state<PageId | null>(null);
   let query = $state('');
@@ -346,6 +348,8 @@
     </div>
   {:else if page === 'healthConnect'}
     <HealthConnectSettings />
+  {:else if page === 'deviceCalendar'}
+    <DeviceCalendarSettings />
   {:else if page === 'exports'}
     <ExportSettings />
   {:else if page === 'widgets'}

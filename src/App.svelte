@@ -33,6 +33,7 @@
   import { installDeepLinks } from './lib/native/deepLinks';
   import { driveSync } from './lib/sync/driveSync.svelte';
   import { healthConnect } from './lib/health/healthConnect.svelte';
+  import { deviceCalendar } from './lib/calendar/deviceCalendar.svelte';
   import { startWidgetSync } from './lib/widget/widgetSync.svelte';
   import { updater } from './lib/update/updater.svelte';
   import type { ViewType } from './lib/types';
@@ -51,6 +52,7 @@
     void installDeepLinks();
     void driveSync.init();
     void healthConnect.init();
+    void deviceCalendar.init();
     void updater.init();
     startWidgetSync();
     return stopDialogLayer;
