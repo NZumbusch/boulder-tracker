@@ -32,6 +32,7 @@
   import { localDayIndex } from '../../lib/analytics/recoverySeries';
   import PlanBStretch from './PlanBStretch.svelte';
   import PlanBSheet from './PlanBSheet.svelte';
+  import PlanCalendar from './PlanCalendar.svelte';
   import { occurrencesTouchingWeek, dayIndexOf, occurrenceDaysLabel } from '../../lib/planning/planB';
   import type { PlanAlternative } from '../../lib/types';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
@@ -54,6 +55,18 @@
   // --- State ---
 
   let showPhaseDropdown = $state(false);
+  /** The Plan screen has two views of the same plan: the block grid with its week card, or a calendar (Day/Week/Month/Year). */
+  const VIEW_KEY = 'plan.view';
+  let view = $state<'blocks' | 'calendar'>((() => {
+    try { return localStorage.getItem(VIEW_KEY) === 'calendar' ? 'calendar' : 'blocks'; } catch { return 'blocks'; }
+  })());
+  /** Editing a Plan B happens in the block view, whatever was picked. */
+  const shownView = $derived(trainingState.planBEditing ? 'blocks' : view);
+  function setView(next: 'blocks' | 'calendar') {
+    view = next;
+    showPhaseDropdown = false;
+    try { localStorage.setItem(VIEW_KEY, next); } catch { /* per-viewer convenience only */ }
+  }
   let isAddingBenchmark = $state(false);
   let editingBenchmark = $state<Benchmark | null>(null);
   let showAICoach = $state(false);
@@ -308,7 +321,7 @@
     }
   }
 
-  function handleAddWorkout(weekId: string, dayOfWeek?: DayOfWeek) {
+  function handleAddWorkout(weekId: string, dayOfWeek?: DayOfWeek, startTime?: string) {
     const dominantBlock = getDominantBlockForWeek(trainingState.trainingBlocks, weekId);
     const newWorkout: Workout = {
       id: generateId(),
@@ -316,6 +329,7 @@
       date: null,
       weekId,
       dayOfWeek,
+      ...(startTime ? { startTime } : {}),
       notes: 'New Session',
       loadFactor: 0,
       exercises: [],
@@ -405,8 +419,31 @@
   <div class="flex flex-col gap-4">
     <!-- Same quiet control row as Analytics: tools, then paging. -->
     <div class="flex items-center justify-between gap-2 px-1">
-      <h2 class="text-title text-content">Plan</h2>
+      <div class="flex items-center gap-2">
+        <h2 class="text-title text-content">Plan</h2>
+        {#if !inPlanBMode}
+          <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Plan view">
+            <button
+              role="radio"
+              aria-checked={view === 'blocks'}
+              onclick={() => setView('blocks')}
+              title="Blocks and weeks"
+              aria-label="Blocks view"
+              class="p-1 rounded-control transition-colors {view === 'blocks' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+            ><Icon icon="ic:baseline-grid-view" class="text-base" /></button>
+            <button
+              role="radio"
+              aria-checked={view === 'calendar'}
+              onclick={() => setView('calendar')}
+              title="Calendar"
+              aria-label="Calendar view"
+              class="p-1 rounded-control transition-colors {view === 'calendar' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+            ><Icon icon="ic:baseline-calendar-month" class="text-base" /></button>
+          </div>
+        {/if}
+      </div>
       <div class="flex items-center gap-1">
+        {#if shownView === 'blocks'}
         <button
           onclick={() => showBlockManager = true}
           class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
@@ -416,6 +453,7 @@
         >
           <Icon icon="ic:baseline-view-week" class="text-lg" />
         </button>
+        {/if}
         <button
           onclick={() => showAICoach = true}
           class="p-1.5 text-primary hover:text-primary-hover rounded-control hover:bg-surface-elevated transition-colors"
@@ -425,6 +463,7 @@
         >
           <Icon icon="ic:baseline-auto-awesome" class="text-lg" />
         </button>
+        {#if shownView === 'blocks'}
         <span class="w-px h-5 bg-border mx-1"></span>
         <button onclick={() => navigate('prev')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Earlier weeks">
           <Icon icon="ic:baseline-chevron-left" class="text-lg" />
@@ -435,9 +474,13 @@
         <button onclick={() => navigate('next')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Later weeks">
           <Icon icon="ic:baseline-chevron-right" class="text-lg" />
         </button>
+        {/if}
       </div>
     </div>
 
+    {#if shownView === 'calendar'}
+      <PlanCalendar onAdd={handleAddWorkout} />
+    {:else}
     <div class="flex flex-wrap gap-x-3 gap-y-1.5 px-1">
       {#each selectablePhases as phase}
         <div class="flex items-center gap-1">
@@ -454,9 +497,10 @@
       onSelectWeek={(weekId) => { trainingState.selectedWeekId = weekId; showPhaseDropdown = false; }}
     />
     </div>
+    {/if}
   </div>
 
-  {#if trainingState.selectedWeekId && selectedWeekData}
+  {#if shownView === 'blocks' && trainingState.selectedWeekId && selectedWeekData}
     <!-- A sideways swipe moves a week back or on (lib/analytics/swipe.ts);
          touch-pan-y keeps vertical scrolling native. Off while arranging,
          where a sideways drag moves a session. -->

@@ -150,6 +150,21 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 10.9 | Value types | Settings → Training setup → Value types: add your own number type, mark it "Benchmark tests" only; add it to a test. | It is offered for tests and not on exercises; deleting a value type used by a test is refused (archive instead). | | |
 | 10.10 | AI | AI → copy the prompt after logging a hang at an edge. | The benchmark carries "conditions": "Edge depth 20 mm" in words (no ids). | | |
 
+## 11. Plan calendar and phone calendar
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 11.1 | Switch views | Plan → the calendar icon next to the title, then the grid icon. | The calendar shows Day/Week/Month/Year; the grid icon returns to the block view as it was, on the week you were looking at. | | |
+| 11.2 | Day and Week | Plan a session with a time and exercises; open Day, then Week. | Day shows it as a block as long as the session, with its exercises; Week shows the same in a column. Tapping opens the session. | | |
+| 11.3 | Live session length | Run a session live that takes longer than planned; finish it. | In Day/Week its block is now the time it really took (and Day says "N min (M planned)"). | | |
+| 11.4 | Month and Year | Open Month, tap a day; open Year, tap a month. | Dots per session (green = done); a tap goes down to Day / Month. | | |
+| 11.5 | Phone calendar (Android) | Settings → Data & connections → Phone calendar → Show my calendar → Allow. | Your calendars are listed by account, the phone's visible ones ticked. Events appear grey beside the sessions in Day/Week and as a grey dot in Month; unticking a calendar removes its events. | | |
+| 11.6 | Phone calendar: edge cases | Have an all-day event, one over midnight, a repeating one, one you declined. | All-day sits above the hours; the late one shows on both days; repeats appear every time; the declined one is absent. | | |
+| 11.7 | Denied / revoked | Deny the prompt; later allow, then revoke in the phone's app settings. | A clear message each time, no crash; "Ask again" works. | | |
+| 11.8 | Calendar file | Settings → Calendar & PDF → Export Calendar; open it in your calendar app. | Sessions are on their planned day and time (not the day they were created), with exercises in the description; finished ones as long as they took. "Include past sessions" adds history. | | |
+| 11.9 | Week as a list | Settings → App & display (layout) → "Show the week as a list" on; Plan calendar → Week. | Seven day rows with full names, times and exercises; phone-calendar events muted beneath; a + on each row adds a session on that day. | | |
+| 11.10 | Tap to add | Plan calendar → Week (grid) → tap an empty stretch of a day. | A new session opens already set to that day and the nearest half hour; closing it leaves nothing behind. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
