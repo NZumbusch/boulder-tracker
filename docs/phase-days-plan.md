@@ -78,3 +78,25 @@ Kept as a dual model for one commit, then merged: two copies of one fact (weeks 
 - **Judgment call - AI**: AI replies still speak in week ids (phases cover whole weeks); an optional date for mid-week blocks (open question 3) is not built yet.
 - **Found and fixed on the way**: `getWeekId` gave the wrong week from April to October in southern-hemisphere zones (Auckland: a daylight-saving hour made a `Math.ceil` overshoot). It now uses calendar arithmetic; tested in five zones.
 - Not yet checked on a screen: the Block manager's date inputs, Home's "Next block" line (now shows the start date).
+
+### Stage 3 - sessions saved one by one (done, data 3.36)
+- Projected id is `prov:{weekId}:{templateId}` (no index). A stored session with that id stands in for its template; `dismissedSessions` (`{id, weekId}`, synced like any table) remembers a deleted one; `prov:{weekId}:*` dismisses the whole week.
+- `weekProjection.ts` rewritten: `projectWeekWorkouts` (templates not stored and not dismissed), `effectiveWorkoutsForWeek` (stored + projected), `weekDiffersFromPhase`, `projectedSessionsInThePast`. Day-level projection is in it from the start (stage 4's projection half): a template with a day comes from the phase that has that day, a template with no day once from the week's winning phase.
+- Writes: `saveWorkout` stores one session and forgets its dismissal (undo of a delete); `deleteWorkout` of a template session removes it and dismisses it; `dismissSession` for one never stored; `saveProjectedSessions` for past days (run on app load with the day-start-aware "today"); `resetWeekToPhaseDefaults` drops saved planned sessions and the week's dismissals; `clearWeekData` dismisses the week whole when a longer block still covers it; AI/copy-week `applyPlanWrites` dismisses a week given its own list and forgets the dismissals of one that follows its phase.
+- Migration 3.35 -> 3.36: every week with anything stored, or `customized`, gets the whole-week dismissal (so it shows exactly what it stores, whatever the templates say later); `weekOverrides` is dropped. Sync: `upgradeDoc` now hands migrations the doc's own tables, not only today's, so an older device's `weekOverrides` reaches this step.
+- Gone: `materializeWeek*`, Lock In, the week-level "not saved yet" chip and grid icon, `WeekOverride`, `assignPhaseToWeek`. The planner's `customized` flag is gone too: a week given a list is dismissed whole, `planned: null` follows its phases (completed sessions stay and stand in for their templates).
+- Judgment calls: (1) the whole-week dismissal is also what keeps migrated weeks fixed when a phase is later swapped (a per-template dismissal would let the new phase's sessions appear beside the old ones); (2) "Reset week" is offered when a week has saved planned sessions or any dismissal and a phase with templates behind it.
+
+### Stages 4 and 5 - split weeks, Block manager, calendar strip (done)
+- Block grid: a week with more than one run of phases is drawn in side-by-side segments (`weekRuns`), tooltip "Power Mon–Wed, Deload Thu–Sun". Week card: a chip per phase (with its days when split) - tapping opens the Block manager on that day; the "Select phase" dropdown is gone.
+- Block manager (`BlockManager.svelte`, pure ops in `planning/blockEdit.ts`): opened on a day it shows what is there and "Start a phase on this day" (`startPhaseOn`: the block there is cut the day before, the new one runs to where it ended, inheriting its priority); First/Last day date inputs; saving places the block and carves **same-priority** neighbours (shorten / split / remove) - blocks of another priority are concurrent emphases and stay. Under the dates: what happens to the others ("Deload now starts 17 Oct") and the days it leaves without a phase. One write for all of it (`setTrainingBlocks`), with Undo.
+- Calendar: phase strip under the days in Day/Week, a bar down the week list's rows, a bar under each date in Month; Settings: "Show phases in the calendar" (on) and "Write the phase name on it" (off). Tapping the strip opens the Block manager. Not done: a mark per week in Year.
+
+### Stage 7 - trips, competitions, drag (done)
+- Trips and competitions are bars across their days in Day/Week (rows when they overlap; cut at the edge when they go on), a bar along the top of each day in Month, a line on their days in the week list.
+- Hold-and-drag (~0.35 s, 8 px slop) moves a planned session to another day/time (quarter hours, kept inside the day, the grab point kept); a press that moves at once stays a scroll or swipe; finished, running and Plan B sessions can't be dragged. Verified with emulated touch in headless Chrome, not on a phone.
+
+### Still open
+- Open question 3: the AI cannot yet set a block's first/last day (it speaks in week ids; it is told the exact days of a block that starts or ends mid-week).
+- A phase mark per week in the Year view.
+- Nothing here has been run on a real phone, and none of the migrations has met Nathan's real data - run `docs/qa-checklist.md` section 12 (12.1 first) before pushing. All devices must update before sync resumes (data 3.36).
