@@ -5,7 +5,7 @@ import { generateId } from "../utils";
 /**
  * How ids are minted for the generated workouts and their exercise slots.
  * Defaults to fresh random ids; `weekProjection.ts` passes deterministic
- * ones so a *provisional* (not-yet-materialised) week keeps stable identity
+ * ones so a *projected* (not yet saved) session keeps stable identity
  * across re-renders - Svelte's keyed `{#each}`, drag-and-drop and
  * "open this session" all need an id that doesn't change every render.
  */

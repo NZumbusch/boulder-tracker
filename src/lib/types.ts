@@ -385,8 +385,9 @@ export interface Workout {
   blockId?: string;
   /**
    * **Transient, never persisted.** Marks a session that is only *projected*
-   * from its phase's templates because its week hasn't been materialised
-   * yet - see `lib/planning/weekProjection.ts`. Storage strips it
+   * from its phase's templates because nothing has been done to it yet (it
+   * is saved when logged, changed, moved or deleted) - see
+   * `lib/planning/weekProjection.ts`. Storage strips it
    * (`toStoredWorkout`); a workout read back from storage never has it.
    */
   provisional?: true;
@@ -507,9 +508,9 @@ export interface DismissedSession {
 /**
  * A free-text note about one week - circumstances, ideas, anything that
  * explains the week ("travelling Thu-Sun", "elbow niggly, keep pulling
- * light"). Its own table keyed by `weekId`, like `WeekOverride`, rather
- * than a field on a block or a workout: a note belongs to the week itself,
- * so writing one never materialises a provisional week, and it survives the
+ * light"). Its own table keyed by `weekId` rather than a field on a block
+ * or a workout: a note belongs to the week itself, so writing one never
+ * touches the week's sessions, and it survives the
  * week being reset, cleared or re-planned under a different block.
  * At most one per week; an empty note is deleted, not stored.
  */
@@ -620,7 +621,7 @@ export interface PlanBOccurrence {
  * Stored as a rule and applied when a week is read
  * (`lib/planning/planB.ts`), never written into weeks: Plan A is whatever
  * the week shows - projected from its phase or stored - and Plan B is only
- * the differences on top. So a Plan B never materialises a week, crosses
+ * the differences on top. So a Plan B never saves a week's sessions, crosses
  * week and phase boundaries freely, and keeps working when the phase under
  * it changes later; a change whose Plan A session is gone is flagged, not
  * silently dropped.

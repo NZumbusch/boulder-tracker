@@ -151,7 +151,7 @@ export function setDemoMode(on: boolean): void {
  * blamed on whichever unrelated write triggered it, and every write after
  * that keeps failing while the UI still shows the in-memory state as if it
  * had saved. So this is enforced at the boundary rather than trusted to
- * each caller (e.g. `materializeWeek` writes sessions built from reactive
+ * each caller (e.g. `saveProjectedSessions` writes sessions built from reactive
  * templates).
  *
  * JSON round-trip rather than `structuredClone`: it is the one deep copy

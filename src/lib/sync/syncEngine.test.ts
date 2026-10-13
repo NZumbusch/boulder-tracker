@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { runSync, SyncVersionError, docFileName, type SyncTransport, type LocalPort } from "./syncEngine";
-import { initLedger, trackTable, type Ledger } from "./merge";
+import { runSync, upgradeDoc, SyncVersionError, docFileName, type SyncTransport, type LocalPort } from "./syncEngine";
+import { initLedger, trackTable, type Ledger, type SyncDoc } from "./merge";
 
 const TABLES = ["workouts", "dailyMetrics"] as const;
 
@@ -172,5 +172,25 @@ describe("runSync", () => {
 
     const behind = device("behind", { workouts: [], dailyMetrics: [] }, "3.20");
     await expect(behind.sync(drive.transport, 120)).rejects.toBeInstanceOf(SyncVersionError);
+  });
+});
+
+describe("upgradeDoc", () => {
+  it("hands the migration a table the app no longer has, so it can read it before dropping it", () => {
+    const doc = {
+      format: 1, deviceId: "old", deviceName: "old", exportVersion: "3.35", syncedAt: 1,
+      tables: {
+        workouts: {},
+        weekOverrides: { "2026-W40": { h: "x", t: 1, o: "old", v: { weekId: "2026-W40", customized: true } } },
+      },
+    } as unknown as SyncDoc;
+    let seen: unknown;
+    const out = upgradeDoc(doc, ["workouts", "dismissedSessions"], (db) => {
+      seen = db.weekOverrides;
+      db.dismissedSessions = [{ id: "prov:2026-W40:*", weekId: "2026-W40" }];
+    }, "3.36");
+    expect(seen).toEqual([{ weekId: "2026-W40", customized: true }]);
+    expect(Object.keys(out.tables).sort()).toEqual(["dismissedSessions", "workouts"]); // the old table is gone from the upgraded doc
+    expect(Object.values(out.tables.dismissedSessions).map((e) => e.v)).toEqual([{ id: "prov:2026-W40:*", weekId: "2026-W40" }]);
   });
 });

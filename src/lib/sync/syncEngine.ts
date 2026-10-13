@@ -73,7 +73,8 @@ const isDocFile = (name: string) => /^device-.+\.json$/.test(name);
 /** Rewrites a doc from an older app version into the current format (values migrated, hashes redone). */
 export function upgradeDoc(doc: SyncDoc, tableNames: readonly string[], migrate: (db: Record<string, unknown>) => void, targetVersion: string): SyncDoc {
   const db: Record<string, unknown> = { exportVersion: doc.exportVersion };
-  for (const table of tableNames) {
+  // The doc's own tables too, not only today's: a migration may need one that no longer exists (it reads it, then drops it).
+  for (const table of new Set([...tableNames, ...Object.keys(doc.tables)])) {
     const live = new Map<string, unknown>();
     for (const [key, e] of Object.entries(doc.tables[table] ?? {})) if (!e.del) live.set(key, e.v);
     db[table] = mapToTable(table, live, undefined);
