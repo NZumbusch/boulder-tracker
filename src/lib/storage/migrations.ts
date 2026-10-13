@@ -8,6 +8,7 @@ import {
 } from "../constants";
 import { generateId } from "../utils";
 import { upgradeBenchmarks } from "../benchmarks/upgrade";
+import { withBlockDates } from "../planning/trainingBlocks";
 
 // --- Migration Helper ---
 
@@ -1160,6 +1161,15 @@ const MIGRATIONS: MigrationStep[] = [
       data.benchmarkTypes = out.types;
       data.benchmarks = out.results;
       data.valueDefs = out.valueDefs;
+    },
+  },
+  {
+    from: "3.34",
+    to: "3.35",
+    describe: "Training blocks get a first and last day (Monday of the first week, Sunday of the last): a phase is a range of days, so it can start or end mid-week",
+    migrate: (data: any) => {
+      if (!Array.isArray(data.trainingBlocks)) return;
+      data.trainingBlocks = data.trainingBlocks.map(withBlockDates);
     },
   },
 ];

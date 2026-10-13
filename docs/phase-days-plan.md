@@ -65,3 +65,12 @@ Every version bump means all of Nathan's devices must update before sync resumes
 2. Block review with a block that starts mid-week: **count sessions by their date; weekly series use the whole weeks the block touches**, marked as partial.
 3. Can the AI set block dates? **Yes: an optional date next to the week fields; week ids still accepted.**
 4. In the Block manager: **one timeline list with date pickers; tap a block to edit** - to be sketched before stage 5.
+
+## Progress log
+
+### Stage 1 (done, data 3.35)
+- `startDate`/`endDate` on `TrainingBlock` (optional in the type until stage 6). Migration 3.34 -> 3.35 writes them from the weeks; `withBlockDates` is applied wherever blocks are saved (`_saveTrainingBlocks`, `applyPlanWrites`, import, coalescing). **For now the weeks still decide**: any write path that changes only week ids gets fresh dates. Stage 2 flips this (dates decide, weeks derived) once every writer sets dates.
+- Helpers in `planning/trainingBlocks.ts`: `blockStartDate`, `blockEndDate`, `phaseOnDay`, `phasesInWeek`, `winningPhaseOfWeek`; day helpers in `dateUtils.ts` (`addDaysIso`, `weekMondayIso`, `weekSundayIso`, `weekDayIsos`, `weekIdOfIso`).
+- Neutrality is tested: on random plans (priorities, overlaps, New Year, week 53) `winningPhaseOfWeek` gives what `getDominantBlockForWeek` gave.
+- **Judgment call - ties**: the plan said a tie in days goes "to the later phase". Implemented as *the block created later* (later in the list), not the later start, so that whole-week overlapping blocks behave exactly as before. It only matters for a week split into equal parts (3+3 days with a gap day).
+- **Found and fixed on the way**: `getWeekId` gave the wrong week from April to October in southern-hemisphere zones (Auckland: a daylight-saving hour made a `Math.ceil` overshoot). It now uses calendar arithmetic; tested in five zones.

@@ -119,7 +119,7 @@ export function coalesceBlocks(blocks: TrainingBlock[]): CoalescedBlocks {
     const run = open.get(k);
     if (run && b.startWeekId <= nextWeekId(run.endWeekId)) {
       const notes = [...new Set([run.notes, b.notes].flatMap((n) => (n ?? "").split("\n")).map((l) => l.trim()).filter(Boolean))];
-      const next: TrainingBlock = { ...run, endWeekId: b.endWeekId > run.endWeekId ? b.endWeekId : run.endWeekId, ...(notes.length ? { notes: notes.join("\n") } : {}) };
+      const next: TrainingBlock = withBlockDates({ ...run, endWeekId: b.endWeekId > run.endWeekId ? b.endWeekId : run.endWeekId, ...(notes.length ? { notes: notes.join("\n") } : {}) });
       open.set(k, next);
       merged.set(run.id, next);
       remap[b.id] = run.id;
