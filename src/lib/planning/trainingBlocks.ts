@@ -1,5 +1,5 @@
 import type { TrainingBlock } from "../types";
-import { incrementWeekId as nextWeekId } from "../dateUtils";
+import { incrementWeekId as nextWeekId, weekMondayIso, weekSundayIso, weekDayIsos } from "../dateUtils";
 
 /**
  * All blocks whose [startWeekId, endWeekId] range covers `weekId`. Plain
@@ -21,6 +21,77 @@ export function getDominantBlockForWeek(blocks: TrainingBlock[], weekId: string)
   const covering = getBlocksForWeek(blocks, weekId);
   if (covering.length === 0) return undefined;
   return covering.reduce((best, b) => ((b.priority ?? 0) >= (best.priority ?? 0) ? b : best));
+}
+
+// --- Phases as ranges of days ---
+
+/** First day of a block ("YYYY-MM-DD"): its stored date, or the Monday of its first week. */
+export function blockStartDate(b: TrainingBlock): string {
+  return b.startDate ?? weekMondayIso(b.startWeekId);
+}
+
+/** Last day of a block: its stored date, or the Sunday of its last week. */
+export function blockEndDate(b: TrainingBlock): string {
+  return b.endDate ?? weekSundayIso(b.endWeekId);
+}
+
+/**
+ * The block with its days written from its weeks (Monday of the first,
+ * Sunday of the last). For now the weeks still decide, so a block saved
+ * after only its week ids changed can't keep stale dates. A block whose
+ * weeks aren't usable is returned as it is.
+ */
+export function withBlockDates(b: TrainingBlock): TrainingBlock {
+  const startDate = weekMondayIso(b.startWeekId);
+  const endDate = weekSundayIso(b.endWeekId);
+  if (!startDate || !endDate) return b;
+  return b.startDate === startDate && b.endDate === endDate ? b : { ...b, startDate, endDate };
+}
+
+/**
+ * The block a day belongs to. Where blocks overlap, higher `priority` wins,
+ * then the one later in the list (last created) - the rule weeks always had.
+ */
+export function phaseOnDay(blocks: TrainingBlock[], isoDate: string): TrainingBlock | undefined {
+  let best: TrainingBlock | undefined;
+  for (const b of blocks) {
+    if (blockStartDate(b) > isoDate || isoDate > blockEndDate(b)) continue;
+    if (!best || (b.priority ?? 0) >= (best.priority ?? 0)) best = b;
+  }
+  return best;
+}
+
+export interface PhaseDays {
+  block: TrainingBlock;
+  /** The days of the week this block is the phase of, Monday first. */
+  days: string[];
+}
+
+/** The phases a week holds with their days (two usually, three or more work the same), in the order they start. Empty when no block touches it. */
+export function phasesInWeek(blocks: TrainingBlock[], weekId: string): PhaseDays[] {
+  const byBlock = new Map<TrainingBlock, string[]>();
+  for (const day of weekDayIsos(weekId)) {
+    const block = phaseOnDay(blocks, day);
+    if (!block) continue;
+    byBlock.set(block, [...(byBlock.get(block) ?? []), day]);
+  }
+  return [...byBlock].map(([block, days]) => ({ block, days }));
+}
+
+/**
+ * The phase a week counts as when it needs one (its colour, the templates
+ * for sessions with no day): the highest priority, then the most days, a
+ * tie going to the block created later.
+ */
+export function winningPhaseOfWeek(blocks: TrainingBlock[], weekId: string): TrainingBlock | undefined {
+  let best: PhaseDays | undefined;
+  for (const phase of phasesInWeek(blocks, weekId)) {
+    if (!best) { best = phase; continue; }
+    const [pp, bp] = [phase.block.priority ?? 0, best.block.priority ?? 0];
+    const [pd, bd] = [phase.days.length, best.days.length];
+    if (pp > bp || (pp === bp && (pd > bd || (pd === bd && blocks.indexOf(phase.block) > blocks.indexOf(best.block))))) best = phase;
+  }
+  return best?.block;
 }
 
 export interface CoalescedBlocks {
