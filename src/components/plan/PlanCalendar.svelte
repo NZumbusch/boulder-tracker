@@ -12,7 +12,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
   import { weekStartDay } from '../../lib/analytics/range';
-  import { localDayIndex } from '../../lib/analytics/recoverySeries';
+  import { localDayIndex, dayIndexToIso } from '../../lib/analytics/recoverySeries';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import {
     DAY_MS, dayNameOf, sessionsByDay, toCalendarSession, weekIdOfDayIndex, type CalendarSession,
@@ -22,6 +22,7 @@
   import CalendarTimeGrid from './CalendarTimeGrid.svelte';
   import CalendarMonth from './CalendarMonth.svelte';
   import CalendarAgenda from './CalendarAgenda.svelte';
+  import { phaseMarks } from '../../lib/planning/phaseStrip';
   import type { DayOfWeek } from '../../lib/types';
 
   type Mode = 'day' | 'week' | 'month' | 'year';
@@ -30,7 +31,7 @@
   ];
   const MODE_KEY = 'plan.calendarMode';
 
-  let { onAdd }: { onAdd: (weekId: string, day: DayOfWeek, startTime?: string) => void } = $props();
+  let { onAdd, onEditPhase }: { onAdd: (weekId: string, day: DayOfWeek, startTime?: string) => void; onEditPhase?: (isoDate: string) => void } = $props();
 
   function storedMode(): Mode {
     try {
@@ -141,6 +142,13 @@
     onAdd(weekIdOfDayIndex(day), dayNameOf(day), time);
   }
   const agenda = $derived(trainingState.tunableOn('plan.weekAgenda'));
+  /** The phase on each day shown (Settings -> Plan calendar). The year overview doesn't draw it. */
+  const phases = $derived(
+    trainingState.tunableOn('plan.calendarPhases') && mode !== 'year'
+      ? phaseMarks(trainingState.trainingBlocks, trainingState.phaseDefs, Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i))
+      : new Map(),
+  );
+  const phaseNames = $derived(trainingState.tunableOn('plan.calendarPhaseNames'));
   const isRunning = (s: CalendarSession) => trainingState.sessionStore.isRunning(s.workout.id);
 </script>
 
@@ -191,6 +199,8 @@
       isFaded={faded}
       onOpen={open}
       onAdd={(day) => addAt(day)}
+      {phases}
+      {phaseNames}
     />
     {#if noDayCount > 0}
       <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
@@ -207,6 +217,9 @@
       onOpen={open}
       onPickDay={openDay}
       onAdd={addAt}
+      {phases}
+      {phaseNames}
+      onPickPhase={(day) => onEditPhase?.(dayIndexToIso(day))}
     />
     {#if sessions.length === 0}
       <p class="text-caption text-content-subtle italic text-center py-4">{mode === 'day' ? 'Nothing planned - tap + to add a session.' : 'Nothing planned this week.'}</p>
@@ -215,7 +228,7 @@
       <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
     {/if}
   {:else if mode === 'month'}
-    <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} />
+    <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} />
   {:else}
     <div class="grid grid-cols-3 gap-x-3 gap-y-4">
       {#each Array.from({ length: 12 }, (_, i) => i) as m (m)}

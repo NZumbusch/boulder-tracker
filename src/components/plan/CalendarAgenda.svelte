@@ -9,6 +9,7 @@
   import { dayNameOf, exerciseLines, type CalendarSession } from '../../lib/planning/calendarEvents';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { ExerciseTypeDef } from '../../lib/types';
+  import type { PhaseMark } from '../../lib/planning/phaseStrip';
 
   let {
     days,
@@ -20,6 +21,8 @@
     isFaded,
     onOpen,
     onAdd,
+    phases = new Map(),
+    phaseNames = false,
   }: {
     days: number[];
     byDay: Map<number, CalendarSession[]>;
@@ -30,6 +33,9 @@
     isFaded: (s: CalendarSession) => boolean;
     onOpen: (s: CalendarSession, siblings: CalendarSession[]) => void;
     onAdd: (day: number) => void;
+    /** The phase on each day, drawn as a bar down the row's edge (empty = off). */
+    phases?: Map<number, PhaseMark>;
+    phaseNames?: boolean;
   } = $props();
 
   const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -45,12 +51,16 @@
   {#each days as day (day)}
     {@const sessions = byDay.get(day) ?? []}
     {@const dayEvents = events.get(day) ?? []}
+    {@const mark = phases.get(day)}
+    {@const startsHere = mark && phases.get(day - 1)?.key !== mark.key}
     <div class="flex gap-3 py-2.5">
+      {#if phases.size > 0}<span class="w-1 shrink-0 self-stretch rounded-full {mark?.color ?? 'bg-transparent'}" aria-hidden="true"></span>{/if}
       <div class="w-9 shrink-0 text-center pt-0.5">
         <p class="text-caption {day === today ? 'text-primary font-bold' : 'text-content-subtle'}">{dayNameOf(day).slice(0, 3)}</p>
         <p class="text-label tabular-nums {day === today ? 'text-primary font-bold' : 'text-content'}">{dateOf(day)}</p>
       </div>
       <div class="flex-1 min-w-0 space-y-1.5">
+        {#if phaseNames && startsHere}<p class="text-caption text-content-subtle">{mark?.name}</p>{/if}
         {#each sessions as s (s.workout.id)}
           {@const ex = exerciseLines(s.workout, exerciseTypes, 8)}
           <button

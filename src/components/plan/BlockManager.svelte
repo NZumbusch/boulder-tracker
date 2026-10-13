@@ -2,23 +2,26 @@
   import { sheetDrag } from '../../lib/ui/sheetDrag';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
-   * CRUD for multi-week `TrainingBlock`s - concurrent training emphases
-   * that can span (and overlap) more than one week. The
-   * single-week "quick assign" phase picker on the calendar itself
-   * (`TrainingPlan.svelte`) stays the fast path for the common case; this
-   * is the editor for real overlapping/longer blocks.
+   * The only place phases are edited. A phase is a range of days, so it can
+   * start or end mid-week; the Plan's block view and calendar show and work
+   * with sessions, and open this with a day when its phase needs changing.
+   * Placing a block over days another of the same priority has takes them
+   * (that block is shortened, split or removed - the form says which); blocks
+   * of a different priority are concurrent emphases and stay as they are.
    */
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
   import type { TrainingBlock } from '../../lib/types';
   import { sortBlocks, upcomingWindow } from '../../lib/planning/blockPaging';
-  import { blockFirstWeekId } from '../../lib/planning/trainingBlocks';
-  import { weekMondayIso, weekSundayIso } from '../../lib/dateUtils';
+  import { blockFirstWeekId, phaseOnDay } from '../../lib/planning/trainingBlocks';
+  import { placeBlock, startPhaseOn, describeBlockChanges, daysWithoutPhase, shortDate } from '../../lib/planning/blockEdit';
+  import { weekMondayIso, weekSundayIso, weekIdOfIso } from '../../lib/dateUtils';
   import BlockBrowser from './BlockBrowser.svelte';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
   import Icon from "@iconify/svelte";
 
-  let { onClose } = $props<{ onClose: () => void }>();
+  /** `focusDate` ('YYYY-MM-DD'): opened from a day in the Plan - shows what is there and offers to start another phase on it. */
+  let { onClose, focusDate } = $props<{ onClose: () => void; focusDate?: string }>();
 
   /**
    * The panel lists the current block and what's next, capped - a long
@@ -44,14 +47,14 @@
   }
 
   function startAdd() {
-    const currentWeekId = trainingState.currentWeekId;
+    const weekId = focusDate ? weekIdOfIso(focusDate) : trainingState.currentWeekId;
     formOpen = true;
     editingBlock = {
       id: generateId(),
       name: 'New Block',
       phaseId: phaseDefs[0]?.id ?? '',
-      startDate: weekMondayIso(currentWeekId),
-      endDate: weekSundayIso(currentWeekId),
+      startDate: focusDate ?? weekMondayIso(weekId),
+      endDate: weekSundayIso(weekId),
       priority: 0,
     };
   }
@@ -61,17 +64,45 @@
     formOpen = true;
   }
 
-  async function handleSave() {
-    if (!editingBlock) return;
-    if (!editingBlock.name.trim() || !editingBlock.phaseId) return;
-    if (!editingBlock.startDate || !editingBlock.endDate) return;
-    if (editingBlock.endDate < editingBlock.startDate) {
-      [editingBlock.startDate, editingBlock.endDate] = [editingBlock.endDate, editingBlock.startDate];
-    }
+  /** The form's block as it would be saved: dates the right way round, notes trimmed; undefined while the form is incomplete. */
+  function readyBlock(): TrainingBlock | undefined {
+    if (!editingBlock) return undefined;
     const { notes, ...block } = $state.snapshot(editingBlock);
-    await trainingState.saveTrainingBlock(notes?.trim() ? { ...block, notes: notes.trim() } : block);
+    if (!block.name.trim() || !block.phaseId || !block.startDate || !block.endDate) return undefined;
+    const [startDate, endDate] = block.endDate < block.startDate ? [block.endDate, block.startDate] : [block.startDate, block.endDate];
+    return { ...block, startDate, endDate, ...(notes?.trim() ? { notes: notes.trim() } : {}) };
+  }
+
+  /** What saving would do to the other blocks, and which days it would leave without a phase - shown under the dates. */
+  const preview = $derived.by(() => {
+    const block = readyBlock();
+    if (!block) return undefined;
+    const current = $state.snapshot(trainingState.trainingBlocks) as TrainingBlock[];
+    const placed = placeBlock(current, block, () => 'preview');
+    return { changes: describeBlockChanges(current, placed, block.id), gaps: daysWithoutPhase(current, placed) };
+  });
+
+  async function handleSave() {
+    const block = readyBlock();
+    if (!block) return;
+    const current = $state.snapshot(trainingState.trainingBlocks) as TrainingBlock[];
+    await trainingState.setTrainingBlocks(placeBlock(current, block, generateId), `"${block.name}" saved`);
     formOpen = false;
   }
+
+  /** The block on `focusDate`, and the phase chosen to start there. */
+  const focusBlock = $derived(focusDate ? phaseOnDay(trainingState.trainingBlocks, focusDate) : undefined);
+  let startPhaseId = $state('');
+  async function handleStartPhase() {
+    const phase = phaseDefs.find((p) => p.id === startPhaseId);
+    if (!phase || !focusDate) return;
+    const current = $state.snapshot(trainingState.trainingBlocks) as TrainingBlock[];
+    await trainingState.setTrainingBlocks(startPhaseOn(current, focusDate, phase, generateId), `${phase.name} starts ${shortDate(focusDate)}`);
+    onClose();
+  }
+
+  const longDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const dayCount = (b: TrainingBlock) => Math.round((Date.parse(b.endDate) - Date.parse(b.startDate)) / 86_400_000) + 1;
 
   async function handleDelete(id: string) {
     await trainingState.deleteTrainingBlock(id);
@@ -93,13 +124,34 @@
       <div>
         <h3 class="text-title text-content">Training Blocks</h3>
         <p class="text-caption text-content-subtle mt-0.5">
-          {hiddenCount > 0 ? 'Current and upcoming emphases' : 'Concurrent, multi-week emphases'}
+          {hiddenCount > 0 ? 'Current and upcoming' : 'Phases as ranges of days'}
         </p>
       </div>
       <button onclick={onClose} class="text-content-subtle hover:text-content transition-colors">
         <Icon icon="ic:baseline-close" class="text-xl" />
       </button>
     </div>
+
+    {#if focusDate && !formOpen}
+      <div class="p-4 bg-surface-elevated/50 border border-border-strong/50 rounded-card space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <p class="text-label text-content-subtle">{longDay(focusDate)}</p>
+            <p class="text-body font-bold text-content truncate">{focusBlock ? (focusBlock.name === phaseName(focusBlock.phaseId) ? focusBlock.name : `${focusBlock.name} · ${phaseName(focusBlock.phaseId)}`) : 'No phase'}</p>
+          </div>
+          {#if focusBlock}
+            <button onclick={() => startEdit(focusBlock)} class="p-1.5 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Edit this block"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
+          {/if}
+        </div>
+        <div class="flex gap-2">
+          <select bind:value={startPhaseId} aria-label="Phase to start on this day" class="flex-1 min-w-0 bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+            <option value="">Start a phase on {shortDate(focusDate)}…</option>
+            {#each phaseDefs as phase}<option value={phase.id}>{phase.name}</option>{/each}
+          </select>
+          <button onclick={handleStartPhase} disabled={!startPhaseId} class="px-4 py-3 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">Start</button>
+        </div>
+      </div>
+    {/if}
 
     {#if formOpen && editingBlock}
       <div class="p-4 bg-surface-elevated/50 border border-primary/30 rounded-card space-y-3">
@@ -125,6 +177,12 @@
             <input id="block-end" type="date" bind:value={editingBlock.endDate} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
           </div>
         </div>
+        {#if preview && (preview.changes.length || preview.gaps.length)}
+          <div class="space-y-0.5 text-caption" aria-live="polite">
+            {#each preview.changes as line}<p class="text-content-muted">{line}</p>{/each}
+            {#each preview.gaps as gap}<p class="text-warning">Leaves {gap.from === gap.to ? shortDate(gap.from) : `${shortDate(gap.from)} – ${shortDate(gap.to)}`} without a phase</p>{/each}
+          </div>
+        {/if}
         <div class="space-y-1">
           <label for="block-notes" class="text-label text-content-subtle ml-1">Notes</label>
           <textarea id="block-notes" bind:value={editingBlock.notes} rows="3" class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm leading-relaxed resize-y" placeholder="What this block is for, how to progress it…"></textarea>
@@ -153,7 +211,7 @@
                   <span class="truncate">{block.name}</span>
                   {#if block.notes}<Icon icon="ic:baseline-sticky-note-2" class="text-xs text-primary/70 shrink-0" />{/if}
                 </p>
-                <p class="text-caption text-content-subtle mt-0.5">{phaseName(block.phaseId)} · {block.startDate} – {block.endDate}{block.priority ? ` · priority ${block.priority}` : ''}</p>
+                <p class="text-caption text-content-subtle mt-0.5">{phaseName(block.phaseId)} · {shortDate(block.startDate)} – {shortDate(block.endDate)} · {dayCount(block)} day{dayCount(block) === 1 ? '' : 's'}{block.priority ? ` · priority ${block.priority}` : ''}</p>
               </div>
             </div>
             <div class="flex items-center gap-1 ml-2">

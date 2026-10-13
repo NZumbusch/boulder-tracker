@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { ExerciseSlot, Workout, WorkoutTemplate } from "../types";
 import { validateChangeSet } from "./changeSet";
-import { planChanges, planWithSelection, allItemIds, carveBlocks, type PlannerState } from "./changePlanner";
+import { planChanges, planWithSelection, allItemIds, type PlannerState } from "./changePlanner";
 import { blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
 
 let n = 0;
@@ -39,18 +39,6 @@ function plan(doc: unknown, selected?: Set<string>) {
   if (!v.valid) throw new Error(JSON.stringify(v.issues));
   return planChanges(v.data!, state(), selected, ids);
 }
-
-describe("carveBlocks", () => {
-  it("trims, splits and drops blocks around a range", () => {
-    const blocks = [
-      { id: "a", name: "A", phaseId: "p", startDate: "2026-09-14", endDate: "2026-10-25" },
-      { id: "b", name: "B", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-11" },
-      { id: "c", name: "C", phaseId: "p", startDate: "2026-12-07", endDate: "2026-12-20" },
-    ];
-    const r = carveBlocks(blocks, "2026-09-28", "2026-10-11", () => "new");
-    expect(r.map((b) => `${b.id}:${blockFirstWeekId(b)}-${blockLastWeekId(b)}`)).toEqual(["a:2026-W38-2026-W39", "new:2026-W42-2026-W43", "c:2026-W50-2026-W51"]);
-  });
-});
 
 describe("planChanges - exercise types", () => {
   it("adds a type, inferring what it tracks from how the plan uses it", () => {

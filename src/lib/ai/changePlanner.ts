@@ -44,7 +44,8 @@ import type {
 } from "../types";
 import { workoutPlannedLoad } from "../analytics/load";
 import { generateId } from "../utils";
-import { addDaysIso, weekMondayIso, weekSundayIso } from "../dateUtils";
+import { weekMondayIso, weekSundayIso } from "../dateUtils";
+import { carveBlocks } from "../planning/blockEdit";
 import { getDominantBlockForWeek, blockLastWeekId } from "../planning/trainingBlocks";
 import { projectWeekWorkouts, type WeekProjectionContext } from "../planning/weekProjection";
 import { appendAINote, weekNoteText } from "../planning/notes";
@@ -628,20 +629,6 @@ function sessionListDiff(before: EditableSession[], after: EditableSession[]): s
   for (const s of before) if (!after.some((a) => a.id === s.id)) lines.push(`− ${sessionLabel(s)}`);
   for (const s of after) if (!before.some((b) => b.id === s.id)) lines.push(`+ ${sessionLabel(s)} (${s.exercises.length} exercise${s.exercises.length === 1 ? "" : "s"})`);
   return lines;
-}
-
-/** Removes the days [start, end] ("YYYY-MM-DD") from every block, splitting blocks that straddle them. */
-export function carveBlocks(blocks: TrainingBlock[], start: string, end: string, newId: () => string): TrainingBlock[] {
-  const result: TrainingBlock[] = [];
-  for (const b of blocks) {
-    if (b.endDate < start || b.startDate > end) {
-      result.push(b);
-      continue;
-    }
-    if (b.startDate < start) result.push({ ...b, endDate: addDaysIso(start, -1) });
-    if (b.endDate > end) result.push({ ...b, id: b.startDate < start ? newId() : b.id, startDate: addDaysIso(end, 1) });
-  }
-  return result;
 }
 
 function effectivePhaseName(ctx: Ctx, blocks: TrainingBlock[], weekId: string): string | undefined {

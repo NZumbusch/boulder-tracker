@@ -6,6 +6,7 @@
    */
   import { DAY_MS, type CalendarSession } from '../../lib/planning/calendarEvents';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
+  import type { PhaseMark } from '../../lib/planning/phaseStrip';
 
   let {
     year,
@@ -16,6 +17,7 @@
     mini = false,
     onPickDay,
     onPickMonth,
+    phases = new Map(),
   }: {
     year: number;
     /** 0-11. */
@@ -27,6 +29,8 @@
     mini?: boolean;
     onPickDay: (day: number) => void;
     onPickMonth?: (month: number) => void;
+    /** The phase on each day, as a thin bar under the date (full size only; empty = off). */
+    phases?: Map<number, PhaseMark>;
   } = $props();
 
   const first = $derived(Math.floor(Date.UTC(year, month, 1) / DAY_MS));
@@ -66,8 +70,9 @@
           <button
             onclick={() => onPickDay(day)}
             aria-label="{date} {monthName}{list.length ? `, ${list.length} session${list.length === 1 ? '' : 's'}` : ''}"
-            class="h-14 flex flex-col items-center gap-1 pt-1.5 rounded-control hover:bg-surface-elevated/60 transition-colors"
+            class="h-14 flex flex-col items-center gap-1 pt-1.5 rounded-control hover:bg-surface-elevated/60 transition-colors relative overflow-hidden"
           >
+            {#if phases.get(day)?.color}<span class="absolute inset-x-0 bottom-0 h-0.5 {phases.get(day)?.color}" aria-hidden="true"></span>{/if}
             <span class="text-label tabular-nums w-6 h-6 flex items-center justify-center rounded-full {day === today ? 'bg-primary text-white font-bold' : 'text-content'}">{date}</span>
             <span class="flex gap-0.5 h-1.5">
               {#each list.slice(0, 3) as s (s.workout.id)}

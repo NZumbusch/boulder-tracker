@@ -308,6 +308,12 @@ export const storage = {
     if (coalesceBlocksInDb(_dbState)) await flushDB(["trainingBlocks", "workouts"]);
   },
 
+  /** Replaces every block in one write (the Block manager's edits carve neighbours, so several change at once); blocks of one phase that touch become one. */
+  async saveTrainingBlocks(blocks: TrainingBlock[]): Promise<void> {
+    await this._saveTrainingBlocks(blocks);
+    if (coalesceBlocksInDb(_dbState)) await flushDB(["trainingBlocks", "workouts"]);
+  },
+
   /** Merges blocks that are really one - run when the app loads, so blocks split up earlier read as one. */
   async coalesceTrainingBlocks(): Promise<boolean> {
     await initDB();
@@ -698,63 +704,6 @@ export const storage = {
   async deleteOutdoorAscent(id: string): Promise<void> {
     const ascents = await this._getOutdoorAscents();
     await this._saveOutdoorAscents(ascents.filter((a) => a.id !== id));
-  },
-
-  /**
-   * "Quick assign" a phase to a single week - the same interaction the app
-   * has always offered, now expressed as a `TrainingBlock` whose range is
-   * exactly that one week (Monday to Sunday), so it
-   * migrates 1:1 from the old `PeriodizationWeek` shape. Multi-week blocks
-   * (real overlapping concurrent training emphases) are created/edited
-   * directly via `saveTrainingBlock`, not through this method.
-   *
-   * If another, higher-priority block already covers this week, that block
-   * still wins for template generation/display (see `getDominantBlockForWeek`)
-   * - assigning a phase here only ever affects this week's own single-week
-   * block, never anyone else's block.
-   *
-   * Assigning a phase no longer hard-writes the phase's sessions into the
-   * week. A week with nothing stored is left *provisional* and projects its
-   * sessions from the phase's templates at read time
-   * (`lib/planning/weekProjection.ts`); it only gains real rows once
-   * something is logged or edited in it, it falls into the past, or the user
-   * commits it. Three cases, in order of how much there is to lose:
-   *
-   *  - nothing stored: clear any `customized` flag and let it project. This
-   *    is what makes "Clear Week, then assign a phase" work on a week a
-   *    multi-week block still covers.
-   *  - stored but not customized (a committed, untouched week): regenerate
-   *    its planned sessions from the new phase, exactly as before.
-   *  - stored and customized: left completely alone. Hand edits still win
-   *    over template regeneration, as they always have.
-   *
-   * Completed sessions are never touched in any of these cases.
-   */
-  async assignPhaseToWeek(weekId: string, phaseId: string): Promise<void> {
-    const blocks = await this._getTrainingBlocks();
-    const [monday, sunday] = [weekMondayIso(weekId), weekSundayIso(weekId)];
-    const existingIndex = blocks.findIndex((b) => b.startDate === monday && b.endDate === sunday);
-    if (existingIndex !== -1) {
-      blocks[existingIndex] = { ...blocks[existingIndex], phaseId };
-    } else {
-      const phaseDefs = await this._getPhaseDefs();
-      const phase = phaseDefs.find((p) => p.id === phaseId);
-      blocks.push({
-        id: generateId(),
-        name: phase?.name || "Training Block",
-        phaseId,
-        startDate: monday,
-        endDate: sunday,
-      });
-    }
-    await this._saveTrainingBlocks(blocks);
-
-    // A week emptied on purpose (Clear Week under a longer block) follows a phase again when one is assigned.
-    // A week with sessions of its own keeps them - they are what was saved.
-    const workouts = await this._getWorkouts();
-    if (workouts.some((w) => w.weekId === weekId && w.status === "planned")) return;
-    const dismissed = await this._getDismissedSessions();
-    if (dismissed.some((d) => d.weekId === weekId)) await this._saveDismissedSessions(dismissed.filter((d) => d.weekId !== weekId));
   },
 
   /**

@@ -20,6 +20,17 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-14-phase-days",
+    title: "Phases are ranges of days",
+    points: [
+      "A phase can start or end on any day, not only a Monday: a week can hold two phases. The block view splits the week's cell in two colours and the week card names both with their days.",
+      "Sessions from a phase are saved one by one, only when you log, change, move or delete one. The others keep following the phase, so changing Monday no longer freezes Thursday. A session you delete stays deleted. The week's Lock In and \"not saved yet\" are gone.",
+      "Days that have passed keep what was planned, so changing a phase later never rewrites history.",
+      "Tap a phase on the week card (or the colour strip in the calendar) to open the Block manager on that day: start another phase from there, or edit a block's first and last day - it tells you what that does to its neighbours.",
+      "New in the calendar: a thin colour strip for the phase on each day (Settings → App & display).",
+    ],
+  },
+  {
     id: "2026-10-13-tests",
     title: "Tests: look at your results any way you like",
     needs: "tests",

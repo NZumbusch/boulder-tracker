@@ -8,6 +8,8 @@
   import { layoutDay, visibleHours, exerciseLines, dayNameOf, type CalendarSession } from '../../lib/planning/calendarEvents';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { ExerciseTypeDef } from '../../lib/types';
+  import type { PhaseMark } from '../../lib/planning/phaseStrip';
+  import PhaseStrip from './PhaseStrip.svelte';
 
   let {
     days,
@@ -20,6 +22,9 @@
     onOpen,
     onPickDay,
     onAdd,
+    phases = new Map(),
+    phaseNames = false,
+    onPickPhase,
   }: {
     days: number[];
     byDay: Map<number, CalendarSession[]>;
@@ -33,6 +38,11 @@
     onPickDay?: (day: number) => void;
     /** A tap on an empty stretch of a day: the day and the time (minutes after midnight, to the half hour). */
     onAdd?: (day: number, startMin: number) => void;
+    /** The phase on each day, drawn as a thin strip (empty = off). */
+    phases?: Map<number, PhaseMark>;
+    phaseNames?: boolean;
+    /** A tap on the phase strip: the first day of that stretch. */
+    onPickPhase?: (day: number) => void;
   } = $props();
 
   const compact = $derived(days.length > 1);
@@ -118,6 +128,10 @@
         </button>
       {/each}
     </div>
+  {/if}
+
+  {#if phases.size > 0}
+    <div class="pl-8"><PhaseStrip {days} marks={phases} names={phaseNames} onPick={onPickPhase} /></div>
   {/if}
 
   <!-- Sessions with no time of day, and all-day events. -->

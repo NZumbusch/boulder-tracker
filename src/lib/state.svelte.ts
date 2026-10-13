@@ -1361,19 +1361,26 @@ class TrainingState {
   }
 
   /**
-   * Assigns a training phase to a specific week.
-   */
-  async assignPhase(weekId: string, phaseId: string) {
-    await this.planningStore.assignPhase(weekId, phaseId);
-    await this.refresh();
-  }
-
-  /**
    * Creates or updates a (possibly multi-week) training block.
    */
   async saveTrainingBlock(block: TrainingBlock) {
     await this.planningStore.saveTrainingBlock(block);
     await this.refresh();
+  }
+
+  /**
+   * Replaces all training blocks in one write - what the Block manager does
+   * when an edit also shortens or splits its neighbours - with an Undo that
+   * puts the previous blocks back.
+   */
+  async setTrainingBlocks(next: TrainingBlock[], undoLabel: string) {
+    const before = $state.snapshot(this.planningStore.trainingBlocks) as TrainingBlock[];
+    await this.planningStore.saveTrainingBlocks(next);
+    await this.refresh();
+    showUndo(undoLabel, async () => {
+      await this.planningStore.saveTrainingBlocks(before);
+      await this.refresh();
+    });
   }
 
   /** Applies an AI change set's result (see `changePlanner.ts`) in one write, then reloads. */
