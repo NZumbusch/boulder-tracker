@@ -223,6 +223,13 @@ describe("buildTrainingBlockContext", () => {
     const result = buildTrainingBlockContext(blocks, phaseDefs, ["2026-W21"]);
     expect(result[0].phaseName).toBe("Capacity");
   });
+
+  it("gives the exact days only for a block that starts or ends mid-week", () => {
+    const mid: TrainingBlock[] = [...blocks, { id: "b4", name: "Mid", phaseId: "phase-1", startDate: "2026-05-13", endDate: "2026-05-20" }];
+    const result = buildTrainingBlockContext(mid, phaseDefs, ["2026-W21"]);
+    expect(result.find((b) => b.name === "Capacity Block")).not.toHaveProperty("startDate");
+    expect(result.find((b) => b.name === "Mid")).toMatchObject({ startWeekId: "2026-W20", endWeekId: "2026-W21", startDate: "2026-05-13", endDate: "2026-05-20" });
+  });
 });
 
 describe("buildGoalContext", () => {

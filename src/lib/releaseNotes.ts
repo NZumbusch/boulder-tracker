@@ -25,9 +25,10 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     points: [
       "A phase can start or end on any day, not only a Monday: a week can hold two phases. The block view splits the week's cell in two colours and the week card names both with their days.",
       "Sessions from a phase are saved one by one, only when you log, change, move or delete one. The others keep following the phase, so changing Monday no longer freezes Thursday. A session you delete stays deleted. The week's Lock In and \"not saved yet\" are gone.",
+      "The AI coach can set a phase for exact days too (\"fromDate\" / \"toDate\"), not only whole weeks; it only changes the phase, so sessions you changed stay.",
       "Days that have passed keep what was planned, so changing a phase later never rewrites history.",
       "Tap a phase on the week card (or the colour strip in the calendar) to open the Block manager on that day: start another phase from there, or edit a block's first and last day - it tells you what that does to its neighbours.",
-      "New in the calendar: a thin colour strip for the phase on each day (Settings → App & display), your trips and competitions as bars across their days, and sessions you can move by holding and dragging them to another day or time.",
+      "New in the calendar: a thin colour strip for the phase on each day (Settings → App & display; one line per phase in Month and Year), your trips and competitions as bars across their days, and sessions you can move by holding and dragging them to another day or time.",
     ],
   },
   {

@@ -151,9 +151,9 @@
     await trainingState.saveWorkoutQuiet({ ...($state.snapshot(s.workout) as Workout), weekId, dayOfWeek: dayName, startTime });
   }
   const agenda = $derived(trainingState.tunableOn('plan.weekAgenda'));
-  /** The phase on each day shown (Settings -> Plan calendar). The year overview doesn't draw it. */
+  /** The phase on each day shown (Settings -> Plan calendar). Month and Year draw it as a line along each week row. */
   const phases = $derived(
-    trainingState.tunableOn('plan.calendarPhases') && mode !== 'year'
+    trainingState.tunableOn('plan.calendarPhases')
       ? phaseMarks(trainingState.trainingBlocks, trainingState.phaseDefs, Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i))
       : new Map(),
   );
@@ -247,7 +247,7 @@
   {:else}
     <div class="grid grid-cols-3 gap-x-3 gap-y-4">
       {#each Array.from({ length: 12 }, (_, i) => i) as m (m)}
-        <CalendarMonth {year} month={m} byDay={countedByDay} {today} mini onPickDay={openDay} onPickMonth={openMonth} />
+        <CalendarMonth {year} month={m} byDay={countedByDay} {today} mini onPickDay={openDay} onPickMonth={openMonth} {phases} />
       {/each}
     </div>
   {/if}

@@ -39,3 +39,4 @@ stuff
 google-services.json
 client_secret*.json
 keystore.properties
+src/**/*.private.test.ts

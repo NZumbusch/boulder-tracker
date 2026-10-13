@@ -44,7 +44,8 @@ import type {
 } from "../types";
 import { workoutPlannedLoad } from "../analytics/load";
 import { generateId } from "../utils";
-import { weekMondayIso, weekSundayIso } from "../dateUtils";
+import { weekDayIsos, weekMondayIso, weekSundayIso } from "../dateUtils";
+import { WEEK_DAYS } from "../constants";
 import { carveBlocks } from "../planning/blockEdit";
 import { getDominantBlockForWeek, blockLastWeekId } from "../planning/trainingBlocks";
 import { projectWeekWorkouts, type WeekProjectionContext } from "../planning/weekProjection";
@@ -1189,7 +1190,8 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
   set.weeks.forEach((change, i) => {
     const id = `week-${i}`;
     const weeks = change.weekIds;
-    const item: ChangeItem = { id, section: "week", title: weekRangeLabel(weeks), details: [], warnings: [], errors: [], dependsOn: [] };
+    const byDays = !!(change.fromDate && change.toDate);
+    const item: ChangeItem = { id, section: "week", title: byDays ? (change.fromDate === change.toDate ? change.fromDate! : `${change.fromDate} – ${change.toDate}`) : weekRangeLabel(weeks), details: [], warnings: [], errors: [], dependsOn: [] };
     items.push(item);
     const on = isOn(id);
 
@@ -1207,24 +1209,28 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         const origin = ctx.phaseOrigin.get(normalizeName(phase.name));
         if (origin) item.dependsOn.push(origin);
         if (phase.archived) item.warnings.push(`"${phase.name}" is archived.`);
-        const start = weeks[0];
-        const end = weeks[weeks.length - 1];
         const block: TrainingBlock = {
           id: newId(),
           name: phase.name,
           phaseId: phase.id,
-          startDate: weekMondayIso(start),
-          endDate: weekSundayIso(end),
+          startDate: byDays ? change.fromDate! : weekMondayIso(weeks[0]),
+          endDate: byDays ? change.toDate! : weekSundayIso(weeks[weeks.length - 1]),
           ...(change.blockNotes ? { notes: appendAINote(undefined, change.blockNotes) } : {}),
         };
         blocksAfter = [...carveBlocks(ctx.blocks, block.startDate, block.endDate, newId), block];
         const beforeNames = [...new Set(weeks.map((w) => effectivePhaseName(ctx, ctx.blocks, w) ?? "no phase"))];
         item.title += ` → ${phase.name}`;
-        item.details.push(`phase ${beforeNames.join(" / ")} → ${phase.name}`);
+        item.details.push(`phase ${beforeNames.join(" / ")} → ${phase.name}${byDays ? ` from ${change.fromDate} to ${change.toDate}` : ""}`);
         if (change.blockNotes) item.details.push(`block note: "${change.blockNotes}"`);
       }
     }
-    if (weeks.some((w) => w < state.currentWeekId)) item.warnings.push("Includes past weeks - their completed sessions are kept, only the plan changes.");
+    if (byDays) {
+      // Only the phase changes: sessions still following their phase move to the new one by themselves; saved ones stay.
+      const days = new Set(weeks.flatMap((w) => weekDayIsos(w).filter((d) => d >= change.fromDate! && d <= change.toDate!)));
+      const kept = state.workouts.filter((w) => w.status === "planned" && w.dayOfWeek && days.has(weekDayIsos(w.weekId)[WEEK_DAYS.indexOf(w.dayOfWeek)])).length;
+      if (kept) item.details.push(`${kept} planned session${kept === 1 ? "" : "s"} you already changed on those days stay${kept === 1 ? "s" : ""} as ${kept === 1 ? "it is" : "they are"}`);
+    }
+    if (change.fromDate ? change.fromDate < weekMondayIso(state.currentWeekId) : weeks.some((w) => w < state.currentWeekId)) item.warnings.push("Includes past weeks - their completed sessions are kept, only the plan changes.");
 
     // Work out each week against the blocks as they'll be after this entry.
     const savedBlocks = ctx.blocks;
@@ -1246,7 +1252,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
         const r = applySessionChanges(ctx, base, change.sessionChanges, item, weekRangeLabel([weekId]), (s) => workoutFromSession(ctx, weekId, s, item));
         planned = r.sessions.map((w) => ({ ...w, blockId: getDominantBlockForWeek(ctx.blocks, weekId)?.id, plannedLoad: workoutPlannedLoad(w.exercises, w.groups) }));
         lines.push(...r.lines);
-      } else if (change.phase) {
+      } else if (change.phase && !byDays) {
         // Follow the phase: drop the planned sessions; completed ones stay, standing in for their templates.
         const next = projected(ctx, weekId);
         planned = null;

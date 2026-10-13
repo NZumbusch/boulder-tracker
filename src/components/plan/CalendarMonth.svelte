@@ -31,7 +31,7 @@
     mini?: boolean;
     onPickDay: (day: number) => void;
     onPickMonth?: (month: number) => void;
-    /** The phase on each day, as a thin bar under the date (full size only; empty = off). */
+    /** The phase on each day, as one line under the dates along each week row (empty = off). */
     phases?: Map<number, PhaseMark>;
     /** The trips and competitions on each day, as a bar along the top of the day (full size only). */
     goals?: Map<number, GoalEvent[]>;
@@ -42,6 +42,18 @@
   /** Empty cells before the 1st: the Monday-first weekday of it. */
   const lead = $derived((((first + 3) % 7) + 7) % 7);
   const cells = $derived([...Array.from({ length: lead }, () => null), ...Array.from({ length: length }, (_, i) => first + i)]);
+  /**
+   * The phase line under a date: one continuous line per phase along a week
+   * row (it breaks where the phase changes or the row ends), not a dash per
+   * day - phases run for weeks, so the line is quiet and shows where they begin.
+   */
+  function phaseLine(i: number) {
+    const day = cells[i];
+    const mark = day === null ? undefined : phases.get(day);
+    if (!mark?.color) return undefined;
+    const same = (j: number) => j >= 0 && j < cells.length && Math.floor(j / 7) === Math.floor(i / 7) && cells[j] !== null && phases.get(cells[j]!)?.key === mark.key;
+    return { color: mark.color, joinsPrev: same(i - 1), joinsNext: same(i + 1) };
+  }
   const monthName = $derived(new Date(Date.UTC(year, month, 1)).toLocaleDateString(undefined, { month: 'long', timeZone: 'UTC' }));
 </script>
 
@@ -66,17 +78,19 @@
           <button
             onclick={() => onPickDay(day)}
             aria-label="{date} {monthName}{list.length ? `, ${list.length} session${list.length === 1 ? '' : 's'}` : ''}"
-            class="aspect-square flex items-center justify-center text-[9px] leading-none tabular-nums rounded-[3px]
+            class="aspect-square relative flex items-center justify-center text-[9px] leading-none tabular-nums rounded-[3px]
               {list.length === 0 ? 'text-content-subtle' : list.length === 1 ? 'bg-primary/20 text-content' : 'bg-primary/45 text-content'}
               {day === today ? 'ring-1 ring-primary font-bold' : ''}"
-          >{date}</button>
+          >{date}
+            {#if phaseLine(i)}{@const line = phaseLine(i)!}<span class="absolute bottom-0 left-0 h-0.5 {line.color} {line.joinsPrev ? '' : 'rounded-l-full'} {line.joinsNext ? '' : 'rounded-r-full'}" style="right: {line.joinsNext ? '-1px' : '0'}" aria-hidden="true"></span>{/if}
+          </button>
         {:else}
           <button
             onclick={() => onPickDay(day)}
             aria-label="{date} {monthName}{list.length ? `, ${list.length} session${list.length === 1 ? '' : 's'}` : ''}"
-            class="h-14 flex flex-col items-center gap-1 pt-1.5 rounded-control hover:bg-surface-elevated/60 transition-colors relative overflow-hidden"
+            class="h-14 flex flex-col items-center gap-1 pt-1.5 rounded-control hover:bg-surface-elevated/60 transition-colors relative"
           >
-            {#if phases.get(day)?.color}<span class="absolute inset-x-0 bottom-0 h-0.5 {phases.get(day)?.color}" aria-hidden="true"></span>{/if}
+            {#if phaseLine(i)}{@const line = phaseLine(i)!}<span class="absolute bottom-0 left-0 h-0.5 {line.color} {line.joinsPrev ? '' : 'rounded-l-full'} {line.joinsNext ? '' : 'rounded-r-full'}" style="right: {line.joinsNext ? '-2px' : '0'}" aria-hidden="true"></span>{/if}
             {#if goals.get(day)}<span class="absolute inset-x-0 top-0 h-1 {goals.get(day)?.some((g) => g.kind === 'competition') ? 'bg-warning' : 'bg-primary'}" aria-hidden="true"></span>{/if}
             <span class="text-label tabular-nums w-6 h-6 flex items-center justify-center rounded-full {day === today ? 'bg-primary text-white font-bold' : 'text-content'}">{date}</span>
             <span class="flex gap-0.5 h-1.5">
