@@ -17,7 +17,7 @@ export interface SessionSummary {
 }
 
 /** The one-glance facts about a planned session - what Home's Today rows show under the session name. */
-export function summarizeSession(workout: Workout, exerciseTypes: ExerciseTypeDef[]): SessionSummary {
+export function summarizeSession(workout: Workout, exerciseTypes: ExerciseTypeDef[], maxNames = SUMMARY_EXERCISE_NAMES): SessionSummary {
   // The same exercise twice reads "Easy Climbing ×2", not "Easy Climbing, Easy Climbing".
   const counts = new Map<string, number>();
   for (const slot of workout.exercises) {
@@ -29,8 +29,8 @@ export function summarizeSession(workout: Workout, exerciseTypes: ExerciseTypeDe
     startTime: workout.startTime || undefined,
     minutes: Math.round(estimateSessionDuration(workout)),
     estimated: !workout.plannedDuration,
-    exerciseNames: names.slice(0, SUMMARY_EXERCISE_NAMES),
-    moreExercises: Math.max(0, names.length - SUMMARY_EXERCISE_NAMES),
+    exerciseNames: names.slice(0, maxNames),
+    moreExercises: Math.max(0, names.length - maxNames),
     plannedLoad: Math.round(workoutPlannedLoad(workout.exercises, workout.groups)),
   };
 }
