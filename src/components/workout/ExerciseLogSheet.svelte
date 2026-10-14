@@ -22,6 +22,7 @@
   import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { slotTypeName, planNote, logNote } from '../../lib/exerciseSlot';
   import { PARAMETER_LABELS } from '../../lib/constants';
+  import { paramsWithValues } from '../../lib/exercise/valueParams';
   import { isCustomParam, customIdOf, paramLabel } from '../../lib/exercise/valueDefs';
   import TargetHint from './TargetHint.svelte';
   import type { LastTime } from '../../lib/exercise/lastTime';
@@ -83,10 +84,19 @@
    */
   const seed = $derived(seedOverride ?? slot.logged ?? slot.prescribed ?? {});
 
-  const activeParams = $derived<ParameterBlock[]>(
-    slot.activeParameters
-      ?? (trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? []),
-  );
+  /** Numbers the person added here with "Add weight" - a value the exercise doesn't track yet. */
+  let addedParams = $state<ParameterBlock[]>([]);
+  const activeParams = $derived<ParameterBlock[]>([
+    ...new Set([
+      ...paramsWithValues(
+        slot.activeParameters ?? (trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? []),
+        slot.prescribed, slot.logged, seedOverride ?? undefined,
+      ),
+      ...addedParams,
+    ]),
+  ]);
+  /** "Add weight" is offered where a load makes sense: sets, reps or timed hangs - not a run or a mobility routine. */
+  const canAddWeight = $derived(!activeParams.includes('weight') && (['sets', 'reps', 'timeOn'] as ParameterBlock[]).some((p) => activeParams.includes(p)));
 
   const fields = $derived(NUMERIC_FIELDS.filter((f) => activeParams.includes(f.param)));
 
@@ -321,6 +331,12 @@
             </label>
           {/each}
         </div>
+      {/if}
+      {#if canAddWeight}
+        <button type="button" onclick={() => (addedParams = [...addedParams, 'weight'])} class="w-full flex items-center justify-center gap-1.5 py-2 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors">
+          <Icon icon="ic:baseline-plus" class="text-base" /> Add weight
+          <span class="font-normal text-caption">(extra {trainingState.units.weight} on this one)</span>
+        </button>
       {/if}
       {#if perSetKeys.length > 0}
         {#if !perSetOpen}
