@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AppBar from '../nav/AppBar.svelte';
   import UpdateCard from '../update/UpdateCard.svelte';
   import AndroidAppCard from './AndroidAppCard.svelte';
   import PainCheckInCard from './home/PainCheckInCard.svelte';
@@ -96,50 +97,40 @@
 </script>
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-24">
-  <PullToRefresh onRefresh={pullRefresh} label={driveSync.connected ? 'Pull to sync' : 'Pull to refresh'} />
-  <div class="flex items-center justify-between px-1">
-    <div>
-      <p class="text-caption text-content-subtle">{data.todayLabel}</p>
-      <h2 class="text-title text-content flex items-center gap-2 flex-wrap">
-        <span>{data.currentPhaseName ?? 'Home'}</span>
-        {#if data.blockWeekPosition}
-          <!-- The dot and the week wrap as one, so a large text size never leaves the dot dangling at a line's end. -->
-          <span class="inline-flex items-center gap-2 whitespace-nowrap">
-            <span class="w-1 h-1 bg-surface-elevated-hover rounded-full flex-shrink-0"></span>
-            <span class="text-content-subtle font-normal">Week {data.blockWeekPosition.week} of {data.blockWeekPosition.of}</span>
-          </span>
-        {/if}
-      </h2>
-    </div>
-    <div class="flex items-center gap-2 shrink-0">
+  <AppBar title={data.currentPhaseName ?? 'Home'} subtitle={`${data.todayLabel}${data.blockWeekPosition ? ` · Week ${data.blockWeekPosition.week} of ${data.blockWeekPosition.of}` : ''}`}>
+    {#snippet actions()}
       {#if trainingState.quickLogActions.some((a) => a.visible)}
-      <button
+        <button
           onclick={() => showQuickLog = true}
-          class="p-2 rounded-control text-primary hover:bg-surface-elevated transition-colors"
+          class="w-11 h-11 flex items-center justify-center rounded-full text-primary hover:bg-surface-elevated/70 transition-colors"
           aria-label="Quick log: pain, bodyweight, send or test result"
           data-tour="home-quicklog"
           title="Quick log"
         >
-          <Icon icon="ic:baseline-plus" class="text-xl" />
+          <Icon icon="ic:baseline-plus" class="text-2xl" />
         </button>
       {/if}
-      <button
-        onclick={() => void tour.start()}
-        class="p-2 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
-        aria-label="Take the tour"
-        title="Take the tour"
-      >
-        <Icon icon="ic:outline-help-outline" class="text-lg" />
-      </button>
-      <button
-        onclick={() => trainingState.navigate('settings')}
-        class="p-2 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
-        aria-label="Settings"
-      >
-        <Icon icon="ic:baseline-settings" class="text-lg" />
-      </button>
-    </div>
-  </div>
+      <!-- With the bottom bar chosen there is no drawer to hold these. -->
+      {#if trainingState.navStyle === 'bar'}
+        <button
+          onclick={() => void tour.start()}
+          class="w-11 h-11 flex items-center justify-center rounded-full text-content-subtle hover:text-content hover:bg-surface-elevated/70 transition-colors"
+          aria-label="Take the tour"
+          title="Take the tour"
+        >
+          <Icon icon="ic:outline-help-outline" class="text-xl" />
+        </button>
+        <button
+          onclick={() => trainingState.navigate('settings')}
+          class="w-11 h-11 flex items-center justify-center rounded-full text-content-subtle hover:text-content hover:bg-surface-elevated/70 transition-colors"
+          aria-label="Settings"
+        >
+          <Icon icon="ic:baseline-settings" class="text-xl" />
+        </button>
+      {/if}
+    {/snippet}
+  </AppBar>
+  <PullToRefresh onRefresh={pullRefresh} label={driveSync.connected ? 'Pull to sync' : 'Pull to refresh'} />
 
   <!-- Each section in `trainingState.homeSections`' order, skipping hidden
        ones. The header above isn't part of this list - always shown, first. -->

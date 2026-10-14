@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AppBar from '../nav/AppBar.svelte';
   import { openSessionActions } from '../../lib/sessionActions.svelte';
   import { RATING_AXES } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
@@ -185,26 +186,22 @@
 </script>
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-12">
-  <div class="flex items-center justify-between gap-3 px-1">
-    <h2 class="text-title text-content">History</h2>
-    <div class="flex items-center gap-2">
-    <span class="text-caption text-content-subtle tabular-nums">
-      {onSends ? `${filteredSends.length} sends` : `${filteredWorkouts.length} sessions`}
-    </span>
-    <button
-      onclick={() => showFilters = !showFilters}
-      class="relative p-1.5 rounded-control transition-colors hover:bg-surface-elevated {showFilters || activeFilterCount > 0 ? 'text-primary' : 'text-content-subtle hover:text-content'}"
-      aria-label="Toggle Filters"
-      data-tour="history-filters"
-      aria-expanded={showFilters}
-    >
-      <Icon icon="ic:baseline-filter-list" class="text-lg" />
-      {#if activeFilterCount > 0 && !showFilters}
-        <span class="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold grid place-items-center tabular-nums">{activeFilterCount}</span>
-      {/if}
-    </button>
-    </div>
-  </div>
+  <AppBar title="History" subtitle={onSends ? `${filteredSends.length} sends` : `${filteredWorkouts.length} sessions`}>
+    {#snippet actions()}
+      <button
+        onclick={() => showFilters = !showFilters}
+        class="relative w-11 h-11 flex items-center justify-center rounded-full transition-colors hover:bg-surface-elevated/70 {showFilters || activeFilterCount > 0 ? 'text-primary' : 'text-content-subtle hover:text-content'}"
+        aria-label="Toggle Filters"
+        data-tour="history-filters"
+        aria-expanded={showFilters}
+      >
+        <Icon icon="ic:baseline-filter-list" class="text-xl" />
+        {#if activeFilterCount > 0 && !showFilters}
+          <span class="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold grid place-items-center tabular-nums">{activeFilterCount}</span>
+        {/if}
+      </button>
+    {/snippet}
+  </AppBar>
 
   <div class="seg p-1" data-tour="history-tabs">
     {#each [['sessions', 'Sessions'], ['sends', 'Sends']] as [id, label]}

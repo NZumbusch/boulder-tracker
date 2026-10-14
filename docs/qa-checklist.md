@@ -76,7 +76,7 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 
 | # | Test | Steps | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 6.1 | Landscape | Rotate a phone and a tablet on Home, Plan, a session, Settings. | Readable, nothing cut off beyond scrolling, no overlap with the bottom bar. | | |
+| 6.1 | Landscape | Rotate a phone and a tablet on Home, Plan, a session, Settings. | Readable, nothing cut off beyond scrolling, no overlap with the bottom bar or the floating +; on a phone on its side the rail is on the left. | | |
 | 6.2 | Light and dark | Switch the phone's theme and the in-app theme. | Both look right; the welcome, banners and tables are legible. | | |
 | 6.3 | Text size 130% | Phone font scale to 130% (and the in-app text size to large). | No clipped buttons on the welcome, Home or session screens. | | |
 | 6.4 | Small phone | A 360 px-wide phone (or 320 px browser window). | Welcome title on one line; install and verify pages without sideways scroll. | | |
@@ -186,6 +186,19 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 12.15 | Import and update | Settings → Data → import a backup made before this version; or update the app over an older install. | All weeks look as before the update; weeks you never touched follow their phase; cleared weeks stay empty; nothing is doubled. | | |
 | 12.16 | Calendar look | Plan → calendar (Day, Week, Month) in dark, then light theme, on a phone and a tablet. | Flat, edge to edge, no box; thin hour lines with dotted half hours and a red "now" line; each session a solid colour block (strong on dark with white text, pastel on light with dark text) in the colour of its main category; today's date filled; the header (title, switch, +) never moves between views. | | |
 | 12.17 | Pinch to zoom | Week or Day: pinch two fingers out over the grid; pinch back in; double-tap the hour numbers. (Laptop: ctrl + scroll.) | The hours get taller or shorter around your fingers and the page doesn't zoom; a long session shows its banner with each exercise as its own block in its category colour once tall enough; double-tap on the hours resets; the zoom is remembered. A swipe or scroll with one finger still pages / scrolls. | | |
+
+## 13. Navigation: drawer, rail, floating +
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 13.1 | Drawer on a phone | Portrait phone: tap the menu button (top left) on each screen. | A drawer slides in: Home, Plan, Log a workout, History, Analytics, then Settings and Take the tour. The current screen is highlighted. Choosing one closes it and goes there. | | |
+| 13.2 | Closing | Open the drawer, then: tap outside; press the phone's back key; (keyboard) Escape. | Each closes it and stays on the same screen; focus returns to the menu button. Back with the drawer closed on any screen but Home goes Home, as before. | | |
+| 13.3 | Floating + | Home, History, Analytics: tap +. Plan (blocks and calendar): tap +. Log, Settings: look. | Home/History/Analytics: Log a workout opens. Plan: a new session for the selected day (today, or the calendar's focused day). Not shown on Log or Settings, nor while a session is running (the session bubble has the corner), nor while editing a Plan B. | | |
+| 13.4 | Things above it | Show a toast (delete a session); minimise a quick timer. | Both sit above the + (never over it); the session bubble takes the corner while a session runs. | | |
+| 13.5 | Tablet, laptop, landscape | Open on a tablet, in a laptop window and with a phone on its side. | A slim rail on the left (menu, five icons, Settings at the bottom); the menu button there opens the full drawer; no menu button in the top bar; the floating + as on a phone. | | |
+| 13.6 | Running session | Start a session, minimise it, open the drawer. | "Resume session" with the minutes so far is first; it reopens the session. | | |
+| 13.7 | Bottom bar setting | Settings → App & display → Look & feel → Navigation → Bottom bar; then back. | The old bar returns (Settings and the tour are in Home's top bar again, the calendar's + is back in its header); switching back restores the drawer. Per device: a second device keeps its own choice. | | |
+| 13.8 | Top bar | Move through every screen. | The top bar is always the same height and in the same place; titles, and each screen's own buttons (quick log, Plan's view switch and AI coach, History's filter, Analytics' paging) on the right; Settings sub-pages show a back arrow. | | |
 
 ## After the run
 

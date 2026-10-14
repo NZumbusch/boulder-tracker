@@ -20,6 +20,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-14-navigation",
+    title: "A menu instead of a bottom bar",
+    points: [
+      "The bottom bar is gone: a menu button (top left) opens a side drawer with every screen, Settings and the tour. On a tablet, a laptop or a phone on its side a slim rail stays on the left instead.",
+      "A round + floats at the bottom right: it logs a workout from Home, History and Analytics, and adds a session on the selected day in Plan. Settings is now one tap away from every screen.",
+      "Every screen has the same slim top bar with its title and its own buttons.",
+      "Prefer the old bottom bar? Settings → App & display → Navigation. It is a per-device choice.",
+    ],
+  },
+  {
     id: "2026-10-14-phase-days",
     title: "Phases are ranges of days",
     points: [

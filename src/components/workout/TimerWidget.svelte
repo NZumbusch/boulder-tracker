@@ -35,7 +35,7 @@
 
   let {
     currentSlot = null,
-    bottomClass = 'bottom-[91px]',
+    bottomClass = 'bottom-[calc(var(--chrome-b)+var(--fab-b)+16px+env(safe-area-inset-bottom))]',
     visible = true,
     docked = false,
     onOpenRun = null,

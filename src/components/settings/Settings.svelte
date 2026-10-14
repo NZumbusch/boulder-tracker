@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AppBar from '../nav/AppBar.svelte';
   import HealthConnectSettings from './HealthConnectSettings.svelte';
   import DeviceCalendarSettings from './DeviceCalendarSettings.svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -213,17 +214,16 @@
 </script>
 
 <div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
-  <div class="flex items-center justify-between px-1">
-    <div class="flex items-center gap-2 min-w-0">
-      <button onclick={() => (section === null ? trainingState.navigate('home') : goBack())} class="p-1.5 -ml-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors" aria-label="Back"><Icon icon="ic:baseline-arrow-back" class="text-xl" /></button>
-      <h2 class="text-title text-content truncate">{title}</h2>
-    </div>
-    {#if section === 'setup' && saveState !== 'idle'}
-      <span class="text-caption text-content-subtle flex items-center gap-1" aria-live="polite">
-        {#if saveState === 'saving'}Saving…{:else}<Icon icon="ic:baseline-check" class="text-sm text-success" /> Saved{/if}
-      </span>
-    {/if}
-  </div>
+  <!-- A nested page gets a back arrow; the top of Settings the menu (or, with the bottom bar - which has no Settings tab - an arrow back Home). -->
+  <AppBar title={title} onBack={section !== null ? goBack : trainingState.navStyle === 'bar' ? () => trainingState.navigate('home') : undefined}>
+    {#snippet actions()}
+      {#if section === 'setup' && saveState !== 'idle'}
+        <span class="text-caption text-content-subtle flex items-center gap-1 pr-2" aria-live="polite">
+          {#if saveState === 'saving'}Saving…{:else}<Icon icon="ic:baseline-check" class="text-sm text-success" /> Saved{/if}
+        </span>
+      {/if}
+    {/snippet}
+  </AppBar>
 
   {#if section === null}
     <!-- Search: a setting by name, to the page it lives on. -->

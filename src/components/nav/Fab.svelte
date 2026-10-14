@@ -1,0 +1,39 @@
+<script lang="ts">
+  /**
+   * The floating +, bottom right. What it does depends on the screen: log a
+   * workout from Home, History and Analytics; add a session on the selected
+   * day on Plan. It is not shown on Log or in Settings, while a session is
+   * running (its bubble takes the corner) or while a Plan B is being edited.
+   * It tells the rest of the shell how much room it takes (`--fab-b`), so the
+   * toast and the timer pill sit above it instead of on it.
+   */
+  import Icon from '@iconify/svelte';
+  import { trainingState } from '../../lib/state.svelte';
+  import { fabFor } from '../../lib/navigation/navItems';
+  import { fabActions } from '../../lib/navigation/fabActions.svelte';
+
+  const action = $derived(fabFor(trainingState.view, { sessionRunning: trainingState.isSessionActive, inEditor: !!trainingState.planBEditing }));
+  const label = $derived(action === 'add-to-plan' ? 'Add a session to the plan' : 'Log a workout');
+
+  $effect(() => {
+    document.documentElement.style.setProperty('--fab-b', action ? '76px' : '0px');
+    return () => document.documentElement.style.setProperty('--fab-b', '0px');
+  });
+
+  function press() {
+    if (action === 'add-to-plan') fabActions.addToPlan?.();
+    else trainingState.navigate('add');
+  }
+</script>
+
+{#if action}
+  <button
+    onclick={press}
+    class="fixed right-4 bottom-[calc(var(--chrome-b)+16px+env(safe-area-inset-bottom))] z-[80] w-14 h-14 rounded-full bg-success text-app-bg shadow-[0_6px_20px_rgb(0_0_0/0.35)] flex items-center justify-center active:scale-90 transition-transform animate-in zoom-in-75 duration-150"
+    aria-label={label}
+    title={label}
+    data-tour="nav-add"
+  >
+    <Icon icon="ic:baseline-plus" class="text-[32px]" />
+  </button>
+{/if}

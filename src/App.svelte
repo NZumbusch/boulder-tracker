@@ -38,6 +38,13 @@
   import { updater } from './lib/update/updater.svelte';
   import type { ViewType } from './lib/types';
   import Icon from "@iconify/svelte";
+  import NavDrawer from './components/nav/NavDrawer.svelte';
+  import NavRail from './components/nav/NavRail.svelte';
+  import Fab from './components/nav/Fab.svelte';
+  import { layout } from './lib/navigation/layoutMode.svelte';
+
+  const drawerNav = $derived(trainingState.navStyle === 'drawer');
+  $effect(() => { document.documentElement.dataset.nav = trainingState.navStyle; });
 
   // Back navigation (see lib/navigation/backStack): the page loads as Home
   // in history's base entry, then opens the tab its address names, so back
@@ -128,7 +135,9 @@
        anything that genuinely needs horizontal room (the Analytics chip
        row, Home's weather strip) is its own `overflow-x-auto` scroller and
        is unaffected. -->
-  <div class="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4">
+  <div class="flex-1 min-h-0 flex">
+  {#if drawerNav && layout.wide}<NavRail />{/if}
+  <div class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4 pt-0 {drawerNav ? 'pb-[calc(1rem+env(safe-area-inset-bottom)+var(--fab-b))]' : ''}">
     {#if trainingState.isLoading}
       <div class="flex flex-col items-center justify-center h-full space-y-4">
         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -163,7 +172,12 @@
       {/await}
     {/if}
   </div>
+  </div>
 
+  {#if drawerNav}
+    <NavDrawer />
+    <Fab />
+  {:else}
   <nav
     class="w-full h-[calc(75px+env(safe-area-inset-bottom))] short:h-[calc(52px+env(safe-area-inset-bottom))] pb-safe border-t flex justify-evenly items-center shrink-0 select-none bg-surface border-border"
   >
@@ -199,6 +213,7 @@
     {@render tab('history', 'ic:baseline-content-paste', 'History')}
     {@render tab('analytics', 'ic:baseline-show-chart', 'Analytics')}
   </nav>
+  {/if}
 
   <!-- The live session and its minimised bubble are mounted here, outside
        the view switch, so a running session survives navigating between

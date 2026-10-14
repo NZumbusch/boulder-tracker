@@ -387,3 +387,9 @@ body {
 :root[data-theme="contrast"] .cal-fill.cal-soft { opacity: 0.6; }
 .cal-ink { color: #fff; }
 :root[data-theme="light"] .cal-ink { color: var(--theme-content); }
+
+/* Room taken at the bottom of the screen: the bottom bar when it is the chosen navigation, and the floating + (set by the shell).
+   Toasts, the session bubble and the timer pills sit above both. */
+:root { --chrome-b: 0px; --fab-b: 0px; }
+:root[data-nav="bar"] { --chrome-b: 75px; }
+@media (max-height: 500px) { :root[data-nav="bar"] { --chrome-b: 52px; } }

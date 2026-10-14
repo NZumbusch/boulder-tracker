@@ -90,3 +90,17 @@ Toast, session bubble, timer pill (and the docked timer) were positioned relativ
 - Wide-screen layouts for Home / History / Analytics (two columns of cards, master-detail like Samsung Calendar's Day + event pane).
 - A search entry in the bar (sessions, exercises, results).
 - Long-press on the + for a speed dial (quick timer, log as planned).
+
+## Progress (2026-10-14)
+
+Decided with Nathan: bottom bar kept as a per-device setting (drawer is the default); the floating + adds a session on the selected day on Plan.
+
+Built and checked in headless Chrome (phone, landscape phone, tablet, laptop; light and dark; the real backup):
+- N1: `lib/navigation/navItems.ts` (destinations, drawer rows, what the + does where), `layoutMode.svelte.ts` (compact / wide), `navStyle` preference ('drawer' | 'bar', device-local, default drawer) with a Settings row (+ the old labels switch now covers the rail too).
+- N2: `components/nav/AppBar|NavDrawer|NavRail|Fab`; the shell in `App.svelte`; toast, session bubble and timer pills now sit on `--chrome-b` (bottom bar height, 0 with the drawer) and `--fab-b` (the + footprint).
+- N3: Home, Plan, History, Analytics, Log, Settings on `AppBar` (Home's gear and help live in the drawer; with the bottom bar chosen they stay in Home's bar; Plan's paging arrows moved to the legend row; the calendar's header + shows only with the bottom bar).
+- N4: drawer is the default; QA section 13, release note.
+- Found on the way: `lib/ui/dialogLayer` already treats any `fixed inset-0 z-[100+]` overlay as a dialog (page behind inert, focus in, Escape closes) - the drawer gets that for free, so it has no focus trap of its own; focus returns to the menu button after the dialog layer has caught up (40 ms).
+- Back: the drawer is a `backWhile` entry; back closes it, then the old rules apply (tested: back from Plan goes Home).
+- Not verified: the real Android back key and gesture navigation, haptics, real safe areas.
+- Honest cost, as predicted: one more tap per switch between screens on a phone; the + and the "Resume session" row are the compensation. A FAB can cover a button at the right edge while scrolling (Home's Start buttons); judged acceptable, easy to tune (size, hide on Home).

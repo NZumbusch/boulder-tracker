@@ -5,6 +5,7 @@
    * (see `lib/workoutModal.svelte.ts`); this screen no longer edits
    * workouts itself.
    */
+  import AppBar from '../nav/AppBar.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
   import type { Workout } from '../../lib/types';
@@ -57,10 +58,8 @@
 </script>
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-12">
+  <AppBar title="Log a workout" />
   <div class="space-y-4">
-    <div class="flex items-center justify-between px-1">
-      <h2 class="text-title text-content">Start Session</h2>
-    </div>
 
     <!-- Start Now is the primary, full-width action: going straight into
          a live session is the thing this screen is for, and it used to
