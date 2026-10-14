@@ -23,7 +23,7 @@ describe('defaultPreferences', () => {
       notificationsEnabled: false,
       addedExerciseTarget: 'none',
       navLabels: false,
-      navStyle: 'drawer',
+      navMode: 'auto',
       helpButtons: true,
       widgetShowReadiness: true,
       widgetReadinessDetail: 'factors',
@@ -138,7 +138,7 @@ describe('migratePreferences', () => {
       autoBackup: false,
       addedExerciseTarget: 'mirror' as const,
       navLabels: true,
-      navStyle: 'bar',
+      navMode: 'bar',
       helpButtons: false,
       widgetShowReadiness: false,
       widgetReadinessDetail: 'metrics' as const,
@@ -553,14 +553,16 @@ describe('navLabels and welcomeDone', () => {
   });
 });
 
-describe('navStyle', () => {
-  it('defaults to the drawer, and an older blob without it gets the drawer', () => {
-    expect(defaultPreferences().navStyle).toBe('drawer');
-    const { navStyle: _n, ...older } = defaultPreferences();
-    expect(migratePreferences(older).navStyle).toBe('drawer');
+describe('navMode', () => {
+  it('defaults to automatic, and an older blob gets it too - including one that only has the old navStyle, which was a default and not a choice', () => {
+    expect(defaultPreferences().navMode).toBe('auto');
+    const { navMode: _n, ...older } = defaultPreferences();
+    expect(migratePreferences(older).navMode).toBe('auto');
+    expect(migratePreferences({ ...older, navStyle: 'drawer' }).navMode).toBe('auto');
   });
-  it('keeps the bottom bar when chosen, and repairs anything else', () => {
-    expect(migratePreferences({ ...defaultPreferences(), navStyle: 'bar' }).navStyle).toBe('bar');
-    expect(migratePreferences({ ...defaultPreferences(), navStyle: 'sidebar' as never }).navStyle).toBe('drawer');
+  it('keeps a chosen drawer or bottom bar, and repairs anything else', () => {
+    expect(migratePreferences({ ...defaultPreferences(), navMode: 'bar' }).navMode).toBe('bar');
+    expect(migratePreferences({ ...defaultPreferences(), navMode: 'drawer' }).navMode).toBe('drawer');
+    expect(migratePreferences({ ...defaultPreferences(), navMode: 'sidebar' as never }).navMode).toBe('auto');
   });
 });
