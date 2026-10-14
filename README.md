@@ -96,6 +96,10 @@ Icons are bundled rather than fetched from the Iconify API, so the app works off
 git commit -m "Fix the timer" -m "Changelog: The timer no longer jumps after a pause."
 ```
 
+**Checking a change in a browser**: `scripts/headless/` drives headless Chrome over the DevTools protocol with no extra dependencies (screenshots at phone/tablet/laptop sizes, seeding a backup so the real migration runs). See `scripts/headless/example.mjs` and `docs/HANDOVER.md`.
+
+**Picking the project up**: read `docs/HANDOVER.md` first (conventions, release flow, data-model facts, current state, known gaps).
+
 ## Android
 
 Needs Android Studio.
