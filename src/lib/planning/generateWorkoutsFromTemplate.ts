@@ -42,6 +42,7 @@ export function generateWorkoutsFromTemplate(
     date: null,
     dayOfWeek: t.dayOfWeek,
     startTime: t.startTime,
+    ...(t.location ? { location: t.location } : {}),
     plannedDuration: t.plannedDuration,
     weekId,
     notes: t.name || "",

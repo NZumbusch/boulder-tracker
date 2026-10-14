@@ -5,7 +5,7 @@ import { copySessionsToWeek } from "./copyWeek";
 const source: Workout[] = [
   {
     id: "w1", status: "completed", date: "2026-09-14T18:00:00.000Z", weekId: "2026-W38", dayOfWeek: "Monday", startTime: "18:00",
-    notes: "Power", description: "Short and sharp", plannedDuration: 90, loadFactor: 900, fingers: 7, actualDuration: 95, blockId: "old",
+    notes: "Power", description: "Short and sharp", location: "Steinbock Konstanz", plannedDuration: 90, loadFactor: 900, fingers: 7, actualDuration: 95, blockId: "old",
     exercises: [
       { id: "s1", typeId: "hb", prescribed: { duration: 20, sets: 5 }, logged: { duration: 25, sets: 6 } },
       { id: "s2", typeId: "bo", logged: { duration: 40 } }, // an extra, done but never planned
@@ -26,6 +26,8 @@ describe("copySessionsToWeek", () => {
     }
     expect(copies.map((c) => [c.notes, c.dayOfWeek])).toEqual([["Power", "Monday"], ["Endurance", "Thursday"]]);
     expect(copies[0]).toMatchObject({ startTime: "18:00", description: "Short and sharp", plannedDuration: 90 });
+    expect(copies[0].location).toBe("Steinbock Konstanz");
+    expect(copies[1]).not.toHaveProperty("location");
   });
 
   it("copies the plan, not what happened", () => {

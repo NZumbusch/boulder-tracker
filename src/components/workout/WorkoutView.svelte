@@ -46,6 +46,7 @@
       if (workout.startTime) parts.push(workout.startTime);
       if (workout.plannedDuration) parts.push(`~${formatMinutes(workout.plannedDuration)}`);
     }
+    if (workout.location) parts.push(workout.location);
     parts.push(`${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`);
     return parts.join(' · ');
   });
