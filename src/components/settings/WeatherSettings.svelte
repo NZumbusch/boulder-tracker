@@ -65,10 +65,10 @@
         </div>
         {#if trainingState.crags.length > 1}
           <div class="flex flex-col pt-2 shrink-0">
-            <button onclick={() => moveCrag(i, -1)} disabled={i === 0} class="p-1 text-content-subtle hover:text-content disabled:opacity-25" aria-label="Move {crag.name} up">
+            <button onclick={() => moveCrag(i, -1)} disabled={i === 0} class="tap p-1 text-content-subtle hover:text-content disabled:opacity-25" aria-label="Move {crag.name} up">
               <Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" />
             </button>
-            <button onclick={() => moveCrag(i, 1)} disabled={i === trainingState.crags.length - 1} class="p-1 text-content-subtle hover:text-content disabled:opacity-25" aria-label="Move {crag.name} down">
+            <button onclick={() => moveCrag(i, 1)} disabled={i === trainingState.crags.length - 1} class="tap p-1 text-content-subtle hover:text-content disabled:opacity-25" aria-label="Move {crag.name} down">
               <Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg" />
             </button>
           </div>

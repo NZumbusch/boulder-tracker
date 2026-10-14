@@ -38,7 +38,7 @@
         {#if chromeLink}<a href={chromeLink} class="px-3 py-1.5 rounded-control border border-border-strong text-label text-content">Open in Chrome</a>{/if}
       </div>
     </div>
-    <button onclick={() => (closed = true)} class="p-1 -mr-1 text-content-subtle hover:text-content shrink-0" aria-label="Close">
+    <button onclick={() => (closed = true)} class="tap p-1 -mr-1 text-content-subtle hover:text-content shrink-0" aria-label="Close">
       <Icon icon="ic:baseline-close" class="text-lg" />
     </button>
   </div>

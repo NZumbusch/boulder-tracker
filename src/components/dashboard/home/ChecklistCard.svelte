@@ -46,7 +46,7 @@
       <div class="min-w-0">
         <SectionHeader label="Get started" subtitle="{checklist.doneCount} of {checklist.total} done" />
       </div>
-      <button onclick={() => checklistState.dismiss()} class="p-1 -mr-1 text-content-subtle hover:text-content shrink-0" aria-label="Hide this card for good">
+      <button onclick={() => checklistState.dismiss()} class="tap p-1 -mr-1 text-content-subtle hover:text-content shrink-0" aria-label="Hide this card for good">
         <Icon icon="ic:baseline-close" class="text-lg" />
       </button>
     </div>

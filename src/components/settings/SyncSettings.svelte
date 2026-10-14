@@ -136,7 +136,7 @@
                 {driveSync.deviceLabel ?? driveSync.deviceModel}{#if driveSync.deviceLabel}{' '}<span class="text-content-subtle">({driveSync.deviceModel})</span>{/if}
                 <span class="text-caption text-content-subtle">· this one</span>
               </p>
-              <button onclick={() => { nameDraft = driveSync.deviceLabel ?? ''; renaming = true; }} class="p-1 text-content-subtle hover:text-content shrink-0" aria-label="Name this device" title="Name this device">
+              <button onclick={() => { nameDraft = driveSync.deviceLabel ?? ''; renaming = true; }} class="tap p-1 text-content-subtle hover:text-content shrink-0" aria-label="Name this device" title="Name this device">
                 <Icon icon="ic:baseline-edit" class="text-sm" />
               </button>
             </div>

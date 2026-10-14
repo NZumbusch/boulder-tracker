@@ -104,7 +104,7 @@
           <div class="flex items-center justify-between gap-2">
             <span class="text-caption font-bold text-content-muted">Set {i + 1}</span>
             {#if draft.length > 1}
-              <button type="button" onclick={() => remove(i)} class="p-1 text-content-subtle hover:text-danger transition-colors" aria-label="Remove set {i + 1}"><Icon icon="ic:baseline-close" class="text-sm" /></button>
+              <button type="button" onclick={() => remove(i)} class="tap p-1 text-content-subtle hover:text-danger transition-colors" aria-label="Remove set {i + 1}"><Icon icon="ic:baseline-close" class="text-sm" /></button>
             {/if}
           </div>
           <div class="grid {GRID[Math.min(keys.length, 4)] ?? 'grid-cols-2'} gap-2">

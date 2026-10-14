@@ -106,7 +106,7 @@
   <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4" use:sheetDrag={() => closeQuickTimerSheet()} use:keyboardAware>
     <div class="flex items-center justify-between gap-3">
       <h3 class="text-title text-content">Timer</h3>
-      <button onclick={closeQuickTimerSheet} class="p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
+      <button onclick={closeQuickTimerSheet} class="tap p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
     </div>
 
     {#if presets.length > 0}

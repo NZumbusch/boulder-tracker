@@ -101,7 +101,7 @@
               <p class="text-label text-content truncate">{a.name || 'Unnamed'} <span class="text-primary tabular-nums">{G(a.grade)}</span>{a.style ? ` · ${a.style}` : ''}</p>
               <p class="text-caption text-content-subtle truncate">{formatDate(a.date)}{a.crag ? ` · ${a.crag}` : ''}</p>
             </div>
-            <button onclick={() => editingId = editingId === a.id ? null : a.id} class="p-1.5 text-content-subtle hover:text-content" aria-label="Edit before importing">
+            <button onclick={() => editingId = editingId === a.id ? null : a.id} class="tap p-1.5 text-content-subtle hover:text-content" aria-label="Edit before importing">
               <Icon icon="ic:baseline-edit" class="text-sm" />
             </button>
           </div>

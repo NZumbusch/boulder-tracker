@@ -441,7 +441,7 @@
             onclick={() => setView('blocks')}
             title="Blocks and weeks"
             aria-label="Blocks view"
-            class="p-1.5 rounded-control transition-colors {view === 'blocks' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+            class="tap p-1.5 rounded-control transition-colors {view === 'blocks' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
           ><Icon icon="ic:baseline-grid-view" class="text-base" /></button>
           <button
             role="radio"
@@ -449,7 +449,7 @@
             onclick={() => setView('calendar')}
             title="Calendar"
             aria-label="Calendar view"
-            class="p-1.5 rounded-control transition-colors {view === 'calendar' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+            class="tap p-1.5 rounded-control transition-colors {view === 'calendar' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
           ><Icon icon="ic:baseline-calendar-month" class="text-base" /></button>
         </div>
       {/if}
@@ -491,13 +491,13 @@
       </div>
       <!-- Paging through the weeks. -->
       <div class="flex items-center shrink-0 -mr-1.5">
-        <button onclick={() => navigate('prev')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Earlier weeks">
+        <button onclick={() => navigate('prev')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Earlier weeks">
           <Icon icon="ic:baseline-chevron-left" class="text-lg" />
         </button>
         <button onclick={() => navigate('today')} class="px-2 py-1 text-caption rounded-control hover:bg-surface-elevated transition-colors {trainingState.weekOffset === 0 && trainingState.selectedWeekId === trainingState.currentWeekId ? 'text-content-subtle/50' : 'text-primary'}">
           Today
         </button>
-        <button onclick={() => navigate('next')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Later weeks">
+        <button onclick={() => navigate('next')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Later weeks">
           <Icon icon="ic:baseline-chevron-right" class="text-lg" />
         </button>
       </div>
@@ -560,7 +560,7 @@
                saves no session - see WeekNote. -->
           <button
             onclick={() => showWeekNote = true}
-            class="p-1.5 rounded-control transition-colors hover:bg-surface-elevated {selectedWeekNote ? 'text-primary' : 'text-content-subtle hover:text-content'}"
+            class="tap p-1.5 rounded-control transition-colors hover:bg-surface-elevated {selectedWeekNote ? 'text-primary' : 'text-content-subtle hover:text-content'}"
             title={selectedWeekNote ? 'Week note' : 'Add a week note'}
             aria-label={selectedWeekNote ? 'Open week note' : 'Add a week note'}
           >
@@ -569,7 +569,7 @@
           {#if canResetWeek}
             <button
               onclick={() => trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!)}
-              class="p-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
+              class="tap p-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
               title="Discard this week's saved changes and follow the phase templates again"
               aria-label="Reset week to its phase"
             >
@@ -578,7 +578,7 @@
           {/if}
           <button
             onclick={() => trainingState.clearWeek(trainingState.selectedWeekId!)}
-            class="p-1.5 rounded-control text-content-subtle hover:text-danger hover:bg-danger/10 transition-colors"
+            class="tap p-1.5 rounded-control text-content-subtle hover:text-danger hover:bg-danger/10 transition-colors"
             title="Clear all data for this week"
             aria-label="Clear week"
           >
@@ -586,7 +586,7 @@
           </button>
           <button
             onclick={() => showCopy = !showCopy}
-            class="p-1.5 rounded-control transition-colors hover:bg-surface-elevated {showCopy ? 'text-primary bg-surface-elevated' : 'text-content-subtle hover:text-content'}"
+            class="tap p-1.5 rounded-control transition-colors hover:bg-surface-elevated {showCopy ? 'text-primary bg-surface-elevated' : 'text-content-subtle hover:text-content'}"
             title="Copy, repeat or share this week"
             aria-label="Copy, repeat or share this week"
             aria-expanded={showCopy}
@@ -662,7 +662,7 @@
             <p class="text-caption text-content-muted">Tap a session to change or remove it for Plan B, or + to add one. Plan A stays as it is.{editedPlanB?.repeatUntilWeekId ? ' Applies to every week it repeats.' : ''}</p>
           </div>
           {#if editedPlanB && editingPlanB.key}
-            <button onclick={() => planBSettings = { alt: editedPlanB, key: editingPlanB.key! }} class="p-1 text-content-subtle hover:text-content" aria-label="Plan B settings"><Icon icon="ic:baseline-tune" class="text-lg" /></button>
+            <button onclick={() => planBSettings = { alt: editedPlanB, key: editingPlanB.key! }} class="tap p-1 text-content-subtle hover:text-content" aria-label="Plan B settings"><Icon icon="ic:baseline-tune" class="text-lg" /></button>
           {/if}
           <button onclick={() => trainingState.finishPlanBEditing()} class="px-3 py-1.5 rounded-control bg-primary text-white text-label font-bold shrink-0">Done</button>
         </div>
@@ -721,7 +721,7 @@
                 <Icon icon="ic:baseline-drag-indicator" class="text-sm" />{arranging ? 'Done' : 'Arrange'}
               </button>
             {/if}
-            <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session">
+            <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session">
               <Icon icon="ic:baseline-plus" class="text-lg" />
             </button>
           </div>
@@ -809,7 +809,7 @@
       <div class="pt-3 border-t border-border space-y-2">
         <div class="flex items-center justify-between">
           <h4 class="text-section uppercase text-content-muted flex items-center gap-1.5">Tests <InfoButton term="tests" /></h4>
-          <button onclick={handleAddBenchmark} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a test result"><Icon icon="ic:baseline-plus" class="text-lg" /></button>
+          <button onclick={handleAddBenchmark} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a test result"><Icon icon="ic:baseline-plus" class="text-lg" /></button>
         </div>
 
         {#if isAddingBenchmark}
@@ -826,7 +826,7 @@
             {@const shown = describeResult(benchmark, trainingState.benchmarkTypes, trainingState.valueDefs, trainingState.units.weight)}
             <ListRow title={shown.title} value={shown.value} onclick={() => handleEditBenchmark(benchmark)}>
               {#snippet trailing()}
-                <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete test result"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+                <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete test result"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
               {/snippet}
             </ListRow>
           {:else}

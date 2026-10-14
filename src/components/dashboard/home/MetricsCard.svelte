@@ -104,8 +104,8 @@
         {#if editingMetricId === def.id}
           <form onsubmit={(e) => { e.preventDefault(); saveMetric(def.id); }} class="flex items-center gap-2 mt-1">
             <input type="number" step="0.1" bind:value={draftValue} class="w-20 bg-surface-elevated text-content p-1.5 rounded-control border border-border-strong outline-none text-sm" />
-            <button type="submit" class="p-1.5 bg-primary hover:bg-primary-hover text-white rounded-control"><Icon icon="ic:baseline-check" class="text-sm" /></button>
-            <button type="button" onclick={() => editingMetricId = null} class="p-1.5 text-content-subtle hover:text-content"><Icon icon="ic:baseline-close" class="text-sm" /></button>
+            <button type="submit" class="tap p-1.5 bg-primary hover:bg-primary-hover text-white rounded-control"><Icon icon="ic:baseline-check" class="text-sm" /></button>
+            <button type="button" onclick={() => editingMetricId = null} class="tap p-1.5 text-content-subtle hover:text-content"><Icon icon="ic:baseline-close" class="text-sm" /></button>
           </form>
         {:else}
           <button onclick={() => startEdit(def.id)} class="tabular-nums transition-colors {entry ? 'text-body font-semibold text-content hover:text-primary' : 'text-label text-primary hover:text-primary-hover'}">

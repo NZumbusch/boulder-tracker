@@ -24,7 +24,7 @@
     {#if note}
       <button
         onclick={note.open}
-        class="p-1 -m-1 rounded-control transition-colors {note.has ? 'text-primary hover:text-primary-hover' : 'text-content-subtle hover:text-content'}"
+        class="tap p-1 -m-1 rounded-control transition-colors {note.has ? 'text-primary hover:text-primary-hover' : 'text-content-subtle hover:text-content'}"
         aria-label={note.has ? `Open ${note.what} note` : `Add a ${note.what} note`}
         title={note.has ? `${note.what[0].toUpperCase()}${note.what.slice(1)} note` : `Add a ${note.what} note`}
       >
