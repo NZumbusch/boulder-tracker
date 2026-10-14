@@ -5,8 +5,6 @@
  */
 class FabActions {
   addToPlan = $state<(() => void) | null>(null);
-  /** Scrolled out of the way (down through content); it slides back on scrolling up. */
-  hidden = $state(false);
 }
 
 export const fabActions = new FabActions();
