@@ -56,7 +56,7 @@
   /** A completed session's cards edit what was done; a planned one's edit the plan. */
   const bucket = $derived<'prescribed' | 'logged'>(workout.status === 'completed' ? 'logged' : 'prescribed');
 
-  let openChip = $state<'day' | 'time' | 'duration' | null>(null);
+  let openChip = $state<'day' | 'time' | 'duration' | 'place' | null>(null);
   let isReordering = $state(false);
   /** Picking exercises to make a circuit of. */
   let isGrouping = $state(false);
@@ -150,7 +150,7 @@
     return { update: fit };
   }
 
-  function toggleChip(chip: 'day' | 'time' | 'duration') {
+  function toggleChip(chip: 'day' | 'time' | 'duration' | 'place') {
     openChip = openChip === chip ? null : chip;
   }
 
@@ -253,7 +253,7 @@
 
       <!-- Schedule chips: read like the viewer's subtitle, tap one to set it. -->
       <div class="flex flex-wrap gap-1.5 mt-2.5">
-        {#snippet chip(id: 'day' | 'time' | 'duration', icon: string, label: string, isSet: boolean)}
+        {#snippet chip(id: 'day' | 'time' | 'duration' | 'place', icon: string, label: string, isSet: boolean)}
           <button
             onclick={() => toggleChip(id)}
             class="px-2.5 py-1 rounded-full text-caption font-bold border transition-colors flex items-center gap-1 {openChip === id
@@ -269,6 +269,7 @@
         {@render chip('day', 'ic:baseline-calendar-today', workout.dayOfWeek ? workout.dayOfWeek.slice(0, 3) : 'Day', !!workout.dayOfWeek)}
         {@render chip('time', 'ic:baseline-schedule', workout.startTime || 'Time', !!workout.startTime)}
         {@render chip('duration', 'ic:baseline-timer', workout.plannedDuration ? `${workout.plannedDuration} min` : 'Duration', !!workout.plannedDuration)}
+        {@render chip('place', 'ic:baseline-place', workout.location || 'Where', !!workout.location)}
       </div>
 
       {#if openChip === 'day'}
@@ -310,6 +311,32 @@
           />
           <span class="text-label text-content-subtle">min</span>
           <button onclick={() => { workout.plannedDuration = undefined; openChip = null; }} class="px-3 py-2 text-label text-content-subtle hover:text-content">Clear</button>
+        </div>
+      {:else if openChip === 'place'}
+        <!-- Your saved places to pick from, or any text (an outside venue). By name: see Workout.location. -->
+        <div class="mt-2 space-y-2 animate-in fade-in duration-150">
+          {#if trainingState.places.length > 0}
+            <div class="flex flex-wrap gap-1.5">
+              {#each trainingState.places as place (place.name)}
+                <button
+                  onclick={() => { workout.location = place.name; openChip = null; }}
+                  class="px-2.5 py-1.5 rounded-control text-label border transition-colors {workout.location === place.name ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
+                >{place.name}</button>
+              {/each}
+            </div>
+          {/if}
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              maxlength="80"
+              placeholder="Or type a place"
+              aria-label="Where the session is"
+              value={workout.location ?? ''}
+              oninput={(e) => { workout.location = e.currentTarget.value.trim() ? e.currentTarget.value : undefined; }}
+              class="flex-1 px-3 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-body outline-none focus:border-primary/50"
+            />
+            <button onclick={() => { workout.location = undefined; openChip = null; }} class="px-3 py-2 text-label text-content-subtle hover:text-content">Clear</button>
+          </div>
         </div>
       {/if}
     </div>

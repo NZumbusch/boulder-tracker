@@ -21,6 +21,7 @@
  * Completed sessions are never touched. Hand-edited weeks being replaced
  * are flagged, not refused.
  */
+import { placeByName, type Place } from "../places/places";
 import { exerciseGroup } from "../exercise/library";
 import type {
   BenchmarkTypeDef,
@@ -83,6 +84,8 @@ export interface PlannerState {
   /** The benchmark tests a session may schedule, and the value types their fields use. */
   benchmarkTypes?: BenchmarkTypeDef[];
   valueDefs?: ValueDef[];
+  /** The athlete's saved places: a session's place is checked against them (any text is kept, with a warning). */
+  places?: Place[];
   /** Competitions and trips, and pain issues - for the tidy-up sections. */
   goals?: GoalEvent[];
   painIssues?: PainIssue[];
@@ -397,13 +400,21 @@ function circuitLabel(it: CSItem): string {
   return isCircuitItem(it) ? `circuit ${it.circuit || "(unnamed)"}` : it.exerciseTypeName;
 }
 
+/** Warns when a session's place is not one of the saved places (it is kept as text all the same). */
+function checkPlace(ctx: Ctx, place: string | undefined, item: ChangeItem) {
+  if (!place || !ctx.state.places) return;
+  if (!placeByName(ctx.state.places, place)) item.warnings.push(`"${place}" is not one of your saved places - kept as text, so it has no weather and the coach has no notes on it.`);
+}
+
 function templateFromSession(ctx: Ctx, s: CSSession, item: ChangeItem): WorkoutTemplate {
+  checkPlace(ctx, s.place, item);
   const built = buildItems(ctx, s.exercises, item);
   return {
     id: ctx.newId(),
     name: s.name,
     dayOfWeek: s.dayOfWeek,
     startTime: s.startTime,
+    ...(s.place ? { location: s.place } : {}),
     plannedDuration: s.plannedDuration,
     ...(s.notes ? { description: s.notes } : {}),
     exercises: built.exercises,
@@ -412,6 +423,7 @@ function templateFromSession(ctx: Ctx, s: CSSession, item: ChangeItem): WorkoutT
 }
 
 function workoutFromSession(ctx: Ctx, weekId: string, s: CSSession, item: ChangeItem): Workout {
+  checkPlace(ctx, s.place, item);
   const { exercises, groups } = buildItems(ctx, s.exercises, item);
   return {
     id: ctx.newId(),
@@ -420,6 +432,7 @@ function workoutFromSession(ctx: Ctx, weekId: string, s: CSSession, item: Change
     weekId,
     dayOfWeek: s.dayOfWeek,
     startTime: s.startTime,
+    ...(s.place ? { location: s.place } : {}),
     plannedDuration: s.plannedDuration,
     notes: s.name,
     ...(s.notes ? { description: s.notes } : {}),
@@ -441,6 +454,7 @@ interface EditableSession {
   description?: string;
   dayOfWeek?: Workout["dayOfWeek"];
   startTime?: string;
+  location?: string;
   plannedDuration?: number;
   exercises: ExerciseSlot[];
   groups?: ExerciseGroup[];
@@ -600,6 +614,12 @@ function applySessionChanges<T extends EditableSession>(
     if (set.name !== undefined && set.name !== target.notes) { fieldLines.push(`name ${show(target.notes)} → ${set.name}`); next.notes = set.name; }
     if (set.dayOfWeek !== undefined && set.dayOfWeek !== target.dayOfWeek) { fieldLines.push(`day ${show(target.dayOfWeek)} → ${set.dayOfWeek}`); next.dayOfWeek = set.dayOfWeek; }
     if (set.startTime !== undefined && set.startTime !== target.startTime) { fieldLines.push(`start ${show(target.startTime)} → ${set.startTime}`); next.startTime = set.startTime; }
+    if (set.place !== undefined && set.place !== (target.location ?? "")) {
+      checkPlace(ctx, set.place, item);
+      fieldLines.push(`place ${show(target.location)} → ${set.place || "—"}`);
+      if (set.place) next.location = set.place;
+      else delete next.location;
+    }
     if (set.plannedDuration !== undefined && set.plannedDuration !== target.plannedDuration) { fieldLines.push(`length ${show(target.plannedDuration)} → ${set.plannedDuration} min`); next.plannedDuration = set.plannedDuration; }
     if (set.notes !== undefined && set.notes !== (target.description ?? "")) {
       fieldLines.push(set.notes ? `note → "${set.notes}"` : "note removed");
@@ -1350,7 +1370,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
       return d >= startDay && d <= endDay ? d - startDay : undefined;
     };
     const outside = (w: Workout) => item.errors.push(`${sessionLabel(w)} (${weekRangeLabel([w.weekId])}) is outside this Plan B's days.`);
-    const comparable = (w: Workout) => JSON.stringify([w.notes, w.description, w.dayOfWeek, w.startTime, w.plannedDuration, w.exercises.map((e) => [e.typeId, e.prescribed])]);
+    const comparable = (w: Workout) => JSON.stringify([w.notes, w.description, w.dayOfWeek, w.startTime, w.location, w.plannedDuration, w.exercises.map((e) => [e.typeId, e.prescribed])]);
 
     for (const { weekId, sessionChanges } of change.changes) {
       const origin = ctx.weekOrigin.get(weekId);
@@ -1501,7 +1521,7 @@ function sessionLabelsDiff(before: Workout[], after: Workout[]): string[] {
 }
 
 function asEditable(templates: WorkoutTemplate[]): EditableSession[] {
-  return templates.map((t) => ({ id: t.id, notes: t.name, description: t.description, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, exercises: t.exercises, ...(t.groups ? { groups: t.groups } : {}) }));
+  return templates.map((t) => ({ id: t.id, notes: t.name, description: t.description, dayOfWeek: t.dayOfWeek, startTime: t.startTime, ...(t.location ? { location: t.location } : {}), plannedDuration: t.plannedDuration, exercises: t.exercises, ...(t.groups ? { groups: t.groups } : {}) }));
 }
 
 function fromEditable(sessions: EditableSession[]): WorkoutTemplate[] {
@@ -1510,6 +1530,7 @@ function fromEditable(sessions: EditableSession[]): WorkoutTemplate[] {
     name: s.notes,
     dayOfWeek: s.dayOfWeek,
     startTime: s.startTime,
+    ...(s.location ? { location: s.location } : {}),
     plannedDuration: s.plannedDuration,
     ...(s.description ? { description: s.description } : {}),
     exercises: s.exercises,

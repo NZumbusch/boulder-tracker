@@ -24,6 +24,7 @@
   import CalendarMonth from './CalendarMonth.svelte';
   import CalendarAgenda from './CalendarAgenda.svelte';
   import EventSheet from './EventSheet.svelte';
+  import SessionPreviewSheet from './SessionPreviewSheet.svelte';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import { phaseMarks } from '../../lib/planning/phaseStrip';
   import { goalBars, goalsByDay } from '../../lib/planning/goalBars';
@@ -145,8 +146,16 @@
   let eventOpen = $state<DeviceEvent | null>(null);
   function openDay(day: number) { focus = day; setMode('day'); }
   function openMonth(m: number) { focus = firstOfMonth(year, m); setMode('month'); }
+  /** A tap on a session shows its preview first; Open there goes into the full session. */
+  let preview = $state<{ session: CalendarSession; siblings: CalendarSession[] } | null>(null);
   function open(s: CalendarSession, siblings: CalendarSession[]) {
-    openWorkout(s.workout, 'view', false, siblings.map((x) => x.workout));
+    preview = { session: s, siblings };
+  }
+  function openFull() {
+    if (!preview) return;
+    const { session, siblings } = preview;
+    preview = null;
+    openWorkout(session.workout, 'view', false, siblings.map((x) => x.workout));
   }
   /** A new session on a day, at a time when the tap was on the hour grid. */
   function addAt(day: number, startMin?: number) {
@@ -292,6 +301,9 @@
     </div>
   {/if}
 
+  {#if preview}
+    <SessionPreviewSheet session={preview.session} onOpen={openFull} onClose={() => (preview = null)} />
+  {/if}
   {#if eventOpen}
     <EventSheet event={eventOpen} calendar={deviceCalendar.calendars.find((c) => c.id === eventOpen?.calendarId)} onClose={() => (eventOpen = null)} />
   {/if}

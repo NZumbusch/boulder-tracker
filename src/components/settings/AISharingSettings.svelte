@@ -23,6 +23,7 @@
   const CATEGORIES: { id: keyof AISharingPreferences; label: string; description: string }[] = [
     { id: 'trainingBlocks', label: 'Training Blocks', description: 'Active/upcoming phase blocks covering or near the prompt\'s target weeks.' },
     { id: 'competitions', label: 'Goals', description: 'Upcoming competitions and outdoor trips (dates, place, projects) - what you\'re peaking for.' },
+    { id: 'places', label: 'Places', description: 'Where you train - names, kind, price, opening hours and notes (never the coordinates) - so the coach can place sessions. On by default.' },
     { id: 'readinessMetrics', label: 'Readiness & Daily Metrics', description: 'Current readiness score plus sleep/HRV/RHR/bodyweight trends. Health data - off by default.' },
     { id: 'painLogs', label: 'Pain issues', description: 'Open pain issues and those resolved in the last 90 days, with their course; also lets open pain count in the readiness snapshot. Health data - off by default.' },
     { id: 'outdoorAscents', label: 'Outdoor Ascents', description: 'Recent outdoor grade history.' },

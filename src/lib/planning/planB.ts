@@ -273,6 +273,7 @@ export function templateFromWorkout(w: Workout, id: string): WorkoutTemplate {
     id,
     name: w.notes,
     ...(w.startTime ? { startTime: w.startTime } : {}),
+    ...(w.location ? { location: w.location } : {}),
     ...(w.plannedDuration ? { plannedDuration: w.plannedDuration } : {}),
     ...(w.description ? { description: w.description } : {}),
     exercises: w.exercises.map(({ logged: _logged, skipped: _skipped, ...slot }) => slot),
