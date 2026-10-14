@@ -46,7 +46,7 @@
   import { defaultRepLabel } from '../../lib/exercise/repLabel';
   import { formatClock } from '../../lib/session/formatSession';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
-  import { circuitHud, setCircuitToggle, resetCircuitHud } from '../../lib/session/circuitHud.svelte';
+  import { circuitHud, setCircuitToggle, setCircuitSettler, resetCircuitHud } from '../../lib/session/circuitHud.svelte';
   import ExerciseDetails from './ExerciseDetails.svelte';
   import { repRestWord } from '../../lib/exercise/repLabel';
   import VolumeControl from './VolumeControl.svelte';
@@ -626,8 +626,16 @@
     circuitHud.time = clockText;
     circuitHud.running = running;
     circuitHud.accent = accent;
+    circuitHud.started = !neverStarted;
+    circuitHud.sets = progress.sets;
+    circuitHud.name = group.name || 'Circuit';
   });
   setCircuitToggle(() => toggle());
+  // Stopping the session logs what this run has recorded so far, then drops the run.
+  setCircuitSettler(() => {
+    tick();
+    return $state.snapshot(logged) as Record<string, ExerciseValues | undefined>;
+  });
   /** This round's sets, in order, with where each stands - the whole round at a glance. */
   const roundSets = $derived(
     steps.filter((s): s is Extract<CircuitStep, { kind: 'work' }> => s.kind === 'work' && s.round === progress.round - 1)
