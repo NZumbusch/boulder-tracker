@@ -65,7 +65,7 @@ export interface SyncConflict {
 }
 
 /** Tables keyed by something other than `id`. */
-const KEY_FIELD: Record<string, string> = { weekNotes: "weekId" };
+const KEY_FIELD: Record<string, string> = { weekNotes: "weekId", places: "name" };
 /** Tables that are an object of arrays rather than an array: each property is one record. */
 const OBJECT_TABLES = new Set(["templates"]);
 
@@ -386,6 +386,7 @@ const TABLE_NOUN: Record<string, string> = {
   coachNotes: "Coach note",
   circuits: "Circuit",
   goals: "Goal",
+  places: "Place",
   templates: "Phase templates",
   phaseDefs: "Phase",
   exerciseTypes: "Exercise",

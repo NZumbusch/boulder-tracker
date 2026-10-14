@@ -66,7 +66,7 @@ import { OutdoorAscentStore } from './stores/outdoorAscentStore.svelte';
 import { UiStore } from './stores/uiStore.svelte';
 import { SessionStore } from './stores/sessionStore.svelte';
 import { layout } from './navigation/layoutMode.svelte';
-import { renamedPlace, samePlaceName, placeByName, hasCoordinates, type Place } from './places/places';
+import { placeByName, samePlaceName, hasCoordinates, homeLocationOf, cragLocationsOf, withHome, withCrags, type Place } from './places/places';
 import type { DailyForecastDay } from './weather/api';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
@@ -211,38 +211,35 @@ class TrainingState {
   // --- Weather ---
 
   /** Where you train (`lib/places`). */
-  get places(): Place[] { return this.preferencesStore.places; }
+  get places(): Place[] { return this.planningStore.places; }
   /** Replaces the places and fetches the weather of the home and crags among them. */
   async setPlaces(places: Place[]) {
     const before = JSON.stringify([this.homeLocation, this.crags]);
-    this.preferencesStore.setPlaces(places);
-    // Notes, prices and renames of places that are not weather places must not cost a network call.
+    await storage.savePlaces($state.snapshot(places) as Place[]);
+    await this.planningStore.load();
+    await this.reloadWeatherIfPlacesMoved(before);
+  }
+  /** Notes, prices and renames of places that are not weather places must not cost a network call. */
+  private async reloadWeatherIfPlacesMoved(before: string) {
     if (JSON.stringify([this.homeLocation, this.crags]) === before) return;
     await Promise.all([this.weatherStore.loadHome(this.homeLocation), this.weatherStore.loadCrags(this.crags)]);
   }
+  /** Places used to be a setting of this device: the first start with the table takes the old list over. */
+  private async adoptDevicePlaces() {
+    const old = this.preferencesStore.takeLegacyPlaces();
+    if (old.length === 0 || this.planningStore.places.length > 0) return;
+    await storage.savePlaces(old);
+    await this.planningStore.load();
+  }
   /**
-   * Renames a place, and the sessions and phase templates that name it (they hold the name). `false` when the new name
-   * is empty or another place has it.
+   * Renames a place, and the sessions and phase templates that name it (they hold the name), in one write. `false` when
+   * the new name is empty or another place has it.
    */
   async renamePlace(from: string, to: string): Promise<boolean> {
-    const next = renamedPlace(this.places, from, to);
-    if (!next) return false;
-    const name = to.trim();
-    await this.setPlaces(next);
-    for (const w of this.workouts.filter((x) => x.location && samePlaceName(x.location, from))) {
-      await this.saveWorkoutQuiet({ ...($state.snapshot(w) as Workout), location: name });
-    }
-    const templates = $state.snapshot(this.templates) as Record<string, WorkoutTemplate[]>;
-    let changed = false;
-    for (const list of Object.values(templates)) {
-      for (const t of list ?? []) {
-        if (t.location && samePlaceName(t.location, from)) { t.location = name; changed = true; }
-      }
-    }
-    if (changed) {
-      await storage.saveTemplates(templates);
-      await this.refresh();
-    }
+    const before = JSON.stringify([this.homeLocation, this.crags]);
+    if (!(await storage.renamePlace(from, to))) return false;
+    await this.refresh();
+    await this.reloadWeatherIfPlacesMoved(before);
     return true;
   }
   /** The forecast for one day (ISO date) at one of the places, when it has coordinates and the weather has been read for it. */
@@ -254,22 +251,22 @@ class TrainingState {
       : this.weatherStore.crags[this.crags.findIndex((c) => samePlaceName(c.name, place.name))]?.snapshot;
     return snapshot?.daily.find((d) => d.date === isoDate) ?? null;
   }
-  get homeLocation() { return this.preferencesStore.homeLocation; }
-  get crags() { return this.preferencesStore.crags; }
+  get homeLocation(): WeatherLocation | null { return homeLocationOf(this.places); }
+  get crags(): WeatherLocation[] { return cragLocationsOf(this.places); }
   get homeWeather() { return this.weatherStore.home; }
   /** Per-crag weather, same order as `crags`. */
   get cragWeather() { return this.weatherStore.crags; }
 
   /** Sets the home location and immediately fetches for it (or clears the card if `location` is `null`). */
   async setHomeLocation(location: WeatherLocation | null) {
-    this.preferencesStore.setHomeLocation(location);
+    await this.setPlaces(withHome(this.places, location));
     await this.weatherStore.loadHome(location);
   }
 
   /** Replaces the saved crags and fetches conditions for them. */
   async setCrags(crags: WeatherLocation[]) {
-    this.preferencesStore.setCrags(crags);
-    await this.weatherStore.loadCrags(this.preferencesStore.crags);
+    await this.setPlaces(withCrags(this.places, crags));
+    await this.weatherStore.loadCrags(this.crags);
   }
 
   /** Re-fetches whichever locations are currently set - called from Home on mount, not on every `refresh()` (a network call on every save would be excessive for data that changes over hours, not seconds). */
@@ -623,6 +620,7 @@ class TrainingState {
       ]);
 
       await this.reconcileSettings();
+      await this.adoptDevicePlaces();
       await this.adoptBenchmarkBasis();
       await this.adoptTestViews();
 
@@ -1440,8 +1438,10 @@ class TrainingState {
 
   /** Applies an AI change set's result (see `changePlanner.ts`) in one write, then reloads. */
   async applyPlanWrites(writes: PlanWrites, label?: { goal?: string; lines: string[] }) {
+    const placesBefore = JSON.stringify([this.homeLocation, this.crags]);
     await storage.applyPlanWrites(writes, 'ai', label);
     await this.refresh();
+    void this.reloadWeatherIfPlacesMoved(placesBefore);
     this.planUndoVersion++;
     showUndo('AI changes applied', async () => { await this.undoPlanChange(); });
   }
@@ -1466,8 +1466,10 @@ class TrainingState {
       `The plan goes back to how it was before this change${later ? `, and the ${later === 1 ? 'change' : `${later} changes`} made after it ${later === 1 ? 'is' : 'are'} taken back too` : ''}. Sessions you logged stay. Go back?`,
     );
     if (!ok) return false;
+    const placesBefore = JSON.stringify([this.homeLocation, this.crags]);
     await storage.undoPlanChangesTo(index);
     await this.refresh();
+    void this.reloadWeatherIfPlacesMoved(placesBefore);
     this.planUndoVersion++;
     toast.show('Plan put back');
     return true;
@@ -1494,8 +1496,10 @@ class TrainingState {
       );
       if (!ok) return false;
     }
+    const placesBefore = JSON.stringify([this.homeLocation, this.crags]);
     await storage.undoPlanChange();
     await this.refresh();
+    void this.reloadWeatherIfPlacesMoved(placesBefore);
     this.planUndoVersion++;
     toast.show(undo.source === 'copy' ? 'Copy undone' : 'AI changes undone');
     return true;

@@ -1,6 +1,22 @@
 import { AI_VALUES_CONTRACT } from "./schema";
 import { PARAMETER_BLOCKS } from "./changeSet";
 import { COACH_NOTES_INSTRUCTIONS } from "./coachNotes";
+import { PLACE_KINDS } from "../places/places";
+
+/**
+ * The "places" section: the places the athlete trains at (see "My Places"). Shared by the planning prompt and the
+ * Organise tidy-up, so both teach the same shape; kept next to the validator's field list (changeSetPrompt.test).
+ */
+export const AI_PLACES_INSTRUCTIONS = `6) "places" - the places I train at (optional; only when I ask for it, or when a plan needs a place that isn't saved yet - see "My Places" above for what is saved now). This is how you add a new gym, correct what is written about a place, or tidy the list.
+  { "action": "add", "name": "Boulderwelt Regensburg", "kind": "gym", "price": "CHF 22 day pass", "hours": "Mon-Fri 9-23, Sat-Sun 9-22", "notes": "Board wall on the left, bring your own chalk" }
+  { "action": "edit", "name": "Home", "rename": "Home wall", "kind": "home", "price": "free", "hours": "any time", "notes": "Hangboard in the hall" }   (give only what changes; "" clears a price, hours or notes)
+  { "action": "remove", "name": "Old gym" }
+  - "kind" is one of ${PLACE_KINDS.map((k) => `"${k}"`).join(", ")} (default "other"). "home" is my own training spot and there is at most one; crags are outdoor areas.
+  - "name" is how the place is found - exactly as written in "My Places" for an edit or remove, and it can't repeat a saved name (to change a place, use "edit"). A session's "place" uses the same name, so add the place here first (in this answer) and then name it in the session.
+  - "price", "hours" and "notes" are short plain text for what I should know when choosing it ("CHF 22 day pass", "Tue closed", "the top-out is slippery when wet"). Only write what I told you or you are sure of - never invent prices or opening hours; leave them out instead and I can fill them in. Keep notes brief.
+  - "latitude" and "longitude" (both, decimal degrees) put the place on the map so it gets a weather forecast. Give them only if I gave them or you are certain; a wrong position gives wrong weather and I can't see it at a glance. When unsure, leave them out - I can search the place by name in Settings.
+  - "rename" changes the name everywhere: the sessions that name the place follow it. "remove" deletes the place; sessions that name it keep the name as plain text. Don't remove or rename a place unless I asked you to tidy the list or told you it changed.
+  - If there is no "My Places" section above, I'm not sharing my places with you: you can still add, but you can't know which exist - I'll see a note when one is already saved.`;
 
 /**
  * What the AI is told about the change-set contract - every capability,
@@ -19,9 +35,10 @@ THE SHAPE (every section is optional; use the ones you need):
   "phases": [ ...phase changes... ],
   "weeks": [ ...week changes... ],
   "planB": [ ...Plan B entries... ],
-  "coachNotes": [ ...coaching memory changes... ]
+  "coachNotes": [ ...coaching memory changes... ],
+  "places": [ ...changes to the places I train at... ]
 }
-The app applies "categories" first, then "exerciseTypes", then "circuits", then "phases", then "weeks", then "planB", then "coachNotes" - so a later section may use a new exercise, circuit or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
+The app applies "categories" first, then "exerciseTypes", then "circuits", then "phases", then "weeks", then "planB", then "coachNotes", then "places" - a session may name a place added in "places" in the same answer; and a later section may use a new exercise, circuit or phase from an earlier one, and a Plan B is a difference from the plan the other sections produce. Entries within a section apply in order.
 
 0) "categories" - the analytics categories (the groups that charts split training load and time into; see Analytics Categories above)
   { "action": "add", "name": "Mobility" }
@@ -83,6 +100,8 @@ The app applies "categories" first, then "exerciseTypes", then "circuits", then 
 
 ${COACH_NOTES_INSTRUCTIONS}
 
+${AI_PLACES_INSTRUCTIONS}
+
 SESSION (used in "sessions" and in an "add" session change):
   { "name": "Limit bouldering", "dayOfWeek": "Tuesday", "startTime": "18:00", "plannedDuration": 90, "place": "Steinbock Konstanz", "notes": "About the session as a whole", "exercises": [ EXERCISE, ... ] }
   EXERCISE: { "exerciseTypeName": "Limit Bouldering", "values": { ... } }
@@ -95,7 +114,7 @@ SESSION (used in "sessions" and in an "add" session change):
   - ONE SET IS ONE TURN: a one-sided exercise (a stretch or hold "per side", single-leg or single-arm work) needs one rep per side - "reps": 2 with "timeOn" of the time per side and "timeOff" as the pause to switch sides, e.g. 30 s per side with 5 s to switch = { "timeOn": 30, "timeOff": 5, "reps": 2, "repLabel": "Side" } ("repLabel" makes the timer say "Side 1/2" and "Switch"; "Arm"/"Leg" work the same way; leave it out for ordinary reps). Without "reps": 2 the app does only ONE 30 s hold per round. Never write "per side" in the notes without also giving "reps": 2.
   - Use a superset to fill a long rest efficiently: e.g. weighted pull-ups (4 x 6) with antagonist push work and a mobility drill between sets, rounds = the pull-up sets, and "roundRest" chosen so the pull-ups still get about the rest they need. Use circuits for core, prehab and conditioning blocks. Don't superset two hard finger or maximal-strength exercises with each other.
   - "name" required. "dayOfWeek" (Monday ... Sunday), "startTime" ("HH:mm", 24-hour), "plannedDuration" (whole minutes, the whole session incl. warm-up) optional.
-  - "place" (optional): where the session is - the name of one of "My Places" above, exactly as written (if there is no such section, leave it out). Pick the place that suits the session: a board session where there is a board, outdoor work at a crag, and check the place's opening hours against the start time. Any other text is accepted (an outside venue) but has no weather and no notes behind it.
+  - "place" (optional): where the session is - the name of one of "My Places" above, exactly as written (if there is no such section, leave it out - or add the place in "places" in this same answer and name it here). Pick the place that suits the session: a board session where there is a board, outdoor work at a crag, and check the place's opening hours against the start time. Any other text is accepted (an outside venue) but has no weather and no notes behind it.
   TEST (in a session's "exercises", like an EXERCISE): { "test": "Max Hang", "conditions": { "Edge depth": 20 }, "values": { "notes": "after the warm-up, full rest between attempts" } }
   Other examples: { "test": "Weighted Pullup", "conditions": { "Reps": 1 } } = find the heaviest single; { "test": "Weighted Pullup", "conditions": { "Added weight": 10 } } = max reps at +10 kg.
   - This schedules a benchmark test inside the session: the athlete enters the result during the session and the app records it, so progress is measured. Use only names from "Tests" above (if there is no such section, there are no tests). "conditions" is what is SET beforehand, by the names of the test's "fields" (any of them, a result field too); leave out what the athlete is to FIND (the heaviest single sets "Reps": 1 and leaves the weight open; a rep test at a given load sets the weight and leaves the reps open). Fields marked "usuallySame" are what results are compared by - repeat the last result's values for them unless the plan is to test something else, e.g. a different weight or edge to fill a gap in the history; weights are kg. A test takes about 10 minutes - leave room for it.

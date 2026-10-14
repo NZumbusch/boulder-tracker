@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-17-places-in-the-plan",
+    title: "The AI coach can manage your places",
+    points: [
+      "Ask the AI coach to add a new gym (with price, opening hours and notes), change what is written about a place, rename it or remove it - it shows up as Places rows in the review, each of them tickable, and a session in the same answer can already use the new place.",
+      "AI coach → Organise has a Places area to tidy names, kinds, prices, hours and notes, and to merge duplicates.",
+      "Your places now live with the rest of your data: they are in backups and exports, sync through Drive, and undoing an AI change puts them back too. The ones you had set up moved over by themselves.",
+    ],
+  },
+  {
     id: "2026-10-16-places-and-previews",
     title: "Places, session previews and event details",
     points: [

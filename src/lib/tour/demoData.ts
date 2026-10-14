@@ -291,6 +291,7 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     benchmarkTypes: structuredClone(DEFAULT_BENCHMARK_TYPES),
     analyticsCategories: structuredClone(DEFAULT_ANALYTICS_CATEGORIES),
     metricDefs: structuredClone(DEFAULT_METRIC_DEFS),
+    places: [],
     valueDefs: structuredClone(DEFAULT_VALUE_DEFS),
     dailyMetrics,
     painLogs,

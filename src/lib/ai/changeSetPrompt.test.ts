@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { AI_CHANGESET_INSTRUCTIONS } from "./changeSetPrompt";
 import { PARAMETER_BLOCKS } from "./changeSet";
+import { PLACE_KINDS } from "../places/places";
 import { EXERCISE_VALUE_FIELD_NAMES } from "./valueSpec";
 
 describe("the change-set prompt documents every capability", () => {
@@ -11,6 +12,14 @@ describe("the change-set prompt documents every capability", () => {
       expect(p, key).toContain(key);
     }
     for (const action of ['"add"', '"edit"', '"remove"', '"archive"', '"delete"']) expect(p, action).toContain(`"action": ${action}`);
+  });
+
+  it("teaches the places section: the shape, the kinds, adding a gym, and what a rename or removal does to sessions", () => {
+    for (const key of ['"places"', '"kind"', '"price"', '"hours"', '"latitude"', '"longitude"', '"rename"']) expect(p, key).toContain(key);
+    for (const kind of PLACE_KINDS) expect(p, kind).toContain(`"${kind}"`);
+    expect(p).toContain('{ "action": "add", "name": "Boulderwelt Regensburg", "kind": "gym"');
+    expect(p).toContain("never invent prices or opening hours");
+    expect(p).toContain("keep the name as plain text");
   });
 
   it("lists every trackable field and every exercise value field", () => {

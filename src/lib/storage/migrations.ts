@@ -1191,6 +1191,14 @@ const MIGRATIONS: MigrationStep[] = [
       delete data.weekOverrides;
     },
   },
+  {
+    from: "3.36",
+    to: "3.37",
+    describe: "Add places - where you train (empty by default; a device's old places setting moves in at startup)",
+    migrate: (data: any) => {
+      data.places = Array.isArray(data.places) ? data.places : [];
+    },
+  },
 ];
 
 /**
