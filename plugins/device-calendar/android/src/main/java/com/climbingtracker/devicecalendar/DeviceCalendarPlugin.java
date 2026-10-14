@@ -46,6 +46,8 @@ import java.util.concurrent.Executors;
 public class DeviceCalendarPlugin extends Plugin {
     /** A calendar can hold years of events; a few weeks of a person's own never come near this. */
     private static final int MAX_EVENTS = 3000;
+    /** Longest location or description handed to the page, in characters. */
+    private static final int MAX_TEXT = 2000;
     private static final int STATUS_DECLINED = 2; // CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -158,6 +160,8 @@ public class DeviceCalendarPlugin extends Plugin {
                 CalendarContract.Instances.ALL_DAY,
                 CalendarContract.Events.CALENDAR_ID,
                 CalendarContract.Events.DISPLAY_COLOR,
+                CalendarContract.Events.EVENT_LOCATION,
+                CalendarContract.Events.DESCRIPTION,
             };
             JSArray events = new JSArray();
             ContentResolver resolver = getContext().getContentResolver();
@@ -171,6 +175,11 @@ public class DeviceCalendarPlugin extends Plugin {
                     o.put("allDay", c.getInt(4) == 1);
                     o.put("calendarId", String.valueOf(c.getLong(5)));
                     o.put("color", hex(c.getInt(6)));
+                    // Where and what, for the event's detail sheet. Descriptions can be long (invitations): capped.
+                    String location = c.getString(7);
+                    String description = c.getString(8);
+                    if (location != null && !location.trim().isEmpty()) o.put("location", cap(location.trim(), MAX_TEXT));
+                    if (description != null && !description.trim().isEmpty()) o.put("description", cap(description.trim(), MAX_TEXT));
                     events.put(o);
                 }
                 call.resolve(new JSObject().put("events", events));
@@ -178,6 +187,10 @@ public class DeviceCalendarPlugin extends Plugin {
                 call.reject(e.getMessage() != null ? e.getMessage() : "Could not read the events", e);
             }
         });
+    }
+
+    private static String cap(String text, int max) {
+        return text.length() <= max ? text : text.substring(0, max);
     }
 
     private static String hex(int color) {

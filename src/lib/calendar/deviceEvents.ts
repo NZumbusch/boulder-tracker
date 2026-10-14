@@ -13,6 +13,33 @@ export interface DeviceEvent {
   /** Length on this day. */
   minutes: number;
   allDay: boolean;
+  /** The event as the calendar holds it (epoch ms; an all-day event's are UTC midnights, end exclusive) - the detail sheet shows the whole of it, not this day's share. */
+  begin: number;
+  end: number;
+  /** The event's own colour (its calendar's, unless it has one). */
+  color?: string;
+  location?: string;
+  /** Its notes, as plain text. */
+  notes?: string;
+}
+
+/** An invitation's description as plain text: tags and character references of the simple kind removed, lines kept. */
+export function plainNotes(text: string | undefined): string | undefined {
+  if (!text) return undefined;
+  const plain = text
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6])\s*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return plain || undefined;
 }
 
 const dayIndexOfLocal = (d: Date) => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS);
@@ -29,11 +56,18 @@ export function toDeviceEvents(events: NativeEvent[]): DeviceEvent[] {
   const out: DeviceEvent[] = [];
   for (const e of events) {
     const title = e.title?.trim() || "(No title)";
+    const more = {
+      begin: e.begin,
+      end: e.end,
+      ...(e.color ? { color: e.color } : {}),
+      ...(e.location?.trim() ? { location: e.location.trim() } : {}),
+      ...(plainNotes(e.description) ? { notes: plainNotes(e.description) } : {}),
+    };
     if (e.allDay) {
       const first = Math.floor(e.begin / DAY_MS);
       const last = Math.max(first, Math.floor((e.end - 1) / DAY_MS));
       for (let day = first; day <= last && day - first < 366; day++) {
-        out.push({ id: e.id, title, calendarId: e.calendarId, day, minutes: 1440, allDay: true });
+        out.push({ id: e.id, title, calendarId: e.calendarId, day, minutes: 1440, allDay: true, ...more });
       }
       continue;
     }
@@ -51,6 +85,7 @@ export function toDeviceEvents(events: NativeEvent[]): DeviceEvent[] {
         startMin: Math.round((from.getTime() - midnight.getTime()) / 60_000),
         minutes: Math.max(1, Math.round((to - from.getTime()) / 60_000)),
         allDay: false,
+        ...more,
       });
       from = nextMidnight;
     }

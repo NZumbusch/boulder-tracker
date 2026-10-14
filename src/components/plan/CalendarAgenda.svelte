@@ -23,6 +23,7 @@
     isRunning,
     isFaded,
     onOpen,
+    onOpenEvent,
     onAdd,
     phases = new Map(),
     phaseNames = false,
@@ -38,6 +39,8 @@
     isRunning: (s: CalendarSession) => boolean;
     isFaded: (s: CalendarSession) => boolean;
     onOpen: (s: CalendarSession, siblings: CalendarSession[]) => void;
+    /** A phone-calendar event was tapped. */
+    onOpenEvent?: (e: DeviceEvent) => void;
     onAdd: (day: number) => void;
     /** The phase on each day, drawn as a bar down the row's edge (empty = off). */
     phases?: Map<number, PhaseMark>;
@@ -115,10 +118,10 @@
               </button>
           {:else}
             {@const e = item.event}
-            <p class="relative overflow-hidden flex items-baseline gap-2 rounded-xl px-3 py-1.5 text-label cal-ink"><span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span>
+            <button onclick={() => onOpenEvent?.(e)} class="relative overflow-hidden w-full text-left flex items-baseline gap-2 rounded-xl px-3 py-1.5 text-label cal-ink"><span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span>
               <span class="relative min-w-0 flex-1 truncate">{e.title}</span>
               <span class="relative shrink-0 text-caption tabular-nums opacity-70">{e.allDay ? 'all day' : `${hhmm(e.startMin ?? 0)} – ${hhmm(Math.min(1440, (e.startMin ?? 0) + e.minutes))}`}</span>
-            </p>
+            </button>
           {/if}
         {/each}
         {#if agenda.length === 0 && !goals.get(day)}
