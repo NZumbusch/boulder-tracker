@@ -33,8 +33,7 @@ describe('defaultPreferences', () => {
       dailyMetricsReminderTime: '20:00',
       planBReminderEnabled: true,
       planBReminderTime: '19:00',
-      homeLocation: null,
-      crags: [],
+      places: [],
       fatigueChartStyle: 'bars',
       analyticsRange: '3m',
       timerVibrateEnabled: true,
@@ -106,8 +105,7 @@ describe('migratePreferences', () => {
       dailyMetricsReminderTime: '07:30',
       planBReminderEnabled: false,
       planBReminderTime: '18:30',
-      homeLocation: { name: 'Munich, DE', latitude: 48.1374, longitude: 11.5755 },
-      crags: [],
+      places: [{ name: 'Munich, DE', kind: 'home', latitude: 48.1374, longitude: 11.5755 }],
       fatigueChartStyle: 'radar' as const,
       analyticsRange: '1y' as const,
       timerVibrateEnabled: false,
@@ -276,60 +274,50 @@ describe('migratePreferences', () => {
   });
 });
 
-describe('homeLocation / crags', () => {
-  it('default to unset - the whole weather feature is off until a location is set', () => {
-    expect(defaultPreferences().homeLocation).toBeNull();
-    expect(defaultPreferences().crags).toEqual([]);
+describe('places', () => {
+  it('default to none - the whole weather feature is off until a place with coordinates is set', () => {
+    expect(defaultPreferences().places).toEqual([]);
   });
 
-  it('accepts a valid home location and crag list', () => {
+  it('turns the old home location and crags into places', () => {
     const home = { name: 'Munich, DE', latitude: 48.1374, longitude: 11.5755 };
     const font = { name: 'Fontainebleau, FR', latitude: 48.4042, longitude: 2.7017 };
     const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: home, crags: [font] });
-    expect(result.homeLocation).toEqual(home);
-    expect(result.crags).toEqual([font]);
+    expect(result.places).toEqual([{ ...home, kind: 'home' }, { ...font, kind: 'crag' }]);
+    expect('homeLocation' in result).toBe(false);
+    expect('crags' in result).toBe(false);
   });
 
   it('turns an old single trip location into the first crag', () => {
     const trip = { name: 'Fontainebleau, FR', latitude: 48.4042, longitude: 2.7017 };
     const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, tripLocation: trip });
-    expect(result.crags).toEqual([trip]);
+    expect(result.places).toEqual([{ ...trip, kind: 'crag' }]);
     expect('tripLocation' in result).toBe(false);
   });
 
-  it('keeps every valid crag, dropping invalid and duplicate ones', () => {
+  it('keeps stored places as they are - the old keys no longer count once places exist', () => {
+    const places = [{ name: 'Steinbock', kind: 'gym', price: 'CHF 22', hours: 'Mon-Fri 9-22' }];
+    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, places, homeLocation: { name: 'Old', latitude: 1, longitude: 1 } });
+    expect(result.places).toEqual(places);
+  });
+
+  it('drops invalid and duplicate old crags without throwing', () => {
     const c = (name: string) => ({ name, latitude: 47, longitude: 8 });
     const result = migratePreferences({
       version: CURRENT_PREFERENCES_VERSION,
-      crags: [c('A'), { name: 'Bad', latitude: 99, longitude: 0 }, c('A'), c('B'), c('C'), c('D')],
+      crags: [c('A'), { name: 'Bad', latitude: 99, longitude: 0 }, c('A'), c('B'), 'not an object', 42],
     });
-    expect(result.crags.map((x) => x.name)).toEqual(['A', 'B', 'C', 'D']);
+    expect(result.places.map((x) => x.name)).toEqual(['A', 'B']);
   });
 
-  it('an explicit null clears a location back to unset', () => {
-    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: null });
-    expect(result.homeLocation).toBeNull();
-  });
-
-  it('rejects a location missing a name, or with out-of-range coordinates, falling back to null rather than throwing', () => {
-    const badShapes = [
-      { latitude: 48, longitude: 11 }, // no name
-      { name: 'Nowhere', latitude: 95, longitude: 11 }, // latitude out of range
-      { name: 'Nowhere', latitude: 48, longitude: 200 }, // longitude out of range
-      { name: '', latitude: 48, longitude: 11 }, // blank name
-      'not an object',
-      42,
-    ];
-    for (const bad of badShapes) {
-      const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: bad });
-      expect(result.homeLocation).toBeNull();
-    }
+  it('an old home location that is not a valid place is simply not a home', () => {
+    const badShapes = [{ latitude: 48, longitude: 11 }, { name: 'Nowhere', latitude: 95, longitude: 11 }, { name: 'Nowhere', latitude: 48, longitude: 200 }, { name: '', latitude: 48, longitude: 11 }, 'not an object', 42, null];
+    for (const bad of badShapes) expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: bad }).places).toEqual([]);
   });
 
   it('accepts boundary-valid coordinates (poles and the antimeridian)', () => {
     const location = { name: 'North Pole', latitude: 90, longitude: -180 };
-    const result = migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: location });
-    expect(result.homeLocation).toEqual(location);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeLocation: location }).places).toEqual([{ ...location, kind: 'home' }]);
   });
 });
 

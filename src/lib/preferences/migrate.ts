@@ -27,6 +27,7 @@ import { type TimerPreset, validateTimerPresets } from '../timer/presets';
 import { ANALYTICS_RANGES, DEFAULT_ANALYTICS_RANGE, type AnalyticsRange } from '../analytics/range';
 import { defaultHomeDetails, validateHomeDetails, type HomeDetails } from './homeDetails';
 import { defaultTunables, validateTunables, type Tunables } from './tunables';
+import { validatePlaces, type Place } from '../places/places';
 import { DEFAULT_UNITS, validateUnits, type Units } from '../units';
 
 export const CURRENT_PREFERENCES_VERSION = 1;
@@ -59,16 +60,11 @@ export interface Preferences {
   /** "HH:mm", 24-hour, local time, on the evening before. Default 19:00. */
   planBReminderTime: string;
   /**
-   * Weather - `null` by default, meaning the weather card
-   * is off until the user sets a location.
+   * Where you train: home, crags, gyms, anywhere (`lib/places`). Empty by default; the weather is off until a home or
+   * a crag with coordinates is set. Replaces `homeLocation` and `crags` (and, before them, `tripLocation`), which
+   * `migratePreferences` turns into places. Device-local: where you are does not travel.
    */
-  homeLocation: WeatherLocation | null;
-  /**
-   * Saved outdoor spots (as many as wanted), each with its own
-   * conditions on the Home Crags card. Replaces the old single `tripLocation`, which
-   * `migratePreferences` turns into the first crag.
-   */
-  crags: WeatherLocation[];
+  places: Place[];
   /** Bars is the default - radar is the user-requested alternate, both real. */
   fatigueChartStyle: FatigueChartStyle;
   /** The Analytics window: 4 weeks, 3 or 6 months (a week per column), or a year (a month per column) - see `lib/analytics/range.ts`. */
@@ -212,6 +208,8 @@ export interface AISharingPreferences {
    * preferences don't have it (read as on).
    */
   coachNotes?: boolean;
+  /** The places you train at (names, kind, price, hours, notes - never coordinates). Absent = on. */
+  places?: boolean;
   /**
    * "How it went" on past sessions (`Workout.logNotes`). Default on: the
    * athlete's own account of what happened is what a coach most needs.
@@ -308,8 +306,7 @@ export function defaultPreferences(): Preferences {
     dailyMetricsReminderTime: DEFAULT_DAILY_METRICS_REMINDER_TIME,
     planBReminderEnabled: true,
     planBReminderTime: '19:00',
-    homeLocation: null,
-    crags: [],
+    places: [],
     fatigueChartStyle: 'bars',
     analyticsRange: DEFAULT_ANALYTICS_RANGE,
     timerVibrateEnabled: true,
@@ -366,14 +363,6 @@ function isStringArray(value: unknown): value is string[] {
 const RECOVERY_CHART_MODES: RecoveryChartMode[] = ['overlay', 'lanes'];
 
 /** Validates an unknown value as a `WeatherLocation`, or `null` if it isn't one - never throws, mirrors every other field's independent-defaulting discipline. */
-function validateLocation(raw: unknown): WeatherLocation | null {
-  if (raw === null || typeof raw !== 'object') return null;
-  const c = raw as Record<string, unknown>;
-  if (typeof c.name !== 'string' || c.name.trim() === '') return null;
-  if (typeof c.latitude !== 'number' || c.latitude < -90 || c.latitude > 90) return null;
-  if (typeof c.longitude !== 'number' || c.longitude < -180 || c.longitude > 180) return null;
-  return { name: c.name, latitude: c.latitude, longitude: c.longitude };
-}
 
 /**
  * Repairs an unknown value into a valid `HomeSectionPreference[]`: unknown
@@ -424,18 +413,6 @@ export function validateOrderedToggles<Id extends string>(raw: unknown, ids: rea
   return result;
 }
 
-/** Valid, de-duplicated (by name) crags; falls back to the legacy single trip location. */
-function validateCrags(raw: unknown, legacyTrip: unknown): WeatherLocation[] {
-  const source = raw === undefined ? (legacyTrip === undefined ? [] : [legacyTrip]) : raw;
-  if (!Array.isArray(source)) return [];
-  const result: WeatherLocation[] = [];
-  for (const entry of source) {
-    const location = validateLocation(entry);
-    if (!location || result.some((c) => c.name === location.name)) continue;
-    result.push(location);
-  }
-  return result;
-}
 
 /**
  * Repairs an unknown value into a valid `AISharingPreferences`: each of the
@@ -458,6 +435,7 @@ function validateAISharing(raw: unknown): AISharingPreferences {
     ...(typeof c.coachNotes === 'boolean' ? { coachNotes: c.coachNotes } : {}),
     ...(typeof c.sessionNotes === 'boolean' ? { sessionNotes: c.sessionNotes } : {}),
     ...(typeof c.planNotesInHistory === 'boolean' ? { planNotesInHistory: c.planNotesInHistory } : {}),
+    ...(typeof c.places === 'boolean' ? { places: c.places } : {}),
   };
 }
 
@@ -525,8 +503,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     notificationsEnabled: typeof candidate.notificationsEnabled === 'boolean'
       ? candidate.notificationsEnabled
       : defaults.notificationsEnabled,
-    homeLocation: candidate.homeLocation === undefined ? defaults.homeLocation : validateLocation(candidate.homeLocation),
-    crags: validateCrags(candidate.crags, candidate.tripLocation),
+    places: validatePlaces(candidate.places, { homeLocation: candidate.homeLocation, crags: candidate.crags, tripLocation: candidate.tripLocation }),
     fatigueChartStyle: FATIGUE_CHART_STYLES.includes(candidate.fatigueChartStyle as FatigueChartStyle)
       ? (candidate.fatigueChartStyle as FatigueChartStyle)
       : defaults.fatigueChartStyle,
