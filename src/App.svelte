@@ -41,6 +41,8 @@
   import NavDrawer from './components/nav/NavDrawer.svelte';
   import NavRail from './components/nav/NavRail.svelte';
   import Fab from './components/nav/Fab.svelte';
+  import { fabActions } from './lib/navigation/fabActions.svelte';
+  import { initialScrollHide, nextScrollHide, SCROLL_HIDE_END_ZONE } from './lib/navigation/scrollHide';
   import { layout } from './lib/navigation/layoutMode.svelte';
 
   const drawerNav = $derived(trainingState.navStyle === 'drawer');
@@ -122,6 +124,20 @@
       void trainingState.maybePromptForNotifications();
     }
   });
+
+  // The floating + gets out of the way while the screen is scrolled down through content (lib/navigation/scrollHide).
+  let scrollHide = initialScrollHide;
+  function onContentScroll(e: Event) {
+    const el = e.currentTarget as HTMLElement;
+    scrollHide = nextScrollHide(scrollHide, el.scrollTop, { atEnd: el.scrollTop + el.clientHeight >= el.scrollHeight - SCROLL_HIDE_END_ZONE });
+    fabActions.hidden = scrollHide.hidden;
+  }
+  // A new screen starts at its top, with the + back.
+  $effect(() => {
+    void trainingState.view;
+    scrollHide = initialScrollHide;
+    fabActions.hidden = false;
+  });
 </script>
 
 <main class="flex flex-col h-dvh pt-safe overflow-hidden bg-app-bg text-content font-sans">
@@ -137,7 +153,7 @@
        is unaffected. -->
   <div class="flex-1 min-h-0 flex">
   {#if drawerNav && layout.wide}<NavRail />{/if}
-  <div class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4 pt-0 {drawerNav ? 'pb-[calc(1rem+env(safe-area-inset-bottom)+var(--fab-b))]' : ''}">
+  <div onscroll={onContentScroll} class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4 pt-0 {drawerNav ? 'pb-[calc(1rem+env(safe-area-inset-bottom)+var(--fab-b))]' : ''}">
     {#if trainingState.isLoading}
       <div class="flex flex-col items-center justify-center h-full space-y-4">
         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
