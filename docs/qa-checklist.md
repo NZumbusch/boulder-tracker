@@ -224,6 +224,17 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 15.5 | Block planner button | Plan: blocks view, then calendar view. | The block planner button (three bars) is in the top bar in both. | | |
 | 15.6 | Calendar look | Week list, Day, Week grid, Month; chips and "Exercises as a list" (Settings → Plan calendar & day); light and dark; phone and tablet. | Sessions are large rounded blocks with room around the text; exercises as soft pills or as lines with colour dots; in the hour grids, exercise blocks are rounded with gaps between them. Nothing cramped or square-edged. | | |
 
+## 16. Places, previews, event details (2026-10-16)
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 16.1 | Week layout toggle | Plan → calendar → Week: tap the two icons next to Day/Week/Month/Year (phone upright, tablet). | Hour columns or the list, remembered; on a phone the columns are the Samsung-style grid with wrapped names. Settings → Plan calendar & day shows the same choice. | | |
+| 16.2 | Phone event details | With the phone calendar switched on (Settings → Phone calendar): tap an event in the week list, the Day/Week grid. | A sheet: title with the event's colour, when (also across midnight / all day), where with "Find on map" (opens Maps), the calendar's name, notes as plain text. Read-only. Needs the new APK (the plugin reads location and notes now). | | |
+| 16.3 | Places | Settings → Model & health → Places, weather & outdoor. Existing home and crags are listed. Add a gym; rename a place; search a city for coordinates; paste "47.0502, 8.3093"; price, hours, notes; Open in Maps; reorder; remove. | The home and crags with coordinates still drive Home's weather and the Crags card; renaming a place renames it on sessions that name it; removing keeps the name as text on sessions. | | |
+| 16.4 | A session's place | Session editor → Where chip: pick a place, type another, clear. Phase template editor → Where. | The chip shows it; it appears on the session in lists and on Home's Today row; weeks generated from the template and copied weeks carry it. | | |
+| 16.5 | Session preview | Tap a session in the calendar (list, Day, Week, Month → day). | A preview: status and length, when, where (price, hours, notes of the place; the day's forecast if the place has coordinates), the note, exercise names (a circuit as one line). Open goes to the full session, Start starts it (Resume if it is the running one). | | |
+| 16.6 | AI and places | AI coach → Change plan: ask for "the board session at <your gym>". AI sharing → Places off, copy the prompt again. | The prompt lists "My Places" (no coordinates); the reply's "place" lands on the session (a name that is not a saved place is kept with a warning); with the switch off the section is gone. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
