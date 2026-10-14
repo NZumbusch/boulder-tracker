@@ -177,7 +177,8 @@ interface SearchEntry {
 const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Theme", page: "general", words: "dark light contrast colours" },
   { label: "Text size", page: "general", words: "font large small" },
-  { label: "Navigation: side drawer or bottom bar", page: "general", words: "menu rail tabs icons labels hamburger" },
+  { label: "Navigation: automatic, side drawer or bottom bar", page: "general", words: "menu rail tabs icons labels hamburger phone tablet" },
+  { label: "Hide the top bar while scrolling", page: "general", words: "header app bar slide away stay sticky" },
   { label: "Help buttons", page: "general", words: "question mark explain" },
   { label: "Motion", page: "general", words: "animations reduced" },
   { label: "Weight, temperature and grade units", page: "units", words: "kg lb celsius fahrenheit font v-scale" },

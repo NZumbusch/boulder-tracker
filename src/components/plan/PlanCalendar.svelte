@@ -232,6 +232,7 @@
       {phases}
       {phaseNames}
       goals={goalsOnDays}
+      exerciseList={trainingState.tunableOn('plan.exerciseList')}
     />
     {#if noDayCount > 0}
       <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>

@@ -453,17 +453,15 @@
           ><Icon icon="ic:baseline-calendar-month" class="text-base" /></button>
         </div>
       {/if}
-      {#if shownView === 'blocks'}
-        <button
-          onclick={() => openBlockManager()}
-          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
-          aria-label="Manage training blocks"
-          data-tour="plan-blocks"
-          title="Training blocks"
-        >
-          <Icon icon="ic:baseline-view-week" class="text-xl" />
-        </button>
-      {/if}
+      <button
+        onclick={() => openBlockManager()}
+        class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
+        aria-label="Manage training blocks"
+        data-tour="plan-blocks"
+        title="Training blocks"
+      >
+        <Icon icon="ic:baseline-view-week" class="text-xl" />
+      </button>
       <button
         onclick={() => showAICoach = true}
         class="w-10 h-10 flex items-center justify-center text-primary hover:text-primary-hover rounded-full hover:bg-surface-elevated/70 transition-colors"

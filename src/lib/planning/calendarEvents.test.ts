@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  dayAgenda,
   dayNameOf, weekIdOfDayIndex, parseStartTime, sessionDay, toCalendarSession, sessionsByDay, layoutDay, visibleHours,
 } from "./calendarEvents";
 import { weekStartDay } from "../analytics/range";
@@ -113,5 +114,23 @@ describe("visibleHours", () => {
   });
   it("covers early and late sessions in the same week", () => {
     expect(visibleHours([{ top: 6 * 60, bottom: 7 * 60 }, { top: 19 * 60, bottom: 21 * 60 }])).toEqual({ from: 5, to: 22 });
+  });
+});
+
+describe("dayAgenda", () => {
+  const session = (id: string, startMin?: number) => ({ workout: { id } as Workout, day: 0, startMin, minutes: 60, done: false });
+  const event = (id: string, startMin?: number, allDay = false) => ({ id, title: id, calendarId: "c", day: 0, startMin, minutes: 30, allDay });
+  const order = (items: ReturnType<typeof dayAgenda>) => items.map((i) => (i.kind === "session" ? i.session.workout.id : i.event.id));
+
+  it("puts phone events and sessions in the order of their start times", () => {
+    // The week list used to show every session first, then every event.
+    const items = dayAgenda([session("climb-15", 900), session("climb-18", 1080)], [event("piano", 570), event("meeting", 600), event("late", 960)]);
+    expect(order(items)).toEqual(["piano", "meeting", "climb-15", "late", "climb-18"]);
+  });
+  it("starts with all-day events and ends with sessions that have no time", () => {
+    expect(order(dayAgenda([session("free"), session("early", 480)], [event("holiday", undefined, true), event("noon", 720)]))).toEqual(["holiday", "early", "noon", "free"]);
+  });
+  it("lists a session before an event starting the same minute, and keeps the given order of equals", () => {
+    expect(order(dayAgenda([session("s", 600)], [event("e1", 600), event("e2", 600)]))).toEqual(["s", "e1", "e2"]);
   });
 });

@@ -20,6 +20,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-15-bar-and-calendar",
+    title: "Bottom bar on the phone, a calmer top bar, a roomier calendar",
+    points: [
+      "Navigation is automatic now: the bottom bar on a phone held upright, the side drawer and rail on a tablet, a laptop or a phone on its side. Settings → App & display → Look & feel can pin either one.",
+      "The top bar slides away while you scroll down and comes back when you scroll up (it can be set to stay), and nothing draws over it any more - the year labels in the block planner no longer sit on top of it.",
+      "Plan's week list puts your phone calendar's events and your sessions in the order of the day; the block planner button is in the calendar views too.",
+      "Sessions in the calendar are bigger and rounder: roomier blocks, softer exercise pills, and a plain list with colour dots as an option (Settings → App & display → Plan calendar & day).",
+    ],
+  },
+  {
     id: "2026-10-15-live-session-fixes",
     title: "Live sessions: circuits, weights and the notification",
     points: [

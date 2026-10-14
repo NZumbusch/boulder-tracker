@@ -213,6 +213,17 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 14.7 | Floating + on scroll | History or Analytics: scroll down, then up. | The + slides away going down and returns going up, at the top and at the end of the list; it never covers the last row. | | |
 | 14.8 | Week list on a phone | Plan → calendar → Week on a portrait phone, a tablet and a phone on its side; then Settings → App & display → Plan calendar & day. | Portrait phone: the list (setting "List on a phone held upright", which is on that page along with the other calendar settings and "New day starts at"); tablet and landscape: the hour grid. | | |
 
+## 15. Navigation mode, top bar, calendar look (2026-10-15)
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 15.1 | Automatic navigation | Phone upright, then on its side, then a tablet / laptop. Settings → App & display → Look & feel → Navigation: Automatic, Bottom bar, Side drawer. | Automatic: bottom bar on the upright phone; rail + drawer + floating + on a phone on its side, a tablet, a laptop. The other two pin that one everywhere. An install that had the drawer before starts on Automatic. | | |
+| 15.2 | Top bar on scroll | Scroll down through Home, Plan (blocks), History, Analytics; then up a little. Settings → Look & feel → Top bar: turn "Hide the top bar while scrolling" off. | The bar slides up and away going down, returns going up (soft edge over content, never a see-through band). Off: it stays, with the soft edge once content is under it. | | |
+| 15.3 | Nothing over the bar | Plan → blocks view, scroll so the year labels ("2026", "2027") pass the top. Analytics charts with tips. | Nothing is drawn over the top bar. | | |
+| 15.4 | Week list order | Plan → calendar → Week (list) on a day with sessions and phone-calendar events. | One list in time order (all-day first, sessions without a time last); each item shows its start time. | | |
+| 15.5 | Block planner button | Plan: blocks view, then calendar view. | The block planner button (three bars) is in the top bar in both. | | |
+| 15.6 | Calendar look | Week list, Day, Week grid, Month; chips and "Exercises as a list" (Settings → Plan calendar & day); light and dark; phone and tablet. | Sessions are large rounded blocks with room around the text; exercises as soft pills or as lines with colour dots; in the hour grids, exercise blocks are rounded with gaps between them. Nothing cramped or square-edged. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
