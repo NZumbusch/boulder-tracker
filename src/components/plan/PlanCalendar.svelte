@@ -7,6 +7,7 @@
    * (`getWeekPlanView`), so a finished live session shows up here with the
    * time it actually took.
    */
+  import { layout } from '../../lib/navigation/layoutMode.svelte';
   import Icon from '@iconify/svelte';
   import { onDestroy } from 'svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -160,7 +161,7 @@
   export function addAtFocus() {
     addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus);
   }
-  const agenda = $derived(trainingState.tunableOn('plan.weekAgenda'));
+  const agenda = $derived(trainingState.tunableOn('plan.weekAgenda') || (!layout.wide && trainingState.tunableOn('plan.weekListOnPhone')));
   /** The phase on each day shown (Settings -> Plan calendar). Month and Year draw it as a line along each week row. */
   const phases = $derived(
     trainingState.tunableOn('plan.calendarPhases')
@@ -184,11 +185,11 @@
       <p class="text-caption text-content-subtle truncate h-4">{sublabel}</p>
     </div>
     <div class="flex items-center gap-0.5 shrink-0 short:order-3">
-      <button onclick={() => step('prev')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Previous {mode}">
+      <button onclick={() => step('prev')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Previous {mode}">
         <Icon icon="ic:baseline-chevron-left" class="text-lg" />
       </button>
       <button onclick={() => (focus = today)} class="px-2 py-1 text-caption rounded-control hover:bg-surface-elevated transition-colors {isHere ? 'text-content-subtle/50' : 'text-primary'}">Today</button>
-      <button onclick={() => step('next')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Next {mode}">
+      <button onclick={() => step('next')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Next {mode}">
         <Icon icon="ic:baseline-chevron-right" class="text-lg" />
       </button>
     </div>
@@ -207,7 +208,7 @@
     </div>
     <!-- With the drawer navigation the floating + adds a session (the app shell's); the bottom bar has no such button, so the + stays here. -->
     {#if trainingState.navStyle === 'bar'}
-      <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
+      <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
       <Icon icon="ic:baseline-plus" class="text-lg" />
     </button>
     {/if}
