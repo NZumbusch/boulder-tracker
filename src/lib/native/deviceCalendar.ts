@@ -23,6 +23,9 @@ export interface NativeEvent {
   allDay: boolean;
   calendarId: string;
   color: string;
+  /** Where it takes place, and its notes - when the event has them. */
+  location?: string;
+  description?: string;
 }
 
 interface DeviceCalendarPlugin {
