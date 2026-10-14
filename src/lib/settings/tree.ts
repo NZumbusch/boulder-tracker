@@ -8,7 +8,7 @@ export type SectionId = "setup" | "display" | "sessions" | "health" | "reminders
 
 export type PageId =
   | "exercises" | "circuits" | "phases" | "benchmarks" | "values" | "targets"
-  | "general" | "units" | "home" | "history"
+  | "general" | "units" | "home" | "planCalendar" | "history"
   | "live" | "timer"
   | "model" | "pain" | "weather"
   | "reminders"
@@ -69,6 +69,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       { id: "general", label: "Look & feel", hint: "Theme, text size, navigation, help buttons, motion", icon: "ic:baseline-palette" },
       { id: "units", label: "Units", hint: "Weight, temperature, grades, speed", icon: "ic:baseline-straighten" },
       { id: "home", label: "Home", hint: "Which cards show and in what order, quick log, list lengths", icon: "ic:baseline-home" },
+      { id: "planCalendar", label: "Plan calendar & day", hint: "Week as a list, phase strip, when a new day starts", icon: "ic:baseline-calendar-month" },
       { id: "history", label: "History & Analytics", hint: "Analytics cards, recovery chart, sends chart", icon: "ic:baseline-bar-chart" },
     ],
   },
@@ -184,6 +185,10 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Weekly targets", page: "targets", words: "sessions load finger days split category share goal aim" },
   { label: "Quick log (+) actions", page: "home", words: "pain bodyweight send benchmark test result" },
   { label: "Recent activity and test list lengths", page: "home" },
+  { label: "Week as a list", page: "planCalendar", words: "calendar week view columns agenda phone narrow" },
+  { label: "Phase strip in the calendar", page: "planCalendar", words: "phase names month year lines" },
+  { label: "When a new day starts", page: "planCalendar", words: "midnight night hour after midnight today" },
+  { label: "Ask what to skip in a circuit", page: "live", words: "skip circuit exercise question" },
   { label: "Analytics cards", page: "history", words: "reorder hide charts" },
   { label: "Recovery chart", page: "history", words: "hrv sleep resting heart rate lanes" },
   { label: "Sends by grade chart", page: "history", words: "counts" },

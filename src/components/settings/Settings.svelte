@@ -298,6 +298,11 @@
       />
       <TunablesSettings topic="layout" title="Home lists" ids={['home.recentActivityCount', 'home.progressBenchmarks']} />
     </div>
+  {:else if page === 'planCalendar'}
+    <div class="space-y-4">
+      <TunablesSettings topic="layout" title="Views" ids={['plan.weekAgenda', 'plan.weekListOnPhone', 'plan.calendarPhases', 'plan.calendarPhaseNames']} />
+      <TunablesSettings topic="layout" title="Day" ids={['day.startHour']} />
+    </div>
   {:else if page === 'history'}
     <div class="space-y-4">
       <OrderedListSettings
@@ -309,7 +314,10 @@
       <ChartSettings />
     </div>
   {:else if page === 'live'}
-    <div class="space-y-4"><SessionSettings /></div>
+    <div class="space-y-4">
+      <SessionSettings />
+      <TunablesSettings topic="layout" title="Circuits" ids={['circuit.askSkip']} />
+    </div>
   {:else if page === 'timer'}
     <div class="space-y-4">
       <AudioLevelSettings />
