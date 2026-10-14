@@ -168,10 +168,10 @@
         <div class="flex items-center justify-between py-3 group">
           <div class="flex items-center gap-3"><div class="w-3 h-3 rounded-full {cat.color}"></div><div><p class="text-body font-bold text-content">{cat.name}</p></div></div>
           <div class="flex items-center gap-0.5">
-            <button onclick={() => moveAnalyticsCategoryUp(index)} disabled={index === 0} class="p-1.5 text-content-subtle hover:text-content disabled:opacity-30 disabled:hover:text-content-subtle transition-colors" aria-label="Move Up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" /></button>
-            <button onclick={() => moveAnalyticsCategoryDown(index)} disabled={index === analyticsCategories.length - 1} class="p-1.5 text-content-subtle hover:text-content disabled:opacity-30 disabled:hover:text-content-subtle transition-colors" aria-label="Move Down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg" /></button>
-            <button onclick={() => { editingAnalyticsCategory = { ...cat }; isAddingAnalyticsCategory = true; }} class="p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit Category"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
-            <button onclick={() => deleteAnalyticsCategory(cat.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete Category"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+            <button onclick={() => moveAnalyticsCategoryUp(index)} disabled={index === 0} class="tap p-1.5 text-content-subtle hover:text-content disabled:opacity-30 disabled:hover:text-content-subtle transition-colors" aria-label="Move Up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" /></button>
+            <button onclick={() => moveAnalyticsCategoryDown(index)} disabled={index === analyticsCategories.length - 1} class="tap p-1.5 text-content-subtle hover:text-content disabled:opacity-30 disabled:hover:text-content-subtle transition-colors" aria-label="Move Down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg" /></button>
+            <button onclick={() => { editingAnalyticsCategory = { ...cat }; isAddingAnalyticsCategory = true; }} class="tap p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit Category"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
+            <button onclick={() => deleteAnalyticsCategory(cat.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete Category"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
           </div>
         </div>
       {/each}

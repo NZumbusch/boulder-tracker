@@ -55,7 +55,7 @@
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2 min-w-0">
         {#if kind}
-          <button onclick={() => kind = null} class="p-1 -ml-1 text-content-subtle hover:text-content" aria-label="Back">
+          <button onclick={() => kind = null} class="tap p-1 -ml-1 text-content-subtle hover:text-content" aria-label="Back">
             <Icon icon="ic:baseline-arrow-back" class="text-xl" />
           </button>
         {/if}

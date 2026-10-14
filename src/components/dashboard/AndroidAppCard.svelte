@@ -23,7 +23,7 @@
         <p class="text-body font-semibold text-content">Get the Android app</p>
         <p class="text-caption text-content-subtle leading-relaxed">Adds Google Drive sync, home-screen widgets, reminders and timer sound with the screen off. Your data here stays in the browser: export a backup, then restore it in the app.</p>
       </div>
-      <button onclick={() => installPrompt.dismissCard()} class="p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Not now">
+      <button onclick={() => installPrompt.dismissCard()} class="tap p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Not now">
         <Icon icon="ic:baseline-close" class="text-lg" />
       </button>
     </div>

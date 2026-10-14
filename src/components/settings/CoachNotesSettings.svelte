@@ -142,8 +142,8 @@
                 <p class="text-body text-content leading-snug">{note.text}</p>
                 <p class="text-caption text-content-subtle mt-0.5">{note.source === 'me' ? 'You' : 'AI coach'} · {note.updatedOn ? `changed ${fmtDay(note.updatedOn)}` : fmtDay(note.addedOn)}</p>
               </div>
-              <button onclick={() => { editingId = note.id; editText = note.text; }} class="p-1 text-content-subtle hover:text-content shrink-0" aria-label="Edit note"><Icon icon="ic:baseline-edit" class="text-base" /></button>
-              <button onclick={() => trainingState.deleteCoachNote(note.id)} class="p-1 text-content-subtle hover:text-danger shrink-0" aria-label="Delete note"><Icon icon="ic:baseline-delete" class="text-base" /></button>
+              <button onclick={() => { editingId = note.id; editText = note.text; }} class="tap p-1 text-content-subtle hover:text-content shrink-0" aria-label="Edit note"><Icon icon="ic:baseline-edit" class="text-base" /></button>
+              <button onclick={() => trainingState.deleteCoachNote(note.id)} class="tap p-1 text-content-subtle hover:text-danger shrink-0" aria-label="Delete note"><Icon icon="ic:baseline-delete" class="text-base" /></button>
             </div>
           {/if}
         </div>

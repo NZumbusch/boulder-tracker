@@ -151,17 +151,17 @@
               templates[phaseId][wIndex - 1] = workout;
               templates[phaseId][wIndex] = temp;
             }
-          }} disabled={wIndex === 0} class="p-1 text-content-subtle hover:text-content disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Move Up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" /></button>
+          }} disabled={wIndex === 0} class="tap p-1 text-content-subtle hover:text-content disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Move Up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" /></button>
           <button onclick={() => {
             if (wIndex < phaseWorkouts.length - 1) {
               const temp = templates[phaseId][wIndex + 1];
               templates[phaseId][wIndex + 1] = workout;
               templates[phaseId][wIndex] = temp;
             }
-          }} disabled={wIndex === phaseWorkouts.length - 1} class="p-1 text-content-subtle hover:text-content disabled:opacity-30 disabled:cursor-not-allowed transition-colors mr-1" title="Move Down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg" /></button>
+          }} disabled={wIndex === phaseWorkouts.length - 1} class="tap p-1 text-content-subtle hover:text-content disabled:opacity-30 disabled:cursor-not-allowed transition-colors mr-1" title="Move Down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg" /></button>
 
-          <button onclick={() => duplicateWorkoutInPhase(wIndex)} class="p-1.5 text-content-subtle hover:text-content transition-colors" title="Duplicate Session"><Icon icon="ic:baseline-content-copy" class="text-sm" /></button>
-          <button onclick={() => removeWorkoutFromPhase(wIndex)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" title="Delete Session"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+          <button onclick={() => duplicateWorkoutInPhase(wIndex)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors" title="Duplicate Session"><Icon icon="ic:baseline-content-copy" class="text-sm" /></button>
+          <button onclick={() => removeWorkoutFromPhase(wIndex)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" title="Delete Session"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
         </div>
       </div>
       <div class="flex flex-wrap gap-1 mt-2">

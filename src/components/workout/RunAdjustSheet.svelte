@@ -74,7 +74,7 @@
   <div class="w-full max-h-[85%] overflow-y-auto no-scrollbar bg-surface rounded-t-card border-t border-border-strong p-5 pb-8 space-y-4 animate-in slide-in-from-bottom-10" onclick={(e) => e.stopPropagation()}>
     <div class="flex items-center justify-between gap-3">
       <h3 class="text-title text-content">Adjust</h3>
-      <button onclick={onClose} class="p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
+      <button onclick={onClose} class="tap p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
     </div>
     <p class="text-caption text-content-subtle">Applies from where the timer is now. The plan itself isn't changed.</p>
     <div class="grid grid-cols-3 gap-2">
