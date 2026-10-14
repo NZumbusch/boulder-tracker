@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toDeviceEvents, eventsByDay } from "./deviceEvents";
+import { toDeviceEvents, eventsByDay, plainNotes } from "./deviceEvents";
 import type { NativeEvent } from "../native/deviceCalendar";
 
 const native = (over: Partial<NativeEvent>): NativeEvent =>
@@ -54,5 +54,28 @@ describe("eventsByDay", () => {
       native({ id: "a", title: "A", begin: new Date(2026, 9, 14, 8).getTime(), end: new Date(2026, 9, 14, 9).getTime() }),
     ])).get(day)!;
     expect(list.map((e) => e.title)).toEqual(["C", "A", "B"]);
+  });
+});
+
+describe("what the detail sheet needs", () => {
+  it("carries the whole event, its colour, location and notes along", () => {
+    const [e] = toDeviceEvents([native({ begin: new Date(2026, 9, 14, 18, 30).getTime(), end: new Date(2026, 9, 14, 19, 30).getTime(), location: " Raum: 555 ", description: "<p>Adresse: Arsenalstrasse&nbsp;28a</p><br>Kriens" })]);
+    expect(e).toMatchObject({ begin: new Date(2026, 9, 14, 18, 30).getTime(), end: new Date(2026, 9, 14, 19, 30).getTime(), color: "#123456", location: "Raum: 555", notes: "Adresse: Arsenalstrasse 28a\n\nKriens" });
+  });
+  it("leaves out what is not there", () => {
+    const [e] = toDeviceEvents([native({ begin: new Date(2026, 9, 14, 9, 0).getTime(), end: new Date(2026, 9, 14, 10, 0).getTime(), location: "  ", description: "<br>" })]);
+    expect(e.location).toBeUndefined();
+    expect(e.notes).toBeUndefined();
+  });
+  it("keeps every day of a split event pointing at the same whole", () => {
+    const events = toDeviceEvents([native({ begin: new Date(2026, 9, 14, 22, 0).getTime(), end: new Date(2026, 9, 15, 1, 30).getTime() })]);
+    expect(new Set(events.map((x) => `${x.begin}-${x.end}`)).size).toBe(1);
+  });
+});
+
+describe("plainNotes", () => {
+  it("turns markup into readable lines", () => {
+    expect(plainNotes("<div>One</div><div>Two &amp; three</div>")).toBe("One\nTwo & three");
+    expect(plainNotes(undefined)).toBeUndefined();
   });
 });

@@ -23,6 +23,8 @@
   import CalendarTimeGrid from './CalendarTimeGrid.svelte';
   import CalendarMonth from './CalendarMonth.svelte';
   import CalendarAgenda from './CalendarAgenda.svelte';
+  import EventSheet from './EventSheet.svelte';
+  import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import { phaseMarks } from '../../lib/planning/phaseStrip';
   import { goalBars, goalsByDay } from '../../lib/planning/goalBars';
   import type { DayOfWeek, Workout } from '../../lib/types';
@@ -139,6 +141,8 @@
       : mode === 'month' ? year === utc(today).getUTCFullYear() && month === utc(today).getUTCMonth() : year === utc(today).getUTCFullYear(),
   );
 
+  /** The phone-calendar event whose details are open. */
+  let eventOpen = $state<DeviceEvent | null>(null);
   function openDay(day: number) { focus = day; setMode('day'); }
   function openMonth(m: number) { focus = firstOfMonth(year, m); setMode('month'); }
   function open(s: CalendarSession, siblings: CalendarSession[]) {
@@ -160,6 +164,11 @@
   /** The floating +: a session on the focused day (the first day shown, when the focus has paged out of the week). */
   export function addAtFocus() {
     addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus);
+  }
+  /** Hour columns or list, from the two settings behind it. Choosing the columns also turns off the phone's list default. */
+  function setWeekLayout(layoutChoice: 'grid' | 'list') {
+    trainingState.setTunable('plan.weekAgenda', layoutChoice === 'list');
+    if (layoutChoice === 'grid') trainingState.setTunable('plan.weekListOnPhone', false);
   }
   const agenda = $derived(trainingState.tunableOn('plan.weekAgenda') || (!layout.wide && trainingState.tunableOn('plan.weekListOnPhone')));
   /** The phase on each day shown (Settings -> Plan calendar). Month and Year draw it as a line along each week row. */
@@ -206,12 +215,21 @@
         >{m.label}</button>
       {/each}
     </div>
+    <div class="flex items-center gap-1 short:order-3">
+      {#if mode === 'week'}
+        <!-- The week as hour columns or as a list: two quiet icons, remembered (it is the same setting as in Settings). -->
+        <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Week layout">
+          <button role="radio" aria-checked={!agenda} onclick={() => setWeekLayout('grid')} title="Hour columns" aria-label="Week as hour columns" class="tap p-1.5 rounded-control transition-colors {!agenda ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"><Icon icon="ic:baseline-view-week" class="text-base" /></button>
+          <button role="radio" aria-checked={agenda} onclick={() => setWeekLayout('list')} title="List" aria-label="Week as a list" class="tap p-1.5 rounded-control transition-colors {agenda ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"><Icon icon="ic:baseline-view-agenda" class="text-base" /></button>
+        </div>
+      {/if}
     <!-- With the drawer navigation the floating + adds a session (the app shell's); the bottom bar has no such button, so the + stays here. -->
     {#if trainingState.navStyle === 'bar'}
       <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
       <Icon icon="ic:baseline-plus" class="text-lg" />
     </button>
     {/if}
+    </div>
   </div>
 
   </div>
@@ -228,6 +246,7 @@
       {isRunning}
       isFaded={faded}
       onOpen={open}
+      onOpenEvent={(e) => (eventOpen = e)}
       onAdd={(day) => addAt(day)}
       {phases}
       {phaseNames}
@@ -248,6 +267,7 @@
       {isRunning}
       isFaded={faded}
       onOpen={open}
+      onOpenEvent={(e) => (eventOpen = e)}
       onPickDay={openDay}
       onAdd={addAt}
       {phases}
@@ -270,5 +290,9 @@
         <CalendarMonth {year} month={m} byDay={countedByDay} {today} mini onPickDay={openDay} onPickMonth={openMonth} {phases} />
       {/each}
     </div>
+  {/if}
+
+  {#if eventOpen}
+    <EventSheet event={eventOpen} calendar={deviceCalendar.calendars.find((c) => c.id === eventOpen?.calendarId)} onClose={() => (eventOpen = null)} />
   {/if}
 </div>

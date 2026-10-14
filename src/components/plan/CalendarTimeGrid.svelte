@@ -27,6 +27,7 @@
     isRunning,
     isFaded,
     onOpen,
+    onOpenEvent,
     onPickDay,
     onAdd,
     phases = new Map(),
@@ -37,7 +38,7 @@
   }: {
     days: number[];
     byDay: Map<number, CalendarSession[]>;
-    /** The phone calendar's events - shown muted beside the sessions, never tappable. */
+    /** The phone calendar's events - shown muted beside the sessions; a tap opens their details. */
     events: Map<number, DeviceEvent[]>;
     today: number;
     exerciseTypes: ExerciseTypeDef[];
@@ -46,6 +47,7 @@
     isRunning: (s: CalendarSession) => boolean;
     isFaded: (s: CalendarSession) => boolean;
     onOpen: (s: CalendarSession, siblings: CalendarSession[]) => void;
+    onOpenEvent?: (e: DeviceEvent) => void;
     onPickDay?: (day: number) => void;
     /** A tap on an empty stretch of a day: the day and the time (minutes after midnight, to the half hour). */
     onAdd?: (day: number, startMin: number) => void;
@@ -373,13 +375,13 @@
             {#if it.kind === 'event' && (b.bottom <= hours.from * 60 || b.top >= hours.to * 60)}
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}
-              <div class="absolute overflow-hidden rounded-lg bg-surface px-2 py-1 cal-ink" style={place}>
+              <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} data-no-swipe class="absolute overflow-hidden rounded-lg bg-surface px-2 py-1 cal-ink text-left" style={place} aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
                 <span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span>
                 <span class="relative block">
-                  <span class="block truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{it.e.title}</span>
+                  <span class="block {showMeta ? 'text-label truncate' : 'text-[11px] leading-[14px] break-words'}">{it.e.title}</span>
                   {#if showMeta}<span class="block text-caption opacity-80">{hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}</span>{/if}
                 </span>
-              </div>
+              </button>
             {:else}
               {@const s = it.s}
               {@const segs = exerciseSegments(s.workout, exerciseTypes, categories)}
@@ -397,7 +399,7 @@
                 <!-- The banner: the session in the colour of its main category. -->
                 <span class="relative block px-2 py-1.5 {detail ? 'shrink-0' : 'flex-1 min-h-0'}">
                   <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
-                  <span class="relative block font-medium {showMeta ? 'text-label leading-snug' : 'text-[10px] leading-tight truncate'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
+                  <span class="relative block font-medium {showMeta ? 'text-label leading-snug' : 'text-[11px] leading-[14px] break-words'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
                   {#if showMeta}<span class="relative block text-caption opacity-80">{meta(s)}</span>{/if}
                   {#if !detail && ex.names.length}
                     <span class="relative block mt-0.5 text-caption opacity-80">
