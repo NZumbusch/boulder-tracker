@@ -4,6 +4,7 @@ import type { ExerciseSlot, ExerciseValues, ParameterBlock } from '../types';
 import { slotValues } from '../exerciseSlot';
 import { estimateSlotDuration } from '../planning/sessionDuration';
 import { paramLabel, formatCustomValue, customParam } from '../exercise/valueDefs';
+import { paramsWithValues } from '../exercise/valueParams';
 import { restSeconds } from '../exercise/rest';
 import { formatPerSet, hasPerSet } from '../exercise/setRows';
 import { plannedConditionsText, resultForSlot, resultText } from '../benchmarks/testSlot';
@@ -63,9 +64,10 @@ export function detailPairs(
     ];
   }
   const v = values ?? slot.prescribed ?? slotValues(slot);
-  const params = slot.activeParameters
-    ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters
-    ?? [];
+  const params = paramsWithValues(
+    slot.activeParameters ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? [],
+    v,
+  );
   const pairs: { label: string; value: string }[] = [];
   const push = (param: ParameterBlock, value: unknown, suffix = '') => {
     if (!params.includes(param)) return;
