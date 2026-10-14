@@ -91,7 +91,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     pages: [
       { id: "model", label: "Training model", hint: "Readiness, ACWR zones, fatigue recovery, rest-day alert", icon: "ic:baseline-tune" },
       { id: "pain", label: "Pain check-ins", hint: "Home, after sessions, reminder, when to ask to close", icon: "ic:baseline-healing" },
-      { id: "weather", label: "Weather & outdoor", hint: "Locations, crags, conditions, trips", icon: "ic:baseline-cloud" },
+      { id: "weather", label: "Places, weather & outdoor", hint: "Home, crags, gyms, conditions, trips", icon: "ic:baseline-cloud" },
     ],
   },
   {
@@ -212,7 +212,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Fatigue recovery and rest-day alert", page: "model", words: "decay soften" },
   { label: "Pain check-ins", page: "pain", words: "still there gone better worse" },
   { label: "Pain reminder notification", page: "pain", words: "reminders" },
-  { label: "Weather locations and crags", page: "weather", words: "home location conditions" },
+  { label: "Places: home, crags and gyms", page: "weather", words: "location where gym crag price opening hours coordinates rename weather" },
   { label: "Ideal temperature and rain", page: "weather", words: "friction trips outdoor" },
   { label: "Allow notifications", page: "reminders", words: "permission" },
   { label: "Daily metrics reminder", page: "reminders", words: "bodyweight sleep" },

@@ -12,7 +12,7 @@ const changed = () => {
   p.aiSharing = { ...p.aiSharing, notes: false };
   p.homeSections = [...p.homeSections].reverse();
   p.timerBeepEnabled = false;
-  p.homeLocation = { name: 'Home', latitude: 1, longitude: 2 } as never;
+  p.places = [{ name: 'Home', kind: 'home', latitude: 1, longitude: 2 }];
   return p;
 };
 
@@ -29,7 +29,7 @@ describe('settings groups', () => {
     expect(out.aiSharing).toEqual(defaultPreferences().aiSharing);
     expect(out.navLabels).toBe(true);
     expect(out.homeSections).toEqual(p.homeSections);
-    expect(out.homeLocation).toEqual(p.homeLocation);
+    expect(out.places).toEqual(p.places);
   });
 
   it('a full reset keeps location, theme and welcome state', () => {
@@ -38,7 +38,7 @@ describe('settings groups', () => {
     const out = resetGroups(p, SETTINGS_GROUP_IDS);
     expect(out.navLabels).toBe(false);
     expect(out.textScale).toBe('md');
-    expect(out.homeLocation).toEqual(p.homeLocation);
+    expect(out.places).toEqual(p.places);
     expect(out.welcomeDone).toBe(true);
   });
 });
@@ -47,7 +47,7 @@ describe('settings file', () => {
   it('round-trips, without the device-bound or per-device values', () => {
     const file = buildSettingsFile(changed());
     expect(file.settings).not.toHaveProperty('textScale');
-    expect(file.settings).not.toHaveProperty('homeLocation');
+    expect(file.settings).not.toHaveProperty('places');
     const parsed = parseSettingsFile(JSON.stringify(file));
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
