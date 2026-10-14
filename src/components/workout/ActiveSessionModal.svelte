@@ -46,7 +46,9 @@
   import CircuitPill from './CircuitPill.svelte';
   import { tonesFor } from '../../lib/timer/cueSound';
   import { cueMute, endSessionMute } from '../../lib/timer/cueMute.svelte';
-  import { circuitHud } from '../../lib/session/circuitHud.svelte';
+  import { circuitHud, settleCircuit } from '../../lib/session/circuitHud.svelte';
+  import { pendingMembers, skipPlan } from '../../lib/session/circuitFlow';
+  import ChoiceSheet from './ChoiceSheet.svelte';
   import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
   import { reportError } from '../../lib/errorReporting';
   import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
@@ -110,7 +112,10 @@
       return { group: { ...made.group, id: circuitGroupId }, slots: [{ ...slot, prescribed: made.values }], solo: made, baseValues: base };
     }
     const item = workoutItems({ exercises: store.exercises, groups: store.workout?.groups }).find((i) => i.kind === 'group' && i.group.id === circuitGroupId);
-    return item && item.kind === 'group' ? { group: item.group, slots: item.members.map((m) => m.slot), solo: null, baseValues: undefined } : null;
+    if (!item || item.kind !== 'group') return null;
+    // Only what is still to do: a member already logged or skipped would run again.
+    const slots = pendingMembers(store.exercises, item.group.id);
+    return slots.length > 0 ? { group: item.group, slots, solo: null, baseValues: undefined } : null;
   });
   /** The group a slot is in, for its Circuit button. */
   const groupIdOf = (slot: ExerciseSlot) => (slot.groupId && store.workout?.groups?.some((g) => g.id === slot.groupId) ? slot.groupId : null);
@@ -126,6 +131,18 @@
       forgetCircuitRun();
       circuitGroupId = null;
       circuitVisible = false;
+    }
+  });
+
+  // A run whose exercises are gone (all logged or skipped, removed) leaves nothing to run: it must not keep the
+  // other circuits' Start buttons blocked.
+  $effect(() => {
+    if (session && circuitGroupId && !circuitRun) {
+      untrack(() => {
+        forgetCircuitRun();
+        circuitGroupId = null;
+        circuitVisible = false;
+      });
     }
   });
 
@@ -152,11 +169,27 @@
     openCircuit(`${SOLO_PREFIX}${slotId}`);
   }
 
+  /** The other run that is in the way of the one asked for, waiting for the answer. */
+  let switchingTo = $state<string | null>(null);
+
   function openCircuit(groupId: string) {
-    if (circuitGroupId && circuitGroupId !== groupId) return; // one at a time: resume or finish that one first
+    if (circuitGroupId && circuitGroupId !== groupId) {
+      // One run at a time. One that was never started has nothing in it: it just makes way. One under way is asked about.
+      if (!circuitHud.started) replaceRun(groupId);
+      else switchingTo = groupId;
+      return;
+    }
     if (!circuitGroupId && live.circuitRunning) { toast.show('Finish the timer that is running first'); return; } // a quick timer from outside the session
     circuitGroupId = groupId;
     circuitVisible = true;
+  }
+
+  /** Puts the run that is open away (what it recorded is lost) and opens another. */
+  function replaceRun(groupId: string) {
+    forgetCircuitRun();
+    circuitGroupId = groupId;
+    circuitVisible = true;
+    switchingTo = null;
   }
 
   /**
@@ -433,12 +466,37 @@
     haptic(store.isComplete ? 'success' : 'tap');
     showUndo(`${name} done as prescribed`, () => store.unfinishExercise(slot.id));
   }
+  /**
+   * Skip on an exercise. A circuit's member asks first (unless Settings says not to): just this one - the circuit then
+   * runs without it, its rests following the rest - or the whole circuit. Anything else is skipped at once.
+   */
   function swipeSkip(slot: ExerciseSlot) {
     if (lockedByRun(slot)) return;
-    const name = slotTypeName(slot, trainingState.exerciseTypes);
-    store.skipExercise(slot.id);
+    const plan = skipPlan(store.exercises, slot.id);
+    if (plan.kind === 'ask' && trainingState.tunableOn('circuit.askSkip')) {
+      skipAsk = { slot, others: plan.others, circuit: circuitOf(slot)?.name || 'the circuit' };
+      return;
+    }
+    skipSlots([slot]);
+  }
+
+  /** What the circuit-skip question is about, while it is open. */
+  let skipAsk = $state<{ slot: ExerciseSlot; others: ExerciseSlot[]; circuit: string } | null>(null);
+
+  /** Skips exercises together, with one Undo that reopens them all. */
+  function skipSlots(slots: ExerciseSlot[], label?: string) {
+    for (const s of slots) store.skipExercise(s.id);
     haptic('tap');
-    showUndo(`${name} skipped`, () => store.unfinishExercise(slot.id));
+    const name = label ?? slotTypeName(slots[0], trainingState.exerciseTypes);
+    showUndo(`${name} skipped`, () => { for (const s of [...slots].reverse()) store.unfinishExercise(s.id); });
+  }
+
+  function answerSkip(choice: string) {
+    const ask = skipAsk;
+    skipAsk = null;
+    if (!ask) return;
+    if (choice === 'one') skipSlots([ask.slot]);
+    else if (choice === 'all') skipSlots([ask.slot, ...ask.others], ask.circuit.charAt(0).toUpperCase() + ask.circuit.slice(1));
   }
 
   function openFullEditor() {
@@ -570,7 +628,22 @@
    */
   function handleSaveAndFinish() {
     isExiting = false;
+    settleRunningCircuit();
     trainingState.finishSession();
+  }
+
+  /**
+   * Stopping the session with a circuit (or a single exercise's timer) open: what it recorded is logged first, as
+   * if it had been ended there, and the run goes - otherwise its clock and notification would carry on behind the
+   * rating, and the sets it counted would be lost. Members it did no set for stay as they were (unlogged).
+   */
+  function settleRunningCircuit() {
+    if (!circuitGroupId) return;
+    const done = settleCircuit();
+    if (done) for (const [slotId, v] of Object.entries(done)) if (v) store.logExercise(slotId, v);
+    forgetCircuitRun();
+    circuitGroupId = null;
+    circuitVisible = false;
   }
 
   function handleDiscard() {
@@ -801,11 +874,16 @@
                   <p class="text-body font-bold text-content truncate">{groupStart.name || 'Circuit'}</p>
                   <p class="text-caption text-content-subtle truncate">{groupSummary(groupStart)}{groupMins.get(groupStart.id) ? ` · ~${formatMinutes(Math.ceil(groupMins.get(groupStart.id)!))}` : ''}</p>
                 </div>
-                {#if !store.isComplete}
+                {#if pendingMembers(exercises, groupStart.id).length === 0}
+                  <!-- Nothing left in it to run: every member is logged or skipped. -->
+                  <span class="shrink-0 px-2 text-caption font-bold text-content-subtle flex items-center gap-1">
+                    <Icon icon={exercises.some((e) => e.groupId === groupStart.id && slotStatus(e) === 'done') ? 'ic:baseline-check' : 'ic:baseline-remove'} class="text-base" />
+                    {exercises.some((e) => e.groupId === groupStart.id && slotStatus(e) === 'done') ? 'Done' : 'Skipped'}
+                  </span>
+                {:else if !store.isComplete}
                   <button
                     onclick={() => openCircuit(groupStart.id)}
-                    disabled={!!circuitGroupId && circuitGroupId !== groupStart.id}
-                    class="shrink-0 px-3.5 py-2 rounded-control text-label font-bold transition-colors disabled:opacity-40 {circuitGroupId === groupStart.id ? 'bg-primary text-white' : 'bg-primary text-white hover:bg-primary-hover'} flex items-center gap-1"
+                    class="shrink-0 px-3.5 py-2 rounded-control text-label font-bold transition-colors {circuitGroupId === groupStart.id ? 'bg-primary text-white' : 'bg-primary text-white hover:bg-primary-hover'} flex items-center gap-1"
                   >
                     <Icon icon="ic:baseline-play-arrow" class="text-base" /> {circuitGroupId === groupStart.id ? 'Resume' : 'Start circuit'}
                   </button>
@@ -912,8 +990,7 @@
                           <!-- The circuit is the way through these: it leads, "Finish exercise" is the fallback. -->
                           <button
                             onclick={() => openCircuit(groupIdOf(slot)!)}
-                            disabled={!!circuitGroupId && circuitGroupId !== slot.groupId}
-                            class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40"
+                            class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                             aria-label={circuitGroupId === slot.groupId ? 'Resume the circuit' : 'Start the circuit'}
                           >
                             <Icon icon="ic:baseline-play-arrow" class="text-lg" />
@@ -925,7 +1002,6 @@
                                stopwatch and countdown for anything else. -->
                           <button
                             onclick={() => openSolo(slot.id)}
-                            disabled={!!circuitGroupId && circuitGroupId !== `${SOLO_PREFIX}${slot.id}`}
                             class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-40"
                             aria-label={circuitGroupId === `${SOLO_PREFIX}${slot.id}` ? 'Resume the timer' : isPacer(slotValues(slot)) ? 'Open the pacer for this exercise' : 'Open the timer for this exercise'}
                           >
@@ -1197,8 +1273,35 @@
   <SessionExitModal
     {progress}
     elapsedLabel={formatMinutes(elapsed)}
+    circuit={circuitGroupId && circuitHud.active ? { name: circuitHud.name || 'the circuit', sets: circuitHud.sets } : null}
     onSave={handleSaveAndFinish}
     onDiscard={handleDiscard}
     onCancel={() => isExiting = false}
+  />
+{/if}
+
+{#if skipAsk}
+  <ChoiceSheet
+    title="Skip {slotTypeName(skipAsk.slot, trainingState.exerciseTypes)}?"
+    message="It is part of {skipAsk.circuit}."
+    choices={[
+      { id: 'one', label: 'Just ' + slotTypeName(skipAsk.slot, trainingState.exerciseTypes), description: 'The circuit goes on without it: ' + skipAsk.others.map((o) => slotTypeName(o, trainingState.exerciseTypes)).join(', ') + ', with the rounds and rests as set.', icon: 'ic:baseline-skip-next' },
+      { id: 'all', label: 'The whole circuit', description: 'All of its exercises are skipped - nothing left to run or rest for.', icon: 'ic:baseline-repeat', tone: 'neutral' },
+    ]}
+    onChoose={answerSkip}
+    onCancel={() => (skipAsk = null)}
+  />
+{/if}
+
+{#if switchingTo}
+  <ChoiceSheet
+    title="{circuitHud.name || 'A timer'} is still running"
+    message="Only one circuit or timer can run at a time."
+    choices={[
+      { id: 'back', label: 'Back to ' + (circuitHud.name || 'it'), description: 'Carry on where it is.', icon: 'ic:baseline-play-arrow' },
+      { id: 'drop', label: 'Drop it and start this one', description: circuitHud.sets > 0 ? `The ${circuitHud.sets} ${circuitHud.sets === 1 ? 'set' : 'sets'} it recorded are not logged.` : 'Nothing it recorded is logged.', icon: 'ic:baseline-delete-outline', tone: 'danger' },
+    ]}
+    onChoose={(id) => { const to = switchingTo; switchingTo = null; if (id === 'drop' && to) replaceRun(to); else circuitVisible = true; }}
+    onCancel={() => (switchingTo = null)}
   />
 {/if}
