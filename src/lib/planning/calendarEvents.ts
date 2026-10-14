@@ -1,3 +1,4 @@
+import type { DeviceEvent } from "../calendar/deviceEvents";
 import type { DayOfWeek, ExerciseTypeDef, Workout } from "../types";
 import { getWeekId, toUtcDayIndex } from "../dateUtils";
 import { weekStartDay } from "../analytics/range";
@@ -150,4 +151,29 @@ export function visibleHours(blocks: { top: number; bottom: number }[], minSpan 
 export function exerciseLines(workout: Workout, types: ExerciseTypeDef[], max: number): { names: string[]; more: number } {
   const s = summarizeSession(workout, types, max);
   return { names: s.exerciseNames, more: s.moreExercises };
+}
+
+/** One entry of a day's list: one of your sessions, or an event from the phone's calendar. */
+export type AgendaItem =
+  | { kind: "session"; session: CalendarSession }
+  | { kind: "event"; event: DeviceEvent };
+
+/**
+ * A day's sessions and the phone's events as one list in the order the day happens: all-day events first, then
+ * everything with a time by when it starts (a session before an event that starts at the same minute), and sessions
+ * without a planned time last. The sort is stable, so equal entries keep their given order.
+ */
+export function dayAgenda(sessions: readonly CalendarSession[], events: readonly DeviceEvent[]): AgendaItem[] {
+  const rank = (item: AgendaItem): [number, number, number] => {
+    if (item.kind === "event") return item.event.allDay || item.event.startMin === undefined ? [0, 0, 1] : [1, item.event.startMin, 1];
+    return item.session.startMin === undefined ? [2, 0, 0] : [1, item.session.startMin, 0];
+  };
+  const items: AgendaItem[] = [
+    ...sessions.map((session) => ({ kind: "session" as const, session })),
+    ...events.map((event) => ({ kind: "event" as const, event })),
+  ];
+  return items
+    .map((item, index) => ({ item, index, key: rank(item) }))
+    .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.index - b.index)
+    .map((x) => x.item);
 }

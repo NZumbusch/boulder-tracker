@@ -373,7 +373,7 @@
             {#if it.kind === 'event' && (b.bottom <= hours.from * 60 || b.top >= hours.to * 60)}
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}
-              <div class="absolute overflow-hidden rounded-md bg-surface px-1.5 py-0.5 cal-ink" style={place}>
+              <div class="absolute overflow-hidden rounded-lg bg-surface px-2 py-1 cal-ink" style={place}>
                 <span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span>
                 <span class="relative block">
                   <span class="block truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{it.e.title}</span>
@@ -389,13 +389,13 @@
                 onclick={() => open(s, col.all)}
                 onpointerdown={(e) => beginPress(e, s, true)}
                 data-no-swipe
-                class="absolute flex flex-col items-stretch justify-start text-left rounded-md bg-surface select-none cal-ink {isDragged(s) ? 'shadow-card ring-1 ring-primary opacity-90' : 'overflow-hidden'} {tone(s)}"
+                class="absolute flex flex-col items-stretch justify-start text-left rounded-lg bg-surface select-none cal-ink {isDragged(s) ? 'shadow-card ring-1 ring-primary opacity-90' : 'overflow-hidden'} {tone(s)}"
                 style="{place}; {dragStyle(s)}"
                 aria-label="{s.workout.notes || 'Session'}, {meta(s)}"
                 title={s.workout.notes || 'Session'}
               >
                 <!-- The banner: the session in the colour of its main category. -->
-                <span class="relative block px-1.5 py-1 {detail ? 'shrink-0' : 'flex-1 min-h-0'}">
+                <span class="relative block px-2 py-1.5 {detail ? 'shrink-0' : 'flex-1 min-h-0'}">
                   <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
                   <span class="relative block font-medium {showMeta ? 'text-label leading-snug' : 'text-[10px] leading-tight truncate'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
                   {#if showMeta}<span class="relative block text-caption opacity-80">{meta(s)}</span>{/if}
@@ -408,11 +408,11 @@
                 </span>
                 <!-- Zoomed in: each exercise a block of its own under the banner, as long as it takes, in its own category's colour. -->
                 {#if detail}
-                  <span class="flex-1 min-h-0 flex flex-col gap-px p-px">
+                  <span class="flex-1 min-h-0 flex flex-col gap-0.5 p-0.5">
                     {#each segs as seg (seg.slotId)}
-                      <span class="relative overflow-hidden rounded-[3px] px-1 flex items-start min-h-[12px]" style="flex: {seg.minutes} 1 0">
+                      <span class="relative overflow-hidden rounded-md px-1.5 flex items-start min-h-[14px]" style="flex: {seg.minutes} 1 0">
                         <span class="absolute inset-0 cal-fill {soft(s)} {seg.color ?? colorOf(s)}"></span>
-                        <span class="relative truncate text-[10px] leading-[14px]">{seg.name}</span>
+                        <span class="relative truncate text-[11px] leading-[16px]">{seg.name}</span>
                       </span>
                     {/each}
                   </span>
