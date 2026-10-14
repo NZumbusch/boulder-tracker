@@ -23,6 +23,7 @@ describe('defaultPreferences', () => {
       notificationsEnabled: false,
       addedExerciseTarget: 'none',
       navLabels: false,
+      navStyle: 'drawer',
       helpButtons: true,
       widgetShowReadiness: true,
       widgetReadinessDetail: 'factors',
@@ -137,6 +138,7 @@ describe('migratePreferences', () => {
       autoBackup: false,
       addedExerciseTarget: 'mirror' as const,
       navLabels: true,
+      navStyle: 'bar',
       helpButtons: false,
       widgetShowReadiness: false,
       widgetReadinessDetail: 'metrics' as const,
@@ -548,5 +550,17 @@ describe('navLabels and welcomeDone', () => {
     const result = migratePreferences({ ...defaultPreferences(), navLabels: true, welcomeDone: false });
     expect(result.navLabels).toBe(true);
     expect(result.welcomeDone).toBe(false);
+  });
+});
+
+describe('navStyle', () => {
+  it('defaults to the drawer, and an older blob without it gets the drawer', () => {
+    expect(defaultPreferences().navStyle).toBe('drawer');
+    const { navStyle: _n, ...older } = defaultPreferences();
+    expect(migratePreferences(older).navStyle).toBe('drawer');
+  });
+  it('keeps the bottom bar when chosen, and repairs anything else', () => {
+    expect(migratePreferences({ ...defaultPreferences(), navStyle: 'bar' }).navStyle).toBe('bar');
+    expect(migratePreferences({ ...defaultPreferences(), navStyle: 'sidebar' as never }).navStyle).toBe('drawer');
   });
 });

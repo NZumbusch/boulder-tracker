@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AppBar from '../nav/AppBar.svelte';
+  import { fabActions } from '../../lib/navigation/fabActions.svelte';
   import InfoButton from '../common/InfoButton.svelte';
   import { showInfo } from '../../lib/help/infoSheet.svelte';
   import { motionMs, motionReduced, scrollBehavior } from '../../lib/motion';
@@ -294,6 +296,18 @@
     dayGroups = groupByDay(weekWorkouts);
   });
 
+  // The floating + adds a session: on the calendar's day, or - in the block view - today if the selected week is this one, else its Monday.
+  let calendarRef = $state<{ addAtFocus: () => void } | undefined>(undefined);
+  $effect(() => {
+    fabActions.addToPlan = () => {
+      if (shownView === 'calendar') { calendarRef?.addAtFocus(); return; }
+      const weekId = trainingState.selectedWeekId ?? trainingState.currentWeekId;
+      const today = WEEK_DAYS[(new Date().getDay() + 6) % 7];
+      handleAddWorkout(weekId, weekId === trainingState.currentWeekId ? today : 'Monday');
+    };
+    return () => { fabActions.addToPlan = null; };
+  });
+
   // --- Handlers ---
 
   function navigate(direction: 'prev' | 'next' | 'today') {
@@ -417,55 +431,66 @@
 </script>
 
 <div class="w-full {shownView === 'calendar' ? 'max-w-5xl' : 'max-w-lg'} space-y-4 animate-in fade-in duration-200 pb-12">
-  <div class="flex flex-col gap-4">
-    <!-- Same quiet control row as Analytics: tools, then paging. -->
-    <div class="flex items-center justify-between gap-2 px-1">
-      <div class="flex items-center gap-2">
-        <h2 class="text-title text-content">Plan</h2>
-        {#if !inPlanBMode}
-          <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Plan view">
-            <button
-              role="radio"
-              aria-checked={view === 'blocks'}
-              onclick={() => setView('blocks')}
-              title="Blocks and weeks"
-              aria-label="Blocks view"
-              class="p-1 rounded-control transition-colors {view === 'blocks' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-            ><Icon icon="ic:baseline-grid-view" class="text-base" /></button>
-            <button
-              role="radio"
-              aria-checked={view === 'calendar'}
-              onclick={() => setView('calendar')}
-              title="Calendar"
-              aria-label="Calendar view"
-              class="p-1 rounded-control transition-colors {view === 'calendar' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-            ><Icon icon="ic:baseline-calendar-month" class="text-base" /></button>
-          </div>
-        {/if}
-      </div>
-      <div class="flex items-center gap-1">
-        {#if shownView === 'blocks'}
+  <AppBar title="Plan">
+    {#snippet actions()}
+      {#if !inPlanBMode}
+        <div class="flex bg-surface-elevated/50 p-0.5 rounded-control mr-1" role="radiogroup" aria-label="Plan view">
+          <button
+            role="radio"
+            aria-checked={view === 'blocks'}
+            onclick={() => setView('blocks')}
+            title="Blocks and weeks"
+            aria-label="Blocks view"
+            class="p-1.5 rounded-control transition-colors {view === 'blocks' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+          ><Icon icon="ic:baseline-grid-view" class="text-base" /></button>
+          <button
+            role="radio"
+            aria-checked={view === 'calendar'}
+            onclick={() => setView('calendar')}
+            title="Calendar"
+            aria-label="Calendar view"
+            class="p-1.5 rounded-control transition-colors {view === 'calendar' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+          ><Icon icon="ic:baseline-calendar-month" class="text-base" /></button>
+        </div>
+      {/if}
+      {#if shownView === 'blocks'}
         <button
           onclick={() => openBlockManager()}
-          class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
           aria-label="Manage training blocks"
           data-tour="plan-blocks"
           title="Training blocks"
         >
-          <Icon icon="ic:baseline-view-week" class="text-lg" />
+          <Icon icon="ic:baseline-view-week" class="text-xl" />
         </button>
-        {/if}
-        <button
-          onclick={() => showAICoach = true}
-          class="p-1.5 text-primary hover:text-primary-hover rounded-control hover:bg-surface-elevated transition-colors"
-          aria-label="AI Coach"
-          data-tour="plan-ai"
-          title="AI Coach: change the plan, analyze, or share context"
-        >
-          <Icon icon="ic:baseline-auto-awesome" class="text-lg" />
-        </button>
-        {#if shownView === 'blocks'}
-        <span class="w-px h-5 bg-border mx-1"></span>
+      {/if}
+      <button
+        onclick={() => showAICoach = true}
+        class="w-10 h-10 flex items-center justify-center text-primary hover:text-primary-hover rounded-full hover:bg-surface-elevated/70 transition-colors"
+        aria-label="AI Coach"
+        data-tour="plan-ai"
+        title="AI Coach: change the plan, analyze, or share context"
+      >
+        <Icon icon="ic:baseline-auto-awesome" class="text-xl" />
+      </button>
+    {/snippet}
+  </AppBar>
+
+  <div class="flex flex-col gap-4">
+    {#if shownView === 'calendar'}
+      <PlanCalendar bind:this={calendarRef} onAdd={handleAddWorkout} onEditPhase={openBlockManager} />
+    {:else}
+    <div class="flex items-start justify-between gap-2 px-1">
+      <div class="flex flex-wrap gap-x-3 gap-y-1.5 pt-1.5">
+        {#each selectablePhases as phase}
+          <div class="flex items-center gap-1">
+            <div class="w-2 h-2 rounded-full {phase.color || FALLBACK_PHASE_COLOR}"></div>
+            <span class="text-caption text-content-subtle">{phase.name}</span>
+          </div>
+        {/each}
+      </div>
+      <!-- Paging through the weeks. -->
+      <div class="flex items-center shrink-0 -mr-1.5">
         <button onclick={() => navigate('prev')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Earlier weeks">
           <Icon icon="ic:baseline-chevron-left" class="text-lg" />
         </button>
@@ -475,20 +500,7 @@
         <button onclick={() => navigate('next')} class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Later weeks">
           <Icon icon="ic:baseline-chevron-right" class="text-lg" />
         </button>
-        {/if}
       </div>
-    </div>
-
-    {#if shownView === 'calendar'}
-      <PlanCalendar onAdd={handleAddWorkout} onEditPhase={openBlockManager} />
-    {:else}
-    <div class="flex flex-wrap gap-x-3 gap-y-1.5 px-1">
-      {#each selectablePhases as phase}
-        <div class="flex items-center gap-1">
-          <div class="w-2 h-2 rounded-full {phase.color || FALLBACK_PHASE_COLOR}"></div>
-          <span class="text-caption text-content-subtle">{phase.name}</span>
-        </div>
-      {/each}
     </div>
 
     <div data-tour="plan-calendar">

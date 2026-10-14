@@ -70,7 +70,7 @@ import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { applySettingsRecords, resetGroups, applyGroups, buildSettingsFile, parseSettingsFile, toSettingsRecords, type SettingsGroupId } from './preferences/portable';
 import { stableStringify } from './sync/merge';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs, WidgetReadinessDetail } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs, WidgetReadinessDetail, NavStyle } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { CragForecast } from './weather/suggestion';
 import type { TextScale, MotionPreference } from './preferences/migrate';
@@ -485,6 +485,9 @@ class TrainingState {
   /** Text labels under the bottom-nav icons (a preference, off by default). */
   get navLabels() { return this.preferencesStore.navLabels; }
   setNavLabels(on: boolean) { this.preferencesStore.setNavLabels(on); }
+  /** How you move between screens: a side drawer (plus a rail on wide screens) or the bottom bar. */
+  get navStyle() { return this.preferencesStore.navStyle; }
+  setNavStyle(style: NavStyle) { this.preferencesStore.setNavStyle(style); }
 
   /** The (?) glossary buttons (a preference, on by default). */
   get helpButtons() { return this.preferencesStore.helpButtons; }

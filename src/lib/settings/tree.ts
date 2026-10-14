@@ -66,7 +66,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     hint: "Theme, units, Home, history and analytics",
     icon: "ic:baseline-color-lens",
     pages: [
-      { id: "general", label: "Look & feel", hint: "Theme, text size, bottom bar, help buttons, motion", icon: "ic:baseline-palette" },
+      { id: "general", label: "Look & feel", hint: "Theme, text size, navigation, help buttons, motion", icon: "ic:baseline-palette" },
       { id: "units", label: "Units", hint: "Weight, temperature, grades, speed", icon: "ic:baseline-straighten" },
       { id: "home", label: "Home", hint: "Which cards show and in what order, quick log, list lengths", icon: "ic:baseline-home" },
       { id: "history", label: "History & Analytics", hint: "Analytics cards, recovery chart, sends chart", icon: "ic:baseline-bar-chart" },
@@ -176,7 +176,7 @@ interface SearchEntry {
 const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Theme", page: "general", words: "dark light contrast colours" },
   { label: "Text size", page: "general", words: "font large small" },
-  { label: "Bottom bar labels", page: "general", words: "navigation tabs icons" },
+  { label: "Navigation: side drawer or bottom bar", page: "general", words: "menu rail tabs icons labels hamburger" },
   { label: "Help buttons", page: "general", words: "question mark explain" },
   { label: "Motion", page: "general", words: "animations reduced" },
   { label: "Weight, temperature and grade units", page: "units", words: "kg lb celsius fahrenheit font v-scale" },

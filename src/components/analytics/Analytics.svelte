@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+  import AppBar from '../nav/AppBar.svelte';
   import { tick } from 'svelte';
   import InsightsPanel from './InsightsPanel.svelte';
   import ExerciseProgressPanel from './ExerciseProgressPanel.svelte';
@@ -403,7 +404,7 @@
 
 {#if !hasAnyData}
 <div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
-  <h2 class="text-title text-content px-1">Analytics</h2>
+  <AppBar title="Analytics" />
   <div class="card space-y-4" data-tour="analytics-empty">
     <div class="space-y-1">
       <p class="text-body font-bold text-content">Your charts appear here</p>
@@ -426,15 +427,13 @@
 </div>
 {:else}
 <div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
-  <div class="flex flex-col gap-2.5">
-    <div class="flex items-center justify-between px-1">
-      <h2 class="text-title text-content">Analytics</h2>
+  <AppBar title="Analytics">
+    {#snippet actions()}
       <!-- Window paging and CSV export share one quiet row of controls. -->
-      <div class="flex items-center gap-1">
         {#if tab !== 'insights'}
         <button
           onclick={() => navigate('prev')}
-          class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
           aria-label="Earlier"
         >
           <Icon icon="ic:baseline-chevron-left" class="text-lg" />
@@ -447,7 +446,7 @@
         </button>
         <button
           onclick={() => navigate('next')}
-          class="p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
           aria-label="Later"
         >
           <Icon icon="ic:baseline-chevron-right" class="text-lg" />
@@ -455,16 +454,15 @@
         {/if}
         <button
           onclick={() => trainingState.exportToCSV()}
-          class="p-1.5 ml-1 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors"
+          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
           aria-label="Export CSV"
           title="Export CSV"
         >
           <Icon icon="ic:baseline-download" class="text-base" />
         </button>
-      </div>
-    </div>
-
-
+    {/snippet}
+  </AppBar>
+  <div class="flex flex-col gap-2.5">
     <div class="grid grid-cols-4 gap-0.5 bg-surface-elevated/50 p-1 rounded-control" role="tablist" data-tour="analytics-tabs">
       {#each TABS as t}
         <button

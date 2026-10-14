@@ -53,7 +53,7 @@
 {/if}
 
 {#if run && made}
-  <CircuitPill visible={quickTimer.minimized} bottomClass="bottom-[91px]" onOpen={() => (quickTimer.minimized = false)} />
+  <CircuitPill visible={quickTimer.minimized} bottomClass="bottom-[calc(var(--chrome-b)+var(--fab-b)+16px+env(safe-area-inset-bottom))]" onOpen={() => (quickTimer.minimized = false)} />
   {#key run.key}
     <CircuitRunner
       sessionKey={QUICK_KEY}

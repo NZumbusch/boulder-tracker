@@ -1,6 +1,6 @@
 import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { type TimerPreset, validateTimerPresets } from '../timer/presets';
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, type NavStyle, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -55,6 +55,7 @@ export class PreferencesStore {
   autoBackup = $state(defaultPreferences().autoBackup);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
   navLabels = $state(false);
+  navStyle = $state<NavStyle>('drawer');
   helpButtons = $state(true);
   widgetShowReadiness = $state(true);
   widgetReadinessDetail = $state<WidgetReadinessDetail>('factors');
@@ -126,6 +127,7 @@ export class PreferencesStore {
     this.autoBackup = prefs.autoBackup;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
     this.navLabels = prefs.navLabels;
+    this.navStyle = prefs.navStyle;
     this.helpButtons = prefs.helpButtons;
     this.widgetShowReadiness = prefs.widgetShowReadiness;
     this.widgetReadinessDetail = prefs.widgetReadinessDetail;
@@ -358,6 +360,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setNavStyle(style: NavStyle) {
+    this.navStyle = style;
+    this.persist();
+  }
+
   setWidgetReadinessDetail(detail: WidgetReadinessDetail) {
     this.widgetReadinessDetail = detail;
     this.persist();
@@ -434,6 +441,7 @@ export class PreferencesStore {
       autoBackup: this.autoBackup,
       addedExerciseTarget: this.addedExerciseTarget,
       navLabels: this.navLabels,
+      navStyle: this.navStyle,
       helpButtons: this.helpButtons,
       widgetShowReadiness: this.widgetShowReadiness,
       widgetReadinessDetail: this.widgetReadinessDetail,

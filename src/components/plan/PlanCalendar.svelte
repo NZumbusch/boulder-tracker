@@ -156,6 +156,10 @@
     if (s.workout.dayOfWeek === dayName && s.workout.weekId === weekId && s.workout.startTime === startTime) return;
     await trainingState.saveWorkoutQuiet({ ...($state.snapshot(s.workout) as Workout), weekId, dayOfWeek: dayName, startTime });
   }
+  /** The floating +: a session on the focused day (the first day shown, when the focus has paged out of the week). */
+  export function addAtFocus() {
+    addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus);
+  }
   const agenda = $derived(trainingState.tunableOn('plan.weekAgenda'));
   /** The phase on each day shown (Settings -> Plan calendar). Month and Year draw it as a line along each week row. */
   const phases = $derived(
@@ -201,9 +205,12 @@
         >{m.label}</button>
       {/each}
     </div>
-    <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
+    <!-- With the drawer navigation the floating + adds a session (the app shell's); the bottom bar has no such button, so the + stays here. -->
+    {#if trainingState.navStyle === 'bar'}
+      <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
       <Icon icon="ic:baseline-plus" class="text-lg" />
     </button>
+    {/if}
   </div>
 
   </div>
