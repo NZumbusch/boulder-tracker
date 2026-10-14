@@ -77,7 +77,9 @@ export const TUNABLES: TunableDef[] = [
 
 
   // --- Layout ---
+  { id: "nav.hideBarOnScroll", topic: "layout", group: "Top bar", label: "Hide the top bar while scrolling", hint: "It slides away as you scroll down through a screen and comes back when you scroll up. Off: it stays put, with a soft edge over the content", kind: "boolean", default: true },
   { id: "plan.weekAgenda", topic: "layout", group: "Plan calendar", label: "Show the week as a list", hint: "On: the calendar's Week view is seven day rows with full session names and exercises. Off: seven narrow columns on an hour grid", kind: "boolean", default: false },
+  { id: "plan.exerciseList", topic: "layout", group: "Plan calendar", label: "Exercises as a list", hint: "In the week list, each session's exercises are plain lines with a colour dot instead of coloured chips", kind: "boolean", default: false },
   { id: "plan.weekListOnPhone", topic: "layout", group: "Plan calendar", label: "List on a phone held upright", hint: "Seven columns are too narrow for names on a phone in portrait, so it shows the list there even with the setting above off. Tablets, laptops and a phone on its side keep the grid", kind: "boolean", default: true },
   { id: "plan.calendarPhases", topic: "layout", group: "Plan calendar", label: "Show phases in the calendar", hint: "A thin colour strip for the phase on each day: under the days in Day and Week, down the week list's rows, under each date in Month. Phases are edited in the Block manager", kind: "boolean", default: true },
   { id: "plan.calendarPhaseNames", topic: "layout", group: "Plan calendar", label: "Write the phase name on it", hint: "Only with the strip on: the phase's name where it starts", kind: "boolean", default: false },

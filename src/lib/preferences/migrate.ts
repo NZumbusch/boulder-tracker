@@ -17,8 +17,10 @@
  * overwrites those two fields - `UiStore` remains their sole writer.
  */
 
-/** How you move between screens. */
+/** How you move between screens: a side drawer (a rail on wide screens) or the bottom bar. */
 export type NavStyle = 'drawer' | 'bar';
+/** What is chosen: one of them, or `auto` - the bottom bar on a phone held upright, the drawer and rail on a tablet, a laptop or a phone on its side. */
+export type NavMode = 'auto' | NavStyle;
 
 import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { type TimerPreset, validateTimerPresets } from '../timer/presets';
@@ -158,8 +160,8 @@ export interface Preferences {
   addedExerciseTarget: AddedExerciseTarget;
   /** Text under the bottom-nav icons. Off by default (the icon-only look); both are real options. */
   navLabels: boolean;
-  /** Navigation: a side drawer (and a rail on wide screens), or the bottom bar. Per device, not synced. */
-  navStyle: NavStyle;
+  /** Navigation: automatic (bottom bar on a phone, drawer and rail on wide screens), or always one of them. Per device, not synced. */
+  navMode: NavMode;
   /** The (?) buttons next to terms like load, ACWR and phases. On by default. */
   helpButtons: boolean;
   /** Home-screen widgets (Android) show the readiness score. Off hides the number - the ring stays empty - for those who'd rather not have it on the home screen. */
@@ -335,7 +337,7 @@ export function defaultPreferences(): Preferences {
     units: { ...DEFAULT_UNITS },
     addedExerciseTarget: 'none',
     navLabels: false,
-    navStyle: 'drawer',
+    navMode: 'auto',
     helpButtons: true,
     widgetShowReadiness: true,
     widgetReadinessDetail: 'factors',
@@ -569,7 +571,8 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
       ? candidate.addedExerciseTarget
       : defaults.addedExerciseTarget,
     navLabels: typeof candidate.navLabels === 'boolean' ? candidate.navLabels : defaults.navLabels,
-    navStyle: candidate.navStyle === 'bar' || candidate.navStyle === 'drawer' ? candidate.navStyle : defaults.navStyle,
+    // `navStyle` (2026-10-14: drawer for everyone) is dropped on purpose: its value was a default, not a choice.
+    navMode: candidate.navMode === 'auto' || candidate.navMode === 'bar' || candidate.navMode === 'drawer' ? candidate.navMode : defaults.navMode,
     helpButtons: typeof candidate.helpButtons === 'boolean' ? candidate.helpButtons : defaults.helpButtons,
     widgetShowReadiness: typeof candidate.widgetShowReadiness === 'boolean' ? candidate.widgetShowReadiness : defaults.widgetShowReadiness,
     widgetReadinessDetail: WIDGET_READINESS_DETAILS.includes(candidate.widgetReadinessDetail as WidgetReadinessDetail) ? (candidate.widgetReadinessDetail as WidgetReadinessDetail) : defaults.widgetReadinessDetail,
