@@ -778,7 +778,7 @@
     <div class="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-center px-6 pt-2 pb-5 gap-4 short:px-4 short:py-1 short:gap-1">
       <!-- Sized by the room it has on both axes, so the dial fits in landscape too. -->
       <div class="flex-1 min-h-0 w-full grid place-items-center" style="container-type: size;">
-        <div class="relative aspect-square" style="width: min(17rem, 100cqw, 100cqh); container-type: inline-size;">
+        <div class="relative aspect-square" style="--dial: min(max(17rem, 46vmin), 28rem); width: min(var(--dial), 100cqw, 100cqh); container-type: inline-size;">
           <svg viewBox="0 0 100 100" class="absolute inset-0 w-full h-full -rotate-90">
             <circle cx="50" cy="50" r="45" fill="none" stroke="var(--color-surface-elevated)" stroke-width="5" />
             <circle cx="50" cy="50" r="45" fill="none" stroke={accent} stroke-width="5" stroke-linecap="round"
@@ -789,10 +789,10 @@
               {stepWord}
             </p>
             {#if step.kind === 'work' && step.seconds === undefined}
-              <p class="text-[length:min(3.5rem,24cqw)] leading-none font-black text-content tabular-nums my-2">{step.reps ?? '✓'}</p>
+              <p class="text-[length:min(calc(var(--dial)*0.206),24cqw)] leading-none font-black text-content tabular-nums my-2">{step.reps ?? '✓'}</p>
               <p class="text-label text-content-subtle tabular-nums">{step.reps ? 'reps · ' : ''}{formatClock(run.stepElapsedMs)}</p>
             {:else}
-              <p class="text-[length:min(3.5rem,24cqw)] leading-none font-black text-content tabular-nums my-2">{formatClock(Math.ceil(dialRemaining ?? 0) * 1000)}</p>
+              <p class="text-[length:min(calc(var(--dial)*0.206),24cqw)] leading-none font-black text-content tabular-nums my-2">{formatClock(Math.ceil(dialRemaining ?? 0) * 1000)}</p>
             {/if}
             {#if step.kind === 'work'}
               <p class="text-body font-bold text-content mt-1 break-words">{memberName(step.member)}</p>
