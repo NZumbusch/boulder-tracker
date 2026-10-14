@@ -21,7 +21,7 @@
  * Completed sessions are never touched. Hand-edited weeks being replaced
  * are flagged, not refused.
  */
-import { placeByName, type Place } from "../places/places";
+import { PLACE_KIND_LABELS, hasCoordinates, placeByName, placeLine, samePlaceName, validatePlace, type Place } from "../places/places";
 import { exerciseGroup } from "../exercise/library";
 import type {
   BenchmarkTypeDef,
@@ -94,7 +94,7 @@ export interface PlannerState {
   currentWeekId: string;
 }
 
-export type ChangeSection = "category" | "exercise" | "circuit" | "phase" | "week" | "planB" | "coach" | "valueType" | "benchmark" | "goal" | "pain";
+export type ChangeSection = "category" | "exercise" | "circuit" | "phase" | "week" | "planB" | "coach" | "valueType" | "benchmark" | "goal" | "pain" | "place";
 
 export interface ChangeItem {
   id: string;
@@ -138,6 +138,9 @@ export interface PlanWrites {
   benchmarkTypes?: BenchmarkTypeDef[];
   goals?: GoalEvent[];
   painIssues?: PainIssue[];
+  /** The whole list of places, when it changed; `placeRenames` are the renames in it, for the sessions that name them. */
+  places?: Place[];
+  placeRenames?: { from: string; to: string }[];
   weeks: WeekWrite[];
   weekNotes: WeekNote[];
 }
@@ -180,6 +183,8 @@ function valueDiff(before: ExerciseValues, after: ExerciseValues): string[] {
 interface Ctx {
   state: PlannerState;
   newId: () => string;
+  /** Places this change set adds (or renames to): a session may name them. */
+  newPlaceNames: string[];
   types: ExerciseTypeDef[];
   /** Analytics categories as the change set leaves them so far. */
   categories: AnalyticsCategory[];
@@ -403,7 +408,7 @@ function circuitLabel(it: CSItem): string {
 /** Warns when a session's place is not one of the saved places (it is kept as text all the same). */
 function checkPlace(ctx: Ctx, place: string | undefined, item: ChangeItem) {
   if (!place || !ctx.state.places) return;
-  if (!placeByName(ctx.state.places, place)) item.warnings.push(`"${place}" is not one of your saved places - kept as text, so it has no weather and the coach has no notes on it.`);
+  if (!placeByName(ctx.state.places, place) && !ctx.newPlaceNames.some((n) => samePlaceName(n, place))) item.warnings.push(`"${place}" is not one of your saved places - kept as text, so it has no weather and the coach has no notes on it.`);
 }
 
 function templateFromSession(ctx: Ctx, s: CSSession, item: ChangeItem): WorkoutTemplate {
@@ -690,6 +695,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
   const ctx: Ctx = {
     state,
     newId,
+    newPlaceNames: (set.places ?? []).flatMap((c, i) => (!isOn(`place-${i}`) ? [] : c.action === "add" ? [c.name] : c.action === "edit" && c.rename ? [c.rename] : [])),
     types: state.exerciseTypes.map((t) => ({ ...t })),
     categories: state.analyticsCategories.map((c) => ({ ...c })),
     categoryOrigin: new Map(),
@@ -1125,6 +1131,75 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     }
   });
 
+  let places = (state.places ?? []).map((p) => ({ ...p }));
+  let placesChanged = false;
+  const placeRenames: { from: string; to: string }[] = [];
+  /** How many sessions and phase-template sessions name a place (they keep the name as text when it goes, and follow a rename). */
+  const placeUses = (name: string) =>
+    state.workouts.filter((w) => w.location && samePlaceName(w.location, name)).length +
+    Object.values(state.templates).reduce((n, list) => n + (list ?? []).filter((t) => t.location && samePlaceName(t.location, name)).length, 0);
+  const usesLine = (n: number) => `${n} session${n === 1 ? "" : "s"}`;
+  (set.places ?? []).forEach((change, i) => {
+    const id = `place-${i}`;
+    const item = tidyItem(id, "place");
+    item.title = `${change.action === "add" ? "+" : change.action === "remove" ? "−" : "~"} ${change.name}`;
+    const existing = places.find((p) => samePlaceName(p.name, change.name));
+    const otherHome = (except?: Place) => places.find((p) => p.kind === "home" && p !== except);
+    let next: Place | null = null;
+    const coordinateNote = () => item.warnings.push("The coordinates come from the AI, not a map - check the spot in Settings → Places before trusting the weather there.");
+    if (change.action === "add") {
+      if (existing) { item.errors.push(`"${existing.name}" is already one of your places - use an "edit" to change it.`); return; }
+      const made = validatePlace({ name: change.name, kind: change.kind ?? "other", price: change.price, hours: change.hours, notes: change.notes, latitude: change.latitude, longitude: change.longitude });
+      if (!made) { item.errors.push("A place needs a name."); return; }
+      if (made.kind === "home" && otherHome()) { item.errors.push(`${otherHome()!.name} is already your home - edit that one, or give "${made.name}" another kind.`); return; }
+      item.details.push(placeLine(made));
+      if (made.notes) item.details.push(`notes: ${made.notes}`);
+      if (hasCoordinates(made)) { item.details.push("map position set"); coordinateNote(); } else if (made.kind === "home" || made.kind === "crag") item.warnings.push("No coordinates, so no weather for it - add them in Settings → Places.");
+      next = made;
+    } else if (!existing) {
+      item.errors.push(`No place called "${change.name}".`);
+      return;
+    } else if (change.action === "remove") {
+      item.details.push(placeLine(existing));
+      const uses = placeUses(existing.name);
+      if (uses > 0) item.warnings.push(`${usesLine(uses)} name it - they keep the name as text (no weather, no notes).`);
+    } else {
+      next = { ...existing };
+      if (change.rename && change.rename !== existing.name) {
+        const taken = places.find((p) => p !== existing && samePlaceName(p.name, change.rename!));
+        if (taken) { item.errors.push(`"${taken.name}" is already one of your places.`); return; }
+        item.details.push(`name ${existing.name} → ${change.rename}`);
+        next.name = change.rename;
+        const uses = placeUses(existing.name);
+        if (uses > 0) item.details.push(`${usesLine(uses)} that name it follow the new name.`);
+      }
+      if (change.kind && change.kind !== existing.kind) {
+        if (change.kind === "home" && otherHome(existing)) { item.errors.push(`${otherHome(existing)!.name} is already your home.`); return; }
+        item.details.push(`kind ${PLACE_KIND_LABELS[existing.kind]} → ${PLACE_KIND_LABELS[change.kind]}`);
+        next.kind = change.kind;
+      }
+      for (const field of ["price", "hours", "notes"] as const) {
+        const value = change[field];
+        if (value !== undefined && value !== (existing[field] ?? "")) {
+          item.details.push(value === "" ? `${field} cleared` : `${field} ${existing[field] ? `"${existing[field]}" → ` : "→ "}"${value}"`);
+          if (value === "") delete next[field]; else next[field] = value;
+        }
+      }
+      if (change.latitude !== undefined && change.longitude !== undefined && (change.latitude !== existing.latitude || change.longitude !== existing.longitude)) {
+        item.details.push(hasCoordinates(existing) ? "map position moved" : "map position set");
+        next.latitude = change.latitude;
+        next.longitude = change.longitude;
+        coordinateNote();
+      }
+      if (item.details.length === 0) item.warnings.push("Nothing changes.");
+    }
+    if (isOn(id) && item.errors.length === 0) {
+      places = next ? (existing ? places.map((p) => (p === existing ? next! : p)) : [...places, next]) : places.filter((p) => p !== existing);
+      if (existing && next && !samePlaceName(existing.name, next.name)) placeRenames.push({ from: existing.name, to: next.name });
+      placesChanged = true;
+    }
+  });
+
   // --- 2. Phases ---
   set.phases.forEach((change, i) => {
     const id = `phase-${i}`;
@@ -1494,6 +1569,7 @@ export function planChanges(set: AIChangeSet, state: PlannerState, selected?: Se
     ...(benchmarkTypesChanged ? { benchmarkTypes } : {}),
     ...(goalsChanged ? { goals } : {}),
     ...(painIssuesChanged ? { painIssues } : {}),
+    ...(placesChanged ? { places, ...(placeRenames.length ? { placeRenames } : {}) } : {}),
     weeks: [...ctx.weekState.entries()].map(([weekId, w]) => ({ weekId, planned: w.planned })),
     weekNotes: [...noteWrites.entries()].map(([weekId, text]) => ({ weekId, text })),
   };
@@ -1569,6 +1645,7 @@ export function allItemIds(set: AIChangeSet): Set<string> {
     ...(set.benchmarkTypes ?? []).map((_, i) => `benchmark-${i}`),
     ...(set.goals ?? []).map((_, i) => `goal-${i}`),
     ...(set.painIssues ?? []).map((_, i) => `pain-${i}`),
+    ...(set.places ?? []).map((_, i) => `place-${i}`),
   ]);
 }
 

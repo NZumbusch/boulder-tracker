@@ -27,6 +27,7 @@ import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
 import { coalesceBlocks, getDominantBlockForWeek, blockTouchesWeek, normalizeBlocks } from "../planning/trainingBlocks";
 import { upsertWeekNote } from "../planning/notes";
+import { renamedPlace, samePlaceName, type Place } from "../places/places";
 import { toStoredWorkout, provisionalIdWeek, weekDismissalId } from "../planning/weekProjection";
 import type { PlanWrites } from "../ai/changePlanner";
 import type { SettingsRecord } from "../preferences/portable";
@@ -36,7 +37,7 @@ import type { ShareOutcome } from "../share/imageShare";
 import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
 
 /** The tables a bulk plan change (AI change set, copied week) can touch - what its undo snapshot holds. */
-const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "dismissedSessions", "weekNotes", "planAlternatives", "coachNotes", "circuits", "analyticsCategories", "valueDefs", "benchmarkTypes", "goals", "painIssues"] as const;
+const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "dismissedSessions", "weekNotes", "planAlternatives", "coachNotes", "circuits", "analyticsCategories", "valueDefs", "benchmarkTypes", "goals", "painIssues", "places"] as const;
 type PlanTables = Record<(typeof PLAN_TABLE_NAMES)[number], unknown>;
 interface PlanUndoRecord {
   /** What made the change: an AI change set, or copying a week in the planner. */
@@ -47,6 +48,17 @@ interface PlanUndoRecord {
   after?: PlanTables;
   /** What was asked and what changed, in words, for the history. */
   label?: { goal?: string; lines: string[] };
+  /** Places this change renamed: the sessions that named them were renamed too, which an undo reverses for the logged ones. */
+  placeRenames?: { from: string; to: string }[];
+}
+
+/** The sessions (and phase-template sessions) that name the place `from` name `to` instead. */
+function renameLocations<T extends { location?: string }>(list: T[], from: string, to: string): T[] {
+  return list.map((x) => (x.location && samePlaceName(x.location, from) ? { ...x, location: to } : x));
+}
+function renamePlaceRefs(db: { workouts: Workout[]; templates: Record<string, WorkoutTemplate[]> }, from: string, to: string): void {
+  db.workouts = toPlain(renameLocations(db.workouts, from, to));
+  db.templates = toPlain(Object.fromEntries(Object.entries(db.templates).map(([phase, list]) => [phase, renameLocations(list ?? [], from, to)])));
 }
 
 /** The plan changes that can be rolled back, newest last. */
@@ -118,6 +130,7 @@ export const storage = {
   async _getCircuits(): Promise<Circuit[]> { await initDB(); return _dbState.circuits; },
   async _getPlanAlternatives(): Promise<PlanAlternative[]> { await initDB(); return _dbState.planAlternatives; },
   async _getGoals(): Promise<GoalEvent[]> { await initDB(); return _dbState.goals; },
+  async _getPlaces(): Promise<Place[]> { await initDB(); return _dbState.places ?? []; },
   async _getBenchmarks(): Promise<Benchmark[]> { await initDB(); return _dbState.benchmarks; },
   async _getBenchmarkTypes(): Promise<BenchmarkTypeDef[]> { await initDB(); return _dbState.benchmarkTypes; },
   async _getAnalyticsCategories(): Promise<AnalyticsCategory[]> { await initDB(); return _dbState.analyticsCategories; },
@@ -141,6 +154,7 @@ export const storage = {
   async _saveCircuits(circuits: Circuit[]): Promise<void> { await initDB(); _dbState.circuits = toPlain(circuits); await flushDB(["circuits"]); },
   async _savePlanAlternatives(alts: PlanAlternative[]): Promise<void> { await initDB(); _dbState.planAlternatives = toPlain(alts); await flushDB(["planAlternatives"]); },
   async _saveGoals(goals: GoalEvent[]): Promise<void> { await initDB(); _dbState.goals = toPlain(goals); await flushDB(["goals"]); },
+  async _savePlaces(places: Place[]): Promise<void> { await initDB(); _dbState.places = toPlain(places); await flushDB(["places"]); },
   async _saveBenchmarks(benchmarks: Benchmark[]): Promise<void> { await initDB(); _dbState.benchmarks = toPlain(benchmarks); await flushDB(["benchmarks"]); },
   async _saveBenchmarkTypes(types: BenchmarkTypeDef[]): Promise<void> { await initDB(); _dbState.benchmarkTypes = toPlain(types); await flushDB(["benchmarkTypes"]); },
   async _saveAnalyticsCategories(categories: AnalyticsCategory[]): Promise<void> { await initDB(); _dbState.analyticsCategories = toPlain(categories); await flushDB(["analyticsCategories"]); },
@@ -352,6 +366,7 @@ export const storage = {
     if (writes.benchmarkTypes) db.benchmarkTypes = toPlain(writes.benchmarkTypes);
     if (writes.goals) db.goals = toPlain(writes.goals);
     if (writes.painIssues) db.painIssues = toPlain(writes.painIssues);
+    if (writes.places) db.places = toPlain(writes.places);
     if (writes.weeks.length) {
       const touched = new Set(writes.weeks.map((w) => w.weekId));
       const kept = (db.workouts as Workout[]).filter((w) => !(touched.has(w.weekId) && w.status === "planned"));
@@ -365,11 +380,13 @@ export const storage = {
     let notes = db.weekNotes as WeekNote[];
     for (const n of writes.weekNotes) notes = upsertWeekNote(notes, n.weekId, n.text);
     db.weekNotes = toPlain(notes);
+    // Sessions that named a place this change renamed (the new weeks above included) follow it.
+    for (const r of writes.placeRenames ?? []) renamePlaceRefs(db, r.from, r.to);
     // Blocks the change added next to one of the same phase are one block with it.
     coalesceBlocksInDb(db);
     await flushDB();
     const previous = asHistory(await readPlanUndo<PlanUndoRecord | PlanUndoRecord[]>()).map(slimmed);
-    await writePlanUndo([...previous, { source, appliedAt: new Date().toISOString(), before, after: planTables(db), ...(label ? { label } : {}) }].slice(-PLAN_HISTORY_MAX));
+    await writePlanUndo([...previous, { source, appliedAt: new Date().toISOString(), before, after: planTables(db), ...(label ? { label } : {}), ...(writes.placeRenames?.length ? { placeRenames: writes.placeRenames } : {}) }].slice(-PLAN_HISTORY_MAX));
   },
 
   /**
@@ -428,9 +445,14 @@ export const storage = {
       // A record written before a table existed doesn't have it - leave that table alone rather than wiping it.
       if (table !== "workouts" && record.before[table] !== undefined) db[table] = table === "trainingBlocks" ? normalizeBlocks(record.before[table] as any[]) : record.before[table];
     }
+    // Logged sessions kept the new name of a place this change renamed: back to the old one, newest rename first.
+    let loggedNow = completed;
+    for (const r of history.slice(index).reverse()) {
+      for (const rename of [...(r.placeRenames ?? [])].reverse()) loggedNow = renameLocations(loggedNow, rename.to, rename.from);
+    }
     db.workouts = toPlain([
       ...(record.before.workouts as Workout[]).filter((w) => w.status === "planned" && !completedIds.has(w.id)),
-      ...completed,
+      ...loggedNow,
     ]);
     await flushDB();
     const rest = history.slice(0, index);
@@ -453,6 +475,25 @@ export const storage = {
 
   async getGoals(): Promise<GoalEvent[]> {
     return this._getGoals();
+  },
+
+  async getPlaces(): Promise<Place[]> {
+    return this._getPlaces();
+  },
+
+  async savePlaces(places: Place[]): Promise<void> {
+    await this._savePlaces(places);
+  },
+
+  /** Renames a place and, in the same write, every session and phase-template session that names it. `false` when the new name is empty or taken. */
+  async renamePlace(from: string, to: string): Promise<boolean> {
+    await initDB();
+    const next = renamedPlace(_dbState.places ?? [], from, to);
+    if (!next) return false;
+    _dbState.places = toPlain(next);
+    renamePlaceRefs(_dbState, from, to.trim());
+    await flushDB(["places", "workouts", "templates"]);
+    return true;
   },
 
   async getAthleteProfile(): Promise<AthleteProfile | undefined> {
@@ -805,6 +846,7 @@ export const storage = {
           if (data.coachNotes) _dbState.coachNotes = data.coachNotes;
           if (data.circuits) _dbState.circuits = data.circuits;
           if (data.goals) _dbState.goals = data.goals;
+          _dbState.places = data.places ?? [];
           if (data.templates) _dbState.templates = data.templates;
           if (data.phaseDefs) _dbState.phaseDefs = data.phaseDefs;
           if (data.exerciseTypes) _dbState.exerciseTypes = data.exerciseTypes;

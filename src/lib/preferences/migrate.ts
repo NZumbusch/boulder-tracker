@@ -62,7 +62,8 @@ export interface Preferences {
   /**
    * Where you train: home, crags, gyms, anywhere (`lib/places`). Empty by default; the weather is off until a home or
    * a crag with coordinates is set. Replaces `homeLocation` and `crags` (and, before them, `tripLocation`), which
-   * `migratePreferences` turns into places. Device-local: where you are does not travel.
+   * `migratePreferences` turns into places. Places now live in the database (the `places` table): this list is only
+   * what an older version kept on this device, which the first start with the table moves over and empties.
    */
   places: Place[];
   /** Bars is the default - radar is the user-requested alternate, both real. */

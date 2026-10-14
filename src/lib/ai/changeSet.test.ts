@@ -135,3 +135,39 @@ describe("custom parameters in exercise-type changes", () => {
     expect((result.data as any).exerciseTypes[0].parameters).toEqual(["duration", "v:elevation"]);
   });
 });
+
+describe("validateChangeSet - places", () => {
+  const places = (list: unknown[]) => validateChangeSet({ places: list });
+
+  it("reads add, edit and remove, with every detail of a place", () => {
+    const r = places([
+      { action: "add", name: " Boulderwelt Regensburg ", kind: "gym", price: "CHF 22", hours: "Mon-Fri 9-23", notes: "Board on the left", latitude: 49.01, longitude: 12.1 },
+      { action: "edit", name: "Home", rename: "Home wall", kind: "home", price: "", notes: "Hangboard in the hall" },
+      { action: "remove", name: "Old gym" },
+    ]);
+    expect(r.valid).toBe(true);
+    expect(r.data?.places).toEqual([
+      { action: "add", name: "Boulderwelt Regensburg", kind: "gym", price: "CHF 22", hours: "Mon-Fri 9-23", notes: "Board on the left", latitude: 49.01, longitude: 12.1 },
+      { action: "edit", name: "Home", rename: "Home wall", kind: "home", price: "", notes: "Hangboard in the hall" },
+      { action: "remove", name: "Old gym" },
+    ]);
+  });
+
+  it("counts as a change set and as something to do", () => {
+    expect(isChangeSetShape({ places: [] })).toBe(true);
+    expect(places([]).valid).toBe(false);
+  });
+
+  it("drops a kind it doesn't know (an add becomes 'other', an edit keeps the kind), and lone coordinates", () => {
+    const r = places([{ action: "add", name: "Cave", kind: "cave", latitude: 47 }, { action: "edit", name: "Brione", kind: "cave", notes: "x", longitude: 8 }]);
+    expect(r.valid).toBe(true);
+    expect(r.data?.places).toEqual([{ action: "add", name: "Cave" }, { action: "edit", name: "Brione", notes: "x" }]);
+    expect(r.repairs.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("refuses an edit with nothing to change, an unknown action and a missing name", () => {
+    expect(places([{ action: "edit", name: "Brione" }]).valid).toBe(false);
+    expect(places([{ action: "rename", name: "Brione" }]).valid).toBe(false);
+    expect(places([{ action: "add" }]).valid).toBe(false);
+  });
+});

@@ -84,7 +84,7 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
     sections.push(`- Upcoming Goals (competitions and outdoor trips I'm peaking for; trips list the problems I want to send there):\n${lines(profile.goals)}`);
   }
   if (profile.places?.length) {
-    sections.push(`- My Places (where I train, with what it costs, when it is open and what to know; a session can say where it is with "place": <one of these names> - pick the place that suits the session: boards, outdoor or not, opening hours against its start time):\n${lines(profile.places)}`);
+    sections.push(`- My Places (where I train, with what it costs, when it is open and what to know; a session can say where it is with "place": <one of these names>, and the "places" section adds, edits or removes places - pick the place that suits the session: boards, outdoor or not, opening hours against its start time):\n${lines(profile.places)}`);
   }
   if (profile.readiness) {
     sections.push(`- Readiness Snapshot:\n${JSON.stringify(profile.readiness)}`);

@@ -2,6 +2,7 @@ import type { AnalyticsCategory, Benchmark, BenchmarkTypeDef, Circuit, CoachNote
 import { exerciseGroup } from "../exercise/library";
 import { buildAnalyticsCategorySummaries } from "./context";
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH } from "./coachNotes";
+import { PLACE_KINDS, samePlaceName, type Place } from "../places/places";
 
 /**
  * "Organise": the AI tidies the saved data that gets untidy over time - the
@@ -13,7 +14,7 @@ import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH } from "./coachNotes";
  * Coach modal gathers the inputs and copies it.
  */
 
-export type OrganiseArea = "exercises" | "circuits" | "phases" | "notes" | "values" | "tests" | "goals" | "pain";
+export type OrganiseArea = "exercises" | "circuits" | "phases" | "notes" | "values" | "tests" | "goals" | "pain" | "places";
 
 export const ORGANISE_AREAS: { id: OrganiseArea; label: string; hint: string }[] = [
   { id: "exercises", label: "Exercises", hint: "Categories, groups, names, how-tos, unused ones" },
@@ -24,6 +25,7 @@ export const ORGANISE_AREAS: { id: OrganiseArea; label: string; hint: string }[]
   { id: "tests", label: "Benchmark tests", hint: "Names, folders, how-to text" },
   { id: "goals", label: "Goals", hint: "Names, notes, ones that are over" },
   { id: "pain", label: "Pain issues", hint: "Names, notes, old open ones" },
+  { id: "places", label: "Places", hint: "Names, kinds, prices, hours, notes, duplicates" },
 ];
 
 export interface OrganisePromptSource {
@@ -40,6 +42,7 @@ export interface OrganisePromptSource {
   benchmarks?: Benchmark[];
   goals?: GoalEvent[];
   painIssues?: PainIssue[];
+  places?: Place[];
   /** "YYYY-MM-DD" - what "over" and "still open" are measured against. */
   today?: string;
 }
@@ -198,6 +201,26 @@ function goalsPart(source: OrganisePromptSource) {
   };
 }
 
+function placesPart(source: OrganisePromptSource) {
+  const named = [
+    ...source.workouts.map((w) => w.location),
+    ...Object.values(source.templates ?? {}).flatMap((list) => (list ?? []).map((t) => t.location)),
+  ].filter((l): l is string => !!l);
+  // Never the coordinates: only whether the place is on the map.
+  const lines = (source.places ?? [])
+    .map((p) => JSON.stringify({ name: p.name, kind: p.kind, ...(p.price ? { price: p.price } : {}), ...(p.hours ? { hours: p.hours } : {}), ...(p.notes ? { notes: p.notes.slice(0, 200) } : {}), onMap: p.latitude !== undefined, sessionsNamingIt: named.filter((l) => samePlaceName(l, p.name)).length }))
+    .join("\n");
+  return {
+    intro: `- PLACES: where I train - gyms, crags, home.`,
+    shape: `  "places": [ { "action": "edit", "name": "Boulderwelt", "rename": "Boulderwelt Regensburg", "kind": "gym", "price": "CHF 22 day pass", "notes": "Tidier notes." }, { "action": "remove", "name": "Gym (old)" } ],`,
+    rules: `PLACES
+- Use only "edit" (with "name" exactly as listed, and "rename", "kind" (${PLACE_KINDS.join(", ")}), "price", "hours" and/or "notes"; "" clears one) or "remove". Never add a place, and never touch the map position.
+- Make names consistent (the city or area, no stray words), put each place in the right kind (at most one home), and keep price, hours and notes short and in one style. Only reword what is written - never invent a price or an opening hour.
+- For a duplicate: edit the one worth keeping (combine the notes) and remove the other. Sessions that name a removed place keep the name as plain text and lose its weather and notes, so prefer "rename"-ing the one that most sessions name ("sessionsNamingIt"), and say in the summary what you merged. A rename changes the name on its sessions too.`,
+    data: `MY PLACES (name, kind, price, hours, notes, whether it is on the map, how many sessions name it):\n${lines || "(none)"}`,
+  };
+}
+
 function painPart(source: OrganisePromptSource) {
   const lines = (source.painIssues ?? [])
     .map((p) => JSON.stringify({ name: p.bodyPart, startDate: p.startDate, ...(p.endDate ? { endDate: p.endDate, ...(p.endEstimated ? { endEstimated: true } : {}) } : { status: "open" }), ...(p.watchCategories?.length ? { watches: p.watchCategories } : {}), ...(p.notes?.trim() ? { notes: p.notes.trim().slice(0, 140) } : {}) }))
@@ -213,7 +236,7 @@ function painPart(source: OrganisePromptSource) {
 }
 
 export function buildOrganisePrompt(source: OrganisePromptSource, request: string, areas: OrganiseArea[] = ["exercises"]): string {
-  const parts = ORGANISE_AREAS.filter((a) => areas.includes(a.id)).map((a) => ({ exercises: exercisesPart, circuits: circuitsPart, phases: phasesPart, notes: notesPart, values: valuesPart, tests: testsPart, goals: goalsPart, pain: painPart })[a.id](source));
+  const parts = ORGANISE_AREAS.filter((a) => areas.includes(a.id)).map((a) => ({ exercises: exercisesPart, circuits: circuitsPart, phases: phasesPart, notes: notesPart, values: valuesPart, tests: testsPart, goals: goalsPart, pain: painPart, places: placesPart })[a.id](source));
   const what = request.trim() || DEFAULT_REQUEST + (areas.includes("exercises") ? " In particular split any catch-all category (like \"Other\") into real ones, and file every exercise where it belongs." : "");
   return `You are helping me tidy the saved data in a climbing training app. Only these areas, nothing else:
 ${parts.map((p) => p.intro).join("\n") || "(nothing selected)"}
