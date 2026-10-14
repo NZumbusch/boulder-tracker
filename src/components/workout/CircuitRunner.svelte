@@ -42,6 +42,8 @@
   import type { ExerciseGroup, ExerciseSlot, ExerciseValues } from '../../lib/types';
   import { trainingState } from '../../lib/state.svelte';
   import { slotTypeName } from '../../lib/exerciseSlot';
+  import { paramsWithValues } from '../../lib/exercise/valueParams';
+  import { defaultRepLabel } from '../../lib/exercise/repLabel';
   import { formatClock } from '../../lib/session/formatSession';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { circuitHud, setCircuitToggle, resetCircuitHud } from '../../lib/session/circuitHud.svelte';
@@ -145,7 +147,7 @@
   const WARN_SECONDS = 15;
 
   // --- State (restored if this group's run was saved) ---
-  type Member = { slot: ExerciseSlot; values: ExerciseValues };
+  type Member = { slot: ExerciseSlot; values: ExerciseValues; repLabel?: string };
   type Cfg = { group: ExerciseGroup; members: Member[]; leadIn: number };
   type Stored = { sessionKey: string; groupId: string; steps: CircuitStep[]; state: CircuitRunState; running: boolean; lastTickAt: number; stoppedEarly: boolean; cfg?: Cfg };
   function restore(): Stored | null {
@@ -157,6 +159,11 @@
       return null;
     }
   }
+  /** A member of the run, with the word for its reps ("Hang", "Hold") when the exercise names none. */
+  function memberOf(slot: ExerciseSlot, values: ExerciseValues): Member {
+    const type = trainingState.exerciseTypes.find((t) => t.id === slot.typeId);
+    return { slot, values, repLabel: defaultRepLabel(type?.name, slot.activeParameters ?? type?.parameters ?? []) };
+  }
   const stored = restore();
   /**
    * What is run: the group, its members and the get-ready time. Fixed at the start - editing the session
@@ -164,7 +171,7 @@
    */
   let cfg = $state.raw<Cfg>(stored?.cfg ?? untrack(() => ({
     group: groupProp,
-    members: slots.map((slot) => ({ slot, values: slot.prescribed ?? slot.logged ?? {} })),
+    members: slots.map((slot) => memberOf(slot, slot.prescribed ?? slot.logged ?? {})),
     leadIn: leadInProp,
   })));
   const group = $derived(cfg.group);
@@ -407,7 +414,7 @@
   function detailKeysOf(member: number): PerSetKey[] {
     const slot = members[member]?.slot;
     if (!slot) return [];
-    const tracked = slot.activeParameters ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? [];
+    const tracked = paramsWithValues(slot.activeParameters ?? trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.parameters ?? [], members[member].values);
     return perSetKeysFor(tracked, trainingState.exerciseTypes.find((t) => t.id === slot.typeId)?.perSetParameters).filter((k) => k !== 'reps');
   }
   /** The set the button is about: the one under way, or the one just finished while resting. */
@@ -438,7 +445,7 @@
   function adjust(next: ExerciseValues, nextLeadIn: number) {
     if (!solo || !members[0]) return;
     const made = soloRun({ ...next, leadIn: nextLeadIn }, { name: group.name });
-    const nextCfg: Cfg = { group: { ...made.group, id: group.id }, members: [{ slot: members[0].slot, values: made.values }], leadIn: made.leadIn };
+    const nextCfg: Cfg = { group: { ...made.group, id: group.id }, members: [memberOf(members[0].slot, made.values)], leadIn: made.leadIn };
     const nextSteps = circuitSteps(nextCfg.group, nextCfg.members, nextCfg.leadIn);
     run = replanRun(steps, run, nextSteps);
     cfg = nextCfg;
