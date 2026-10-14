@@ -34,7 +34,7 @@ describe("importing a backup", () => {
     await storage.importData(backup());
     expect((await storage.getDismissedSessions()).map((d) => d.id).sort()).toEqual(["prov:2026-W41:*", "prov:2026-W43:*"]);
     expect(_dbState.weekOverrides).toBeUndefined();
-    expect(_dbState.exportVersion).toBe("3.36");
+    expect(_dbState.exportVersion).toBe("3.37");
   });
 
   it("takes a current backup's own dismissals as they are", async () => {

@@ -11,6 +11,8 @@
  *   coachNotes    - the coaching memory every future AI reads (`coachNotes.ts`)
  *   circuits      - the saved-circuit library (`lib/exercise/circuits.ts`),
  *                   applied right after exerciseTypes so sessions can use them
+ *   places        - where training happens (`lib/places`): add a gym, edit a place's details, remove one;
+ *                   a session's `place` may name one added in the same document
  *
  * This module is structure only: shapes, types, repairs. Whether a named
  * phase, session or exercise actually exists is the planner's job
@@ -21,6 +23,7 @@ import type { DayOfWeek, ExerciseValues, ParameterBlock, PlanSide } from "../typ
 import { PARAMETER_LABELS } from "../constants";
 import { addDaysIso, getWeekIdRange, weekIdOfIso } from "../dateUtils";
 import { resolveValueFieldName } from "./valueSpec";
+import { PLACE_KINDS, type PlaceKind } from "../places/places";
 import { MAX_COACH_NOTE_LENGTH, type CoachNoteChange } from "./coachNotes";
 import {
   isPlainObject,
@@ -170,6 +173,16 @@ export type CSGoalChange =
   | { action: "edit"; name: string; date?: string; rename?: string; notes?: string }
   | { action: "remove"; name: string; date?: string };
 
+/**
+ * The places training happens at (`lib/places`), found by name. "add" saves a new one (a gym, a crag, a friend's
+ * garage); "edit" renames it or changes what is written about it ("" clears a price, hours or notes); "remove" takes it
+ * off the list (sessions that name it keep the name as text). Coordinates come in a pair.
+ */
+export type CSPlaceChange =
+  | { action: "add"; name: string; kind?: PlaceKind; price?: string; hours?: string; notes?: string; latitude?: number; longitude?: number }
+  | { action: "edit"; name: string; rename?: string; kind?: PlaceKind; price?: string; hours?: string; notes?: string; latitude?: number; longitude?: number }
+  | { action: "remove"; name: string };
+
 /** Pain issues, found by name (and start date when one body part recurs). */
 export type CSPainIssueChange =
   | { action: "edit"; name: string; startDate?: string; rename?: string; notes?: string; watchCategories?: string[] }
@@ -239,6 +252,7 @@ export interface AIChangeSet {
   benchmarkTypes?: CSBenchmarkTypeChange[];
   goals?: CSGoalChange[];
   painIssues?: CSPainIssueChange[];
+  places?: CSPlaceChange[];
 }
 
 // --- Validation -----------------------------------------------------------
@@ -676,6 +690,64 @@ function validateGoalChange(raw: unknown, path: string, issues: Issues): CSGoalC
   return { action: "edit", name, ...(date ? { date } : {}), ...(rename ? { rename } : {}), ...(notes !== undefined ? { notes } : {}) };
 }
 
+/** Text for a place's price, hours or notes: `undefined` = leave alone, "" = clear (edits only). */
+function placeText(raw: unknown, path: string, issues: Issues, max: number): string | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return "";
+  if (typeof raw !== "string") {
+    pushRepair(issues, path, `Not text (${JSON.stringify(raw)}) - dropped.`);
+    return undefined;
+  }
+  return raw.trim().slice(0, max);
+}
+
+function validatePlaceChange(raw: unknown, path: string, issues: Issues): CSPlaceChange | null {
+  if (!isPlainObject(raw)) {
+    issues.push({ path, message: `Expected a place change, got ${JSON.stringify(raw)}.` });
+    return null;
+  }
+  const name = requireString(raw.name, `${path}.name`, issues)?.slice(0, 80);
+  if (!name) return null;
+  if (raw.action === "remove") return { action: "remove", name };
+  if (raw.action !== "add" && raw.action !== "edit") {
+    issues.push({ path: `${path}.action`, message: `Expected "add", "edit" or "remove", got ${JSON.stringify(raw.action)}.` });
+    return null;
+  }
+  let kind: PlaceKind | undefined;
+  if (raw.kind !== undefined) {
+    if (PLACE_KINDS.includes(raw.kind as PlaceKind)) kind = raw.kind as PlaceKind;
+    else pushRepair(issues, `${path}.kind`, `${JSON.stringify(raw.kind)} is not a kind of place (${PLACE_KINDS.join(", ")}) - ${raw.action === "add" ? 'taken as "other"' : "left as it is"}.`);
+  }
+  const price = placeText(raw.price, `${path}.price`, issues, 80);
+  const hours = placeText(raw.hours, `${path}.hours`, issues, 200);
+  const notes = placeText(raw.notes, `${path}.notes`, issues, 1000);
+  const hasLat = raw.latitude !== undefined && raw.latitude !== null;
+  const hasLon = raw.longitude !== undefined && raw.longitude !== null;
+  let coordinates: { latitude: number; longitude: number } | undefined;
+  if (hasLat || hasLon) {
+    const { latitude, longitude } = raw;
+    if (hasLat && hasLon && typeof latitude === "number" && typeof longitude === "number" && Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
+      coordinates = { latitude, longitude };
+    } else {
+      pushRepair(issues, `${path}.latitude`, 'Coordinates need both "latitude" (-90 to 90) and "longitude" (-180 to 180) as numbers - dropped.');
+    }
+  }
+  const fields = {
+    ...(kind ? { kind } : {}),
+    ...(price !== undefined ? { price } : {}),
+    ...(hours !== undefined ? { hours } : {}),
+    ...(notes !== undefined ? { notes } : {}),
+    ...(coordinates ?? {}),
+  };
+  if (raw.action === "add") return { action: "add", name, ...fields };
+  const rename = trimmed(raw.rename, `${path}.rename`, issues)?.slice(0, 80);
+  if (!rename && Object.keys(fields).length === 0) {
+    issues.push({ path, message: 'A place "edit" needs something to change: "rename", "kind", "price", "hours", "notes" or "latitude" and "longitude".' });
+    return null;
+  }
+  return { action: "edit", name, ...(rename ? { rename } : {}), ...fields };
+}
+
 function validatePainIssueChange(raw: unknown, path: string, issues: Issues): CSPainIssueChange | null {
   if (!isPlainObject(raw)) {
     issues.push({ path, message: `Expected a pain issue change, got ${JSON.stringify(raw)}.` });
@@ -987,9 +1059,10 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
     ...(raw.benchmarkTypes !== undefined ? { benchmarkTypes: validateList(raw.benchmarkTypes, "benchmarkTypes", issues, validateBenchmarkTypeChange) } : {}),
     ...(raw.goals !== undefined ? { goals: validateList(raw.goals, "goals", issues, validateGoalChange) } : {}),
     ...(raw.painIssues !== undefined ? { painIssues: validateList(raw.painIssues, "painIssues", issues, validatePainIssueChange) } : {}),
+    ...(raw.places !== undefined ? { places: validateList(raw.places, "places", issues, validatePlaceChange) } : {}),
   };
-  if (!issues.some(isError) && (set.categories?.length ?? 0) + set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length + set.circuits.length + (set.valueTypes?.length ?? 0) + (set.benchmarkTypes?.length ?? 0) + (set.goals?.length ?? 0) + (set.painIssues?.length ?? 0) === 0) {
-    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "categories", "exerciseTypes", "circuits", "phases", "weeks", "planB", "coachNotes", "valueTypes", "benchmarkTypes", "goals" or "painIssues".' });
+  if (!issues.some(isError) && (set.categories?.length ?? 0) + set.exerciseTypes.length + set.phases.length + set.weeks.length + set.planB.length + set.coachNotes.length + set.circuits.length + (set.valueTypes?.length ?? 0) + (set.benchmarkTypes?.length ?? 0) + (set.goals?.length ?? 0) + (set.painIssues?.length ?? 0) + (set.places?.length ?? 0) === 0) {
+    issues.push({ path: "", message: 'Nothing to do - expected at least one entry in "categories", "exerciseTypes", "circuits", "phases", "weeks", "planB", "coachNotes", "valueTypes", "benchmarkTypes", "goals", "painIssues" or "places".' });
   }
   return split(issues.some(isError) ? null : set, issues);
 }
@@ -997,7 +1070,7 @@ export function validateChangeSet(raw: unknown): ValidationResult<AIChangeSet> {
 /** True if a parsed document looks like a change set rather than the older weekly/phase plan formats. */
 export function isChangeSetShape(raw: unknown): boolean {
   if (!isPlainObject(raw)) return false;
-  if (raw.categories !== undefined || raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined || raw.circuits !== undefined || raw.valueTypes !== undefined || raw.benchmarkTypes !== undefined || raw.goals !== undefined || raw.painIssues !== undefined) return true;
+  if (raw.categories !== undefined || raw.exerciseTypes !== undefined || raw.planB !== undefined || raw.coachNotes !== undefined || raw.circuits !== undefined || raw.valueTypes !== undefined || raw.benchmarkTypes !== undefined || raw.goals !== undefined || raw.painIssues !== undefined || raw.places !== undefined) return true;
   const phases = Array.isArray(raw.phases) ? raw.phases : [];
   const weeks = Array.isArray(raw.weeks) ? raw.weeks : [];
   if (phases.some((p) => isPlainObject(p) && "action" in p)) return true;

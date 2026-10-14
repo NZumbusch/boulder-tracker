@@ -1,9 +1,9 @@
 import type { WeatherLocation } from "../preferences/migrate";
 
 /**
- * The places training happens at: your home, crags, gyms, anywhere else you go. One list, kept on the device
- * (where you are is not something that travels): the weather reads the ones with coordinates, a session points at
- * one by name, and the AI coach knows them. A place is known by its name (unique, ignoring case and spaces at the
+ * The places training happens at: your home, crags, gyms, anywhere else you go. One list, in the database (so it
+ * is backed up, synced and undone with the plan, and the AI coach can change it): the weather reads the ones with
+ * coordinates, a session points at one by name, and the AI coach knows them. A place is known by its name (unique, ignoring case and spaces at the
  * ends), which is also what a session stores - so a session survives a place being deleted, and a second device
  * that has no such place still shows where it was.
  */

@@ -155,3 +155,49 @@ describe("the plan history", () => {
     expect(await storage.getTrainingBlocks()).toEqual([{ id: "old", name: "Old", phaseId: "p", startDate: "2026-09-28", endDate: "2026-10-11" }]);
   });
 });
+
+describe("places in a plan change", () => {
+  const withPlaces = () => {
+    setDbState({
+      workouts: [{ ...w("a", "2026-W40"), location: "Gym A" } as Workout, { ...w("done", "2026-W39", "completed"), location: "Gym A" } as Workout, { ...w("other", "2026-W41"), location: "Elsewhere" } as Workout],
+      trainingBlocks: [], dismissedSessions: [], weekNotes: [], planAlternatives: [], exerciseTypes: [], phaseDefs: [],
+      templates: { p: [{ id: "t", name: "T", dayOfWeek: "Monday", exercises: [], location: "gym a" }] },
+      places: [{ name: "Gym A", kind: "gym" }, { name: "Brione", kind: "crag" }],
+    });
+  };
+  const rename = { weeks: [], weekNotes: [], places: [{ name: "Boulderwelt", kind: "gym" as const }, { name: "Brione", kind: "crag" as const }], placeRenames: [{ from: "Gym A", to: "Boulderwelt" }] };
+
+  it("saves the list, and a rename follows through every session and template that names the place", async () => {
+    withPlaces();
+    await storage.applyPlanWrites(rename);
+    expect((await storage.getPlaces()).map((p) => p.name)).toEqual(["Boulderwelt", "Brione"]);
+    const locations = Object.fromEntries((await storage.getWorkouts()).map((x) => [x.id, x.location]));
+    expect(locations).toEqual({ a: "Boulderwelt", done: "Boulderwelt", other: "Elsewhere" });
+    expect((await storage.getTemplates()).p[0].location).toBe("Boulderwelt");
+  });
+
+  it("an undo puts the places back, and the logged session's place name with them", async () => {
+    withPlaces();
+    await storage.applyPlanWrites(rename);
+    await storage.undoPlanChange();
+    expect((await storage.getPlaces()).map((p) => p.name)).toEqual(["Gym A", "Brione"]);
+    const locations = Object.fromEntries((await storage.getWorkouts()).map((x) => [x.id, x.location]));
+    expect(locations).toEqual({ a: "Gym A", done: "Gym A", other: "Elsewhere" });
+    expect((await storage.getTemplates()).p[0].location).toBe("gym a");
+  });
+
+  it("leaves the places alone when the change doesn't touch them", async () => {
+    withPlaces();
+    await storage.applyPlanWrites({ weeks: [], weekNotes: [{ weekId: "2026-W40", text: "x" }] });
+    expect((await storage.getPlaces()).map((p) => p.name)).toEqual(["Gym A", "Brione"]);
+  });
+
+  it("renames one place directly, refusing a taken or empty name", async () => {
+    withPlaces();
+    expect(await storage.renamePlace("Gym A", "Brione")).toBe(false);
+    expect(await storage.renamePlace("Gym A", "  ")).toBe(false);
+    expect(await storage.renamePlace("Gym A", " Halle ")).toBe(true);
+    expect((await storage.getPlaces()).map((p) => p.name)).toEqual(["Halle", "Brione"]);
+    expect((await storage.getWorkouts()).find((x) => x.id === "a")?.location).toBe("Halle");
+  });
+});

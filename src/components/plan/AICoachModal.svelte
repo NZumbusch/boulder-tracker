@@ -158,13 +158,14 @@
     ...(trainingState.aiSharing.painLogs ? {} : { pain: 'Off in AI Sharing' }),
     ...(trainingState.aiSharing.competitions ? {} : { goals: 'Off in AI Sharing' }),
     ...(trainingState.aiSharing.coachNotes === false ? { notes: 'Off in AI Sharing' } : {}),
+    ...(trainingState.aiSharing.places === false ? { places: 'Off in AI Sharing' } : {}),
   });
   const effectiveAreas = $derived(organiseAreas.filter((a) => !blockedAreas[a]));
   const organiseSource = $derived({
     exerciseTypes: trainingState.exerciseTypes, analyticsCategories: trainingState.analyticsCategories, workouts: trainingState.workouts,
     circuits: trainingState.circuits, phaseDefs: trainingState.phaseDefs, trainingBlocks: trainingState.trainingBlocks, templates: trainingState.templates,
     coachNotes: trainingState.coachNotes, valueDefs: trainingState.valueDefs, benchmarkTypes: trainingState.benchmarkTypes, benchmarks: trainingState.benchmarks,
-    goals: trainingState.goals, painIssues: trainingState.painIssues, today: trainingState.todayIso,
+    goals: trainingState.goals, painIssues: trainingState.painIssues, places: trainingState.places, today: trainingState.todayIso,
   });
   function toggleArea(id: OrganiseArea) {
     organiseAreas = organiseAreas.includes(id) ? organiseAreas.filter((a) => a !== id) : ORGANISE_AREAS.map((a) => a.id).filter((a) => a === id || organiseAreas.includes(a));
@@ -283,6 +284,7 @@
     { id: 'benchmark', label: 'Benchmark tests', icon: 'ic:baseline-speed' },
     { id: 'goal', label: 'Goals', icon: 'ic:baseline-flag' },
     { id: 'pain', label: 'Pain issues', icon: 'ic:baseline-healing' },
+    { id: 'place', label: 'Places', icon: 'ic:baseline-place' },
   ];
 
   function toggle(id: string) {

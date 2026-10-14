@@ -57,6 +57,20 @@ describe("buildOrganisePrompt", () => {
     expect(p).toContain('"status":"open"');
     expect(p).not.toContain("Pigeon pose");
   });
+  it("lists the places without their coordinates, and asks for edits and removals only", () => {
+    const more = {
+      ...source,
+      places: [{ name: "Brione", kind: "crag", latitude: 46.3, longitude: 8.8, notes: "Dries fast" }, { name: "Gym", kind: "gym", price: "CHF 22" }],
+      workouts: [{ id: "w", status: "planned", weekId: "2026-W41", exercises: [], location: "brione" }],
+    } as never;
+    const p = buildOrganisePrompt(more, "", ["places"]);
+    expect(p).toContain('{"name":"Brione","kind":"crag","notes":"Dries fast","onMap":true,"sessionsNamingIt":1}');
+    expect(p).toContain('{"name":"Gym","kind":"gym","price":"CHF 22","onMap":false,"sessionsNamingIt":0}');
+    expect(p).not.toMatch(/46\.3|latitude/);
+    expect(p).toContain("Never add a place");
+    expect(p).not.toContain("Pigeon pose");
+    expect(validateChangeSet({ places: [{ action: "edit", name: "Brione", rename: "Brione TI", kind: "crag", price: "free", notes: "" }, { action: "remove", name: "Gym" }] }).valid).toBe(true);
+  });
   it("the reply shape it asks for is a valid change set", () => {
     const reply = { summary: "x", categories: [{ action: "add", name: "Mobility" }], exerciseTypes: [{ action: "edit", name: "Pigeon pose", categoryName: "Mobility", group: "Stretching" }] };
     expect(validateChangeSet(reply).valid).toBe(true);

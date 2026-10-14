@@ -1,4 +1,5 @@
 import type { SettingsRecord } from "./preferences/portable";
+import type { Place } from "./places/places";
 /**
  * Valid navigation views within the application.
  */
@@ -923,6 +924,8 @@ export interface TrainingData {
   coachNotes: CoachNote[];
   circuits: Circuit[];
   goals: GoalEvent[];
+  /** Where you train (`lib/places`). */
+  places: Place[];
   exerciseTypes: ExerciseTypeDef[];
   templates: Record<string, WorkoutTemplate[]>;
   phaseDefs: PhaseDef[];

@@ -1,5 +1,6 @@
 import { storage } from '../storage';
 import type { TrainingBlock, DismissedSession, WeekNote, GoalEvent, WorkoutTemplate, PlanAlternative, AthleteProfile, CoachNote, Circuit } from '../types';
+import type { Place } from '../places/places';
 import { getDominantBlockForWeek } from '../planning/trainingBlocks';
 
 /**
@@ -21,10 +22,12 @@ export class PlanningStore {
   /** Saved circuits - see `Circuit`. */
   circuits = $state<Circuit[]>([]);
   goals = $state<GoalEvent[]>([]);
+  /** Where you train (`lib/places`). */
+  places = $state<Place[]>([]);
   templates = $state<Record<string, WorkoutTemplate[]>>({});
 
   async load() {
-    const [trainingBlocks, dismissedSessions, weekNotes, planAlternatives, athleteProfile, coachNotes, circuits, goals, templates] = await Promise.all([
+    const [trainingBlocks, dismissedSessions, weekNotes, planAlternatives, athleteProfile, coachNotes, circuits, goals, places, templates] = await Promise.all([
       storage.getTrainingBlocks(),
       storage.getDismissedSessions(),
       storage.getWeekNotes(),
@@ -33,6 +36,7 @@ export class PlanningStore {
       storage.getCoachNotes(),
       storage.getCircuits(),
       storage.getGoals(),
+      storage.getPlaces(),
       storage.getTemplates(),
     ]);
     this.trainingBlocks = trainingBlocks;
@@ -43,6 +47,7 @@ export class PlanningStore {
     this.coachNotes = coachNotes;
     this.circuits = circuits;
     this.goals = goals;
+    this.places = places;
     this.templates = templates;
   }
 

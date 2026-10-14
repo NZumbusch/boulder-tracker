@@ -22,8 +22,8 @@ function valueBuckets(slot: any): any[] {
 }
 
 describe("Prerequisite: DATA_EXPORT_VERSION", () => {
-  it("is bumped to 3.36", () => {
-    expect(DATA_EXPORT_VERSION).toBe("3.36");
+  it("is bumped to 3.37", () => {
+    expect(DATA_EXPORT_VERSION).toBe("3.37");
   });
 });
 
@@ -31,7 +31,7 @@ describe("Primary fixture: old_backup.json (exportVersion 2.1, real user data)",
   it("runs the full chain without throwing and lands on the current version", () => {
     const data = loadFixture("backup-2.1.json");
     expect(() => runDataMigrations(data)).not.toThrow();
-    expect(data.exportVersion).toBe("3.36");
+    expect(data.exportVersion).toBe("3.37");
   });
 
   it("preserves all 16 workouts", () => {
@@ -129,7 +129,7 @@ describe("Hand-built 1.0/2.0-era fixture (branch old_backup.json doesn't exercis
     expect(Array.isArray(data.benchmarks)).toBe(true);
     expect(Array.isArray(data.benchmarkTypes)).toBe(true);
     expect(data.benchmarkTypes.length).toBeGreaterThan(0);
-    expect(data.exportVersion).toBe("3.36");
+    expect(data.exportVersion).toBe("3.37");
   });
 
   it('treats "2.0" the same as no version at all', () => {
@@ -442,7 +442,7 @@ describe("Full-chain: minimal 1.0-shaped fixture to current version", () => {
     };
 
     expect(() => runDataMigrations(data)).not.toThrow();
-    expect(data.exportVersion).toBe("3.36");
+    expect(data.exportVersion).toBe("3.37");
     expect(Array.isArray(data.workouts)).toBe(true);
     expect(data.periodization).toBeUndefined();
     expect(Array.isArray(data.trainingBlocks)).toBe(true);
@@ -541,6 +541,6 @@ describe("Round-trip: export -> import preserves counts and fields", () => {
     expect(imported.workouts[0].exercises[0].prescribed.notes).toBe("good session");
     expect(imported.benchmarks).toHaveLength(1);
     expect(imported.benchmarks[0].value).toBe(20);
-    expect(imported.exportVersion).toBe("3.36");
+    expect(imported.exportVersion).toBe("3.37");
   });
 });
