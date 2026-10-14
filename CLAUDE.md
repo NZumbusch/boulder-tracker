@@ -12,4 +12,5 @@ Essentials:
 - `stuff/` and `*.private.test.ts` are git-ignored and hold Nathan's private data: never commit, print or publish them.
 - New sheets/modals call `backWhile(() => open, close)`; new settings go through the registries (`preferences/tunables.ts`, `homeDetails.ts`); after using a new icon run `npm run icons`.
 - Read weeks with `trainingState.getWorkoutsForWeek(weekId)`, never by filtering `workouts`.
+- No attribution: commit messages and PR descriptions carry no `Co-Authored-By: Claude` / `Claude-Session` lines or session links (Nathan's rule; also set in `.claude/settings.json`), and no mention of the model.
 - Browser checks: `scripts/headless/` (see the traps in HANDOVER.md).
