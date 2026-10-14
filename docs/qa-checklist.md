@@ -200,6 +200,19 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 13.7 | Bottom bar setting | Settings → App & display → Look & feel → Navigation → Bottom bar; then back. | The old bar returns (Settings and the tour are in Home's top bar again, the calendar's + is back in its header); switching back restores the drawer. Per device: a second device keeps its own choice. | | |
 | 13.8 | Top bar | Move through every screen. | The top bar is always the same height and in the same place; titles, and each screen's own buttons (quick log, Plan's view switch and AI coach, History's filter, Analytics' paging) on the right; Settings sub-pages show a back arrow. | | |
 
+## 14. Live session: circuits, weights, notification (2026-10-15)
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 14.1 | Skip in a circuit | Session with a circuit of 2+ exercises: tap Skip (or swipe left) on one of them. | A sheet: "Just <it>" or "The whole circuit". Just it: the circuit's Start now runs without it and its rests follow the others; whole circuit: all members skipped, one Undo brings them back. Settings → Sessions & timer → Circuits → "Ask what to skip" off: it skips only that exercise. | | |
+| 14.2 | Stop with a circuit running | Start a circuit, do a set or two, minimise it, Stop → Save what I did. | The Stop sheet says the circuit's N sets are logged and it stops; the rating opens; the circuit's timer, beeps and notification are gone; the members it did sets for show as done in the saved session, the others unlogged. Discard drops everything. | | |
+| 14.3 | A second circuit | With circuit A started, tap Start circuit on B. With A only opened (never started), do the same. | Started: a sheet "A is still running" (back to it / drop it and start this). Never started: B just opens. No button is greyed without a reason. | | |
+| 14.4 | Planned weight | AI-planned hang with "+12.5 kg" (type tracks no weight): finish it, and open "Set details" in its circuit. | Weight is a field (stepper 2.5 kg) with the target beside it; the details sheet offers Weight. Any exercise with sets/reps/time and no weight shows "Add weight". | | |
+| 14.5 | Hold or Hang | Run a circuit with Chin Tucks (timed reps) and Max Hangs. | Dial and notification say "Hold 3/8" for the tucks, "Hang 3/5" for the hangs. | | |
+| 14.6 | Notification buttons | Run a circuit with the screen off. | During a set: Pause, Done, Skip. Done ends the set now (a counted one with its target reps), Skip records it as not done, the timer moves on and the notification follows; during a rest one Skip button; a pacer has Done only. Pausing and resuming from the notification keeps Done and Skip. | | |
+| 14.7 | Floating + on scroll | History or Analytics: scroll down, then up. | The + slides away going down and returns going up, at the top and at the end of the list; it never covers the last row. | | |
+| 14.8 | Week list on a phone | Plan → calendar → Week on a portrait phone, a tablet and a phone on its side; then Settings → App & display → Plan calendar & day. | Portrait phone: the list (setting "List on a phone held upright", which is on that page along with the other calendar settings and "New day starts at"); tablet and landscape: the hour grid. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
