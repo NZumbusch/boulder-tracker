@@ -20,6 +20,17 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-16-places-and-previews",
+    title: "Places, session previews and event details",
+    points: [
+      "Tap a session in the calendar for a preview first: when, where, the note about what it is for, and its exercises. Open goes into the full session, Start begins it.",
+      "Tap an event from your phone calendar for its details - when, where (with Find on map), which calendar, notes.",
+      "Sessions can say where they are. Settings → Model & health → Places, weather & outdoor now holds your places (home, crags, gyms): rename them, add coordinates by search or by pasting them from a map app, and write a price, opening hours and notes. A Where chip in the session editor picks one (or any text).",
+      "The AI coach knows your places (never their coordinates; switch under AI sharing) and can set a session's place by name. The weather still follows your home and crags.",
+      "The week in Plan can be hour columns or a list on a phone too: two small icons next to the day/week/month/year switch.",
+    ],
+  },
+  {
     id: "2026-10-15-bar-and-calendar",
     title: "Bottom bar on the phone, a calmer top bar, a roomier calendar",
     points: [

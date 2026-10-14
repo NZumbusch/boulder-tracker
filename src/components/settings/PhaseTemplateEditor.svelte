@@ -216,6 +216,19 @@
           />
         </label>
       </div>
+      <!-- Where: one of your places by name, or any text; carried onto every workout the template generates. -->
+      <label class="space-y-1 block">
+        <span class="text-label text-content-subtle ml-1 block">Where</span>
+        <input
+          type="text"
+          maxlength="80"
+          list="template-places"
+          placeholder="—"
+          value={workout.location ?? ''}
+          onchange={(e) => workout.location = e.currentTarget.value.trim() || undefined}
+          class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content rounded-control border border-border-strong text-label outline-none focus:border-primary/50 transition-colors"
+        />
+      </label>
       <div class="space-y-2">
         <section
           class="space-y-2 min-h-[40px] outline-none"
@@ -278,3 +291,7 @@
   {/each}
   <button onclick={addWorkoutToPhase} class="w-full py-2.5 border-2 border-dashed border-border hover:border-border-strong rounded-card flex items-center justify-center gap-2 text-content-subtle hover:text-content-muted transition-all"><Icon icon="ic:baseline-plus" class="text-sm" /><span class="text-label">Add Session</span></button>
 </div>
+
+<datalist id="template-places">
+  {#each trainingState.places as place (place.name)}<option value={place.name}></option>{/each}
+</datalist>
