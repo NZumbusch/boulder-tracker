@@ -83,6 +83,8 @@ export interface CSSession {
   plannedDuration?: number;
   /** A note about the session as a whole (shown with the session, not on an exercise). */
   notes?: string;
+  /** Where: the name of one of the athlete's places (or any text). */
+  place?: string;
   exercises: CSItem[];
 }
 
@@ -122,6 +124,8 @@ export interface CSSessionFields {
   startTime?: string;
   plannedDuration?: number;
   notes?: string;
+  /** "" clears it. */
+  place?: string;
 }
 
 export type CSSessionChange =
@@ -365,6 +369,17 @@ function validateCircuitChange(raw: unknown, path: string, issues: Issues): CSCi
   }
 }
 
+/** A place name: text, trimmed; an empty one means "none" (only where `allowEmpty`, i.e. in an edit, where it clears the place). */
+function validatePlaceName(raw: unknown, path: string, issues: Issues, allowEmpty = false): string | undefined {
+  if (raw === undefined || raw === null) return allowEmpty && raw === null ? "" : undefined;
+  if (typeof raw !== "string") {
+    issues.push({ path, message: `Expected the name of a place as text, got ${JSON.stringify(raw)}.` });
+    return undefined;
+  }
+  const name = raw.trim().slice(0, 80);
+  return name === "" && !allowEmpty ? undefined : name;
+}
+
 function validateSession(raw: unknown, path: string, issues: Issues): CSSession | null {
   if (!isPlainObject(raw)) {
     issues.push({ path, message: `Expected a session object, got ${JSON.stringify(raw)}.` });
@@ -377,6 +392,7 @@ function validateSession(raw: unknown, path: string, issues: Issues): CSSession 
     startTime: validateTimeOfDay(raw.startTime, `${path}.startTime`, issues),
     plannedDuration: validateDurationMinutes(raw.plannedDuration, `${path}.plannedDuration`, issues),
     notes: validateNote(raw.notes, `${path}.notes`, issues),
+    place: validatePlaceName(raw.place, `${path}.place`, issues),
     exercises: raw.exercises === undefined ? [] : validateItems(raw.exercises, `${path}.exercises`, issues),
   };
   return name ? session : null;
@@ -503,6 +519,7 @@ function validateSessionFields(raw: unknown, path: string, issues: Issues): CSSe
   if (raw.startTime !== undefined) fields.startTime = validateTimeOfDay(raw.startTime, `${path}.startTime`, issues);
   if (raw.plannedDuration !== undefined) fields.plannedDuration = validateDurationMinutes(raw.plannedDuration, `${path}.plannedDuration`, issues);
   if (raw.notes !== undefined) fields.notes = typeof raw.notes === "string" ? raw.notes.trim() : validateNote(raw.notes, `${path}.notes`, issues);
+  if (raw.place !== undefined) fields.place = validatePlaceName(raw.place, `${path}.place`, issues, true);
   return fields;
 }
 

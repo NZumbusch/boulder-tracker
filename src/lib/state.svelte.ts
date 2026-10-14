@@ -66,6 +66,8 @@ import { OutdoorAscentStore } from './stores/outdoorAscentStore.svelte';
 import { UiStore } from './stores/uiStore.svelte';
 import { SessionStore } from './stores/sessionStore.svelte';
 import { layout } from './navigation/layoutMode.svelte';
+import { renamedPlace, samePlaceName, placeByName, hasCoordinates, type Place } from './places/places';
+import type { DailyForecastDay } from './weather/api';
 import { BackupStore } from './stores/backupStore.svelte';
 import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { applySettingsRecords, resetGroups, applyGroups, buildSettingsFile, parseSettingsFile, toSettingsRecords, type SettingsGroupId } from './preferences/portable';
@@ -208,6 +210,50 @@ class TrainingState {
 
   // --- Weather ---
 
+  /** Where you train (`lib/places`). */
+  get places(): Place[] { return this.preferencesStore.places; }
+  /** Replaces the places and fetches the weather of the home and crags among them. */
+  async setPlaces(places: Place[]) {
+    const before = JSON.stringify([this.homeLocation, this.crags]);
+    this.preferencesStore.setPlaces(places);
+    // Notes, prices and renames of places that are not weather places must not cost a network call.
+    if (JSON.stringify([this.homeLocation, this.crags]) === before) return;
+    await Promise.all([this.weatherStore.loadHome(this.homeLocation), this.weatherStore.loadCrags(this.crags)]);
+  }
+  /**
+   * Renames a place, and the sessions and phase templates that name it (they hold the name). `false` when the new name
+   * is empty or another place has it.
+   */
+  async renamePlace(from: string, to: string): Promise<boolean> {
+    const next = renamedPlace(this.places, from, to);
+    if (!next) return false;
+    const name = to.trim();
+    await this.setPlaces(next);
+    for (const w of this.workouts.filter((x) => x.location && samePlaceName(x.location, from))) {
+      await this.saveWorkoutQuiet({ ...($state.snapshot(w) as Workout), location: name });
+    }
+    const templates = $state.snapshot(this.templates) as Record<string, WorkoutTemplate[]>;
+    let changed = false;
+    for (const list of Object.values(templates)) {
+      for (const t of list ?? []) {
+        if (t.location && samePlaceName(t.location, from)) { t.location = name; changed = true; }
+      }
+    }
+    if (changed) {
+      await storage.saveTemplates(templates);
+      await this.refresh();
+    }
+    return true;
+  }
+  /** The forecast for one day (ISO date) at one of the places, when it has coordinates and the weather has been read for it. */
+  forecastAt(placeName: string, isoDate: string): DailyForecastDay | null {
+    const place = placeByName(this.places, placeName);
+    if (!place || !hasCoordinates(place)) return null;
+    const snapshot = place.kind === 'home'
+      ? this.weatherStore.home.snapshot
+      : this.weatherStore.crags[this.crags.findIndex((c) => samePlaceName(c.name, place.name))]?.snapshot;
+    return snapshot?.daily.find((d) => d.date === isoDate) ?? null;
+  }
   get homeLocation() { return this.preferencesStore.homeLocation; }
   get crags() { return this.preferencesStore.crags; }
   get homeWeather() { return this.weatherStore.home; }
@@ -1501,6 +1547,7 @@ class TrainingState {
       circuits: this.circuits,
       benchmarkTypes: this.benchmarkTypes,
       valueDefs: this.valueDefs,
+      places: this.places,
       goals: this.goals,
       painIssues: this.painIssues,
       today: this.todayIso,

@@ -15,6 +15,7 @@ import type {
   WeekNote,
   Workout,
 } from "../types";
+import type { Place } from "../places/places";
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
 import { otherValuesText, resolveFields } from "../benchmarks/model";
 import { isWeighInType } from "../benchmarks/bodyweight";
@@ -139,6 +140,8 @@ export interface RecentWorkoutSummary {
   name?: string;
   /** Planned/actual start time of day, "HH:mm" - omitted when the session isn't pinned to one. */
   startTime?: string;
+  /** Where it was (a place's name, or any text) - when set. */
+  place?: string;
   /** Planned wall-clock length of the session in minutes, where one was prescribed. */
   plannedDuration?: number;
   /** Actual calculated stress score - only meaningful once `status` is "completed". */
@@ -172,6 +175,7 @@ export function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], n
     weekId: w.weekId,
     name: w.notes || undefined,
     startTime: w.startTime,
+    place: w.location || undefined,
     plannedDuration: w.plannedDuration,
     loadFactor: w.status === "completed" ? w.loadFactor : undefined,
     fingers: w.fingers,
@@ -561,6 +565,21 @@ export interface AIContextSource {
   valueDefs?: ValueDef[];
   /** The benchmark tests: with them, results are described by their conditions ("Edge depth 20 mm"). */
   benchmarkTypes?: BenchmarkTypeDef[];
+  /** The places the athlete trains at (`lib/places`) - optional so callers from before them keep compiling. */
+  places?: Place[];
+}
+
+/** A place for a prompt: what the coach can use - never the coordinates. */
+export interface PlaceSummary {
+  name: string;
+  kind: string;
+  price?: string;
+  hours?: string;
+  notes?: string;
+}
+
+export function buildPlaceContext(places: readonly Place[] | undefined): PlaceSummary[] {
+  return (places ?? []).map((p) => ({ name: p.name, kind: p.kind, ...(p.price ? { price: p.price } : {}), ...(p.hours ? { hours: p.hours } : {}), ...(p.notes ? { notes: p.notes } : {}) }));
 }
 
 /** A benchmark result for a prompt: the stored result, with the names its values lack. */
@@ -653,6 +672,8 @@ export interface AIContextProfile {
   tests?: TestSummary[];
   trainingBlocks?: TrainingBlockSummary[];
   goals?: GoalSummary[];
+  /** Where I train, with what it costs, when it is open and what to know - when sharing it is on. */
+  places?: PlaceSummary[];
   readiness?: ReadinessSnapshot;
   painIssues?: PainIssueSummary[];
   outdoorAscents?: OutdoorAscentSummary[];
@@ -724,6 +745,10 @@ export function buildAIContextProfile(
   }
   if (sharing.competitions) {
     profile.goals = buildGoalContext(source.goals, asOf);
+  }
+  // "places" is a newer sharing switch - absent in older saved preferences means on.
+  if (sharing.places !== false && source.places?.length) {
+    profile.places = buildPlaceContext(source.places);
   }
   if (sharing.readinessMetrics) {
     profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf, model,

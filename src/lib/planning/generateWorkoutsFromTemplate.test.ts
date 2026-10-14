@@ -19,6 +19,13 @@ describe("generateWorkoutsFromTemplate", () => {
     expect(workout.dayOfWeek).toBe("Monday");
   });
 
+  it("carries the template's place onto the generated workout, and none when it has none", () => {
+    const [withPlace] = generateWorkoutsFromTemplate("2026-W25", [{ ...TEMPLATE, location: "Uni Bloc" }]);
+    expect(withPlace.location).toBe("Uni Bloc");
+    const [without] = generateWorkoutsFromTemplate("2026-W25", [TEMPLATE]);
+    expect(without).not.toHaveProperty("location");
+  });
+
   it("leaves both undefined for a template that sets neither", () => {
     const [workout] = generateWorkoutsFromTemplate("2026-W25", [
       { id: "tpl2", name: "Open session", exercises: [] },

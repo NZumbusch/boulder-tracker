@@ -53,6 +53,7 @@ type Session = {
   name?: string;
   dayOfWeek?: string;
   startTime?: string;
+  place?: string;
   plannedDuration?: number;
   notes?: string;
   exercises: (Exercise | { circuit: Record<string, unknown>; exercises: Exercise[] })[];
@@ -95,11 +96,11 @@ function exercisesOf(w: { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] },
 }
 
 function templateSession(t: WorkoutTemplate, types: ExerciseTypeDef[], tests: TestLookup, noNotes = false): Session {
-  return compact({ name: t.name, dayOfWeek: t.dayOfWeek, startTime: t.startTime, plannedDuration: t.plannedDuration, notes: t.description, exercises: exercisesOf({ exercises: t.exercises ?? [], groups: t.groups }, types, tests, noNotes) }) as Session;
+  return compact({ name: t.name, dayOfWeek: t.dayOfWeek, startTime: t.startTime, place: t.location, plannedDuration: t.plannedDuration, notes: t.description, exercises: exercisesOf({ exercises: t.exercises ?? [], groups: t.groups }, types, tests, noNotes) }) as Session;
 }
 
 function workoutSession(w: Workout, types: ExerciseTypeDef[], tests: TestLookup): Session {
-  return compact({ name: w.notes, dayOfWeek: w.dayOfWeek, startTime: w.startTime, plannedDuration: w.plannedDuration, notes: w.description, exercises: exercisesOf(w, types, tests) }) as Session;
+  return compact({ name: w.notes, dayOfWeek: w.dayOfWeek, startTime: w.startTime, place: w.location, plannedDuration: w.plannedDuration, notes: w.description, exercises: exercisesOf(w, types, tests) }) as Session;
 }
 
 export function buildPlanContext(input: PlanContextInput): string {

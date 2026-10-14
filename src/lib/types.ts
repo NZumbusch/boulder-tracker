@@ -344,6 +344,11 @@ export interface Workout {
   date: string | null;
   startTime?: string; // HH:mm format - the planned/actual start time of day
   /**
+   * Where the session happens: the name of one of your places (`lib/places`) or any text. Optional. By name, so it survives
+   * a place being deleted and shows on a device that does not have the place.
+   */
+  location?: string;
+  /**
    * Planned wall-clock length of the session in minutes - what the session
    * is *scheduled* to take, independent of the per-exercise `duration`
    * values that drive `plannedLoad`. Optional: a session with no planned
@@ -672,6 +677,8 @@ export interface WorkoutTemplate {
   dayOfWeek?: DayOfWeek;
   /** Planned time of day, "HH:mm" - carried onto every workout this template generates. */
   startTime?: string;
+  /** Where - carried onto every workout this template generates as its `location`. */
+  location?: string;
   /** Planned session length in minutes - carried onto every workout this template generates. */
   plannedDuration?: number;
   /** A note about the session as a whole - carried onto every workout this template generates as its `description`. */

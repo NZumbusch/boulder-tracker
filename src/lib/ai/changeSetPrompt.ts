@@ -84,7 +84,7 @@ The app applies "categories" first, then "exerciseTypes", then "circuits", then 
 ${COACH_NOTES_INSTRUCTIONS}
 
 SESSION (used in "sessions" and in an "add" session change):
-  { "name": "Limit bouldering", "dayOfWeek": "Tuesday", "startTime": "18:00", "plannedDuration": 90, "notes": "About the session as a whole", "exercises": [ EXERCISE, ... ] }
+  { "name": "Limit bouldering", "dayOfWeek": "Tuesday", "startTime": "18:00", "plannedDuration": 90, "place": "Steinbock Konstanz", "notes": "About the session as a whole", "exercises": [ EXERCISE, ... ] }
   EXERCISE: { "exerciseTypeName": "Limit Bouldering", "values": { ... } }
   CIRCUIT (in a session's "exercises", like an EXERCISE):
     { "circuit": "Core A" }   or   { "circuit": "Core A", "rounds": 4, "transition": 20, "roundRest": 45 }   (a saved circuit, optionally re-timed - how to progress it)
@@ -95,6 +95,7 @@ SESSION (used in "sessions" and in an "add" session change):
   - ONE SET IS ONE TURN: a one-sided exercise (a stretch or hold "per side", single-leg or single-arm work) needs one rep per side - "reps": 2 with "timeOn" of the time per side and "timeOff" as the pause to switch sides, e.g. 30 s per side with 5 s to switch = { "timeOn": 30, "timeOff": 5, "reps": 2, "repLabel": "Side" } ("repLabel" makes the timer say "Side 1/2" and "Switch"; "Arm"/"Leg" work the same way; leave it out for ordinary reps). Without "reps": 2 the app does only ONE 30 s hold per round. Never write "per side" in the notes without also giving "reps": 2.
   - Use a superset to fill a long rest efficiently: e.g. weighted pull-ups (4 x 6) with antagonist push work and a mobility drill between sets, rounds = the pull-up sets, and "roundRest" chosen so the pull-ups still get about the rest they need. Use circuits for core, prehab and conditioning blocks. Don't superset two hard finger or maximal-strength exercises with each other.
   - "name" required. "dayOfWeek" (Monday ... Sunday), "startTime" ("HH:mm", 24-hour), "plannedDuration" (whole minutes, the whole session incl. warm-up) optional.
+  - "place" (optional): where the session is - the name of one of "My Places" above, exactly as written (if there is no such section, leave it out). Pick the place that suits the session: a board session where there is a board, outdoor work at a crag, and check the place's opening hours against the start time. Any other text is accepted (an outside venue) but has no weather and no notes behind it.
   TEST (in a session's "exercises", like an EXERCISE): { "test": "Max Hang", "conditions": { "Edge depth": 20 }, "values": { "notes": "after the warm-up, full rest between attempts" } }
   Other examples: { "test": "Weighted Pullup", "conditions": { "Reps": 1 } } = find the heaviest single; { "test": "Weighted Pullup", "conditions": { "Added weight": 10 } } = max reps at +10 kg.
   - This schedules a benchmark test inside the session: the athlete enters the result during the session and the app records it, so progress is measured. Use only names from "Tests" above (if there is no such section, there are no tests). "conditions" is what is SET beforehand, by the names of the test's "fields" (any of them, a result field too); leave out what the athlete is to FIND (the heaviest single sets "Reps": 1 and leaves the weight open; a rep test at a given load sets the weight and leaves the reps open). Fields marked "usuallySame" are what results are compared by - repeat the last result's values for them unless the plan is to test something else, e.g. a different weight or edge to fill a gap in the history; weights are kg. A test takes about 10 minutes - leave room for it.
@@ -105,7 +106,7 @@ SESSION (used in "sessions" and in an "add" session change):
 SESSION CHANGE (in "sessionChanges"):
   { "action": "add", "session": SESSION }
   { "action": "remove", "match": { "name": "Recovery", "dayOfWeek": "Sunday" } }
-  { "action": "edit", "match": { "dayOfWeek": "Thursday" }, "set": { "name": ..., "dayOfWeek": ..., "startTime": ..., "plannedDuration": ..., "notes": ... }, "exerciseChanges": [ EXERCISE CHANGE, ... ] }
+  { "action": "edit", "match": { "dayOfWeek": "Thursday" }, "set": { "name": ..., "dayOfWeek": ..., "startTime": ..., "plannedDuration": ..., "place": ..., "notes": ... }, "exerciseChanges": [ EXERCISE CHANGE, ... ] }
   { "action": "edit", "match": { "name": "Board" }, "exercises": [ EXERCISE, ... ] }   (replace all of that session's exercises)
   - "match" picks exactly one existing session by "name" and/or "dayOfWeek" - use the names and days shown above. If a name or a day alone is ambiguous, give both.
   - "set" holds only the fields that change. "exercises" and "exerciseChanges" can't both be used in one edit.

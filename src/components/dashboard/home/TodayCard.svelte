@@ -55,6 +55,7 @@
         workout.planB && `Plan ${workout.planB.side}`,
         showTime && summary.startTime,
         showTime && `${summary.estimated ? '~' : ''}${summary.minutes} min`,
+        workout.location,
         `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
         showLoad && `load ${summary.plannedLoad} pts`,
       )}
