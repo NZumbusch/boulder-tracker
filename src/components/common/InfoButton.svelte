@@ -16,7 +16,7 @@
 {#if trainingState.helpButtons}
   <button
     onclick={(e) => { e.stopPropagation(); showInfo(term); }}
-    class="inline-flex items-center justify-center align-middle w-5 h-5 -my-1 rounded-full text-content-subtle/70 hover:text-content hover:bg-surface-elevated transition-colors shrink-0"
+    class="tap inline-flex items-center justify-center align-middle w-5 h-5 -my-1 rounded-full text-content-subtle/70 hover:text-content hover:bg-surface-elevated transition-colors shrink-0"
     aria-label="What is {GLOSSARY[term].title}?"
   >
     <Icon icon="ic:outline-help-outline" class="text-[13px]" />

@@ -238,7 +238,7 @@
       <div>
         <div class="flex items-start justify-between gap-2">
           <p class="text-label font-semibold text-content">Weigh-ins are a daily reading now</p>
-          <button onclick={() => dismiss(weighInSignature)} class="p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
+          <button onclick={() => dismiss(weighInSignature)} class="tap p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
         </div>
         <p class="text-caption text-content-subtle leading-relaxed">
           Your bodyweight lives under Home &rarr; Metrics, which is what the Home card, readiness and the % of bodyweight scores read - a Bodyweight test isn't needed, and the AI no longer schedules one.
@@ -259,7 +259,7 @@
       <div>
         <div class="flex items-start justify-between gap-2">
           <p class="text-label font-semibold text-content">Tidy up your tests</p>
-          <button onclick={() => dismiss(tidySignature)} class="p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
+          <button onclick={() => dismiss(tidySignature)} class="tap p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
         </div>
         <p class="text-caption text-content-subtle leading-relaxed">Some of these look like leftovers: the same test kept twice, one lift kept as a max-reps test and a heaviest-single test, or one your daily metrics already cover. Tick what to do; Undo is offered afterwards, and no result is ever deleted.</p>
       </div>
@@ -376,9 +376,9 @@
                 <div class="flex items-center justify-between gap-2">
                   <span class="min-w-0 text-body font-bold text-content truncate">{row.label.trim() || defName(row.valueId)}{#if def?.unit}<span class="text-content-subtle font-normal">&nbsp;· {def.measure === 'weight' ? trainingState.units.weight : def.unit}</span>{/if}</span>
                   <span class="flex items-center shrink-0">
-                    <button onclick={() => moveRow(i, -1)} disabled={i === 0} class="p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move up"><Icon icon="ic:baseline-arrow-upward" class="text-base" /></button>
-                    <button onclick={() => moveRow(i, 1)} disabled={i === editing.rows.length - 1} class="p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move down"><Icon icon="ic:baseline-arrow-downward" class="text-base" /></button>
-                    <button onclick={() => removeRow(i)} class="p-1.5 text-content-subtle hover:text-danger" aria-label="Remove"><Icon icon="ic:baseline-close" class="text-base" /></button>
+                    <button onclick={() => moveRow(i, -1)} disabled={i === 0} class="tap p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move up"><Icon icon="ic:baseline-arrow-upward" class="text-base" /></button>
+                    <button onclick={() => moveRow(i, 1)} disabled={i === editing.rows.length - 1} class="tap p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move down"><Icon icon="ic:baseline-arrow-downward" class="text-base" /></button>
+                    <button onclick={() => removeRow(i)} class="tap p-1.5 text-content-subtle hover:text-danger" aria-label="Remove"><Icon icon="ic:baseline-close" class="text-base" /></button>
                   </span>
                 </div>
                 <div class="flex items-center gap-2">

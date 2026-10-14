@@ -393,3 +393,8 @@ body {
 :root { --chrome-b: 0px; --fab-b: 0px; }
 :root[data-nav="bar"] { --chrome-b: 75px; }
 @media (max-height: 500px) { :root[data-nav="bar"] { --chrome-b: 52px; } }
+
+/* Small buttons keep their look but get a finger-sized touch area (at least ~44 px): the area grows by an invisible
+   margin around them. Static ones become the positioning context for it; absolute and fixed ones already are one. */
+.tap:not(.absolute):not(.fixed):not(.sticky) { position: relative; }
+.tap::after { content: ""; position: absolute; inset: -8px; }

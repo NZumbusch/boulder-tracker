@@ -132,10 +132,10 @@
             </div>
           </div>
           <div class="flex items-center gap-1 shrink-0">
-            <button onclick={() => onEdit(block)} class="p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit block">
+            <button onclick={() => onEdit(block)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit block">
               <Icon icon="ic:baseline-edit" class="text-sm" />
             </button>
-            <button onclick={() => onDelete(block.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete block">
+            <button onclick={() => onDelete(block.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete block">
               <Icon icon="ic:baseline-delete" class="text-sm" />
             </button>
           </div>

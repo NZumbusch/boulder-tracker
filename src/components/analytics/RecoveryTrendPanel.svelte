@@ -309,7 +309,7 @@
     <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0">
       <button
         onclick={() => trainingState.setRecoveryChartMode('overlay')}
-        class="p-1.5 rounded-control transition-colors {mode === 'overlay' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+        class="tap p-1.5 rounded-control transition-colors {mode === 'overlay' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
         aria-label="Overlay as % vs baseline"
         aria-pressed={mode === 'overlay'}
         title="% vs baseline"
@@ -318,7 +318,7 @@
       </button>
       <button
         onclick={() => trainingState.setRecoveryChartMode('lanes')}
-        class="p-1.5 rounded-control transition-colors {mode === 'lanes' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+        class="tap p-1.5 rounded-control transition-colors {mode === 'lanes' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
         aria-label="Separate rows"
         aria-pressed={mode === 'lanes'}
         title="Separate rows"

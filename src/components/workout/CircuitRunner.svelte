@@ -957,7 +957,7 @@
       <div class="w-full max-h-[75%] overflow-y-auto no-scrollbar bg-surface rounded-t-card border-t border-border-strong p-5 pb-8 space-y-3 animate-in slide-in-from-bottom-10" onclick={(e) => e.stopPropagation()}>
         <div class="flex items-center justify-between gap-3">
           <h3 class="text-title text-content truncate">{memberName(infoMember)}</h3>
-          <button onclick={() => (infoMember = null)} class="p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
+          <button onclick={() => (infoMember = null)} class="tap p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
         </div>
         <ExerciseDetails slot={m.slot} values={m.values} inGroup showHowTo />
       </div>

@@ -60,7 +60,7 @@
         <Icon icon="ic:baseline-edit" class="text-sm" />Edit B
       </button>
     {/if}
-    <button onclick={onSettings} class="p-1 text-content-subtle hover:text-content transition-colors" aria-label="Plan B settings" title="Plan B settings">
+    <button onclick={onSettings} class="tap p-1 text-content-subtle hover:text-content transition-colors" aria-label="Plan B settings" title="Plan B settings">
       <Icon icon="ic:baseline-tune" class="text-lg" />
     </button>
   </div>

@@ -140,7 +140,7 @@
             <p class="text-body font-bold text-content truncate">{focusBlock ? (focusBlock.name === phaseName(focusBlock.phaseId) ? focusBlock.name : `${focusBlock.name} · ${phaseName(focusBlock.phaseId)}`) : 'No phase'}</p>
           </div>
           {#if focusBlock}
-            <button onclick={() => startEdit(focusBlock)} class="p-1.5 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Edit this block"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
+            <button onclick={() => startEdit(focusBlock)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Edit this block"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
           {/if}
         </div>
         <div class="flex gap-2">
@@ -216,10 +216,10 @@
             </div>
             <div class="flex items-center gap-1 ml-2">
               {#if blockFirstWeekId(block) <= trainingState.currentWeekId}
-                <button onclick={() => openBlockReview(block.id)} class="p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Review this block" title="How the block went"><Icon icon="ic:baseline-insights" class="text-sm" /></button>
+                <button onclick={() => openBlockReview(block.id)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Review this block" title="How the block went"><Icon icon="ic:baseline-insights" class="text-sm" /></button>
               {/if}
-              <button onclick={() => startEdit(block)} class="p-1.5 text-content-subtle hover:text-content transition-colors"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
-              <button onclick={() => handleDelete(block.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+              <button onclick={() => startEdit(block)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
+              <button onclick={() => handleDelete(block.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
             </div>
           </div>
         {:else}

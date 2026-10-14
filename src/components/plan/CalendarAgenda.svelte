@@ -102,7 +102,7 @@
           <p class="text-caption text-content-subtle/60 pt-1">Free</p>
         {/if}
       </div>
-      <button onclick={() => onAdd(day)} class="p-1 self-start text-content-subtle hover:text-primary rounded-control transition-colors" aria-label="Add a session on {dayNameOf(day)}">
+      <button onclick={() => onAdd(day)} class="tap p-1 self-start text-content-subtle hover:text-primary rounded-control transition-colors" aria-label="Add a session on {dayNameOf(day)}">
         <Icon icon="ic:baseline-plus" class="text-base" />
       </button>
     </div>

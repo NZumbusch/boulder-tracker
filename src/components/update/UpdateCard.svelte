@@ -28,7 +28,7 @@
         </p>
       </div>
       {#if compact && !busy}
-        <button onclick={() => updater.dismiss()} class="p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Not now">
+        <button onclick={() => updater.dismiss()} class="tap p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Not now">
           <Icon icon="ic:baseline-close" class="text-lg" />
         </button>
       {/if}

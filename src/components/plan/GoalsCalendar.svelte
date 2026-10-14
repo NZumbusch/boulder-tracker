@@ -46,10 +46,10 @@
         <Icon icon={goal.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-flag'} class="text-primary text-lg shrink-0" />
       {/snippet}
       {#snippet trailing()}
-        <button onclick={() => noteGoal = goal} class="p-1.5 transition-colors {goal.notes ? 'text-primary' : 'text-content-subtle hover:text-content'}" aria-label="{goal.notes ? 'Open' : 'Add'} note">
+        <button onclick={() => noteGoal = goal} class="tap p-1.5 transition-colors {goal.notes ? 'text-primary' : 'text-content-subtle hover:text-content'}" aria-label="{goal.notes ? 'Open' : 'Add'} note">
           <Icon icon={goal.notes ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-base" />
         </button>
-        <button onclick={() => trainingState.deleteGoal(goal.id)} class="p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete"><Icon icon="ic:baseline-delete" class="text-base" /></button>
+        <button onclick={() => trainingState.deleteGoal(goal.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete"><Icon icon="ic:baseline-delete" class="text-base" /></button>
       {/snippet}
     </ListRow>
   {/if}
@@ -65,7 +65,7 @@
         <p class="text-caption text-content-subtle mt-0.5">Competitions and outdoor trips to peak for</p>
       {/if}
     </div>
-    <button onclick={() => { chooseKind = !chooseKind; adding = null; }} class="p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a goal" aria-expanded={chooseKind}>
+    <button onclick={() => { chooseKind = !chooseKind; adding = null; }} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a goal" aria-expanded={chooseKind}>
       <Icon icon="ic:baseline-plus" class="text-lg" />
     </button>
   </div>
