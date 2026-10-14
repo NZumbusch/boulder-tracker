@@ -67,13 +67,21 @@ Everything below is on `main`, pushed to Testing, **not yet tried on a real devi
 ### Known gaps and ideas, roughly by value
 
 1. Real-device checks never done: Android back key and gesture navigation with the drawer, haptics on drag, safe areas, the update path over an existing install, Drive sync across two devices on 3.36.
-2. The floating + can cover a button at the right edge while scrolling (Home's Start buttons). Easy to tune (size, hide on Home) if it annoys him.
+2. ~~The floating + covers content~~ - done 2026-10-15: it hides while scrolling down and returns on scrolling up (`lib/navigation/scrollHide.ts`).
 3. Wide-screen layouts for Home, History and Analytics (two columns of cards, master-detail like Samsung Calendar's Day + event pane) - they are a centred ~640 px column on tablets/laptops. Listed under "Later" in `navigation-plan.md`.
-4. Week view on a portrait phone: seven narrow columns truncate session names ("Cap…"); the "show the week as a list" setting reads much better. Consider making the list the default on narrow screens (ask Nathan).
+4. ~~Week view on a portrait phone~~ - done 2026-10-15: the list is the default on a portrait phone (setting `plan.weekListOnPhone`).
 5. The welcome slides and README screenshots (`public/img/intro-*.webp`, `og.jpg`) show the old bottom-bar UI - regenerate when the look settles.
 6. Search in the top bar, long-press on the + for a speed dial (quick timer), a mark per week in the Year view for phases was replaced by lines (done) - nothing else open there.
 7. The Goals card under the calendar is still a bordered card.
 8. Older plan/QA/audit docs (`pre-release-evaluation.md`, `android-backup-audit.md`) are historical; `qa-checklist.md` is the living one.
+
+### Session of 2026-10-15 (live-session fixes and a UI/UX pass)
+
+Nathan's list from using the app, all built on branch `claude/ui-ux-issues-navigation-4jj8ji` (see QA section 14): skipping inside a circuit asks (`ChoiceSheet`, `session/circuitFlow.ts`, setting `circuit.askSkip`); a circuit run covers only members still to do; stopping a session with a circuit open logs its sets and ends it (`settleCircuit` in `circuitHud.svelte.ts`); Start circuit is never silently disabled; a planned weight the type doesn't track is editable (`exercise/valueParams.ts`, "Add weight"); "Hold" vs "Hang" (`defaultRepLabel`); Done and Skip buttons in the timer notification (`liveButtons` in `circuitRun.ts`, Java `TimerForegroundService`). Found on the way: the migration invariant rejected any database with a benchmark test slot (typeId "test") - a real backup would have been rolled back; five layout settings (plan calendar, "New day starts at") had no Settings page (a test now guards this). Decisions from Nathan: ask on a circuit skip; hide the + on scroll; week list on narrow phones.
+
+- Not verified on a device: the notification buttons (Java was written, **not compiled** - no Android SDK in the cloud session; the page side is tested headless and by unit tests), Android back with the new sheets, haptics.
+- The cloud sandbox blocks `api.iconify.design`, so `npm test` reports one unhandled error from `offlineIcons.test.ts` (the icon generator can't fetch); all tests pass. No new icons were added.
+- Still open from the audit: the year grid's week cells are 26 px; the Plan session section's own + duplicates the floating one; History/Analytics wide layouts.
 
 ## Checking a change in a browser (no extra tooling)
 
