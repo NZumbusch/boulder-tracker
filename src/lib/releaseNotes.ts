@@ -20,6 +20,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-15-live-session-fixes",
+    title: "Live sessions: circuits, weights and the notification",
+    points: [
+      "Skipping an exercise inside a circuit now asks: just that exercise (the circuit runs without it) or the whole circuit. Settings → Sessions & timer can turn the question off.",
+      "Stopping a session while a circuit runs saves the sets it recorded and stops its timer (before, the timer carried on and the sets were lost). Start circuit is never greyed out silently any more: a timer that was never started makes way, one under way asks.",
+      "A planned weight (the coach's \"+12.5 kg\" on hangs) can be changed when you log, in a circuit's set details too; \"Add weight\" puts one on an exercise that had none.",
+      "Chin tucks and other timed holds say \"Hold 6/8\", hangs keep \"Hang\".",
+      "The timer notification has Done and Skip buttons for the set that is on.",
+      "The round + hides while you scroll down and returns when you scroll up; Plan's week view is a list on a phone held upright (Settings can switch it back); small buttons are easier to hit.",
+    ],
+  },
+  {
     id: "2026-10-14-navigation",
     title: "A menu instead of a bottom bar",
     points: [
