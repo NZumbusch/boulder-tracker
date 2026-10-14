@@ -26,3 +26,13 @@ export function repLabelOf(values: Pick<ExerciseValues, "repLabel"> | undefined)
 export function repRestWord(workLabel: string): string {
   return SWITCHING.includes(workLabel) ? "Switch" : "Rest";
 }
+
+/**
+ * What one rep of a timed set is called when the exercise doesn't say: a hang
+ * on a hold or a bar is a "Hang", anything else timed (chin tucks, a plank
+ * hold) is a "Hold". Judged from what the exercise tracks and its name.
+ */
+export function defaultRepLabel(name: string | undefined, tracked: readonly string[]): "Hang" | "Hold" {
+  const hang = tracked.includes("holdSize") || tracked.includes("holdType") || /hang/i.test(name ?? "");
+  return hang ? "Hang" : "Hold";
+}
