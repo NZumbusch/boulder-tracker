@@ -13,16 +13,26 @@
   import { layout } from '../../lib/navigation/layoutMode.svelte';
   import { drawer } from '../../lib/navigation/drawer.svelte';
   import { appBarBack } from '../../lib/navigation/navItems';
+  import { scrollChrome } from '../../lib/navigation/scrollChrome.svelte';
 
   let { title, subtitle, onBack, actions }: { title: string; subtitle?: string; onBack?: () => void; actions?: Snippet } = $props();
 
   const lead = $derived(appBarBack({ nested: !!onBack }));
   const showMenu = $derived(lead === 'menu' && trainingState.navStyle === 'drawer' && !layout.wide);
   const showLead = $derived(lead === 'back' || showMenu);
+  /** Slides away while the screen is scrolled down through content (Settings -> Look & feel), and comes back on scrolling up. */
+  const away = $derived(scrollChrome.hidden && trainingState.tunableOn('nav.hideBarOnScroll'));
 </script>
 
-<!-- Flush to the screen's edges (the page has 16 px of side padding and none on top); stays in view while the content scrolls under it. Must be the first thing in its screen. -->
-<header class="sticky top-0 z-30 -mx-4 mb-2 px-2 h-[52px] short:h-11 flex items-center gap-1 bg-surface/95 backdrop-blur-md">
+<!-- Flush to the screen's edges (the page has 16 px of side padding and none on top). It is sticky so it can come back the
+     moment you scroll up, and slides out of the way while you read on - content cut off by a bar that stays is the ugly
+     part. Over content it has an opaque ground and a soft edge, never a see-through band. Must be the first thing in its
+     screen. z-50: nothing inside a screen (chart tips, the calendar's year chips) may draw over it. -->
+<header
+  class="sticky top-0 z-50 -mx-4 mb-2 px-2 h-[52px] short:h-11 flex items-center gap-1 bg-surface transition-[transform,box-shadow] duration-200 ease-out motion-reduce:transition-none {away ? '-translate-y-full pointer-events-none' : ''} {scrollChrome.scrolled && !away ? 'shadow-[0_1px_0_var(--color-border),0_6px_16px_rgb(0_0_0/0.06)]' : ''}"
+  aria-hidden={away}
+  inert={away}
+>
   {#if showLead}
     <button
       onclick={(e) => (lead === 'back' ? onBack?.() : drawer.show(e.currentTarget as HTMLElement))}

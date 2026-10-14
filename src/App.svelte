@@ -41,8 +41,8 @@
   import NavDrawer from './components/nav/NavDrawer.svelte';
   import NavRail from './components/nav/NavRail.svelte';
   import Fab from './components/nav/Fab.svelte';
-  import { fabActions } from './lib/navigation/fabActions.svelte';
-  import { initialScrollHide, nextScrollHide, SCROLL_HIDE_END_ZONE } from './lib/navigation/scrollHide';
+  import { scrollChrome } from './lib/navigation/scrollChrome.svelte';
+  import { initialScrollHide, nextScrollHide, SCROLL_HIDE_END_ZONE, SCROLL_HIDE_TOP_ZONE } from './lib/navigation/scrollHide';
   import { layout } from './lib/navigation/layoutMode.svelte';
 
   const drawerNav = $derived(trainingState.navStyle === 'drawer');
@@ -130,13 +130,15 @@
   function onContentScroll(e: Event) {
     const el = e.currentTarget as HTMLElement;
     scrollHide = nextScrollHide(scrollHide, el.scrollTop, { atEnd: el.scrollTop + el.clientHeight >= el.scrollHeight - SCROLL_HIDE_END_ZONE });
-    fabActions.hidden = scrollHide.hidden;
+    scrollChrome.hidden = scrollHide.hidden;
+    scrollChrome.scrolled = el.scrollTop > SCROLL_HIDE_TOP_ZONE;
   }
   // A new screen starts at its top, with the + back.
   $effect(() => {
     void trainingState.view;
     scrollHide = initialScrollHide;
-    fabActions.hidden = false;
+    scrollChrome.hidden = false;
+    scrollChrome.scrolled = false;
   });
 </script>
 
