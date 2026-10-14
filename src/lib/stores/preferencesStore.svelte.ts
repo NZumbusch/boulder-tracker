@@ -1,5 +1,6 @@
 import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { type TimerPreset, validateTimerPresets } from '../timer/presets';
+import { homeLocationOf, cragLocationsOf, withHome, withCrags, type Place } from '../places/places';
 import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, type NavMode, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
@@ -23,8 +24,10 @@ export class PreferencesStore {
   planBReminderEnabled = $state(true);
   planBReminderTime = $state('19:00');
   dailyMetricsReminderTime = $state('20:00');
-  homeLocation = $state<WeatherLocation | null>(null);
-  crags = $state<WeatherLocation[]>([]);
+  /** Where you train (`lib/places`); the weather reads the home and the crags from it. */
+  places = $state<Place[]>([]);
+  get homeLocation(): WeatherLocation | null { return homeLocationOf(this.places); }
+  get crags(): WeatherLocation[] { return cragLocationsOf(this.places); }
   fatigueChartStyle = $state<FatigueChartStyle>('bars');
   analyticsRange = $state<AnalyticsRange>('3m');
   timerVibrateEnabled = $state(true);
@@ -95,8 +98,7 @@ export class PreferencesStore {
     this.planBReminderEnabled = prefs.planBReminderEnabled;
     this.planBReminderTime = prefs.planBReminderTime;
     this.dailyMetricsReminderTime = prefs.dailyMetricsReminderTime;
-    this.homeLocation = prefs.homeLocation;
-    this.crags = prefs.crags;
+    this.places = prefs.places;
     this.fatigueChartStyle = prefs.fatigueChartStyle;
     this.analyticsRange = prefs.analyticsRange;
     this.timerVibrateEnabled = prefs.timerVibrateEnabled;
@@ -166,12 +168,18 @@ export class PreferencesStore {
   }
 
   setHomeLocation(location: WeatherLocation | null) {
-    this.homeLocation = location;
+    this.places = withHome(this.places, location);
     this.persist();
   }
 
   setCrags(crags: WeatherLocation[]) {
-    this.crags = crags;
+    this.places = withCrags(this.places, crags);
+    this.persist();
+  }
+
+  /** Replaces the whole list (the places editor in Settings). */
+  setPlaces(places: Place[]) {
+    this.places = places;
     this.persist();
   }
 
@@ -409,8 +417,7 @@ export class PreferencesStore {
       planBReminderEnabled: this.planBReminderEnabled,
       planBReminderTime: this.planBReminderTime,
       dailyMetricsReminderTime: this.dailyMetricsReminderTime,
-      homeLocation: this.homeLocation,
-      crags: this.crags,
+      places: this.places,
       fatigueChartStyle: this.fatigueChartStyle,
       analyticsRange: this.analyticsRange,
       timerVibrateEnabled: this.timerVibrateEnabled,

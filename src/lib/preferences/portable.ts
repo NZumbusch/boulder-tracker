@@ -8,7 +8,7 @@
  * `Preferences` keys; a *portable* group is one that travels (file and sync).
  *
  * Deliberately outside every group, so they never reset, export or sync:
- * where the user is (`homeLocation`, `crags`), reminders (notification
+ * where the user is (`places`), reminders (notification
  * permission and scheduling are per device), `autoBackup`, `welcomeDone`,
  * `theme`, and transient UI state (`timerPillHidden`). `textScale` and `motion`
  * are in the appearance group for resetting but never travel - they answer to

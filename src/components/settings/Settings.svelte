@@ -33,7 +33,7 @@
   import AudioLevelSettings from './AudioLevelSettings.svelte';
   import VoiceSettings from './VoiceSettings.svelte';
   import PainCheckInSettings from './PainCheckInSettings.svelte';
-  import WeatherSettings from './WeatherSettings.svelte';
+  import PlacesSettings from './PlacesSettings.svelte';
   import RemindersSettings from './RemindersSettings.svelte';
   import { Capacitor } from '@capacitor/core';
   import { healthConnect } from '../../lib/health/healthConnect.svelte';
@@ -335,7 +335,7 @@
     <PainCheckInSettings />
   {:else if page === 'weather'}
     <div class="space-y-4">
-      <WeatherSettings />
+      <PlacesSettings />
       <TunablesSettings topic="outdoor" title="Conditions & trips" />
     </div>
   {:else if page === 'reminders'}
