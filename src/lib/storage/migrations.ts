@@ -1262,7 +1262,8 @@ export function assertMigrationInvariants(before: any, after: any): void {
   );
   after.workouts?.forEach((w: any) => {
     w.exercises?.forEach((e: any) => {
-      if (e.typeId && !knownTypeIds.has(e.typeId)) {
+      // A benchmark test slot is no library exercise: its `typeId` is the fixed "test" and `test` says what it is.
+      if (e.typeId && !e.test && !knownTypeIds.has(e.typeId)) {
         problems.push(
           `workout ${w.id} has exercise with unresolvable typeId "${e.typeId}"`,
         );
