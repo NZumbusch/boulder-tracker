@@ -92,10 +92,11 @@ function workTarget(values: ExerciseValues, round: number, m: GroupMember, group
   if (Number.isFinite(timeOn) && timeOn > 0) {
     const n = reps ?? 1;
     const off = restSeconds(values).betweenReps;
+    const label = repLabelOf(values) ?? m.repLabel;
     return {
       seconds: n * timeOn + Math.max(0, n - 1) * off,
       ...(reps !== undefined ? { reps } : {}),
-      ...(n > 1 ? { interval: { reps: n, on: timeOn, off, ...(repLabelOf(values) ? { label: repLabelOf(values) } : {}) } } : {}),
+      ...(n > 1 ? { interval: { reps: n, on: timeOn, off, ...(label ? { label } : {}) } } : {}),
     };
   }
   if (reps !== undefined) return { reps };

@@ -182,6 +182,8 @@ export function restBetweenRounds(group: ExerciseGroup): number {
 export interface GroupMember {
   slot: ExerciseSlot;
   values: ExerciseValues;
+  /** What one rep of a timed set is called when the exercise names none ("Hang" for a hang, "Hold" for a hold) - see `defaultRepLabel`. */
+  repLabel?: string;
 }
 
 export interface GroupTiming {

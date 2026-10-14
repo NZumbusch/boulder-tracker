@@ -316,3 +316,13 @@ describe("a rep label on a repeater member", () => {
     expect((work[1] as { interval?: { label?: string } }).interval?.label).toBeUndefined();
   });
 });
+
+describe("the word for a rep when the exercise names none", () => {
+  it("uses the member's default label, and the exercise's own label wins over it", () => {
+    const tuck = { ...member("tuck", { timeOn: 3, reps: 8 }), repLabel: "Hold" };
+    const stretch = { ...member("lat", { timeOn: 30, reps: 2, repLabel: "Side" }), repLabel: "Hold" };
+    const work = circuitSteps({ id: "g", rounds: 1, transition: 10 }, [tuck, stretch]).filter((s) => s.kind === "work");
+    expect(work[0]).toMatchObject({ interval: { label: "Hold" } });
+    expect(work[1]).toMatchObject({ interval: { label: "Side" } });
+  });
+});
