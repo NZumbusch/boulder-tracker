@@ -3,6 +3,7 @@
   import type { ThemePreference } from '../../lib/preferences/theme';
   import { trainingState } from '../../lib/state.svelte';
   import Icon from "@iconify/svelte";
+  import TunablesSettings from './TunablesSettings.svelte';
 </script>
 
 <div class="card space-y-4 animate-in fade-in">
@@ -37,11 +38,12 @@
   <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
     <h3 class="text-section uppercase text-content-muted px-1">Navigation</h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">A menu button opens a side drawer with every screen, and a round + floats at the bottom; on a tablet, a laptop or a phone on its side a slim rail stays on the left. Or the classic bottom bar. Only on this device.</p>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">Automatic: the bottom bar on a phone held upright; on a tablet, a laptop or a phone on its side a slim rail on the left, with a menu button that opens a side drawer and a round + that floats at the bottom. Or pick one for everywhere. Only on this device.</p>
   </div>
   <div class="flex bg-surface-elevated/50 p-1 rounded-control">
-    <button onclick={() => trainingState.setNavStyle('drawer')} class="flex-1 py-2.5 text-label rounded-control transition-all {trainingState.navStyle === 'drawer' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}">Side drawer</button>
-    <button onclick={() => trainingState.setNavStyle('bar')} class="flex-1 py-2.5 text-label rounded-control transition-all {trainingState.navStyle === 'bar' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}">Bottom bar</button>
+    {#each [['auto', 'Automatic'], ['bar', 'Bottom bar'], ['drawer', 'Side drawer']] as const as [mode, label]}
+      <button onclick={() => trainingState.setNavMode(mode)} class="flex-1 py-2.5 text-label rounded-control transition-all {trainingState.navMode === mode ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}">{label}</button>
+    {/each}
   </div>
   <div class="space-y-1">
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Show the names under the icons (in the bottom bar and in the rail).</p>
@@ -51,6 +53,8 @@
     </div>
   </div>
 </div>
+
+<TunablesSettings topic="layout" title="Top bar" ids={['nav.hideBarOnScroll']} />
 
   <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
