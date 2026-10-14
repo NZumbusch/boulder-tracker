@@ -526,6 +526,19 @@
   });
 
   function applyLiveAction({ kind, at }: LiveAction) {
+    if (kind === 'done' || kind === 'skip') {
+      // Done / Skip in the notification: the run is brought up to the moment of the press, then that step is ended -
+      // a set as done (a counted one with its target reps) or as skipped, a rest or the get-ready by moving on.
+      if (!running || run.done) return;
+      run = tickCircuitRun(steps, run, Math.max(0, at - lastTickAt));
+      lastTickAt = at;
+      const open = step?.kind === 'work' && step.seconds === undefined;
+      if (open) stagedReps = step.reps ?? stagedReps;
+      if (run.done) return;
+      if (kind === 'skip' && variant !== 'pacer') skipStep();
+      else finishStep();
+      return;
+    }
     if (kind !== 'pause' && kind !== 'resume') return;
     if (kind === 'pause' && running) {
       run = tickCircuitRun(steps, run, Math.max(0, at - lastTickAt));
