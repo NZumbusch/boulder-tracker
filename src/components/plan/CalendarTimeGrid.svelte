@@ -370,8 +370,11 @@
         >
           {#each col.blocks as b (b.item.kind === 'session' ? b.item.s.workout.id : `e${b.item.e.id}:${b.item.key}`)}
             {@const it = b.item}
-            {@const heightPx = Math.max(px(b.bottom) - px(b.top) - 1.5, 14)}
-            {@const place = `top: ${px(b.top) + 0.5}px; height: ${heightPx}px; left: calc(${(b.lane / b.lanes) * 100}% + 1px); width: calc(${100 / b.lanes}% - 2px)`}
+            <!-- The part of a block outside the hours shown is cut off (an event that runs through the night starts above the grid). -->
+            {@const topMin = Math.max(b.top, hours.from * 60)}
+            {@const bottomMin = Math.min(b.bottom, hours.to * 60)}
+            {@const heightPx = Math.max(px(bottomMin) - px(topMin) - 1.5, 14)}
+            {@const place = `top: ${px(topMin) + 0.5}px; height: ${heightPx}px; left: calc(${(b.lane / b.lanes) * 100}% + 1px); width: calc(${100 / b.lanes}% - 2px)`}
             {#if it.kind === 'event' && (b.bottom <= hours.from * 60 || b.top >= hours.to * 60)}
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}

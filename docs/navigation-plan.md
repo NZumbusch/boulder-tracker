@@ -34,7 +34,7 @@ A drawer makes each switch between sections one tap longer than a bottom bar (me
 └────────────────────────────┘
 ```
 
-- **Top bar** (one component, `AppBar`, first child of every screen, sticky): hamburger left, title (+ optional one-line subtitle, e.g. Home's "Week 4 of 4") next to it, actions right (Home: quick log; Plan: the grid/calendar switch and the AI coach; Analytics/History: their own). On a nested page (Settings sub-page, a full-screen editor) the hamburger becomes a back arrow - Android's rule. Always the same height, so nothing jumps between screens (the lesson from the calendar header).
+- **Top bar** (one component, `AppBar`, first child of every screen; plain page content that scrolls away, no longer sticky): hamburger left, title (+ optional one-line subtitle, e.g. Home's "Week 4 of 4") next to it, actions right (Home: quick log; Plan: the grid/calendar switch and the AI coach; Analytics/History: their own). On a nested page (Settings sub-page, a full-screen editor) the hamburger becomes a back arrow - Android's rule. Always the same height, so nothing jumps between screens (the lesson from the calendar header).
 - **Drawer** (a left panel, 84 % of the width, max 320 px; scrim; slides in 200 ms, instant with reduced motion):
   - top: the running session, if any - "Session running · 23:41 · Resume" (a one-tap way back);
   - destinations, 48 px rows, the current one a soft pill: **Home, Plan, Log a workout, History, Analytics**;
