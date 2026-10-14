@@ -54,7 +54,6 @@
   </div>
 </div>
 
-<TunablesSettings topic="layout" title="Top bar" ids={['nav.hideBarOnScroll']} />
 
   <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">

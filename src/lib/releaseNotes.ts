@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-18-top-bar-and-long-events",
+    title: "The top bar scrolls with the page; long events stay in the calendar",
+    points: [
+      "The top bar is part of the page now: it scrolls away with the content like any heading, instead of sliding in and out. The setting for hiding it is gone.",
+      "An event from your phone calendar that runs through the night or over several days no longer breaks the hour grid: the part outside the hours shown is cut off.",
+    ],
+  },
+  {
     id: "2026-10-17-places-in-the-plan",
     title: "The AI coach can manage your places",
     points: [
