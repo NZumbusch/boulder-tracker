@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ExerciseGroup, ExerciseSlot } from "../types";
 import {
   buildCircuitLive,
+  liveButtons,
   type CircuitRunState,
   circuitLoggedValues,
   detailDefaults,
@@ -197,6 +198,17 @@ describe("buildCircuitLive", () => {
   it("says nothing when announcements are off", () => {
     const plan = buildCircuitLive({ ...input(), announce: { enabled: false, mode: "custom" as const, work: true, workLead: 0, restStart: true, restStartDelay: 0, restEnd: 5 } }, 0)!;
     expect(plan.cues.some((c) => c.kind === "speak")).toBe(false);
+  });
+
+  it("offers Pause, Done and Skip during a set, one button for a rest or the get-ready, and no Skip for a pacer", () => {
+    const at = (i: number, list = steps) => liveButtons(list, { ...startCircuitRun(), stepIndex: i });
+    expect(at(0)).toEqual(["pause", "done"]); // get ready
+    expect(at(1)).toEqual(["pause", "done", "skip"]); // Twists
+    expect(at(2)).toEqual(["pause", "skip"]); // the switch
+    const pacer = circuitSteps({ id: "p", rounds: 3 }, [member("p", { cadence: 2, sets: 3 })], 0);
+    expect(liveButtons(pacer, startCircuitRun())).toEqual(["pause", "done"]);
+    expect(buildCircuitLive(input(), 1_000)!.actions).toEqual(["pause", "done"]);
+    expect(buildCircuitLive(input({ ...startCircuitRun(), stepIndex: 1 }), 1_000)!.actions).toEqual(["pause", "done", "skip"]);
   });
 
   it("freezes while paused and is null once done", () => {

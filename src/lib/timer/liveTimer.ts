@@ -39,7 +39,8 @@ export interface LiveCue {
   text?: string;
 }
 
-export type LiveAction = "pause" | "resume" | "add30" | "sessionPause" | "sessionResume";
+/** `done` / `skip` end the current step of a circuit or timer run from the notification (the page applies them - it owns the run). */
+export type LiveAction = "pause" | "resume" | "add30" | "done" | "skip" | "sessionPause" | "sessionResume";
 
 export interface LiveTimerConfig {
   segments: LiveSegment[];

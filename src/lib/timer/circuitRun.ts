@@ -5,7 +5,7 @@ import { groupTiming, memberRounds, restBetweenRounds, switchSeconds, type Group
 import { toRepsArray } from "../exercise/reps";
 import { repLabelOf, repRestWord } from "../exercise/repLabel";
 import { restSeconds } from "../exercise/rest";
-import type { LiveCue, LiveSegment, LiveTimerConfig } from "./liveTimer";
+import type { LiveAction, LiveCue, LiveSegment, LiveTimerConfig } from "./liveTimer";
 import type { AnnounceRules } from "./timerCues";
 import { type SpeechMeasure, START_MARGIN, exercisePhrase, nextText, planRestSpeech, targetSpeech } from "./announcePlan";
 
@@ -414,6 +414,7 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
   if (!input.running) {
     return { segments: [{ title: `Paused · ${describe(steps[state.stepIndex], input)}`, body: where(state.stepIndex) }], cues: [], actions: ["resume"], finishedTitle: input.name };
   }
+  const buttons = liveButtons(steps, state);
   const segments: LiveSegment[] = [];
   const cues: LiveCue[] = [];
   const say = input.announce?.enabled ? input.announce : null;
@@ -456,7 +457,7 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
     }
     if (seconds === undefined) {
       segments.push({ startedAt: t, title, body: where(i) });
-      return { segments, cues: cues.filter((c) => c.kind === "speak" || c.at > now), actions: ["pause"], finishedTitle: input.name };
+      return { segments, cues: cues.filter((c) => c.kind === "speak" || c.at > now), actions: buttons, finishedTitle: input.name };
     }
     const end = t + seconds * 1000;
     if (step.kind === "work" && step.interval) {
@@ -487,7 +488,21 @@ export function buildCircuitLive(input: CircuitLiveInput, now: number): LiveTime
     t = end;
   }
   cues.push({ at: t, kind: "done" });
-  return { segments, cues: cues.filter((c) => c.kind === "speak" || c.at > now).sort((a, b) => a.at - b.at), actions: ["pause"], finishedTitle: `${input.name} done` };
+  return { segments, cues: cues.filter((c) => c.kind === "speak" || c.at > now).sort((a, b) => a.at - b.at), actions: buttons, finishedTitle: `${input.name} done` };
+}
+
+/**
+ * The notification's buttons for a running run, by what it is doing when the plan is made: during a set Pause, Done
+ * (ends the set now - a counted one with its target reps) and Skip (the set is recorded as not done); during a rest or
+ * the get-ready Done and Skip are the same thing, so one button; a pacer's problem has Done ("next problem") and no Skip,
+ * as on screen. The page applies them (`CircuitRunner`), to whatever step the run is in when they arrive.
+ */
+export function liveButtons(steps: CircuitStep[], state: CircuitRunState): LiveAction[] {
+  const step = currentStep(steps, state);
+  if (!step) return ["pause"];
+  if (step.kind === "leadIn") return ["pause", "done"];
+  if (step.kind === "work") return step.label === PACER_LABEL ? ["pause", "done"] : ["pause", "done", "skip"];
+  return ["pause", "skip"];
 }
 
 /**
