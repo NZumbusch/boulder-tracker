@@ -47,6 +47,8 @@ public class TimerForegroundService extends Service {
     static final String ACTION_PAUSE = "com.climbingtracker.timerservice.PAUSE";
     static final String ACTION_RESUME = "com.climbingtracker.timerservice.RESUME";
     static final String ACTION_ADD30 = "com.climbingtracker.timerservice.ADD30";
+    static final String ACTION_DONE = "com.climbingtracker.timerservice.DONE";
+    static final String ACTION_SKIP = "com.climbingtracker.timerservice.SKIP";
     static final String ACTION_SESSION_PAUSE = "com.climbingtracker.timerservice.SESSION_PAUSE";
     static final String ACTION_SESSION_RESUME = "com.climbingtracker.timerservice.SESSION_RESUME";
     static final String EXTRA_CONFIG = "config";
@@ -100,6 +102,8 @@ public class TimerForegroundService extends Service {
     private final List<Segment> segments = new ArrayList<>();
     private final List<Cue> cues = new ArrayList<>();
     private final List<String> actions = new ArrayList<>();
+    /** The buttons the page's plan came with, to put back when a paused plan is resumed from the notification. */
+    private final List<String> planActions = new ArrayList<>();
     private String finishedTitle = "Timer";
     private boolean sound = true;
     private boolean vibrate = true;
@@ -150,6 +154,8 @@ public class TimerForegroundService extends Service {
             resumeFromNotification();
         } else if (ACTION_ADD30.equals(action)) {
             add30FromNotification();
+        } else if (ACTION_DONE.equals(action) || ACTION_SKIP.equals(action)) {
+            stepFromNotification(ACTION_DONE.equals(action) ? "done" : "skip");
         } else if (ACTION_SESSION_PAUSE.equals(action) || ACTION_SESSION_RESUME.equals(action)) {
             sessionFromNotification(ACTION_SESSION_PAUSE.equals(action));
         } else if (intent != null && intent.hasExtra(EXTRA_CONFIG)) {
@@ -214,6 +220,8 @@ public class TimerForegroundService extends Service {
             actions.clear();
             JSONArray as = config.optJSONArray("actions");
             if (as != null) for (int i = 0; i < as.length(); i++) actions.add(as.getString(i));
+            planActions.clear();
+            planActions.addAll(actions);
             finishedTitle = config.optString("finishedTitle", "Timer");
             sound = config.optBoolean("sound", true);
             vibrate = config.optBoolean("vibrate", true);
@@ -351,8 +359,12 @@ public class TimerForegroundService extends Service {
             pausedAt = 0;
         }
         actions.clear();
-        actions.add("pause");
-        if (!hasOpenEndedSegment()) actions.add("add30");
+        if (planActions.contains("pause")) {
+            actions.addAll(planActions);
+        } else {
+            actions.add("pause");
+            if (!hasOpenEndedSegment()) actions.add("add30");
+        }
         replan();
         notifyListener("resume", now);
     }
@@ -363,6 +375,17 @@ public class TimerForegroundService extends Service {
         for (Segment seg : segments) if (seg.endsAt > now) seg.endsAt += 30_000;
         replan();
         notifyListener("add30", now);
+    }
+
+    /**
+     * Done / Skip: end the set (or rest) that is on. Only the page knows what that means - a set's result, the next
+     * step, the plan after it - so the service just reports the press (kept until the page collects it, like the
+     * others) and carries on with the plan it has until the page answers with a new one.
+     */
+    private void stepFromNotification(String kind) {
+        Log.d("TimerService", "notification: " + kind);
+        if (pausedAt != 0) return;
+        notifyListener(kind, System.currentTimeMillis());
     }
 
     /**
@@ -539,6 +562,8 @@ public class TimerForegroundService extends Service {
                 case "pause": b.addAction(0, "Pause", actionIntent(ACTION_PAUSE, code++)); break;
                 case "resume": b.addAction(0, "Resume", actionIntent(ACTION_RESUME, code++)); break;
                 case "add30": b.addAction(0, "+30 s", actionIntent(ACTION_ADD30, code++)); break;
+                case "done": b.addAction(0, "Done", actionIntent(ACTION_DONE, code++)); break;
+                case "skip": b.addAction(0, "Skip", actionIntent(ACTION_SKIP, code++)); break;
                 case "sessionPause": b.addAction(0, "Pause session", actionIntent(ACTION_SESSION_PAUSE, code++)); break;
                 case "sessionResume": b.addAction(0, "Resume session", actionIntent(ACTION_SESSION_RESUME, code++)); break;
                 default: break;

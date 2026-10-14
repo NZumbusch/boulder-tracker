@@ -14,7 +14,7 @@ import type { LiveTimerConfig } from "../timer/liveTimer";
 import type { SpeechVoice } from "../timer/timerCues";
 
 export type LiveAction = {
-  kind: "pause" | "resume" | "add30" | "sessionPause" | "sessionResume";
+  kind: "pause" | "resume" | "add30" | "done" | "skip" | "sessionPause" | "sessionResume";
   at: number;
   seq: number;
   /** A session pause that also paused the timer (or a session resume that resumed it) - the service did it while the page slept. */
