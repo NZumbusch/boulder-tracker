@@ -11,6 +11,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { fabFor } from '../../lib/navigation/navItems';
   import { fabActions } from '../../lib/navigation/fabActions.svelte';
+  import { scrollChrome } from '../../lib/navigation/scrollChrome.svelte';
 
   const action = $derived(fabFor(trainingState.view, { sessionRunning: trainingState.isSessionActive, inEditor: !!trainingState.planBEditing }));
   const label = $derived(action === 'add-to-plan' ? 'Add a session to the plan' : 'Log a workout');
@@ -29,9 +30,9 @@
 {#if action}
   <button
     onclick={press}
-    class="fixed right-4 bottom-[calc(var(--chrome-b)+16px+env(safe-area-inset-bottom))] z-[80] w-14 h-14 rounded-full bg-success text-app-bg shadow-[0_6px_20px_rgb(0_0_0/0.35)] flex items-center justify-center active:scale-90 transition-[transform,opacity] duration-200 animate-in zoom-in-75 {fabActions.hidden ? 'translate-y-24 opacity-0 pointer-events-none' : ''}"
-    tabindex={fabActions.hidden ? -1 : 0}
-    aria-hidden={fabActions.hidden}
+    class="fixed right-4 bottom-[calc(var(--chrome-b)+16px+env(safe-area-inset-bottom))] z-[80] w-14 h-14 rounded-full bg-success text-app-bg shadow-[0_6px_20px_rgb(0_0_0/0.35)] flex items-center justify-center active:scale-90 transition-[transform,opacity] duration-200 animate-in zoom-in-75 {scrollChrome.hidden ? 'translate-y-24 opacity-0 pointer-events-none' : ''}"
+    tabindex={scrollChrome.hidden ? -1 : 0}
+    aria-hidden={scrollChrome.hidden}
     aria-label={label}
     title={label}
     data-tour="nav-add"
