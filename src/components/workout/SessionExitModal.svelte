@@ -14,9 +14,11 @@
   import { onDestroy } from 'svelte';
   import Icon from '@iconify/svelte';
 
-  let { progress, elapsedLabel, onSave, onDiscard, onCancel }: {
+  let { progress, elapsedLabel, circuit = null, onSave, onDiscard, onCancel }: {
     progress: SessionProgress;
     elapsedLabel: string;
+    /** A circuit or timer that is open: stopping logs what it recorded and ends it. */
+    circuit?: { name: string; sets: number } | null;
     onSave: () => void;
     onDiscard: () => void;
     onCancel: () => void;
@@ -62,7 +64,9 @@
         <span class="min-w-0">
           <span class="text-label font-bold block">Save what I did</span>
           <span class="text-caption text-white/75 block">
-            {#if pending > 0}
+            {#if circuit}
+              {circuit.name} is still running: {circuit.sets === 0 ? 'it has no sets yet, so it stops and nothing of it is logged' : `its ${circuit.sets} ${circuit.sets === 1 ? 'set' : 'sets'} so far ${circuit.sets === 1 ? 'is' : 'are'} logged and it stops`}.
+            {:else if pending > 0}
               Keeps the {pending} unfinished {pending === 1 ? 'exercise' : 'exercises'} unlogged, so the plan still shows what was missed.
             {:else}
               Records the session and moves on to rating it.
