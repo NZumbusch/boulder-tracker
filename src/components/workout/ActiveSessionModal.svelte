@@ -58,6 +58,8 @@
   import { showUndo, toast } from '../../lib/toast.svelte';
   import PainHeadsUp from '../health/PainHeadsUp.svelte';
   import Icon from '@iconify/svelte';
+  import Sheet from '../ui/Sheet.svelte';
+  import Segmented from '../ui/Segmented.svelte';
 
   const store = trainingState.sessionStore;
 
@@ -214,6 +216,15 @@
   }
 
   const session = $derived(store.session);
+
+  // The timer pills sit just above the footer, whatever its height is (text size, landscape, the safe area).
+  let footerH = $state(0);
+  const TIMER_BOTTOM = 'bottom-[calc(var(--live-footer-b,68px)+env(safe-area-inset-bottom)+12px)]';
+  $effect(() => {
+    if (!(session && store.isModalOpen) || footerH === 0) return;
+    document.documentElement.style.setProperty('--live-footer-b', `${footerH}px`);
+    return () => document.documentElement.style.removeProperty('--live-footer-b');
+  });
 
   // The screen stays on while a session runs (Settings -> Live sessions -> Keep
   // screen on during a session). Android drops the lock whenever the app
@@ -585,7 +596,10 @@
 
   function dissolveCircuit(groupId: string) {
     if (circuitGroupId === groupId) return; // it is running: finish or stop it first
-    store.regroupExercises(ungroup(groupingBase(), groupId));
+    const before = groupingBase();
+    const name = before.groups?.find((g) => g.id === groupId)?.name || 'Circuit';
+    store.regroupExercises(ungroup(before, groupId));
+    showUndo(`${name} ungrouped`, () => store.regroupExercises(before));
   }
 
   function leaveCircuit(slotId: string) {
@@ -660,15 +674,15 @@
         <div class="flex items-start gap-3 short:flex-1 short:min-w-0 short:items-center">
           <button
             onclick={() => store.minimize()}
-            class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors shrink-0"
+            class="btn-icon -ml-2 shrink-0"
             aria-label="Minimise session"
             title="Minimise — the session keeps running"
           >
             <Icon icon="ic:baseline-keyboard-arrow-down" class="text-2xl" />
           </button>
           <div class="min-w-0 flex-1">
-            <p class="text-caption uppercase text-success flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-success {store.isPaused ? '' : 'animate-pulse'}"></span>
+            <p class="text-caption uppercase text-content-subtle flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full {store.isPaused ? 'bg-warning' : 'bg-success animate-pulse'}"></span>
               {store.isPaused ? 'Paused' : 'Session running'}
             </p>
             <h2 class="text-title text-content truncate">{session.workout.notes || 'Session'}</h2>
@@ -681,7 +695,7 @@
           </div>
           <button
             onclick={() => showNotes = true}
-            class="shrink-0 p-2 text-content-subtle hover:text-content transition-colors"
+            class="btn-icon shrink-0"
             aria-label="Session notes"
             title="Notes — the session's, the week's and each exercise's"
           >
@@ -689,10 +703,11 @@
           </button>
           <button
             onclick={() => isExiting = true}
-            class="shrink-0 px-3 py-2 text-label font-bold text-danger hover:bg-danger/10 rounded-control transition-colors flex items-center gap-1.5"
+            class="btn-quiet shrink-0 px-3 text-label font-bold text-content-muted hover:text-danger hover:bg-danger/10 gap-1.5"
+            aria-label="End the session"
           >
             <Icon icon="ic:baseline-stop-circle" class="text-base" />
-            Stop
+            End
           </button>
         </div>
 
@@ -700,7 +715,7 @@
         <div class="flex items-center gap-3 short:w-[42%] short:shrink-0">
           <button
             onclick={() => store.togglePause()}
-            class="shrink-0 w-11 h-11 rounded-full grid place-items-center transition-all active:scale-90 {store.isPaused ? 'bg-success text-app-bg' : 'bg-surface-elevated text-content border border-border-strong'}"
+            class="shrink-0 w-11 h-11 rounded-full grid place-items-center transition-all active:scale-90 {store.isPaused ? 'bg-success text-on-primary' : 'bg-surface-elevated text-content border border-border-strong'}"
             aria-label={store.isPaused ? 'Resume session' : 'Pause session'}
           >
             <Icon icon={store.isPaused ? 'ic:baseline-play-arrow' : 'ic:baseline-pause'} class="text-2xl" />
@@ -710,14 +725,18 @@
               <span class="text-metric text-content tabular-nums {overrun ? 'text-warning' : ''}">
                 {formatClock(store.elapsedMs)}
               </span>
-              <span class="text-caption text-content-subtle tabular-nums">
-                {expected > 0 ? `of ~${formatMinutes(expected)} · ` : ''}{progress.settled}/{progress.total} done
+              <span class="text-label text-content-subtle tabular-nums">
+                {#if progress.total === 0}
+                  No exercises yet
+                {:else}
+                  {expected > 0 ? `of ~${formatMinutes(expected)} · ` : ''}{progress.settled}/{progress.total} done
+                {/if}
               </span>
             </div>
             <div class="h-1.5 bg-surface-elevated rounded-control overflow-hidden">
               <div
                 class="h-full rounded-control transition-all duration-500 {overrun ? 'bg-warning' : 'bg-primary'}"
-                style="width: {expected > 0 ? Math.min(100, (elapsed / expected) * 100) : 0}%"
+                style="width: {expected > 0 && progress.total > 0 ? Math.min(100, (elapsed / expected) * 100) : 0}%"
               ></div>
             </div>
           </div>
@@ -730,13 +749,10 @@
       <div class="max-w-lg mx-auto w-full px-4 py-4 pb-40 short:pb-24 short:py-2 space-y-2.5">
         <PainHeadsUp workout={session.workout} variant="line" />
         {#if exercises.length === 0}
-          <div class="py-12 border-2 border-dashed border-border rounded-card text-center bg-surface/10 space-y-3">
-            <p class="text-caption text-content-subtle italic">Nothing in this session yet.</p>
-            <button
-              onclick={() => isAddingExercise = true}
-              class="text-label font-bold text-primary hover:underline"
-            >
-              Add your first exercise
+          <div class="py-10 px-6 text-center space-y-4">
+            <p class="text-body text-content-muted">Nothing in this session yet.</p>
+            <button onclick={() => isAddingExercise = true} class="btn btn-primary w-full max-w-xs">
+              <Icon icon="ic:baseline-plus" class="text-lg" /> Add an exercise
             </button>
           </div>
         {:else if isEditingPlan}
@@ -749,7 +765,7 @@
               {@const on = pickedSlotIds.includes(slot.id)}
               <button
                 onclick={() => togglePicked(slot.id)}
-                class="w-full p-3 rounded-card border flex items-center gap-2.5 text-left transition-colors {on ? 'bg-primary/10 border-primary/50' : 'bg-surface/60 border-border hover:border-border-strong'}"
+                class="w-full p-3 min-h-11 rounded-card border flex items-center gap-2.5 text-left transition-colors {on ? 'bg-primary/10 border-primary/50' : 'bg-surface/60 border-border hover:border-border-strong'}"
                 aria-pressed={on}
               >
                 <Icon icon={on ? 'ic:baseline-check-box' : 'ic:baseline-check-box-outline-blank'} class="text-xl shrink-0 {on ? 'text-primary' : 'text-content-subtle'}" />
@@ -766,21 +782,26 @@
               <button
                 onclick={makeCircuit}
                 disabled={pickedSlotIds.length < 1}
-                class="flex-1 py-2.5 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-colors disabled:opacity-40"
+                class="btn btn-primary flex-1"
               >Make circuit{pickedSlotIds.length ? ` (${pickedSlotIds.length})` : ''}</button>
-              <button onclick={() => { isPickingCircuit = false; pickedSlotIds = []; }} class="px-4 py-2.5 bg-surface-elevated text-content-muted text-label font-bold rounded-control">Cancel</button>
+              <button onclick={() => { isPickingCircuit = false; pickedSlotIds = []; }} class="btn btn-secondary">Cancel</button>
             </div>
+            {#if pickedSlotIds.length === 0}
+              <p class="px-1 text-caption text-content-subtle">Tick at least one exercise to make a circuit.</p>
+            {:else if pickedSlotIds.length === 1}
+              <p class="px-1 text-caption text-content-subtle">One exercise repeats in rounds on its own; tick more to alternate them.</p>
+            {/if}
           {:else}
           <div class="grid grid-cols-2 gap-2">
             <button
               onclick={() => (isAddingSavedCircuit = true)}
-              class="py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
+              class="min-h-11 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
             >
               <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
             </button>
             <button
               onclick={() => (isAddingTest = true)}
-              class="py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
+              class="min-h-11 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5"
             >
               <Icon icon="ic:baseline-flag" class="text-base" /> Test
             </button>
@@ -799,7 +820,7 @@
                   <div class="flex items-center gap-1.5 text-caption text-content-subtle min-w-0">
                     <button
                       onclick={() => { if (circuitGroupId !== group.id) openGroupId = openGroupId === group.id ? null : group.id; }}
-                      class="min-w-0 flex-1 flex items-center gap-1.5 text-left"
+                      class="min-w-0 flex-1 min-h-11 flex items-center gap-1.5 text-left"
                       aria-expanded={openGroupId === group.id}
                       title="Rounds and rests"
                     >
@@ -811,9 +832,9 @@
                     <button
                       onclick={() => dissolveCircuit(group.id)}
                       disabled={circuitGroupId === group.id}
-                      class="shrink-0 px-2 py-0.5 rounded-full bg-surface-elevated text-caption font-bold text-content-muted hover:text-danger transition-colors disabled:opacity-40"
-                      title="Turn the circuit back into separate exercises"
-                    >Remove circuit</button>
+                      class="btn-quiet shrink-0 px-3 bg-surface-elevated text-label font-bold text-content-muted disabled:opacity-40"
+                      title={circuitGroupId === group.id ? 'It is running: finish or stop it first' : 'Turn the circuit back into separate exercises'}
+                    >Ungroup</button>
                   </div>
                   {#if openGroupId === group.id}
                     <GroupSettings
@@ -824,37 +845,37 @@
                   {/if}
                 {/if}
                 <div class="flex items-center gap-2.5">
-                  <Icon icon="ic:baseline-drag-indicator" class="text-xl text-content-subtle shrink-0 cursor-grab active:cursor-grabbing" />
-                  <button onclick={() => { if (!lockedByRun(slot)) editingSlotId = slot.id; }} class="min-w-0 flex-1 text-left" title="Edit what you did">
+                  <Icon icon="ic:baseline-drag-indicator" class="text-xl text-content-subtle shrink-0 cursor-grab active:cursor-grabbing" aria-label="Drag to reorder" />
+                  <button onclick={() => { if (!lockedByRun(slot)) editingSlotId = slot.id; }} class="min-w-0 flex-1 min-h-11 flex flex-col justify-center text-left" title="Edit what you did">
                     <p class="text-body font-bold text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</p>
                     <p class="text-caption text-content-subtle truncate">{slotSummary(slot) || '—'}</p>
                   </button>
                   {#if group}
                     <button
                       onclick={() => { addToGroupId = group.id; isAddingExercise = true; }}
-                      class="p-2 text-content-subtle hover:text-primary transition-colors shrink-0 {group.id !== slot.groupId || exercises[exercises.indexOf(slot) + 1]?.groupId === group.id ? 'hidden' : ''}"
+                      class="btn-icon shrink-0 hover:text-primary {group.id !== slot.groupId || exercises[exercises.indexOf(slot) + 1]?.groupId === group.id ? 'hidden' : ''}"
                       aria-label="Add an exercise to this circuit"
                       title="Add to {group.name || 'the circuit'}"
                     >
-                      <Icon icon="ic:baseline-plus" class="text-base" />
+                      <Icon icon="ic:baseline-plus" class="text-xl" />
                     </button>
                     <button
                       onclick={() => leaveCircuit(slot.id)}
                       disabled={lockedByRun(slot)}
-                      class="p-2 text-content-subtle hover:text-content transition-colors shrink-0 disabled:opacity-40"
+                      class="btn-icon shrink-0 disabled:opacity-40"
                       aria-label="Take out of the circuit"
                       title="Take out of the circuit"
                     >
-                      <Icon icon="ic:baseline-logout" class="text-base" />
+                      <Icon icon="ic:baseline-logout" class="text-xl" />
                     </button>
                   {/if}
                   <button
                     onclick={() => removeWithUndo(slot)}
                     disabled={lockedByRun(slot)}
-                    class="p-2 text-content-subtle hover:text-danger transition-colors shrink-0 disabled:opacity-40"
+                    class="btn-icon shrink-0 ml-1 hover:text-danger disabled:opacity-40"
                     aria-label="Remove exercise"
                   >
-                    <Icon icon="ic:baseline-delete" class="text-base" />
+                    <Icon icon="ic:baseline-delete" class="text-xl" />
                   </button>
                 </div>
               </div>
@@ -883,7 +904,7 @@
                 {:else if !store.isComplete}
                   <button
                     onclick={() => openCircuit(groupStart.id)}
-                    class="shrink-0 px-3.5 py-2 rounded-control text-label font-bold transition-colors {circuitGroupId === groupStart.id ? 'bg-primary text-white' : 'bg-primary text-white hover:bg-primary-hover'} flex items-center gap-1"
+                    class="btn btn-primary shrink-0 px-3.5 gap-1"
                   >
                     <Icon icon="ic:baseline-play-arrow" class="text-base" /> {circuitGroupId === groupStart.id ? 'Resume' : 'Start circuit'}
                   </button>
@@ -906,41 +927,41 @@
                       : 'bg-surface/20 border-border/60'}"
                 >
                   <div class="flex items-center gap-3 p-3.5">
-                    <!-- Status pip doubles as the jump-to target -->
-                    <button
-                      onclick={() => store.focusExercise(index)}
-                      class="shrink-0 w-8 h-8 rounded-full grid place-items-center text-caption font-bold transition-colors {status === 'done'
-                        ? 'bg-success/15 text-success'
-                        : status === 'skipped'
-                          ? 'bg-surface-elevated text-content-subtle'
-                          : isCurrent
-                            ? 'bg-primary text-white'
-                            : 'bg-surface-elevated text-content-subtle'}"
-                      aria-label="Go to exercise {index + 1}"
-                    >
-                      {#if status === 'done'}
-                        <Icon icon="ic:baseline-check" class="text-base" />
-                      {:else if status === 'skipped'}
-                        <Icon icon="ic:baseline-remove" class="text-base" />
-                      {:else}
-                        {index + 1}
-                      {/if}
-                    </button>
-
-                    <button onclick={() => store.focusExercise(index)} class="min-w-0 flex-1 text-left">
-                      <p class="text-body font-bold truncate {status === 'pending' ? 'text-content' : 'text-content-muted'}">
-                        {slotTypeName(slot, trainingState.exerciseTypes)}
-                      </p>
-                      <p class="text-caption text-content-subtle truncate flex items-center gap-1.5">
-                        {#if status === 'skipped'}
-                          <span class="text-content-subtle">Skipped</span>
-                        {:else if !slot.prescribed}
-                          <span class="text-primary/80">Extra</span>
-                          {#if slotSummary(slot)}&middot; {slotSummary(slot)}{/if}
+                    <!-- The status pip and the name are one target: jump to this exercise. -->
+                    <button onclick={() => store.focusExercise(index)} class="min-w-0 flex-1 min-h-11 flex items-center gap-3 text-left" aria-label="Go to exercise {index + 1}: {slotTypeName(slot, trainingState.exerciseTypes)}">
+                      <span
+                        class="shrink-0 w-8 h-8 rounded-full grid place-items-center text-caption font-bold transition-colors {status === 'done'
+                          ? 'bg-success/15 text-success'
+                          : status === 'skipped'
+                            ? 'bg-surface-elevated text-content-subtle'
+                            : isCurrent
+                              ? 'bg-primary text-on-primary'
+                              : 'bg-surface-elevated text-content-subtle'}"
+                        aria-hidden="true"
+                      >
+                        {#if status === 'done'}
+                          <Icon icon="ic:baseline-check" class="text-base" />
+                        {:else if status === 'skipped'}
+                          <Icon icon="ic:baseline-remove" class="text-base" />
                         {:else}
-                          {slotSummary(slot) || '—'}
+                          {index + 1}
                         {/if}
-                      </p>
+                      </span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block text-body font-bold truncate {status === 'pending' ? 'text-content' : 'text-content-muted'}">
+                          {slotTypeName(slot, trainingState.exerciseTypes)}
+                        </span>
+                        <span class="text-caption text-content-subtle truncate flex items-center gap-1.5">
+                          {#if status === 'skipped'}
+                            <span class="text-content-subtle">Skipped</span>
+                          {:else if !slot.prescribed}
+                            <span class="text-primary/80">Extra</span>
+                            {#if slotSummary(slot)}&middot; {slotSummary(slot)}{/if}
+                          {:else}
+                            {slotSummary(slot) || '—'}
+                          {/if}
+                        </span>
+                      </span>
                     </button>
 
                     {#if isCurrent && status === 'pending' && groupIdOf(slot) && circuitGroupId !== slot.groupId}
@@ -958,17 +979,17 @@
                         {clock(store.slotElapsedMs(slot.id))}
                       </span>
                     {:else if store.slotElapsedMs(slot.id) >= 60_000}
-                      <span class="shrink-0 text-caption text-content-subtle tabular-nums" title="Time spent on this exercise">{Math.round(store.slotElapsedMs(slot.id) / 60_000)} min</span>
+                      <span class="shrink-0 text-caption text-content-subtle tabular-nums" title="Time spent on this exercise" aria-label="Time spent on this exercise: {Math.round(store.slotElapsedMs(slot.id) / 60_000)} minutes">{Math.round(store.slotElapsedMs(slot.id) / 60_000)} min</span>
                     {/if}
 
                     {#if status !== 'pending'}
                       <button
                         onclick={() => store.unfinishExercise(slot.id)}
-                        class="shrink-0 p-2 text-content-subtle hover:text-primary transition-colors"
+                        class="btn-icon shrink-0 hover:text-primary"
                         aria-label="Reopen this exercise"
                         title="Reopen — correct what you logged"
                       >
-                        <Icon icon="ic:baseline-undo" class="text-base" />
+                        <Icon icon="ic:baseline-undo" class="text-xl" />
                       </button>
                     {/if}
                   </div>
@@ -982,7 +1003,7 @@
                         <button
                           onclick={() => swipeSkip(slot)}
                           disabled={lockedByRun(slot)}
-                          class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] disabled:opacity-40"
+                          class="btn shrink-0 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border border-border-strong/50 active:scale-[0.98]"
                         >
                           Skip
                         </button>
@@ -990,7 +1011,7 @@
                           <!-- The circuit is the way through these: it leads, "Finish exercise" is the fallback. -->
                           <button
                             onclick={() => openCircuit(groupIdOf(slot)!)}
-                            class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                            class="btn btn-primary flex-1 min-w-0 py-3 active:scale-[0.98]"
                             aria-label={circuitGroupId === slot.groupId ? 'Resume the circuit' : 'Start the circuit'}
                           >
                             <Icon icon="ic:baseline-play-arrow" class="text-lg" />
@@ -1002,7 +1023,7 @@
                                stopwatch and countdown for anything else. -->
                           <button
                             onclick={() => openSolo(slot.id)}
-                            class="shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-40"
+                            class="btn shrink-0 py-3 gap-1.5 bg-surface-elevated/50 hover:bg-surface-elevated text-content hover:text-primary border border-border-strong/50 active:scale-[0.98]"
                             aria-label={circuitGroupId === `${SOLO_PREFIX}${slot.id}` ? 'Resume the timer' : isPacer(slotValues(slot)) ? 'Open the pacer for this exercise' : 'Open the timer for this exercise'}
                           >
                             <Icon icon="ic:baseline-timer" class="text-base" />
@@ -1013,8 +1034,8 @@
                           onclick={() => openFinish(slot)}
                           disabled={lockedByRun(slot)}
                           class={groupIdOf(slot)
-                            ? 'shrink-0 px-4 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40'
-                            : 'flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40'}
+                            ? 'btn shrink-0 py-3 bg-surface-elevated/50 hover:bg-surface-elevated text-content-subtle hover:text-content border border-border-strong/50 active:scale-[0.98]'
+                            : 'btn btn-primary flex-1 min-w-0 py-3 active:scale-[0.98]'}
                         >
                           <Icon icon="ic:baseline-check" class="text-base" />
                           {groupIdOf(slot) ? 'Finish' : 'Finish exercise'}
@@ -1025,7 +1046,7 @@
                 </div>
               </div>
               {#if status === 'pending'}
-                <div class="absolute inset-0 z-0 rounded-card bg-success/80 text-white flex items-center px-5 gap-2 text-label font-bold opacity-0 peer-data-[swipe=right]:opacity-100 transition-opacity">
+                <div class="absolute inset-0 z-0 rounded-card bg-success/80 text-on-primary flex items-center px-5 gap-2 text-label font-bold opacity-0 peer-data-[swipe=right]:opacity-100 transition-opacity">
                   <Icon icon="ic:baseline-check" class="text-xl" /> Done as prescribed
                 </div>
                 <div class="absolute inset-0 z-0 rounded-card bg-surface-elevated text-content-muted flex items-center justify-end px-5 gap-2 text-label font-bold opacity-0 peer-data-[swipe=left]:opacity-100 transition-opacity">
@@ -1039,12 +1060,12 @@
     </div>
 
     <!-- Footer: the quiet session-shape controls, and finishing -->
-    <footer class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
+    <footer bind:offsetHeight={footerH} class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
       <div class="max-w-lg mx-auto w-full px-4 py-3 short:py-1 flex items-center gap-2">
         <button
           onclick={() => { isEditingPlan = !isEditingPlan; isPickingCircuit = false; pickedSlotIds = []; }}
           disabled={exercises.length === 0}
-          class="px-3 py-2.5 rounded-control text-label font-bold transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isEditingPlan
+          class="btn-quiet px-3 text-label font-bold gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isEditingPlan
             ? 'bg-primary/15 text-primary'
             : 'text-content-subtle hover:text-content'}"
           title={exercises.length === 0 ? 'Nothing to reorder yet' : 'Reorder or remove exercises'}
@@ -1054,7 +1075,7 @@
         </button>
         <button
           onclick={() => isAddingExercise = true}
-          class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5"
+          class="btn-quiet px-3 text-label font-bold text-content-subtle hover:text-content gap-1.5"
           title="Add an exercise you did that wasn't planned"
         >
           <Icon icon="ic:baseline-plus" class="text-base" />
@@ -1067,7 +1088,7 @@
                here, and a tap brings the whole thing back. -->
           <button
             onclick={() => trainingState.setTimerPillHidden(false)}
-            class="h-10 min-w-10 px-3 rounded-full flex items-center justify-center gap-1.5 border text-label font-bold tabular-nums transition-colors {t.running ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
+            class="h-11 min-w-11 px-3 rounded-full flex items-center justify-center gap-1.5 border text-label font-bold tabular-nums transition-colors {t.running ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
             aria-label="Show the timer"
             title="Timer"
           >
@@ -1078,7 +1099,7 @@
         {#if store.isComplete}
           <button
             onclick={handleSaveAndFinish}
-            class="px-5 py-2.5 bg-success hover:bg-success-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+            class="btn px-5 bg-success hover:bg-success-hover text-on-primary active:scale-[0.98] gap-1.5"
           >
             Finish &amp; rate
             <Icon icon="ic:baseline-arrow-forward" class="text-base" />
@@ -1099,7 +1120,7 @@
   <TimerWidget
     bind:this={timer}
     currentSlot={current ?? null}
-    bottomClass="bottom-[80px] short:bottom-[52px]"
+    bottomClass={TIMER_BOTTOM}
     docked
     visible={store.isModalOpen && !circuitRun}
     onOpenRun={openRun}
@@ -1107,7 +1128,7 @@
 {/if}
 
 {#if session && circuitRun}
-  <CircuitPill visible={store.isModalOpen && !circuitVisible} onOpen={() => (circuitVisible = true)} />
+  <CircuitPill visible={store.isModalOpen && !circuitVisible} bottomClass={TIMER_BOTTOM} onOpen={() => (circuitVisible = true)} />
   {#key circuitGroupId}
     <CircuitRunner
       sessionKey={session.startedAt}
@@ -1157,16 +1178,18 @@
 
 {#if isAddingExercise || editingSlot}
   <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
-    <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
-      <button
-        onclick={() => { isAddingExercise = false; editingSlotId = null; addToGroupId = null; startingCircuit = false; }}
-        class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1"
-      >
-        <Icon icon="ic:baseline-arrow-back" class="text-sm" />
-        Back to session
-      </button>
+    <div class="max-w-lg mx-auto w-full px-4 pb-12 space-y-4">
+      <div class="sticky top-0 z-10 -mx-4 px-4 py-1 bg-app-bg">
+        <button
+          onclick={() => { isAddingExercise = false; editingSlotId = null; addToGroupId = null; startingCircuit = false; }}
+          class="btn-quiet -ml-2 px-2 text-label text-content-subtle hover:text-content flex items-center gap-2"
+        >
+          <Icon icon="ic:baseline-arrow-back" class="text-lg" />
+          Back to session
+        </button>
+      </div>
       {#if isAddingExercise && !startingCircuit && !addToGroupId}
-        <button onclick={() => (isAddingTest = true)} class="px-1 text-label text-primary hover:underline flex items-center gap-1.5">
+        <button onclick={() => (isAddingTest = true)} class="btn-quiet px-1 text-label text-primary hover:underline flex items-center gap-1.5">
           <Icon icon="ic:baseline-flag" class="text-sm" /> Add a benchmark test instead
         </button>
       {/if}
@@ -1181,38 +1204,26 @@
           <p class="px-1 text-caption text-content-subtle">First exercise of a new circuit, added to do next. Give it a time or some reps; add the others, rounds and rests afterwards.</p>
         {:else}
         <div class="px-1 space-y-2">
-          <div class="flex bg-surface-elevated/50 p-1 rounded-control">
-            <button
-              onclick={() => (addAsTodo = false)}
-              class="flex-1 py-2 text-label rounded-control transition-all {!addAsTodo ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-            >
-              Already done
-            </button>
-            <button
-              onclick={() => (addAsTodo = true)}
-              class="flex-1 py-2 text-label rounded-control transition-all {addAsTodo ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-            >
-              Still to do
-            </button>
-          </div>
+          <Segmented
+            label="Is it done or still to do"
+            variant="setting"
+            full
+            value={addAsTodo ? 'todo' : 'done'}
+            onChange={(v) => (addAsTodo = v === 'todo')}
+            options={[{ value: 'done', label: 'Already done' }, { value: 'todo', label: 'Still to do' }]}
+          />
           <p class="text-caption text-content-subtle">
             {addAsTodo ? 'Added right after the current exercise, as the target for you to do next. Once done, it counts as:' : 'Logged as done, with what you enter below. This one counts as:'}
           </p>
-          <div class="flex bg-surface-elevated/50 p-1 rounded-control">
-            <button
-              onclick={() => trainingState.setAddedExerciseTarget('none')}
-              class="flex-1 py-2 text-label rounded-control transition-all {trainingState.addedExerciseTarget === 'none' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-            >
-              Extra work
-            </button>
-            <button
-              onclick={() => trainingState.setAddedExerciseTarget('mirror')}
-              class="flex-1 py-2 text-label rounded-control transition-all {trainingState.addedExerciseTarget === 'mirror' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-            >
-              Part of the plan
-            </button>
-          </div>
-          <p class="text-caption text-content-subtle/80">
+          <Segmented
+            label="What it counts as"
+            variant="setting"
+            full
+            value={trainingState.addedExerciseTarget === 'none' ? 'none' : 'mirror'}
+            onChange={(v) => trainingState.setAddedExerciseTarget(v)}
+            options={[{ value: 'none', label: 'Extra work' }, { value: 'mirror', label: 'Part of the plan' }]}
+          />
+          <p class="text-caption text-content-subtle">
             {#if trainingState.addedExerciseTarget === 'none'}
               No target is recorded, so it adds nothing to planned load and adherence still measures the original plan.
             {:else}
@@ -1238,11 +1249,8 @@
 {/if}
 
 {#if isAddingSavedCircuit}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-[120] bg-black/40 flex items-end justify-center" onclick={() => (isAddingSavedCircuit = false)}>
-    <div class="w-full max-w-lg max-h-[85%] overflow-y-auto no-scrollbar bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
-      <p class="text-section uppercase text-content-muted px-1">Circuit</p>
+  <Sheet title="Add a circuit" level="nested" onClose={() => (isAddingSavedCircuit = false)}>
+    <div class="space-y-2">
       <button onclick={() => { isAddingSavedCircuit = false; startingCircuit = true; addToGroupId = null; isAddingExercise = true; }} class="w-full p-3 rounded-card border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 text-left">
         <p class="text-body font-bold text-primary flex items-center gap-1.5"><Icon icon="ic:baseline-plus" class="text-base" /> New circuit</p>
         <p class="text-caption text-content-subtle">Start with its first exercise; each one is a time or some reps, repeated in rounds.</p>
@@ -1262,7 +1270,7 @@
       {/each}
       {#if trainingState.circuits.length > 0}<p class="text-caption text-content-subtle px-1">A saved one is added as a copy after the current exercise, to do; adjust its rounds and rests right after.</p>{/if}
     </div>
-  </div>
+  </Sheet>
 {/if}
 
 {#if showNotes && session}
