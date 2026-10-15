@@ -95,7 +95,7 @@
     <h3 class="text-section uppercase text-content-muted">Training Days</h3>
     <p class="text-caption text-content-subtle mt-0.5">{trainingDays} training day{trainingDays === 1 ? '' : 's'} · last {wholeYear ? 'year' : '6 months'}, whatever range is chosen above</p>
    </div>
-   <Segmented label="Calendar length" options={[{ value: 'half', label: '6 mo' }, { value: 'year', label: 'Year' }]} value={wholeYear ? 'year' : 'half'} onChange={(v) => (wholeYear = v === 'year')} />
+   <Segmented label="Calendar length" options={[{ value: 'half', label: '6M' }, { value: 'year', label: '1Y' }]} value={wholeYear ? 'year' : 'half'} onChange={(v) => (wholeYear = v === 'year')} />
   </div>
 
   <div class="space-y-1" data-no-swipe>
@@ -148,6 +148,6 @@
   </div>
   <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-content-subtle">
     <span class="flex items-center gap-1">Less {#each LEVEL_CLASS as cls}<span class="w-3 h-3 rounded-[2px] {cls}"></span>{/each} More</span>
-    {#if trainingDays > 0}<span>· shades are quarters of your training days: lightest up to {Math.round(cuts[1])}, darkest above {Math.round(cuts[3])}</span>{/if}
+    {#if trainingDays > 0}<span>Shades are quarters of your training days: lightest up to {Math.round(cuts[1])}, darkest above {Math.round(cuts[3])}</span>{/if}
   </div>
 </div>

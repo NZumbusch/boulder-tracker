@@ -125,13 +125,15 @@
     </div>
 
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-caption tabular-nums min-h-[1.25rem]" aria-live="polite">
-      {#if readoutIndex !== null}
+      {#if picker.selected !== null && readoutIndex !== null}
         <span class="text-content-muted">{weekLabels[samples[readoutIndex].weekId] ?? ''}</span>
         {#each series as s (s.key)}
           {#if !hidden.has(s.key)}
             <span class="inline-flex items-center gap-1"><svg width="12" height="6" aria-hidden="true"><line x1="0" y1="3" x2="12" y2="3" stroke={s.color} stroke-width="2.5" stroke-dasharray={s.dash} /></svg><span class="text-content-subtle">{s.label}</span> <span class="text-content">{s.values[readoutIndex]?.toFixed(1) ?? '–'}</span></span>
           {/if}
         {/each}
+      {:else}
+        <span class="text-content-subtle" class:invisible={!hasAny}>Tap a column for that week's values</span>
       {/if}
     </div>
 

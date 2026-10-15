@@ -182,7 +182,7 @@
     {#if readout}
       <p class="text-caption tabular-nums text-content-muted leading-snug">
         <span class="text-content font-semibold">{readout.week.label}</span>
-        <span class="text-content-subtle"> · </span><span class="text-content">{Math.round(readout.week.totalLoad)}</span> load
+        <span class="text-content-subtle">&nbsp;·&nbsp;</span><span class="text-content">{Math.round(readout.week.totalLoad)}</span> load
         {#if readout.plan !== undefined}<span class="text-content-subtle"> · {Math.round(readout.plan * 100)}% of the plan</span>{/if}
         <br />
         {#if readout.p.ratio !== undefined && readout.p.ratioY !== null}
@@ -191,7 +191,7 @@
         {/if}
         {#if readout.p.rampRate}
           <span class="{readout.p.spike ? 'text-status-caution' : 'text-content-subtle'}">
-            {#if readout.p.ratioY !== null}<span class="text-content-subtle"> · </span>{/if}{#if readout.p.spike}<Icon icon="ic:baseline-warning" class="inline text-sm align-text-bottom" /> {/if}load {rampText(readout.p)} on the {before} before
+            {#if readout.p.ratioY !== null}<span class="text-content-subtle">&nbsp;·&nbsp;</span>{/if}{#if readout.p.spike}<Icon icon="ic:baseline-warning" class="inline text-sm align-text-bottom" /> {/if}load {rampText(readout.p)} on the {before} before
           </span>
         {/if}
       </p>
@@ -320,7 +320,7 @@
       <span class="inline-flex items-center gap-1"><ZoneMark zone="caution" size={10} />caution &gt;{acwrZones.caution.toFixed(1)}</span>
       <span class="inline-flex items-center gap-1"><ZoneMark zone="risk" size={10} />high risk &gt;{acwrZones.highRisk.toFixed(1)}</span>
       <span class="inline-flex items-center gap-1"><ZoneMark zone="low" filled={false} size={10} />not counted yet</span>
-      <span class="inline-flex items-center gap-1"><Icon icon="ic:baseline-warning" class="text-sm text-status-caution" />load jumped on the {before} before</span>
+      <span class="inline-flex items-center gap-1"><Icon icon="ic:baseline-warning" class="text-sm text-status-caution" />load jumped on the {before} before <InfoButton term="rampRate" /></span>
     </div>
   </div>
 
