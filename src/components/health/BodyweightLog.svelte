@@ -11,6 +11,7 @@
   import { toKg, displayWeight, formatWeight } from '../../lib/units';
   import type { DailyMetricEntry } from '../../lib/types';
   import Icon from '@iconify/svelte';
+  import { toast } from '../../lib/toast.svelte';
 
   function todayIso(): string {
     return trainingState.todayIso;
@@ -18,6 +19,8 @@
 
   let date = $state(todayIso());
   let weight = $state<number | undefined>(undefined);
+  /** The chart bar last tapped: its date and weight are read out below the chart. */
+  let picked = $state<number | null>(null);
 
   const entries = $derived(
     trainingState.dailyMetrics
@@ -76,71 +79,91 @@
 
     await trainingState.saveDailyMetric(entry, { id: BODYWEIGHT_METRIC_ID, name: 'Bodyweight', unit: 'kg' });
     weight = undefined;
+    picked = null;
+    toast.show(`Bodyweight saved for ${formatDate(date)}`);
   }
 
   async function handleDelete(id: string) {
+    picked = null;
     await trainingState.deleteDailyMetric(id);
   }
 </script>
 
 <div class="card space-y-4">
-  <div class="flex items-center justify-between px-1">
-    <div>
-      <h3 class="text-section uppercase text-content-muted">Bodyweight</h3>
-      <p class="text-caption text-content-subtle mt-0.5">
-        {#if latest}Latest: {formatWeight(latest.value, trainingState.units.weight)} ({formatDate(latest.date)}){:else}No entries yet{/if}
-      </p>
-    </div>
-    <div class="p-2 bg-primary-hover/10 rounded-control text-primary">
-      <Icon icon="ic:baseline-monitor-weight" class="text-lg" />
-    </div>
+  <div class="px-1">
+    <h3 class="text-section uppercase text-content-muted">Bodyweight</h3>
+    <p class="text-caption text-content-subtle mt-0.5">
+      {#if latest}Latest: {formatWeight(latest.value, trainingState.units.weight)} ({formatDate(latest.date)}){:else}No entries yet. Log your first weight below.{/if}
+    </p>
   </div>
 
-  <form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-    <div class="space-y-1">
-      <label for="bw-date" class="text-label text-content-subtle ml-1">Date</label>
-      <input id="bw-date" type="date" bind:value={date} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+  <form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-3">
+    <div class="grid grid-cols-2 gap-2">
+      <label class="block space-y-1 min-w-0">
+        <span class="text-label text-content-subtle ml-1">Date</span>
+        <input id="bw-date" type="date" bind:value={date} max={todayIso()} class="field" />
+      </label>
+      <label class="block space-y-1 min-w-0">
+        <span class="text-label text-content-subtle ml-1">Weight ({trainingState.units.weight})</span>
+        <input id="bw-weight" type="number" inputmode="decimal" enterkeyhint="done" step="0.1" min="0" bind:value={weight} oninput={() => (weightError = '')} aria-invalid={weightError !== ''} aria-describedby={weightError ? 'bw-error' : undefined} placeholder={trainingState.units.weight === 'lb' ? '155' : '70.5'} class="field {weightError ? '!border-danger' : ''}" />
+      </label>
     </div>
-    <div class="space-y-1">
-      <label for="bw-weight" class="text-label text-content-subtle ml-1">Weight ({trainingState.units.weight})</label>
-      <input id="bw-weight" type="number" step="0.1" min="0" bind:value={weight} oninput={() => (weightError = '')} aria-invalid={weightError !== ''} aria-describedby={weightError ? 'bw-error' : undefined} placeholder="70.5" class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+    {#if weightError}<p id="bw-error" class="text-caption text-danger px-1" role="alert">{weightError}</p>{/if}
+    <div class="flex items-center gap-3">
+      <button type="submit" disabled={!weight} class="btn btn-primary">
+        <Icon icon="ic:baseline-add" class="text-lg" /> Log weight
+      </button>
+      {#if !weight}<span class="text-caption text-content-subtle" role="status">Enter a weight to log it.</span>{/if}
     </div>
-    <button type="submit" aria-label="Add bodyweight entry" disabled={!weight} class="p-3 bg-primary hover:bg-primary-hover text-white rounded-control shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
-      <Icon icon="ic:baseline-add" class="text-xl" />
-    </button>
   </form>
-  {#if weightError}<p id="bw-error" class="text-caption text-danger px-1" role="alert">{weightError}</p>{/if}
 
   {#if chartEntries.length > 1}
-    <div class="h-28 flex items-end justify-between gap-1.5 px-1">
-      {#each chartEntries as e}
-        <div class="flex-1 flex flex-col items-center group relative h-full justify-end">
-          <div
-            class="w-full rounded-t-lg bg-gradient-to-t from-primary/60 to-primary transition-all duration-500 relative"
-            style="height: {barHeightPercent(e.value)}%"
-          >
-            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-20 border border-border-strong shadow-card pointer-events-none">
-              {formatWeight(e.value, trainingState.units.weight)}
-            </div>
-          </div>
+    <div class="space-y-1.5">
+      <div class="flex gap-2">
+        <div class="flex flex-col justify-between text-caption text-content-subtle tabular-nums py-1 shrink-0" aria-hidden="true">
+          <span>{formatWeight(chartRange.max, trainingState.units.weight)}</span>
+          <span>{formatWeight(chartRange.min, trainingState.units.weight)}</span>
         </div>
-      {/each}
+        <div class="h-28 flex-1 flex items-end justify-between gap-1.5" role="group" aria-label="Last {chartEntries.length} weigh-ins - tap a bar to read it">
+          {#each chartEntries as e, i (e.id)}
+            <button
+              type="button"
+              onclick={() => (picked = picked === i ? null : i)}
+              aria-pressed={picked === i}
+              aria-label="{formatDate(e.date)}: {formatWeight(e.value, trainingState.units.weight)}"
+              class="flex-1 h-full flex flex-col items-center justify-end"
+            >
+              <span
+                class="w-full rounded-t-lg transition-colors {picked === null || picked === i ? 'bg-primary' : 'bg-primary/35'}"
+                style="height: {barHeightPercent(e.value)}%"
+              ></span>
+            </button>
+          {/each}
+        </div>
+      </div>
+      <p class="text-caption tabular-nums min-h-4 {picked !== null ? 'text-content' : 'text-content-subtle'}" aria-live="polite">
+        {#if picked !== null && chartEntries[picked]}
+          {formatDate(chartEntries[picked].date)} · {formatWeight(chartEntries[picked].value, trainingState.units.weight)}
+        {:else}
+          Tap a bar to read it.
+        {/if}
+      </p>
     </div>
   {/if}
 
   {#if entries.length > 0}
-    <div class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
-      {#each entries as e}
-        <div class="flex items-center justify-between p-2.5 bg-surface-elevated/50 rounded-control border border-border-strong/50">
+    <ul class="max-h-56 overflow-y-auto custom-scrollbar divide-y divide-border">
+      {#each entries as e (e.id)}
+        <li class="flex items-center justify-between gap-2 pl-1">
           <span class="text-label text-content">{formatDate(e.date)}</span>
-          <div class="flex items-center gap-3">
-            <span class="text-label font-mono text-content-muted tabular-nums">{formatWeight(e.value, trainingState.units.weight)}</span>
-            <button onclick={() => handleDelete(e.id)} class="text-content-subtle hover:text-danger transition-colors" aria-label="Delete entry">
-              <Icon icon="ic:baseline-close" class="text-sm" />
+          <div class="flex items-center gap-1">
+            <span class="text-label text-content-muted tabular-nums">{formatWeight(e.value, trainingState.units.weight)}</span>
+            <button onclick={() => handleDelete(e.id)} class="btn-icon hover:text-danger" aria-label="Delete the entry for {formatDate(e.date)}">
+              <Icon icon="ic:baseline-close" class="text-lg" />
             </button>
           </div>
-        </div>
+        </li>
       {/each}
-    </div>
+    </ul>
   {/if}
 </div>

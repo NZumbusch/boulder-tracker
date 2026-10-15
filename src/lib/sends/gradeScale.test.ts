@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { displayGrade, fontToV, gradeFromInput, vToFont, vRank } from "./gradeScale";
+import { displayGrade, fontToV, gradeFromInput, isKnownGrade, vToFont, vRank } from "./gradeScale";
 
 describe("Font <-> V", () => {
   it("maps Font grades to their V band, including 8a.nu's lettered low grades", () => {
@@ -24,5 +24,17 @@ describe("Font <-> V", () => {
   it("stores a typed V grade as Font, anything else as typed", () => {
     expect(gradeFromInput(" v5 ")).toBe("6C");
     expect(gradeFromInput("7A+")).toBe("7A+");
+  });
+});
+
+describe("isKnownGrade", () => {
+  it("knows Font grades and V grades, however typed", () => {
+    expect(isKnownGrade("7a+")).toBe(true);
+    expect(isKnownGrade(" V6 ")).toBe(true);
+    expect(isKnownGrade("5")).toBe(true);
+  });
+  it("does not know anything else", () => {
+    expect(isKnownGrade("hard")).toBe(false);
+    expect(isKnownGrade("V99")).toBe(false);
   });
 });

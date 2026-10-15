@@ -8,12 +8,11 @@
    * the analytics categories whose sessions get a warning while it's open
    * - the finger-load set for hand and forearm regions, until changed.
    */
+  import { onMount, tick } from 'svelte';
   import { portal } from '../../lib/ui/portal';
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { keyboardAware } from '../../lib/ui/keyboardAware';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
+  import { toast } from '../../lib/toast.svelte';
   import { getWeekId, localIsoDate } from '../../lib/dateUtils';
   import { fingerCategoryIds } from '../../lib/analytics/proMetrics';
   import {
@@ -21,7 +20,8 @@
   } from '../../lib/pain/issues';
   import type { PainIssue, PainKind, PainRegion, PainSide, PainTiming } from '../../lib/types';
   import RangeSlider from '../common/RangeSlider.svelte';
-  import Icon from '@iconify/svelte';
+  import Sheet from '../ui/Sheet.svelte';
+  import Segmented from '../ui/Segmented.svelte';
 
   let { issue = null, onClose, onSaved }: {
     issue?: PainIssue | null;
@@ -67,6 +67,23 @@
 
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const canSave = $derived(name.trim().length > 0 && !!startDate && (!endDate || endDate >= startDate));
+  /** Why Save is off, in words - never a silently greyed button. */
+  const whyNot = $derived(
+    name.trim().length === 0
+      ? 'Choose where it hurts, or type a name, to save.'
+      : !startDate
+        ? 'Pick the day it started.'
+        : endDate && endDate < startDate
+          ? 'The end date is before the start date.'
+          : '',
+  );
+
+  // Closing with something filled in asks first: a stray tap on the scrim should not lose a form.
+  const signature = () => JSON.stringify([region, side, detail, name, startDate, endDate, severity, kinds, timing, notes, checkInNote, triggerTypeId, watch]);
+  let baseline = $state<string | null>(null);
+  // Taken once the first effects have settled (the name and the watch list are derived from the region on mount).
+  onMount(() => { void tick().then(() => (baseline = signature())); });
+  const dirty = $derived(baseline !== null && signature() !== baseline);
 
   async function save() {
     if (!canSave) return;
@@ -97,60 +114,48 @@
         ...(checkInNote.trim() ? { notes: checkInNote.trim() } : {}),
       });
     }
+    toast.show(editing ? 'Issue updated' : `${base.bodyPart} logged`);
     onSaved?.(base.id);
     onClose();
   }
 
-  backWhile(() => true, () => onClose());
-
   const REGIONS = Object.keys(REGION_LABELS) as PainRegion[];
   const SIDES = Object.keys(SIDE_LABELS) as PainSide[];
+  const sideOptions = SIDES.map((s) => ({ value: s, label: SIDE_LABELS[s] }));
   const chipOn = 'bg-primary/10 border-primary/40 text-primary font-bold';
   const chipOff = 'text-content-muted hover:text-content';
-  const inputClass = 'w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50';
 </script>
 
-<div use:portal class="fixed inset-0 pb-safe z-[118] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-  <div use:sheetDrag={onClose} use:keyboardAware class="group bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200">
-    <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <p class="text-caption uppercase text-content-subtle">{editing ? 'Edit issue' : 'New pain issue'}</p>
-        <h3 class="text-title text-content truncate">{name.trim() || 'Where does it hurt?'}</h3>
-      </div>
-      <button onclick={onClose} class="p-2 -mr-2 text-content-subtle hover:text-content shrink-0" aria-label="Close">
-        <Icon icon="ic:baseline-close" class="text-xl" />
-      </button>
-    </div>
-
-    <div class="p-5 space-y-5">
+<div use:portal>
+  <Sheet title={name.trim() || 'Where does it hurt?'} subtitle={editing ? 'Edit issue' : 'New pain issue'} level="top" {dirty} discardMessage="What you entered here will be lost." {onClose}>
+    <div class="space-y-5">
       <div class="space-y-2">
         <span class="text-label text-content-subtle block">Where</span>
         <div class="flex flex-wrap gap-1.5">
           {#each REGIONS as r}
-            <button type="button" onclick={() => region = region === r ? undefined : r} class="chip {region === r ? chipOn : chipOff}">{REGION_LABELS[r]}</button>
+            <button type="button" aria-pressed={region === r} onclick={() => region = region === r ? undefined : r} class="chip {region === r ? chipOn : chipOff}">{REGION_LABELS[r]}</button>
           {/each}
         </div>
-        <div class="flex bg-surface-elevated/50 p-1 rounded-control">
-          {#each SIDES as s}
-            <button type="button" onclick={() => side = side === s ? undefined : s} class="flex-1 py-1.5 text-label rounded-control transition-all {side === s ? 'bg-primary text-white shadow-md' : 'text-content-muted'}">{SIDE_LABELS[s]}</button>
-          {/each}
-        </div>
-        <input bind:value={detail} placeholder={region === 'finger' ? 'Detail, e.g. ring A2' : 'Detail (optional)'} class={inputClass} />
+        <Segmented label="Side" options={sideOptions} value={side ?? ''} onChange={(v) => (side = side === v ? undefined : (v as PainSide))} full />
         <label class="block space-y-1">
-          <span class="text-caption text-content-subtle">Called</span>
-          <input bind:value={name} oninput={() => nameTouched = true} placeholder="e.g. Left ring finger A2" class={inputClass} />
+          <span class="text-caption text-content-subtle">Detail</span>
+          <input bind:value={detail} placeholder={region === 'finger' ? 'e.g. ring A2' : 'Optional'} enterkeyhint="next" class="field" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-caption text-content-subtle">Name (built from the above; change it if you like)</span>
+          <input bind:value={name} oninput={() => nameTouched = true} placeholder="e.g. Left ring finger A2" enterkeyhint="next" class="field" />
         </label>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <label class="space-y-1 min-w-0">
-          <span class="text-label text-content-subtle">Started</span>
-          <input type="date" bind:value={startDate} max={localIsoDate()} class={inputClass} />
+          <span class="text-label text-content-subtle">Started on</span>
+          <input type="date" bind:value={startDate} max={localIsoDate()} class="field" />
         </label>
         {#if editing?.endDate || endDate}
           <label class="space-y-1 min-w-0">
             <span class="text-label text-content-subtle">Gone since{editing?.endEstimated && endDate === editing.endDate ? ' (estimated)' : ''}</span>
-            <input type="date" bind:value={endDate} min={startDate} class={inputClass} />
+            <input type="date" bind:value={endDate} min={startDate} class="field" />
           </label>
         {/if}
       </div>
@@ -159,12 +164,13 @@
         <div class="space-y-1">
           <span class="flex justify-between text-label text-content-subtle"><span>How bad</span><span class="tabular-nums text-content">{severity}/10</span></span>
           <RangeSlider bind:value={severity} label="How bad" />
+          <span class="flex justify-between text-caption text-content-subtle"><span>0 none</span><span>10 the worst</span></span>
         </div>
         <div class="space-y-2">
           <span class="text-label text-content-subtle block">What it's like</span>
           <div class="flex flex-wrap gap-1.5">
             {#each Object.entries(KIND_LABELS) as [k, label]}
-              <button type="button" onclick={() => kinds = toggle(kinds, k as PainKind)} class="chip {kinds.includes(k as PainKind) ? chipOn : chipOff}">{label}</button>
+              <button type="button" aria-pressed={kinds.includes(k as PainKind)} onclick={() => kinds = toggle(kinds, k as PainKind)} class="chip {kinds.includes(k as PainKind) ? chipOn : chipOff}">{label}</button>
             {/each}
           </div>
         </div>
@@ -172,41 +178,44 @@
           <span class="text-label text-content-subtle block">When it hurts</span>
           <div class="flex flex-wrap gap-1.5">
             {#each Object.entries(TIMING_LABELS) as [t, label]}
-              <button type="button" onclick={() => timing = toggle(timing, t as PainTiming)} class="chip {timing.includes(t as PainTiming) ? chipOn : chipOff}">{label}</button>
+              <button type="button" aria-pressed={timing.includes(t as PainTiming)} onclick={() => timing = toggle(timing, t as PainTiming)} class="chip {timing.includes(t as PainTiming) ? chipOn : chipOff}">{label}</button>
             {/each}
           </div>
         </div>
-        <textarea bind:value={checkInNote} rows="2" placeholder="What happened? (optional)" class="{inputClass} resize-y"></textarea>
+        <textarea bind:value={checkInNote} rows="2" aria-label="What happened" placeholder="What happened? (optional)" class="field resize-y"></textarea>
       {/if}
 
       <div class="space-y-2">
         <span class="text-label text-content-subtle block">Warn me before sessions with</span>
         <div class="flex flex-wrap gap-1.5">
           {#each categories as c}
-            <button type="button" onclick={() => { watch = toggle(watch, c.name); watchTouched = true; }} class="chip {watch.includes(c.name) ? chipOn : chipOff}">{c.name}</button>
+            <button type="button" aria-pressed={watch.includes(c.name)} onclick={() => { watch = toggle(watch, c.name); watchTouched = true; }} class="chip {watch.includes(c.name) ? chipOn : chipOff}">{c.name}</button>
           {/each}
         </div>
-        <span class="block text-caption text-content-subtle">While it's open, sessions with these get a heads-up on Plan and Home.</span>
+        <span class="block text-caption text-content-subtle">{watch.length === 0 ? 'None chosen, so no session is flagged. ' : ''}While it's open, sessions with these get a heads-up on Plan and Home.</span>
       </div>
 
       <label class="block space-y-1">
-        <span class="text-label text-content-subtle">Started during <span class="text-content-subtle/70">(optional)</span></span>
-        <select bind:value={triggerTypeId} class={inputClass}>
-          <option value="">—</option>
+        <span class="text-label text-content-subtle">What you were doing when it started <span class="text-content-subtle">(optional)</span></span>
+        <select bind:value={triggerTypeId} class="field">
+          <option value="">Not sure</option>
           {#each types as t}<option value={t.id}>{t.name}</option>{/each}
         </select>
       </label>
 
       {#if editing}
-        <textarea bind:value={notes} rows="3" placeholder="Notes about this issue - what helps, what the physio said…" class="{inputClass} resize-y"></textarea>
+        <textarea bind:value={notes} rows="3" aria-label="Notes about this issue" placeholder="Notes about this issue: what helps, what the physio said…" class="field resize-y"></textarea>
       {/if}
     </div>
 
-    <div class="sticky group-data-[typing]:static bottom-0 bg-surface/95 backdrop-blur-sm border-t border-border px-5 py-4 flex gap-2">
-      <button onclick={save} disabled={!canSave} class="flex-1 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control disabled:opacity-40 active:scale-[0.98]">
-        {editing ? 'Save' : 'Log it'}
-      </button>
-      <button onclick={onClose} class="px-5 py-3 bg-surface-elevated text-content-muted text-label font-bold rounded-control">Cancel</button>
-    </div>
-  </div>
+    {#snippet footer()}
+      <div class="flex-1 min-w-0 space-y-2">
+        {#if whyNot}<p class="text-caption text-content-subtle" role="status">{whyNot}</p>{/if}
+        <div class="flex gap-2">
+          <button onclick={save} disabled={!canSave} class="btn btn-primary flex-1">{editing ? 'Save' : 'Log it'}</button>
+          <button onclick={onClose} class="btn btn-ghost">Cancel</button>
+        </div>
+      </div>
+    {/snippet}
+  </Sheet>
 </div>

@@ -17,7 +17,7 @@
 <div class="flex items-center rounded-full transition-colors {cueMute.muted ? 'bg-warning/15' : ''}">
   <button
     onclick={toggleCueMute}
-    class="py-2 pl-2 pr-1 transition-colors {cueMute.muted ? 'text-warning' : 'text-content-subtle hover:text-content'}"
+    class="min-h-11 min-w-11 grid place-items-center transition-colors {cueMute.muted ? 'text-warning' : 'text-content-subtle hover:text-content'}"
     aria-label={cueMute.muted ? 'Sound is off for this session - turn it on' : 'Mute sound for this session'}
     aria-pressed={cueMute.muted}
   >
@@ -25,7 +25,7 @@
   </button>
   <button
     onclick={() => (open = !open)}
-    class="py-2 pr-1.5 pl-0.5 transition-colors {open ? 'text-primary' : cueMute.muted ? 'text-warning' : 'text-content-subtle hover:text-content'}"
+    class="min-h-11 min-w-8 grid place-items-center transition-colors {open ? 'text-primary' : cueMute.muted ? 'text-warning' : 'text-content-subtle hover:text-content'}"
     aria-label="Cue volume, {percent} %"
     aria-expanded={open}
   >

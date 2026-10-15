@@ -27,8 +27,9 @@
   const expected = $derived(store.expectedMinutes);
 
   /** Capped at 100% so a long session fills the ring rather than overflowing it. */
-  const ratio = $derived(expected > 0 ? Math.min(1, elapsed / expected) : 0);
-  const overrun = $derived(expected > 0 && elapsed > expected);
+  const planned = $derived(progress.total > 0 && expected > 0);
+  const ratio = $derived(planned ? Math.min(1, elapsed / expected) : 0);
+  const overrun = $derived(planned && elapsed > expected);
   const current = $derived(
     circuitHud.active ? circuitHud.exercise : store.currentSlot ? slotTypeName(store.currentSlot, trainingState.exerciseTypes) : 'Session',
   );
@@ -36,7 +37,7 @@
   const summary = $derived(
     circuitHud.active
       ? `${circuitHud.phase} ${circuitHud.time}`
-      : `${elapsed}${expected > 0 ? `/${expected}` : ''} min${progress.total > 0 ? ` · ${progress.settled}/${progress.total} done` : ''}${store.isPaused ? ' · paused' : ''}`,
+      : `${elapsed}${planned ? `/${expected}` : ''} min${progress.total > 0 ? ` · ${progress.settled}/${progress.total} done` : ''}${store.isPaused ? ' · Paused' : ''}`,
   );
 
   function open() {

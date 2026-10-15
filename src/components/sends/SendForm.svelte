@@ -6,8 +6,10 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
+  import { toast } from '../../lib/toast.svelte';
+  import Segmented from '../ui/Segmented.svelte';
   import type { OutdoorAscent } from '../../lib/types';
-  import { displayGrade, gradeFromInput } from '../../lib/sends/gradeScale';
+  import { displayGrade, gradeFromInput, isKnownGrade } from '../../lib/sends/gradeScale';
 
   let { ascent, defaults = {}, onDone }: {
     ascent?: OutdoorAscent;
@@ -44,9 +46,25 @@
     ])].sort(),
   );
   const listId = `send-crags-${Math.random().toString(36).slice(2, 8)}`;
+  /** The crags used most recently, one tap each - the datalist below is not offered on every Android WebView. */
+  const recentCrags = $derived(
+    [...new Set(
+      [...trainingState.outdoorAscents]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map((a) => a.crag)
+        .filter((c): c is string => !!c),
+    )].slice(0, 4),
+  );
+  const styleOptions = $derived([...STYLES, ...(style && !STYLES.includes(style) ? [style] : [])].map((s) => ({ value: s, label: s })));
+  /** What the grade field says about what was typed: nothing while empty, a hint when it is not a grade the app knows (it is still saved as typed). */
+  const gradeHint = $derived(grade.trim() && !isKnownGrade(grade) ? `"${grade.trim()}" is not a grade the charts know - it is saved as typed.` : '');
+  const whyDisabled = $derived(!grade.trim() ? 'Enter a grade to save.' : !date ? 'Pick a date to save.' : '');
+  let saving = $state(false);
+  let gradeInput = $state<HTMLInputElement>();
 
-  async function save() {
-    if (!grade.trim() || !date) return;
+  async function save(another = false) {
+    if (!grade.trim() || !date || saving) return;
+    saving = true;
     // Keep an imported send's original timestamp when its day didn't change.
     const keepDate = ascent && ascent.date.slice(0, 10) === date ? ascent.date : date;
     const saved: OutdoorAscent = {
@@ -58,8 +76,20 @@
       ...(crag.trim() ? { crag: crag.trim() } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
     };
-    await trainingState.saveOutdoorAscent(saved);
-    onDone();
+    try {
+      await trainingState.saveOutdoorAscent(saved);
+    } finally {
+      saving = false;
+    }
+    toast.show(ascent ? 'Send updated' : 'Send saved');
+    if (another && !ascent) {
+      // The crag and the day stay: a session's worth of sends shares them.
+      name = '';
+      grade = '';
+      style = '';
+      notes = '';
+      gradeInput?.focus();
+    } else onDone();
   }
 
   async function remove() {
@@ -68,30 +98,63 @@
     onDone();
   }
 
-  const inputClass = 'w-full bg-surface-elevated/50 text-content p-3 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60';
 </script>
 
 <div class="space-y-3">
-  <input bind:value={name} placeholder="Problem name (optional)" class={inputClass} />
-  <div class="flex gap-2">
-    <input bind:value={grade} placeholder={trainingState.units.grades === 'v' ? 'Grade, e.g. V6' : 'Grade, e.g. 7A'} class="{inputClass} flex-1" />
-    <select bind:value={style} class="{inputClass} flex-1 appearance-none">
-      <option value="">Style</option>
-      {#each STYLES as s}<option value={s}>{s}</option>{/each}
-      {#if style && !STYLES.includes(style)}<option value={style}>{style}</option>{/if}
-    </select>
+  <label class="block space-y-1">
+    <span class="text-label text-content-subtle ml-1">Problem name <span class="text-content-subtle">(optional)</span></span>
+    <input bind:value={name} placeholder="e.g. The Wave" autocomplete="off" enterkeyhint="next" class="field" />
+  </label>
+  <label class="block space-y-1">
+    <span class="text-label text-content-subtle ml-1">Grade</span>
+    <input
+      bind:this={gradeInput}
+      bind:value={grade}
+      placeholder={trainingState.units.grades === 'v' ? 'e.g. V6' : 'e.g. 7A'}
+      autocomplete="off"
+      autocapitalize="characters"
+      enterkeyhint="next"
+      aria-invalid={gradeHint !== ''}
+      aria-describedby={gradeHint ? `${listId}-grade` : undefined}
+      class="field"
+    />
+    {#if gradeHint}<span id="{listId}-grade" class="block text-caption text-warning ml-1" role="status">{gradeHint}</span>{/if}
+  </label>
+  <div class="space-y-1">
+    <span class="text-label text-content-subtle ml-1 block">Style <span class="text-content-subtle">(optional)</span></span>
+    <Segmented label="Style" options={styleOptions} value={style} onChange={(v) => (style = style === v ? '' : v)} full />
   </div>
-  <input bind:value={crag} list={listId} placeholder="Crag (optional)" class={inputClass} />
+  <label class="block space-y-1">
+    <span class="text-label text-content-subtle ml-1">Crag <span class="text-content-subtle">(optional)</span></span>
+    <input bind:value={crag} list={listId} placeholder="e.g. Fontainebleau" autocomplete="off" enterkeyhint="next" class="field" />
+  </label>
   <datalist id={listId}>
     {#each knownCrags as c}<option value={c}></option>{/each}
   </datalist>
-  <input type="date" bind:value={date} class={inputClass} />
-  <input bind:value={notes} placeholder="Notes (optional)" class={inputClass} />
+  {#if recentCrags.length > 0}
+    <div class="flex flex-wrap gap-1.5" role="group" aria-label="Recent crags">
+      {#each recentCrags as c}
+        <button type="button" onclick={() => (crag = c)} aria-pressed={crag === c} class="chip transition-colors {crag === c ? 'bg-primary/15 border-primary/40 text-content' : 'text-content-muted hover:text-content'}">{c}</button>
+      {/each}
+    </div>
+  {/if}
+  <label class="block space-y-1">
+    <span class="text-label text-content-subtle ml-1">Date</span>
+    <input type="date" bind:value={date} class="field" />
+  </label>
+  <label class="block space-y-1">
+    <span class="text-label text-content-subtle ml-1">Notes <span class="text-content-subtle">(optional)</span></span>
+    <input bind:value={notes} placeholder="Beta, conditions, how it felt" enterkeyhint="done" class="field" />
+  </label>
+  {#if whyDisabled}<p class="text-caption text-content-subtle ml-1" role="status">{whyDisabled}</p>{/if}
   <div class="flex gap-2">
-    <button onclick={save} disabled={!grade.trim() || !date} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">Save</button>
-    {#if ascent}
-      <button onclick={remove} class="px-4 py-3 bg-surface-elevated text-content-muted hover:text-danger text-sm font-bold rounded-control">Delete</button>
+    <button onclick={() => save()} disabled={!grade.trim() || !date || saving} class="btn btn-primary flex-1">Save</button>
+    {#if !ascent}
+      <button onclick={() => save(true)} disabled={!grade.trim() || !date || saving} class="btn btn-secondary">Save and add another</button>
     {/if}
-    <button onclick={onDone} class="px-4 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button>
+    <button onclick={onDone} class="btn btn-ghost">Cancel</button>
   </div>
+  {#if ascent}
+    <button onclick={remove} class="btn btn-danger w-full">Delete this send</button>
+  {/if}
 </div>
