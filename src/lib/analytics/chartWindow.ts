@@ -18,15 +18,13 @@ export const MIN_WEEKS = 4;
  * The visible window as week offsets from today, for a page `viewOffset`
  * (0 = the window containing this week, -1 = one full window earlier).
  *
- * Keeps a couple of weeks of the plan ahead of today in view - the charts
- * show planned load as well as actual, so an axis ending at this week would
- * hide the target path the user is about to train into. Narrow windows give
- * up that lookahead before they give up history.
+ * The window ends with the current week: "3M" means the last three months,
+ * not three months with two empty weeks of plan on the right. (Paging to a
+ * later window is still possible.)
  */
 export function weekWindowOffsets(weeks: number, viewOffset: number): { startOffset: number; endOffset: number } {
   const span = Math.max(weeks, 1);
-  const ahead = Math.min(2, Math.max(0, span - MIN_WEEKS));
-  const endOffset = ahead + viewOffset * span;
+  const endOffset = viewOffset * span;
   return { startOffset: endOffset - (span - 1), endOffset };
 }
 

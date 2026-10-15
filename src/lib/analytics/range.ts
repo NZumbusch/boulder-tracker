@@ -88,8 +88,7 @@ export function buildBuckets(range: AnalyticsRange, viewOffset: number, now: Dat
   const today = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / DAY_MS);
 
   if (range !== "1y") {
-    // Same window rule the charts always used: a couple of weeks of plan
-    // ahead of today stay in view - see `weekWindowOffsets`.
+    // Ends with the current week - see `weekWindowOffsets`.
     const { startOffset, endOffset } = weekWindowOffsets(RANGE_WEEKS[range], viewOffset);
     const buckets: Bucket[] = [];
     for (let i = startOffset; i <= endOffset; i++) buckets.push(weekBucket(weekIdOfDay(today + i * 7), today));
