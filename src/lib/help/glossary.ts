@@ -15,7 +15,12 @@ export type TermId =
   | "mix"
   | "phases"
   | "tests"
-  | "notSaved";
+  | "notSaved"
+  | "planB"
+  | "rhr"
+  | "rampRate"
+  | "tokens"
+  | "readiness";
 
 export interface Term {
   title: string;
@@ -98,5 +103,43 @@ export const GLOSSARY: Record<TermId, Term> = {
       "A dashed session comes straight from its phase. It stays that way, following the phase, until you log it, change it, move it or delete it - then it is saved on its own.",
       "The rest of the week keeps following the phase, so changing Monday never freezes Thursday. A day that has passed is saved as it was planned, so your history doesn't change when the phase does.",
     ],
+  },
+  planB: {
+    title: "Plan B (uncertain days)",
+    paragraphs: [
+      "Some days could go either way: outdoors if it is dry, otherwise the board. Plan A is the version you expect; Plan B holds the other one.",
+      "Pick one when you know. Until then the likely one counts towards the week's planned load. You make a Plan B from a session's menu or the week's ⋯ menu.",
+    ],
+  },
+  rhr: {
+    title: "Resting heart rate (RHR)",
+    paragraphs: [
+      "Your heart rate when you are calm, in beats per minute. It comes from your watch through Health Connect, or from what you enter by hand.",
+      "What matters is how it compares with your own usual level: several beats above it for a few days often goes with tiredness, illness or poor sleep. Lower is better here, so a falling line is good news.",
+    ],
+  },
+  rampRate: {
+    title: "Ramp rate",
+    paragraphs: [
+      "How much this week's load grew compared with the week before, as a percentage. +10% means one tenth more than last week.",
+      "A jump of more than about 10% from one week to the next is flagged: fast increases are when finger and shoulder injuries tend to happen. After a rest week a large percentage is normal, so look at it together with the acute:chronic ratio.",
+    ],
+    where: "model",
+  },
+  tokens: {
+    title: "Tokens (prompt size)",
+    paragraphs: [
+      "An AI model reads text in pieces called tokens, roughly three quarters of a word each. The number shows how long the prompt is.",
+      "A longer prompt costs more when you pay per use and may not fit in a free chat. You can leave things out under What the AI sees.",
+    ],
+    where: "aiSharing",
+  },
+  readiness: {
+    title: "Readiness",
+    paragraphs: [
+      "One score, 0 to 100, for how ready you are to train hard today. It starts at 100 and loses points for recent fatigue, a sharp jump in load, open pain and, if you log them, poor sleep or a dip in heart-rate variability.",
+      "Tap the ring on Home to see what moved it. It is a guide for the day, not a verdict: how your fingers feel counts for more.",
+    ],
+    where: "model",
   },
 };
