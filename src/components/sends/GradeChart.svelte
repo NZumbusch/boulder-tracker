@@ -14,6 +14,7 @@
   import { gradeHistogram } from '../../lib/sends/gradeHistogram';
   import type { SendPeriod } from '../../lib/sends/filter';
   import { trainingState } from '../../lib/state.svelte';
+  import Segmented from '../ui/Segmented.svelte';
 
   let { ascents, period = $bindable('all'), selectedGrade = $bindable(null) }: {
     /** Already filtered to `period` by the owner. */
@@ -37,9 +38,11 @@
   }
 
   // Every grade gets its label when there's room: a label ("6A+") needs
-  // about this many px at the axis's 10px size. Narrower than that, only
+  // about this many px at the axis's 11px size. Narrower than that, only
   // whole grades are labelled so neighbours never overlap.
-  const LABEL_MIN_PX = 22;
+  const LABEL_MIN_PX = 26;
+  /** A bar is never narrower than this: with many grades the chart scrolls sideways rather than squeeze them below a finger. */
+  const BAR_MIN_PX = 28;
   let plotWidth = $state(0);
   const thinLabels = $derived(plotWidth > 0 && plotWidth / Math.max(1, histogram.bars.length) < LABEL_MIN_PX);
   /** Counts above the bars need less room than grade names, but still some. */
@@ -59,54 +62,55 @@
         {total} send{total === 1 ? '' : 's'}{histogram.unplotted ? ` · ${histogram.unplotted} with other grades not shown` : ''}
       </p>
     </div>
-    <div class="seg shrink-0">
-      {#each [['all', 'All time'], ['year', '12 months']] as [id, label]}
-        <button
-          onclick={() => { period = id as SendPeriod; selectedGrade = null; }}
-          class="seg-item {period === id ? 'seg-on' : 'hover:text-content'}"
-          aria-pressed={period === id}
-        >{label}</button>
-      {/each}
+    <div class="shrink-0">
+      <Segmented
+        label="Period"
+        options={[{ value: 'all', label: 'All time' }, { value: 'year', label: '12 months' }]}
+        value={period}
+        onChange={(v) => { period = v as SendPeriod; selectedGrade = null; }}
+      />
     </div>
   </div>
 
   {#if histogram.bars.length === 0}
-    <p class="text-caption text-content-subtle italic py-6 text-center">No Font-graded sends {period === 'year' ? 'in the last 12 months' : 'yet'}.</p>
+    <p class="text-caption text-content-subtle italic py-6 text-center">No sends with a recognised grade {period === 'year' ? 'in the last 12 months' : 'yet'}.</p>
   {:else}
-    <div>
-      <!-- Plot: one full-height hit target per grade; the bar sits on the baseline. -->
-      <div bind:clientWidth={plotWidth} class="flex items-end gap-0.5 border-b border-border-strong/60" style="height: {PLOT_HEIGHT + 16}px" onmouseleave={() => hovered = null} role="group" aria-label="Sends per grade - tap a grade to filter the list">
-        {#each histogram.bars as bar, i (bar.grade)}
-          <button
-            class="flex-1 h-full flex flex-col justify-end items-center min-w-0 group"
-            onclick={() => toggle(bar.grade)}
-            onmouseenter={() => hovered = i}
-            aria-pressed={selectedGrade === bar.grade}
-            aria-label="{bar.grade}: {bar.count} send{bar.count === 1 ? '' : 's'}{bar.flashed ? `, ${bar.flashed} flashed` : ''}"
-          >
-            {#if showCounts && bar.count > 0}
-              <span class="text-[10px] tabular-nums leading-none mb-1 {active === i ? 'text-content font-bold' : 'text-content-subtle'}">{bar.count}</span>
-            {/if}
-            {#if bar.count > 0}
-              <span
-                class="w-full max-w-7 rounded-t-[4px] transition-colors {active === null || active === i ? 'bg-primary' : 'bg-primary/35'}"
-                style="height: {(bar.count / maxCount) * PLOT_HEIGHT}px"
-              ></span>
-            {/if}
-          </button>
-        {/each}
-      </div>
-      <!-- Grade axis -->
-      <div class="flex gap-0.5 mt-1" aria-hidden="true">
-        {#each histogram.bars as bar, i (bar.grade)}
-          <span class="flex-1 min-w-0 text-center text-[10px] leading-tight tabular-nums whitespace-nowrap {active === i || selectedGrade === bar.grade ? 'text-content font-bold' : 'text-content-subtle'}">
-            {!thinLabels || !bar.grade.endsWith('+') ? bar.grade : ''}
-          </span>
-        {/each}
+    <div class="overflow-x-auto no-scrollbar">
+      <div style="min-width: {histogram.bars.length * BAR_MIN_PX}px">
+        <!-- Plot: one full-height hit target per grade; the bar sits on the baseline. -->
+        <div bind:clientWidth={plotWidth} class="flex items-end gap-0.5 border-b border-border-strong/60" style="height: {PLOT_HEIGHT + 16}px" onmouseleave={() => hovered = null} role="group" aria-label="Sends per grade - tap a grade to filter the list">
+          {#each histogram.bars as bar, i (bar.grade)}
+            <button
+              class="flex-1 h-full flex flex-col justify-end items-center min-w-0 group"
+              onclick={() => toggle(bar.grade)}
+              onmouseenter={() => hovered = i}
+              aria-pressed={selectedGrade === bar.grade}
+              aria-label="{bar.grade}: {bar.count} send{bar.count === 1 ? '' : 's'}{bar.flashed ? `, ${bar.flashed} flashed` : ''}"
+            >
+              {#if showCounts && bar.count > 0}
+                <span class="text-caption tabular-nums leading-none mb-1 {active === i ? 'text-content font-bold' : 'text-content-subtle'}">{bar.count}</span>
+              {/if}
+              {#if bar.count > 0}
+                <span
+                  class="w-full max-w-7 rounded-t-[4px] transition-colors {active === null || active === i ? 'bg-primary' : 'bg-primary/35'}"
+                  style="height: {(bar.count / maxCount) * PLOT_HEIGHT}px"
+                ></span>
+              {/if}
+            </button>
+          {/each}
+        </div>
+        <!-- Grade axis -->
+        <div class="flex gap-0.5 mt-1" aria-hidden="true">
+          {#each histogram.bars as bar, i (bar.grade)}
+            <span class="flex-1 min-w-0 text-center text-caption leading-tight tabular-nums whitespace-nowrap {active === i || selectedGrade === bar.grade ? 'text-content font-bold' : 'text-content-subtle'}">
+              {!thinLabels || !bar.grade.endsWith('+') ? bar.grade : ''}
+            </span>
+          {/each}
+        </div>
       </div>
     </div>
 
-    <p class="text-caption tabular-nums h-4 {activeBar ? 'text-content' : 'text-content-subtle'}">
+    <p class="text-caption tabular-nums min-h-4 {activeBar ? 'text-content' : 'text-content-subtle'}">
       {#if activeBar}
         {[
           activeBar.grade,

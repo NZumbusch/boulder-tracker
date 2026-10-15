@@ -59,7 +59,7 @@
       onclick={() => editingId = send.id}
     >
       {#snippet trailing()}
-        {#if project}<Icon icon="ic:baseline-star" class="text-primary shrink-0" aria-label="Trip project" />{/if}
+        {#if project}<span role="img" aria-label="Trip project" class="shrink-0 grid"><Icon icon="ic:baseline-star" class="text-primary" /></span>{/if}
       {/snippet}
     </ListRow>
   {/if}
@@ -67,11 +67,11 @@
 
 <div class="space-y-4">
   <div class="flex gap-2">
-    <button onclick={() => mode = mode === 'add' ? 'list' : 'add'} aria-pressed={mode === 'add'} class="chip transition-colors {mode === 'add' ? 'border-primary bg-primary/15 text-content' : 'text-primary hover:border-primary/40'}">
-      <Icon icon="ic:baseline-plus" class="text-sm" /> Add send
+    <button onclick={() => mode = mode === 'add' ? 'list' : 'add'} aria-pressed={mode === 'add'} class="btn transition-colors {mode === 'add' ? 'btn-secondary' : 'btn-primary'}">
+      <Icon icon={mode === 'add' ? 'ic:baseline-close' : 'ic:baseline-plus'} class="text-base" /> {mode === 'add' ? 'Close' : 'Add send'}
     </button>
-    <button onclick={() => mode = mode === 'import' ? 'list' : 'import'} aria-pressed={mode === 'import'} class="chip transition-colors {mode === 'import' ? 'border-primary bg-primary/15 text-content' : 'text-content-muted hover:text-content'}">
-      <Icon icon="ic:baseline-upload-file" class="text-sm" /> Import 8a.nu
+    <button onclick={() => mode = mode === 'import' ? 'list' : 'import'} aria-pressed={mode === 'import'} class="btn transition-colors {mode === 'import' ? 'btn-secondary' : 'btn-ghost'}">
+      <Icon icon="ic:baseline-upload-file" class="text-base" /> {mode === 'import' ? 'Close import' : 'Import from 8a.nu'}
     </button>
   </div>
 
@@ -87,18 +87,18 @@
 
   {#if mode === 'list' && ascents.length > 0}
     {@const stats = sendStats(inPeriod)}
-    <div class="grid grid-cols-4 gap-1.5">
-      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border"><p class="text-caption text-content-subtle leading-tight">Sends</p><p class="text-body font-semibold text-content tabular-nums">{stats.count}</p></div>
-      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border"><p class="text-caption text-content-subtle leading-tight">First go</p><p class="text-body font-semibold text-content tabular-nums">{stats.firstGoRate !== undefined ? `${Math.round(stats.firstGoRate * 100)}%` : '–'}</p></div>
-      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border"><p class="text-caption text-content-subtle leading-tight">Hardest</p><p class="text-body font-semibold text-content tabular-nums">{stats.hardest ? G(stats.hardest.grade) : '–'}</p></div>
-      <div class="px-2.5 py-2 rounded-control bg-surface/50 border border-border"><p class="text-caption text-content-subtle leading-tight">Hardest flash</p><p class="text-body font-semibold text-content tabular-nums">{stats.hardestFirstGo ? G(stats.hardestFirstGo.grade) : '–'}</p></div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+      <div class="px-3 py-2 rounded-control bg-surface-elevated/40"><p class="text-caption text-content-subtle leading-tight">Sends</p><p class="text-body font-semibold text-content tabular-nums">{stats.count}</p></div>
+      <div class="px-3 py-2 rounded-control bg-surface-elevated/40"><p class="text-caption text-content-subtle leading-tight">First go</p><p class="text-body font-semibold text-content tabular-nums">{stats.firstGoRate !== undefined ? `${Math.round(stats.firstGoRate * 100)}%` : '–'}</p></div>
+      <div class="px-3 py-2 rounded-control bg-surface-elevated/40"><p class="text-caption text-content-subtle leading-tight">Hardest</p><p class="text-body font-semibold text-content tabular-nums">{stats.hardest ? G(stats.hardest.grade) : '–'}</p></div>
+      <div class="px-3 py-2 rounded-control bg-surface-elevated/40"><p class="text-caption text-content-subtle leading-tight">Hardest flash</p><p class="text-body font-semibold text-content tabular-nums">{stats.hardestFirstGo ? G(stats.hardestFirstGo.grade) : '–'}</p></div>
     </div>
     <GradeChart ascents={inPeriod} bind:period bind:selectedGrade />
     {#if selectedGrade}
       <div class="flex items-center gap-2 px-1">
         <span class="text-label text-content">Showing {selectedGrade} sends{period === 'year' ? ' from the last 12 months' : ''}</span>
-        <button onclick={() => selectedGrade = null} class="chip text-content-subtle hover:text-content">
-          <Icon icon="ic:baseline-close" class="text-xs" /> Clear
+        <button onclick={() => selectedGrade = null} class="btn btn-ghost px-3">
+          <Icon icon="ic:baseline-close" class="text-base" /> Clear
         </button>
       </div>
     {/if}
@@ -124,10 +124,13 @@
     </div>
   {:else}
     {#if mode === 'list'}
-      <div class="py-8 text-center">
-        <p class="text-caption text-content-subtle italic">
-          {filtered && trainingState.outdoorAscents.length > 0 ? 'No sends match the filters.' : selectedGrade ? `No ${selectedGrade} sends${period === 'year' ? ' in the last 12 months' : ''} yet.` : period === 'year' && trainingState.outdoorAscents.length > 0 ? 'No sends in the last 12 months.' : 'No outdoor sends yet - add one, or import your 8a.nu log.'}
+      <div class="py-8 text-center space-y-3">
+        <p class="text-body text-content-subtle">
+          {filtered && trainingState.outdoorAscents.length > 0 ? 'No sends match the filters.' : selectedGrade ? `No ${selectedGrade} sends${period === 'year' ? ' in the last 12 months' : ''} yet.` : period === 'year' && trainingState.outdoorAscents.length > 0 ? 'No sends in the last 12 months.' : 'No outdoor sends yet. Add one, or import your 8a.nu log.'}
         </p>
+        {#if trainingState.outdoorAscents.length === 0}
+          <button onclick={() => (mode = 'add')} class="btn btn-primary mx-auto"><Icon icon="ic:baseline-plus" class="text-base" /> Add your first send</button>
+        {/if}
       </div>
     {/if}
   {/each}

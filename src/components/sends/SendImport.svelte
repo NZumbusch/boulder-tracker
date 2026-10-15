@@ -11,6 +11,7 @@
   import { classifyImport, type ImportRow } from '../../lib/sends/matching';
   import { formatDate } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
+  import { toast } from '../../lib/toast.svelte';
   import type { OutdoorAscent } from '../../lib/types';
   import Icon from '@iconify/svelte';
 
@@ -22,6 +23,7 @@
   let editingId = $state<string | null>(null);
   let showDiscarded = $state(false);
   let importing = $state(false);
+  let fileName = $state('');
 
   const reviewable = $derived((rows ?? []).filter((r) => r.status !== 'duplicate'));
   const discarded = $derived((rows ?? []).filter((r) => r.status === 'duplicate'));
@@ -31,14 +33,22 @@
   async function handleFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    const parsed = parseOutdoorAscentCsv(await file.text());
-    if (parsed.ascents.length === 0 && parsed.skipped.length === 0) {
-      await showAlert('Empty File', 'No rows found in this CSV file.');
-      return;
+    try {
+      const parsed = parseOutdoorAscentCsv(await file.text());
+      if (parsed.ascents.length === 0 && parsed.skipped.length === 0) {
+        await showAlert('Empty file', 'No rows found in this CSV file.');
+        return;
+      }
+      fileName = file.name;
+      skipped = parsed.skipped;
+      rows = classifyImport(parsed.ascents, $state.snapshot(trainingState.outdoorAscents) as OutdoorAscent[])
+        .map((r) => ({ ...r, include: r.status === 'new' }));
+    } catch {
+      await showAlert('Could not read the file', 'This does not look like an 8a.nu CSV export. Export your ascents from 8a.nu again and pick that file.');
+    } finally {
+      // The same file can be picked again after a failure.
+      (e.target as HTMLInputElement).value = '';
     }
-    skipped = parsed.skipped;
-    rows = classifyImport(parsed.ascents, $state.snapshot(trainingState.outdoorAscents) as OutdoorAscent[])
-      .map((r) => ({ ...r, include: r.status === 'new' }));
   }
 
   function update(id: string, field: keyof OutdoorAscent, value: string) {
@@ -56,13 +66,18 @@
     importing = true;
     try {
       await trainingState.addOutdoorAscents(chosen);
+      toast.show(`Imported ${chosen.length} send${chosen.length === 1 ? '' : 's'}`);
       onDone();
     } finally {
       importing = false;
     }
   }
 
-  const cellInput = 'bg-surface text-content p-2 rounded-control border border-border-strong outline-none text-sm min-w-0';
+  const cellInput = 'field bg-surface min-w-0';
+
+  function setAll(on: boolean) {
+    for (const r of reviewable) r.include = on;
+  }
 
   /** A stored (Font) grade in the chosen display scale. */
   const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
@@ -70,20 +85,26 @@
 
 {#if !rows}
   <div class="p-4 rounded-card border border-dashed border-border-strong/60 space-y-3 text-center">
-    <p class="text-caption text-content-subtle">Export your ascents from 8a.nu as CSV, then pick the file. You'll see every send before anything is added.</p>
+    <p class="text-label text-content-subtle">Export your ascents from 8a.nu as CSV, then pick the file. You'll see every send before anything is added.</p>
     <div class="flex gap-2 justify-center">
-      <button onclick={() => fileInput?.click()} class="px-4 py-2.5 bg-primary text-white text-sm font-bold rounded-control flex items-center gap-1.5">
-        <Icon icon="ic:baseline-upload-file" /> Choose CSV
+      <button onclick={() => fileInput?.click()} class="btn btn-primary">
+        <Icon icon="ic:baseline-upload-file" class="text-base" /> Choose CSV
       </button>
-      <button onclick={onDone} class="px-4 py-2.5 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button>
+      <button onclick={onDone} class="btn btn-ghost">Cancel</button>
     </div>
     <input bind:this={fileInput} type="file" accept=".csv,text/csv" class="hidden" onchange={handleFile} />
   </div>
 {:else}
   <div class="space-y-3">
     <p class="text-label text-content">
-      {reviewable.length - maybeCount} new{maybeCount ? ` · ${maybeCount} maybe` : ''}{discarded.length ? ` · ${discarded.length} already logged` : ''}
+      {fileName ? `${fileName}: ` : ''}{reviewable.length - maybeCount} new{maybeCount ? ` · ${maybeCount} maybe` : ''}{discarded.length ? ` · ${discarded.length} already logged` : ''}
     </p>
+    {#if reviewable.length > 1}
+      <div class="flex gap-1">
+        <button onclick={() => setAll(true)} class="btn btn-ghost px-3">Select all</button>
+        <button onclick={() => setAll(false)} class="btn btn-ghost px-3">Select none</button>
+      </div>
+    {/if}
     {#if skipped.length > 0}
       <details class="text-caption text-warning">
         <summary>{skipped.length} row{skipped.length === 1 ? '' : 's'} could not be read</summary>
