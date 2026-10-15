@@ -65,7 +65,7 @@
               onclick={() => choose(row)}
               data-active={active}
               aria-current={active ? 'page' : undefined}
-              class="w-full h-12 px-4 flex items-center gap-4 rounded-full text-body text-left transition-colors {active ? `${accent.tint} ${accent.text} font-semibold` : row.kind === 'action' && row.id === 'resume' ? 'bg-success/15 text-success font-semibold' : 'text-content hover:bg-surface-elevated/70'}"
+              class="w-full h-12 short:h-10 px-4 flex items-center gap-4 rounded-full text-body text-left transition-colors {active ? `${accent.tint} ${accent.text} font-semibold` : row.kind === 'action' && row.id === 'resume' ? 'bg-success/15 text-success font-semibold' : 'text-content hover:bg-surface-elevated/70'}"
             >
               <Icon icon={row.icon} class="text-[22px] shrink-0 {row.kind === 'view' && row.id === 'add' ? 'text-content-muted' : ''}" />
               <span class="truncate">{row.label}</span>
