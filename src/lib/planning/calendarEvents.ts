@@ -8,6 +8,9 @@ import { summarizeSession } from "./sessionSummary";
 
 export const DAY_MS = 86_400_000;
 
+/** The colour of a phone-calendar event that has none of its own (one place, so the views never differ). */
+export const DEFAULT_EVENT_COLOR = "#71717a";
+
 const DAY_NAMES: DayOfWeek[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 /** A session as the calendar draws it. */
