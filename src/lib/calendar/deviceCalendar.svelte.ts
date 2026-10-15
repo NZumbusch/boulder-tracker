@@ -132,6 +132,21 @@ class DeviceCalendarStore {
     return eventColor(event, this.colors, this.calendars.find((c) => c.id === event.calendarId)?.color);
   }
 
+  /**
+   * The events between two day indexes (inclusive) of the chosen calendars, for the AI coach's prompt - without
+   * touching what the Plan calendar shows. Empty when the calendar is off, not allowed, or in the example data.
+   */
+  async eventsBetween(fromDay: number, toDay: number): Promise<DeviceEvent[]> {
+    if (!this.enabled || !this.granted || trainingState.demoActive) return [];
+    try {
+      const ids = this.selected.filter((id) => this.calendars.some((c) => c.id === id));
+      const { events } = await DeviceCalendar.listEvents({ from: localMidnight(fromDay), to: localMidnight(toDay + 1), calendarIds: ids });
+      return toDeviceEvents(events);
+    } catch {
+      return [];
+    }
+  }
+
   /** Reads the events between two day indexes (inclusive) of the chosen calendars. */
   async load(fromDay: number, toDay: number): Promise<void> {
     const token = ++this.#token;

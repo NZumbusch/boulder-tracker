@@ -19,11 +19,13 @@
   import AIPromptTuning from './AIPromptTuning.svelte';
   import { loadCompact } from '../../lib/ai/promptSize';
   import Icon from "@iconify/svelte";
+  import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
 
   const CATEGORIES: { id: keyof AISharingPreferences; label: string; description: string }[] = [
     { id: 'trainingBlocks', label: 'Training Blocks', description: 'Active/upcoming phase blocks covering or near the prompt\'s target weeks.' },
     { id: 'competitions', label: 'Goals', description: 'Upcoming competitions and outdoor trips (dates, place, projects) - what you\'re peaking for.' },
     { id: 'places', label: 'Places', description: 'Where you train - names, kind, price, opening hours and notes (never the coordinates) - so the coach can place sessions. On by default.' },
+    { id: 'phoneCalendar', label: 'Phone calendar', description: 'The titles and times of your phone calendar\'s events in the weeks the coach plans (never where, notes or guests), so it plans around them. Android app with the phone calendar switched on. Off by default - titles can be private.' },
     { id: 'readinessMetrics', label: 'Readiness & Daily Metrics', description: 'Current readiness score plus sleep/HRV/RHR/bodyweight trends. Health data - off by default.' },
     { id: 'painLogs', label: 'Pain issues', description: 'Open pain issues and those resolved in the last 90 days, with their course; also lets open pain count in the readiness snapshot. Health data - off by default.' },
     { id: 'outdoorAscents', label: 'Outdoor Ascents', description: 'Recent outdoor grade history.' },
@@ -55,7 +57,7 @@
   </div>
 
   <div class="divide-y divide-border">
-    {#each CATEGORIES as category}
+    {#each CATEGORIES.filter((c) => c.id !== 'phoneCalendar' || deviceCalendar.supported) as category}
       <label class="flex items-center justify-between gap-3 py-3 cursor-pointer">
         <div class="min-w-0">
           <p class="text-body text-content">{category.label}</p>
@@ -63,7 +65,7 @@
         </div>
         <input
           type="checkbox"
-          checked={category.id === 'planNotesInHistory' ? trainingState.aiSharing.planNotesInHistory === true : trainingState.aiSharing[category.id] !== false}
+          checked={category.id === 'planNotesInHistory' || category.id === 'phoneCalendar' ? trainingState.aiSharing[category.id] === true : trainingState.aiSharing[category.id] !== false}
           onchange={(e) => trainingState.setAiSharing(category.id, e.currentTarget.checked)}
           class="w-5 h-5 rounded accent-primary shrink-0"
         />

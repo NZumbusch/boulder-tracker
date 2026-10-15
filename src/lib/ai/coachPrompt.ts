@@ -10,6 +10,8 @@ import { renderCoachMemory, COACH_MEMORY_READ_ONLY } from "./coachNotes";
 import type { AthleteProfile, CoachNote } from "../types";
 import type { DayOfWeek } from "../types";
 import { weekDatesText, weekLabel } from "../dateUtils";
+import { buildCalendarContext } from "../calendar/aiCalendar";
+import type { DeviceEvent } from "../calendar/deviceEvents";
 
 /**
  * The plan-level AI prompts, as text: "generate" (change the plan - the
@@ -85,6 +87,9 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
   }
   if (profile.places?.length) {
     sections.push(`- My Places (where I train, with what it costs, when it is open and what to know; a session can say where it is with "place": <one of these names>, and the "places" section adds, edits or removes places - pick the place that suits the session: boards, outdoor or not, opening hours against its start time):\n${lines(profile.places)}`);
+  }
+  if (profile.calendar && profile.calendar.entries.length > 0) {
+    sections.push(`- My Calendar (what else is on in the target weeks, from my phone calendar - title and time only. Plan around it: no session on top of an event, rest before something big, a lighter day after a late night; "allDay" entries block the day only when the title says it matters (a trip, a flight) - a birthday does not):\n${lines(profile.calendar.entries)}${profile.calendar.more ? `\n(and ${profile.calendar.more} more, not shown)` : ""}`);
   }
   if (profile.readiness) {
     sections.push(`- Readiness Snapshot:\n${JSON.stringify(profile.readiness)}`);
@@ -200,7 +205,7 @@ export type CoachPromptSource = AIContextSource & Omit<PlanContextInput, "target
  */
 export function buildCoachPromptFor(
   source: CoachPromptSource,
-  opts: { mode: AIPromptMode; targetWeekIds: string[]; goal: string; history: AIHistoryWindow; asOf?: Date; uncertainDays?: DayOfWeek[]; changeLog?: AiChangeEntry[]; compact?: boolean },
+  opts: { mode: AIPromptMode; targetWeekIds: string[]; goal: string; history: AIHistoryWindow; asOf?: Date; uncertainDays?: DayOfWeek[]; changeLog?: AiChangeEntry[]; compact?: boolean; calendar?: DeviceEvent[] },
 ): string {
   const { mode, goal, history } = opts;
   const targetWeekIds = mode === "context" ? [] : opts.targetWeekIds;
@@ -213,6 +218,11 @@ export function buildCoachPromptFor(
     { readiness: source.readinessConfig, fatigueHalfLife: source.fatigueHalfLife, fatigueModel: source.fatigueModel, retestWeeks: source.retestWeeks, compact: opts.compact },
     history,
   );
+  // The phone calendar: only when sharing it is switched on (it is off by default) and there are weeks to plan.
+  if (mode !== "context" && source.aiSharing.phoneCalendar === true && opts.calendar) {
+    const calendar = buildCalendarContext(opts.calendar);
+    if (calendar.entries.length > 0) profile.calendar = calendar;
+  }
   // Fields named one by one, never spread: `trainingState` exposes them as
   // getters on its prototype, and a spread copies none of those.
   const planContext = mode === "generate"

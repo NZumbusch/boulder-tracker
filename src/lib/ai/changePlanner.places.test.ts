@@ -89,6 +89,18 @@ describe("the coach prompt", () => {
     expect(prompt(source())).toContain("Steinbock Konstanz");
     expect(prompt(source({ places: false }))).not.toContain("Steinbock Konstanz");
   });
+  it("lists the phone calendar's events in the weeks to plan only with the opt-in switch", () => {
+    const events = [{ id: "e1", title: "Lecture", calendarId: "1", day: 0, startMin: 540, minutes: 120, allDay: false, begin: new Date(2026, 9, 19, 9).getTime(), end: new Date(2026, 9, 19, 11).getTime(), location: "Hall 3", notes: "bring laptop" }];
+    const plan = (sharing: Record<string, boolean>, calendar?: unknown) =>
+      buildCoachPromptFor(source(sharing) as never, { mode: "generate", targetWeekIds: ["2026-W43"], goal: "x", history: { fullWeeks: 2, weeklyLines: 4 } as never, calendar: calendar as never });
+    const on = plan({ phoneCalendar: true }, events);
+    expect(on).toContain("My Calendar");
+    expect(on).toContain("Lecture");
+    expect(on).not.toMatch(/Hall 3|bring laptop/);
+    expect(plan({}, events)).not.toContain("My Calendar");
+    expect(plan({ phoneCalendar: true })).not.toContain("My Calendar");
+    expect(plan({ phoneCalendar: false }, events)).not.toContain("Lecture");
+  });
 });
 
 describe("changing the places themselves", () => {
@@ -160,4 +172,5 @@ describe("changing the places themselves", () => {
     const v = validateChangeSet(places({ action: "remove", name: "Brione" }));
     expect(planChanges(v.data!, state(), new Set(), ids).writes.places).toBeUndefined();
   });
+
 });

@@ -35,7 +35,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#0a0a0b"/><path fill="#3b82f6" d="m14 6l-3.75 5l2.85 3.8l-1.6 1.2C9.81 13.75 7 10 7 10l-6 8h22z" transform="scale(0.8) translate(3,3)"/></svg>
     <h1>Privacy Policy</h1>
   </header>
-  <p class="meta">Boulder Tracker · Last updated 3 October 2026</p>
+  <p class="meta">Boulder Tracker · Last updated 15 October 2026</p>
 
   <div class="card">
     <p><strong>In short:</strong> Boulder Tracker has no accounts, no server, no ads and no analytics. Your training data stays on your device. If you switch on sync, a copy is kept in a private folder in <em>your own</em> Google Drive. The developer never receives any of your data.</p>
@@ -45,8 +45,12 @@
   <p>Nathan Zumbusch · <a href="mailto:info@nathanzumbusch.de">info@nathanzumbusch.de</a> · <a href="https://nathanzumbusch.de">nathanzumbusch.de</a></p>
 
   <h2>Data stored on your device</h2>
-  <p>Everything you enter is stored locally in the app's storage on your device (or, for the web version, in your browser's storage): training sessions and plans, exercises, notes, goals and trips, benchmark results, outdoor sends, and daily metrics you choose to log such as sleep score, heart-rate variability (HRV), resting heart rate, bodyweight and pain entries. Some of this is health information; it is used only to show your own charts and readiness score in the app.</p>
+  <p>Everything you enter is stored locally in the app's storage on your device (or, for the web version, in your browser's storage): training sessions and plans, the places you train at (names, optional coordinates, price, opening hours and notes you type), exercises, notes, goals and trips, benchmark results, outdoor sends, and daily metrics you choose to log such as sleep score, heart-rate variability (HRV), resting heart rate, bodyweight and pain entries. Some of this is health information; it is used only to show your own charts and readiness score in the app.</p>
   <p>Uninstalling the app (or clearing the browser's site data) deletes it. Backups you export are files you create and keep yourself.</p>
+
+  <h2 id="phone-calendar">Phone calendar (optional, Android)</h2>
+  <p>If you allow it under Settings → Data &amp; Exports → Phone calendar, the app asks Android for permission to read your calendars and shows their events beside your sessions on the Plan calendar. It only reads (it never writes to your calendar) and only for the days on screen. The events – titles, times, places, notes and which calendar they belong to – are read when needed, kept in memory, and are <strong>not</strong> saved in the app's data, backups or Drive sync. You can withdraw the permission at any time in Android's app settings or switch the feature off in the app.</p>
+  <p>The one exception is the AI prompts, and only if you switch it on: see "AI prompts" below. It is off by default.</p>
 
   <h2>Google Drive sync (optional, Android)</h2>
   <p>Sync is off until you connect a Google account under <em>Settings → Data &amp; Exports → Sync</em>. When you connect, the app asks Google for:</p>
@@ -69,10 +73,11 @@
   <p>If something goes wrong, the app records the error message in a log on your device (<em>Settings → About &amp; Help → Errors &amp; warnings</em>). It is never sent anywhere by the app. Under <em>Report a bug or send feedback</em> you can open a prefilled email or GitHub issue with your app version, device type and, only if you tick the box, the latest log entries. Nothing is sent until you send that message yourself, and the entries can mention what you were doing, so read them first.</p>
 
   <h2>Weather (optional)</h2>
-  <p>If you set a home location, crags or trip locations, the app requests forecasts from <a href="https://open-meteo.com">Open-Meteo</a>, sending the coordinates of those places, and the place names you search for when looking up a city. As with any web request, Open-Meteo also sees your IP address. No other data is sent. See <a href="https://open-meteo.com/en/terms">Open-Meteo's terms and privacy information</a>.</p>
+  <p>If you give a place coordinates (your home, a crag or any other place under Settings → Places, weather &amp; outdoor) or a trip a location, the app requests forecasts from <a href="https://open-meteo.com">Open-Meteo</a>, sending the coordinates of those places, and the place names you search for when looking up a city. Places without coordinates, and everything else you enter about a place, are never sent. As with any web request, Open-Meteo also sees your IP address. No other data is sent. See <a href="https://open-meteo.com/en/terms">Open-Meteo's terms and privacy information</a>.</p>
 
-  <h2>AI prompts</h2>
-  <p>The AI features never send anything themselves: they copy a text prompt to your clipboard, and you decide whether and where to paste it. Under <em>Settings → Data &amp; Exports</em> you choose which kinds of data a prompt may include; health data is off by default.</p>
+  <h2 id="ai-prompts">AI prompts</h2>
+  <p>By default the AI features send nothing themselves: they copy a text prompt to your clipboard, and you decide whether and where to paste it into an AI service of your choice, whose own terms and privacy policy then apply. Under Settings → AI &amp; coach → What the AI sees you choose which kinds of data a prompt may include. Health data (readiness metrics, pain) and your phone calendar are off by default. A prompt can contain your recent sessions and plan, notes you wrote, goals, and – each with its own switch – your places (names, kind, price, opening hours and notes, never their coordinates) and, if you turn it on, the <strong>titles and times</strong> of your phone-calendar events in the weeks being planned (never where they are, their notes, the guests or which calendar they are in).</p>
+  <p>Optionally, under Settings → AI &amp; coach → Direct AI connection, you can enter your own API key for Anthropic (Claude), OpenAI or Google (Gemini). The app then sends the prompt from your device straight to that provider – only after you have seen the estimated cost and confirmed – and shows you the reply. The developer is not involved and never sees the key, the prompt or the reply. The key is stored on your device only, apart from your other data: it is not part of backups, settings files or Drive sync. The provider's terms and privacy policy apply to what you send it.</p>
 
   <h2>Notifications</h2>
   <p>Reminders and timer alerts are scheduled on your device by the operating system. Nothing is sent to a server.</p>

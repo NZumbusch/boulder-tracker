@@ -212,6 +212,12 @@ export interface AISharingPreferences {
   /** The places you train at (names, kind, price, hours, notes - never coordinates). Absent = on. */
   places?: boolean;
   /**
+   * The phone calendar's events in the weeks a prompt plans (title and time only - never place, notes or guests), so
+   * the coach plans around them. Default **off** and only on the Android app with the phone calendar switched on.
+   * Optional - older saved preferences read as off.
+   */
+  phoneCalendar?: boolean;
+  /**
    * "How it went" on past sessions (`Workout.logNotes`). Default on: the
    * athlete's own account of what happened is what a coach most needs.
    * Optional - older saved preferences read as on.
@@ -437,6 +443,7 @@ function validateAISharing(raw: unknown): AISharingPreferences {
     ...(typeof c.sessionNotes === 'boolean' ? { sessionNotes: c.sessionNotes } : {}),
     ...(typeof c.planNotesInHistory === 'boolean' ? { planNotesInHistory: c.planNotesInHistory } : {}),
     ...(typeof c.places === 'boolean' ? { places: c.places } : {}),
+    ...(typeof c.phoneCalendar === 'boolean' ? { phoneCalendar: c.phoneCalendar } : {}),
   };
 }
 

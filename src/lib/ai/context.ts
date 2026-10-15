@@ -16,6 +16,7 @@ import type {
   Workout,
 } from "../types";
 import type { Place } from "../places/places";
+import type { CalendarEntry } from "../calendar/aiCalendar";
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
 import { otherValuesText, resolveFields } from "../benchmarks/model";
 import { isWeighInType } from "../benchmarks/bodyweight";
@@ -674,6 +675,8 @@ export interface AIContextProfile {
   goals?: GoalSummary[];
   /** Where I train, with what it costs, when it is open and what to know - when sharing it is on. */
   places?: PlaceSummary[];
+  /** What else is on in the target weeks, from the phone calendar - only with the opt-in sharing switch (`buildCalendarContext`). */
+  calendar?: { entries: CalendarEntry[]; more: number };
   readiness?: ReadinessSnapshot;
   painIssues?: PainIssueSummary[];
   outdoorAscents?: OutdoorAscentSummary[];
