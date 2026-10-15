@@ -26,6 +26,8 @@ export interface SettingsContext {
   healthConnect: boolean;
   /** The phone's calendars can be read (Android). */
   deviceCalendar: boolean;
+  /** The screen can be kept awake (the Screen Wake Lock API). Absent means yes. */
+  wakeLock?: boolean;
 }
 
 export interface SettingsPage {
@@ -172,13 +174,14 @@ interface SearchEntry {
   page: PageId;
   /** Other words for it. */
   words?: string;
+  /** Needs the capability of the same name in the context, as the setting itself is hidden without it. */
+  needs?: keyof SettingsContext;
 }
 
 const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Theme", page: "general", words: "dark light contrast colours" },
   { label: "Text size", page: "general", words: "font large small" },
   { label: "Navigation: automatic, side drawer or bottom bar", page: "general", words: "menu rail tabs icons labels hamburger phone tablet" },
-  { label: "Hide the top bar while scrolling", page: "general", words: "header app bar slide away stay sticky" },
   { label: "Help buttons", page: "general", words: "question mark explain" },
   { label: "Motion", page: "general", words: "animations reduced" },
   { label: "Weight, temperature and grade units", page: "units", words: "kg lb celsius fahrenheit font v-scale" },
@@ -194,14 +197,14 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Recovery chart", page: "history", words: "hrv sleep resting heart rate lanes" },
   { label: "Sends by grade chart", page: "history", words: "counts" },
   { label: "Added exercises count as", page: "live", words: "extra planned mid-session adherence" },
-  { label: "Keep screen on during a session", page: "live", words: "wake lock awake" },
-  { label: "Session notification", page: "live", words: "pause resume clock" },
+  { label: "Keep screen on during a session", page: "live", words: "wake lock awake", needs: "wakeLock" },
+  { label: "Session notification", page: "live", words: "pause resume clock", needs: "native" },
   { label: "Haptic feedback", page: "live", words: "vibration buzz" },
   { label: "3-2-1 countdown", page: "timer", words: "beeps ticks" },
   { label: "Get-ready time and default rest between sets", page: "timer", words: "lead in countdown rest sets single exercise hang" },
   { label: "15 second warning", page: "timer", words: "heads-up rest" },
-  { label: "Timer in the background", page: "timer", words: "notification locked screen alarms" },
-  { label: "Keep screen on while a timer runs", page: "timer" },
+  { label: "Timer in the background", page: "timer", words: "notification locked screen alarms", needs: "native" },
+  { label: "Keep screen on while a timer runs", page: "timer", needs: "wakeLock" },
   { label: "How much the timer speaks up", page: "timer", words: "quiet silent loudness audio level podcast audiobook music duck pause mute announcements" },
   { label: "Beep sound style", page: "timer", words: "classic soft sharp chime tone" },
   { label: "Cue volume", page: "timer", words: "loud quiet media volume" },
@@ -258,8 +261,9 @@ export function searchSettings(query: string, ctx: SettingsContext): SearchHit[]
   if (words.length === 0) return [];
   const shown = new Set(visibleSections(ctx).flatMap((s) => visiblePages(s, ctx).map((p) => p.id)));
   const hits: { hit: SearchHit; score: number }[] = [];
-  const consider = (label: string, page: PageId, haystack: string, isPage: boolean) => {
+  const consider = (label: string, page: PageId, haystack: string, isPage: boolean, needs?: keyof SettingsContext) => {
     if (!shown.has(page)) return;
+    if (needs && ctx[needs] === false) return;
     const text = norm(`${label} ${haystack}`);
     if (!words.every((w) => text.includes(w))) return;
     const inLabel = words.every((w) => norm(label).includes(w));
@@ -268,7 +272,7 @@ export function searchSettings(query: string, ctx: SettingsContext): SearchHit[]
   for (const section of SETTINGS_SECTIONS) {
     for (const page of section.pages) consider(page.label, page.id, `${page.hint} ${section.label}`, true);
   }
-  for (const e of SEARCH_ENTRIES) consider(e.label, e.page, `${e.words ?? ""} ${findPage(e.page).page.label}`, false);
+  for (const e of SEARCH_ENTRIES) consider(e.label, e.page, `${e.words ?? ""} ${findPage(e.page).page.label}`, false, e.needs);
   // A page whose only match is its hint adds nothing when a setting on it already matched.
   const settingPages = new Set(hits.filter((h) => h.score < 3 && !SEARCH_PAGE_LABELS.has(h.hit.label)).map((h) => h.hit.page));
   for (let i = hits.length - 1; i >= 0; i--) {
