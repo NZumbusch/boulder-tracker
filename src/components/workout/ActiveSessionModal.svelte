@@ -825,8 +825,8 @@
                       title="Rounds and rests"
                     >
                       <Icon icon="ic:baseline-repeat" class="text-sm shrink-0" />
-                      <span class="font-bold text-content-muted truncate">{group.name || 'Circuit'}</span>
-                      <span class="truncate">· {groupSummary(group)}</span>
+                      <span class="font-bold text-content-muted truncate max-w-[45%] shrink-0">{group.name || 'Circuit'}</span>
+                      <span class="truncate min-w-0">· {groupSummary(group)}</span>
                       <Icon icon={openGroupId === group.id ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-sm shrink-0" />
                     </button>
                     <button
@@ -1062,17 +1062,19 @@
     <!-- Footer: the quiet session-shape controls, and finishing -->
     <footer bind:offsetHeight={footerH} class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
       <div class="max-w-lg mx-auto w-full px-4 py-3 short:py-1 flex items-center gap-2">
-        <button
-          onclick={() => { isEditingPlan = !isEditingPlan; isPickingCircuit = false; pickedSlotIds = []; }}
-          disabled={exercises.length === 0}
-          class="btn-quiet px-3 text-label font-bold gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isEditingPlan
-            ? 'bg-primary/15 text-primary'
-            : 'text-content-subtle hover:text-content'}"
-          title={exercises.length === 0 ? 'Nothing to reorder yet' : 'Reorder or remove exercises'}
-        >
-          <Icon icon={isEditingPlan ? 'ic:baseline-check' : 'ic:baseline-tune'} class="text-base" />
-          {isEditingPlan ? 'Done' : 'Edit'}
-        </button>
+        {#if exercises.length > 0}
+          <!-- Nothing to reorder in an empty session: the button is not there rather than greyed out for no visible reason. -->
+          <button
+            onclick={() => { isEditingPlan = !isEditingPlan; isPickingCircuit = false; pickedSlotIds = []; }}
+            class="btn-quiet px-3 text-label font-bold gap-1.5 {isEditingPlan
+              ? 'bg-primary/15 text-primary'
+              : 'text-content-subtle hover:text-content'}"
+            title="Reorder or remove exercises"
+          >
+            <Icon icon={isEditingPlan ? 'ic:baseline-check' : 'ic:baseline-tune'} class="text-base" />
+            {isEditingPlan ? 'Done' : 'Edit'}
+          </button>
+        {/if}
         <button
           onclick={() => isAddingExercise = true}
           class="btn-quiet px-3 text-label font-bold text-content-subtle hover:text-content gap-1.5"
