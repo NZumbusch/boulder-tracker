@@ -241,6 +241,21 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 16.11 | Top bar scrolls | Scroll down on Home, History, Plan, Settings, then up. | The top bar scrolls away with the content and nothing is stuck at the top; it is at the top again when you scroll back. The bottom bar and the + behave as before. | | |
 | 16.12 | Long phone events | Plan → Day and Week with a phone event that runs overnight or over several days (e.g. 00:00-12:00, or a trip). | The hour grid keeps its layout: the event is cut at the first and last hour shown, nothing draws over the header; all-day and multi-day events sit in the strip above the hours. | | |
 
+## 17. Samsung-style calendar: bars, colours, chips (2026-10-18)
+
+Logic is unit-tested (`headerBars`, `eventColor`, `calendarSessionColor`); the look was only checked in headless Chrome with made-up phone events, nothing on a real phone.
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 17.1 | Header bars | Plan → Week (hour columns) and Day, with phone events that are all-day, span several days, or last 12 h or more, plus a trip and a competition. | Each is one bar across its days above the hours (your goals on the top rows, then events); a bar cut by the week's edge is square on that side; a tap on an event bar opens its details. Shorter events stay on the hour grid, split at midnight. | | |
+| 17.2 | "+N" and show less | Make more than three rows of overlapping bars (several multi-day events). | Two rows of bars and a "+N" row under the days that have more; tapping "+N" shows every row, "Show less" folds them again. | | |
+| 17.3 | One session colour | Plan → any view. Settings → Plan calendar & day → "Colour sessions by exercise category" off (default) / on. | Off: every session is the same green (a planned, not-yet-confirmed one softer); the exercise colours only show inside a block when zoomed in. On: the old category colours. | | |
+| 17.4 | Event colours | With calendars in teal, green, blue, yellow, red. | Each event has its calendar's colour in a soft tone; a green or teal one is turned (towards blue or lime) so it never looks like a session. Light and dark theme both readable. | | |
+| 17.5 | Pick a calendar's colour | Settings → Phone calendar → tap a calendar's dot: pick from the swatches, then the "+" for any colour (system colour picker - check it opens on the phone), then "Phone's colour". | The events of that calendar change at once on the Plan calendar; a picked green stays green (as chosen); "Phone's colour" goes back. Survives closing the app. | | |
+| 17.6 | Calendar chips | Two or more phone calendars. Tap chips under the header; scroll the row sideways. | The calendar's events appear / disappear (same as the checkboxes in Settings); the row scrolls without paging the calendar; not shown with one calendar or the phone calendar off, nor in Year. | | |
+| 17.7 | Phase and today tint | Settings → "Tint each day with its phase" on/off; look at Day and Week. | A very light wash of the phase's colour behind each day (not in the list view), today's column slightly lighter/darker than the rest; with the setting off only today's column. | | |
+| 17.8 | Slimmer week on a phone | Plan → Week, hour columns, phone upright. | Hour labels take less room, day columns are a little wider; names still wrap in narrow lanes. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
