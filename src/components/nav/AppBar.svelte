@@ -3,7 +3,7 @@
    * The slim bar at the top of every screen: the menu button (a back arrow on
    * a nested page), the screen's title with an optional line under it, and
    * that screen's own actions on the right. It is always the same height, so
-   * nothing jumps when you move between screens. It scrolls with the page. With the bottom bar chosen
+   * nothing jumps when you move between screens. It scrolls with the page, except on a nested page, where it stays put so the way back is always there. With the bottom bar chosen
    * (Settings -> Navigation) or on a wide screen (where a rail holds the
    * menu) it simply has no menu button.
    */
@@ -28,7 +28,7 @@
 
 <!-- Flush to the screen's edges (the page has 16 px of side padding and none on top). Part of the page: it scrolls away
      with the content like any other heading. Must be the first thing in its screen. -->
-<header class="-mx-4 mb-2 px-2 h-[52px] short:h-11 flex items-center gap-1 bg-surface">
+<header class="-mx-4 mb-2 px-2 h-[52px] short:h-11 flex items-center gap-1 bg-surface {onBack ? 'sticky top-0 z-20' : ''}">
   {#if showLead}
     <button
       onclick={(e) => (lead === 'back' ? onBack?.() : drawer.show(e.currentTarget as HTMLElement))}

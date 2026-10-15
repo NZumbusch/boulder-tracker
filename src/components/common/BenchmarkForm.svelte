@@ -8,7 +8,8 @@
    * from the conditions of the last one of the same test - the same edge as
    * last time is one tap fewer.
    */
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import { scrollBehavior } from '../../lib/motion';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId, showAlert } from '../../lib/utils';
   import type { Benchmark, BenchmarkTypeDef } from '../../lib/types';
@@ -151,16 +152,19 @@
     onSave();
   }
 
-  const inputClass = 'w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm';
+  const inputClass = 'field';
+  // Opened inline under other cards (Log, Plan): bring it into view, or a tap seems to do nothing.
+  let root = $state<HTMLElement | null>(null);
+  onMount(() => root?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() }));
   const fixedConditions = $derived(conditionFields(fields).filter((f) => f.fixed !== undefined));
 </script>
 
 <!-- UI Structure -->
-<div class="space-y-4 p-5 bg-surface/80 rounded-card border border-border animate-in zoom-in-95 shadow-2xl">
+<div bind:this={root} class="space-y-4 p-5 bg-surface/80 rounded-card border border-border animate-in zoom-in-95 shadow-card">
   <div class="flex items-center justify-between px-1">
     <h3 class="text-title text-content">Record a test result</h3>
-    <button onclick={onCancel} class="text-content-subtle hover:text-content transition-colors" aria-label="Close">
-      <Icon icon="ic:baseline-close" />
+    <button onclick={onCancel} class="btn-icon -mr-2" aria-label="Close">
+      <Icon icon="ic:baseline-close" class="text-xl" />
     </button>
   </div>
 
@@ -199,7 +203,7 @@
           {@const isPrimary = primary?.valueId === f.valueId}
           <div class="space-y-1 {isPrimary || asked.length <= 2 ? 'col-span-2' : ''}">
             <label for="benchmark-{f.valueId}" class="text-label text-content-subtle ml-1">
-              {f.label}{#if f.role === 'condition'}<span class="text-content-subtle/70">&nbsp;· set-up</span>{/if}{#if unitLabel(f, weightUnit)}<span class="text-content-subtle/70">&nbsp;({unitLabel(f, weightUnit)})</span>{/if}
+              {f.label}{#if f.role === 'condition'}<span class="text-content-faint">&nbsp;· set-up</span>{/if}{#if unitLabel(f, weightUnit)}<span class="text-content-faint">&nbsp;({unitLabel(f, weightUnit)})</span>{/if}
             </label>
             {#if f.kind === 'choice'}
               <select id="benchmark-{f.valueId}" bind:value={inputs[f.valueId]} class="{inputClass} appearance-none">
@@ -222,14 +226,14 @@
       <textarea
         id="benchmark-notes"
         bind:value={notes}
-        class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm h-20"
+        class="field h-20"
       ></textarea>
     </div>
   </div>
 
   <button
     onclick={handleSubmit}
-    class="w-full py-3.5 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-control transition-all shadow-lg active:scale-95"
+    class="btn btn-primary w-full"
   >
     Save result
   </button>

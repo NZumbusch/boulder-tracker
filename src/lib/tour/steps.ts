@@ -109,7 +109,7 @@ export const TOUR_STEPS: TourStep[] = ([
     view: "add",
     target: "add-start",
     title: "Start a session",
-    body: "The + button in the middle starts a live session: add exercises as you go, with a stopwatch, rest timers, interval timers and a round-by-round timer for circuits.",
+    body: "Start here for a live session: add exercises as you go, with a stopwatch, rest timers, interval timers and a round-by-round timer for circuits.",
   },
   {
     view: "add",
