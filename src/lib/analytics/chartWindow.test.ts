@@ -16,16 +16,12 @@ describe("weekWindowOffsets", () => {
     }
   });
 
-  it("includes the current week and a short lookahead at page 0", () => {
-    const { startOffset, endOffset } = weekWindowOffsets(10, 0);
-    expect(startOffset).toBeLessThanOrEqual(0);
-    expect(endOffset).toBe(2);
-  });
-
-  it("gives up lookahead before history on the narrowest window", () => {
-    const { startOffset, endOffset } = weekWindowOffsets(MIN_WEEKS, 0);
-    expect(endOffset).toBe(0);
-    expect(startOffset).toBe(-(MIN_WEEKS - 1));
+  it("ends with the current week at page 0, never in the future", () => {
+    for (const weeks of [MIN_WEEKS, 10, 13, 26]) {
+      const { startOffset, endOffset } = weekWindowOffsets(weeks, 0);
+      expect(endOffset).toBe(0);
+      expect(startOffset).toBe(-(weeks - 1));
+    }
   });
 
   it("pages by a whole window, leaving no gap or overlap between pages", () => {

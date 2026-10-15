@@ -12,11 +12,13 @@ describe("buildBuckets - weekly ranges", () => {
     expect(buildBuckets("6m", 0, NOW)).toHaveLength(26);
   });
 
-  it("keeps two weeks of plan ahead of today on 3M", () => {
-    const b = buildBuckets("3m", 0, NOW);
-    const current = b.findIndex((x) => x.isCurrent);
-    expect(b[current].id).toBe("2026-W39");
-    expect(b.length - 1 - current).toBe(2);
+  it("ends with the current week on every weekly range (no empty future columns)", () => {
+    for (const range of ["4w", "3m", "6m"] as const) {
+      const b = buildBuckets(range, 0, NOW);
+      expect(b[b.length - 1].isCurrent).toBe(true);
+      expect(b[b.length - 1].id).toBe("2026-W39");
+      expect(b[b.length - 1].startDay).toBeLessThanOrEqual(TODAY);
+    }
   });
 
   it("has contiguous Monday-Sunday spans", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Workout } from "../types";
-import { windowStats, comparisonSpans, percentChange } from "./windowSummary";
+import { windowStats, comparisonSpans, percentChange, tileChange } from "./windowSummary";
 import { toUtcDayIndex } from "../dateUtils";
 
 const D = (iso: string) => toUtcDayIndex(iso);
@@ -79,5 +79,34 @@ describe("sleep hours next to the score", () => {
     );
     expect(stats.sleepHours).toBe(7.5);
     expect(stats.sleep).toBeUndefined();
+  });
+});
+
+describe("tileChange", () => {
+  it("compares counts as a difference, not a percentage of a tiny number", () => {
+    expect(tileChange(2, 1, "neutral", true)).toEqual({ arrow: "up", text: "+1", spoken: "1 more than before" });
+    expect(tileChange(1, 4, "neutral", true)?.text).toBe("−3");
+    expect(tileChange(3, 3, "neutral", true)).toEqual({ arrow: "flat", text: "same", spoken: "the same as before" });
+    expect(tileChange(2, 0, "neutral", true)?.text).toBe("+2");
+  });
+
+  it("uses a percentage for amounts and says up or down in words", () => {
+    expect(tileChange(112, 100, "neutral")).toEqual({ arrow: "up", text: "+12%", spoken: "up 12%" });
+    expect(tileChange(90, 100, "neutral")?.spoken).toBe("down 10%");
+    expect(tileChange(100.2, 100, "higher")?.arrow).toBe("flat");
+  });
+
+  it("says better or worse for metrics with a direction, in words", () => {
+    expect(tileChange(60, 50, "higher")?.verdict).toBe("better");
+    expect(tileChange(40, 50, "higher")?.verdict).toBe("worse");
+    expect(tileChange(48, 50, "lower")?.verdict).toBe("better");
+    expect(tileChange(55, 50, "lower")?.verdict).toBe("worse");
+    expect(tileChange(60, 50, "neutral")?.verdict).toBeUndefined();
+  });
+
+  it("has nothing to say without both numbers or a baseline of zero", () => {
+    expect(tileChange(undefined, 3, "neutral")).toBeUndefined();
+    expect(tileChange(3, undefined, "neutral")).toBeUndefined();
+    expect(tileChange(3, 0, "neutral")).toBeUndefined();
   });
 });
