@@ -6,41 +6,31 @@
    * picked, and remembered, in the Analytics header itself.)
    */
   import { trainingState } from '../../lib/state.svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import Toggle from '../ui/Toggle.svelte';
 </script>
 
 <div class="card space-y-5 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Recovery chart</h3>
-    <p class="text-caption text-content-subtle px-1">HRV, sleep and resting HR together as % vs your own baseline (easiest to compare), or as three rows in their real units. The chart's own toggle changes this too.</p>
-    <div class="flex bg-surface-elevated/50 p-1 rounded-control">
-      <button
-        onclick={() => trainingState.setRecoveryChartMode('overlay')}
-        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.recoveryChartMode === 'overlay' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-      >
-        % vs baseline
-      </button>
-      <button
-        onclick={() => trainingState.setRecoveryChartMode('lanes')}
-        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.recoveryChartMode === 'lanes' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-      >
-        Separate rows
-      </button>
-    </div>
+    <h2 class="text-section uppercase text-content-muted px-1">Recovery chart</h2>
+    <p class="text-caption text-content-subtle px-1">HRV, sleep and resting heart rate together as a percentage of your own baseline (easiest to compare), or as three rows in their real units. The chart's own toggle changes this too.</p>
+    <Segmented
+      variant="setting"
+      full
+      label="Recovery chart layout"
+      value={trainingState.recoveryChartMode}
+      onChange={(v) => trainingState.setRecoveryChartMode(v)}
+      options={[{ value: 'overlay', label: '% vs baseline' }, { value: 'lanes', label: 'Separate rows' }]}
+    />
   </div>
 
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Sends by grade</h3>
-    <label class="flex items-center justify-between gap-3 py-2 px-1 cursor-pointer">
-      <div class="min-w-0">
-        <p class="text-body text-content">Show counts on the bars</p>
-        <p class="text-caption text-content-subtle">History → Sends. Tapping a bar always shows its count.</p>
-      </div>
-      <input
-        type="checkbox"
-        checked={trainingState.sendsChartCounts}
-        onchange={(e) => trainingState.setSendsChartCounts(e.currentTarget.checked)}
-        class="w-5 h-5 rounded accent-primary shrink-0"
-      />
-    </label>
+    <h2 class="text-section uppercase text-content-muted px-1">Sends by grade</h2>
+    <Toggle
+      checked={trainingState.sendsChartCounts}
+      onChange={(v) => trainingState.setSendsChartCounts(v)}
+      label="Show counts on the bars"
+      hint="History → Sends. Tapping a bar always shows its count."
+    />
   </div>
 </div>

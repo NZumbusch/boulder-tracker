@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { keyboardAware } from '../../lib/ui/keyboardAware';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import { onMount, tick } from 'svelte';
+  import Sheet from '../ui/Sheet.svelte';
   /**
    * "What did you actually do?" - the step between finishing an exercise
    * and moving to the next one.
@@ -212,12 +211,18 @@
     return values;
   }
 
+  /** Guards a double tap: the sheet closes on the first save, but the second tap can land before it has gone. */
+  let saved = false;
   function handleSave() {
+    if (saved) return;
+    saved = true;
     onSave(collect());
   }
 
   /** One tap for the common case: it went exactly as prescribed. */
   function handleAsPrescribed() {
+    if (saved) return;
+    saved = true;
     const values = { ...(slot.prescribed ?? seed) };
     delete values.notes;
     onSave(values);
@@ -261,39 +266,26 @@
   }
   const lastLine = $derived(lastTime ? valuesLine(lastTime.values) : '');
 
-  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
-  backWhile(() => true, () => onCancel());
+  // Closing (scrim, drag, Back) with changed numbers or notes asks first.
+  let baseline = $state<string | null>(null);
+  onMount(() => { void tick().then(() => (baseline = JSON.stringify(collect()))); });
+  const dirty = $derived(baseline !== null && JSON.stringify(collect()) !== baseline);
 </script>
 
-<div
-  class="fixed inset-0 pb-safe z-[120] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md"
-  role="presentation"
-  onclick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
->
-  <div class="group bg-surface w-full max-w-lg short:max-w-2xl rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[88vh] short:max-h-[96vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onCancel()} use:keyboardAware>
-    <div class="sticky top-0 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 short:py-2 flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <p class="text-caption uppercase text-content-subtle">What you did</p>
-        <h3 class="text-title text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</h3>
-      </div>
-      <button onclick={onCancel} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Cancel">
-        <Icon icon="ic:baseline-close" class="text-xl" />
-      </button>
-    </div>
-
-    <div class="p-5 short:py-3 space-y-4 short:space-y-3">
+<Sheet title={slotTypeName(slot, trainingState.exerciseTypes)} subtitle="What you did" level="nested" {dirty} discardMessage="The numbers and notes you entered will be lost." onClose={onCancel}>
+  <div class="space-y-4">
       {#if lastTime && lastLine}
-        <button type="button" onclick={useLastTime} class="w-full flex items-center gap-2 px-3 py-2 rounded-control bg-surface-elevated/40 border border-border-strong/40 text-left hover:border-primary/40 transition-colors">
+        <button type="button" onclick={useLastTime} class="w-full flex items-center gap-2 px-3 min-h-11 rounded-control bg-surface-elevated/40 text-left hover:bg-surface-elevated/70 transition-colors">
           <Icon icon="ic:baseline-history" class="text-base text-content-subtle shrink-0" />
           <span class="min-w-0 flex-1 text-caption text-content-subtle truncate">
             Last time <span class="tabular-nums">{new Date(lastTime.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>: <span class="text-content font-bold">{lastLine}</span>
           </span>
-          <span class="shrink-0 text-caption font-bold text-primary">Use</span>
+          <span class="shrink-0 text-label font-bold text-primary">Use last time</span>
         </button>
       {/if}
       {#if fields.length === 0 && customFields.length === 0}
-        <p class="text-caption text-content-subtle italic">
-          This exercise tracks no numeric values &mdash; log it as done, or open the full editor to change what it tracks.
+        <p class="text-label text-content-subtle">
+          This exercise tracks no numeric values. Log it as done, or open the full editor to change what it tracks.
         </p>
       {:else}
         <div class="grid grid-cols-2 short:grid-cols-3 gap-3">
@@ -309,7 +301,7 @@
               </span>
               <span class="flex items-stretch gap-1">
                 {#if stepOf(field.key)}
-                  <button type="button" onclick={() => bump(field.key, -1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="Less {paramLabel(field.param, trainingState.valueDefs)}">
+                  <button type="button" onclick={() => bump(field.key, -1)} class="shrink-0 w-11 min-h-11 rounded-control bg-surface-elevated/60 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="Less {paramLabel(field.param, trainingState.valueDefs)}">
                     <Icon icon="ic:baseline-remove" class="text-lg" />
                   </button>
                 {/if}
@@ -320,10 +312,10 @@
                   value={draft[field.key] ?? ''}
                   oninput={(e) => draft[field.key] = e.currentTarget.value}
                   placeholder="—"
-                  class="w-full min-w-0 px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums {stepOf(field.key) ? 'text-center px-1' : ''}"
+                  class="field min-w-0 tabular-nums {stepOf(field.key) ? 'text-center px-1' : ''}"
                 />
                 {#if stepOf(field.key)}
-                  <button type="button" onclick={() => bump(field.key, 1)} class="shrink-0 w-10 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="More {paramLabel(field.param, trainingState.valueDefs)}">
+                  <button type="button" onclick={() => bump(field.key, 1)} class="shrink-0 w-11 min-h-11 rounded-control bg-surface-elevated/60 text-content-muted hover:text-content active:scale-95 transition-all grid place-items-center" aria-label="More {paramLabel(field.param, trainingState.valueDefs)}">
                     <Icon icon="ic:baseline-add" class="text-lg" />
                   </button>
                 {/if}
@@ -333,16 +325,16 @@
         </div>
       {/if}
       {#if canAddWeight}
-        <button type="button" onclick={() => (addedParams = [...addedParams, 'weight'])} class="w-full flex items-center justify-center gap-1.5 py-2 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors">
+        <button type="button" onclick={() => (addedParams = [...addedParams, 'weight'])} class="w-full flex items-center justify-center gap-1.5 min-h-11 py-2 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors">
           <Icon icon="ic:baseline-plus" class="text-base" /> Add weight
-          <span class="font-normal text-caption">(extra {trainingState.units.weight} on this one)</span>
+          <span class="font-normal text-label">(extra {trainingState.units.weight} on this one)</span>
         </button>
       {/if}
       {#if perSetKeys.length > 0}
         {#if !perSetOpen}
-          <button type="button" onclick={openPerSet} class="w-full flex items-center justify-center gap-1.5 py-2 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors">
+          <button type="button" onclick={openPerSet} class="w-full flex items-center justify-center gap-1.5 min-h-11 py-2 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors">
             <Icon icon="ic:baseline-format-list-numbered" class="text-base" /> Per set
-            <span class="font-normal text-caption">({perSetFields.map((f) => paramLabel(f.param, trainingState.valueDefs)).join(', ')} set by set)</span>
+            <span class="font-normal text-label">({perSetFields.map((f) => paramLabel(f.param, trainingState.valueDefs)).join(', ')} set by set)</span>
           </button>
         {:else}
           {#key rowsKey}
@@ -362,11 +354,11 @@
               </span>
               {#if def.kind === 'number'}
                 <span class="flex items-stretch gap-2">
-                  <input type="number" inputmode="decimal" step="any" value={customDraft[def.id] ?? ''} oninput={(e) => customDraft[def.id] = e.currentTarget.value} placeholder="—" class="w-full min-w-0 px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums" />
+                  <input type="number" inputmode="decimal" step="any" value={customDraft[def.id] ?? ''} oninput={(e) => customDraft[def.id] = e.currentTarget.value} placeholder="—" class="field min-w-0 tabular-nums" />
                   {#if def.unit}<span class="self-center text-caption text-content-subtle shrink-0">{def.unit}</span>{/if}
                 </span>
               {:else}
-                <select value={customDraft[def.id] ?? ''} onchange={(e) => customDraft[def.id] = e.currentTarget.value} class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none appearance-none cursor-pointer">
+                <select value={customDraft[def.id] ?? ''} onchange={(e) => customDraft[def.id] = e.currentTarget.value} class="field cursor-pointer">
                   <option value="">—</option>
                   {#each def.options ?? [] as option}<option value={option}>{option}</option>{/each}
                 </select>
@@ -393,37 +385,25 @@
           bind:value={notes}
           rows="2"
           placeholder="How did it feel? Anything worth remembering?"
-          class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors resize-none placeholder:text-content-subtle"
+          class="field resize-y"
         ></textarea>
       </label>
     </div>
 
-    <div class="sticky group-data-[typing]:static bottom-0 bg-surface/95 backdrop-blur-sm border-t border-border px-5 py-4 short:py-2 space-y-3 short:space-y-0 short:flex short:items-center short:gap-3">
-      <div class="flex gap-2 short:flex-1">
-        {#if slot.prescribed}
-          <button
-            onclick={handleAsPrescribed}
-            class="shrink-0 px-4 py-3 bg-surface-elevated/60 hover:bg-surface-elevated text-content-muted hover:text-content text-label font-bold rounded-control border border-border-strong/50 transition-all active:scale-[0.98]"
-          >
-            As prescribed
+    {#snippet footer()}
+      <div class="flex-1 min-w-0 space-y-1">
+        <div class="flex gap-2">
+          {#if slot.prescribed}
+            <button onclick={handleAsPrescribed} class="btn btn-secondary shrink-0">As prescribed</button>
+          {/if}
+          <button onclick={handleSave} class="btn btn-primary flex-1 min-w-0">{saveLabel}</button>
+        </div>
+        {#if onEditFull}
+          <button onclick={onEditFull} class="btn btn-quiet w-full whitespace-nowrap gap-1.5 text-label text-content-subtle hover:text-primary">
+            Edit full details
+            <Icon icon="ic:baseline-arrow-forward" class="text-sm" />
           </button>
         {/if}
-        <button
-          onclick={handleSave}
-          class="flex-1 min-w-0 py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98]"
-        >
-          {saveLabel}
-        </button>
       </div>
-      {#if onEditFull}
-        <button
-          onclick={onEditFull}
-          class="w-full short:w-auto short:shrink-0 whitespace-nowrap text-label text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1.5"
-        >
-          Edit full details
-          <Icon icon="ic:baseline-arrow-forward" class="text-sm" />
-        </button>
-      {/if}
-    </div>
-  </div>
-</div>
+    {/snippet}
+</Sheet>

@@ -112,9 +112,9 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
 </script>
 
 {#if trainingState.showFatigue}
-  <div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[115] backdrop-blur-md transition-all duration-300">
+  <div class="fixed inset-0 pb-safe bg-scrim flex items-end sm:items-center justify-center p-0 sm:p-4 z-[115] backdrop-blur-md transition-all duration-300">
     <!-- Scrolls within the screen: the pain questions made it taller than a phone. -->
-    <div class="bg-surface w-full max-w-lg max-h-[92vh] short:max-h-full overflow-y-auto no-scrollbar rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 short:p-3 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
+    <div class="bg-surface w-full max-w-lg max-h-[92vh] max-h-[92dvh] short:max-h-full overflow-y-auto no-scrollbar rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 short:p-3 shadow-card animate-in slide-in-from-bottom-full duration-300">
       <div class="w-10 h-1 bg-surface-elevated rounded-full mx-auto mb-6 sm:hidden short:hidden"></div>
       
       <div class="flex items-center justify-between mb-6 short:mb-2 px-1">
@@ -137,7 +137,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
               <button
                 type="button"
                 onclick={() => durationMinutes = measuredMinutes}
-                class="text-caption text-content-subtle hover:text-primary transition-colors tabular-nums"
+                class="btn-quiet tap text-caption text-content-subtle hover:text-primary tabular-nums min-h-0 px-1"
               >
                 clock said {formatMinutes(measuredMinutes)} &mdash; reset
               </button>
@@ -155,7 +155,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
               inputmode="numeric"
               aria-invalid={tooLong}
               bind:value={durationMinutes}
-              class="flex-1 min-w-0 bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-sm tabular-nums"
+              class="field flex-1 min-w-0 tabular-nums"
             />
             <span class="text-label text-content-subtle shrink-0">min</span>
           </div>
@@ -198,13 +198,13 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
 
         <div class="space-y-2">
           <label for="fatigue-log-notes" class="text-label text-content-subtle ml-1">How it went</label>
-          <textarea id="fatigue-log-notes" bind:value={logNotes} placeholder="What worked, what didn't, how it felt…" class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
+          <textarea id="fatigue-log-notes" bind:value={logNotes} placeholder="What worked, what didn't, how it felt…" class="field" rows="2"></textarea>
         </div>
 
         <div class="space-y-2">
           <!-- `notes` is the session's name (see Workout.notes), which is what this field has always edited. -->
           <label for="fatigue-notes" class="text-label text-content-subtle ml-1">Session name</label>
-          <input id="fatigue-notes" type="text" bind:value={notes} placeholder="Session name" class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-content-subtle text-sm" />
+          <input id="fatigue-notes" type="text" bind:value={notes} placeholder="Session name" class="field" />
         </div>
 
         <div class="border-t border-border pt-4 space-y-3">
@@ -214,7 +214,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
               <PainCheckInButtons chosen={painAnswers[issue.id] ?? null} onPick={(trend) => painAnswers = painAnswers[issue.id] === trend ? Object.fromEntries(Object.entries(painAnswers).filter(([k]) => k !== issue.id)) : { ...painAnswers, [issue.id]: trend }} />
             </div>
           {/each}
-          <button type="button" onclick={openPainReport} class="w-full flex items-center justify-between text-left">
+          <button type="button" onclick={openPainReport} class="btn-quiet w-full justify-between text-left">
             <span class="text-label text-content-subtle ml-1">Something new hurts?</span>
             <span class="text-caption font-bold text-primary flex items-center gap-1"><Icon icon="ic:baseline-healing" class="text-base" /> Log pain</span>
           </button>
@@ -232,13 +232,13 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
       <div class="grid grid-cols-1 gap-3 mt-6">
         <button
           onclick={handleSave}
-          class="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-control shadow-xl shadow-primary/20 transition-all active:scale-[0.98] text-sm"
+          class="btn btn-primary w-full min-h-12"
         >
           Complete & Save
         </button>
         <button 
           onclick={() => trainingState.closeFatigueModal()}
-          class="w-full bg-surface-elevated hover:bg-surface-elevated-hover text-content-muted font-bold py-3 rounded-control transition-all active:scale-[0.98] text-xs"
+          class="btn btn-secondary w-full"
         >
           {trainingState.isSessionActive ? 'Back to Session' : 'Cancel'}
         </button>

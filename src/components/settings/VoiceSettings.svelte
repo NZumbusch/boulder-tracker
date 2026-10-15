@@ -9,6 +9,8 @@
   import Icon from '@iconify/svelte';
   import { trainingState } from '../../lib/state.svelte';
   import RangeSlider from '../common/RangeSlider.svelte';
+  import Toggle from '../ui/Toggle.svelte';
+  import Segmented from '../ui/Segmented.svelte';
   import { speakText } from '../../lib/timer/speech';
   import { SPEECH_PAUSE } from '../../lib/timer/announcePlan';
   import { liveTimerAvailable, loadSpeechChoices, previewNativeSpeech, type SpeechChoices } from '../../lib/native/timerService';
@@ -21,7 +23,7 @@
   const LEADS = [0, 2, 3, 5, 10, 15, 20, 30];
   const DELAYS = [0, 1, 2, 3, 5, 10];
   const ENDS = [0, 5, 10, 15, 20, 30, 45, 60];
-  const selectClass = 'bg-surface-elevated text-content rounded-control border border-border-strong text-label px-2 py-1.5 outline-none max-w-[60%]';
+  const selectClass = 'field !w-auto max-w-[60%]';
 
   // The phone's engines and the chosen engine's voices (Android only).
   let choices = $state<SpeechChoices | null>(null);
@@ -52,35 +54,37 @@
     if (native) void previewNativeSpeech(text, $state.snapshot(sp), cues.volume, cues.volumeSetsMedia);
     else speakText(text, cues.volume, sp.rate, sp.pitch);
   }
+  /** Speed and pitch are heard when the finger lifts (or a key is released). */
+  function tryAfterRelease() {
+    setTimeout(tryIt, 0);
+  }
 </script>
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Voice</h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">The timer can say the exercises out loud during a circuit - also with the screen off.</p>
+    <h2 class="text-section uppercase text-content-muted px-1">Voice</h2>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">The timer can say the exercises out loud during a circuit, also with the screen off.</p>
   </div>
 
   <div class="divide-y divide-border">
-    <label class="w-full flex items-center justify-between py-3 cursor-pointer gap-3">
-      <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-record-voice-over" class="text-lg text-content-muted shrink-0" />
-        <span class="text-body text-content">Speak the exercises</span>
+    <div class="flex items-center gap-3">
+      <Icon icon="ic:baseline-record-voice-over" class="text-lg text-content-muted shrink-0" />
+      <div class="flex-1 min-w-0">
+        <Toggle checked={a.enabled} onChange={(v) => trainingState.setTimerCues({ announce: { enabled: v } })} label="Speak the exercises" />
       </div>
-      <input type="checkbox" checked={a.enabled} onchange={(e) => trainingState.setTimerCues({ announce: { enabled: e.currentTarget.checked } })} class="w-5 h-5 rounded accent-primary shrink-0" />
-    </label>
+    </div>
 
     {#if a.enabled}
       <div class="py-3 space-y-2">
         <p class="text-label text-content-subtle">When</p>
-        <div class="flex gap-1 p-1 rounded-control bg-surface-elevated border border-border-strong">
-          {#each [['auto', 'Auto'], ['custom', 'Custom']] as [mode, label]}
-            <button
-              type="button"
-              onclick={() => trainingState.setTimerCues({ announce: { mode: mode as 'auto' | 'custom' } })}
-              class="flex-1 py-1.5 rounded-control text-label font-bold transition-colors {a.mode === mode ? 'bg-primary text-white' : 'text-content-muted'}"
-            >{label}</button>
-          {/each}
-        </div>
+        <Segmented
+          variant="setting"
+          full
+          label="When to speak"
+          value={a.mode}
+          onChange={(v) => trainingState.setTimerCues({ announce: { mode: v } })}
+          options={[{ value: 'auto', label: 'Automatic' }, { value: 'custom', label: 'Custom' }]}
+        />
         {#if a.mode === 'auto'}
           <p class="text-caption text-content-subtle leading-relaxed">
             The timer fits the announcements to each rest: it estimates how long the words take, says what's next (with the reps or time) early enough to finish before the set,
@@ -90,26 +94,20 @@
       </div>
       {#if a.mode === 'custom'}
       <div class="py-3 space-y-3">
-        <label class="flex items-center justify-between gap-3 cursor-pointer">
-          <span class="text-body text-content">Name the exercise when a set starts</span>
-          <input type="checkbox" checked={a.work} onchange={(e) => trainingState.setTimerCues({ announce: { work: e.currentTarget.checked } })} class="w-5 h-5 rounded accent-primary shrink-0" />
-        </label>
+        <Toggle checked={a.work} onChange={(v) => trainingState.setTimerCues({ announce: { work: v } })} label="Name the exercise when a set starts" />
         {#if a.work}
           <label class="flex items-center justify-between gap-3 pl-3">
-            <span class="text-label text-content-subtle">Say it</span>
+            <span class="text-label text-content-subtle">Name it</span>
             <select class={selectClass} value={a.workLead} onchange={(e) => trainingState.setTimerCues({ announce: { workLead: Number(e.currentTarget.value) } })}>
               {#each LEADS as s}<option value={s}>{s === 0 ? 'as it starts' : `${s} s before it starts`}</option>{/each}
             </select>
           </label>
         {/if}
 
-        <label class="flex items-center justify-between gap-3 cursor-pointer">
-          <span class="text-body text-content">Say what's next when a rest begins</span>
-          <input type="checkbox" checked={a.restStart} onchange={(e) => trainingState.setTimerCues({ announce: { restStart: e.currentTarget.checked } })} class="w-5 h-5 rounded accent-primary shrink-0" />
-        </label>
+        <Toggle checked={a.restStart} onChange={(v) => trainingState.setTimerCues({ announce: { restStart: v } })} label="Say what's next when a rest begins" />
         {#if a.restStart}
           <label class="flex items-center justify-between gap-3 pl-3">
-            <span class="text-label text-content-subtle">Say it</span>
+            <span class="text-label text-content-subtle">Say what's next</span>
             <select class={selectClass} value={a.restStartDelay} onchange={(e) => trainingState.setTimerCues({ announce: { restStartDelay: Number(e.currentTarget.value) } })}>
               {#each DELAYS as s}<option value={s}>{s === 0 ? 'as the rest begins' : `${s} s after it begins`}</option>{/each}
             </select>
@@ -146,10 +144,7 @@
             </select>
           </label>
           {#if choices && choices.voices.length > shownVoices.length || allLanguages}
-            <label class="flex items-center justify-between gap-3 cursor-pointer">
-              <span class="text-label text-content-subtle">Voices in all languages</span>
-              <input type="checkbox" bind:checked={allLanguages} class="w-5 h-5 rounded accent-primary shrink-0" />
-            </label>
+            <Toggle checked={allLanguages} onChange={(v) => (allLanguages = v)} label="Voices in all languages" />
           {/if}
           {#if !loading && !choices}
             <p class="text-caption text-content-subtle">Couldn't read the phone's speech engines - the default voice is used.</p>
@@ -161,20 +156,24 @@
             <span class="text-body text-content">Speed</span>
             <span class="text-label text-content-muted tabular-nums">{sp.rate.toFixed(2).replace(/0$/, '')}×</span>
           </div>
-          <RangeSlider value={Math.round(sp.rate * 20)} min={10} max={40} step={1} label="Speaking speed" onchange={(v) => trainingState.setTimerCues({ speech: { rate: v / 20 } })} />
+          <div onpointerup={tryAfterRelease} onkeyup={tryAfterRelease} role="presentation">
+            <RangeSlider value={Math.round(sp.rate * 20)} min={10} max={40} step={1} label="Speaking speed" onchange={(v) => trainingState.setTimerCues({ speech: { rate: v / 20 } })} />
+          </div>
         </div>
         <div class="space-y-1.5">
           <div class="flex items-center justify-between gap-3">
             <span class="text-body text-content">Pitch</span>
             <span class="text-label text-content-muted tabular-nums">{sp.pitch.toFixed(2).replace(/0$/, '')}×</span>
           </div>
-          <RangeSlider value={Math.round(sp.pitch * 20)} min={10} max={40} step={1} label="Voice pitch" onchange={(v) => trainingState.setTimerCues({ speech: { pitch: v / 20 } })} />
+          <div onpointerup={tryAfterRelease} onkeyup={tryAfterRelease} role="presentation">
+            <RangeSlider value={Math.round(sp.pitch * 20)} min={10} max={40} step={1} label="Voice pitch" onchange={(v) => trainingState.setTimerCues({ speech: { pitch: v / 20 } })} />
+          </div>
         </div>
 
-        <button onclick={tryIt} class="flex items-center gap-1.5 text-label font-bold text-primary hover:text-primary-hover transition-colors">
+        <button type="button" onclick={tryIt} class="btn btn-secondary gap-1.5 text-primary">
           <Icon icon="ic:baseline-play-arrow" class="text-lg" /> Try it
         </button>
-        <p class="text-caption text-content-subtle">Volume is the one under Sound &amp; vibration.</p>
+        <p class="text-caption text-content-subtle">Volume is set under Sound &amp; vibration.</p>
       </div>
     {/if}
   </div>

@@ -35,6 +35,8 @@
   import TestSheet from './TestSheet.svelte';
   import { TEST_SLOT_MINUTES } from '../../lib/benchmarks/testSlot';
   import SessionAIModal from './SessionAIModal.svelte';
+  import Sheet from '../ui/Sheet.svelte';
+  import { reportError } from '../../lib/errorReporting';
   import Icon from '@iconify/svelte';
 
   let {
@@ -215,7 +217,7 @@
 
   async function cancel() {
     if (JSON.stringify($state.snapshot(workout)) !== original) {
-      const confirmed = await showConfirm('Discard Changes', 'Leave without saving? Your changes to this session will be lost.');
+      const confirmed = await showConfirm('Discard changes', 'Leave without saving? Your changes to this session will be lost.', { ok: 'Discard', cancel: 'Keep editing' });
       if (!confirmed) return;
     }
     onCancel();
@@ -227,6 +229,10 @@
       // A Plan B edit comes back as Plan B's own copy; null = refused (stay here).
       const saved = await trainingState.saveWorkout($state.snapshot(workout) as Workout);
       if (saved) onSaved(saved);
+    } catch (err) {
+      // A failed save keeps the editor open with everything still in it.
+      reportError(err, 'Save session');
+      toast.show('Could not save the session. Your changes are still here; try again.');
     } finally {
       isSaving = false;
     }
@@ -238,7 +244,7 @@
 
 <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
   <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 flex items-start gap-3">
-    <button onclick={cancel} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label={isNew ? 'Close' : 'Back to session'}>
+    <button onclick={cancel} class="btn-icon -ml-2 shrink-0" aria-label={isNew ? 'Close' : 'Back to session'}>
       <Icon icon={isNew ? 'ic:baseline-close' : 'ic:baseline-arrow-back'} class="text-2xl" />
     </button>
     <div class="min-w-0 flex-1">
@@ -249,6 +255,7 @@
         bind:value={workout.notes}
         class="w-full bg-transparent text-title text-content outline-none border-b border-dashed border-border-strong focus:border-primary/60 pb-0.5 transition-colors"
         placeholder="Session name"
+        aria-label="Session name"
       />
 
       <!-- Schedule chips: read like the viewer's subtitle, tap one to set it. -->
@@ -256,7 +263,7 @@
         {#snippet chip(id: 'day' | 'time' | 'duration' | 'place', icon: string, label: string, isSet: boolean)}
           <button
             onclick={() => toggleChip(id)}
-            class="px-2.5 py-1 rounded-full text-caption font-bold border transition-colors flex items-center gap-1 {openChip === id
+            class="px-3 min-h-10 rounded-full text-caption font-bold border transition-colors flex items-center gap-1 {openChip === id
               ? 'bg-primary/15 border-primary/50 text-primary'
               : isSet
                 ? 'bg-surface-elevated border-border-strong text-content'
@@ -277,12 +284,12 @@
           {#each DAYS as day}
             <button
               onclick={() => { workout.dayOfWeek = day; openChip = null; }}
-              class="px-2.5 py-1.5 rounded-control text-label border transition-colors {workout.dayOfWeek === day ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
+              class="px-3 min-h-11 rounded-control text-label border transition-colors {workout.dayOfWeek === day ? 'bg-primary border-primary text-on-primary' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
             >{day.slice(0, 3)}</button>
           {/each}
           <button
             onclick={() => { workout.dayOfWeek = undefined; openChip = null; }}
-            class="px-2.5 py-1.5 rounded-control text-label border transition-colors {!workout.dayOfWeek ? 'bg-surface-elevated-hover border-border-strong text-content' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
+            class="px-3 min-h-11 rounded-control text-label border transition-colors {!workout.dayOfWeek ? 'bg-surface-elevated-hover border-border-strong text-content' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
           >None</button>
         </div>
       {:else if openChip === 'time'}
@@ -290,9 +297,10 @@
           <input
             type="time"
             bind:value={workout.startTime}
-            class="flex-1 px-3 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-body outline-none focus:border-primary/50"
+            aria-label="Start time"
+            class="field flex-1"
           />
-          <button onclick={() => { workout.startTime = undefined; openChip = null; }} class="px-3 py-2 text-label text-content-subtle hover:text-content">Clear</button>
+          <button onclick={() => { workout.startTime = undefined; openChip = null; }} class="btn btn-ghost px-3">Clear</button>
         </div>
       {:else if openChip === 'duration'}
         <div class="flex items-center gap-2 mt-2 animate-in fade-in duration-150">
@@ -302,15 +310,17 @@
             step="5"
             inputmode="numeric"
             placeholder="Minutes"
+            aria-label="Planned duration in minutes"
+            enterkeyhint="done"
             value={workout.plannedDuration ?? ''}
             onchange={(e) => {
               const n = Number(e.currentTarget.value);
               workout.plannedDuration = e.currentTarget.value === '' || !Number.isFinite(n) || n <= 0 ? undefined : n;
             }}
-            class="flex-1 px-3 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-body outline-none focus:border-primary/50"
+            class="field flex-1"
           />
           <span class="text-label text-content-subtle">min</span>
-          <button onclick={() => { workout.plannedDuration = undefined; openChip = null; }} class="px-3 py-2 text-label text-content-subtle hover:text-content">Clear</button>
+          <button onclick={() => { workout.plannedDuration = undefined; openChip = null; }} class="btn btn-ghost px-3">Clear</button>
         </div>
       {:else if openChip === 'place'}
         <!-- Your saved places to pick from, or any text (an outside venue). By name: see Workout.location. -->
@@ -320,7 +330,7 @@
               {#each trainingState.places as place (place.name)}
                 <button
                   onclick={() => { workout.location = place.name; openChip = null; }}
-                  class="px-2.5 py-1.5 rounded-control text-label border transition-colors {workout.location === place.name ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
+                  class="px-3 min-h-11 rounded-control text-label border transition-colors {workout.location === place.name ? 'bg-primary border-primary text-on-primary' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
                 >{place.name}</button>
               {/each}
             </div>
@@ -333,9 +343,9 @@
               aria-label="Where the session is"
               value={workout.location ?? ''}
               oninput={(e) => { workout.location = e.currentTarget.value.trim() ? e.currentTarget.value : undefined; }}
-              class="flex-1 px-3 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-body outline-none focus:border-primary/50"
+              class="field flex-1"
             />
-            <button onclick={() => { workout.location = undefined; openChip = null; }} class="px-3 py-2 text-label text-content-subtle hover:text-content">Clear</button>
+            <button onclick={() => { workout.location = undefined; openChip = null; }} class="btn btn-ghost px-3">Clear</button>
           </div>
         </div>
       {/if}
@@ -349,7 +359,8 @@
       bind:value={workout.description}
       use:autosize={workout.description}
       rows="2"
-      placeholder="Session notes or goals..."
+      placeholder="Session notes or goals…"
+      aria-label="Session notes or goals"
       class="block w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-none overflow-hidden placeholder:text-content-subtle"
     ></textarea>
     {#if workout.status === 'completed'}
@@ -413,7 +424,7 @@
               {#if exercise.groupId}
                 <button
                   onclick={() => regroup(takeOutOfGroup(workout, exercise.id))}
-                  class="shrink-0 p-2 text-content-subtle hover:text-content transition-colors"
+                  class="btn-icon shrink-0"
                   aria-label="Take out of the circuit"
                   title="Take out of the circuit"
                 >
@@ -422,10 +433,10 @@
               {/if}
               <button
                 onclick={() => removeExercise(exercise)}
-                class="shrink-0 p-2 -mr-1 text-content-subtle hover:text-danger transition-colors"
+                class="btn-icon shrink-0 -mr-1 hover:text-danger"
                 aria-label="Remove exercise"
               >
-                <Icon icon="ic:baseline-close" class="text-lg" />
+                <Icon icon="ic:baseline-delete" class="text-lg" />
               </button>
             {/snippet}
           </ExerciseCard>
@@ -448,7 +459,7 @@
                 onUngroup={() => regroup(ungroup(workout, group.id))}
               >
                 {#snippet actions()}
-                  <button onclick={() => onSaveCircuit(group)} class="shrink-0 p-1 text-content-subtle hover:text-content transition-colors" aria-label="Save as circuit" title="Save as circuit">
+                  <button onclick={() => onSaveCircuit(group)} class="btn-icon shrink-0" aria-label="Save as circuit" title="Save as circuit">
                     <Icon icon="ic:baseline-bookmark-add" class="text-lg" />
                   </button>
                 {/snippet}
@@ -459,7 +470,7 @@
             {/each}
             <button
               onclick={() => { addingToGroup = group.id; formSlot = 'new'; }}
-              class="w-full py-2.5 border border-dashed border-border rounded-card text-caption font-bold text-content-subtle hover:text-primary hover:border-primary/40 transition-colors flex items-center justify-center gap-1"
+              class="w-full min-h-11 py-2.5 border border-dashed border-border rounded-card text-label font-bold text-content-subtle hover:text-primary hover:border-primary/40 transition-colors flex items-center justify-center gap-1"
             >
               <Icon icon="ic:baseline-plus" class="text-sm" /> Add to {group.name || 'circuit'}
             </button>
@@ -489,10 +500,11 @@
 
 <footer class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
   <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center gap-2">
+    {#if isGrouping && picked.length === 0}<span class="sr-only" role="status">Pick at least one exercise to make a circuit.</span>{/if}
     <button
       onclick={() => isReordering = !isReordering}
       disabled={workout.exercises.length < 2}
-      class="px-3 py-2.5 rounded-control text-label font-bold transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isReordering ? 'bg-primary/15 text-primary' : 'text-content-subtle hover:text-content'}"
+      class="btn px-3 disabled:opacity-40 {isReordering ? 'bg-primary/15 text-primary' : 'text-content-subtle hover:text-content'}"
     >
       <Icon icon={isReordering ? 'ic:baseline-check' : 'ic:baseline-swap-vert'} class="text-base" />
       {isReordering ? 'Done' : 'Reorder'}
@@ -501,7 +513,7 @@
       <button
         onclick={() => { isGrouping = !isGrouping; picked = []; }}
         disabled={workout.exercises.length === 0}
-        class="px-3 py-2.5 rounded-control text-label font-bold transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isGrouping ? 'bg-primary/15 text-primary' : 'text-content-subtle hover:text-content'}"
+        class="btn px-3 disabled:opacity-40 {isGrouping ? 'bg-primary/15 text-primary' : 'text-content-subtle hover:text-content'}"
       >
         <Icon icon={isGrouping ? 'ic:baseline-close' : 'ic:baseline-repeat'} class="text-base" />
         {isGrouping ? 'Cancel' : 'Circuit'}
@@ -512,7 +524,7 @@
       <button
         onclick={makeGroup}
         disabled={picked.length === 0}
-        class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+        class="btn btn-primary px-5"
       >
         <Icon icon="ic:baseline-repeat" class="text-base" /> Make circuit{picked.length ? ` (${picked.length})` : ''}
       </button>
@@ -520,9 +532,9 @@
     <button
       onclick={save}
       disabled={isSaving}
-      class="px-6 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-60 text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+      class="btn btn-primary px-6"
     >
-      <Icon icon="ic:baseline-check" class="text-base" /> Save
+      <Icon icon="ic:baseline-check" class="text-base" /> {isSaving ? 'Saving…' : 'Save'}
     </button>
     {/if}
   </div>
@@ -531,10 +543,12 @@
 {#if formSlot}
   <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
-      <button onclick={() => { formSlot = null; addingToGroup = null; startingCircuit = false; }} class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1">
-        <Icon icon="ic:baseline-arrow-back" class="text-sm" />
-        Back to session
-      </button>
+      <div class="sticky top-0 z-10 -mx-4 -mt-4 px-4 pt-3 pb-1 bg-app-bg">
+        <button onclick={() => { formSlot = null; addingToGroup = null; startingCircuit = false; }} class="btn btn-ghost -ml-2 px-3 gap-2">
+          <Icon icon="ic:baseline-arrow-back" class="text-base" />
+          Back to session
+        </button>
+      </div>
       {#if formGroup}
         <p class="px-1 text-caption text-content-subtle flex items-start gap-1.5">
           <Icon icon="ic:baseline-repeat" class="text-sm shrink-0 mt-0.5" />
@@ -556,45 +570,39 @@
 {/if}
 
 {#if pickingCircuit}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-[120] bg-black/40 flex items-end justify-center" onclick={() => pickingCircuit = false}>
-    <div class="w-full max-w-lg max-h-[70vh] overflow-y-auto no-scrollbar bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
-      <p class="text-section uppercase text-content-muted px-1">Add a circuit</p>
+  <Sheet title="Add a circuit" level="nested" onClose={() => pickingCircuit = false}>
+    <div class="space-y-2">
       <button onclick={() => { pickingCircuit = false; startingCircuit = true; formSlot = 'new'; }} class="w-full p-3 rounded-card border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 text-left">
         <p class="text-body font-bold text-primary flex items-center gap-1.5"><Icon icon="ic:baseline-plus" class="text-base" /> New circuit</p>
         <p class="text-caption text-content-subtle">Start with its first exercise; each one is a time or some reps, and the circuit repeats them in rounds.</p>
       </button>
       {#if workout.exercises.length > 1}
-        <button onclick={() => { pickingCircuit = false; isGrouping = true; picked = []; }} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
+        <button onclick={() => { pickingCircuit = false; isGrouping = true; picked = []; }} class="w-full p-3 rounded-card bg-surface-elevated/50 hover:bg-surface-elevated text-left">
           <p class="text-body font-bold text-content">From exercises already here</p>
           <p class="text-caption text-content-subtle">Pick some of this session's exercises to do in rounds.</p>
         </button>
       {/if}
       {#if trainingState.circuits.length > 0}<p class="text-caption uppercase text-content-subtle px-1 pt-1">Your saved circuits</p>{/if}
       {#each trainingState.circuits as c (c.id)}
-        <button onclick={() => addCircuit(c)} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
+        <button onclick={() => addCircuit(c)} class="w-full p-3 rounded-card bg-surface-elevated/50 hover:bg-surface-elevated text-left">
           <p class="text-body font-bold text-content truncate">{c.name}</p>
           <p class="text-caption text-content-subtle truncate">{c.exercises.map((s) => slotTypeName(s, trainingState.exerciseTypes)).join(' · ')}</p>
         </button>
       {/each}
     </div>
-  </div>
+  </Sheet>
 {/if}
 
 {#if savingGroup}
   {@const group = savingGroup}
   {@const linked = trainingState.circuits.find((c) => c.id === group.circuitId)}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-[120] bg-black/40 flex items-end justify-center" onclick={() => savingGroup = null}>
-    <div class="w-full max-w-lg bg-surface border-t border-border rounded-t-card p-4 pb-8 space-y-2" onclick={(e) => e.stopPropagation()}>
-      <p class="text-section uppercase text-content-muted px-1">Save as circuit</p>
-      <p class="text-caption text-content-subtle px-1">This came from <b class="text-content-muted">{linked?.name}</b>. Sessions that already have it keep their own copy either way.</p>
-      <button onclick={() => saveGroupAsCircuit(group, linked)} class="w-full py-3 rounded-control bg-primary hover:bg-primary-hover text-white text-label font-bold">Update {linked?.name}</button>
-      <button onclick={() => saveGroupAsCircuit(group)} class="w-full py-3 rounded-control bg-surface-elevated text-content text-label font-bold">Save as a new circuit</button>
+  <Sheet title="Save as circuit" level="nested" onClose={() => savingGroup = null}>
+    <div class="space-y-2">
+      <p class="text-label text-content-subtle">This came from <b class="text-content-muted">{linked?.name ?? 'a saved circuit'}</b>. Sessions that already have it keep their own copy either way.</p>
+      {#if linked}<button onclick={() => saveGroupAsCircuit(group, linked)} class="btn btn-primary w-full">Update {linked.name}</button>{/if}
+      <button onclick={() => saveGroupAsCircuit(group)} class="btn btn-secondary w-full">Save as a new circuit</button>
     </div>
-  </div>
+  </Sheet>
 {/if}
 
 {#if isImportingAI}

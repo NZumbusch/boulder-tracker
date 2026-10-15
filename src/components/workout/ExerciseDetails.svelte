@@ -44,13 +44,13 @@
   </p>
 {/if}
 {#if notes}
-  <p class="text-caption text-content-muted italic px-1 whitespace-pre-wrap break-words">{notes}</p>
+  <p class="text-label text-content-muted px-1 whitespace-pre-wrap break-words">{notes}</p>
 {/if}
 {#if howItWent}
   <p class="text-caption text-content px-1 whitespace-pre-wrap break-words"><span class="text-content-subtle">How it went:</span> {howItWent}</p>
 {/if}
 {#if howTo}
-  <button onclick={() => howToOpen = !howToOpen} class="w-full text-left px-1 text-caption text-content-subtle hover:text-content transition-colors">
+  <button onclick={() => howToOpen = !howToOpen} aria-expanded={howToOpen} class="w-full text-left px-1 min-h-11 text-label text-content-subtle hover:text-content transition-colors">
     <span class="flex items-center gap-1 font-bold">
       <Icon icon={howToOpen ? 'ic:baseline-expand-more' : 'ic:baseline-chevron-right'} class="text-sm" /> How to
     </span>

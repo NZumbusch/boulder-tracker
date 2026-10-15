@@ -16,11 +16,11 @@
 
 {#if CHANGELOG.length > 0}
   <section class="card space-y-1 animate-in fade-in" aria-labelledby="about-new">
-    <h3 id="about-new" class="text-section uppercase text-content-muted px-1 pb-1">What's new</h3>
+    <h2 id="about-new" class="text-section uppercase text-content-muted px-1 pb-1">What's new</h2>
     <div class="divide-y divide-border">
       {#each entries as e (e.hash)}
         {#if e.detail}
-          <button onclick={() => (open = open === e.hash ? null : e.hash)} aria-expanded={open === e.hash} class="w-full py-2.5 text-left">
+          <button onclick={() => (open = open === e.hash ? null : e.hash)} aria-expanded={open === e.hash} class="w-full py-2.5 min-h-11 text-left">
             <span class="flex items-center gap-2">
               <span class="min-w-0 flex-1 text-body font-semibold text-content truncate">{e.title}</span>
               <span class="text-caption text-content-subtle shrink-0 tabular-nums">{date(e.date)}</span>
@@ -40,7 +40,7 @@
       {/each}
     </div>
     {#if CHANGELOG.length > SHOWN}
-      <button onclick={() => (all = !all)} class="text-label text-primary px-1 pt-1.5">{all ? 'Show fewer' : `Show ${CHANGELOG.length - SHOWN} older`}</button>
+      <button onclick={() => (all = !all)} class="btn-quiet px-2 text-label text-primary">{all ? 'Show fewer' : `Show ${CHANGELOG.length - SHOWN} older`}</button>
     {/if}
   </section>
 {/if}
