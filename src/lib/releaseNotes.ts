@@ -20,21 +20,12 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    id: "2026-10-19-analytics-by-question",
-    title: "Analytics, rebuilt around four questions",
+    id: "2026-10-18-calm-panels",
+    title: "Calmer panels everywhere",
     points: [
-      "Four tabs: Overview (this window against the one before, what needs a look, the load chart, your training calendar), Training (mix; strain and finger load under More charts), Recovery (fatigue, the recovery chart, pain) and Progress (tests, exercises, sends).",
-      "Findings moved next to the charts they point at: the few that matter most on Overview, the rest at the top of their own tab. The summary tiles show once, and the range and paging work on every tab.",
-      "The load chart no longer puts two scales on one plot: weekly load as bars, the acute:chronic ratio in its own strip under it with its zones, one shared time axis.",
-      "Recovery keeps the overlaid chart you know, now with a labelled Overlay / Rows switch for one row per measure; week labels thin out instead of running together.",
-    ],
-  },
-  {
-    id: "2026-10-18-top-bar-and-long-events",
-    title: "The top bar scrolls with the page; long events stay in the calendar",
-    points: [
-      "The top bar is part of the page now: it scrolls away with the content like any heading, instead of sliding in and out. The setting for hiding it is gone.",
-      "An event from your phone calendar that runs through the night or over several days no longer breaks the hour grid: the part outside the hours shown is cut off.",
+      "Grouped content on Home, Analytics, History, Settings and the Plan's week card is a soft panel without borders or shadows now, and small buttons and chips are filled instead of outlined.",
+      "The Plan's block grid is quieter: no box around it, smaller rounded weeks in softer colours, the current week a dot, the selected one a ring, the year written inside its first week.",
+      "Settings → Plan calendar & day → \"Flat sections instead of panels\" drops the panels altogether: sections are separated by whitespace and a hairline, like the calendar.",
     ],
   },
   {
@@ -44,6 +35,14 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Trips, competitions and your phone calendar's all-day and multi-day events are one bar across their days at the top, instead of a label in every day; with many, the last row says \"+N\" and opens up when tapped.",
       "Your sessions are one green. The colours belong to phases (a faint tint behind each day, with the strip) and to the phone calendar's events, which keep their calendar's colour but are turned away from the sessions' green. Settings → Plan calendar & day can bring back colouring sessions by exercise category or turn the tint off.",
       "Settings → Phone calendar: tap a calendar's dot to pick its colour. Chips under the calendar's header show or hide each phone calendar. Today's column is lightly highlighted and the hour labels are slimmer, so the days get more room.",
+    ],
+  },
+  {
+    id: "2026-10-18-top-bar-and-long-events",
+    title: "The top bar scrolls with the page; long events stay in the calendar",
+    points: [
+      "The top bar is part of the page now: it scrolls away with the content like any heading, instead of sliding in and out. The setting for hiding it is gone.",
+      "An event from your phone calendar that runs through the night or over several days no longer breaks the hour grid: the part outside the hours shown is cut off.",
     ],
   },
   {

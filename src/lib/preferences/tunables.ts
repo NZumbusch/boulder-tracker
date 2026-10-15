@@ -77,6 +77,7 @@ export const TUNABLES: TunableDef[] = [
 
 
   // --- Layout ---
+  { id: "ui.flatCards", topic: "layout", group: "Look", label: "Flat sections instead of panels", hint: "Off: grouped content sits on a soft, borderless panel. On: no panel at all - sections are separated by whitespace and a hairline, like the calendar", kind: "boolean", default: false },
   { id: "plan.weekAgenda", topic: "layout", group: "Plan calendar", label: "Show the week as a list", hint: "On: the calendar's Week view is seven day rows with full session names and exercises. Off: seven narrow columns on an hour grid", kind: "boolean", default: false },
   { id: "plan.exerciseList", topic: "layout", group: "Plan calendar", label: "Exercises as a list", hint: "In the week list, each session's exercises are plain lines with a colour dot instead of coloured chips", kind: "boolean", default: false },
   { id: "plan.weekListOnPhone", topic: "layout", group: "Plan calendar", label: "List on a phone held upright", hint: "Seven columns are too narrow for names on a phone in portrait, so it shows the list there even with the setting above off. Tablets, laptops and a phone on its side keep the grid", kind: "boolean", default: true },
