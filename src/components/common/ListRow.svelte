@@ -6,7 +6,8 @@
    * Title and a one-line meta on the left, an optional headline value on
    * the right, then an optional trailing control (a Start button). Rows sit
    * in a `divide-y divide-border` list rather than each being its own boxed
-   * card. The whole left side is the tap target when `onclick` is given.
+   * card. The whole left side is the tap target when `onclick` is given. `onlongpress` is the quick-actions menu: a
+   * long press on a phone, a right click or the Menu key on a keyboard (all raise `contextmenu`).
    */
   import type { Snippet } from 'svelte';
   import { longPress } from '../../lib/ui/longPress';
@@ -23,7 +24,7 @@
     /** The headline number on the right (load). */
     value?: string | number;
     valueHint?: string;
-    /** Planned-but-not-real rows (provisional) read quieter. */
+    /** Planned-but-not-real rows (provisional) read quieter: a softer title, never reduced opacity (that fails contrast). */
     muted?: boolean;
     onclick?: () => void;
     /** Hold (or right-click) the row - quick actions. */
@@ -33,16 +34,16 @@
   } = $props();
 </script>
 
-<div class="flex items-center gap-3 py-2.5 {muted ? 'opacity-70' : ''}">
+<div class="flex items-center gap-3 py-2.5">
   {@render leading?.()}
   {#snippet body()}
-    <p class="text-body font-semibold text-content truncate {onclick ? 'group-hover:text-primary transition-colors' : ''}">
+    <p class="text-body font-semibold truncate {muted ? 'text-content-muted' : 'text-content'} {onclick ? 'group-hover:text-primary transition-colors' : ''}">
       {title}{#if titleExtra}{' '}{@render titleExtra()}{/if}
     </p>
     {#if metaLead}
       <p class="flex items-center gap-1.5 min-w-0 text-caption text-content-subtle tabular-nums"><span class="shrink-0 empty:hidden">{@render metaLead()}</span>{#if meta}<span class="truncate">{meta}</span>{/if}</p>
     {:else if meta}<p class="text-caption text-content-subtle truncate tabular-nums">{meta}</p>{/if}
-    {#if detail}<p class="text-caption text-content-subtle/70 truncate">{detail}</p>{/if}
+    {#if detail}<p class="text-caption text-content-subtle truncate">{detail}</p>{/if}
   {/snippet}
   {#if onclick}
     <button type="button" {onclick} use:longPress={onlongpress} class="min-w-0 flex-1 text-left group select-none">{@render body()}</button>

@@ -44,6 +44,30 @@ export function columnAt(clientX: number, rect: { left: number; width: number },
   return i < 0 || i >= count ? null : i;
 }
 
+/**
+ * Where an arrow-key press moves the selected column: Left/Right step one
+ * (starting from the newest column when nothing is selected yet), Home and
+ * End jump to the ends, Escape clears. `undefined` for any other key, so a
+ * handler knows to leave it alone.
+ */
+export function stepColumn(current: number | null, count: number, key: string): number | null | undefined {
+  if (count <= 0) return key === "Escape" ? null : undefined;
+  switch (key) {
+    case "ArrowLeft":
+      return current === null ? count - 1 : Math.max(0, current - 1);
+    case "ArrowRight":
+      return current === null ? count - 1 : Math.min(count - 1, current + 1);
+    case "Home":
+      return 0;
+    case "End":
+      return count - 1;
+    case "Escape":
+      return null;
+    default:
+      return undefined;
+  }
+}
+
 export class ColumnPicker {
   selected = $state<number | null>(null);
   el: HTMLElement | null = null;
@@ -53,6 +77,14 @@ export class ColumnPicker {
   constructor(count: () => number) {
     this.#count = count;
   }
+
+  /** The keyboard route: put on the focusable plot (`tabindex="0"`) as `onkeydown`. Arrow keys walk the columns. */
+  key = (event: KeyboardEvent) => {
+    const next = stepColumn(this.selected, this.#count(), event.key);
+    if (next === undefined) return;
+    event.preventDefault();
+    this.selected = next;
+  };
 
   #at(event: PointerEvent): number | null {
     return this.el ? columnAt(event.clientX, this.el.getBoundingClientRect(), this.#count()) : null;

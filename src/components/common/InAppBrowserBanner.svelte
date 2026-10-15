@@ -34,11 +34,11 @@
       <p class="text-label text-content leading-snug">Open this in {browserName}</p>
       <p class="text-caption text-content-muted leading-relaxed">This browser inside another app can't install Boulder Tracker, and data you enter here stays here. Open the link in {browserName} first.</p>
       <div class="flex flex-wrap gap-2 pt-0.5">
-        <button onclick={copyLink} class="px-3 py-1.5 rounded-control bg-primary text-white text-label font-semibold">Copy link</button>
-        {#if chromeLink}<a href={chromeLink} class="px-3 py-1.5 rounded-control border border-border-strong text-label text-content">Open in Chrome</a>{/if}
+        <button onclick={copyLink} class="btn btn-primary">Copy link</button>
+        {#if chromeLink}<a href={chromeLink} class="btn btn-secondary">Open in Chrome</a>{/if}
       </div>
     </div>
-    <button onclick={() => (closed = true)} class="tap p-1 -mr-1 text-content-subtle hover:text-content shrink-0" aria-label="Close">
+    <button onclick={() => (closed = true)} class="btn-icon -mr-2 -my-1 shrink-0" aria-label="Close">
       <Icon icon="ic:baseline-close" class="text-lg" />
     </button>
   </div>

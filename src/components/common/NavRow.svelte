@@ -9,7 +9,7 @@
   let { icon, title, hint, onclick }: { icon: string; title: string; hint?: string; onclick: () => void } = $props();
 </script>
 
-<button {onclick} class="w-full flex items-center gap-3 py-3.5 text-left group">
+<button type="button" {onclick} class="w-full flex items-center gap-3 py-3.5 min-h-11 text-left group active:bg-surface-elevated/50 transition-colors">
   <Icon {icon} class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" />
   <span class="min-w-0 flex-1">
     <span class="block text-body font-semibold text-content group-hover:text-primary transition-colors">{title}</span>

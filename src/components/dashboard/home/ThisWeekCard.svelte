@@ -18,6 +18,7 @@
   import { fingerCategoryIds } from '../../../lib/analytics/proMetrics';
   import Icon from '@iconify/svelte';
   import { showAcwr } from '../../../lib/help/acwrSheet.svelte';
+  import { acwrZone, ACWR_PILL } from '../../../lib/home/acwrZone';
 
   let { data }: { data: HomeData } = $props();
 
@@ -55,16 +56,8 @@
     planned: { icon: 'ic:baseline-circle', class: 'bg-primary/10 text-primary border-primary/30', label: 'planned' },
     rest: { icon: '', class: 'bg-transparent text-content-subtle border-border/60', label: 'rest' },
   };
-  // ACWR zones, from loadAnalytics' own thresholds.
-  const acwrZone = $derived.by((): { label: string; class: string } | undefined => {
-    if (!acwr.sufficient || acwr.ratio === undefined) return undefined;
-    const r = acwr.ratio;
-    const zones = trainingState.acwrZones;
-    if (r > zones.highRisk) return { label: 'high risk', class: 'bg-status-risk/15 text-status-risk border-status-risk/30' };
-    if (r > zones.caution) return { label: 'caution', class: 'bg-status-caution/15 text-status-caution border-status-caution/30' };
-    if (r >= zones.sweetMin) return { label: 'sweet spot', class: 'bg-status-good/15 text-status-good border-status-good/30' };
-    return { label: 'low', class: 'bg-surface-elevated text-content-muted border-border-strong/50' };
-  });
+  // One classification for every screen (lib/home/acwrZone), from the athlete's own edges.
+  const acwrInfo = $derived(acwr.sufficient ? acwrZone(acwr.ratio, trainingState.acwrZones) : undefined);
 </script>
 
 <div class="card space-y-3">
@@ -104,8 +97,8 @@
       <span class="text-metric">{Math.round(recap.load)}</span>
       <span class="text-caption text-content-subtle">load pts{recap.minutes > 0 ? ` · ${formatMinutes(recap.minutes)}` : ''}</span>
     </p>
-    {#if acwrZone && trainingState.homeDetails['thisWeek.acwr']}
-      <button onclick={showAcwr} class="px-2 py-0.5 rounded-full border text-caption tabular-nums shrink-0 inline-flex items-center gap-1 {acwrZone.class}" aria-label="ACWR {acwr.ratio!.toFixed(2)}, {acwrZone.label} - what it is made of">ACWR {acwr.ratio!.toFixed(2)} · {acwrZone.label}<Icon icon="ic:baseline-chevron-right" class="text-xs -mr-0.5" /></button>
+    {#if acwrInfo && trainingState.homeDetails['thisWeek.acwr']}
+      <button onclick={showAcwr} class="tap px-2 py-0.5 rounded-full text-caption tabular-nums shrink-0 inline-flex items-center gap-1 {ACWR_PILL[acwrInfo.status]}" aria-label="Load ratio {acwr.ratio!.toFixed(2)}, {acwrInfo.label}. What it is made of">Load ratio {acwr.ratio!.toFixed(2)} · {acwrInfo.label}<Icon icon="ic:baseline-chevron-right" class="text-xs -mr-0.5" /></button>
     {:else if trainingState.homeDetails['thisWeek.acwr'] && acwr.insufficientReason}
       <!-- Said, not just hidden: ACWR needs a real 4-week baseline. -->
       <button onclick={showAcwr} class="text-caption text-content-subtle shrink-0 inline-flex items-center gap-0.5" aria-label="Why there is no ACWR yet">

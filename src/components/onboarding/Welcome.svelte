@@ -17,7 +17,10 @@
   import { trainingState } from '../../lib/state.svelte';
   import { DEFAULT_TEMPLATE_LIBRARY } from '../../lib/constants';
   import { isAndroidWeb, isInAppBrowser, isIOS, readBrowserInfo, shouldOfferIOSInstall } from '../../lib/pwa/platform';
-  import { toast, showUndo } from '../../lib/toast.svelte';
+  import { untrack } from 'svelte';
+  import { showUndo } from '../../lib/toast.svelte';
+  import { copyPageLink } from '../../lib/pwa/copyLink';
+  import { unitsFromLocale } from '../../lib/onboarding/units';
   import { firstPlanWeek, previewOf, starterPlanOptions } from '../../lib/planning/starterPlan';
   import { blockFirstWeekId } from '../../lib/planning/trainingBlocks';
   import { tour } from '../../lib/tour/tour.svelte';
@@ -25,6 +28,8 @@
   import IOSInstallSteps from './IOSInstallSteps.svelte';
   import PlatformTable from './PlatformTable.svelte';
   import IntroSlides from './IntroSlides.svelte';
+  import RadioCards from './RadioCards.svelte';
+  import Segmented from '../ui/Segmented.svelte';
   import { driveSync } from '../../lib/sync/driveSync.svelte';
   import { defaultPlanChoice, focusToProfile, type Discipline, type StartGoal } from '../../lib/onboarding/focus';
   import type { WeatherLocation } from '../../lib/preferences/migrate';
@@ -79,8 +84,14 @@
       restoring = false;
     }
   }
+  let connecting = $state(false);
   async function connectDrive() {
-    await driveSync.connect();
+    connecting = true;
+    try {
+      await driveSync.connect();
+    } finally {
+      connecting = false;
+    }
     // Connected means the first sync has pulled whatever Drive holds; a choice
     // between merging and replacing only arises when this device has data.
     if (driveSync.connected) trainingState.setWelcomeDone(true);
@@ -105,14 +116,7 @@
     gate = false;
     index = 1;
   }
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(window.location.href.split('#')[0]);
-      toast.show(`Link copied. Paste it into ${browserName}.`);
-    } catch {
-      toast.show(`Couldn't copy. Use the app's menu → "Open in browser".`);
-    }
-  }
+  const copyLink = () => copyPageLink(browserName);
 
   async function chooseLevel() {
     applying = true;
@@ -131,6 +135,42 @@
   }
   const metric = $derived(trainingState.units.weight === 'kg');
 
+  // The Units step starts on what the phone's region uses, but only while nothing was chosen yet (all units at their defaults).
+  let unitsPreselected = $state(false);
+  let unitsGuessed = false;
+  $effect(() => {
+    if (step !== 'units' || unitsGuessed) return;
+    unitsGuessed = true;
+    untrack(() => {
+      const u = trainingState.units;
+      if (u.weight !== 'kg' || u.temperature !== 'C' || u.wind !== 'kmh' || u.grades !== 'font') return;
+      const guess = unitsFromLocale(typeof navigator !== 'undefined' ? navigator.language : null);
+      if (guess.metric && guess.grades === 'font') return;
+      setMetric(guess.metric);
+      trainingState.setUnit('grades', guess.grades);
+      unitsPreselected = true;
+    });
+  });
+
+  const FOCUS_DISCIPLINES: { value: Discipline; label: string }[] = [
+    { value: 'boulder', label: 'Bouldering' },
+    { value: 'routes', label: 'Routes (sport and lead)' },
+    { value: 'both', label: 'Both' },
+  ];
+  const FOCUS_GOALS: { value: StartGoal; label: string; hint: string }[] = [
+    { value: 'stronger', label: 'Get stronger', hint: 'A plan that builds up steadily.' },
+    { value: 'trip', label: 'Peak for a trip or competition', hint: 'You can add its date to Plan afterwards.' },
+    { value: 'log', label: 'Just keep track', hint: 'No plan to start with.' },
+  ];
+  const planCards = $derived([
+    ...planOptions.map((o) => ({
+      value: o.id as string,
+      label: o.name,
+      hint: o.description,
+      lines: previewOf(o, trainingState.templates, trainingState.phaseDefs).map((l) => `${l.phase}, ${l.weeks} ${l.weeks === 1 ? 'week' : 'weeks'}${l.sessions.length ? `: ${l.sessions.join(', ')}` : ''}`),
+    })),
+    { value: 'none', label: "I'll plan it myself", hint: 'Start with an empty plan.', lines: [] as string[] },
+  ]);
   function finish(startTour: boolean) {
     trainingState.setWelcomeDone(true);
     const ids = planBlockIds;
@@ -145,10 +185,13 @@
   <div class="flex-1 overflow-y-auto no-scrollbar">
     <div class="w-full max-w-md mx-auto px-5 pt-10 pb-6 space-y-6">
       {#if step !== 'intro' && !gate && !returning}
-        <div class="flex gap-1.5" aria-hidden="true">
-          {#each steps.slice(1) as _, i}
-            <div class="h-1 flex-1 rounded-full {i < index ? 'bg-primary' : 'bg-surface-elevated'}"></div>
-          {/each}
+        <div class="space-y-2">
+          <p class="text-caption text-content-subtle tabular-nums">Step {index} of {steps.length - 1}</p>
+          <div class="flex gap-1.5" aria-hidden="true">
+            {#each steps.slice(1) as _, i}
+              <div class="h-1 flex-1 rounded-full {i < index ? 'bg-primary' : 'bg-surface-elevated'}"></div>
+            {/each}
+          </div>
         </div>
       {/if}
 
@@ -169,17 +212,18 @@
           <p class="text-body text-content-muted leading-relaxed">Bring your data over and skip the setup.</p>
         </div>
         <div class="space-y-2.5">
-          <label class="block w-full text-left p-4 rounded-card border border-border bg-surface hover:border-border-strong transition-colors cursor-pointer {restoring ? 'opacity-60 pointer-events-none' : ''}">
-            <p class="text-body font-bold text-content">Restore a backup file</p>
+          <label class="block w-full text-left p-4 min-h-11 rounded-card border border-border bg-surface hover:border-border-strong focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50 transition-colors cursor-pointer {restoring ? 'opacity-60 pointer-events-none' : ''}">
+            <p class="text-body font-bold text-content">{restoring ? 'Restoring…' : 'Restore a backup file'}</p>
             <p class="text-caption text-content-subtle mt-1 leading-relaxed">The .json file from {settingsPath('sync')} on your other device, or the weekly backup in Documents/BoulderTracker.</p>
-            <input type="file" accept=".json,application/json" class="hidden" onchange={restoreBackup} />
+            <!-- Visually hidden, not display:none: the file picker stays reachable by keyboard (the label shows the focus). -->
+            <input type="file" accept=".json,application/json" class="sr-only" onchange={restoreBackup} />
           </label>
           {#if driveSync.available}
-            <button onclick={connectDrive} class="w-full text-left p-4 rounded-card border border-border bg-surface hover:border-border-strong transition-colors">
-              <p class="text-body font-bold text-content">Connect Google Drive</p>
+            <button onclick={connectDrive} disabled={connecting} class="w-full text-left p-4 min-h-11 rounded-card border border-border bg-surface hover:border-border-strong transition-colors disabled:opacity-60">
+              <p class="text-body font-bold text-content">{connecting ? 'Connecting…' : 'Connect Google Drive'}</p>
               <p class="text-caption text-content-subtle mt-1 leading-relaxed">Sign in with the account you synced with before; your data comes back from your private app folder.</p>
             </button>
-            {#if driveSync.error}<p class="text-caption text-status-caution px-1">{driveSync.error}</p>{/if}
+            {#if driveSync.error}<p class="text-caption text-status-caution px-1" role="alert">{driveSync.error}</p>{/if}
           {/if}
         </div>
 
@@ -194,28 +238,13 @@
       {:else if step === 'focus'}
         <div class="space-y-2">
           <h2 class="text-title text-content">What do you climb?</h2>
-          <p class="text-body text-content-muted leading-relaxed">The sessions and grades here are built around bouldering. This is mostly for the AI coach, so its advice fits.</p>
+          <p class="text-body text-content-muted leading-relaxed">The sessions and grades here are built around bouldering. Your answer goes to the AI coach, so its advice fits.</p>
         </div>
-        <div class="space-y-2" role="radiogroup" aria-label="What you climb">
-          {#each [['boulder', 'Bouldering'], ['routes', 'Routes (sport and lead)'], ['both', 'Both']] as [value, label]}
-            <button role="radio" aria-checked={discipline === value} onclick={() => (discipline = discipline === value ? null : (value as Discipline))}
-              class="w-full text-left px-4 py-3 rounded-card border transition-colors {discipline === value ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-border-strong'}">
-              <p class="text-body font-semibold text-content">{label}</p>
-            </button>
-          {/each}
-        </div>
+        <RadioCards label="What you climb" options={FOCUS_DISCIPLINES} value={discipline} onChange={(v) => (discipline = v)} compact />
         <div class="space-y-2 pt-2">
           <h2 class="text-title text-content">What are you after?</h2>
         </div>
-        <div class="space-y-2" role="radiogroup" aria-label="Your goal">
-          {#each [['stronger', 'Get stronger', 'A plan that builds up steadily.'], ['trip', 'Peak for a trip or competition', 'You can add its date to Plan afterwards.'], ['log', 'Just keep track', 'No plan to start with.']] as [value, label, hint]}
-            <button role="radio" aria-checked={goal === value} onclick={() => (goal = goal === value ? null : (value as StartGoal))}
-              class="w-full text-left px-4 py-3 rounded-card border transition-colors {goal === value ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-border-strong'}">
-              <p class="text-body font-semibold text-content">{label}</p>
-              <p class="text-caption text-content-subtle mt-0.5">{hint}</p>
-            </button>
-          {/each}
-        </div>
+        <RadioCards label="Your goal" options={FOCUS_GOALS} value={goal} onChange={(v) => (goal = v)} compact />
         <p class="text-caption text-content-subtle leading-relaxed">Both go into "About me" and your standing goal for the AI coach ({settingsPath('coach')}), where you can change them. Skippable.</p>
 
       {:else if step === 'level'}
@@ -223,78 +252,38 @@
           <h2 class="text-title text-content">How do you train?</h2>
           <p class="text-body text-content-muted leading-relaxed">This picks the sessions each training phase starts with. You can edit them, or switch, any time under {settingsPath('phases')}.</p>
         </div>
-        <div class="space-y-2.5" role="radiogroup" aria-label="Training level">
-          {#each DEFAULT_TEMPLATE_LIBRARY as set}
-            <button
-              role="radio"
-              aria-checked={level === set.id}
-              onclick={() => (level = set.id)}
-              class="w-full text-left p-4 rounded-card border transition-colors {level === set.id ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-border-strong'}"
-            >
-              <p class="text-body font-bold text-content">{set.name}</p>
-              {#if set.description}<p class="text-caption text-content-subtle mt-1 leading-relaxed">{set.description}</p>{/if}
-            </button>
-          {/each}
-        </div>
+        <RadioCards label="Training level" options={DEFAULT_TEMPLATE_LIBRARY.map((s) => ({ value: s.id, label: s.name, hint: s.description }))} value={level} onChange={(v) => (level = v)} />
 
       {:else if step === 'plan'}
         <div class="space-y-2">
           <h2 class="text-title text-content">Your first weeks</h2>
           <p class="text-body text-content-muted leading-relaxed">So Plan isn't empty. Pick a shape; it starts on {planStartLabel}. You can change or delete it any time.</p>
         </div>
-        <div class="space-y-2.5" role="radiogroup" aria-label="Starter plan">
-          {#each planOptions as option}
-            <button
-              role="radio"
-              aria-checked={planChoice === option.id}
-              onclick={() => (planChoice = option.id)}
-              class="w-full text-left p-4 rounded-card border transition-colors {planChoice === option.id ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-border-strong'}"
-            >
-              <p class="text-body font-bold text-content">{option.name}</p>
-              <p class="text-caption text-content-subtle mt-1 leading-relaxed">{option.description}</p>
-              <ul class="mt-2 space-y-1">
-                {#each previewOf(option, trainingState.templates, trainingState.phaseDefs) as line}
-                  <li class="text-caption text-content-muted leading-relaxed"><span class="font-semibold text-content">{line.phase}</span>, {line.weeks} {line.weeks === 1 ? 'week' : 'weeks'}{line.sessions.length ? `: ${line.sessions.join(', ')}` : ''}</li>
-                {/each}
-              </ul>
-            </button>
-          {/each}
-          <button
-            role="radio"
-            aria-checked={planChoice === 'none'}
-            onclick={() => (planChoice = 'none')}
-            class="w-full text-left p-4 rounded-card border transition-colors {planChoice === 'none' ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-border-strong'}"
-          >
-            <p class="text-body font-bold text-content">I'll plan it myself</p>
-            <p class="text-caption text-content-subtle mt-1 leading-relaxed">Start with an empty plan.</p>
-          </button>
-        </div>
+        <RadioCards label="Starter plan" options={planCards} value={planChoice} onChange={(v) => (planChoice = v)} />
 
       {:else if step === 'units'}
         <div class="space-y-2">
           <h2 class="text-title text-content">Units</h2>
           <p class="text-body text-content-muted leading-relaxed">For weights and the weather. Grades and each unit on its own are under {settingsPath('units')}.</p>
         </div>
-        <div class="space-y-2.5" role="radiogroup" aria-label="Units">
-          {#each [[true, 'Metric', 'kg · °C · km/h'], [false, 'Imperial', 'lb · °F · mph']] as [isMetric, name, detail]}
-            <button
-              role="radio"
-              aria-checked={metric === isMetric}
-              onclick={() => setMetric(isMetric as boolean)}
-              class="w-full text-left p-4 rounded-card border transition-colors {metric === isMetric ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-border-strong'}"
-            >
-              <p class="text-body font-bold text-content">{name}</p>
-              <p class="text-caption text-content-subtle mt-1">{detail}</p>
-            </button>
-          {/each}
-        </div>
+        <RadioCards
+          label="Units"
+          options={[{ value: true, label: 'Metric', hint: 'kg · °C · km/h' }, { value: false, label: 'Imperial', hint: 'lb · °F · mph' }]}
+          value={metric}
+          onChange={setMetric}
+        />
         <div class="space-y-2">
-          <p class="text-label text-content-subtle">Grades</p>
-          <div class="seg">
-            <button class="seg-item flex-1 {trainingState.units.grades === 'font' ? 'seg-on' : ''}" onclick={() => trainingState.setUnit('grades', 'font')}>Font (6A, 7B+)</button>
-            <button class="seg-item flex-1 {trainingState.units.grades === 'v' ? 'seg-on' : ''}" onclick={() => trainingState.setUnit('grades', 'v')}>V-scale (V3, V8)</button>
-          </div>
+          <p class="text-label text-content-subtle">Boulder grades</p>
+          <Segmented
+            label="Boulder grades"
+            variant="setting"
+            full
+            value={trainingState.units.grades}
+            onChange={(v) => trainingState.setUnit('grades', v)}
+            options={[{ value: 'font', label: 'Font (6A, 7B+)' }, { value: 'v', label: 'V-scale (V3, V8)' }]}
+          />
         </div>
+        {#if unitsPreselected}<p class="text-caption text-content-subtle leading-relaxed">Chosen from your phone's region. Change it if it is wrong.</p>{/if}
 
       {:else if step === 'location'}
         <div class="space-y-2">
@@ -321,7 +310,7 @@
             <li>Open {browserName} and paste it into the address bar.</li>
             {#if offerInstall}<li>Then add it to your Home Screen from there.</li>{/if}
           </ol>
-          <button onclick={copyLink} class="w-full py-3 bg-primary text-white text-body font-bold rounded-control">Copy link</button>
+          <button onclick={copyLink} class="btn btn-primary w-full">Copy link</button>
         {:else}
           <div class="space-y-2">
             <h2 class="text-title text-content">Put it on your Home Screen</h2>
@@ -332,8 +321,7 @@
         {/if}
         <div class="rounded-card bg-surface-elevated/60 p-4 space-y-2">
           <p class="text-label text-content">Rather stay in the browser?</p>
-          <p class="text-caption text-content-subtle leading-relaxed">That works too. Just know the browser can erase this app's data (Safari does after about a week unused), and it won't have notifications, widgets or sync. Back up now and then.</p>
-          <button onclick={useBrowserAnyway} class="w-full py-2.5 border border-border-strong text-label text-content rounded-control hover:bg-surface-elevated">Use it in the browser</button>
+          <p class="text-caption text-content-subtle leading-relaxed">That works too. Just know the browser can erase this app's data (Safari does after about a week unused), and it won't have notifications, widgets or sync. Back up now and then. The button below carries on in the browser.</p>
         </div>
 
       {:else if step === 'done'}
@@ -349,27 +337,30 @@
 
   <div class="w-full max-w-md mx-auto px-5 pb-5 pt-3 flex gap-2 {step === 'intro' ? 'flex-col' : ''}">
     {#if step === 'intro'}
-      <button onclick={next} class="w-full py-3 bg-primary text-white text-body font-bold rounded-control">Get started</button>
+      <button onclick={next} class="btn btn-primary w-full">Get started</button>
       {#if !gate}
-        <button onclick={() => { returning = true; index = 1; }} class="w-full py-2 text-label text-content-subtle hover:text-content">I already use Boulder Tracker</button>
+        <button onclick={() => { returning = true; index = 1; }} class="btn btn-ghost w-full">I already use Boulder Tracker</button>
       {/if}
     {:else if step === 'done'}
-      <button onclick={() => finish(false)} class="px-5 py-3 bg-surface-elevated text-content-muted text-body font-bold rounded-control">Later</button>
-      <button onclick={() => finish(true)} class="flex-1 py-3 bg-primary text-white text-body font-bold rounded-control">Take the tour</button>
+      <button onclick={() => finish(true)} class="btn btn-primary flex-1">Take the tour</button>
+      <button onclick={() => finish(false)} class="btn btn-secondary">Later</button>
     {:else}
-      <button onclick={back} class="px-5 py-3 bg-surface-elevated text-content-muted text-body font-bold rounded-control" aria-label="Back">
+      <button onclick={back} class="btn btn-secondary px-5" aria-label="Back">
         <Icon icon="ic:baseline-arrow-back" class="text-lg" />
       </button>
-      {#if step === 'install' || step === 'returning'}
-        <!-- Nothing to continue to: the way on is the install itself, or the choice above. -->
+      {#if step === 'install'}
+        <!-- Always in reach: below the install steps it could sit under the fold. -->
+        <button onclick={useBrowserAnyway} class="btn btn-secondary flex-1">Use it in the browser</button>
+      {:else if step === 'returning'}
+        <!-- Nothing to continue to: the way on is the choice above. -->
       {:else if step === 'plan'}
-        <button onclick={choosePlan} disabled={applying} class="flex-1 py-3 bg-primary text-white text-body font-bold rounded-control disabled:opacity-50">{planChoice === 'none' ? 'Continue without a plan' : 'Use this plan'}</button>
+        <button onclick={choosePlan} disabled={applying} class="btn btn-primary flex-1">{planChoice === 'none' ? 'Continue without a plan' : 'Use this plan'}</button>
       {:else if step === 'focus'}
-        <button onclick={chooseFocus} class="flex-1 py-3 bg-primary text-white text-body font-bold rounded-control">{discipline || goal ? 'Continue' : 'Skip'}</button>
+        <button onclick={chooseFocus} class="btn btn-primary flex-1">{discipline || goal ? 'Continue' : 'Skip'}</button>
       {:else if step === 'level'}
-        <button onclick={chooseLevel} disabled={applying} class="flex-1 py-3 bg-primary text-white text-body font-bold rounded-control disabled:opacity-50">Continue</button>
+        <button onclick={chooseLevel} disabled={applying} class="btn btn-primary flex-1">Continue</button>
       {:else}
-        <button onclick={next} class="flex-1 py-3 bg-primary text-white text-body font-bold rounded-control">
+        <button onclick={next} class="btn btn-primary flex-1">
           {step === 'location' && !trainingState.homeLocation ? 'Skip' : 'Continue'}
         </button>
       {/if}

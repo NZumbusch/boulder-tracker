@@ -7,6 +7,7 @@
   import { tripSummary, resolveCandidate } from '../../../lib/goals/projects';
   import { taperHint } from '../../../lib/planning/blockOutlook';
   import { describeWeatherCode } from '../../../lib/weather/codes';
+  import { forecastDayLabel } from '../../../lib/weather/dayLabel';
   import { T, G, FRICTION_STYLE, dayFriction } from './format';
   import NoteSheet from '../../common/NoteSheet.svelte';
   import { openTaperView } from '../../../lib/goals/taperView.svelte';
@@ -74,7 +75,7 @@
             {@const df = dayFriction(day)}
             {@const code = describeWeatherCode(day.weatherCode)}
             <div class="flex flex-col items-center gap-1 shrink-0 w-11 pt-2">
-              <span class="text-caption text-content-subtle">{day.date === todayIso ? 'Today' : new Date(`${day.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short' })}</span>
+              <span class="text-caption text-content-subtle">{forecastDayLabel(day.date, todayIso)}</span>
               <span title={code.label} class="flex"><Icon icon={code.icon} class="text-lg text-primary" aria-label={code.label} /></span>
               <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
               {#if trainingState.homeDetails['weather.frictionNumber']}

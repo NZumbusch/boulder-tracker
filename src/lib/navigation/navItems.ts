@@ -17,7 +17,7 @@ export const MAIN_ITEMS: NavItem[] = [
   { id: "home", label: "Home", icon: "ic:baseline-home", view: "home" },
   { id: "plan", label: "Plan", icon: "ic:baseline-calendar-month", view: "plan" },
   { id: "add", label: "Log a workout", icon: "ic:baseline-plus", view: "add" },
-  { id: "history", label: "History", icon: "ic:baseline-content-paste", view: "history" },
+  { id: "history", label: "History", icon: "ic:baseline-history", view: "history" },
   { id: "analytics", label: "Analytics", icon: "ic:baseline-show-chart", view: "analytics" },
 ];
 
@@ -55,4 +55,12 @@ export function fabFor(view: ViewType, state: { sessionRunning: boolean; inEdito
 /** The top bar's first button: the menu on a main screen, back on a nested page (Android's rule). */
 export function appBarBack(state: { nested: boolean }): "menu" | "back" {
   return state.nested ? "back" : "menu";
+}
+
+/**
+ * What the menu button (or, with the bottom bar, the Settings button) should hint at: sync needs attention, or a session
+ * is running with its way back only in the drawer. Sync wins - it is the one that is not visible anywhere else.
+ */
+export function menuBadge(state: { sessionRunning: boolean; syncError: boolean }): "sync" | "session" | null {
+  return state.syncError ? "sync" : state.sessionRunning ? "session" : null;
 }

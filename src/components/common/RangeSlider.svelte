@@ -20,6 +20,7 @@
     id,
     label,
     tone = 'primary',
+    unit = '',
     onchange,
   }: {
     value: number;
@@ -30,6 +31,8 @@
     /** Accessible name, when no `<label for>` points at `id`. */
     label?: string;
     tone?: 'primary' | 'success' | 'warning' | 'danger';
+    /** Said after the number by a screen reader ("75 %", "1.5 times"). */
+    unit?: string;
     onchange?: (value: number) => void;
   } = $props();
 
@@ -97,7 +100,8 @@
   aria-valuemin={min}
   aria-valuemax={max}
   aria-valuenow={value}
-  class="relative h-8 w-full cursor-pointer select-none outline-none group"
+  aria-valuetext={unit ? `${value} ${unit}` : undefined}
+  class="relative h-11 w-full cursor-pointer select-none outline-none group"
   style="touch-action: pan-y; -webkit-tap-highlight-color: transparent;"
   {onpointerdown}
   {onpointermove}
@@ -108,7 +112,7 @@
 >
   <!-- Inset by half a thumb, so the thumb stays inside at either end. -->
   <div bind:this={track} class="absolute inset-y-0 inset-x-3">
-    <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-control bg-surface-elevated overflow-hidden">
+    <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-control bg-surface-elevated border border-border-strong overflow-hidden">
       <div class="h-full {FILL[tone]}" style="width: {fraction * 100}%"></div>
     </div>
     <div

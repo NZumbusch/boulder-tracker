@@ -5,7 +5,9 @@
    * no time of day sit in a strip above the hours. Presentational - the data
    * comes in already resolved (see lib/planning/calendarEvents.ts).
    */
-  import { layoutDay, visibleHours, exerciseLines, dayNameOf, weekIdOfDayIndex, type CalendarSession } from '../../lib/planning/calendarEvents';
+  import { layoutDay, visibleHours, exerciseLines, dayNameOf, weekIdOfDayIndex, DEFAULT_EVENT_COLOR, type CalendarSession } from '../../lib/planning/calendarEvents';
+  import { GOAL_STYLE } from '../../lib/planning/goalStyle';
+  import { formatWeek } from '../../lib/dateUtils';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { AnalyticsCategory, ExerciseTypeDef } from '../../lib/types';
   import { exerciseSegments } from '../../lib/planning/sessionColors';
@@ -36,7 +38,7 @@
     phaseNames = false,
     onPickPhase,
     bars = [],
-    eventColor = () => '#71717a',
+    eventColor = () => DEFAULT_EVENT_COLOR,
     byCategory = false,
     phaseTint = false,
     onMove,
@@ -296,27 +298,27 @@
   /** The hour labels' column: slimmer for seven days, so the days get the room. */
   const gutter = $derived(compact ? 'w-7' : 'w-9');
   const padL = $derived(compact ? 'pl-7' : 'pl-9');
-  const weekLabel = $derived(weekIdOfDayIndex(days[0]).split('-W')[1]);
+  const weekLabel = $derived(formatWeek(weekIdOfDayIndex(days[0]), 'short'));
 </script>
 
 <div class="space-y-1.5 short:space-y-1">
   {#if compact}
     <div class="flex pb-1 short:pb-0">
-      <div class="{gutter} shrink-0 text-[9px] leading-tight text-content-subtle text-center pt-1.5 tracking-wide">WK<br />{weekLabel}</div>
+      <div class="{gutter} shrink-0 text-caption leading-tight text-content-subtle text-center pt-2" aria-label={formatWeek(weekIdOfDayIndex(days[0]), 'long')}>{weekLabel}</div>
       {#each columns as col (col.day)}
         <button
           onclick={() => onPickDay?.(col.day)}
-          class="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1 rounded-lg transition-colors {col.day === today ? 'ring-1 ring-border-strong' : 'hover:bg-surface-elevated/40'}"
+          class="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1 rounded-control transition-colors {col.day === today ? 'ring-1 ring-border-strong' : 'hover:bg-surface-elevated/40'}"
           aria-label="Open {dayNameOf(col.day)} {dateOf(col.day)}"
         >
-          <span class="text-[11px] {col.day === today ? 'text-content font-semibold' : 'text-content-subtle'}">{dayNameOf(col.day).slice(0, colW >= 72 ? 3 : 1)}</span>
-          <span class="min-w-6 h-6 px-1 flex items-center justify-center rounded-md text-label tabular-nums {col.day === today ? 'bg-content text-surface font-bold' : 'text-content'}">{dateOf(col.day)}</span>
+          <span class="text-caption {col.day === today ? 'text-content font-semibold' : 'text-content-subtle'}">{dayNameOf(col.day).slice(0, colW >= 72 ? 3 : 2)}</span>
+          <span class="min-w-6 h-6 px-1 flex items-center justify-center rounded-control text-label tabular-nums {col.day === today ? 'bg-content text-surface font-bold' : 'text-content'}">{dateOf(col.day)}</span>
         </button>
       {/each}
     </div>
   {:else}
     <div class="flex items-center gap-2 {padL} pb-1">
-      <span class="min-w-8 h-8 px-1.5 flex items-center justify-center rounded-lg text-title tabular-nums {days[0] === today ? 'bg-content text-surface' : 'text-content'}">{dateOf(days[0])}</span>
+      <span class="min-w-8 h-8 px-1.5 flex items-center justify-center rounded-control text-title tabular-nums {days[0] === today ? 'bg-content text-surface' : 'text-content'}">{dateOf(days[0])}</span>
       <span class="text-label text-content">{dayNameOf(days[0])}</span>
     </div>
   {/if}
@@ -329,29 +331,29 @@
   {#if capped.rows > 0}
     <div class="{padL} grid gap-y-0.5" style="grid-template-columns: repeat({days.length}, minmax(0, 1fr))">
       {#each capped.bars as bar (barKey(bar))}
-        {@const edges = `${bar.startsBefore ? 'rounded-l-none' : 'rounded-l-md'} ${bar.endsAfter ? 'rounded-r-none' : 'rounded-r-md'}`}
+        {@const edges = `${bar.startsBefore ? 'rounded-l-none' : 'rounded-l-control'} ${bar.endsAfter ? 'rounded-r-none' : 'rounded-r-control'}`}
         {@const place = `grid-column: ${bar.from + 1} / span ${bar.span}; grid-row: ${bar.lane + 1}`}
         {#if bar.kind === 'goal'}
           <div class="relative overflow-hidden flex items-center gap-1 min-w-0 mx-px px-1.5 py-0.5 cal-ink {edges}" style={place} title={bar.goal.name}>
-            <span class="absolute inset-0 cal-fill {bar.goal.kind === 'trip' ? 'bg-sky-500' : 'bg-amber-500'}"></span>
-            <Icon icon={bar.goal.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="relative text-xs shrink-0" />
-            <span class="relative truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{bar.goal.name}</span>
+            <span class="absolute inset-0 cal-fill {GOAL_STYLE[bar.goal.kind].fill}"></span>
+            <Icon icon={GOAL_STYLE[bar.goal.kind].icon} class="relative text-xs shrink-0" />
+            <span class="relative truncate {showMeta ? 'text-label' : 'text-caption leading-tight'}">{bar.goal.name}</span>
           </div>
         {:else}
           <button onclick={() => onOpenEvent?.(bar.event)} class="relative overflow-hidden flex items-center min-w-0 mx-px px-1.5 py-0.5 text-left cal-ink cal-edge {edges}" style="{place}; --cal-edge: {eventColor(bar.event)}" title={bar.event.title}>
             <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(bar.event)}"></span>
-            <span class="relative truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{bar.event.title}</span>
+            <span class="relative truncate {showMeta ? 'text-label' : 'text-caption leading-tight'}">{bar.event.title}</span>
           </button>
         {/if}
       {/each}
       {#each capped.hidden as n, i (i)}
         {#if n > 0}
-          <button onclick={() => (headerOpen = true)} class="mx-px px-1 py-0.5 rounded-md text-left text-[10px] leading-tight text-content-subtle hover:text-content hover:bg-surface-elevated/60" style="grid-column: {i + 1}; grid-row: {capped.rows}" aria-label="Show {n} more">+{n}</button>
+          <button onclick={() => (headerOpen = true)} class="mx-px px-1 py-1.5 min-h-8 rounded-control text-left text-caption leading-tight text-content-subtle hover:text-content hover:bg-surface-elevated/60" style="grid-column: {i + 1}; grid-row: {capped.rows}" aria-label="Show {n} more">+{n}</button>
         {/if}
       {/each}
     </div>
     {#if headerOpen && lanes > HEADER_ROWS}
-      <button onclick={() => (headerOpen = false)} class="{padL} block text-[10px] leading-tight text-content-subtle hover:text-content">Show less</button>
+      <button onclick={() => (headerOpen = false)} class="{padL} block min-h-8 text-caption leading-tight text-content-subtle hover:text-content">Show less</button>
     {/if}
   {/if}
 
@@ -364,11 +366,11 @@
             <button
               onclick={() => open(s, col.all)}
               onpointerdown={(e) => beginPress(e, s, false)}
-              class="relative overflow-hidden w-full text-left rounded-md px-1.5 py-0.5 select-none cal-ink {tone(s)} {isDragged(s) ? 'shadow-card ring-1 ring-primary' : ''}"
+              class="relative overflow-hidden w-full text-left rounded-control px-1.5 py-0.5 select-none cal-ink {tone(s)} {isDragged(s) ? 'shadow-card ring-1 ring-primary' : ''}"
               style={dragStyle(s)}
             >
               <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
-              <span class="relative block {showMeta ? 'text-label font-medium truncate' : 'text-[10px] leading-tight font-medium truncate'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
+              <span class="relative block {showMeta ? 'text-label font-medium truncate' : 'text-caption leading-tight font-medium truncate'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
               {#if showMeta && !compact}
                 <span class="relative block text-caption opacity-80">{meta(s)}</span>
               {/if}
@@ -380,12 +382,16 @@
   {/if}
 
   {#if hasTimed}
+  {#if zoom !== 1}
+    <!-- Pinch zooms the hours; there was no sign of it, nor a way back short of a double tap on the gutter. -->
+    <button onclick={resetZoom} class="{padL} block min-h-8 text-caption text-primary hover:underline">Reset zoom</button>
+  {/if}
   <div class="relative flex" style="height: {gridHeight}px" ondblclick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.gutter) resetZoom(); }} role="presentation">
     <div class="{gutter} shrink-0 relative" data-gutter="1">
       {#each hourList as h (h)}
-        {#if h > hours.from}<span data-gutter="1" class="absolute right-1.5 -translate-y-1/2 text-[10px] leading-none text-content-subtle tabular-nums" style="top: {(h - hours.from) * HOUR_PX}px">{h}</span>{/if}
+        {#if h > hours.from}<span data-gutter="1" class="absolute right-1.5 -translate-y-1/2 text-caption leading-none text-content-subtle tabular-nums" style="top: {(h - hours.from) * HOUR_PX}px">{h}</span>{/if}
       {/each}
-      {#if showNow}<span class="absolute right-1.5 -translate-y-1/2 text-[10px] leading-none font-semibold text-danger tabular-nums bg-surface px-0.5 z-10" style="top: {px(nowMin)}px">{hhmm(nowMin)}</span>{/if}
+      {#if showNow}<span class="absolute right-1.5 -translate-y-1/2 text-caption leading-none font-semibold text-danger tabular-nums bg-surface px-0.5 z-10" style="top: {px(nowMin)}px">{hhmm(nowMin)}</span>{/if}
     </div>
     <div class="relative flex-1 flex" bind:this={gridEl} use:gestures style="touch-action: pan-x pan-y">
       <!-- Measures the width only: observing the grid itself would see its height change with the zoom and trip ResizeObserver's loop guard. -->
@@ -414,10 +420,10 @@
             {#if it.kind === 'event' && (b.bottom <= hours.from * 60 || b.top >= hours.to * 60)}
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}
-              <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} class="absolute overflow-hidden rounded-lg bg-surface {showMeta ? 'px-2' : 'px-1'} py-1 cal-ink cal-edge text-left" style="{place}; --cal-edge: {eventColor(it.e)}" aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
+              <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} class="absolute overflow-hidden rounded-control bg-surface {showMeta ? 'px-2' : 'px-1'} py-1 cal-ink cal-edge text-left" style="{place}; --cal-edge: {eventColor(it.e)}" aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
                 <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(it.e)}"></span>
                 <span class="relative block">
-                  <span class="block {showMeta ? 'text-label truncate' : 'text-[11px] leading-[14px] break-words'}">{it.e.title}</span>
+                  <span class="block {showMeta ? 'text-label truncate' : 'text-caption leading-[14px] break-words'}">{it.e.title}</span>
                   {#if showMeta}<span class="block text-caption opacity-80">{hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}</span>{/if}
                 </span>
               </button>
@@ -429,7 +435,7 @@
               <button
                 onclick={() => open(s, col.all)}
                 onpointerdown={(e) => beginPress(e, s, true)}
-                class="absolute flex flex-col items-stretch justify-start text-left rounded-lg bg-surface select-none cal-ink {isDragged(s) ? 'shadow-card ring-1 ring-primary opacity-90' : 'overflow-hidden'} {tone(s)}"
+                class="absolute flex flex-col items-stretch justify-start text-left rounded-control bg-surface select-none cal-ink {isDragged(s) ? 'shadow-card ring-1 ring-primary opacity-90' : 'overflow-hidden'} {tone(s)}"
                 style="{place}; {dragStyle(s)}"
                 aria-label="{s.workout.notes || 'Session'}, {meta(s)}"
                 title={s.workout.notes || 'Session'}
@@ -439,7 +445,7 @@
                 <!-- The banner: the session in the colour of its main category. -->
                 <span class="relative block px-2 py-1.5 {detail ? 'shrink-0' : 'flex-1 min-h-0'}">
                   <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
-                  <span class="relative block font-medium {showMeta ? 'text-label leading-snug' : 'text-[11px] leading-[14px] break-words'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
+                  <span class="relative block font-medium {showMeta ? 'text-label leading-snug' : 'text-caption leading-[14px] break-words'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
                   {#if showMeta}<span class="relative block text-caption opacity-80">{meta(s)}</span>{/if}
                   {#if !detail && ex.names.length}
                     <span class="relative block mt-0.5 text-caption opacity-80">
@@ -452,9 +458,9 @@
                 {#if detail}
                   <span class="relative flex-1 min-h-0 flex flex-col gap-0.5 p-1">
                     {#each segs as seg (seg.slotId)}
-                      <span class="relative overflow-hidden rounded-md px-1.5 flex items-start min-h-[14px]" style="flex: {seg.minutes} 1 0">
+                      <span class="relative overflow-hidden rounded-control px-1.5 flex items-start min-h-[14px]" style="flex: {seg.minutes} 1 0">
                         <span class="absolute inset-0 cal-fill {soft(s)} {seg.color ?? colorOf(s)}"></span>
-                        <span class="relative truncate text-[11px] leading-[16px]">{seg.name}</span>
+                        <span class="relative truncate text-caption leading-[16px]">{seg.name}</span>
                       </span>
                     {/each}
                   </span>

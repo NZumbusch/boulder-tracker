@@ -5,6 +5,7 @@
   import type { DayOfWeek } from '../../../lib/types';
   import { getWeekId } from '../../../lib/dateUtils';
   import { describeWeatherCode } from '../../../lib/weather/codes';
+  import { forecastDayLabel, weekdayName } from '../../../lib/weather/dayLabel';
   import { outdoorSuggestion } from '../../../lib/weather/suggestion';
   import { T, FRICTION_STYLE, currentFriction, dayFriction, frictionText, formatRelativeAge } from './format';
   import SectionHeader from './SectionHeader.svelte';
@@ -59,11 +60,11 @@
               <p class="text-caption text-content-subtle tabular-nums">{snap.recentRain.last72hMm} mm rain in the last 3 days{snap.recentRain.hoursSinceRain !== undefined ? ` · last ${snap.recentRain.hoursSinceRain} h ago` : ''}</p>
             {/if}
             <div class="flex gap-3 overflow-x-auto no-scrollbar">
-              {#each snap.daily as day, d}
+              {#each snap.daily as day}
                 {@const code = describeWeatherCode(day.weatherCode)}
                 {@const df = dayFriction(day)}
                 <div class="flex flex-col items-center gap-1 shrink-0 w-11">
-                  <span class="text-caption text-content-subtle">{d === 0 ? 'Today' : new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                  <span class="text-caption text-content-subtle">{forecastDayLabel(day.date, todayIso)}</span>
                   <span title={code.label} class="flex"><Icon icon={code.icon} class="text-lg text-primary" aria-label={code.label} /></span>
                   <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
                   {#if trainingState.homeDetails['weather.frictionNumber']}
@@ -83,7 +84,7 @@
     {/each}
     </div>
     {#if cragSuggestion && trainingState.homeDetails['crags.suggestion']}
-      {@const when = cragSuggestion.date === todayIso ? 'Today' : new Date(`${cragSuggestion.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'long' })}
+      {@const when = cragSuggestion.date === todayIso ? 'Today' : weekdayName(cragSuggestion.date, undefined, 'long')}
       <p class="text-caption text-content-muted flex items-start gap-1.5 pt-1">
         <Icon icon="ic:outline-lightbulb" class="text-sm text-primary shrink-0 mt-px" />
         <span>{when} looks prime at {cragSuggestion.cragName} - you have "{cragSuggestion.sessionName}" planned.</span>

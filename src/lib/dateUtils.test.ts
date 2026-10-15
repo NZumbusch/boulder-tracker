@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange, weekDatesText, weekLabel, trainingDayIso, trainingDayDate, addDaysIso, weekMondayIso, weekSundayIso, weekDayIsos, weekIdOfIso } from "./dateUtils";
+import { getWeekDates, getWeekDateRange, toUtcDayIndex, incrementWeekId, decrementWeekId, localIsoDate, isoWeeksInYear, getWeekId, getWeekIdRange, weekDatesText, weekLabel, trainingDayIso, trainingDayDate, addDaysIso, weekMondayIso, weekSundayIso, weekDayIsos, weekIdOfIso, parseDay, formatWeek, formatDay } from "./dateUtils";
 
 describe("getWeekDates", () => {
   it("returns the UTC Monday-start/Sunday-end for a mid-year week", () => {
@@ -184,5 +184,30 @@ describe("days as ISO dates", () => {
     expect(addDaysIso("2026-03-29", 1)).toBe("2026-03-30");
     expect(addDaysIso("2026-10-25", 1)).toBe("2026-10-26");
     expect(addDaysIso("2026-01-01", -1)).toBe("2025-12-31");
+  });
+});
+
+describe('parseDay / formatWeek / formatDay', () => {
+  it('reads a bare day as that day in any time zone', () => {
+    const d = parseDay('2026-10-15');
+    expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2026, 9, 15]);
+    expect(parseDay(new Date(2020, 0, 1)).getFullYear()).toBe(2020);
+    expect(parseDay('2026-10-15T23:30:00.000Z').getTime()).toBe(new Date('2026-10-15T23:30:00.000Z').getTime());
+  });
+
+  it('writes a week number one way', () => {
+    expect(formatWeek('2026-W42')).toBe('Week 42');
+    expect(formatWeek('2026-W07', 'short')).toBe('W7');
+    expect(formatWeek('not a week')).toBe('not a week');
+  });
+
+  it('writes a day without the year unless it is another year', () => {
+    const now = new Date(2026, 9, 15);
+    expect(formatDay('2026-10-14', { now })).toMatch(/14/);
+    expect(formatDay('2026-10-14', { now })).not.toMatch(/2026/);
+    expect(formatDay('2025-12-31', { now })).toMatch(/2025/);
+    expect(formatDay('2026-10-14', { now, year: true })).toMatch(/2026/);
+    expect(formatDay('2026-10-14', { now, weekday: 'short' })).toMatch(/Wed/);
+    expect(formatDay('garbage')).toBe('garbage');
   });
 });

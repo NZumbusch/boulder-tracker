@@ -1,4 +1,4 @@
-import { settingsPath } from "../settings/tree";
+import { settingsPath, type PageId } from "../settings/tree";
 
 /**
  * Short explanations of the app's training terms, opened from the (?)
@@ -20,6 +20,8 @@ export type TermId =
 export interface Term {
   title: string;
   paragraphs: string[];
+  /** The Settings page where what the term describes can be changed; the sheet offers a link to it. */
+  where?: PageId;
 }
 
 export const GLOSSARY: Record<TermId, Term> = {
@@ -34,6 +36,7 @@ export const GLOSSARY: Record<TermId, Term> = {
   },
   acwr: {
     title: "Acute:chronic ratio (ACWR)",
+    where: "model",
     paragraphs: [
       "Your load over the last 7 days (a rolling week ending today, not the calendar week) divided by your average weekly load over the last 28 days. Tap the ACWR chip on Home to see the weeks it is made of. It shows whether you're suddenly doing much more (or less) than you're used to.",
       "Around 0.8–1.3 is the usual sweet spot. Above about 1.5 means a sharp jump, a common time for finger and shoulder injuries. Below 0.8 means you're doing less than usual, which is fine for a rest week.",
@@ -42,6 +45,7 @@ export const GLOSSARY: Record<TermId, Term> = {
   },
   tests: {
     title: "Tests",
+    where: "benchmarks",
     paragraphs: [
       "A test is something you repeat now and then to see whether you are improving: a max hang, max pull-ups, a one-rep max. Each records a result (the number you are chasing) and whatever else matters: the edge depth, the hang time, the load or the reps - every value is kept.",
       "In the chart you choose how to look at them: all results, only some (no added weight, 10 kg or more, a 20 mm edge), one line per weight or edge, the best per week or month, or one value against another - reps against weight, best reps at each weight. Save a view with the test and it can show on Home.",
@@ -64,6 +68,7 @@ export const GLOSSARY: Record<TermId, Term> = {
   },
   fatigue: {
     title: "Fatigue",
+    where: "model",
     paragraphs: [
       "After each session you rate how much that session took out of your fingers, arms, core and whole body (1–10) - what it added, not how you feel overall. Each rating fades over the next days: by default it halves every 3 days.",
       "The fatigue shown today is what's left of every recent session, stacked: each session uses up its share of the capacity that's still free, so two medium sessions read about 7.5 rather than 10, and the reading only nears 10 when sessions really pile up. Rest days count as nothing, so it falls while you rest and climbs when sessions come close together. 7 or more means that area still needs rest.",
@@ -72,6 +77,7 @@ export const GLOSSARY: Record<TermId, Term> = {
   },
   mix: {
     title: "Training mix",
+    where: "exercises",
     paragraphs: [
       "How your training time splits across categories (technique, power, fingers, strength…). Done is what you logged; planned adds the sessions still to come.",
       `Categories come from each exercise's type and can be edited under ${settingsPath('exercises')}.`,
@@ -79,6 +85,7 @@ export const GLOSSARY: Record<TermId, Term> = {
   },
   phases: {
     title: "Phases & blocks",
+    where: "phases",
     paragraphs: [
       "A phase is a kind of training (Capacity, Strength, Power…) with a typical set of sessions, which appear on the days it covers.",
       "A training block puts a phase on a run of days - it can start or end mid-week, so a week can hold two. Phases are edited in the Block manager (tap a phase name on the Plan). You can still change any single session; only that session is affected.",

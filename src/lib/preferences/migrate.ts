@@ -19,6 +19,8 @@
 
 /** How you move between screens: a side drawer (a rail on wide screens) or the bottom bar. */
 export type NavStyle = 'drawer' | 'bar';
+/** The colour of "you are here" in the navigation: the app's blue (as for every other control) or green. */
+export type NavAccent = 'blue' | 'green';
 /** What is chosen: one of them, or `auto` - the bottom bar on a phone held upright, the drawer and rail on a tablet, a laptop or a phone on its side. */
 export type NavMode = 'auto' | NavStyle;
 
@@ -159,6 +161,8 @@ export interface Preferences {
   navLabels: boolean;
   /** Navigation: automatic (bottom bar on a phone, drawer and rail on wide screens), or always one of them. Per device, not synced. */
   navMode: NavMode;
+  /** The colour that says "you are here" in the navigation (and colours the floating +): blue like every other control, or green. */
+  navAccent: NavAccent;
   /** The (?) buttons next to terms like load, ACWR and phases. On by default. */
   helpButtons: boolean;
   /** Home-screen widgets (Android) show the readiness score. Off hides the number - the ring stays empty - for those who'd rather not have it on the home screen. */
@@ -342,6 +346,7 @@ export function defaultPreferences(): Preferences {
     addedExerciseTarget: 'none',
     navLabels: false,
     navMode: 'auto',
+    navAccent: 'blue',
     helpButtons: true,
     widgetShowReadiness: true,
     widgetReadinessDetail: 'factors',
@@ -558,6 +563,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     navLabels: typeof candidate.navLabels === 'boolean' ? candidate.navLabels : defaults.navLabels,
     // `navStyle` (2026-10-14: drawer for everyone) is dropped on purpose: its value was a default, not a choice.
     navMode: candidate.navMode === 'auto' || candidate.navMode === 'bar' || candidate.navMode === 'drawer' ? candidate.navMode : defaults.navMode,
+    navAccent: candidate.navAccent === 'blue' || candidate.navAccent === 'green' ? candidate.navAccent : defaults.navAccent,
     helpButtons: typeof candidate.helpButtons === 'boolean' ? candidate.helpButtons : defaults.helpButtons,
     widgetShowReadiness: typeof candidate.widgetShowReadiness === 'boolean' ? candidate.widgetShowReadiness : defaults.widgetShowReadiness,
     widgetReadinessDetail: WIDGET_READINESS_DETAILS.includes(candidate.widgetReadinessDetail as WidgetReadinessDetail) ? (candidate.widgetReadinessDetail as WidgetReadinessDetail) : defaults.widgetReadinessDetail,

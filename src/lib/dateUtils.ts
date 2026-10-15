@@ -85,10 +85,55 @@ export function getWeekIdRange(startWeekId: string, endWeekId: string): string[]
  */
 export function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'No Date';
-  return new Date(dateStr).toLocaleDateString(undefined, { 
-    month: 'short', 
+  return parseDay(dateStr).toLocaleDateString(undefined, {
+    month: 'short',
     day: 'numeric',
     year: 'numeric'
+  });
+}
+
+/**
+ * A stored day as a `Date` that formats to the right day in the user's own
+ * time zone. A bare "YYYY-MM-DD" is read as local noon: `new Date('2026-10-15')`
+ * is UTC midnight, which `toLocaleDateString` shows as the 14th anywhere west
+ * of Greenwich. A full timestamp is a real moment and is used as it is.
+ */
+export function parseDay(value: string | Date): Date {
+  if (value instanceof Date) return value;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : new Date(value);
+}
+
+/**
+ * The one way to write a week number: "W42" short (a chip, a calendar corner)
+ * or "Week 42" long (a heading). Never the raw id ("2026-W42"). Anything that
+ * is not a week id comes back unchanged.
+ */
+export function formatWeek(weekId: string, style: 'short' | 'long' = 'long'): string {
+  const m = /^\d{4}-W(\d{2})$/.exec(weekId);
+  if (!m) return weekId;
+  const n = Number(m[1]);
+  return style === 'short' ? `W${n}` : `Week ${n}`;
+}
+
+/**
+ * The one way to write a day: "Oct 15", "Thu, Oct 15", with the year only when
+ * it is not this year (or always, with `year: true`). `value` is a bare
+ * "YYYY-MM-DD", a timestamp or a Date.
+ */
+export function formatDay(
+  value: string | Date,
+  opts: { weekday?: 'short' | 'long'; year?: 'auto' | boolean; now?: Date } = {},
+): string {
+  const d = parseDay(value);
+  if (Number.isNaN(d.getTime())) return typeof value === 'string' ? value : '';
+  const now = opts.now ?? new Date();
+  const showYear = opts.year === true || ((opts.year ?? 'auto') === 'auto' && d.getFullYear() !== now.getFullYear());
+  return d.toLocaleDateString(undefined, {
+    ...(opts.weekday ? { weekday: opts.weekday } : {}),
+    month: 'short',
+    day: 'numeric',
+    ...(showYear ? { year: 'numeric' } : {}),
   });
 }
 
