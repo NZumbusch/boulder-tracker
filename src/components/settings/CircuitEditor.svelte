@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { showUndo } from '../../lib/toast.svelte';
+  import { showUndo, scopedUndo } from '../../lib/toast.svelte';
   /**
    * Edits one saved circuit: its name, a note, the group's timing and its
    * exercises. Full screen, like the workout editor, and built from the same
@@ -48,6 +48,19 @@
     formSlot = null;
   }
 
+  const undoable = scopedUndo();
+  function removeExercise(slot: ExerciseSlot) {
+    const index = draft.exercises.findIndex((e) => e.id === slot.id);
+    const removed = $state.snapshot(slot) as ExerciseSlot;
+    draft.exercises = draft.exercises.filter((e) => e.id !== slot.id);
+    undoable(`${slotTypeName(removed, trainingState.exerciseTypes)} removed`, () => {
+      if (draft.exercises.some((e) => e.id === removed.id)) return;
+      const next = [...draft.exercises];
+      next.splice(Math.min(index, next.length), 0, removed);
+      draft.exercises = next;
+    });
+  }
+
   function move(index: number, by: -1 | 1) {
     const next = [...draft.exercises];
     const [slot] = next.splice(index, 1);
@@ -57,7 +70,7 @@
 
   async function close() {
     if (JSON.stringify($state.snapshot(draft)) !== original) {
-      if (!(await showConfirm('Discard Changes', 'Leave without saving? Your changes to this circuit will be lost.'))) return;
+      if (!(await showConfirm('Discard changes?', 'Leave without saving? Your changes to this circuit will be lost.', { ok: 'Discard', cancel: 'Keep editing' }))) return;
     }
     onClose();
   }
@@ -83,7 +96,7 @@
 <div class="fixed inset-0 z-[110] safe-y bg-app-bg flex flex-col">
   <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
     <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 flex items-center gap-3">
-      <button onclick={close} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close">
+      <button onclick={close} class="btn-icon -ml-2 shrink-0" aria-label="Close">
         <Icon icon="ic:baseline-close" class="text-2xl" />
       </button>
       <div class="min-w-0 flex-1">
@@ -91,7 +104,7 @@
         <p class="text-caption text-content-subtle">Saved circuits are copied into a session when you add them.</p>
       </div>
       {#if !isNew}
-        <button onclick={remove} class="p-2 -mr-2 text-content-subtle hover:text-danger transition-colors" aria-label="Delete circuit">
+        <button onclick={remove} class="btn-icon -mr-2 hover:text-danger" aria-label="Delete circuit">
           <Icon icon="ic:baseline-delete" class="text-xl" />
         </button>
       {/if}
@@ -119,20 +132,21 @@
           bind:value={draft.description}
           rows="2"
           placeholder="What it's for, how to do it (optional)"
-          class="block w-full p-2.5 bg-surface-elevated/40 border border-border rounded-control text-label text-content outline-none focus:border-primary/40 resize-none placeholder:text-content-subtle"
+          class="field resize-none"
+          aria-label="Description"
         ></textarea>
         {#each draft.exercises as slot, index (slot.id)}
           <div>
             <ExerciseCard slot={slot} {index} inGroup values={slot.prescribed} onclick={() => (formSlot = slot)}>
               {#snippet actions()}
-                <button onclick={() => move(index, -1)} disabled={index === 0} class="shrink-0 p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move up">
-                  <Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" />
+                <button onclick={() => move(index, -1)} disabled={index === 0} class="btn-icon shrink-0 disabled:opacity-30" aria-label="Move up">
+                  <Icon icon="ic:baseline-keyboard-arrow-up" class="text-xl" />
                 </button>
-                <button onclick={() => move(index, 1)} disabled={index === draft.exercises.length - 1} class="shrink-0 p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move down">
-                  <Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg" />
+                <button onclick={() => move(index, 1)} disabled={index === draft.exercises.length - 1} class="btn-icon shrink-0 disabled:opacity-30" aria-label="Move down">
+                  <Icon icon="ic:baseline-keyboard-arrow-down" class="text-xl" />
                 </button>
-                <button onclick={() => (draft.exercises = draft.exercises.filter((e) => e.id !== slot.id))} class="shrink-0 p-1.5 -mr-1 text-content-subtle hover:text-danger" aria-label="Remove exercise">
-                  <Icon icon="ic:baseline-close" class="text-lg" />
+                <button onclick={() => removeExercise(slot)} class="btn-icon shrink-0 -mr-1 hover:text-danger" aria-label="Remove {slotTypeName(slot, trainingState.exerciseTypes)}">
+                  <Icon icon="ic:baseline-close" class="text-xl" />
                 </button>
               {/snippet}
             </ExerciseCard>
@@ -140,7 +154,7 @@
         {/each}
         <button
           onclick={() => (formSlot = 'new')}
-          class="w-full py-2.5 border border-dashed border-border rounded-card text-caption font-bold text-content-subtle hover:text-primary hover:border-primary/40 transition-colors flex items-center justify-center gap-1"
+          class="w-full min-h-11 py-2.5 border border-dashed border-border-strong rounded-card text-label font-bold text-content-muted hover:text-primary transition-colors flex items-center justify-center gap-1"
         >
           <Icon icon="ic:baseline-plus" class="text-sm" /> Add exercise
         </button>
@@ -149,11 +163,13 @@
   </div>
 
   <footer class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
-    <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-end">
+    <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center justify-end gap-3">
+      {#if draft.exercises.length === 0}<p class="text-caption text-content-subtle" id="circuit-save-why">Add at least one exercise to save.</p>{/if}
       <button
         onclick={save}
         disabled={draft.exercises.length === 0}
-        class="px-6 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+        aria-describedby={draft.exercises.length === 0 ? 'circuit-save-why' : undefined}
+        class="btn btn-primary px-6 gap-1.5"
       >
         <Icon icon="ic:baseline-check" class="text-base" /> Save
       </button>
@@ -164,8 +180,8 @@
 {#if formSlot}
   <div class="fixed inset-0 z-[120] safe-y bg-app-bg overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full p-4 space-y-4 pb-12">
-      <button onclick={() => (formSlot = null)} class="text-label text-content-subtle hover:text-content flex items-center gap-2 px-1">
-        <Icon icon="ic:baseline-arrow-back" class="text-sm" /> Back to circuit
+      <button onclick={() => (formSlot = null)} class="btn btn-ghost -ml-2 gap-2">
+        <Icon icon="ic:baseline-arrow-back" class="text-base" /> Back to circuit
       </button>
       <ExerciseForm initialSlot={formSlot === 'new' ? null : formSlot} mode="prescribed" inGroup onSave={saveExercise} />
     </div>

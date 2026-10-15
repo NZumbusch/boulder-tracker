@@ -46,7 +46,7 @@
   {/if}
   <button
     onclick={() => (editing = null)}
-    class="w-full py-2.5 border border-dashed border-border rounded-control text-label font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5"
+    class="w-full min-h-11 py-2.5 border border-dashed border-border-strong rounded-control text-label font-bold text-primary hover:bg-surface-elevated/50 transition-colors flex items-center justify-center gap-1.5"
   >
     <Icon icon="ic:baseline-plus" class="text-base" /> New circuit
   </button>
