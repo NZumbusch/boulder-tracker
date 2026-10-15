@@ -111,7 +111,7 @@
                   <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span><span class="relative">{s.done ? '✓ ' : ''}{s.workout.notes || 'Session'}</span></span>
                 {/each}
                 {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as e, k (k)}
-                  <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span><span class="relative">{e.title}</span></span>
+                  <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill cal-soft bg-zinc-500" style={e.color ? `background: ${e.color}` : undefined}></span><span class="relative">{e.title}</span></span>
                 {/each}
                 {#if list.length + (events.get(day)?.length ?? 0) > 3}<span class="text-[10px] leading-none text-content-subtle px-1">+{list.length + (events.get(day)?.length ?? 0) - 3} more</span>{/if}
               </span>

@@ -20,6 +20,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-20-event-colours",
+    title: "Phone-calendar events in their own colours",
+    points: ["Events from your phone calendar now show in the colour your calendar app gives them (their calendar's colour unless the event has its own) in the week list, the hour grids and the month - they were all grey."],
+  },
+  {
     id: "2026-10-19-analytics-by-question",
     title: "Analytics, rebuilt around four questions",
     points: [

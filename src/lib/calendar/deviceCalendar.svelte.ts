@@ -117,7 +117,9 @@ class DeviceCalendarStore {
         calendarIds: ids,
       });
       if (token === this.#token) {
-        this.events = toDeviceEvents(events);
+        // An event without a colour of its own takes its calendar's, as the phone's calendar app shows it.
+        const colorOf = new Map(this.calendars.map((c) => [c.id, c.color]));
+        this.events = toDeviceEvents(events).map((e) => (e.color || !colorOf.get(e.calendarId) ? e : { ...e, color: colorOf.get(e.calendarId) }));
         this.error = null;
       }
     } catch (err) {

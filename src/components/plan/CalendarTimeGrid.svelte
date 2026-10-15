@@ -323,7 +323,7 @@
       {#each columns as col (col.day)}
         <div class="flex-1 min-w-0 space-y-px px-px">
           {#each col.allDayEvents as e, i (`${e.id}:${i}`)}
-            <div class="relative overflow-hidden rounded-md px-1.5 py-0.5 cal-ink truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}"><span class="absolute inset-0 cal-fill bg-zinc-500"></span><span class="relative">{e.title}</span></div>
+            <div class="relative overflow-hidden rounded-md px-1.5 py-0.5 cal-ink truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}"><span class="absolute inset-0 cal-fill bg-zinc-500" style={e.color ? `background: ${e.color}` : undefined}></span><span class="relative">{e.title}</span></div>
           {/each}
           {#each col.untimed as s (s.workout.id)}
             <button
@@ -379,7 +379,7 @@
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}
               <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} data-no-swipe class="absolute overflow-hidden rounded-lg bg-surface px-2 py-1 cal-ink text-left" style={place} aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
-                <span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span>
+                <span class="absolute inset-0 cal-fill cal-soft bg-zinc-500" style={it.e.color ? `background: ${it.e.color}` : undefined}></span>
                 <span class="relative block">
                   <span class="block {showMeta ? 'text-label truncate' : 'text-[11px] leading-[14px] break-words'}">{it.e.title}</span>
                   {#if showMeta}<span class="block text-caption opacity-80">{hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}</span>{/if}
