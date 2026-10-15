@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-23-chips-order-and-session-card",
+    title: "Calendar chips and session cards",
+    points: [
+      "The phone-calendar chips under the calendar's header list the calendars that are on first and the ones that are off after them.",
+      "Zoomed in, a session card with its exercises as blocks now has a faint wash of its colour behind them, so it reads as one card with rounded corners instead of coloured blocks on white.",
+    ],
+  },
+  {
     id: "2026-10-22-event-edges-setting",
     title: "Calendar edges are a setting",
     points: ["The fine edge around phone-calendar events is off by default now; Settings → Plan calendar & day → Edges on phone-calendar events brings it back, and Higher contrast always draws a firmer one."],

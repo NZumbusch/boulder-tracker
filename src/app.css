@@ -401,6 +401,10 @@ body {
 :root[data-theme="light"] .cal-hc .cal-fill { opacity: 0.8; }
 :root[data-theme="light"] .cal-hc .cal-fill.cal-soft { opacity: 0.6; }
 .cal-hc .cal-edge, .cal-hc.cal-edges .cal-edge { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--cal-edge, #71717a) 70%, var(--theme-content) 45%); }
+/* The faint colour of a whole session card behind its exercise blocks (zoomed in), stronger with Higher contrast. */
+.cal-wash { opacity: 0.18; }
+:root[data-theme="light"] .cal-wash { opacity: 0.22; }
+.cal-hc .cal-wash { opacity: 0.34; }
 .cal-ink { color: #fff; }
 :root[data-theme="light"] .cal-ink { color: var(--theme-content); }
 
