@@ -9,6 +9,7 @@
   import { trainingState } from '../../../lib/state.svelte';
     import { dueToday, issueState } from '../../../lib/pain/issues';
   import { openPainIssue } from '../../../lib/pain/painUi.svelte';
+  import SectionHeader from './SectionHeader.svelte';
   import PainCheckInButtons from '../../health/PainCheckInButtons.svelte';
   import Icon from '@iconify/svelte';
 
@@ -34,13 +35,11 @@
 
 {#if show}
   <div class="card space-y-3 animate-in fade-in">
-    <div class="flex items-start justify-between gap-2">
-      <div class="min-w-0">
-        <h3 class="text-section uppercase text-content-muted">Pain check-in</h3>
-        <p class="text-caption text-content-subtle">A tap keeps each issue's course - and when it ended - straight.</p>
-      </div>
-      <button onclick={dismiss} class="shrink-0 text-caption text-content-subtle hover:text-content px-2 py-1">Not today</button>
-    </div>
+    <SectionHeader label="Pain check-in" subtitle="A tap keeps each issue's course - and when it ended - straight.">
+      {#snippet action()}
+        <button onclick={dismiss} class="btn btn-ghost">Not today</button>
+      {/snippet}
+    </SectionHeader>
     {#each due as { issue, st, stale } (issue.id)}
       <div class="space-y-2">
         <button onclick={() => openPainIssue(issue.id)} class="w-full text-left flex items-center gap-1.5 min-w-0">

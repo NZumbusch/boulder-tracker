@@ -6,6 +6,7 @@
   import { nextBlock, daysUntilDate, blockLoadTrend } from '../../../lib/planning/blockOutlook';
   import NoteSheet from '../../common/NoteSheet.svelte';
   import SectionHeader from './SectionHeader.svelte';
+  import { formatDay, formatWeek } from '../../../lib/dateUtils';
   import Icon from '@iconify/svelte';
 
   let { data }: { data: HomeData } = $props();
@@ -22,6 +23,9 @@
       ? blockLoadTrend(blockWeekIds(dominantBlock), (id) => trainingState.getWorkoutsForWeek(id))
       : [],
   );
+  // Tap a week's bar to read its numbers (a hover title does nothing on a phone); the current week is read by default.
+  let pickedWeek = $state<string | null>(null);
+  const readout = $derived(blockTrend.find((b) => b.weekId === (pickedWeek ?? currentWeekId)));
   const blockTrendMax = $derived(Math.max(1, ...blockTrend.map((b) => Math.max(b.planned, b.actual))));
 </script>
 
@@ -29,28 +33,46 @@
   <SectionHeader label="Training Block"
   note={dominantBlock && trainingState.homeDetails['trainingBlock.note'] ? { has: !!dominantBlock.notes, open: () => noteOpen = true, what: 'block' } : undefined} />
   {#if dominantBlock}
-    <p class="text-body text-content font-bold">{dominantBlock.name}{currentPhaseName && currentPhaseName !== dominantBlock.name ? ` · ${currentPhaseName}` : ''}</p>
+    <p class="text-body text-content font-bold">{dominantBlock.name}{currentPhaseName && currentPhaseName !== dominantBlock.name ? ` (${currentPhaseName})` : ''}</p>
     {#if blockWeekPosition}
       <div class="flex items-center gap-3">
         <span class="text-caption text-content-subtle shrink-0">Week {blockWeekPosition.week} of {blockWeekPosition.of}</span>
-        <div class="flex gap-1 flex-1">
-          {#each Array(blockWeekPosition.of) as _, i}
-            <div class="flex-1 h-1.5 rounded-full {i < blockWeekPosition.week ? 'bg-primary' : 'bg-surface-elevated'}"></div>
-          {/each}
-        </div>
+        {#if blockWeekPosition.of > 12}
+          <div class="flex-1 h-1.5 rounded-full bg-surface-elevated overflow-hidden" aria-hidden="true">
+            <div class="h-full bg-primary rounded-full" style="width: {(blockWeekPosition.week / blockWeekPosition.of) * 100}%"></div>
+          </div>
+        {:else}
+          <div class="flex gap-1 flex-1" aria-hidden="true">
+            {#each Array(blockWeekPosition.of) as _, i}
+              <div class="flex-1 h-1.5 rounded-full {i < blockWeekPosition.week ? 'bg-primary' : 'bg-surface-elevated'}"></div>
+            {/each}
+          </div>
+        {/if}
       </div>
     {/if}
     {#if trainingState.homeDetails['trainingBlock.loadTrend'] && blockTrend.some((b) => b.planned > 0 || b.actual > 0)}
-      <div class="flex items-end gap-1 h-10 pt-1" aria-label="Planned vs logged load per week of this block">
+      <div class="flex items-end gap-1 h-10 pt-1" role="group" aria-label="Planned vs logged load per week of this block">
         {#each blockTrend as bar}
           {@const isCurrent = bar.weekId === currentWeekId}
-          <div class="flex-1 h-full flex items-end relative" title="{bar.weekId}: {bar.actual} of {bar.planned}">
+          <button
+            type="button"
+            onclick={() => (pickedWeek = bar.weekId)}
+            class="flex-1 h-full flex items-end relative {readout?.weekId === bar.weekId ? 'opacity-100' : 'opacity-70'}"
+            aria-label="{formatWeek(bar.weekId)}: {bar.actual} logged of {bar.planned} planned"
+            aria-pressed={readout?.weekId === bar.weekId}
+          >
             <div class="absolute inset-x-0 bottom-0 rounded-t-control border border-dashed {isCurrent ? 'border-primary/60' : 'border-border-strong/60'}" style="height: {(bar.planned / blockTrendMax) * 100}%"></div>
             <div class="relative w-full rounded-t-control {isCurrent ? 'bg-primary' : 'bg-primary/50'}" style="height: {(bar.actual / blockTrendMax) * 100}%"></div>
-          </div>
+          </button>
         {/each}
       </div>
-      <p class="text-caption text-content-subtle">Work vs plan each week: logged (filled), planned (outline)</p>
+      {#if readout}
+        <p class="text-caption text-content-muted tabular-nums">{formatWeek(readout.weekId)}{readout.weekId === currentWeekId ? ' (this week)' : ''}: {readout.actual} logged of {readout.planned} planned</p>
+      {/if}
+      <p class="text-caption text-content-subtle flex items-center gap-x-3 gap-y-1 flex-wrap">
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-2 rounded-sm bg-primary/60 inline-block" aria-hidden="true"></span>Logged load</span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-2 rounded-sm border border-dashed border-border-strong inline-block" aria-hidden="true"></span>Planned load</span>
+      </p>
     {/if}
   {:else}
     <p class="text-caption text-content-subtle italic">No training block covers this week.</p>
@@ -59,7 +81,7 @@
     {@const nextPhase = trainingState.phaseDefs.find((p) => p.id === upcomingBlock.phaseId)?.name}
     <p class="text-caption text-content-subtle flex items-center gap-1 pt-1">
       <Icon icon="ic:baseline-arrow-forward" class="text-xs shrink-0" />
-      <span class="truncate">Next: <span class="text-content-muted">{upcomingBlock.name}{nextPhase && nextPhase !== upcomingBlock.name ? ` · ${nextPhase}` : ''}</span> · {daysToNextBlock === 0 ? 'today' : `in ${daysToNextBlock} day${daysToNextBlock === 1 ? '' : 's'}`} ({upcomingBlock.startDate})</span>
+      <span class="truncate">Next: <span class="text-content-muted">{upcomingBlock.name}{nextPhase && nextPhase !== upcomingBlock.name ? ` (${nextPhase})` : ''}</span> · {daysToNextBlock === 0 ? 'today' : `in ${daysToNextBlock} day${daysToNextBlock === 1 ? '' : 's'}`} ({formatDay(upcomingBlock.startDate)})</span>
     </p>
   {/if}
 </div>
@@ -68,7 +90,7 @@
   {@const block = dominantBlock}
   <NoteSheet
     title="{block.name} note"
-    subtitle="{currentPhaseName ?? 'Training block'} · {blockFirstWeekId(block)} – {blockLastWeekId(block)}"
+    subtitle="{currentPhaseName ?? 'Training block'} · {formatWeek(blockFirstWeekId(block), 'short')} – {formatWeek(blockLastWeekId(block), 'short')}"
     text={block.notes ?? ''}
     placeholder="What this block is for, how to progress it…"
     onSave={(text) => trainingState.saveBlockNotes(block.id, text)}

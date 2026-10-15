@@ -8,7 +8,9 @@
   import { taperHint } from '../../../lib/planning/blockOutlook';
   import { describeWeatherCode } from '../../../lib/weather/codes';
   import { forecastDayLabel } from '../../../lib/weather/dayLabel';
-  import { T, G, FRICTION_STYLE, dayFriction } from './format';
+  import { T, G, dayFriction } from './format';
+  import FrictionMark from './FrictionMark.svelte';
+  import { showUndo } from '../../../lib/toast.svelte';
   import NoteSheet from '../../common/NoteSheet.svelte';
   import { openTaperView } from '../../../lib/goals/taperView.svelte';
   import SectionHeader from './SectionHeader.svelte';
@@ -31,6 +33,8 @@
   const competitionTaperHint = $derived(taperHint(daysUntilCompetition, data.currentPhaseName));
 
   async function answerCandidate(goal: GoalEvent, project: TripProject, sendId: string, counts: boolean) {
+    const before = $state.snapshot(goal) as GoalEvent;
+    showUndo(counts ? 'Counted for the project' : 'Not counted for the project', () => trainingState.saveGoal(before));
     const updated = resolveCandidate(project, sendId, counts);
     await trainingState.saveGoal({
       ...$state.snapshot(goal) as GoalEvent,
@@ -47,8 +51,8 @@
     <div class="flex items-center gap-4">
       <div class="text-center shrink-0 px-2">
         {#if nextGoalOngoing && length > 1}
-          <p class="text-display text-primary tabular-nums leading-none">{-daysUntilCompetition + 1}<span class="text-title text-content-subtle">/{length}</span></p>
-          <p class="text-caption text-content-subtle uppercase mt-1">day</p>
+          <p class="text-display text-primary tabular-nums leading-none">{-daysUntilCompetition + 1}</p>
+          <p class="text-caption text-content-subtle mt-1">of {length} days</p>
         {:else}
           <p class="text-display text-primary tabular-nums leading-none">{Math.max(0, daysUntilCompetition)}</p>
           <p class="text-caption text-content-subtle uppercase mt-1">{daysUntilCompetition === 1 ? 'day' : 'days'}</p>
@@ -74,15 +78,11 @@
           {#each tripForecastDays as day}
             {@const df = dayFriction(day)}
             {@const code = describeWeatherCode(day.weatherCode)}
-            <div class="flex flex-col items-center gap-1 shrink-0 w-11 pt-2">
+            <div class="flex flex-col items-center gap-1 shrink-0 w-12 pt-2">
               <span class="text-caption text-content-subtle">{forecastDayLabel(day.date, todayIso)}</span>
               <span title={code.label} class="flex"><Icon icon={code.icon} class="text-lg text-primary" aria-label={code.label} /></span>
               <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
-              {#if trainingState.homeDetails['weather.frictionNumber']}
-                <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
-              {:else}
-                <span class="w-2 h-2 rounded-full {FRICTION_STYLE[df.label].dot}" title={df.label}></span>
-              {/if}
+              <FrictionMark friction={df} />
             </div>
           {/each}
         </div>
@@ -109,9 +109,9 @@
             </div>
             {#each status.candidates as candidate (candidate.id)}
               <div class="flex items-center gap-2 pl-5 text-caption text-content-subtle">
-                <span class="flex-1 truncate">"{candidate.name} {G(candidate.grade)}" - counts for {p.name}?</span>
-                <button onclick={() => answerCandidate(nextGoal, p, candidate.id, true)} class="px-2 py-0.5 rounded-control bg-primary/10 text-primary">Yes</button>
-                <button onclick={() => answerCandidate(nextGoal, p, candidate.id, false)} class="px-2 py-0.5 rounded-control bg-surface-elevated text-content-muted">No</button>
+                <span class="flex-1">Does {candidate.name} {G(candidate.grade)} count for {p.name ?? 'this project'}?</span>
+                <button onclick={() => answerCandidate(nextGoal, p, candidate.id, true)} class="btn bg-primary/10 text-primary hover:bg-primary/20">Yes</button>
+                <button onclick={() => answerCandidate(nextGoal, p, candidate.id, false)} class="btn btn-secondary">No</button>
               </div>
             {/each}
           {/each}
@@ -125,10 +125,13 @@
       </p>
     {/if}
     {#if !nextGoalOngoing && daysUntilCompetition <= 35}
-      <button onclick={() => openTaperView(nextGoal.id)} class="text-caption text-primary flex items-center gap-1"><Icon icon="ic:baseline-trending-down" class="text-sm" />See the taper against your plan</button>
+      <button onclick={() => openTaperView(nextGoal.id)} class="btn-quiet text-caption text-primary gap-1"><Icon icon="ic:baseline-trending-down" class="text-sm" />See the taper against your plan</button>
     {/if}
   {:else}
-    <p class="text-caption text-content-subtle italic">No competition or trip coming up. Add one under Plan → Goals.</p>
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-caption text-content-subtle">No competition or trip coming up.</p>
+      <button onclick={() => trainingState.navigate('plan')} class="btn btn-secondary shrink-0">Add a goal in Plan</button>
+    </div>
   {/if}
 </div>
 

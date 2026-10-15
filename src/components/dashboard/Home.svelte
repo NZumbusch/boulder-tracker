@@ -74,7 +74,17 @@
     if (updater.supported && updater.auto) tasks.push(updater.check());
     await Promise.allSettled(tasks);
     const failed = driveSync.connected && driveSync.status === 'error';
-    toast.show(failed ? `Sync failed${driveSync.error ? `: ${driveSync.error}` : ''}` : ran.length ? `Up to date - ${ran.join(', ')}` : 'Weather refreshed');
+    toast.show(failed ? `Sync failed${driveSync.error ? `: ${driveSync.error}` : ''}` : ran.length ? `Up to date - ${ran.join(', ')}` : 'Up to date');
+  }
+
+  let refreshing = $state(false);
+  async function refreshNow() {
+    refreshing = true;
+    try {
+      await pullRefresh();
+    } finally {
+      refreshing = false;
+    }
   }
 
   let showQuickLog = $state(false);
@@ -98,6 +108,10 @@
 <div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-24">
   <AppBar title={data.currentPhaseName ?? 'Home'} subtitle={`${data.todayLabel}${data.blockWeekPosition ? ` · Week ${data.blockWeekPosition.week} of ${data.blockWeekPosition.of}` : ''}`}>
     {#snippet actions()}
+      <!-- Pulling down needs a finger: with a mouse (or a screen reader) this is the way to sync and refresh. -->
+      <button onclick={refreshNow} disabled={refreshing} class="btn-icon hidden pointer-fine:inline-grid" aria-label="Refresh: sync, weather and updates" title="Refresh">
+        <Icon icon="ic:baseline-refresh" class="text-xl {refreshing ? 'animate-spin' : ''}" />
+      </button>
       {#if trainingState.quickLogActions.some((a) => a.visible)}
         <button
           onclick={() => showQuickLog = true}
