@@ -133,7 +133,7 @@
     </div>
 
     {#if focusDate && !formOpen}
-      <div class="p-4 bg-surface-elevated/50 border border-border-strong/50 rounded-card space-y-3">
+      <div class="p-4 bg-surface-elevated/50 rounded-card space-y-3">
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0">
             <p class="text-label text-content-subtle">{longDay(focusDate)}</p>
@@ -154,7 +154,7 @@
     {/if}
 
     {#if formOpen && editingBlock}
-      <div class="p-4 bg-surface-elevated/50 border border-primary/30 rounded-card space-y-3">
+      <div class="p-4 bg-surface-elevated/50 rounded-card space-y-3">
         <div class="space-y-1">
           <label for="block-name" class="text-label text-content-subtle ml-1">Name</label>
           <input id="block-name" bind:value={editingBlock.name} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" placeholder="e.g. Finger Strength Block" />
@@ -197,13 +197,13 @@
         </div>
       </div>
     {:else}
-      <button onclick={startAdd} class="w-full py-3.5 border-2 border-dashed border-border hover:border-border-strong rounded-card flex items-center justify-center gap-2 text-content-subtle hover:text-content-muted transition-all">
+      <button onclick={startAdd} class="w-full py-3.5 bg-surface-elevated/40 hover:bg-surface-elevated/70 rounded-card flex items-center justify-center gap-2 text-content-subtle hover:text-content-muted transition-all">
         <Icon icon="ic:baseline-plus" /><span class="text-label">Add Block</span>
       </button>
 
       <div class="space-y-2">
         {#each visibleBlocks as block}
-          <div class="flex items-center justify-between p-3.5 bg-surface-elevated/50 rounded-control border border-border-strong/50">
+          <div class="flex items-center justify-between p-3.5 bg-surface-elevated/50 rounded-control">
             <div class="flex items-center gap-2.5 flex-1 min-w-0">
               <div class="w-2.5 h-2.5 rounded-control flex-shrink-0 {block.color || phaseDefs.find(p => p.id === block.phaseId)?.color || 'bg-status-neutral'}"></div>
               <div class="min-w-0 flex-1">
@@ -223,7 +223,7 @@
             </div>
           </div>
         {:else}
-          <div class="p-4 bg-surface-elevated/20 rounded-control border border-dashed border-border text-center"><p class="text-caption text-content-subtle italic">No training blocks yet</p></div>
+          <div class="p-4 bg-surface-elevated/20 rounded-control text-center"><p class="text-caption text-content-subtle italic">No training blocks yet</p></div>
         {/each}
 
         {#if hiddenCount > 0}

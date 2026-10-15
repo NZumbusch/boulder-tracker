@@ -77,7 +77,7 @@
 
       <button
         onclick={onCancel}
-        class="w-full p-4 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card transition-all active:scale-[0.99] text-left flex items-start gap-3 border border-border-strong/50"
+        class="w-full p-4 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card transition-all active:scale-[0.99] text-left flex items-start gap-3"
       >
         <Icon icon="ic:baseline-play-arrow" class="text-xl shrink-0 mt-0.5 text-success" />
         <span class="min-w-0">

@@ -28,7 +28,7 @@
 </script>
 
 {#if summary || differing.length || review.categories.length}
-  <div class="bg-surface/40 border border-border rounded-card">
+  <div class="bg-surface-elevated/50 rounded-card">
     <button onclick={() => (open = !open)} class="w-full p-3.5 flex items-center gap-3 text-left" aria-expanded={open}>
       <Icon icon="ic:baseline-fact-check" class="text-xl text-content-subtle shrink-0" />
       <span class="min-w-0 flex-1">

@@ -149,7 +149,7 @@
 </script>
 
 {#if isAddingAnalyticsCategory && editingAnalyticsCategory}
-    <div class="p-5 bg-surface-elevated/50 border border-tertiary/30 rounded-card space-y-4 animate-in zoom-in-95 shadow-inner">
+    <div class="p-5 bg-surface-elevated/50 rounded-card space-y-4 animate-in zoom-in-95">
       <div class="space-y-3">
         <div class="space-y-1"><label for="ac-name" class="text-label text-content-subtle ml-1">Category Name</label><input id="ac-name" bind:value={editingAnalyticsCategory.name} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong focus:ring-1 focus:ring-tertiary outline-none text-sm" placeholder="e.g., Flexibility" /></div>
         <div class="space-y-1"><p class="text-label text-content-subtle ml-1">Color</p>
@@ -180,7 +180,7 @@
   {/if}
 
   {#if missingCategories.length > 0}
-    <div class="mt-6 p-4 bg-warning/10 border border-warning/30 rounded-card space-y-3 animate-in fade-in">
+    <div class="mt-6 p-4 bg-warning/10 rounded-card space-y-3 animate-in fade-in">
       <div class="flex items-center gap-2 text-warning">
         <Icon icon="ic:baseline-warning" class="text-lg" />
         <span class="text-label">Missing Categories Found</span>

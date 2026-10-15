@@ -365,7 +365,7 @@
   const leadStyles: NonNullable<ExerciseValues['leadStyle']>[number][] = [...LEAD_STYLES];
 </script>
 
-<div class="form-grid bg-surface/50 border border-border rounded-card p-5 backdrop-blur-sm animate-in zoom-in-95 duration-300">
+<div class="form-grid bg-surface/50 rounded-card p-5 backdrop-blur-sm animate-in zoom-in-95 duration-300">
   <div class="space-y-1.5">
     <span class="text-label text-content-subtle ml-1 block">Exercise</span>
     <button

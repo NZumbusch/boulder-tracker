@@ -868,7 +868,7 @@
             {@const groupStart = groupStarts.get(slot.id)}
             {#if groupStart}
               <!-- A circuit is one thing to start: its card heads its members, which carry the same bar down the side. -->
-              <div class="mt-1 p-3 rounded-card border border-primary/30 bg-primary/5 flex items-center gap-3 min-w-0">
+              <div class="mt-1 p-3 rounded-card bg-primary/5 flex items-center gap-3 min-w-0">
                 <Icon icon="ic:baseline-repeat" class="text-xl text-primary shrink-0" />
                 <div class="min-w-0 flex-1">
                   <p class="text-body font-bold text-content truncate">{groupStart.name || 'Circuit'}</p>

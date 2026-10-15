@@ -25,7 +25,7 @@
   } = $props();
 </script>
 
-<section class="rounded-card border border-border bg-surface/25 p-2 space-y-2">
+<section class="rounded-card bg-surface-elevated/50 p-2 space-y-2">
   {#if header}
     {@render header()}
   {:else}

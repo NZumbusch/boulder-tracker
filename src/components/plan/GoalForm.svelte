@@ -79,7 +79,7 @@
   const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
 </script>
 
-<div class="p-4 bg-surface-elevated/50 border border-primary/30 rounded-card space-y-3">
+<div class="p-4 bg-surface-elevated/50 rounded-card space-y-3">
   <p class="text-label text-content-subtle flex items-center gap-1.5">
     <Icon icon={isTrip ? 'ic:baseline-terrain' : 'ic:baseline-flag'} class="text-primary" />
     {goal ? 'Edit' : 'New'} {isTrip ? 'outdoor trip' : 'competition'}

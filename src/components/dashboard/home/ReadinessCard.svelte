@@ -29,21 +29,10 @@
   // built via template interpolation - Tailwind's JIT can't see classes
   // assembled at runtime, only ones it can find as complete strings.
   const STATUS_HERO_BG: Record<ReadinessStatus, string> = {
-    good: 'bg-gradient-to-br from-status-good/15 via-surface to-surface border-status-good/30',
-    caution: 'bg-gradient-to-br from-status-caution/15 via-surface to-surface border-status-caution/30',
-    risk: 'bg-gradient-to-br from-status-risk/15 via-surface to-surface border-status-risk/30',
-    neutral: 'bg-surface/50 border-border',
-  };
-  // Referenced from inline `style` (not a Tailwind class), so this one is
-  // safe to build dynamically - `color-mix()` needs a real custom-property
-  // reference, and `--theme-status-*` are already hex per-theme (never
-  // channel triples), matching the `color-mix` fix `AcwrPanel.svelte`
-  // already established (not an invalid `rgba(var(...))`).
-  const STATUS_VAR: Record<ReadinessStatus, string> = {
-    good: 'var(--theme-status-good)',
-    caution: 'var(--theme-status-caution)',
-    risk: 'var(--theme-status-risk)',
-    neutral: 'var(--theme-status-neutral)',
+    good: 'bg-surface-elevated/35 border-transparent',
+    caution: 'bg-surface-elevated/35 border-transparent',
+    risk: 'bg-surface-elevated/35 border-transparent',
+    neutral: 'bg-surface-elevated/35 border-transparent',
   };
   const STATUS_ICON: Record<ReadinessStatus, string> = {
     good: 'ic:baseline-local-fire-department',
@@ -103,7 +92,6 @@
 
 <div
   class="relative overflow-hidden rounded-card border p-5 transition-colors {STATUS_HERO_BG[readiness.status]}"
-  style="box-shadow: 0 14px 40px -18px color-mix(in srgb, {STATUS_VAR[readiness.status]} 45%, transparent), var(--shadow-card);"
 >
  <div class="flex items-center gap-5">
   <button

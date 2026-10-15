@@ -25,6 +25,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     points: [
       "Grouped content on Home, Analytics, History, Settings and the Plan's week card is a soft panel without borders or shadows now, and small buttons and chips are filled instead of outlined.",
       "The Plan's block grid is quieter: no box around it, smaller rounded weeks in softer colours, the current week a dot, the selected one a ring, the year written inside its first week.",
+      "Home's readiness card is a plain panel too (the ring and status text keep the colour); sheets and editors - Block manager, AI coach, session and phase editors - lose their outlines.",
       "Settings → Plan calendar & day → \"Flat sections instead of panels\" drops the panels altogether: sections are separated by whitespace and a hairline, like the calendar.",
     ],
   },
