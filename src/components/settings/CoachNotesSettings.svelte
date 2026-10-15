@@ -9,6 +9,8 @@
   import { trainingState } from '../../lib/state.svelte';
   import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH } from '../../lib/ai/coachNotes';
   import type { AthleteProfile } from '../../lib/types';
+  import { showConfirm } from '../../lib/utils';
+  import { settingsPath } from '../../lib/settings/tree';
 
   type Draft = { [K in keyof Omit<AthleteProfile, 'id' | 'targets'>]-?: string };
   const FIELDS: { key: keyof Draft; label: string; placeholder: string; kind: 'number' | 'text' | 'area' }[] = [
@@ -69,6 +71,10 @@
   async function saveEdit() {
     if (editingId && (await trainingState.saveCoachNote(editText, editingId))) editingId = null;
   }
+  async function deleteNote(id: string) {
+    if (!(await showConfirm('Delete this note?', 'The coach will no longer know it. This cannot be undone.', { ok: 'Delete', cancel: 'Keep' }))) return;
+    await trainingState.deleteCoachNote(id);
+  }
   async function addNote() {
     if (await trainingState.saveCoachNote(newText)) newText = '';
   }
@@ -78,7 +84,7 @@
   <div class="card space-y-2 animate-in fade-in">
     <p class="text-caption text-content-subtle leading-relaxed">
       What the AI Coach knows about you before it reads your data - sent with every prompt, so you don't have to repeat it in each chat, in any AI app.
-      {#if sharingOff}<span class="text-status-caution">Currently not sent: turn on "Coach Notes & About Me" in Settings → AI & coach → What the AI sees.</span>{/if}
+      {#if sharingOff}<span class="text-status-caution">Currently not sent: turn on "Coach notes and about me" in {settingsPath('aiSharing')}.</span>{/if}
     </p>
   </div>
 
@@ -86,13 +92,13 @@
   <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-1 px-1">
       <h2 class="text-section uppercase text-content-muted">About me</h2>
-      <p class="text-caption text-content-subtle">Only what the app doesn't track already - leave anything blank.</p>
+      <p class="text-caption text-content-subtle">Only what the app doesn't track already. Leave anything blank.</p>
     </div>
     <div class="grid grid-cols-3 gap-2">
       {#each FIELDS.filter((f) => f.kind === 'number') as f (f.key)}
         <label class="space-y-1 min-w-0">
           <span class="text-caption text-content-subtle block truncate">{f.label}</span>
-          <input bind:value={draft[f.key]} inputmode="decimal" placeholder={f.placeholder} class="w-full bg-surface-elevated/50 text-content px-2.5 py-2 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60" />
+          <input bind:value={draft[f.key]} inputmode="decimal" placeholder={f.placeholder} class="field" />
         </label>
       {/each}
     </div>
@@ -100,19 +106,20 @@
       <label class="block space-y-1">
         <span class="text-caption text-content-subtle">{f.label}</span>
         {#if f.kind === 'area'}
-          <textarea bind:value={draft[f.key]} rows="2" placeholder={f.placeholder} class="w-full bg-surface-elevated/50 text-content px-3 py-2 rounded-control border border-border-strong outline-none text-sm leading-relaxed resize-y focus:border-primary/60"></textarea>
+          <textarea bind:value={draft[f.key]} rows="2" placeholder={f.placeholder} class="field leading-relaxed resize-y"></textarea>
         {:else}
-          <input bind:value={draft[f.key]} placeholder={f.placeholder} class="w-full bg-surface-elevated/50 text-content px-3 py-2 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60" />
+          <input bind:value={draft[f.key]} placeholder={f.placeholder} class="field" />
         {/if}
       </label>
     {/each}
     <div class="pt-3 border-t border-border space-y-1">
       <span class="text-body text-content block">Standing goal</span>
       <span class="text-caption text-content-subtle block">What the coach works towards unless a request says otherwise - no need to type it into every request.</span>
-      <textarea bind:value={draft.standingGoal} rows="2" placeholder="Flash 7A outdoors by spring, without flaring the elbow" class="w-full bg-surface-elevated/50 text-content px-3 py-2 rounded-control border border-border-strong outline-none text-sm leading-relaxed resize-y focus:border-primary/60"></textarea>
+      <textarea bind:value={draft.standingGoal} rows="2" placeholder="Flash 7A outdoors by spring, without flaring the elbow" class="field leading-relaxed resize-y"></textarea>
     </div>
-    <button onclick={saveProfile} disabled={!dirty} class="w-full py-2.5 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
-      {#if justSaved}<Icon icon="ic:baseline-check" class="text-base" /> Saved{:else}Save{/if}
+    {#if dirty}<p class="text-caption text-status-caution" role="status">You have unsaved changes. They are lost if you leave this page.</p>{/if}
+    <button onclick={saveProfile} disabled={!dirty} class="btn btn-primary w-full gap-1.5">
+      {#if justSaved}<Icon icon="ic:baseline-check" class="text-base" /> Saved{:else}Save changes{/if}
     </button>
   </div>
 
@@ -130,11 +137,11 @@
       {#each notes as note (note.id)}
         <div class="py-2.5">
           {#if editingId === note.id}
-            <textarea bind:value={editText} rows="3" maxlength={MAX_COACH_NOTE_LENGTH} class="w-full bg-surface-elevated/50 text-content px-3 py-2 rounded-control border border-border-strong outline-none text-sm leading-relaxed resize-y focus:border-primary/60"></textarea>
+            <textarea bind:value={editText} rows="3" maxlength={MAX_COACH_NOTE_LENGTH} class="field leading-relaxed resize-y"></textarea>
             <div class="flex items-center gap-2 mt-1.5">
-              <button onclick={saveEdit} class="px-3 py-1.5 rounded-control bg-primary text-white text-label font-semibold">Save</button>
-              <button onclick={() => (editingId = null)} class="px-2 py-1.5 text-label text-content-subtle">Cancel</button>
-              <span class="ml-auto text-caption text-content-subtle tabular-nums">{editText.length}/{MAX_COACH_NOTE_LENGTH}</span>
+              <button onclick={saveEdit} class="btn btn-primary">Save</button>
+              <button onclick={() => (editingId = null)} class="btn btn-ghost">Cancel</button>
+              <span class="ml-auto text-caption text-content-subtle tabular-nums">{editText.length} of {MAX_COACH_NOTE_LENGTH} characters</span>
             </div>
           {:else}
             <div class="flex items-start gap-2">
@@ -142,8 +149,8 @@
                 <p class="text-body text-content leading-snug">{note.text}</p>
                 <p class="text-caption text-content-subtle mt-0.5">{note.source === 'me' ? 'You' : 'AI coach'} · {note.updatedOn ? `changed ${fmtDay(note.updatedOn)}` : fmtDay(note.addedOn)}</p>
               </div>
-              <button onclick={() => { editingId = note.id; editText = note.text; }} class="tap p-1 text-content-subtle hover:text-content shrink-0" aria-label="Edit note"><Icon icon="ic:baseline-edit" class="text-base" /></button>
-              <button onclick={() => trainingState.deleteCoachNote(note.id)} class="tap p-1 text-content-subtle hover:text-danger shrink-0" aria-label="Delete note"><Icon icon="ic:baseline-delete" class="text-base" /></button>
+              <button onclick={() => { editingId = note.id; editText = note.text; }} class="btn-icon shrink-0" aria-label="Edit note: {note.text.slice(0, 30)}"><Icon icon="ic:baseline-edit" class="text-xl" /></button>
+              <button onclick={() => deleteNote(note.id)} class="btn-icon hover:text-danger shrink-0" aria-label="Delete note: {note.text.slice(0, 30)}"><Icon icon="ic:baseline-delete" class="text-xl" /></button>
             </div>
           {/if}
         </div>
@@ -154,8 +161,8 @@
 
     {#if notes.length < MAX_COACH_NOTES}
       <div class="flex items-start gap-2 pt-2 border-t border-border">
-        <textarea bind:value={newText} rows="1" maxlength={MAX_COACH_NOTE_LENGTH} placeholder="Add a note for your AI coach…" class="flex-1 min-w-0 bg-surface-elevated/50 text-content px-3 py-2 rounded-control border border-border-strong outline-none text-sm leading-relaxed resize-y focus:border-primary/60"></textarea>
-        <button onclick={addNote} disabled={!newText.trim()} class="px-3 py-2 rounded-control bg-primary text-white text-label font-semibold disabled:opacity-40 shrink-0">Add</button>
+        <textarea bind:value={newText} rows="1" maxlength={MAX_COACH_NOTE_LENGTH} placeholder="Add a note for your AI coach" class="field flex-1 min-w-0 leading-relaxed resize-y" aria-label="New coach note"></textarea>
+        <button onclick={addNote} disabled={!newText.trim()} class="btn btn-primary shrink-0">Add</button>
       </div>
     {/if}
   </div>

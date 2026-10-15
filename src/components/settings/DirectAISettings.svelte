@@ -10,6 +10,9 @@
   import { formatUsd, DEFAULT_MAX_OUTPUT_TOKENS } from '../../lib/ai/direct/cost';
   import { loadConfig, saveConfig, loadKey, saveKey, loadSpend, spentThisMonth, SPEND_KEY, type DirectAiConfig } from '../../lib/ai/direct/store';
   import Icon from '@iconify/svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import { showConfirm } from '../../lib/utils';
+  import { toast } from '../../lib/toast.svelte';
 
   const initial = loadConfig();
   let config = $state<DirectAiConfig>(initial);
@@ -56,8 +59,10 @@
   function storeKey() {
     saveKey(config.provider, keyDraft);
     keySaved = !!keyDraft.trim();
+    if (keySaved) toast.show('Key saved on this device');
   }
-  function removeKey() {
+  async function removeKey() {
+    if (!(await showConfirm('Remove the key?', 'It is kept only on this device and is not in any backup, so you would have to paste it again. Copy it somewhere safe first if you need it.', { ok: 'Remove key', cancel: 'Keep it' }))) return;
     keyDraft = '';
     saveKey(config.provider, '');
     keySaved = false;
@@ -76,7 +81,7 @@
     </p>
   </div>
 
-  <div class="p-3.5 rounded-card bg-status-caution/10 flex items-start gap-2.5">
+  <div class="p-3.5 rounded-card bg-surface-elevated/50 flex items-start gap-2.5">
     <Icon icon="ic:baseline-attach-money" class="text-xl text-status-caution shrink-0 mt-0.5" />
     <p class="text-caption text-content leading-relaxed">
       <strong>This can cost money.</strong> API usage is billed to your account by the provider, separately from any chat plan. A full Change plan request is a long prompt (tens of thousands of tokens). Nothing is sent without you confirming its estimated cost each time.
@@ -85,11 +90,14 @@
 
   <div class="space-y-1.5">
     <p class="text-label text-content-subtle px-1">Service</p>
-    <div class="seg" role="group" aria-label="AI service">
-      {#each PROVIDERS as p (p.id)}
-        <button class="seg-item flex-1 py-1.5 text-label {config.provider === p.id ? 'bg-primary text-white' : ''}" aria-pressed={config.provider === p.id} onclick={() => pickProvider(p.id)}>{p.label.split(' (')[0]}</button>
-      {/each}
-    </div>
+    <Segmented
+      variant="setting"
+      full
+      label="AI service"
+      value={config.provider}
+      onChange={(id) => pickProvider(id as ProviderId)}
+      options={PROVIDERS.map((p) => ({ value: p.id, label: p.label.split(' (')[0] }))}
+    />
   </div>
 
   <div class="space-y-1.5">
@@ -104,16 +112,16 @@
         bind:value={keyDraft}
         oninput={() => (keySaved = false)}
         placeholder="Paste your key"
-        class="flex-1 min-w-0 bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm"
+        class="field flex-1 min-w-0"
       />
-      <button onclick={() => (reveal = !reveal)} class="px-3 rounded-control border border-border-strong text-content-subtle" aria-label={reveal ? 'Hide key' : 'Show key'}>
+      <button onclick={() => (reveal = !reveal)} class="btn-icon border border-field shrink-0" aria-label={reveal ? 'Hide key' : 'Show key'}>
         <Icon icon={reveal ? 'ic:baseline-visibility-off' : 'ic:baseline-visibility'} class="text-lg" />
       </button>
     </div>
     <div class="flex items-center gap-2 flex-wrap">
-      <button onclick={storeKey} disabled={!keyDraft.trim() || keySaved} class="chip text-primary border-primary/30 hover:bg-primary/10 disabled:opacity-40">Save key</button>
-      {#if keySaved}<button onclick={removeKey} class="chip text-content-subtle hover:text-danger">Remove key</button>{/if}
-      <a href={info.keyUrl} target="_blank" rel="noopener noreferrer" class="text-caption text-primary">Get a key</a>
+      <button onclick={storeKey} disabled={!keyDraft.trim() || keySaved} class="btn btn-secondary text-primary">Save key</button>
+      {#if keySaved}<button onclick={removeKey} class="btn btn-danger">Remove key</button>{/if}
+      <a href={info.keyUrl} target="_blank" rel="noopener noreferrer" class="btn-quiet px-2 text-label text-primary gap-1">Get a key (opens a new tab) <Icon icon="ic:baseline-open-in-new" class="text-sm" /></a>
     </div>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
       {keySaved ? 'Saved on this device only.' : 'Kept on this device only.'} It is never part of a backup, a settings file or Drive sync, and it is sent to {info.label.split(' (')[0]} and nowhere else.
@@ -122,12 +130,12 @@
 
   <div class="space-y-1.5">
     <label for="ai-model" class="text-label text-content-subtle px-1 block">Model</label>
-    <select id="ai-model" value={custom ? '__custom' : config.model} onchange={(e) => pickModel(e.currentTarget.value)} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm">
+    <select id="ai-model" value={custom ? '__custom' : config.model} onchange={(e) => pickModel(e.currentTarget.value)} class="field">
       {#each info.models as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
       <option value="__custom">Another model…</option>
     </select>
     {#if custom}
-      <input aria-label="Model id" value={config.model} onchange={(e) => commit({ ...config, model: e.currentTarget.value.trim() })} placeholder="Model id, exactly as the provider names it" class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+      <input aria-label="Model id" value={config.model} onchange={(e) => { const id = e.currentTarget.value.trim(); if (id) commit({ ...config, model: id }); else e.currentTarget.value = config.model; }} placeholder="Model id, exactly as the provider names it" class="field" />
     {/if}
   </div>
 
@@ -135,15 +143,15 @@
     <p class="text-label text-content-subtle px-1">Price per million tokens (USD)</p>
     <div class="grid grid-cols-2 gap-3">
       <label class="space-y-1 block"><span class="text-caption text-content-subtle">Input</span>
-        <input type="number" inputmode="decimal" step="any" min="0" value={rates?.inputPerM ?? ''} onchange={(e) => setPrice('inputPerM', e.currentTarget.value)} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+        <input type="number" inputmode="decimal" step="any" min="0" value={rates?.inputPerM ?? ''} onchange={(e) => setPrice('inputPerM', e.currentTarget.value)} class="field" />
       </label>
       <label class="space-y-1 block"><span class="text-caption text-content-subtle">Output</span>
-        <input type="number" inputmode="decimal" step="any" min="0" value={rates?.outputPerM ?? ''} onchange={(e) => setPrice('outputPerM', e.currentTarget.value)} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+        <input type="number" inputmode="decimal" step="any" min="0" value={rates?.outputPerM ?? ''} onchange={(e) => setPrice('outputPerM', e.currentTarget.value)} class="field" />
       </label>
     </div>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
       {#if listed}Listed prices as of {PRICES_AS_OF}; providers change them, so check yours.{:else}Enter the provider's prices for this model, or the estimate can't be shown.{/if}
-      {#if config.priceOverride && listed}<button onclick={resetPrice} class="text-primary ml-1">Use the listed prices</button>{/if}
+      {#if config.priceOverride && listed}<button onclick={resetPrice} class="btn-quiet px-2 text-label text-primary">Reset to the listed prices</button>{/if}
     </p>
   </div>
 
@@ -152,10 +160,10 @@
       <span class="block text-body text-content">Longest reply</span>
       <span class="block text-caption text-content-subtle">Output limit sent with each request, in tokens. It caps the worst-case cost; thinking models count their thinking in it.</span>
     </span>
-    <input type="number" inputmode="numeric" min="1000" max="64000" step="1000" value={config.maxOutputTokens} onchange={(e) => setMax(e.currentTarget.value)} class="w-28 shrink-0 bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm text-right" />
+    <input type="number" inputmode="numeric" min="1000" max="64000" step="1000" value={config.maxOutputTokens} onchange={(e) => setMax(e.currentTarget.value)} class="field !w-28 shrink-0 text-right" />
   </label>
   {#if config.maxOutputTokens !== DEFAULT_MAX_OUTPUT_TOKENS}
-    <button onclick={() => setMax(String(DEFAULT_MAX_OUTPUT_TOKENS))} class="text-caption text-primary px-1">Back to {DEFAULT_MAX_OUTPUT_TOKENS.toLocaleString('en')}</button>
+    <button onclick={() => setMax(String(DEFAULT_MAX_OUTPUT_TOKENS))} class="btn-quiet px-2 text-label text-primary">Reset to {DEFAULT_MAX_OUTPUT_TOKENS.toLocaleString('en')}</button>
   {/if}
 
   <div class="pt-2 border-t border-border flex items-center justify-between gap-3">
@@ -163,6 +171,6 @@
       Estimated spend this month on this device: <span class="text-content tabular-nums">{formatUsd(month)}</span>
       <span class="block">From the token counts the services report - not a bill. Check the provider's usage page for that.</span>
     </p>
-    {#if spend.length}<button onclick={clearSpend} class="chip text-content-subtle hover:text-content shrink-0">Clear</button>{/if}
+    {#if spend.length}<button onclick={clearSpend} class="btn btn-secondary shrink-0">Clear</button>{/if}
   </div>
 </div>
