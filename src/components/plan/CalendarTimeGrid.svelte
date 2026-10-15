@@ -13,6 +13,7 @@
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
   import { capBars, isBarEvent, type HeaderBar } from '../../lib/planning/headerBars';
   import { calendarSessionColor } from '../../lib/planning/sessionColors';
+  import { swipeGuard } from '../../lib/analytics/swipe';
   import Icon from '@iconify/svelte';
   import { dropTarget, DRAG_HOLD_MS, DRAG_SLOP_PX } from '../../lib/planning/calendarDrag';
   import { onDestroy, tick } from 'svelte';
@@ -161,6 +162,7 @@
     holdTimer = setTimeout(() => {
       if (!press) return;
       press.active = true;
+      swipeGuard.until = Date.now() + 60_000;
       navigator.vibrate?.(15);
     }, DRAG_HOLD_MS);
     window.addEventListener('pointermove', onPressMove);
@@ -190,13 +192,16 @@
     window.removeEventListener('touchmove', blockScroll);
   }
   function cancelPress() {
+    const was = press?.active;
     stopListening();
     press = null;
+    if (was) swipeGuard.until = Date.now() + 400;
   }
   function endPress() {
     const p = press;
     stopListening();
     press = null;
+    if (p?.active) swipeGuard.until = Date.now() + 400;
     if (!p?.active) return;
     suppressClickUntil = performance.now() + 400; // the click that ends a drag must not open the session
     const hit = dropTarget({
@@ -322,7 +327,7 @@
 
   <!-- The bars: trips, competitions and the phone calendar's all-day and multi-day events, one bar across the days they cover. -->
   {#if capped.rows > 0}
-    <div class="{padL} grid gap-y-0.5" style="grid-template-columns: repeat({days.length}, minmax(0, 1fr))" data-no-swipe>
+    <div class="{padL} grid gap-y-0.5" style="grid-template-columns: repeat({days.length}, minmax(0, 1fr))">
       {#each capped.bars as bar (barKey(bar))}
         {@const edges = `${bar.startsBefore ? 'rounded-l-none' : 'rounded-l-md'} ${bar.endsAfter ? 'rounded-r-none' : 'rounded-r-md'}`}
         {@const place = `grid-column: ${bar.from + 1} / span ${bar.span}; grid-row: ${bar.lane + 1}`}
@@ -333,7 +338,7 @@
             <span class="relative truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{bar.goal.name}</span>
           </div>
         {:else}
-          <button onclick={() => onOpenEvent?.(bar.event)} class="relative overflow-hidden flex items-center min-w-0 mx-px px-1.5 py-0.5 text-left cal-ink {edges}" style={place} title={bar.event.title}>
+          <button onclick={() => onOpenEvent?.(bar.event)} class="relative overflow-hidden flex items-center min-w-0 mx-px px-1.5 py-0.5 text-left cal-ink cal-edge {edges}" style="{place}; --cal-edge: {eventColor(bar.event)}" title={bar.event.title}>
             <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(bar.event)}"></span>
             <span class="relative truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{bar.event.title}</span>
           </button>
@@ -359,7 +364,6 @@
             <button
               onclick={() => open(s, col.all)}
               onpointerdown={(e) => beginPress(e, s, false)}
-              data-no-swipe
               class="relative overflow-hidden w-full text-left rounded-md px-1.5 py-0.5 select-none cal-ink {tone(s)} {isDragged(s) ? 'shadow-card ring-1 ring-primary' : ''}"
               style={dragStyle(s)}
             >
@@ -410,7 +414,7 @@
             {#if it.kind === 'event' && (b.bottom <= hours.from * 60 || b.top >= hours.to * 60)}
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}
-              <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} data-no-swipe class="absolute overflow-hidden rounded-lg bg-surface {showMeta ? 'px-2' : 'px-1'} py-1 cal-ink text-left" style={place} aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
+              <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} class="absolute overflow-hidden rounded-lg bg-surface {showMeta ? 'px-2' : 'px-1'} py-1 cal-ink cal-edge text-left" style="{place}; --cal-edge: {eventColor(it.e)}" aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
                 <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(it.e)}"></span>
                 <span class="relative block">
                   <span class="block {showMeta ? 'text-label truncate' : 'text-[11px] leading-[14px] break-words'}">{it.e.title}</span>
@@ -425,7 +429,6 @@
               <button
                 onclick={() => open(s, col.all)}
                 onpointerdown={(e) => beginPress(e, s, true)}
-                data-no-swipe
                 class="absolute flex flex-col items-stretch justify-start text-left rounded-lg bg-surface select-none cal-ink {isDragged(s) ? 'shadow-card ring-1 ring-primary opacity-90' : 'overflow-hidden'} {tone(s)}"
                 style="{place}; {dragStyle(s)}"
                 aria-label="{s.workout.notes || 'Session'}, {meta(s)}"

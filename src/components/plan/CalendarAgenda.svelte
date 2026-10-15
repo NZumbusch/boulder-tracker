@@ -124,7 +124,7 @@
               </button>
           {:else}
             {@const e = item.event}
-            <button onclick={() => onOpenEvent?.(e)} class="relative overflow-hidden w-full text-left flex items-baseline gap-2 rounded-xl px-3 py-1.5 text-label cal-ink"><span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(e)}"></span>
+            <button onclick={() => onOpenEvent?.(e)} class="relative overflow-hidden w-full text-left flex items-baseline gap-2 rounded-xl px-3 py-1.5 text-label cal-ink cal-edge" style="--cal-edge: {eventColor(e)}"><span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(e)}"></span>
               <span class="relative min-w-0 flex-1 truncate">{e.title}</span>
               <span class="relative shrink-0 text-caption tabular-nums opacity-70">{e.allDay ? 'all day' : `${hhmm(e.startMin ?? 0)} – ${hhmm(Math.min(1440, (e.startMin ?? 0) + e.minutes))}`}</span>
             </button>

@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-20-calendar-contrast-and-swipe",
+    title: "Calendar: clearer pale blocks, and swiping that works",
+    points: [
+      "Phone-calendar events have a fine edge in their own colour and a stronger tint on the light theme, so they no longer dissolve into the grey ground. Settings → Plan calendar & day → Higher contrast makes sessions and events solid with a firmer edge.",
+      "Swiping sideways pages the calendar from anywhere - it used to work only from empty ground, which a busy week hardly has. A slightly slanted swipe counts too. Holding a session to move it still doesn't page.",
+    ],
+  },
+  {
     id: "2026-10-19-analytics-by-question",
     title: "Analytics, rebuilt around four questions",
     points: [

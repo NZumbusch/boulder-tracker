@@ -201,7 +201,7 @@
 </script>
 
 <!-- The header keeps its height in every view, so the box below never moves when you switch Day / Week / Month / Year. -->
-<div class="space-y-3 short:space-y-2 touch-pan-y" use:swipePaging={step}>
+<div class="space-y-3 short:space-y-2 touch-pan-y {trainingState.tunableOn('plan.highContrast') ? 'cal-hc' : ''}" use:swipePaging={step}>
   <!-- On a landscape phone (little height) the two header rows become one, so the calendar gets the screen. -->
   <div class="flex flex-col gap-3 short:flex-row short:items-center short:gap-3">
   <div class="flex items-start justify-between gap-2 min-h-[3rem] short:contents">
