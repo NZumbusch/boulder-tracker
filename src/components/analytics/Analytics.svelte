@@ -1,14 +1,16 @@
 <script lang="ts" module>
   // The open tab survives leaving Analytics and coming back within a visit.
-  let rememberedTab: 'insights' | 'training' | 'body' | 'performance' = 'insights';
+  let rememberedTab: 'overview' | 'training' | 'recovery' | 'progress' = 'overview';
+  /** The "More charts" fold of a tab stays open within a visit once opened. */
+  let rememberedMore = false;
 </script>
 
 <script lang="ts">
   import AppBar from '../nav/AppBar.svelte';
   import { tick } from 'svelte';
-  import InsightsPanel from './InsightsPanel.svelte';
+  import FindingsPanel from './FindingsPanel.svelte';
   import ExerciseProgressPanel from './ExerciseProgressPanel.svelte';
-  import type { InsightLink } from '../../lib/analytics/insights';
+  import { buildInsights, findingTab, topFindings, type AnalyticsTab, type InsightGroup, type InsightLink } from '../../lib/analytics/insights';
   import { showAcwr } from '../../lib/help/acwrSheet.svelte';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
   import { openTaperView } from '../../lib/goals/taperView.svelte';
@@ -56,9 +58,11 @@
   import Icon from "@iconify/svelte";
 
   // Analytics: a header (range preset, window paging, CSV export, the
-  // window's dates), a summary of the window against the one before it,
-  // then the cards - grouped into Training / Body / Progress tabs, in
-  // the order and with the visibility chosen in Settings. This file owns
+  // window's dates) and four tabs by the question each answers: Overview
+  // (the window against the one before, what needs a look, the load chart),
+  // Training, Recovery and Progress. Each tab opens with its own findings,
+  // then its cards, in the order and with the visibility chosen in
+  // Settings. This file owns
   // the window and the data every panel reads from it; each panel draws
   // itself.
   //
@@ -76,11 +80,10 @@
   $effect(() => {
     rememberedTab = tab;
   });
-  // The tour's stops sit on specific tabs: Insights for its own, Training for the load chart.
+  // The tour's stops (findings, range, the load chart) are all on the Overview.
   $effect(() => {
     if (!tour.active || tour.step.view !== 'analytics') return;
-    const target = tour.step.target;
-    tab = target === 'analytics-insights' ? 'insights' : 'training';
+    tab = 'overview';
   });
   let selectedIndex = $state<number | null>(null);
 
@@ -93,7 +96,10 @@
   // The Load plot's measured width decides only how far the x-axis labels
   // are thinned - never how many columns there are (the range does that).
   let chartWidth = $state(0);
-  const axisStep = $derived(labelStep(buckets.length, chartWidth));
+  // The screen's own width (less a card's padding) is what every chart is as wide as: measured here, so a chart on a
+  // tab where the Load plot isn't drawn still thins its labels.
+  let panelsWidth = $state(0);
+  const axisStep = $derived(labelStep(buckets.length, panelsWidth > 0 ? panelsWidth - 80 : chartWidth));
 
   /**
    * The visible window as actual dates - Monday of the first week shown to
@@ -116,27 +122,42 @@
 
   // --- Tabs. Each card belongs to one; within a tab, cards keep the order
   // and visibility chosen under Settings -> History & Analytics.
-  type Tab = 'insights' | 'training' | 'body' | 'performance';
+  type Tab = AnalyticsTab;
   const TABS: { id: Tab; label: string }[] = [
-    { id: 'insights', label: 'Insights' },
+    { id: 'overview', label: 'Overview' },
     { id: 'training', label: 'Training' },
-    { id: 'body', label: 'Body' },
-    { id: 'performance', label: 'Progress' },
+    { id: 'recovery', label: 'Recovery' },
+    { id: 'progress', label: 'Progress' },
   ];
   const TAB_OF: Record<string, Tab> = {
-    load: 'training',
+    load: 'overview',
+    heatmap: 'overview',
+    mix: 'training',
     strain: 'training',
     fingerLoad: 'training',
-    heatmap: 'training',
-    mix: 'training',
-    fatigue: 'training',
-    recoveryTrend: 'body',
-    pain: 'body',
-    outdoor: 'performance',
-    benchmarks: 'performance',
-    benchmarkOverview: 'performance',
+    recoveryTrend: 'recovery',
+    fatigue: 'recovery',
+    pain: 'recovery',
+    outdoor: 'progress',
+    benchmarks: 'progress',
+    benchmarkOverview: 'progress',
   };
+  /** Specialist charts: behind a "More charts" fold, so the first screen of a tab is the main picture. */
+  const MORE_OF: Record<string, true> = { strain: true, fingerLoad: true };
   const tabSections = $derived(trainingState.analyticsSections.filter((s) => s.visible && TAB_OF[s.id] === tab));
+  const mainSections = $derived(tabSections.filter((s) => !MORE_OF[s.id]));
+  const moreSections = $derived(tabSections.filter((s) => MORE_OF[s.id]));
+  let moreOpen = $state(rememberedMore);
+  $effect(() => {
+    rememberedMore = moreOpen;
+  });
+
+  // --- Findings: the rules over the athlete's numbers (`lib/analytics/insights.ts`), each on the tab of the chart it
+  // points at; the Overview shows the few that matter most right now, across all of them.
+  const findings = $derived(buildInsights(trainingState.insightInputs()));
+  const tabFindings = $derived(tab === 'overview' ? topFindings(findings) : findings.filter((f) => findingTab(f) === tab));
+  const FINDINGS_TITLE: Record<Tab, string> = { overview: 'Worth a look', training: 'About your training', recovery: 'About your recovery', progress: 'About your progress' };
+  const ASK_GROUP: Record<Tab, InsightGroup> = { overview: 'push', training: 'plan', recovery: 'body', progress: 'strength' };
 
   /** An insight's link: the ACWR breakdown, or the chart behind it on its own tab. */
   async function openInsight(link: InsightLink) {
@@ -146,6 +167,7 @@
     if (link.kind === 'taper') { openTaperView(link.goalId); return; }
     if (link.kind === 'exercise') { openExerciseProgress(link.typeId); return; }
     tab = link.tab;
+    if (MORE_OF[link.section.replace('section-', '')]) moreOpen = true;
     await tick();
     document.getElementById(link.section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -395,9 +417,9 @@
   );
 
   const UNLOCKS: [string, string, string][] = [
-    ['ic:baseline-show-chart', 'Load & training mix', 'after your first completed sessions'],
-    ['ic:baseline-battery-charging-full', 'Fatigue & recovery', 'when you rate how a session felt'],
-    ['ic:baseline-monitor-heart', 'Body', 'when you log sleep, HRV, bodyweight or pain'],
+    ['ic:baseline-show-chart', 'Overview & training', 'load, plan and mix after your first completed sessions'],
+    ['ic:baseline-battery-charging-full', 'Fatigue', 'when you rate how a session felt'],
+    ['ic:baseline-monitor-heart', 'Recovery', 'when you log sleep, HRV, bodyweight or pain'],
     ['ic:baseline-emoji-events', 'Progress', 'from benchmarks and outdoor sends'],
   ];
 </script>
@@ -430,7 +452,6 @@
   <AppBar title="Analytics">
     {#snippet actions()}
       <!-- Window paging and CSV export share one quiet row of controls. -->
-        {#if tab !== 'insights'}
         <button
           onclick={() => navigate('prev')}
           class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
@@ -451,7 +472,6 @@
         >
           <Icon icon="ic:baseline-chevron-right" class="text-lg" />
         </button>
-        {/if}
         <button
           onclick={() => trainingState.exportToCSV()}
           class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
@@ -476,7 +496,6 @@
       {/each}
     </div>
 
-    {#if tab !== 'insights'}
     <!-- Range preset, and what it covers in dates. -->
     <div class="flex items-center justify-between gap-3 px-1">
       <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Range" data-tour="analytics-range">
@@ -493,13 +512,12 @@
       </div>
       <span class="text-caption text-content-subtle/80 text-right leading-tight">{windowDateRange}</span>
     </div>
-    {/if}
   </div>
 
   <!-- touch-action keeps vertical scrolling native while a sideways swipe
        pages the window (see lib/analytics/swipe.ts). -->
-  <div class="space-y-4 touch-pan-y" bind:this={panelsEl} use:swipePaging={(d) => navigate(d)}>
-    {#if tab !== 'insights'}<SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} logged={summaryLogged} />{/if}
+  <div class="space-y-4 touch-pan-y" bind:this={panelsEl} bind:clientWidth={panelsWidth} use:swipePaging={(d) => navigate(d)}>
+    {#if tab === 'overview'}<SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} logged={summaryLogged} />{/if}
 
 
     <div class="space-y-5">
@@ -551,30 +569,51 @@
       <BenchmarkOverviewPanel series={benchmarkSeries} {firstDay} {lastDay} />
       {/snippet}
 
-      {#if tab === 'insights'}
-        <InsightsPanel onOpen={openInsight} />
-      {/if}
+      <FindingsPanel
+        title={FINDINGS_TITLE[tab]}
+        items={tabFindings}
+        onOpen={openInsight}
+        askGroup={ASK_GROUP[tab]}
+        footnote={tab === 'overview' ? 'Each finding is a fixed rule over your own numbers; tap one for the chart behind it. Thresholds: Settings → Training model.' : undefined}
+        emptyText={tab === 'overview' ? 'Nothing needs a look. Log a few sessions, ratings and a test result and findings about your load, progress and plan show up here.' : undefined}
+      />
 
-      {#if tab === 'performance'}
+      {#if tab === 'progress'}
         <ExerciseProgressPanel />
       {/if}
 
-      {#each tabSections as section (section.id)}
-        {#if section.id === 'load'}{@render loadSection()}
-        {:else if section.id === 'strain'}{@render strainSection()}
-        {:else if section.id === 'fingerLoad'}{@render fingerLoadSection()}
-        {:else if section.id === 'heatmap'}{@render heatmapSection()}
-        {:else if section.id === 'mix'}{@render mixSection()}
-        {:else if section.id === 'fatigue'}{@render fatigueSection()}
-        {:else if section.id === 'recoveryTrend'}{@render recoveryTrendSection()}
-        {:else if section.id === 'pain'}{@render painSection()}
-        {:else if section.id === 'outdoor'}{@render outdoorSection()}
-        {:else if section.id === 'benchmarks'}{@render benchmarksSection()}
-        {:else if section.id === 'benchmarkOverview'}{@render benchmarkOverviewSection()}
+      {#snippet section(id: string)}
+        {#if id === 'load'}{@render loadSection()}
+        {:else if id === 'strain'}{@render strainSection()}
+        {:else if id === 'fingerLoad'}{@render fingerLoadSection()}
+        {:else if id === 'heatmap'}{@render heatmapSection()}
+        {:else if id === 'mix'}{@render mixSection()}
+        {:else if id === 'fatigue'}{@render fatigueSection()}
+        {:else if id === 'recoveryTrend'}{@render recoveryTrendSection()}
+        {:else if id === 'pain'}{@render painSection()}
+        {:else if id === 'outdoor'}{@render outdoorSection()}
+        {:else if id === 'benchmarks'}{@render benchmarksSection()}
+        {:else if id === 'benchmarkOverview'}{@render benchmarkOverviewSection()}
         {/if}
-      {/each}
+      {/snippet}
 
-      {#if tabSections.length === 0 && tab !== 'insights'}
+      {#each mainSections as s (s.id)}{@render section(s.id)}{/each}
+
+      {#if moreSections.length > 0}
+        <button
+          onclick={() => (moreOpen = !moreOpen)}
+          class="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-control bg-surface-elevated/50 text-label text-content-subtle hover:text-content transition-colors"
+          aria-expanded={moreOpen}
+        >
+          <span>More charts <span class="text-content-subtle/70">· {moreSections.length === 1 ? '1 chart' : `${moreSections.length} charts`}</span></span>
+          <Icon icon={moreOpen ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-xl" />
+        </button>
+        {#if moreOpen}
+          {#each moreSections as s (s.id)}{@render section(s.id)}{/each}
+        {/if}
+      {/if}
+
+      {#if tabSections.length === 0 && tab !== 'overview'}
         <p class="text-caption text-content-subtle italic text-center py-8 px-8 leading-relaxed">
           Every card on this tab is hidden - turn them back on under {settingsPath('history')}
         </p>

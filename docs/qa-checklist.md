@@ -241,6 +241,16 @@ Devices wanted: an **iPhone** (Safari), an **Android phone** (Chrome and the ins
 | 16.11 | Top bar scrolls | Scroll down on Home, History, Plan, Settings, then up. | The top bar scrolls away with the content and nothing is stuck at the top; it is at the top again when you scroll back. The bottom bar and the + behave as before. | | |
 | 16.12 | Long phone events | Plan → Day and Week with a phone event that runs overnight or over several days (e.g. 00:00-12:00, or a trip). | The hour grid keeps its layout: the event is cut at the first and last hour shown, nothing draws over the header; all-day and multi-day events sit in the strip above the hours. | | |
 
+## 17. Analytics rebuilt by question (2026-10-19)
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 17.1 | Tabs | Analytics: Overview, Training, Recovery, Progress. | Overview: summary tiles (once), Worth a look, the load chart, the training calendar. Training: its findings, mix, "More charts" (strain, finger load) folded. Recovery: findings, fatigue, recovery chart, pain. Progress: findings, exercises, sends, tests. Range, paging and CSV are there on every tab. | | |
+| 17.2 | Findings | Tap a finding on Overview and on a tab. | Overview lists what needs attention first (then up to two good ones, and always the load verdict); a tab lists the findings for its charts. Tapping goes to the chart on its tab (opening More charts if needed) or the ACWR/plan/block/exercise sheet. | | |
+| 17.3 | Load chart | Overview → Rolling load on 4W, 3M, 1Y. | Bars with a few labelled lines, ramp-spike flags over their bars; under them the ratio strip with tinted zones and the 0.8 / 1.5 edges, dots coloured by zone; the same columns line up; labels thin out without running together. | | |
+| 17.4 | Recovery layout | Recovery tab: Overlay / Rows. | The overlaid % chart as before; Rows gives one row per measure; the choice is kept. | | |
+| 17.5 | Settings | Settings → History & Analytics: hide a card, reorder. | Hidden cards go from their tab; with a tab empty the note says so (not Overview); the order within a tab follows the list. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.

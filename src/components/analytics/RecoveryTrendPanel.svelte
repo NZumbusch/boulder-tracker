@@ -306,24 +306,22 @@
         {mode === 'overlay' ? '% vs your 28-day baseline · up is better' : 'Shaded: your normal range'}
       </p>
     </div>
-    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0">
+    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0" role="group" aria-label="Chart layout">
       <button
         onclick={() => trainingState.setRecoveryChartMode('overlay')}
-        class="tap p-1.5 rounded-control transition-colors {mode === 'overlay' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-        aria-label="Overlay as % vs baseline"
+        class="px-2.5 py-1 text-caption rounded-control transition-colors {mode === 'overlay' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
         aria-pressed={mode === 'overlay'}
-        title="% vs baseline"
+        title="All measures on one chart, as % vs your baseline"
       >
-        <Icon icon="ic:baseline-stacked-line-chart" class="text-base" />
+        Overlay
       </button>
       <button
         onclick={() => trainingState.setRecoveryChartMode('lanes')}
-        class="tap p-1.5 rounded-control transition-colors {mode === 'lanes' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-        aria-label="Separate rows"
+        class="px-2.5 py-1 text-caption rounded-control transition-colors {mode === 'lanes' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
         aria-pressed={mode === 'lanes'}
-        title="Separate rows"
+        title="One row per measure, each on its own scale"
       >
-        <Icon icon="ic:baseline-view-agenda" class="text-base" />
+        Rows
       </button>
     </div>
   </div>

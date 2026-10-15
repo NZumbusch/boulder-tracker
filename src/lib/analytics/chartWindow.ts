@@ -9,7 +9,7 @@
  */
 
 /** Roughly the width of a "W34" axis label at the app's caption size. */
-const LABEL_WIDTH_PX = 24;
+const LABEL_WIDTH_PX = 30;
 
 /** Below this, a chart stops being readable. */
 export const MIN_WEEKS = 4;

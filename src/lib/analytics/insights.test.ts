@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { ExerciseSlot, Workout } from "../types";
 import { buildDemoData } from "../tour/demoData";
-import { buildInsights, DEFAULT_INSIGHT_CONFIG, ratingScale, type InsightInputs } from "./insights";
+import { buildInsights, DEFAULT_INSIGHT_CONFIG, findingTab, ratingScale, topFindings, type Insight, type InsightInputs } from "./insights";
 import { DEFAULT_FATIGUE_MODEL } from "./readiness";
 import { getWeekId } from "../dateUtils";
 
@@ -260,5 +260,28 @@ describe("patterns in the athlete's own data", () => {
     const p = buildInsights(inputs(workouts, { painLogs: logs as never[] })).find((x) => x.id === "pattern-pain");
     expect(p?.title).toBe("Pain shows up around load spikes");
     expect(p?.detail).toContain("Left elbow");
+  });
+});
+
+describe("findings on tabs", () => {
+  const f = (over: Partial<Insight>): Insight => ({ id: "x", group: "push", tone: "info", title: "t", ...over });
+
+  it("puts a finding on the tab of the chart it points at, else of the question it answers", () => {
+    expect(findingTab(f({ link: { kind: "panel", tab: "recovery", section: "section-pain" } }))).toBe("recovery");
+    expect(findingTab(f({ link: { kind: "acwr" } }))).toBe("overview");
+    expect(findingTab(f({ link: { kind: "plan" } }))).toBe("training");
+    expect(findingTab(f({ link: { kind: "exercise", typeId: "hb" } }))).toBe("progress");
+    expect(findingTab(f({ group: "strength" }))).toBe("progress");
+    expect(findingTab(f({ group: "plan" }))).toBe("training");
+    expect(findingTab(f({ group: "body" }))).toBe("recovery");
+    expect(findingTab(f({ group: "push" }))).toBe("overview");
+  });
+
+  it("shows what needs attention first, then at most two things going well, and leaves information for its tab", () => {
+    const all = [f({ id: "a", tone: "info" }), f({ id: "b", tone: "good" }), f({ id: "c", tone: "caution" }), f({ id: "d", tone: "risk" }), f({ id: "e", tone: "good" }), f({ id: "g", tone: "good" })];
+    expect(topFindings(all).map((i) => i.id)).toEqual(["c", "d", "b", "e"]);
+    expect(topFindings(all, 0).map((i) => i.id)).toEqual(["c", "d"]);
+    // The load verdict stays, even when it is only information.
+    expect(topFindings([f({ id: "acwr", tone: "info" }), f({ id: "z", tone: "info" })]).map((i) => i.id)).toEqual(["acwr"]);
   });
 });
