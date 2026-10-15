@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-18-samsung-style-calendar",
+    title: "The calendar looks more like Samsung Calendar",
+    points: [
+      "Trips, competitions and your phone calendar's all-day and multi-day events are one bar across their days at the top, instead of a label in every day; with many, the last row says \"+N\" and opens up when tapped.",
+      "Your sessions are one green. The colours belong to phases (a faint tint behind each day, with the strip) and to the phone calendar's events, which keep their calendar's colour but are turned away from the sessions' green. Settings → Plan calendar & day can bring back colouring sessions by exercise category or turn the tint off.",
+      "Settings → Phone calendar: tap a calendar's dot to pick its colour. Chips under the calendar's header show or hide each phone calendar. Today's column is lightly highlighted and the hour labels are slimmer, so the days get more room.",
+    ],
+  },
+  {
     id: "2026-10-18-top-bar-and-long-events",
     title: "The top bar scrolls with the page; long events stay in the calendar",
     points: [

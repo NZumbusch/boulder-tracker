@@ -8,7 +8,7 @@
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
   import type { AnalyticsCategory, ExerciseTypeDef, GoalEvent } from '../../lib/types';
-  import { sessionColor } from '../../lib/planning/sessionColors';
+  import { calendarSessionColor } from '../../lib/planning/sessionColors';
 
   let {
     year,
@@ -23,6 +23,8 @@
     goals = new Map(),
     exerciseTypes = [],
     categories = [],
+    eventColor = () => '#71717a',
+    byCategory = false,
   }: {
     year: number;
     /** 0-11. */
@@ -41,6 +43,10 @@
     /** With the categories, they colour each session by its main category. */
     exerciseTypes?: ExerciseTypeDef[];
     categories?: AnalyticsCategory[];
+    /** The colour of a phone-calendar event. */
+    eventColor?: (e: DeviceEvent) => string;
+    /** Sessions take their main category's colour instead of one shared colour. */
+    byCategory?: boolean;
   } = $props();
 
   const first = $derived(Math.floor(Date.UTC(year, month, 1) / DAY_MS));
@@ -63,7 +69,7 @@
   // On a wide screen a day is roomy enough for the sessions' names instead of dots.
   let gridW = $state(0);
   const wide = $derived(!mini && gridW / 7 >= 92);
-  const colorOf = (s: CalendarSession) => sessionColor(s.workout, exerciseTypes, categories) ?? 'bg-primary';
+  const colorOf = (s: CalendarSession) => calendarSessionColor(s.workout, exerciseTypes, categories, byCategory);
   const monthName = $derived(new Date(Date.UTC(year, month, 1)).toLocaleDateString(undefined, { month: 'long', timeZone: 'UTC' }));
 </script>
 
@@ -111,7 +117,7 @@
                   <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span><span class="relative">{s.done ? '✓ ' : ''}{s.workout.notes || 'Session'}</span></span>
                 {/each}
                 {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as e, k (k)}
-                  <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span><span class="relative">{e.title}</span></span>
+                  <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(e)}"></span><span class="relative">{e.title}</span></span>
                 {/each}
                 {#if list.length + (events.get(day)?.length ?? 0) > 3}<span class="text-[10px] leading-none text-content-subtle px-1">+{list.length + (events.get(day)?.length ?? 0) - 3} more</span>{/if}
               </span>
@@ -120,8 +126,8 @@
                 {#each list.slice(0, 3) as s (s.workout.id)}
                   <span class="relative w-1.5 h-1.5 rounded-full overflow-hidden bg-surface"><span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span></span>
                 {/each}
-                {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as _e, k (k)}
-                  <span class="w-1.5 h-1.5 rounded-full bg-content-subtle/40"></span>
+                {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as e, k (k)}
+                  <span class="w-1.5 h-1.5 rounded-full opacity-60" style="background: {eventColor(e)}"></span>
                 {/each}
                 {#if list.length + (events.get(day)?.length ?? 0) > 3}<span class="text-[9px] leading-none text-content-subtle">+</span>{/if}
               </span>

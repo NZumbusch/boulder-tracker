@@ -12,7 +12,7 @@
   import type { ExerciseTypeDef } from '../../lib/types';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
   import type { AnalyticsCategory, GoalEvent } from '../../lib/types';
-  import { sessionColor, exerciseSegments } from '../../lib/planning/sessionColors';
+  import { calendarSessionColor, exerciseSegments } from '../../lib/planning/sessionColors';
 
   let {
     days,
@@ -30,6 +30,8 @@
     goals = new Map(),
     categories = [],
     exerciseList = false,
+    eventColor = () => '#71717a',
+    byCategory = false,
   }: {
     days: number[];
     byDay: Map<number, CalendarSession[]>;
@@ -50,6 +52,10 @@
     categories?: AnalyticsCategory[];
     /** Each session's exercises as lines with a colour dot instead of coloured chips. */
     exerciseList?: boolean;
+    /** The colour of a phone-calendar event. */
+    eventColor?: (e: DeviceEvent) => string;
+    /** Sessions take their main category's colour instead of one shared colour. */
+    byCategory?: boolean;
   } = $props();
 
   const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -90,7 +96,7 @@
                 onclick={() => onOpen(s, sessions)}
                 class="relative overflow-hidden block w-full text-left rounded-2xl px-3.5 py-3 cal-ink active:scale-[0.99] transition-transform {isFaded(s) ? 'opacity-40' : ''} {isRunning(s) ? 'ring-2 ring-success' : ''}"
               >
-                <span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {sessionColor(s.workout, exerciseTypes, categories) ?? 'bg-primary'}"></span>
+                <span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {calendarSessionColor(s.workout, exerciseTypes, categories, byCategory)}"></span>
                 <span class="relative block text-body font-semibold leading-snug break-words">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-base -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
                 <span class="relative block text-caption opacity-80 mt-0.5">{meta(s)}</span>
                 {#if ex.names.length}
@@ -118,7 +124,7 @@
               </button>
           {:else}
             {@const e = item.event}
-            <button onclick={() => onOpenEvent?.(e)} class="relative overflow-hidden w-full text-left flex items-baseline gap-2 rounded-xl px-3 py-1.5 text-label cal-ink"><span class="absolute inset-0 cal-fill cal-soft bg-zinc-500"></span>
+            <button onclick={() => onOpenEvent?.(e)} class="relative overflow-hidden w-full text-left flex items-baseline gap-2 rounded-xl px-3 py-1.5 text-label cal-ink"><span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(e)}"></span>
               <span class="relative min-w-0 flex-1 truncate">{e.title}</span>
               <span class="relative shrink-0 text-caption tabular-nums opacity-70">{e.allDay ? 'all day' : `${hhmm(e.startMin ?? 0)} – ${hhmm(Math.min(1440, (e.startMin ?? 0) + e.minutes))}`}</span>
             </button>
