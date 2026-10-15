@@ -11,6 +11,8 @@
     { src: './img/intro-analytics.webp', title: 'Analytics', text: 'Load, fatigue and progress over time.' },
   ];
 
+  import { scrollBehavior } from '../../lib/motion';
+
   let scroller = $state<HTMLDivElement>();
   let active = $state(0);
 
@@ -23,7 +25,7 @@
 
   function show(i: number) {
     const slide = scroller?.children[i] as HTMLElement | undefined;
-    slide?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    slide?.scrollIntoView({ behavior: scrollBehavior(), inline: 'center', block: 'nearest' });
   }
 </script>
 
@@ -32,7 +34,7 @@
     {#each SLIDES as slide, i}
       <figure class="snap-center shrink-0 w-[64%] max-w-[240px] space-y-2" aria-label="{i + 1} of {SLIDES.length}">
         <div class="h-[250px] overflow-hidden rounded-card border border-border bg-surface shadow-card">
-          <img src={slide.src} alt="{slide.title} screen" class="w-full object-cover object-top" loading={i === 0 ? 'eager' : 'lazy'} draggable="false" />
+          <img src={slide.src} alt="The {slide.title} screen of the app" width="780" height="1560" class="w-full object-cover object-top" loading={i === 0 ? 'eager' : 'lazy'} draggable="false" />
         </div>
         <figcaption>
           <p class="text-label text-content">{slide.title}</p>
@@ -41,9 +43,11 @@
       </figure>
     {/each}
   </div>
-  <div class="flex justify-center gap-1.5">
+  <div class="flex justify-center -mt-2">
     {#each SLIDES as slide, i}
-      <button onclick={() => show(i)} class="w-1.5 h-1.5 rounded-full transition-colors {i === active ? 'bg-primary' : 'bg-surface-elevated-hover'}" aria-label="Show the {slide.title} screen" aria-current={i === active}></button>
+      <button onclick={() => show(i)} class="w-8 h-8 grid place-items-center" aria-label="Show the {slide.title} screen" aria-current={i === active}>
+        <span class="block w-2 h-2 rounded-full transition-colors {i === active ? 'bg-primary' : 'bg-surface-elevated-hover'}"></span>
+      </button>
     {/each}
   </div>
 </div>
