@@ -15,7 +15,7 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import type { TrainingBlock } from '../../lib/types';
-  import { blockFirstWeekId, blockLastWeekId } from '../../lib/planning/trainingBlocks';
+  import { formatDay } from '../../lib/dateUtils';
   import {
     sortBlocks,
     classifyBlock,
@@ -75,12 +75,8 @@
     upcoming: 'text-content-muted bg-surface-elevated/60',
   };
 
-  /** The block's calendar span, first day to last (one span, not two week ranges glued together). */
-  function blockDateRange(block: TrainingBlock): string {
-    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', timeZone: 'UTC' };
-    const day = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, opts);
-    return `${day(block.startDate)} – ${day(block.endDate)}`;
-  }
+  /** The block's calendar span, first day to last. */
+  const blockDateRange = (block: TrainingBlock) => `${formatDay(block.startDate)} – ${formatDay(block.endDate)}`;
 
   function go(direction: -1 | 1) {
     page = clampPage(page + direction, blocks.length, PAGE_SIZE);
@@ -95,10 +91,10 @@
     <div class="min-w-0">
       <h3 class="text-title text-content truncate">All Training Blocks</h3>
       <p class="text-caption text-content-subtle mt-0.5">
-        {blocks.length} block{blocks.length === 1 ? '' : 's'} · page {page + 1} of {totalPages}
+        {blocks.length} block{blocks.length === 1 ? '' : 's'}{totalPages > 1 ? ` · page ${page + 1} of ${totalPages}` : ''}
       </p>
     </div>
-    <button onclick={onClose} class="p-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close">
+    <button onclick={onClose} class="btn-icon shrink-0 -mr-2" aria-label="Close">
       <Icon icon="ic:baseline-close" class="text-xl" />
     </button>
   </header>
@@ -108,10 +104,10 @@
       {#each visible as block (block.id)}
         {@const timeframe = classifyBlock(block, currentWeekId)}
         <div
-          class="flex items-center justify-between gap-2 p-3.5 rounded-control border transition-colors
+          class="flex items-center justify-between gap-2 p-3.5 rounded-control transition-colors
             {timeframe === 'current'
-              ? 'bg-primary/5 border-primary/30'
-              : 'bg-surface-elevated/40 border-transparent'}
+              ? 'bg-primary/10'
+              : 'bg-surface-elevated/50'}
             {timeframe === 'past' ? 'opacity-70' : ''}"
         >
           <div class="flex items-center gap-2.5 flex-1 min-w-0">
@@ -124,19 +120,16 @@
                 </span>
               </div>
               <p class="text-caption text-content-subtle mt-0.5 truncate">
-                {phaseName(block.phaseId)} · {blockFirstWeekId(block)} – {blockLastWeekId(block)}{block.priority ? ` · priority ${block.priority}` : ''}
-              </p>
-              <p class="text-caption text-content-subtle/70 truncate">
-                {blockDateRange(block)}
+                {phaseName(block.phaseId)} · {blockDateRange(block)}{block.priority ? ` · priority ${block.priority}` : ''}
               </p>
             </div>
           </div>
           <div class="flex items-center gap-1 shrink-0">
-            <button onclick={() => onEdit(block)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit block">
-              <Icon icon="ic:baseline-edit" class="text-sm" />
+            <button onclick={() => onEdit(block)} class="btn-icon" aria-label="Edit {block.name}">
+              <Icon icon="ic:baseline-edit" class="text-base" />
             </button>
-            <button onclick={() => onDelete(block.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete block">
-              <Icon icon="ic:baseline-delete" class="text-sm" />
+            <button onclick={() => onDelete(block.id)} class="btn-icon hover:text-danger" aria-label="Delete {block.name}">
+              <Icon icon="ic:baseline-delete" class="text-base" />
             </button>
           </div>
         </div>
@@ -153,7 +146,7 @@
       <button
         onclick={() => go(-1)}
         disabled={page === 0}
-        class="flex items-center gap-1 px-3 py-2 rounded-control bg-surface-elevated/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        class="btn btn-secondary"
       >
         <Icon icon="ic:baseline-chevron-left" class="text-base" />
         Earlier
@@ -162,7 +155,7 @@
       <button
         onclick={() => page = todayPage}
         disabled={page === todayPage}
-        class="px-3 py-2 rounded-control bg-surface-elevated/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        class="btn btn-secondary"
       >
         Today
       </button>
@@ -170,7 +163,7 @@
       <button
         onclick={() => go(1)}
         disabled={page >= totalPages - 1}
-        class="flex items-center gap-1 px-3 py-2 rounded-control bg-surface-elevated/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        class="btn btn-secondary"
       >
         Later
         <Icon icon="ic:baseline-chevron-right" class="text-base" />
