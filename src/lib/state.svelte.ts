@@ -73,7 +73,7 @@ import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { applySettingsRecords, resetGroups, applyGroups, buildSettingsFile, parseSettingsFile, toSettingsRecords, type SettingsGroupId } from './preferences/portable';
 import { stableStringify } from './sync/merge';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs, WidgetReadinessDetail, NavMode, NavStyle } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs, WidgetReadinessDetail, NavMode, NavAccent, NavStyle } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { CragForecast } from './weather/suggestion';
 import type { TextScale, MotionPreference } from './preferences/migrate';
@@ -532,6 +532,9 @@ class TrainingState {
   /** What is chosen for moving between screens: automatic, the side drawer (plus a rail on wide screens) or the bottom bar. */
   get navMode(): NavMode { return this.preferencesStore.navMode; }
   setNavMode(mode: NavMode) { this.preferencesStore.setNavMode(mode); }
+  /** The colour of "you are here" in the navigation and of the floating + (a preference, blue by default). */
+  get navAccent(): NavAccent { return this.preferencesStore.navAccent; }
+  setNavAccent(accent: NavAccent) { this.preferencesStore.setNavAccent(accent); }
   /** What is in use now: automatic means the bottom bar on a phone held upright, the drawer and rail anywhere wider. */
   get navStyle(): NavStyle {
     const mode = this.preferencesStore.navMode;

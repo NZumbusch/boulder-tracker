@@ -1,7 +1,7 @@
 import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { type TimerPreset, validateTimerPresets } from '../timer/presets';
 import type { Place } from '../places/places';
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, type NavMode, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, type NavMode, type NavAccent, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -57,6 +57,7 @@ export class PreferencesStore {
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
   navLabels = $state(false);
   navMode = $state<NavMode>('auto');
+  navAccent = $state<NavAccent>('blue');
   helpButtons = $state(true);
   widgetShowReadiness = $state(true);
   widgetReadinessDetail = $state<WidgetReadinessDetail>('factors');
@@ -128,6 +129,7 @@ export class PreferencesStore {
     this.addedExerciseTarget = prefs.addedExerciseTarget;
     this.navLabels = prefs.navLabels;
     this.navMode = prefs.navMode;
+    this.navAccent = prefs.navAccent;
     this.helpButtons = prefs.helpButtons;
     this.widgetShowReadiness = prefs.widgetShowReadiness;
     this.widgetReadinessDetail = prefs.widgetReadinessDetail;
@@ -365,6 +367,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setNavAccent(accent: NavAccent) {
+    this.navAccent = accent;
+    this.persist();
+  }
+
   setWidgetReadinessDetail(detail: WidgetReadinessDetail) {
     this.widgetReadinessDetail = detail;
     this.persist();
@@ -441,6 +448,7 @@ export class PreferencesStore {
       addedExerciseTarget: this.addedExerciseTarget,
       navLabels: this.navLabels,
       navMode: this.navMode,
+      navAccent: this.navAccent,
       helpButtons: this.helpButtons,
       widgetShowReadiness: this.widgetShowReadiness,
       widgetReadinessDetail: this.widgetReadinessDetail,

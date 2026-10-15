@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MAIN_ITEMS, SETTINGS_ITEM, drawerRows, fabFor, appBarBack } from "./navItems";
+import { MAIN_ITEMS, SETTINGS_ITEM, drawerRows, fabFor, appBarBack, menuBadge } from "./navItems";
 
 describe("destinations", () => {
   it("are the five the bottom bar had, in its order, with Log as the middle one", () => {
@@ -46,5 +46,13 @@ describe("the top bar's first button", () => {
   it("is the menu on a main screen and a back arrow on a nested page", () => {
     expect(appBarBack({ nested: false })).toBe("menu");
     expect(appBarBack({ nested: true })).toBe("back");
+  });
+});
+
+describe("menuBadge", () => {
+  it("hints at sync trouble first, then a running session, otherwise nothing", () => {
+    expect(menuBadge({ sessionRunning: true, syncError: true })).toBe("sync");
+    expect(menuBadge({ sessionRunning: true, syncError: false })).toBe("session");
+    expect(menuBadge({ sessionRunning: false, syncError: false })).toBeNull();
   });
 });

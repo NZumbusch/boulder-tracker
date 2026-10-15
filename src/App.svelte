@@ -37,9 +37,9 @@
   import { startWidgetSync } from './lib/widget/widgetSync.svelte';
   import { updater } from './lib/update/updater.svelte';
   import type { ViewType } from './lib/types';
-  import Icon from "@iconify/svelte";
   import NavDrawer from './components/nav/NavDrawer.svelte';
   import NavRail from './components/nav/NavRail.svelte';
+  import BottomBar from './components/nav/BottomBar.svelte';
   import Fab from './components/nav/Fab.svelte';
   import { scrollChrome } from './lib/navigation/scrollChrome.svelte';
   import { initialScrollHide, nextScrollHide, SCROLL_HIDE_END_ZONE, SCROLL_HIDE_TOP_ZONE } from './lib/navigation/scrollHide';
@@ -144,6 +144,21 @@
   });
 </script>
 
+<!-- A screen is its own chunk. While it loads there is a spinner; if it cannot load (offline right after an update, a
+     stale chunk name) there is a way out - reloading fetches the current files - not a blank page. -->
+{#snippet pending()}
+  <div class="flex flex-1 items-center justify-center" role="status" aria-label="Loading">
+    <div class="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+  </div>
+{/snippet}
+{#snippet failed()}
+  <div class="flex flex-1 flex-col items-center justify-center gap-3 text-center px-6" role="alert">
+    <p class="text-body text-content">This screen could not load.</p>
+    <p class="text-caption text-content-subtle">That usually means the connection dropped just after an update.</p>
+    <button onclick={() => window.location.reload()} class="btn btn-primary">Reload the app</button>
+  </div>
+{/snippet}
+
 <main class="flex flex-col h-dvh pt-safe overflow-hidden bg-app-bg text-content font-sans">
   <InAppBrowserBanner />
   <ExampleDataBanner />
@@ -157,82 +172,73 @@
        is unaffected. -->
   <div class="flex-1 min-h-0 flex">
   {#if drawerNav && layout.wide}<NavRail />{/if}
-  <div onscroll={onContentScroll} class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4 pt-0 {drawerNav ? 'pb-[calc(1rem+env(safe-area-inset-bottom)+var(--fab-b))]' : ''}">
+  <div onscroll={onContentScroll} class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4 pt-0 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] {drawerNav ? 'pb-[calc(1rem+env(safe-area-inset-bottom)+var(--fab-b))]' : ''}">
     {#if trainingState.isLoading}
       <div class="flex flex-col items-center justify-center h-full space-y-4">
         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-content-subtle text-caption">Loading Training Data...</p>
+        <p class="text-content-subtle text-caption">Loading your training data…</p>
       </div>
     {:else if trainingState.view === 'home'}
-      {#await import('./components/dashboard/Home.svelte') then { default: Home }}
+      {#await import('./components/dashboard/Home.svelte')}
+        {@render pending()}
+      {:then { default: Home }}
         <Home />
+      {:catch}
+        {@render failed()}
       {/await}
     {:else if trainingState.view === 'plan'}
-      {#await import('./components/plan/TrainingPlan.svelte') then { default: TrainingPlan }}
+      {#await import('./components/plan/TrainingPlan.svelte')}
+        {@render pending()}
+      {:then { default: TrainingPlan }}
         <TrainingPlan />
+      {:catch}
+        {@render failed()}
       {/await}
     {:else if trainingState.view === 'add'}
-      {#await import('./components/workout/StartScreen.svelte') then { default: StartScreen }}
+      {#await import('./components/workout/StartScreen.svelte')}
+        {@render pending()}
+      {:then { default: StartScreen }}
         <StartScreen plannedWorkouts={plannedThisWeek} />
+      {:catch}
+        {@render failed()}
       {/await}
     {:else if trainingState.view === 'history'}
-      {#await import('./components/history/History.svelte') then { default: History }}
+      {#await import('./components/history/History.svelte')}
+        {@render pending()}
+      {:then { default: History }}
         <History />
+      {:catch}
+        {@render failed()}
       {/await}
     {:else if trainingState.view === 'settings'}
-      {#await import('./components/settings/Settings.svelte') then { default: Settings }}
+      {#await import('./components/settings/Settings.svelte')}
+        {@render pending()}
+      {:then { default: Settings }}
         <Settings 
           onExport={() => trainingState.exportData()}
           onImport={(e) => trainingState.importData(e)}
         />
+      {:catch}
+        {@render failed()}
       {/await}
     {:else if trainingState.view === 'analytics'}
-      {#await import('./components/analytics/Analytics.svelte') then { default: Analytics }}
+      {#await import('./components/analytics/Analytics.svelte')}
+        {@render pending()}
+      {:then { default: Analytics }}
         <Analytics />
+      {:catch}
+        {@render failed()}
       {/await}
     {/if}
   </div>
   </div>
 
   {#if drawerNav}
+    <SessionBubble variant="strip" />
     <NavDrawer />
     <Fab />
   {:else}
-  <nav
-    class="w-full h-[calc(75px+env(safe-area-inset-bottom))] short:h-[calc(52px+env(safe-area-inset-bottom))] pb-safe border-t flex justify-evenly items-center shrink-0 select-none bg-surface border-border"
-  >
-    {#snippet tab(view: ViewType, icon: string, label: string)}
-      {@const active = trainingState.view === view}
-      <button
-        onclick={() => trainingState.navigate(view)}
-        class="flex flex-col items-center justify-center w-16 h-full cursor-pointer transition-all duration-300 {active ? 'text-success scale-105' : 'text-content-subtle scale-100'}"
-        aria-label={label}
-        data-tour="nav-{view}"
-      >
-        <Icon {icon} class="text-[24px] short:text-[22px]" />
-        {#if trainingState.navLabels}
-          <span class="mt-0.5 text-[10px] font-semibold leading-none">{label}</span>
-        {:else}
-          <div class="w-1 h-1 mt-1 rounded-full transition-all duration-300 {active ? 'bg-success scale-100' : 'bg-transparent scale-0'}"></div>
-        {/if}
-      </button>
-    {/snippet}
-
-    {@render tab('home', 'ic:baseline-home', 'Home')}
-    {@render tab('plan', 'ic:baseline-calendar-month', 'Plan')}
-
-    <button
-      onclick={() => trainingState.navigate('add')}
-      class="flex items-center justify-center w-12 h-12 short:w-10 short:h-10 rounded-full cursor-pointer transition-all duration-300 active:scale-90 {trainingState.view === 'add' ? 'bg-success text-app-bg shadow-[0_0_20px_var(--color-success)]' : 'bg-surface-elevated text-content-muted'}"
-      aria-label="Log a workout"
-      data-tour="nav-add"
-    >
-      <Icon icon="ic:baseline-plus" class="text-[34px] short:text-[28px]" />
-    </button>
-
-    {@render tab('history', 'ic:baseline-content-paste', 'History')}
-    {@render tab('analytics', 'ic:baseline-show-chart', 'Analytics')}
-  </nav>
+  <BottomBar />
   {/if}
 
   <!-- The live session and its minimised bubble are mounted here, outside
@@ -244,7 +250,6 @@
   <QuickTimerHost />
   <SessionActionsSheet />
   <PainScreens />
-  <SessionBubble />
   <WorkoutModal />
   <Toast />
   <InfoSheet />
