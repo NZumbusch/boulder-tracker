@@ -55,7 +55,7 @@
   <section class="card space-y-3 animate-in fade-in" aria-labelledby="about-app">
     <div class="text-center pt-3 pb-1">
       <Icon icon="ic:baseline-terrain" class="text-6xl text-primary mx-auto mb-2" aria-hidden="true" />
-      <h3 id="about-app" class="text-title text-content">{APP_INFO.name}</h3>
+      <h2 id="about-app" class="text-title text-content">{APP_INFO.name}</h2>
       <p class="text-body text-content-subtle mt-1">Version {updater.installedName ?? APP_INFO.version}</p>
       {#if updater.installedCode || commit}
         <p class="text-caption text-content-subtle mt-0.5 tabular-nums">

@@ -11,6 +11,8 @@
   import { toast } from '../../lib/toast.svelte';
   import { tick } from 'svelte';
   import Icon from '@iconify/svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import { showConfirm } from '../../lib/utils';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -65,7 +67,8 @@
     }
   }
 
-  function clear() {
+  async function clear() {
+    if (!(await showConfirm('Clear the full log?', `All ${lines.length} lines are removed from this device. Copy them first if you need them for a bug report.`, { ok: 'Clear log', cancel: 'Keep it' }))) return;
     clearFullLog();
     lines = [];
   }
@@ -77,17 +80,17 @@
   <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
     <div class="max-w-2xl mx-auto w-full px-4 pt-4 pb-3 space-y-3">
       <div class="flex items-center gap-3">
-        <button onclick={onClose} class="p-2 -ml-2 text-content-subtle hover:text-content" aria-label="Close">
+        <button onclick={onClose} class="btn-icon -ml-2" aria-label="Close">
           <Icon icon="ic:baseline-arrow-back" class="text-2xl" />
         </button>
         <div class="min-w-0 flex-1">
           <h2 class="text-title text-content">Full log</h2>
           <p class="text-caption text-content-subtle">{shown.length} of {lines.length} lines · this device</p>
         </div>
-        <button onclick={copy} class="p-2 text-content-subtle hover:text-content" aria-label="Copy the shown lines" title="Copy">
+        <button onclick={copy} class="btn-icon" aria-label="Copy the shown lines" title="Copy">
           <Icon icon="ic:baseline-content-copy" class="text-xl" />
         </button>
-        <button onclick={clear} class="p-2 -mr-2 text-content-subtle hover:text-danger" aria-label="Clear the log" title="Clear">
+        <button onclick={clear} class="btn-icon -mr-2 ml-2 hover:text-danger" aria-label="Clear the log" title="Clear">
           <Icon icon="ic:baseline-delete" class="text-xl" />
         </button>
       </div>
@@ -96,13 +99,15 @@
           bind:value={query}
           type="search"
           placeholder="Search"
-          class="flex-1 min-w-0 px-3 py-2 bg-surface-elevated/60 text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50"
+          aria-label="Search the log"
+          class="field flex-1 min-w-0"
         />
-        <div class="seg shrink-0">
-          <button onclick={() => level = 'all'} class="seg-item {level === 'all' ? 'seg-on' : ''}">All</button>
-          <button onclick={() => level = 'problems'} class="seg-item {level === 'problems' ? 'seg-on' : ''}">Warn+</button>
-          <button onclick={() => level = 'error'} class="seg-item {level === 'error' ? 'seg-on' : ''}">Errors</button>
-        </div>
+        <Segmented
+          label="Show"
+          value={level}
+          onChange={(v) => (level = v)}
+          options={[{ value: 'all', label: 'All' }, { value: 'problems', label: 'Warnings and errors' }, { value: 'error', label: 'Errors' }]}
+        />
       </div>
     </div>
   </header>
