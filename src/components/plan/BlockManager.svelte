@@ -199,7 +199,7 @@
                   <span class="truncate">{block.name}</span>
                   {#if block.notes}<Icon icon="ic:baseline-sticky-note-2" class="text-xs text-primary/70 shrink-0" />{/if}
                 </p>
-                <p class="text-caption text-content-subtle mt-0.5">{phaseName(block.phaseId)} · {formatDay(block.startDate)} – {formatDay(block.endDate)} · {dayCount(block)} day{dayCount(block) === 1 ? '' : 's'}{block.priority ? ` · priority ${block.priority}` : ''}</p>
+                <p class="text-caption text-content-subtle mt-0.5">{block.name === phaseName(block.phaseId) ? "" : `${phaseName(block.phaseId)} · `}{formatDay(block.startDate)} – {formatDay(block.endDate)} · {dayCount(block)} day{dayCount(block) === 1 ? '' : 's'}{block.priority ? ` · priority ${block.priority}` : ''}</p>
               </div>
             </div>
             <div class="flex items-center ml-1 -mr-2">

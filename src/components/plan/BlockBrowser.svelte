@@ -120,7 +120,7 @@
                 </span>
               </div>
               <p class="text-caption text-content-subtle mt-0.5 truncate">
-                {phaseName(block.phaseId)} · {blockDateRange(block)}{block.priority ? ` · priority ${block.priority}` : ''}
+                {block.name === phaseName(block.phaseId) ? "" : `${phaseName(block.phaseId)} · `}{blockDateRange(block)}{block.priority ? ` · priority ${block.priority}` : ''}
               </p>
             </div>
           </div>
