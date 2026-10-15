@@ -248,8 +248,16 @@
    controls and chips. Every screen uses these rather than restating the
    classes, so they can't drift apart again. */
 @utility card {
-  @apply bg-surface/50 border border-border rounded-card p-4 shadow-card;
+  @apply bg-surface-elevated/35 rounded-card p-4;
 }
+/* "Flat sections" (Settings -> Views): no panel, a hairline between sections like the calendar. */
+:root[data-cards="flat"] .card {
+  background: transparent;
+  border-radius: 0;
+  padding-inline: 0;
+  border-top: 1px solid var(--color-border);
+}
+:root[data-cards="flat"] .card:first-child { border-top: 0; padding-top: 0; }
 /* Segmented control: `seg` is the track, `seg-item` each option, and
    `seg-on` marks the selected one. This quiet version is for switching a
    *view* (a chart's mode, a tab). Choosing a *setting* - a full-width
@@ -268,7 +276,7 @@
 /* A small bordered pill - legend entries, filters, pickers. Tall enough
    (28px) to tap reliably. */
 @utility chip {
-  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control border border-border text-caption;
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control border border-transparent bg-surface-elevated/60 text-caption;
 }
 
 /* Safe areas (notch, home indicator) - non-zero only on phones that have

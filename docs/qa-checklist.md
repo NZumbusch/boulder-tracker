@@ -256,6 +256,17 @@ Logic is unit-tested (`headerBars`, `eventColor`, `calendarSessionColor`); the l
 | 17.7 | Phase and today tint | Settings → "Tint each day with its phase" on/off; look at Day and Week. | A very light wash of the phase's colour behind each day (not in the list view), today's column slightly lighter/darker than the rest; with the setting off only today's column. | | |
 | 17.8 | Slimmer week on a phone | Plan → Week, hour columns, phone upright. | Hour labels take less room, day columns are a little wider; names still wrap in narrow lanes. | | |
 
+## 18. Calmer panels (2026-10-18)
+
+Only checked in headless Chrome at phone width (dark and light), not on a phone or tablet.
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 18.1 | Soft panels | Home, Analytics (all four tabs), History, Settings, the Plan week card, in dark and light. | Grouped content is a faint rounded panel with no border or shadow; nothing looks cut off or invisible; text contrast is fine. | | |
+| 18.2 | Flat sections | Settings → Plan calendar & day → "Flat sections instead of panels" on; go through the same screens. | No panels: sections separated by whitespace and a hairline, aligned with the page edge, no clipped content. Off again restores the panels. | | |
+| 18.3 | Quiet block grid | Plan → block view. Tap a week, page with the arrows, a week split between two phases, a year change. | Soft rounded weeks, selected = ring, this week = dot, the year inside its first week; the tooltip on hover (tablet/laptop) readable; overlapping-blocks dot visible. | | |
+| 18.4 | Filled chips | Plan B card (Edit B, Decide), Arrange, other chips; a selected chip (e.g. in the AI coach). | No outline on idle chips; selected ones still show their primary colour. | | |
+
 ## 18. Analytics rebuilt by question (2026-10-19)
 
 | # | Test | Steps | Expected | Result | Notes |
