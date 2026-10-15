@@ -20,6 +20,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-22-event-edges-setting",
+    title: "Calendar edges are a setting",
+    points: ["The fine edge around phone-calendar events is off by default now; Settings → Plan calendar & day → Edges on phone-calendar events brings it back, and Higher contrast always draws a firmer one."],
+  },
+  {
     id: "2026-10-21-ai-calendar",
     title: "The AI coach can see your calendar - if you let it",
     points: [
