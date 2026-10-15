@@ -5,6 +5,7 @@
    */
   import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
   import Icon from '@iconify/svelte';
+  import { EVENT_PALETTE } from '../../lib/calendar/eventColor';
 
   $effect(() => {
     if (deviceCalendar.supported && deviceCalendar.enabled) void deviceCalendar.refreshStatus();
@@ -16,6 +17,8 @@
     for (const c of deviceCalendar.calendars) groups.set(c.account, [...(groups.get(c.account) ?? []), c]);
     return [...groups];
   });
+  /** The calendar whose colours are open. */
+  let picking = $state<string | null>(null);
 </script>
 
 {#if deviceCalendar.supported}
@@ -48,11 +51,33 @@
             <p class="text-caption text-content-subtle px-1 pb-1 truncate">{account}</p>
             <div class="divide-y divide-border">
               {#each list as cal (cal.id)}
-                <label class="flex items-center gap-3 py-2 px-1 cursor-pointer">
-                  <input type="checkbox" class="accent-primary" checked={deviceCalendar.selected.includes(cal.id)} onchange={() => deviceCalendar.toggle(cal.id)} />
-                  <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {cal.color}"></span>
-                  <span class="text-body text-content truncate">{cal.name}</span>
-                </label>
+                {@const picked = deviceCalendar.colors[cal.id]}
+                <div class="py-2 px-1">
+                  <div class="flex items-center gap-3">
+                    <input type="checkbox" class="accent-primary" id="cal-{cal.id}" checked={deviceCalendar.selected.includes(cal.id)} onchange={() => deviceCalendar.toggle(cal.id)} aria-label="Show {cal.name}" />
+                    <label for="cal-{cal.id}" class="text-body text-content truncate flex-1 cursor-pointer">{cal.name}</label>
+                    <button
+                      onclick={() => (picking = picking === cal.id ? null : cal.id)}
+                      class="tap shrink-0 w-6 h-6 rounded-full ring-1 ring-border-strong"
+                      style="background: {deviceCalendar.calendarColor(cal.id) ?? cal.color}"
+                      aria-expanded={picking === cal.id}
+                      aria-label="Colour of {cal.name}"
+                    ></button>
+                  </div>
+                  {#if picking === cal.id}
+                    <div class="flex flex-wrap items-center gap-2 pt-3 pl-7">
+                      {#each EVENT_PALETTE as hex (hex)}
+                        <button onclick={() => deviceCalendar.setColor(cal.id, hex)} class="tap w-7 h-7 rounded-full ring-offset-2 ring-offset-surface {picked === hex ? 'ring-2 ring-content' : ''}" style="background: {hex}" aria-label="Use {hex}" aria-pressed={picked === hex}></button>
+                      {/each}
+                      <label class="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-border-strong flex items-center justify-center cursor-pointer" title="Any colour">
+                        <Icon icon="ic:baseline-plus" class="text-base text-content-subtle" />
+                        <input type="color" class="absolute inset-0 opacity-0 cursor-pointer" value={picked ?? cal.color} oninput={(e) => deviceCalendar.setColor(cal.id, e.currentTarget.value)} aria-label="Pick any colour for {cal.name}" />
+                      </label>
+                      {#if picked}<button onclick={() => deviceCalendar.setColor(cal.id, null)} class="text-caption text-primary px-1">Phone's colour</button>{/if}
+                    </div>
+                    <p class="pl-7 pt-2 text-caption text-content-subtle leading-relaxed">{picked ? 'Used exactly as picked.' : 'Greens and teals are turned slightly away from the sessions\' green so the two never look alike - a colour you pick yourself is used as chosen.'}</p>
+                  {/if}
+                </div>
               {/each}
             </div>
           </div>

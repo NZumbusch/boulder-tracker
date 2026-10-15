@@ -8,10 +8,11 @@
   import { layoutDay, visibleHours, exerciseLines, dayNameOf, weekIdOfDayIndex, type CalendarSession } from '../../lib/planning/calendarEvents';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { AnalyticsCategory, ExerciseTypeDef } from '../../lib/types';
-  import { sessionColor, exerciseSegments } from '../../lib/planning/sessionColors';
+  import { exerciseSegments } from '../../lib/planning/sessionColors';
   import { clampZoom, pinchZoom, wheelZoom, scrollAfterZoom, showsExercises } from '../../lib/planning/calendarZoom';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
-  import type { GoalBar } from '../../lib/planning/goalBars';
+  import { capBars, isBarEvent, type HeaderBar } from '../../lib/planning/headerBars';
+  import { calendarSessionColor } from '../../lib/planning/sessionColors';
   import Icon from '@iconify/svelte';
   import { dropTarget, DRAG_HOLD_MS, DRAG_SLOP_PX } from '../../lib/planning/calendarDrag';
   import { onDestroy, tick } from 'svelte';
@@ -33,7 +34,10 @@
     phases = new Map(),
     phaseNames = false,
     onPickPhase,
-    goals = [],
+    bars = [],
+    eventColor = () => '#71717a',
+    byCategory = false,
+    phaseTint = false,
     onMove,
   }: {
     days: number[];
@@ -56,8 +60,14 @@
     phaseNames?: boolean;
     /** A tap on the phase strip: the first day of that stretch. */
     onPickPhase?: (day: number) => void;
-    /** Trips and competitions among the days, as bars across them. */
-    goals?: GoalBar[];
+    /** Trips, competitions and the phone calendar's all-day and multi-day events, as bars across the days (`headerBars`). */
+    bars?: HeaderBar[];
+    /** The colour of a phone-calendar event. */
+    eventColor?: (e: DeviceEvent) => string;
+    /** Sessions take their main category's colour instead of one shared colour. */
+    byCategory?: boolean;
+    /** A very light wash of the phase's colour behind each day. */
+    phaseTint?: boolean;
     /** A planned session dropped on a day (and, from the hour grid, a time: minutes after midnight). Absent = sessions can't be dragged. */
     onMove?: (s: CalendarSession, day: number, startMin?: number) => void;
   } = $props();
@@ -91,7 +101,8 @@
   const columns = $derived(
     days.map((day) => {
       const all = byDay.get(day) ?? [];
-      const dayEvents = events.get(day) ?? [];
+      // All-day and multi-day events are bars in the header; what is left is on the hour grid.
+      const dayEvents = (events.get(day) ?? []).filter((e) => !isBarEvent(e));
       const items: Item[] = [
         ...all.flatMap((s): Item[] => (s.startMin === undefined ? [] : [{ kind: 'session', s, startMin: s.startMin, minutes: s.minutes }])),
         ...dayEvents.flatMap((e, key): Item[] => (e.startMin === undefined ? [] : [{ kind: 'event', e, key, startMin: e.startMin, minutes: e.minutes }])),
@@ -100,11 +111,17 @@
         day,
         all,
         untimed: all.filter((s) => s.startMin === undefined),
-        allDayEvents: dayEvents.filter((e) => e.allDay),
         blocks: layoutDay(items),
       };
     }),
   );
+  /** The header bars: three rows at most, the last one "+N" for what doesn't fit, until you open it up. */
+  const HEADER_ROWS = 3;
+  let headerOpen = $state(false);
+  const lanes = $derived(bars.reduce((n, b) => Math.max(n, b.lane + 1), 0));
+  const capped = $derived(capBars(bars, days.length, headerOpen ? 0 : HEADER_ROWS));
+  const barKey = (b: HeaderBar) => (b.kind === 'goal' ? `g${b.goal.id}` : `e${b.event.id}:${b.event.begin}`);
+
   /** Day with nothing timed leaves the hours out (the + adds one); the Week keeps them so a slot can be tapped. */
   const hasTimed = $derived(compact || columns.some((c) => c.blocks.length > 0));
   /**
@@ -263,21 +280,24 @@
   const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
   const dateOf = (day: number) => new Date(day * 86_400_000).getUTCDate();
 
-  /** A session's colour: the category that takes most of it (strong on dark, pastel on light - see `.cal-fill`); the app's blue when none is known. */
-  const colorOf = (s: CalendarSession) => sessionColor(s.workout, exerciseTypes, categories) ?? 'bg-primary';
+  /** A session's colour: one shared green, or the category that takes most of it (strong on dark, pastel on light - see `.cal-fill`). */
+  const colorOf = (s: CalendarSession) => calendarSessionColor(s.workout, exerciseTypes, categories, byCategory);
   const soft = (s: CalendarSession) => (s.workout.provisional ? 'cal-soft' : '');
   const tone = (s: CalendarSession) => `${isFaded(s) ? 'opacity-40' : ''} ${isRunning(s) ? 'ring-1 ring-success' : ''}`;
   function meta(s: CalendarSession): string {
     const length = `${s.minutes} min${s.plannedMinutes ? ` (${s.plannedMinutes} planned)` : ''}`;
     return s.startMin !== undefined ? `${hhmm(s.startMin)} · ${length}` : length;
   }
+  /** The hour labels' column: slimmer for seven days, so the days get the room. */
+  const gutter = $derived(compact ? 'w-7' : 'w-9');
+  const padL = $derived(compact ? 'pl-7' : 'pl-9');
   const weekLabel = $derived(weekIdOfDayIndex(days[0]).split('-W')[1]);
 </script>
 
 <div class="space-y-1.5 short:space-y-1">
   {#if compact}
     <div class="flex pb-1 short:pb-0">
-      <div class="w-9 shrink-0 text-[9px] leading-tight text-content-subtle text-center pt-1.5 tracking-wide">WK<br />{weekLabel}</div>
+      <div class="{gutter} shrink-0 text-[9px] leading-tight text-content-subtle text-center pt-1.5 tracking-wide">WK<br />{weekLabel}</div>
       {#each columns as col (col.day)}
         <button
           onclick={() => onPickDay?.(col.day)}
@@ -290,41 +310,51 @@
       {/each}
     </div>
   {:else}
-    <div class="flex items-center gap-2 pl-9 pb-1">
+    <div class="flex items-center gap-2 {padL} pb-1">
       <span class="min-w-8 h-8 px-1.5 flex items-center justify-center rounded-lg text-title tabular-nums {days[0] === today ? 'bg-content text-surface' : 'text-content'}">{dateOf(days[0])}</span>
       <span class="text-label text-content">{dayNameOf(days[0])}</span>
     </div>
   {/if}
 
   {#if phases.size > 0}
-    <div class="pl-9"><PhaseStrip {days} marks={phases} names={phaseNames} onPick={onPickPhase} /></div>
+    <div class={padL}><PhaseStrip {days} marks={phases} names={phaseNames} onPick={onPickPhase} /></div>
   {/if}
 
-  <!-- Trips and competitions: a bar across the days they cover. -->
-  {#if goals.length > 0}
-    <div class="pl-9 grid gap-y-px" style="grid-template-columns: repeat({days.length}, minmax(0, 1fr))">
-      {#each goals as bar (bar.goal.id)}
-        <div
-          class="relative overflow-hidden flex items-center gap-1 min-w-0 px-1.5 py-0.5 cal-ink {bar.startsBefore ? 'rounded-l-none' : 'rounded-l-md'} {bar.endsAfter ? 'rounded-r-none' : 'rounded-r-md'}"
-          style="grid-column: {bar.from + 1} / span {bar.span}; grid-row: {bar.lane + 1}"
-          title={bar.goal.name}
-        >
-          <span class="absolute inset-0 cal-fill {bar.goal.kind === 'trip' ? 'bg-sky-500' : 'bg-amber-500'}"></span>
-          <Icon icon={bar.goal.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="relative text-xs shrink-0" />
-          <span class="relative truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{bar.goal.name}</span>
-        </div>
+  <!-- The bars: trips, competitions and the phone calendar's all-day and multi-day events, one bar across the days they cover. -->
+  {#if capped.rows > 0}
+    <div class="{padL} grid gap-y-0.5" style="grid-template-columns: repeat({days.length}, minmax(0, 1fr))" data-no-swipe>
+      {#each capped.bars as bar (barKey(bar))}
+        {@const edges = `${bar.startsBefore ? 'rounded-l-none' : 'rounded-l-md'} ${bar.endsAfter ? 'rounded-r-none' : 'rounded-r-md'}`}
+        {@const place = `grid-column: ${bar.from + 1} / span ${bar.span}; grid-row: ${bar.lane + 1}`}
+        {#if bar.kind === 'goal'}
+          <div class="relative overflow-hidden flex items-center gap-1 min-w-0 mx-px px-1.5 py-0.5 cal-ink {edges}" style={place} title={bar.goal.name}>
+            <span class="absolute inset-0 cal-fill {bar.goal.kind === 'trip' ? 'bg-sky-500' : 'bg-amber-500'}"></span>
+            <Icon icon={bar.goal.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="relative text-xs shrink-0" />
+            <span class="relative truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{bar.goal.name}</span>
+          </div>
+        {:else}
+          <button onclick={() => onOpenEvent?.(bar.event)} class="relative overflow-hidden flex items-center min-w-0 mx-px px-1.5 py-0.5 text-left cal-ink {edges}" style={place} title={bar.event.title}>
+            <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(bar.event)}"></span>
+            <span class="relative truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}">{bar.event.title}</span>
+          </button>
+        {/if}
+      {/each}
+      {#each capped.hidden as n, i (i)}
+        {#if n > 0}
+          <button onclick={() => (headerOpen = true)} class="mx-px px-1 py-0.5 rounded-md text-left text-[10px] leading-tight text-content-subtle hover:text-content hover:bg-surface-elevated/60" style="grid-column: {i + 1}; grid-row: {capped.rows}" aria-label="Show {n} more">+{n}</button>
+        {/if}
       {/each}
     </div>
+    {#if headerOpen && lanes > HEADER_ROWS}
+      <button onclick={() => (headerOpen = false)} class="{padL} block text-[10px] leading-tight text-content-subtle hover:text-content">Show less</button>
+    {/if}
   {/if}
 
-  <!-- Sessions with no time of day, and all-day events. -->
-  {#if columns.some((c) => c.untimed.length || c.allDayEvents.length)}
-    <div class="flex pl-9 gap-px">
+  <!-- Sessions with no time of day. -->
+  {#if columns.some((c) => c.untimed.length)}
+    <div class="flex {padL} gap-px">
       {#each columns as col (col.day)}
         <div class="flex-1 min-w-0 space-y-px px-px">
-          {#each col.allDayEvents as e, i (`${e.id}:${i}`)}
-            <div class="relative overflow-hidden rounded-md px-1.5 py-0.5 cal-ink truncate {showMeta ? 'text-label' : 'text-[10px] leading-tight'}"><span class="absolute inset-0 cal-fill bg-zinc-500" style={e.color ? `background: ${e.color}` : undefined}></span><span class="relative">{e.title}</span></div>
-          {/each}
           {#each col.untimed as s (s.workout.id)}
             <button
               onclick={() => open(s, col.all)}
@@ -347,7 +377,7 @@
 
   {#if hasTimed}
   <div class="relative flex" style="height: {gridHeight}px" ondblclick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.gutter) resetZoom(); }} role="presentation">
-    <div class="w-9 shrink-0 relative" data-gutter="1">
+    <div class="{gutter} shrink-0 relative" data-gutter="1">
       {#each hourList as h (h)}
         {#if h > hours.from}<span data-gutter="1" class="absolute right-1.5 -translate-y-1/2 text-[10px] leading-none text-content-subtle tabular-nums" style="top: {(h - hours.from) * HOUR_PX}px">{h}</span>{/if}
       {/each}
@@ -368,6 +398,8 @@
           class="relative flex-1 min-w-0 {compact ? 'border-l border-border/70' : ''}"
           onclick={(e) => addAt(e, col.day)}
         >
+          {#if col.day === today}<span class="absolute inset-0 pointer-events-none bg-content/[0.05]" aria-hidden="true"></span>{/if}
+          {#if phaseTint && phases.get(col.day)?.color}<span class="absolute inset-0 pointer-events-none opacity-[0.05] {phases.get(col.day)?.color}" aria-hidden="true"></span>{/if}
           {#each col.blocks as b (b.item.kind === 'session' ? b.item.s.workout.id : `e${b.item.e.id}:${b.item.key}`)}
             {@const it = b.item}
             <!-- The part of a block outside the hours shown is cut off (an event that runs through the night starts above the grid). -->
@@ -378,8 +410,8 @@
             {#if it.kind === 'event' && (b.bottom <= hours.from * 60 || b.top >= hours.to * 60)}
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}
-              <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} data-no-swipe class="absolute overflow-hidden rounded-lg bg-surface px-2 py-1 cal-ink text-left" style={place} aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
-                <span class="absolute inset-0 cal-fill cal-soft bg-zinc-500" style={it.e.color ? `background: ${it.e.color}` : undefined}></span>
+              <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} data-no-swipe class="absolute overflow-hidden rounded-lg bg-surface {showMeta ? 'px-2' : 'px-1'} py-1 cal-ink text-left" style={place} aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
+                <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(it.e)}"></span>
                 <span class="relative block">
                   <span class="block {showMeta ? 'text-label truncate' : 'text-[11px] leading-[14px] break-words'}">{it.e.title}</span>
                   {#if showMeta}<span class="block text-caption opacity-80">{hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}</span>{/if}

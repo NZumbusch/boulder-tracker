@@ -20,11 +20,6 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    id: "2026-10-20-event-colours",
-    title: "Phone-calendar events in their own colours",
-    points: ["Events from your phone calendar now show in the colour your calendar app gives them (their calendar's colour unless the event has its own) in the week list, the hour grids and the month - they were all grey."],
-  },
-  {
     id: "2026-10-19-analytics-by-question",
     title: "Analytics, rebuilt around four questions",
     points: [
@@ -40,6 +35,15 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     points: [
       "The top bar is part of the page now: it scrolls away with the content like any heading, instead of sliding in and out. The setting for hiding it is gone.",
       "An event from your phone calendar that runs through the night or over several days no longer breaks the hour grid: the part outside the hours shown is cut off.",
+    ],
+  },
+  {
+    id: "2026-10-18-samsung-style-calendar",
+    title: "The calendar looks more like Samsung Calendar",
+    points: [
+      "Trips, competitions and your phone calendar's all-day and multi-day events are one bar across their days at the top, instead of a label in every day; with many, the last row says \"+N\" and opens up when tapped.",
+      "Your sessions are one green. The colours belong to phases (a faint tint behind each day, with the strip) and to the phone calendar's events, which keep their calendar's colour but are turned away from the sessions' green. Settings → Plan calendar & day can bring back colouring sessions by exercise category or turn the tint off.",
+      "Settings → Phone calendar: tap a calendar's dot to pick its colour. Chips under the calendar's header show or hide each phone calendar. Today's column is lightly highlighted and the hour labels are slimmer, so the days get more room.",
     ],
   },
   {

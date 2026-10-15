@@ -27,7 +27,9 @@
   import SessionPreviewSheet from './SessionPreviewSheet.svelte';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import { phaseMarks } from '../../lib/planning/phaseStrip';
-  import { goalBars, goalsByDay } from '../../lib/planning/goalBars';
+  import { goalsByDay } from '../../lib/planning/goalBars';
+  import { headerBars } from '../../lib/planning/headerBars';
+  import CalendarChips from './CalendarChips.svelte';
   import type { DayOfWeek, Workout } from '../../lib/types';
 
   type Mode = 'day' | 'week' | 'month' | 'year';
@@ -190,6 +192,11 @@
   const shownDays = $derived(Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i));
   const goalsOnDays = $derived(mode === 'year' ? new Map() : goalsByDay(trainingState.goals, shownDays));
   const phaseNames = $derived(trainingState.tunableOn('plan.calendarPhaseNames'));
+  const phaseTint = $derived(phases.size > 0 && trainingState.tunableOn('plan.calendarPhaseTint'));
+  const byCategory = $derived(trainingState.tunableOn('plan.calendarCategoryColors'));
+  const eventColor = (e: DeviceEvent) => deviceCalendar.colorOf(e);
+  /** Trips, competitions and the phone's all-day / multi-day events as bars over the days shown. */
+  const bars = $derived(headerBars(mode === 'year' ? [] : trainingState.goals, deviceCalendar.events.filter((e) => e.day >= range[0] && e.day <= range[1]), shownDays));
   const isRunning = (s: CalendarSession) => trainingState.sessionStore.isRunning(s.workout.id);
 </script>
 
@@ -243,6 +250,8 @@
 
   </div>
 
+  {#if mode !== 'year'}<CalendarChips />{/if}
+
   <!-- Flat, like a calendar app: the grid runs edge to edge on the page, no panel, no border. -->
   {#if mode === 'week' && agenda}
     <CalendarAgenda
@@ -261,6 +270,8 @@
       {phaseNames}
       goals={goalsOnDays}
       exerciseList={trainingState.tunableOn('plan.exerciseList')}
+      {eventColor}
+      {byCategory}
     />
     {#if noDayCount > 0}
       <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
@@ -282,7 +293,10 @@
       {phases}
       {phaseNames}
       onPickPhase={(day) => onEditPhase?.(dayIndexToIso(day))}
-      goals={goalBars(trainingState.goals, shownDays)}
+      {bars}
+      {eventColor}
+      {byCategory}
+      {phaseTint}
       onMove={moveSession}
     />
     {#if sessions.length === 0}
@@ -292,7 +306,7 @@
       <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
     {/if}
   {:else if mode === 'month'}
-    <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} goals={goalsOnDays} exerciseTypes={trainingState.exerciseTypes} categories={trainingState.analyticsCategories} />
+    <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} goals={goalsOnDays} exerciseTypes={trainingState.exerciseTypes} categories={trainingState.analyticsCategories} {eventColor} {byCategory} />
   {:else}
     <div class="grid grid-cols-3 gap-x-3 gap-y-4 min-[700px]:grid-cols-4">
       {#each Array.from({ length: 12 }, (_, i) => i) as m (m)}
