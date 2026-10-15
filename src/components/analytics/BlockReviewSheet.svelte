@@ -6,6 +6,7 @@
    * Insights finding for a block that just ended and from the block list.
    */
   import Icon from '@iconify/svelte';
+  import InfoButton from '../common/InfoButton.svelte';
   import { sheetDrag } from '../../lib/ui/sheetDrag';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -39,31 +40,32 @@
           <h3 class="text-title text-content truncate">{block.name}</h3>
           <p class="text-caption text-content-subtle">{wk(review.from)}–{wk(review.to)} · {weekDatesText(review.from, review.to)}{review.running ? ' · still running' : ''}</p>
         </div>
-        <button onclick={close} class="text-content-subtle hover:text-content shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
+        <button onclick={close} class="btn-icon shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
       </div>
 
       <div class="grid grid-cols-3 gap-2">
-        <div class="rounded-control border border-border px-2.5 py-2">
+        <div class="tile">
           <p class="text-caption text-content-subtle">Sessions</p>
           <p class="text-body font-semibold tabular-nums">{review.sessions.done}{review.sessions.planned ? ` / ${review.sessions.planned}` : ''}</p>
         </div>
-        <div class="rounded-control border border-border px-2.5 py-2">
-          <p class="text-caption text-content-subtle">Load a week</p>
-          <p class="text-body font-semibold tabular-nums">{avgLoad ? n0(avgLoad) : '–'}</p>
+        <div class="tile">
+          <p class="text-caption text-content-subtle flex items-center gap-1">Load a week <InfoButton term="load" /></p>
+          <p class="text-body font-semibold tabular-nums">{avgLoad ? `${n0(avgLoad)} pts` : '–'}</p>
         </div>
-        <div class="rounded-control border border-border px-2.5 py-2">
-          <p class="text-caption text-content-subtle">Load, first → last</p>
+        <div class="tile">
+          <p class="text-caption text-content-subtle">Load change, first to last week</p>
           <p class="text-body font-semibold tabular-nums">{review.loadChange !== undefined ? signed(review.loadChange) : '–'}</p>
         </div>
       </div>
 
       <div class="space-y-1.5">
-        <p class="text-label text-content-subtle px-1">Load per week</p>
-        <div class="flex items-end gap-1.5 h-20">
+        <p class="text-label text-content-subtle px-1">Load per week (points)</p>
+        <div class="flex items-end gap-1.5 h-24">
           {#each review.weeklyLoad as w (w.weekId)}
             <div class="flex-1 min-w-0 flex flex-col items-center justify-end gap-1 h-full">
-              <div class="w-full rounded-t-[3px] bg-primary/60" style="height: {Math.max(2, (w.load / maxLoad) * 100)}%" title="{wk(w.weekId)} · {n0(w.load)}"></div>
-              <span class="text-[10px] text-content-subtle tabular-nums">{wk(w.weekId)}</span>
+              <span class="text-micro text-content-muted tabular-nums">{n0(w.load)}</span>
+              <div class="w-full rounded-t-[3px] bg-series-1/60" style="height: {Math.max(2, (w.load / maxLoad) * 70)}%"></div>
+              <span class="text-micro text-content-subtle tabular-nums">{wk(w.weekId)}</span>
             </div>
           {/each}
         </div>

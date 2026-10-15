@@ -14,10 +14,6 @@ const SMALL = /text-\[(?:[0-9]|10)px\]/;
 
 /** Files not yet moved to the ramp. Remove an entry when its file is clean. */
 const ALLOWED = new Set([
-  "components/analytics/BlockReviewSheet.svelte",
-  "components/analytics/HeatmapPanel.svelte",
-  "components/analytics/LoadPanel.svelte",
-  "components/analytics/PhaseBand.svelte",
   // Rendered to an image at a fixed size (not the app's text scale): the share cards.
   "components/plan/WeekShareImage.svelte",
   "components/plan/PhaseStrip.svelte",

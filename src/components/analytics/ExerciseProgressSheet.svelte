@@ -63,7 +63,7 @@
           <h3 class="text-title text-content truncate">{name}</h3>
           <p class="text-caption text-content-subtle">{history.length} session{history.length === 1 ? '' : 's'} logged</p>
         </div>
-        <button onclick={close} class="text-content-subtle hover:text-content shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
+        <button onclick={close} class="btn-icon shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
       </div>
 
       {#if points.length === 0}
@@ -72,7 +72,7 @@
         {#if metrics.length > 1}
           <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="group" aria-label="What to follow">
             {#each metrics as m (m)}
-              <button onclick={() => (chosen = m)} aria-pressed={metric === m} class="flex-1 py-1.5 text-caption rounded-control {metric === m ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">{LABEL[m]}</button>
+              <button onclick={() => (chosen = m)} aria-pressed={metric === m} class="flex-1 min-h-10 text-caption rounded-control {metric === m ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">{LABEL[m]}</button>
             {/each}
           </div>
         {/if}
@@ -82,13 +82,13 @@
           <svg viewBox="0 0 300 120" class="w-full h-32" role="img" aria-label="{name}, {LABEL[metric]} over time">
             <line x1="8" x2="292" y1="16" y2="16" stroke="currentColor" class="text-border" stroke-width="0.5" />
             <line x1="8" x2="292" y1="104" y2="104" stroke="currentColor" class="text-border" stroke-width="0.5" />
-            <polyline points={points.map((p) => `${x(p.s.day).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ')} fill="none" stroke="currentColor" class="text-primary" stroke-width="1.5" stroke-linejoin="round" />
+            <polyline points={points.map((p) => `${x(p.s.day).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ')} fill="none" stroke="currentColor" class="text-series-1" stroke-width="1.5" stroke-linejoin="round" />
             {#each points as p, i (p.s.workoutId)}
-              <circle cx={x(p.s.day)} cy={y(p.v)} r={i === (picked ?? points.length - 1) ? 4 : 2.5} class="fill-primary" />
-              <circle cx={x(p.s.day)} cy={y(p.v)} r="10" fill="transparent" role="button" tabindex="-1" aria-label="{date(p.s.date)}: {fmt(p.v)}" onclick={() => (picked = i)} onkeydown={() => {}} />
+              <circle cx={x(p.s.day)} cy={y(p.v)} r={i === (picked ?? points.length - 1) ? 4 : 2.5} class="fill-series-1" />
+              <circle cx={x(p.s.day)} cy={y(p.v)} r="16" fill="transparent" role="button" tabindex="0" aria-label="{date(p.s.date)}: {fmt(p.v)}" onclick={() => (picked = i)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picked = i; } }} />
             {/each}
-            <text x="8" y="12" class="fill-content-subtle" font-size="8">{fmt(hi)}</text>
-            <text x="8" y="116" class="fill-content-subtle" font-size="8">{fmt(lo)}</text>
+            <text x="8" y="12" class="fill-content-subtle" font-size="11">{fmt(hi)}</text>
+            <text x="8" y="116" class="fill-content-subtle" font-size="11">{fmt(lo)}</text>
           </svg>
           <p class="text-caption text-content-subtle px-1">Tap a point for that session.</p>
         </div>

@@ -47,14 +47,14 @@
             <span class="block text-body text-content truncate">{s.name}</span>
             <span class="block text-caption text-content-subtle tabular-nums">{valueText(s)} · {s.sessions} sessions</span>
           </span>
-          <svg viewBox="0 0 80 24" class="w-20 h-6 shrink-0 text-primary" aria-hidden="true"><polyline points={line(s)} fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" /></svg>
-          <span class="w-12 text-right text-caption tabular-nums shrink-0 {s.change === undefined ? 'text-content-subtle' : s.change > 0.5 ? 'text-status-good' : s.change < -0.5 ? 'text-status-caution' : 'text-content-subtle'}">{s.change === undefined ? '' : `${s.change >= 0 ? '+' : '−'}${Math.abs(Math.round(s.change))}%`}</span>
+          <svg viewBox="0 0 80 24" class="w-20 h-6 shrink-0 text-series-1" aria-hidden="true"><polyline points={line(s)} fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" /></svg>
+          <span class="w-16 text-right text-caption tabular-nums shrink-0 {s.change !== undefined && s.change > 0.5 ? 'text-status-good' : 'text-content-subtle'}">{s.change === undefined ? '' : `${s.change > 0.5 ? '▲' : s.change < -0.5 ? '▼' : '='} ${s.change >= 0 ? '+' : '−'}${Math.abs(Math.round(s.change))}%`}</span>
           <Icon icon="ic:baseline-chevron-right" class="text-content-subtle shrink-0" />
         </button>
       {/each}
     </div>
     {#if summaries.length > LIMIT}
-      <button onclick={() => (showAll = !showAll)} class="text-caption text-primary px-1 pt-1">{showAll ? 'Show fewer' : `Show all ${summaries.length}`}</button>
+      <button onclick={() => (showAll = !showAll)} class="btn-quiet text-caption text-primary px-1">{showAll ? 'Show fewer' : `Show all ${summaries.length}`}</button>
     {/if}
   </div>
 {/if}
