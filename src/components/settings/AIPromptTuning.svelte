@@ -9,6 +9,7 @@
   import { promptBreakdown, saveCompact } from '../../lib/ai/promptSize';
   import AIHistoryPicker from './AIHistoryPicker.svelte';
   import Icon from '@iconify/svelte';
+  import Segmented from '../ui/Segmented.svelte';
 
   let { compact = $bindable(true), prompt, showHistory = true }: {
     compact?: boolean;
@@ -41,10 +42,13 @@
   <div class="space-y-2">
     <div class="flex items-center justify-between gap-3">
       <p class="text-body text-content">Prompt detail</p>
-      <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0" role="group" aria-label="Prompt detail">
-        <button onclick={() => setCompact(true)} aria-pressed={compact} class="px-2.5 py-1 text-caption rounded-control {compact ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Compact</button>
-        <button onclick={() => setCompact(false)} aria-pressed={!compact} class="px-2.5 py-1 text-caption rounded-control {!compact ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Full</button>
-      </div>
+      <Segmented
+        variant="setting"
+        label="Prompt detail"
+        value={compact ? 'compact' : 'full'}
+        onChange={(v) => setCompact(v === 'compact')}
+        options={[{ value: 'compact', label: 'Compact' }, { value: 'full', label: 'Full' }]}
+      />
     </div>
     <ul class="text-caption text-content-subtle leading-relaxed space-y-1 list-disc pl-4">
       {#if compact}
@@ -54,16 +58,16 @@
       {:else}
         <li><span class="text-content-muted">Phases:</span> every phase's typical week in full, with every exercise note.</li>
         <li><span class="text-content-muted">Outdoor ascents:</span> the whole log.</li>
-        <li>Larger - worth it when the AI should reason about your notes and cues, or about phases far from the target weeks.</li>
+        <li>Larger. Worth it when the AI should reason about your notes and cues, or about phases far from the target weeks.</li>
       {/if}
-      <li>Doesn't touch what's shared (see the toggles under AI Sharing).</li>
+      <li>Doesn't touch what's shared (see the switches under AI sharing).</li>
     </ul>
   </div>
 
   {#if prompt}
     <div>
-      <button onclick={() => (showBreakdown = !showBreakdown)} class="text-caption text-primary flex items-center gap-1" aria-expanded={showBreakdown}>
-        <Icon icon={showBreakdown ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-sm" />What takes the space
+      <button onclick={() => (showBreakdown = !showBreakdown)} class="btn-quiet text-label text-primary gap-1 px-1" aria-expanded={showBreakdown}>
+        <Icon icon={showBreakdown ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-lg" />What takes the space
       </button>
       {#if showBreakdown}
         <ul class="space-y-1 mt-2">

@@ -7,7 +7,7 @@
    */
   import Icon from '@iconify/svelte';
   import { Capacitor } from '@capacitor/core';
-  import { toast } from '../../lib/toast.svelte';
+  import { copyPageLink } from '../../lib/pwa/copyLink';
   import { chromeIntentUrl, isAndroidWeb, isInAppBrowser, isIOS, readBrowserInfo } from '../../lib/pwa/platform';
 
   const info = readBrowserInfo(Capacitor.isNativePlatform());
@@ -16,15 +16,7 @@
   const chromeLink = isAndroidWeb(info) ? chromeIntentUrl(window.location.href) : null;
   let closed = $state(false);
 
-  async function copyLink() {
-    const href = window.location.href.split('#')[0];
-    try {
-      await navigator.clipboard.writeText(href);
-      toast.show(`Link copied. Paste it into ${browserName}.`);
-    } catch {
-      toast.show(`Couldn't copy. Use the app's menu → "Open in browser".`);
-    }
-  }
+  const copyLink = () => copyPageLink(browserName);
 </script>
 
 {#if show && !closed}

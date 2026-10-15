@@ -28,6 +28,15 @@
   });
   const bodyweightAvg = $derived(averageReading(trainingState.dailyMetrics, BODYWEIGHT_METRIC_ID, data.asOf));
   const bodyweightPrevAvg = $derived(averageReading(trainingState.dailyMetrics, BODYWEIGHT_METRIC_ID, data.asOf, 7, 7));
+  /** The 7-day average of a metric the card has no other comparison for (sleep score, resting heart rate). */
+  const weekAvg = (metricId: string) => averageReading(trainingState.dailyMetrics, metricId, data.asOf);
+  /** A sparkline in words, for screen readers: the span and which way it went. */
+  function sparkSummary(name: string, values: number[]): string {
+    const first = values[0];
+    const last = values[values.length - 1];
+    const dir = last > first ? 'trending up' : last < first ? 'trending down' : 'steady';
+    return `${name}, last ${values.length} readings, ${dir}`;
+  }
   let editingMetricId = $state<string | null>(null);
   let draftValue = $state('');
 
@@ -91,43 +100,47 @@
 </script>
 
 <div class="card space-y-1" bind:this={cardEl}>
-  <SectionHeader label="Metrics" subtitle={`Sleep, HRV, resting heart rate${trainingState.homeDetails['metrics.bodyweight'] ? ', bodyweight' : ''}`} />
+  <SectionHeader label="Metrics" subtitle="Log how you slept and recovered" />
   <div class="divide-y divide-border">
   {#each QUICK_METRICS as def}
     {@const entry = todaysMetric(def.id)}
     {@const own = entriesFor(def.id).slice(-7)}
     <!-- The Sleep row falls back to hours asleep (Health Connect) for its sparkline when no scores are logged. -->
     {@const spark = def.id === 'sleep-score' && own.length < 2 ? entriesFor('sleep-duration').slice(-7) : own}
-    <div class="flex items-center justify-between gap-3 py-2.5">
+    <div class="flex items-center justify-between gap-3 py-2.5 min-h-[4.75rem]">
       <div class="min-w-0">
         <p class="text-caption text-content-muted">{def.name}</p>
         {#if editingMetricId === def.id}
-          <form onsubmit={(e) => { e.preventDefault(); saveMetric(def.id); }} class="flex items-center gap-2 mt-1">
-            <input type="number" step="0.1" bind:value={draftValue} class="w-20 bg-surface-elevated text-content p-1.5 rounded-control border border-border-strong outline-none text-sm" />
-            <button type="submit" class="tap p-1.5 bg-primary hover:bg-primary-hover text-white rounded-control"><Icon icon="ic:baseline-check" class="text-sm" /></button>
-            <button type="button" onclick={() => editingMetricId = null} class="tap p-1.5 text-content-subtle hover:text-content"><Icon icon="ic:baseline-close" class="text-sm" /></button>
+          <form onsubmit={(e) => { e.preventDefault(); saveMetric(def.id); }} class="flex items-center gap-1.5 mt-1">
+            <input type="number" inputmode="decimal" step="0.1" bind:value={draftValue} aria-label="{def.name}, today" class="field !w-24" />
+            <span class="text-caption text-content-subtle">{isWeight(def.id) ? trainingState.units.weight : def.unit}</span>
+            <button type="submit" class="btn-icon bg-primary hover:bg-primary-hover text-on-primary hover:text-on-primary" aria-label="Save"><Icon icon="ic:baseline-check" class="text-base" /></button>
+            <button type="button" onclick={() => editingMetricId = null} class="btn-icon" aria-label="Cancel"><Icon icon="ic:baseline-close" class="text-base" /></button>
           </form>
         {:else}
-          <button onclick={() => startEdit(def.id)} class="tabular-nums transition-colors {entry ? 'text-body font-semibold text-content hover:text-primary' : 'text-label text-primary hover:text-primary-hover'}">
+          <button onclick={() => startEdit(def.id)} class="btn-quiet gap-1.5 -ml-1 px-1 tabular-nums transition-colors {entry ? 'text-body font-semibold text-content hover:text-primary' : 'text-label text-primary hover:text-primary-hover'}" aria-label={entry ? `Edit ${def.name}: ${metricText(def.id, entry.value, def.unit)}` : `Log ${def.name} for today`}>
             {entry ? metricText(def.id, entry.value, def.unit) : '+ Log today'}
+            {#if entry}<Icon icon="ic:baseline-edit" class="text-sm text-content-subtle" aria-hidden="true" />{/if}
           </button>
         {/if}
         {#if def.id === 'hrv' && hrvDelta !== undefined && hrvBaseline !== undefined && trainingState.homeDetails['metrics.hrvBaseline']}
           <p class="text-caption tabular-nums {hrvDelta < -trainingState.readinessConfig.hrvDip ? 'text-status-caution' : 'text-content-subtle'}">
-            {hrvDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(hrvDelta * 100))}% vs your baseline ({Math.round(hrvBaseline)})
+            {hrvDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(hrvDelta * 100))}% vs your 14-day average ({Math.round(hrvBaseline)})
           </p>
         {:else if def.id === 'sleep-score' && todaysMetric('sleep-duration')}
           {@const naps = todaysMetric('nap-duration')?.value}
           <p class="text-caption text-content-subtle tabular-nums">
             {todaysMetric('sleep-duration')!.value.toFixed(1)} h asleep{naps ? ` · +${naps.toFixed(1)} h nap` : ''}
           </p>
+        {:else if (def.id === 'sleep-score' || def.id === 'rhr') && weekAvg(def.id) !== undefined}
+          <p class="text-caption text-content-subtle tabular-nums">7-day avg {Math.round(weekAvg(def.id)!)} {def.unit}</p>
         {:else if def.id === BODYWEIGHT_METRIC_ID && bodyweightAvg !== undefined}
           {@const diff = bodyweightPrevAvg !== undefined ? bodyweightAvg - bodyweightPrevAvg : undefined}
           <p class="text-caption text-content-subtle tabular-nums flex items-center gap-1">
-            7-day avg {W(bodyweightAvg).toFixed(1)}
+            7-day avg {W(bodyweightAvg).toFixed(1)} {trainingState.units.weight}
             {#if diff !== undefined && Math.abs(diff) >= 0.1}
-              <Icon icon={diff > 0 ? 'ic:baseline-arrow-upward' : 'ic:baseline-arrow-downward'} class="text-xs" />
-              <span>{Math.abs(W(Math.abs(diff))).toFixed(1)}</span>
+              <Icon icon={diff > 0 ? 'ic:baseline-arrow-upward' : 'ic:baseline-arrow-downward'} class="text-xs" aria-hidden="true" />
+              <span><span class="sr-only">{diff > 0 ? 'up' : 'down'} </span>{Math.abs(W(Math.abs(diff))).toFixed(1)}</span>
             {/if}
           </p>
         {/if}
@@ -135,7 +148,7 @@
       {#if spark.length > 1 && trainingState.homeDetails['metrics.sparklines']}
         {@const path = sparkPath(spark.map((v) => v.value))}
         {@const color = METRIC_COLOR[def.id] ?? 'var(--color-content-muted)'}
-        <svg class="w-20 h-8 shrink-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <svg class="w-20 h-8 shrink-0 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={sparkSummary(def.name, spark.map((v) => v.value))}>
           <path d={path.line} fill="none" stroke={color} stroke-opacity="0.6" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
           <path d={path.dots} fill="none" stroke={color} stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" />
         </svg>

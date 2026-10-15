@@ -44,6 +44,7 @@
   import { scrollChrome } from './lib/navigation/scrollChrome.svelte';
   import { initialScrollHide, nextScrollHide, SCROLL_HIDE_END_ZONE, SCROLL_HIDE_TOP_ZONE } from './lib/navigation/scrollHide';
   import { layout } from './lib/navigation/layoutMode.svelte';
+  import { MAIN_ITEMS, SETTINGS_ITEM } from './lib/navigation/navItems';
 
   const drawerNav = $derived(trainingState.navStyle === 'drawer');
   $effect(() => { document.documentElement.dataset.nav = trainingState.navStyle; });
@@ -135,6 +136,29 @@
     scrollChrome.hidden = scrollHide.hidden;
     scrollChrome.scrolled = el.scrollTop > SCROLL_HIDE_TOP_ZONE;
   }
+  // Keyboard and screen-reader users: a way past the navigation, and the new screen's name said when the view changes.
+  let scroller = $state<HTMLElement | null>(null);
+  const viewName = $derived([...MAIN_ITEMS, SETTINGS_ITEM].find((i) => i.view === trainingState.view)?.label ?? '');
+  let announce = $state('');
+  let firstView = true;
+  $effect(() => {
+    const name = viewName;
+    // Not at launch: a screen reader already reads the page then.
+    if (firstView) { firstView = false; return; }
+    announce = name;
+  });
+
+  // Loading that never ends (storage that cannot be read) needs a way out, not three dots.
+  let slowLoad = $state(false);
+  $effect(() => {
+    if (!trainingState.isLoading) { slowLoad = false; return; }
+    const timer = setTimeout(() => (slowLoad = true), 12000);
+    return () => clearTimeout(timer);
+  });
+
+  // The import overlay is read out in quarters, not on every tick.
+  const importSpoken = $derived(trainingState.importProgress ? `${trainingState.importProgress.label}, ${Math.min(100, Math.floor(trainingState.importProgress.fraction * 4) * 25)} percent` : '');
+
   // A new screen starts at its top, with the + back.
   $effect(() => {
     void trainingState.view;
@@ -160,6 +184,8 @@
 {/snippet}
 
 <main class="flex flex-col h-dvh pt-safe overflow-hidden bg-app-bg text-content font-sans">
+  <button type="button" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[300] btn btn-primary" onclick={() => scroller?.focus()}>Skip to the screen</button>
+  <div class="sr-only" role="status" aria-live="polite">{announce}</div>
   <InAppBrowserBanner />
   <ExampleDataBanner />
   <!-- `overflow-x-hidden` is a guard, not a layout tool: several charts
@@ -172,11 +198,18 @@
        is unaffected. -->
   <div class="flex-1 min-h-0 flex">
   {#if drawerNav && layout.wide}<NavRail />{/if}
-  <div onscroll={onContentScroll} class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden no-scrollbar bg-surface flex flex-col items-center w-full p-4 pt-0 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] {drawerNav ? 'pb-[calc(1rem+env(safe-area-inset-bottom)+var(--fab-b))]' : ''}">
+  <!-- On a wide screen (a mouse, a window) the thin scrollbar stays, so there is something to grab. -->
+  <div bind:this={scroller} tabindex="-1" onscroll={onContentScroll} class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden outline-none {layout.wide ? '' : 'no-scrollbar'} bg-surface flex flex-col items-center w-full p-4 pt-0 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] {drawerNav ? 'pb-[calc(1rem+env(safe-area-inset-bottom)+var(--fab-b))]' : ''}">
     {#if trainingState.isLoading}
       <div class="flex flex-col items-center justify-center h-full space-y-4">
         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
         <p class="text-content-subtle text-caption">Loading your training data…</p>
+        {#if slowLoad}
+          <div class="text-center space-y-2 px-6" role="alert">
+            <p class="text-caption text-content-muted">This is taking longer than it should. Your data has not been touched.</p>
+            <button type="button" onclick={() => window.location.reload()} class="btn btn-secondary">Reload the app</button>
+          </div>
+        {/if}
       </div>
     {:else if trainingState.view === 'home'}
       {#await import('./components/dashboard/Home.svelte')}
@@ -268,7 +301,8 @@
 
   {#if trainingState.importProgress}
     {@const p = trainingState.importProgress}
-    <div class="fixed inset-0 z-[200] flex items-center justify-center bg-app-bg/80 backdrop-blur-sm animate-in fade-in duration-200" role="status" aria-live="polite">
+    <div class="fixed inset-0 z-[200] flex items-center justify-center bg-app-bg/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <p class="sr-only" aria-live="polite" aria-atomic="true">{importSpoken}</p>
       <div class="w-72 bg-surface border border-border rounded-card p-5 shadow-card space-y-3">
         <div class="flex items-center justify-between">
           <p class="text-label text-content">Importing backup</p>

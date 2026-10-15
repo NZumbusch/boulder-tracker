@@ -7,6 +7,7 @@
   import { weekdayName } from '../../../lib/weather/dayLabel';
   import { T, FRICTION_STYLE, currentFriction, dayFriction, frictionText, joinParts, formatRelativeAge } from './format';
   import SectionHeader from './SectionHeader.svelte';
+  import FrictionMark from './FrictionMark.svelte';
   import Icon from '@iconify/svelte';
 
   let showFrictionReason = $state(false);
@@ -17,7 +18,10 @@
   {#if !trainingState.homeLocation}
     <p class="text-caption text-content-subtle italic">Set a home location in Settings to see conditions here.</p>
   {:else if trainingState.homeWeather.unavailable}
-    <p class="text-caption text-content-subtle italic">Weather is currently unavailable.</p>
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-caption text-content-subtle">Weather is currently unavailable.</p>
+      <button onclick={() => void trainingState.refreshWeather()} class="btn btn-secondary shrink-0">Retry</button>
+    </div>
   {:else if trainingState.homeWeather.snapshot}
     {@const w = trainingState.homeWeather.snapshot}
     {@const code = describeWeatherCode(w.currentWeatherCode)}
@@ -65,13 +69,13 @@
           <span class="text-caption text-content-subtle tabular-nums">{Math.round(w.humidityPercent)}% humidity</span>
         {/if}
         {#if w.dewPointC !== undefined}
-          <span class="text-caption text-content-subtle tabular-nums">Dew {T(w.dewPointC)}</span>
+          <span class="text-caption text-content-subtle tabular-nums">Dew point {T(w.dewPointC)}</span>
         {/if}
         {#if w.windSpeedKmh !== undefined}
           <span class="text-caption text-content-subtle tabular-nums">{Math.round(displayWind(w.windSpeedKmh, trainingState.units.wind))}{w.windGustsKmh !== undefined && w.windGustsKmh > w.windSpeedKmh + 5 ? `–${Math.round(displayWind(w.windGustsKmh, trainingState.units.wind))}` : ''} {windUnit(trainingState.units.wind)} wind</span>
         {/if}
         {#if w.uvIndex !== undefined && w.uvIndex >= 3}
-          <span class="text-caption text-content-subtle tabular-nums">UV {Math.round(w.uvIndex)}</span>
+          <span class="text-caption text-content-subtle tabular-nums">UV index {Math.round(w.uvIndex)}</span>
         {/if}
         {#if (w.precipitationMm ?? 0) > 0}
           <span class="text-caption text-primary tabular-nums">{w.precipitationMm} mm rain</span>
@@ -130,11 +134,7 @@
             {/if}
             {#if trainingState.homeDetails['weather.dayFriction']}
               {@const df = dayFriction(day)}
-              {#if trainingState.homeDetails['weather.frictionNumber']}
-                <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
-              {:else}
-                <span class="w-2 h-2 rounded-full {FRICTION_STYLE[df.label].dot}" title={df.label}></span>
-              {/if}
+              <FrictionMark friction={df} />
             {/if}
           </div>
         {/each}

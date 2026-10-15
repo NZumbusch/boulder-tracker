@@ -5,7 +5,8 @@
    */
   import { healthConnect } from '../../lib/health/healthConnect.svelte';
   import { HealthConnect, type HealthKind } from '../../lib/native/healthConnect';
-  import Icon from '@iconify/svelte';
+  import ActionRow from './ActionRow.svelte';
+  import { showConfirm } from '../../lib/utils';
 
   const KIND_LABELS: Record<HealthKind, string> = {
     restingHeartRate: 'resting heart rate',
@@ -18,6 +19,16 @@
   });
 
   const when = (t: number) => new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  let connecting = $state(false);
+  async function connect() {
+    connecting = true;
+    try { await healthConnect.connect(); } finally { connecting = false; }
+  }
+  async function stop() {
+    if (await showConfirm('Stop importing?', 'New resting heart rate, weight and sleep values stop arriving. What was already imported stays, and you can connect again any time.', { ok: 'Stop importing', cancel: 'Keep importing' })) {
+      await healthConnect.disconnect();
+    }
+  }
   const reading = $derived(healthConnect.granted.map((k) => KIND_LABELS[k]).join(', '));
 </script>
 
@@ -25,9 +36,9 @@
   <div class="card space-y-4 animate-in fade-in">
     <div class="flex items-start justify-between gap-3">
       <div class="space-y-1 px-1 min-w-0">
-        <h3 class="text-section uppercase text-content-muted">Health Connect</h3>
+        <h2 class="text-section uppercase text-content-muted">Health Connect</h2>
         <p class="text-caption text-content-subtle leading-relaxed">
-          Fills in resting heart rate, weight and sleep duration from your watch or health apps (e.g. Garmin Connect). Read-only, and values you typed yourself are never replaced.
+          Fills in resting heart rate, weight and sleep duration from your watch or health apps (for example Garmin Connect). Read-only, and values you typed yourself are never replaced.
         </p>
       </div>
       {#if healthConnect.enabled}
@@ -45,20 +56,11 @@
           : 'Health Connect needs an update first.'}
         If another of your devices has it, import there - sync brings the values here.
       </p>
-      <button onclick={() => HealthConnect.openSettings()} class="w-full py-2.5 border border-border-strong text-label text-content rounded-control hover:bg-surface-elevated">
+      <button onclick={() => HealthConnect.openSettings()} class="btn btn-secondary w-full">
         {healthConnect.availability === 'notInstalled' ? 'Get Health Connect' : 'Update Health Connect'}
       </button>
     {:else if !healthConnect.enabled}
-      <button onclick={() => healthConnect.connect()} class="w-full flex items-center justify-between py-2 transition-colors group">
-        <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-monitor-heart" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" />
-          <div class="text-left">
-            <p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Connect Health Connect</p>
-            <p class="text-caption text-content-subtle">Choose what to share on the next screen</p>
-          </div>
-        </div>
-        <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
-      </button>
+      <ActionRow icon="ic:baseline-monitor-heart" title={connecting ? 'Connecting…' : 'Connect Health Connect'} hint="Choose what to share on the next screen" onclick={connect} busy={connecting} />
     {:else}
       <div class="space-y-1 px-1">
         <p class="text-body text-content">Reading {reading || 'nothing - no access granted'}</p>
@@ -71,16 +73,16 @@
         {/if}
       </div>
       <div class="flex flex-wrap gap-2">
-        <button onclick={() => healthConnect.importNow()} disabled={healthConnect.importing} class="px-3.5 py-2 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white text-label font-semibold rounded-control">
+        <button onclick={() => healthConnect.importNow()} disabled={healthConnect.importing} class="btn btn-primary">
           {healthConnect.importing ? 'Importing…' : 'Import now'}
         </button>
-        <button onclick={() => HealthConnect.openSettings()} class="px-3.5 py-2 border border-border-strong text-label text-content rounded-control hover:bg-surface-elevated">Permissions</button>
-        <button onclick={() => healthConnect.disconnect()} class="px-3.5 py-2 rounded-control border border-danger/40 text-label font-semibold text-danger hover:bg-danger/10 transition-colors">Stop importing</button>
+        <button onclick={() => HealthConnect.openSettings()} class="btn btn-secondary">Permissions</button>
+        <button onclick={stop} class="btn btn-danger">Stop importing</button>
       </div>
     {/if}
 
     {#if healthConnect.error}
-      <p class="text-caption text-status-caution px-1">{healthConnect.error}</p>
+      <p class="text-caption text-status-caution px-1" role="alert">{healthConnect.error}</p>
     {/if}
   </div>
 {/if}

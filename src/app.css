@@ -37,6 +37,9 @@
   --color-content: var(--theme-content);
   --color-content-muted: var(--theme-content-muted);
   --color-content-subtle: var(--theme-content-subtle);
+  /* The quietest text that still passes AA on a plain surface or the page background (hints, axis labels, "optional"). Use this
+     instead of an opacity modifier on content-subtle (`/60`, `/70`), which drops it below 4.5:1. Not for text on a tinted panel. */
+  --color-content-faint: var(--theme-content-faint);
 
   --color-primary: var(--theme-primary);
   --color-primary-hover: var(--theme-primary-hover);
@@ -82,6 +85,10 @@
   --text-label--font-weight: 600;
   --text-caption: var(--typescale-caption);
   --text-caption--font-weight: 500;
+  /* The smallest text anywhere (chart axes, badges, nav labels): 11 px and it follows the Text size setting. Use it in
+     place of arbitrary 9 and 10 px sizes, which ignore the setting and sit under the floor. */
+  --text-micro: var(--typescale-micro);
+  --text-micro--font-weight: 600;
 }
 
 :root {
@@ -97,6 +104,7 @@
   --theme-content: #f4f4f5; /* zinc-100 */
   --theme-content-muted: #a1a1aa; /* zinc-400 */
   --theme-content-subtle: #8e8e98; /* between zinc-400 and 500: 4.6:1 even on the elevated surface */
+  --theme-content-faint: #82828c; /* 4.9:1 on the surface and the page background */
 
   --theme-field-border: color-mix(in srgb, var(--theme-content) 42%, var(--theme-surface));
   --theme-scrim: color-mix(in srgb, var(--theme-app-bg) 88%, transparent);
@@ -136,6 +144,7 @@
   --theme-content: #09090b; /* zinc-950 */
   --theme-content-muted: #3f3f46; /* zinc-700 */
   --theme-content-subtle: #5f5f68; /* 5:1 on the elevated surface */
+  --theme-content-faint: #6c6c76; /* 5:1 on white */
 
   --theme-primary: #2563eb;
   --theme-primary-hover: #1d4ed8;
@@ -173,6 +182,7 @@
   --theme-content: #ffffff;
   --theme-content-muted: #dddddd;
   --theme-content-subtle: #bbbbbb;
+  --theme-content-faint: #aaaaaa;
 
   --theme-primary: #3b82f6;
   --theme-primary-hover: #60a5fa;
@@ -209,6 +219,7 @@
   --typescale-body: 14px;
   --typescale-label: 12px;
   --typescale-caption: 11px;
+  --typescale-micro: 11px;
 }
 
 :root[data-text-scale="sm"] {
@@ -219,6 +230,7 @@
   --typescale-body: 13px;
   --typescale-label: 11px;
   --typescale-caption: 11px;
+  --typescale-micro: 11px;
 }
 
 :root[data-text-scale="lg"] {
@@ -229,6 +241,7 @@
   --typescale-body: 15px;
   --typescale-label: 13px;
   --typescale-caption: 12px;
+  --typescale-micro: 11px;
 }
 
 /* Motion. `data-motion` is always resolved to "full" or
@@ -273,6 +286,16 @@
   border-top: 1px solid var(--color-border);
 }
 :root[data-cards="flat"] .card:first-child { border-top: 0; padding-top: 0; }
+/* A smaller panel for one figure in a row of stat tiles (a summary strip, a metric grid). Same look as `card`, tighter, and
+   flattened by the same setting: flat sections drop the fill and keep a hairline so the figures still read as separate. */
+@utility tile {
+  @apply bg-surface-elevated/35 rounded-card p-3;
+}
+:root[data-cards="flat"] .tile {
+  background: transparent;
+  border: 1px solid var(--color-border);
+}
+:root[data-theme="contrast"] .tile { border: 1px solid var(--theme-border); }
 /* Segmented control: `seg` is the track, `seg-item` each option, and
    `seg-on` marks the selected one. This quiet version is for switching a
    *view* (a chart's mode, a tab). Choosing a *setting* - a full-width
@@ -317,6 +340,10 @@
 }
 @utility btn-quiet {
   @apply inline-flex items-center justify-center min-h-11 rounded-control transition-colors;
+}
+/* A row or button that has no hover on a touch screen: it shows it is being pressed. */
+@utility pressable {
+  @apply transition-colors active:bg-surface-elevated/50;
 }
 /* A text field, select or textarea: 16 px type (no zoom-on-focus on iOS), a 44 px target and an outline that is visible. */
 @utility field {

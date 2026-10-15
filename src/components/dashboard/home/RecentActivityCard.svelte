@@ -1,10 +1,11 @@
 <script lang="ts">
   /** The latest completed sessions (and, optionally, outdoor sends). */
   import { trainingState } from '../../../lib/state.svelte';
-  import { formatDate } from '../../../lib/dateUtils';
+  import { formatDay } from '../../../lib/dateUtils';
   import { sessionDuration } from '../../../lib/planning/sessionDuration';
   import { recentActivity as buildRecentActivity } from '../../../lib/activity/recentActivity';
   import { joinParts, G } from './format';
+  import { RATING_AXES } from '../../../lib/constants';
   import SectionHeader from './SectionHeader.svelte';
   import ListRow from '../../common/ListRow.svelte';
 
@@ -19,14 +20,14 @@
     {#each recentActivity as item}
       {#if item.kind === 'workout'}
         {@const workout = item.workout}
-        {@const fatigue = [['F', workout.fingers], ['A', workout.arms], ['C', workout.core], ['S', workout.systemic]].filter(([, v]) => v !== undefined)}
+        {@const fatigue = RATING_AXES.filter((a) => workout[a.key] !== undefined).map((a) => `${a.label} ${workout[a.key]}`)}
         <ListRow
           title={workout.notes || 'Session'}
           meta={joinParts(
-            formatDate(workout.date),
+            workout.date ? formatDay(workout.date, { weekday: 'short' }) : undefined,
             trainingState.homeDetails['recentActivity.details'] && `${Math.round(sessionDuration(workout))} min`,
-            trainingState.homeDetails['recentActivity.fatigue'] && fatigue.length > 0 && fatigue.map(([k, v]) => `${k}${v}`).join(' '),
           )}
+          detail={trainingState.homeDetails['recentActivity.fatigue'] && fatigue.length > 0 ? `Felt in: ${fatigue.join(' · ')} (of 10)` : undefined}
           value={trainingState.homeDetails['recentActivity.details'] ? Math.round(workout.loadFactor || 0) : undefined}
           valueHint={trainingState.homeDetails['recentActivity.details'] ? 'load' : undefined}
           onclick={() => trainingState.openInHistory(workout.id)}
@@ -35,13 +36,17 @@
         {@const ascent = item.ascent}
         <ListRow
           title={ascent.name || 'Outdoor send'}
-          meta={joinParts(formatDate(ascent.date), ascent.style, ascent.crag)}
+          meta={joinParts(formatDay(ascent.date, { weekday: 'short' }), ascent.style, ascent.crag)}
+          onclick={() => trainingState.openSends()}
           value={G(ascent.grade)}
           valueHint="send"
         />
       {/if}
     {:else}
-      <p class="text-caption text-content-subtle italic py-2">No completed sessions yet.</p>
+      <div class="flex items-center justify-between gap-3 py-2">
+        <p class="text-caption text-content-subtle">No completed sessions yet.</p>
+        <button onclick={() => trainingState.navigate('add')} class="btn btn-secondary shrink-0">Log a session</button>
+      </div>
     {/each}
   </div>
 </div>

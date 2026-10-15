@@ -1,7 +1,4 @@
 <script lang="ts">
-  import { portal } from '../../lib/ui/portal';
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
    * Advanced: the user's own value types - things an exercise can record beyond the
    * built-in fields (height, speed, heart rate, a pick-list of their own...).
@@ -17,12 +14,16 @@
   import { showAlert, showConfirm } from '../../lib/utils';
   import { toast } from '../../lib/toast.svelte';
   import Icon from '@iconify/svelte';
+  import Sheet from '../ui/Sheet.svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import Toggle from '../ui/Toggle.svelte';
 
-  let open = $state(true);
+  const sheetClose = () => (editing = null);
+  // svelte-ignore state_referenced_locally
+  let initialDraft = '';
   let editing = $state<{ def: ValueDef; isNew: boolean; optionsText: string } | null>(null);
 
-  // Back (phone key or browser) closes the editor first - see lib/navigation/backStack.
-  backWhile(() => editing !== null, () => { editing = null; });
+  const dirty = $derived(editing !== null && JSON.stringify({ d: editing.def, o: editing.optionsText }) !== initialDraft);
 
   const defs = $derived(trainingState.valueDefs);
   const active = $derived(defs.filter((d) => !d.archived));
@@ -57,9 +58,11 @@
 
   function startNew() {
     editing = { def: { id: '', name: '', kind: 'number', unit: '' }, isNew: true, optionsText: '' };
+    initialDraft = JSON.stringify({ d: editing.def, o: editing.optionsText });
   }
   function startEdit(def: ValueDef) {
     editing = { def: { ...def }, isNew: false, optionsText: (def.options ?? []).join('\n') };
+    initialDraft = JSON.stringify({ d: editing.def, o: editing.optionsText });
   }
 
   const draftOptions = $derived(editing ? cleanOptions(editing.optionsText.split('\n')) : []);
@@ -118,25 +121,21 @@
     const u = usage(def.id);
     const b = benchUsage(def.id);
     const what = def.kind === 'choice' ? `pick one of ${def.options?.length ?? 0}` : def.measure ? `${def.measure}${def.unit ? `, ${def.unit}` : ''}` : def.unit ? `number, ${def.unit}` : 'number';
-    const for_ = !def.uses ? 'exercises & benchmarks' : def.uses.includes('benchmark') ? 'benchmarks' : 'exercises';
+    const for_ = !def.uses ? 'exercises and tests' : def.uses.includes('benchmark') ? 'tests' : 'exercises';
     const count = u.values + b.values;
     return `${what} · ${for_} · ${count === 0 ? 'unused' : `${count} ${count === 1 ? 'value' : 'values'}`}`;
   }
 </script>
 
 <div class="card space-y-3 animate-in fade-in">
-  <button onclick={() => open = !open} class="w-full flex items-center justify-between px-1 text-left" aria-expanded={open}>
-    <span class="space-y-0.5">
-      <span class="block text-section uppercase text-content-muted">Value types</span>
-      <span class="block text-caption text-content-subtle">The numbers and pick-lists you record on exercises and in tests - weight, reps, time, edge depth, or your own. Never part of load.</span>
-    </span>
-    <Icon icon={open ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-xl text-content-subtle shrink-0" />
-  </button>
+  <div class="space-y-0.5 px-1">
+    <h2 class="text-section uppercase text-content-muted">Value types</h2>
+    <p class="text-caption text-content-subtle">The numbers and pick-lists you record on exercises and in tests: weight, reps, time, edge depth, or your own. Never part of load.</p>
+  </div>
 
-  {#if open}
     <div class="divide-y divide-border animate-in fade-in">
       {#each active as def (def.id)}
-        <button onclick={() => startEdit(def)} class="w-full flex items-center justify-between gap-3 py-2.5 text-left group">
+        <button onclick={() => startEdit(def)} class="w-full flex items-center justify-between gap-3 py-2.5 min-h-11 text-left group">
           <span class="min-w-0"><span class="block text-body font-semibold text-content group-hover:text-primary transition-colors truncate">{def.name}</span><span class="block text-caption text-content-subtle">{describe(def)}</span></span>
           <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl shrink-0" />
         </button>
@@ -144,7 +143,7 @@
         <p class="py-3 text-caption text-content-subtle italic">None yet.</p>
       {/each}
     </div>
-    <button onclick={startNew} class="w-full py-2.5 text-label font-bold text-primary bg-primary/10 hover:bg-primary/15 rounded-control transition-colors flex items-center justify-center gap-1.5">
+    <button onclick={startNew} class="btn btn-secondary w-full gap-1.5 text-primary">
       <Icon icon="ic:baseline-add" class="text-lg" /> New value type
     </button>
     {#if archived.length}
@@ -160,81 +159,73 @@
         </div>
       </div>
     {/if}
-  {/if}
 </div>
 
 {#if editing}
-  {@const sheetClose = () => (editing = null)}
-  <div use:portal class="fixed inset-0 pb-safe z-[100] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) sheetClose(); }}>
-    <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar" use:sheetDrag={sheetClose}>
-      <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="text-caption uppercase text-content-subtle">{editing.isNew ? 'New value type' : editing.def.archived ? 'Archived value type' : 'Value type'}</p>
-          <h3 class="text-title text-content truncate">{editing.def.name.trim() || 'Untitled'}</h3>
-        </div>
-        <button onclick={sheetClose} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
-      </div>
-      <div class="p-5 space-y-5">
-        <label class="block space-y-1.5">
-          <span class="text-label text-content-subtle">Name</span>
-          <input bind:value={editing.def.name} placeholder="e.g. Box jump height" class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border text-sm outline-none focus:border-primary/50 {problem && editing.def.name ? 'border-danger/50' : 'border-border-strong'}" />
-        </label>
+  <Sheet
+    title={editing.def.name.trim() || (editing.isNew ? 'New value type' : 'Value type')}
+    subtitle={editing.isNew ? 'New value type' : editing.def.archived ? 'Archived value type' : 'Value type'}
+    {dirty}
+    onClose={sheetClose}
+  >
+    <label class="block space-y-1.5">
+      <span class="text-label text-content-subtle">Name</span>
+      <input bind:value={editing.def.name} placeholder="e.g. Box jump height" class="field {problem && editing.def.name ? '!border-danger' : ''}" />
+    </label>
 
-        <div class="space-y-1.5">
-          <span class="text-label text-content-subtle block">Kind</span>
-          <div class="grid grid-cols-2 gap-2">
-            {#each [['number', 'A number'], ['choice', 'A pick-list']] as [kind, label]}
-              <button type="button" disabled={kindLocked && editing.def.kind !== kind} onclick={() => editing!.def.kind = kind as ValueDef['kind']} class="px-3 py-2 rounded-control text-label border transition-all disabled:opacity-40 {editing.def.kind === kind ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'bg-surface-elevated border-border-strong text-content-muted'}">{label}</button>
-            {/each}
-          </div>
-          {#if kindLocked}<p class="text-caption text-content-subtle">Locked - it already holds values.</p>{/if}
-        </div>
-
-        {#if editing.def.kind === 'number'}
-          <div class="space-y-1.5">
-            <span class="text-label text-content-subtle block">Quantity</span>
-            <div class="flex flex-wrap gap-1.5">
-              {#each MEASURES as m (m.id)}
-                <button type="button" onclick={() => setMeasure(m.id)} aria-pressed={(editing.def.measure ?? '') === m.id} class="px-3 py-1.5 rounded-control text-label border transition-all {(editing.def.measure ?? '') === m.id ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'bg-surface-elevated border-border-strong text-content-muted'}">{m.label}</button>
-              {/each}
-            </div>
-            <p class="text-caption text-content-subtle">{MEASURES.find((m) => m.id === (editing!.def.measure ?? ''))?.hint}</p>
-          </div>
-          <label class="block space-y-1.5">
-            <span class="text-label text-content-subtle">Unit <span class="text-content-subtle/70">(optional)</span></span>
-            <input bind:value={editing.def.unit} disabled={!!editing.def.measure} placeholder="m, bpm, km/h…" maxlength="12" class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 disabled:opacity-50" />
-          </label>
-        {:else}
-          <label class="block space-y-1.5">
-            <span class="text-label text-content-subtle">Options <span class="text-content-subtle/70">(one per line)</span></span>
-            <textarea bind:value={editing.optionsText} rows="4" placeholder={'Flat\nHilly\nMountain'} class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 resize-y"></textarea>
-          </label>
-        {/if}
-
-        {#if problem && (editing.def.name || editing.optionsText)}<p class="text-caption text-danger">{problem}</p>{/if}
-
-        <div class="space-y-1.5">
-          <span class="text-label text-content-subtle block">Use it for</span>
-          <div class="grid grid-cols-2 gap-2">
-            {#each [['exercise', 'Exercises'], ['benchmark', 'Tests']] as [use, label]}
-              <button type="button" onclick={() => toggleUse(use as 'exercise' | 'benchmark')} aria-pressed={hasUse(use as 'exercise' | 'benchmark')} class="px-3 py-2 rounded-control text-label border transition-all {hasUse(use as 'exercise' | 'benchmark') ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'bg-surface-elevated border-border-strong text-content-muted'}">{label}</button>
-            {/each}
-          </div>
-          <p class="text-caption text-content-subtle">Switch it on for an exercise under Exercises → the exercise → What it tracks, or add it to a test under Tests.</p>
-        </div>
-
-        <div class="flex gap-2">
-          <button onclick={save} disabled={!!problem} class="flex-1 py-3 bg-primary text-white text-label font-bold rounded-control disabled:opacity-40">Save</button>
-          <button onclick={sheetClose} class="px-5 py-3 bg-surface-elevated text-content-muted text-label font-bold rounded-control">Cancel</button>
-        </div>
-
-        {#if !editing.isNew}
-          <div class="pt-3 border-t border-border space-y-2">
-            <button onclick={() => setArchived(editing!.def, !editing!.def.archived)} class="w-full py-2.5 text-label font-bold text-content-muted hover:text-content bg-surface-elevated rounded-control transition-colors">{editing.def.archived ? 'Restore' : 'Archive - keep the values, stop new use'}</button>
-            <button onclick={() => remove(editing!.def)} class="w-full py-2.5 text-label font-bold text-danger hover:bg-danger/10 rounded-control transition-colors">Delete for good…</button>
-          </div>
-        {/if}
-      </div>
+    <div class="space-y-1.5">
+      <span class="text-label text-content-subtle block">Kind</span>
+      <Segmented
+        variant="setting"
+        full
+        label="Kind of value"
+        value={editing.def.kind}
+        onChange={(kind) => (editing!.def.kind = kind)}
+        options={[{ value: 'number', label: 'A number', disabled: kindLocked && editing.def.kind !== 'number' }, { value: 'choice', label: 'A pick-list', disabled: kindLocked && editing.def.kind !== 'choice' }]}
+      />
+      {#if kindLocked}<p class="text-caption text-content-subtle">Locked: it already holds values.</p>{/if}
     </div>
-  </div>
+
+    {#if editing.def.kind === 'number'}
+      <div class="space-y-1.5">
+        <span class="text-label text-content-subtle block">Quantity</span>
+        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Quantity">
+          {#each MEASURES as m (m.id)}
+            <button type="button" onclick={() => setMeasure(m.id)} aria-pressed={(editing.def.measure ?? '') === m.id} class="chip {(editing.def.measure ?? '') === m.id ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'text-content-muted'}">{m.label}</button>
+          {/each}
+        </div>
+        <p class="text-caption text-content-subtle">{MEASURES.find((m) => m.id === (editing!.def.measure ?? ''))?.hint}</p>
+      </div>
+      <label class="block space-y-1.5">
+        <span class="text-label text-content-subtle">Unit (optional)</span>
+        <input bind:value={editing.def.unit} disabled={!!editing.def.measure} placeholder="m, bpm, km/h" maxlength="12" class="field disabled:opacity-50" />
+      </label>
+    {:else}
+      <label class="block space-y-1.5">
+        <span class="text-label text-content-subtle">Options (one per line)</span>
+        <textarea bind:value={editing.optionsText} rows="4" placeholder={'Flat\nHilly\nMountain'} class="field resize-y"></textarea>
+      </label>
+    {/if}
+
+    {#if problem}<p class="text-caption {editing.def.name || editing.optionsText ? 'text-danger' : 'text-content-subtle'}" role={editing.def.name || editing.optionsText ? 'alert' : undefined}>{problem}</p>{/if}
+
+    <div class="space-y-1">
+      <span class="text-label text-content-subtle block">Use it for</span>
+      <Toggle checked={hasUse('exercise')} onChange={() => toggleUse('exercise')} label="Exercises" />
+      <Toggle checked={hasUse('benchmark')} onChange={() => toggleUse('benchmark')} label="Tests" />
+      <p class="text-caption text-content-subtle">Switch it on for an exercise under Exercises, the exercise, What it tracks. Or add it to a test under Tests. At least one must stay on.</p>
+    </div>
+
+    {#if !editing.isNew}
+      <div class="pt-3 border-t border-border space-y-2">
+        <button onclick={() => setArchived(editing!.def, !editing!.def.archived)} class="btn btn-secondary w-full">{editing.def.archived ? 'Restore' : 'Archive (keep the values, stop new use)'}</button>
+        <button onclick={() => remove(editing!.def)} class="btn btn-danger w-full">Delete for good</button>
+      </div>
+    {/if}
+
+    {#snippet footer()}
+      <button onclick={save} disabled={!!problem} class="btn btn-primary flex-1">Save</button>
+      <button onclick={sheetClose} class="btn btn-secondary">Cancel</button>
+    {/snippet}
+  </Sheet>
 {/if}

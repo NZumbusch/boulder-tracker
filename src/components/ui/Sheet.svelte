@@ -65,7 +65,7 @@
   backWhile(() => true, () => void requestClose());
 </script>
 
-<div class="fixed inset-0 pb-safe bg-scrim backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 {Z[level]} animate-in fade-in duration-150">
+<div role="dialog" aria-modal="true" aria-label={title} class="fixed inset-0 pb-safe bg-scrim backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 {Z[level]} animate-in fade-in duration-150">
   <button type="button" class="absolute inset-0 cursor-default" onclick={requestClose} tabindex="-1" aria-label="Close {title}"></button>
   <div
     class="group relative bg-surface w-full {wide ? 'max-w-2xl' : 'max-w-lg'} max-h-[90vh] max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border px-5 pt-5 shadow-card flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-200"

@@ -3,7 +3,9 @@
   import { trainingState } from '../../lib/state.svelte';
   import { exportWorkoutsToICS, exportWeekIds } from '../../lib/ics';
   import PDFExportModal from './PDFExportModal.svelte';
-  import Icon from "@iconify/svelte";
+  import ActionRow from './ActionRow.svelte';
+  import Toggle from '../ui/Toggle.svelte';
+  import { toast } from '../../lib/toast.svelte';
 
   let showPDFExport = $state(false);
   let includePast = $state(false);
@@ -17,6 +19,10 @@
       includePast,
     });
     const seen = new Map(ids.flatMap((id) => trainingState.getWorkoutsForWeek(id)).map((w) => [w.id, w]));
+    if (seen.size === 0) {
+      toast.show(includePast ? 'There are no sessions to export' : 'Nothing planned from this week on. Switch on "Include past sessions" to export what you logged.');
+      return;
+    }
     exportWorkoutsToICS([...seen.values()], { exerciseTypes: trainingState.exerciseTypes });
   }
 </script>
@@ -24,43 +30,16 @@
 <div class="space-y-4">
   <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
-      <h3 class="text-section uppercase text-content-muted px-1">Calendar Integration</h3>
+      <h2 class="text-section uppercase text-content-muted px-1">Calendar file</h2>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">Your planned sessions as an ICS file for any calendar app, each at its day and time with its exercises. Finished sessions are as long as they really took.</p>
     </div>
-    <button
-      onclick={exportCalendar}
-      class="w-full flex items-center justify-between py-2 transition-colors group"
-    >
-      <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-calendar-today" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" />
-        <div class="text-left">
-          <p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Export Calendar (.ics)</p>
-          <p class="text-caption text-content-subtle">{includePast ? 'Everything logged and planned' : 'This week onwards'}</p>
-        </div>
-      </div>
-      <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
-    </button>
-    <label class="flex items-center gap-2 px-1 text-label text-content-muted cursor-pointer">
-      <input type="checkbox" bind:checked={includePast} class="accent-primary" />
-      Include past sessions
-    </label>
+    <Toggle checked={includePast} onChange={(v) => (includePast = v)} label="Include past sessions" hint="Off: this week onwards only" />
+    <ActionRow icon="ic:baseline-calendar-today" title="Export calendar (.ics)" hint={includePast ? 'Everything logged and planned' : 'This week onwards'} onclick={exportCalendar} />
   </div>
 
   <div class="card space-y-4 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Printable Training Plan</h3><p class="text-caption text-content-subtle px-1 leading-relaxed">Generate a PDF of your workouts for any week range.</p></div>
-    <button
-      onclick={() => showPDFExport = true}
-      class="w-full flex items-center justify-between py-2 transition-colors group"
-    >
-      <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-picture-as-pdf" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" />
-        <div class="text-left">
-          <p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Export PDF</p>
-          <p class="text-caption text-content-subtle">Select week range</p>
-        </div>
-      </div>
-      <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
-    </button>
+    <div class="space-y-2"><h2 class="text-section uppercase text-content-muted px-1">Printable training plan</h2><p class="text-caption text-content-subtle px-1 leading-relaxed">Generate a PDF of your workouts for any week range.</p></div>
+    <ActionRow icon="ic:baseline-picture-as-pdf" title="Export PDF" hint="Select week range" onclick={() => (showPDFExport = true)} />
   </div>
 
 </div>

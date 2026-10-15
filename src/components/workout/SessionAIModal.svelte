@@ -15,7 +15,7 @@
    */
   import type { ExerciseGroup, ExerciseSlot, Workout } from '../../lib/types';
   import { trainingState } from '../../lib/state.svelte';
-  import { generateId, showAlert } from '../../lib/utils';
+  import { generateId, showAlert, showConfirm } from '../../lib/utils';
   import { parseAIWorkoutLogOutput } from '../../lib/ai/schema';
   import { normalizeName, type NameMapping } from '../../lib/ai/planImport';
   import { buildWorkoutLogCommit, buildWorkoutLogPreview } from '../../lib/ai/workoutLogImport';
@@ -120,9 +120,13 @@
   }
 
   async function copyFixRequest() {
-    await navigator.clipboard.writeText(formatIssuesForAI(issues));
-    copiedErrors = true;
-    setTimeout(() => (copiedErrors = false), 2000);
+    try {
+      await navigator.clipboard.writeText(formatIssuesForAI(issues));
+      copiedErrors = true;
+      setTimeout(() => (copiedErrors = false), 2000);
+    } catch {
+      await showAlert('Copy failed', 'Your browser blocked the clipboard. Try again, or allow clipboard access for this site.');
+    }
   }
 
   // A clean paste goes straight to review - that's the whole point of pasting.
@@ -159,19 +163,27 @@
     }
   }
 
+  /** Closing after a reply was pasted asks first: it is easy to lose a long reply by a stray tap. */
+  async function requestClose() {
+    if (pasteText.trim() && !(await showConfirm('Close without importing?', 'The reply you pasted will be lost.', { ok: 'Close', cancel: 'Keep it' }))) return;
+    onClose();
+  }
+
   // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
-  backWhile(() => true, () => onClose());
+  backWhile(() => true, () => void requestClose());
 </script>
 
 {#snippet modeSwitch()}
   <div class="flex bg-surface-elevated/50 p-1 rounded-control">
     <button
       onclick={() => mode = 'add'}
-      class="flex-1 py-2 text-label rounded-control transition-all {mode === 'add' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+      aria-pressed={mode === 'add'}
+      class="flex-1 min-h-11 text-label rounded-control transition-all {mode === 'add' ? 'bg-primary text-on-primary shadow-md' : 'text-content-muted hover:text-content'}"
     >Add to session</button>
     <button
       onclick={() => mode = 'replace'}
-      class="flex-1 py-2 text-label rounded-control transition-all {mode === 'replace' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+      aria-pressed={mode === 'replace'}
+      class="flex-1 min-h-11 text-label rounded-control transition-all {mode === 'replace' ? 'bg-primary text-on-primary shadow-md' : 'text-content-muted hover:text-content'}"
     >Replace exercises</button>
   </div>
 {/snippet}
@@ -180,7 +192,7 @@
   <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
     <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 space-y-3">
       <div class="flex items-start gap-3">
-        <button onclick={onClose} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close">
+        <button onclick={requestClose} class="btn-icon -ml-2 shrink-0" aria-label="Close">
           <Icon icon="ic:baseline-close" class="text-2xl" />
         </button>
         <div class="min-w-0 flex-1">
@@ -194,7 +206,7 @@
       <ol class="flex items-center gap-2">
         {#each STEPS as s, i}
           <li class="flex-1 flex items-center gap-1.5 min-w-0">
-            <span class="shrink-0 w-5 h-5 rounded-full grid place-items-center text-caption font-bold {i < stepIndex ? 'bg-success/15 text-success' : i === stepIndex ? 'bg-primary text-white' : 'bg-surface-elevated text-content-subtle'}">
+            <span class="shrink-0 w-5 h-5 rounded-full grid place-items-center text-caption font-bold {i < stepIndex ? 'bg-success/15 text-success' : i === stepIndex ? 'bg-primary text-on-primary' : 'bg-surface-elevated text-content-subtle'}">
               {#if i < stepIndex}<Icon icon="ic:baseline-check" class="text-xs" />{:else}{i + 1}{/if}
             </span>
             <span class="text-caption truncate {i === stepIndex ? 'text-content font-bold' : 'text-content-subtle'}">{s.label}</span>
@@ -250,7 +262,7 @@
           onpaste={handlePaste}
           rows="8"
           placeholder="Paste the AI's reply here…"
-          class="w-full p-3.5 bg-surface-elevated text-content rounded-card border border-border-strong outline-none focus:border-primary/40 text-xs font-mono resize-y"
+          class="w-full p-3.5 bg-surface-elevated text-content rounded-card border border-field outline-none focus:border-primary text-label font-mono resize-y"
         ></textarea>
 
         {#if pasteText.trim() && issues.length > 0}
@@ -260,7 +272,7 @@
                 <Icon icon="ic:baseline-error-outline" class="text-sm" />
                 {issueGroups.length} problem{issueGroups.length === 1 ? '' : 's'} in the reply
               </p>
-              <button onclick={copyFixRequest} class="shrink-0 text-label text-primary flex items-center gap-1 hover:underline">
+              <button onclick={copyFixRequest} class="btn btn-quiet shrink-0 px-2 text-label text-primary gap-1 hover:underline">
                 <Icon icon={copiedErrors ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-sm" />
                 {copiedErrors ? 'Copied' : 'Copy fix request'}
               </button>
@@ -343,37 +355,37 @@
   <footer class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
     <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center gap-2">
       {#if step === 'ask'}
-        <button onclick={() => step = 'paste'} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors">
+        <button onclick={() => step = 'paste'} class="btn btn-ghost px-3">
           I have a reply
         </button>
         <div class="flex-1"></div>
-        <button onclick={copyPrompt} class="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5">
+        <button onclick={copyPrompt} class="btn btn-primary px-5">
           <Icon icon="ic:baseline-content-copy" class="text-base" /> Copy prompt
         </button>
       {:else if step === 'paste'}
-        <button onclick={() => step = 'ask'} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
+        <button onclick={() => step = 'ask'} class="btn btn-ghost px-3">
           <Icon icon="ic:baseline-arrow-back" class="text-base" /> Back
         </button>
-        <button onclick={copyPrompt} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
+        <button onclick={copyPrompt} class="btn btn-ghost px-3">
           <Icon icon={copied ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-base" /> {copied ? 'Copied' : 'Copy again'}
         </button>
         <div class="flex-1"></div>
         <button
           onclick={() => step = 'review'}
           disabled={!canReview}
-          class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+          class="btn btn-primary px-5"
         >
           Review <Icon icon="ic:baseline-arrow-forward" class="text-base" />
         </button>
       {:else}
-        <button onclick={() => step = 'paste'} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
+        <button onclick={() => step = 'paste'} class="btn btn-ghost px-3">
           <Icon icon="ic:baseline-arrow-back" class="text-base" /> Back
         </button>
         <div class="flex-1"></div>
         <button
           onclick={confirm}
           disabled={!commit || committing}
-          class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+          class="btn btn-primary px-5"
         >
           <Icon icon="ic:baseline-check" class="text-base" />
           {hasExercises && mode === 'replace' ? `Replace with ${commit?.slots.length ?? 0}` : `Add ${commit?.slots.length ?? 0}`}

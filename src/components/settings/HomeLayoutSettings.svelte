@@ -19,6 +19,8 @@
   import type { HomeSectionPreference } from '../../lib/preferences/migrate';
   import { HOME_SECTION_DETAILS } from '../../lib/preferences/homeDetails';
   import Icon from "@iconify/svelte";
+  import Toggle from '../ui/Toggle.svelte';
+  import Segmented from '../ui/Segmented.svelte';
 
   const SECTION_LABELS: Record<HomeSectionPreference['id'], string> = {
     checklist: 'Get started',
@@ -28,12 +30,12 @@
     timer: 'Timer',
     metrics: 'Metrics',
     fatigue: 'Fatigue',
-    thisWeek: 'This Week',
-    weekRecap: 'Week Recap',
-    trainingBlock: 'Training Block',
-    competition: 'Next Goal',
+    thisWeek: 'This week',
+    weekRecap: 'Week recap',
+    trainingBlock: 'Training block',
+    competition: 'Next goal',
     progress: 'Progress',
-    recentActivity: 'Recent Activity',
+    recentActivity: 'Recent activity',
     weather: 'Weather',
     crags: 'Crags',
   };
@@ -66,15 +68,14 @@
 
 <div class="card space-y-5 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Home sections</h3>
-    <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide. Open a section to choose what it shows.</p>
-    <label class="flex items-center justify-between gap-3 py-2 px-1 cursor-pointer">
-      <div class="min-w-0">
-        <p class="text-body text-content">Simple Home until I have data</p>
-        <p class="text-caption text-content-subtle mt-0.5">Hides Readiness, Metrics, Fatigue, Progress, Recent activity and Alerts while there is nothing logged yet. They all appear with your first entry. Off shows every section you've turned on, always.</p>
-      </div>
-      <input type="checkbox" checked={trainingState.simpleHome} onchange={(e) => trainingState.setSimpleHome(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0" />
-    </label>
+    <h2 class="text-section uppercase text-content-muted px-1">Home sections</h2>
+    <p class="text-caption text-content-subtle px-1">Drag the handle to reorder, use the switch to show or hide. Open a section's options to choose what it shows.</p>
+    <Toggle
+      checked={trainingState.simpleHome}
+      onChange={(v) => trainingState.setSimpleHome(v)}
+      label="Simple Home until I have data"
+      hint="Hides Readiness, Metrics, Fatigue, Progress, Recent activity and Alerts while there is nothing logged yet. They all appear with your first entry. Off shows every section you've turned on, always."
+    />
     <div
       class="divide-y divide-border"
       use:dragHandleZone={{ items, flipDurationMs: motionMs(150), dropTargetClasses: ['ring-2', 'ring-primary/40'] }}
@@ -85,46 +86,37 @@
         {@const details = HOME_SECTION_DETAILS[section.id]}
         {@const isOpen = expanded.has(section.id)}
         <div>
-          <div class="flex items-center gap-2 py-2">
-            <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle touch-none p-1" aria-label="Drag to reorder {SECTION_LABELS[section.id]}">
-              <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
+          <div class="flex items-center gap-1">
+            <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle touch-none grid place-items-center min-w-11 min-h-11" aria-label="Drag to reorder {SECTION_LABELS[section.id]}">
+              <Icon icon="ic:baseline-drag-indicator" class="text-xl" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <Toggle checked={section.visible} onChange={(v) => trainingState.setHomeSectionVisible(section.id, v)} label={SECTION_LABELS[section.id]} />
             </div>
             {#if details.length > 0}
               <button
+                type="button"
                 onclick={() => toggleExpanded(section.id)}
-                class="flex-1 flex items-center gap-1 text-left text-body text-content"
+                class="btn-icon shrink-0"
                 aria-expanded={isOpen}
                 aria-label="{isOpen ? 'Hide' : 'Show'} {SECTION_LABELS[section.id]} options"
               >
-                <span>{SECTION_LABELS[section.id]}</span>
-                <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle transition-transform {isOpen ? 'rotate-90' : ''}" />
+                <Icon icon="ic:baseline-chevron-right" class="text-xl transition-transform {isOpen ? 'rotate-90' : ''}" />
               </button>
             {:else}
-              <span class="text-body text-content flex-1">{SECTION_LABELS[section.id]}</span>
+              <span class="min-w-11 shrink-0" aria-hidden="true"></span>
             {/if}
-            <input
-              type="checkbox"
-              checked={section.visible}
-              onchange={(e) => trainingState.setHomeSectionVisible(section.id, e.currentTarget.checked)}
-              class="w-5 h-5 rounded accent-primary"
-              aria-label="Show {SECTION_LABELS[section.id]} on Home"
-            />
           </div>
           {#if isOpen}
-            <div class="pl-9 pb-3 space-y-2 {section.visible ? '' : 'opacity-50'}">
+            <div class="pl-12 pb-2 {section.visible ? '' : 'opacity-60'}">
               {#each details as detail (detail.id)}
-                <label class="flex items-center gap-3 cursor-pointer">
-                  <div class="flex-1 min-w-0">
-                    <p class="text-label text-content">{detail.label}</p>
-                    {#if detail.hint}<p class="text-caption text-content-subtle">{detail.hint}</p>{/if}
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={trainingState.homeDetails[detail.id]}
-                    onchange={(e) => trainingState.setHomeDetail(detail.id, e.currentTarget.checked)}
-                    class="w-4 h-4 rounded accent-primary shrink-0"
-                  />
-                </label>
+                <Toggle
+                  checked={trainingState.homeDetails[detail.id]}
+                  onChange={(v) => trainingState.setHomeDetail(detail.id, v)}
+                  label={detail.label}
+                  hint={detail.hint ?? (section.visible ? undefined : 'Hidden while the section is off')}
+                  disabled={!section.visible}
+                />
               {/each}
             </div>
           {/if}
@@ -136,22 +128,15 @@
 
 <div class="card space-y-3 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Fatigue card</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Fatigue card</h2>
     <p class="text-caption text-content-subtle px-1">How the Fatigue card on Home draws the four axes.</p>
-    <div class="flex bg-surface-elevated/50 p-1 rounded-control">
-      <button
-        onclick={() => trainingState.setFatigueChartStyle('bars')}
-        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.fatigueChartStyle === 'bars' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-      >
-        Bars
-      </button>
-      <button
-        onclick={() => trainingState.setFatigueChartStyle('radar')}
-        class="flex-1 py-2 text-label rounded-control transition-all {trainingState.fatigueChartStyle === 'radar' ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-      >
-        Radar
-      </button>
-    </div>
+    <Segmented
+      variant="setting"
+      full
+      label="Fatigue card style"
+      value={trainingState.fatigueChartStyle}
+      onChange={(v) => trainingState.setFatigueChartStyle(v)}
+      options={[{ value: 'bars', label: 'Bars' }, { value: 'radar', label: 'Radar' }]}
+    />
   </div>
-
 </div>

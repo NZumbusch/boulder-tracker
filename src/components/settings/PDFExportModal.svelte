@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
   /**
    * Export the plan as a PDF: pick a week range and what to include; the
    * document is laid out by `lib/export/planPdf.ts` (pdfmake - real text,
    * no screenshots) and saved or shared like every other export.
    */
   import { saveFile } from '../../lib/share/saveFile';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import Sheet from '../ui/Sheet.svelte';
+  import Toggle from '../ui/Toggle.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { getWeekId, getWeekIdRange, getWeekDates, localIsoDate } from '../../lib/dateUtils';
   import { showAlert } from '../../lib/utils';
@@ -35,7 +35,7 @@
       const d = new Date();
       d.setDate(d.getDate() + i * 7);
       const id = getWeekId(d);
-      opts.push({ id, label: `Week ${id.split('-W')[1]} (${d.getFullYear()})${i === 0 ? ' · this week' : ''}` });
+      opts.push({ id, label: `Week ${id.split('-W')[1]}, ${weekDates(id)}${i === 0 ? ' (this week)' : ''}` });
     }
     return opts;
   });
@@ -151,69 +151,38 @@
     }
   }
 
-  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
-  backWhile(() => true, () => onClose());
 </script>
 
-<div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
-  <div class="absolute inset-0" onclick={onClose} onkeydown={(e) => e.key === 'Escape' && onClose()} role="button" tabindex="-1" aria-label="Close"></div>
-  <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4" use:sheetDrag={() => onClose()}>
-    <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <h3 class="text-title text-content flex items-center gap-2">
-          <Icon icon="ic:baseline-picture-as-pdf" class="text-primary text-xl shrink-0" />
-          Training plan as PDF
-        </h3>
-        <p class="text-caption text-content-subtle mt-0.5">A clean, printable overview - {weekIds.length || 0} week{weekIds.length === 1 ? '' : 's'}</p>
-      </div>
-      <button onclick={onClose} class="text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close">
-        <Icon icon="ic:baseline-close" class="text-xl" />
-      </button>
-    </div>
+<Sheet title="Training plan as PDF" subtitle="A clean, printable overview ({weekIds.length || 0} week{weekIds.length === 1 ? '' : 's'})" icon="ic:baseline-picture-as-pdf" {onClose}>
+  <div class="grid grid-cols-1 gap-3">
+    <label class="space-y-1">
+      <span class="text-label text-content-subtle">From</span>
+      <select bind:value={startWeek} class="field">
+        {#each weekOptions as opt (opt.id)}<option value={opt.id}>{opt.label}</option>{/each}
+      </select>
+    </label>
+    <label class="space-y-1">
+      <span class="text-label text-content-subtle">To</span>
+      <select bind:value={endWeek} class="field">
+        {#each weekOptions as opt (opt.id)}<option value={opt.id}>{opt.label}</option>{/each}
+      </select>
+    </label>
+  </div>
+  {#if weekIds.length === 0}<p class="text-caption text-status-caution" role="alert">"From" has to be before "To".</p>{/if}
 
-    <div class="grid grid-cols-2 gap-3">
-      <label class="space-y-1">
-        <span class="text-label text-content-subtle">From</span>
-        <select bind:value={startWeek} class="w-full bg-surface-elevated/50 text-content px-3 py-2.5 rounded-control border border-border-strong outline-none text-sm">
-          {#each weekOptions as opt (opt.id)}<option value={opt.id}>{opt.label}</option>{/each}
-        </select>
-      </label>
-      <label class="space-y-1">
-        <span class="text-label text-content-subtle">To</span>
-        <select bind:value={endWeek} class="w-full bg-surface-elevated/50 text-content px-3 py-2.5 rounded-control border border-border-strong outline-none text-sm">
-          {#each weekOptions as opt (opt.id)}<option value={opt.id}>{opt.label}</option>{/each}
-        </select>
-      </label>
-    </div>
+  <div class="divide-y divide-border">
+    <Toggle checked={includeExercises} onChange={(v) => (includeExercises = v)} label="Exercises" hint="Each session's exercises with sets, reps, weights" />
+    <Toggle checked={includeNotes} onChange={(v) => (includeNotes = v)} label="Notes" hint="Week, session and exercise notes" />
+  </div>
 
-    <div class="divide-y divide-border">
-      <label class="flex items-center justify-between gap-3 py-2.5 cursor-pointer">
-        <span class="min-w-0">
-          <span class="block text-body text-content">Exercises</span>
-          <span class="block text-caption text-content-subtle">Each session's exercises with sets, reps, weights</span>
-        </span>
-        <input type="checkbox" bind:checked={includeExercises} class="w-5 h-5 rounded accent-primary shrink-0" />
-      </label>
-      <label class="flex items-center justify-between gap-3 py-2.5 cursor-pointer">
-        <span class="min-w-0">
-          <span class="block text-body text-content">Notes</span>
-          <span class="block text-caption text-content-subtle">Week, session and exercise notes</span>
-        </span>
-        <input type="checkbox" bind:checked={includeNotes} class="w-5 h-5 rounded accent-primary shrink-0" />
-      </label>
-    </div>
-
-    <button
-      onclick={handleExport}
-      disabled={isGenerating || weekIds.length === 0}
-      class="w-full py-3 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-control disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-    >
+  {#snippet footer()}
+    <button onclick={handleExport} disabled={isGenerating || weekIds.length === 0} class="btn btn-primary flex-1 gap-2">
       {#if isGenerating}
-        <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Making the PDF…
+        <span class="w-4 h-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></span> Making the PDF…
       {:else}
         <Icon icon="ic:baseline-download" class="text-lg" /> Create PDF
       {/if}
     </button>
-    {#if weekIds.length === 0}<p class="text-caption text-status-caution">"From" has to be before "To".</p>{/if}
-  </div>
-</div>
+    <button onclick={onClose} class="btn btn-secondary">Cancel</button>
+  {/snippet}
+</Sheet>

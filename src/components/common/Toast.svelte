@@ -25,7 +25,7 @@
   {#key toast.current.id}
     <div
       data-dialog-keep
-      class="fixed inset-x-0 {overSheet ? 'top-[calc(env(safe-area-inset-top)+12px)]' : 'bottom-[calc(var(--chrome-b)+var(--fab-b)+16px+env(safe-area-inset-bottom))]'} z-[190] flex justify-center px-4 pointer-events-none"
+      class="fixed inset-x-0 {overSheet ? 'top-[calc(env(safe-area-inset-top)+12px)]' : 'bottom-[calc(var(--chrome-b)+var(--fab-b)+16px+env(safe-area-inset-bottom))]'} z-[190] flex justify-center pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pointer-events-none"
     >
       <div
         class="pointer-events-auto max-w-md w-full flex items-center gap-3 pl-4 pr-2 py-2 min-h-12 bg-surface-elevated border border-border-strong rounded-card shadow-card animate-in fade-in slide-in-from-bottom-2 duration-200"

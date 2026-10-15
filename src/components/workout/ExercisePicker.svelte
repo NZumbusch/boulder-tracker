@@ -1,6 +1,7 @@
 <script lang="ts">
   import { portal } from '../../lib/ui/portal';
   import { sheetDrag } from '../../lib/ui/sheetDrag';
+  import { keyboardAware } from '../../lib/ui/keyboardAware';
   /**
    * Choosing an exercise for a slot, from a library that can be long:
    * search (names, groups, how-tos), the most recent ones up top, then
@@ -102,11 +103,11 @@
 {/snippet}
 
 <div use:portal class="fixed inset-0 pb-safe z-[130] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-  <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onClose()}>
+  <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card h-[85vh] h-[85dvh] flex flex-col animate-in slide-in-from-bottom-4 duration-200" use:sheetDrag={() => onClose()} use:keyboardAware>
     <div class="shrink-0 border-b border-border px-5 pt-4 pb-3 space-y-3">
       <div class="flex items-center justify-between gap-3">
         <h3 class="text-title text-content">Choose an exercise</h3>
-        <button onclick={onClose} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors" aria-label="Close">
+        <button onclick={onClose} class="btn-icon -mr-2" aria-label="Close">
           <Icon icon="ic:baseline-close" class="text-xl" />
         </button>
       </div>
@@ -115,12 +116,14 @@
         <input
           bind:value={query}
           type="search"
+          aria-label="Search exercises"
+          enterkeyhint="search"
           placeholder="Search {offered.length} exercises…"
-          class="w-full pl-10 pr-9 py-2.5 bg-surface-elevated/60 text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 placeholder:text-content-subtle"
+          class="field pl-10 pr-11 [&::-webkit-search-cancel-button]:appearance-none"
         />
         {#if query}
-          <button onclick={() => query = ''} class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-content-subtle hover:text-content" aria-label="Clear search">
-            <Icon icon="ic:baseline-close" class="text-base" />
+          <button onclick={() => query = ''} class="btn-icon absolute right-0 top-1/2 -translate-y-1/2" aria-label="Clear search">
+            <Icon icon="ic:baseline-close" class="text-lg" />
           </button>
         {/if}
       </div>
@@ -175,6 +178,9 @@
             {/if}
           </div>
         {/each}
+        {#if offered.length === 0}
+          <p class="py-10 text-center text-label text-content-subtle">Your exercise library is empty. Type a name above to create the first exercise.</p>
+        {/if}
       {/if}
     </div>
   </div>

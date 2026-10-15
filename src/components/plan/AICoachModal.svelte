@@ -17,10 +17,10 @@
    */
   import { portal } from '../../lib/ui/portal';
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekIdRange, getWeekDates } from '../../lib/dateUtils';
+  import { getWeekId, getWeekIdRange, getWeekDates, formatWeek, formatDay, weekMondayIso } from '../../lib/dateUtils';
   import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
-  import { showAlert } from '../../lib/utils';
+  import { showAlert, showConfirm } from '../../lib/utils';
   import type { AIPromptMode } from '../../lib/ai/context';
   import { buildCoachPromptFor, estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
   import AIPromptTuning from '../settings/AIPromptTuning.svelte';
@@ -124,11 +124,16 @@
       const d = new Date();
       d.setDate(d.getDate() + i * 7);
       const id = getWeekId(d);
-      opts.push({ id, label: `Week ${id.split('-W')[1]} (${d.getUTCFullYear()})` + (i === 0 ? ' · this week' : '') });
+      opts.push({ id, label: `${formatWeek(id, 'short')} · ${formatDay(weekMondayIso(id))}` + (i === 0 ? ' (now)' : '') });
     }
     return opts;
   });
   const rangeValid = $derived(startWeek <= endWeek);
+  // Moving one end past the other drags the other end along, so the range is never invalid.
+  function setStart(id: string) { startWeek = id; if (endWeek < id) endWeek = id; }
+  function setEnd(id: string) { endWeek = id; if (startWeek > id) startWeek = id; }
+  /** The prompt's size in words a person can picture; the token count stays for those who know it. */
+  const pagesText = (t: number) => `about ${Math.max(1, Math.round((t * 0.75) / 500))} page${Math.round((t * 0.75) / 500) <= 1 ? '' : 's'} of text`;
   const selectedWeekIds = $derived(rangeValid ? getWeekIdRange(startWeek, endWeek) : []);
 
   function setMode(next: CoachMode) {
@@ -380,7 +385,12 @@
   backWhile(() => true, () => onClose());
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape') onClose(); }} />
+<svelte:window onkeydown={async (e) => {
+  if (e.key !== 'Escape' || sendOpen || historyOpen) return;
+  // A reply that has been pasted is not thrown away by a stray key.
+  if (pasteText.trim() && !(await showConfirm('Close the AI Coach?', 'The reply you pasted will be lost.', { ok: 'Close', cancel: 'Keep it' }))) return;
+  onClose();
+}} />
 
 {#snippet heading(title: string, hint: string)}
   <div class="flex items-baseline justify-between gap-3 px-1">
@@ -396,7 +406,7 @@
         <span class="shrink-0 w-5 h-5 rounded-full grid place-items-center text-caption font-bold {i < stepIndex ? 'bg-success/15 text-success' : i === stepIndex ? 'bg-primary text-white' : 'bg-surface-elevated text-content-subtle'}">
           {#if i < stepIndex}<Icon icon="ic:baseline-check" class="text-xs" />{:else}{i + 1}{/if}
         </span>
-        <span class="text-caption truncate {i === stepIndex ? 'text-content font-bold' : 'text-content-subtle'}">{s.label}</span>
+        <span class="text-caption truncate {i === stepIndex ? 'text-content font-bold' : 'text-content-subtle hidden min-[420px]:inline'}">{s.label}</span>
         {#if i < STEPS.length - 1}<span class="flex-1 h-px bg-border"></span>{/if}
       </li>
     {/each}
@@ -407,7 +417,7 @@
   <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
     <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 space-y-3">
       <div class="flex items-start gap-3">
-        <button onclick={onClose} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close">
+        <button onclick={onClose} class="btn-icon -ml-2 shrink-0" aria-label="Close">
           <Icon icon="ic:baseline-close" class="text-2xl" />
         </button>
         <div class="min-w-0 flex-1">
@@ -422,7 +432,7 @@
           {#each MODES as m}
             <button
               onclick={() => setMode(m.id)}
-              class="flex-1 py-2 text-label rounded-control transition-all {mode === m.id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
+              class="flex-1 min-w-0 min-h-10 px-1 text-label truncate rounded-control transition-all {mode === m.id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
             >{m.label}</button>
           {/each}
         </div>
@@ -470,7 +480,7 @@
               class="w-full p-3.5 bg-surface/40 border border-border rounded-card text-body text-content leading-relaxed outline-none focus:border-primary/40 transition-colors resize-y placeholder:text-content-subtle"
             ></textarea>
           </section>
-          <p class="text-caption text-content-subtle px-1 flex items-center gap-1.5"><Icon icon="ic:baseline-straighten" class="text-sm shrink-0" /> Prompt size {formatTokens(tokens)}. The AI only sees the areas you pick - no sessions, no plan - and you review every change before it is applied.</p>
+          <p class="text-caption text-content-subtle px-1 flex items-center gap-1.5"><Icon icon="ic:baseline-straighten" class="text-sm shrink-0" /> Prompt size: {pagesText(tokens)} ({formatTokens(tokens)}). The AI only sees the areas you pick - no sessions, no plan - and you review every change before it is applied.</p>
         {:else}
           <!-- 1. What you want (with the usual requests above it), 2. which weeks, 3. optional extras. -->
           <section class="space-y-2.5">
@@ -504,11 +514,11 @@
           <section class="space-y-2.5">
             {@render heading(mode === 'generate' ? 'Weeks the AI may change' : 'Weeks to analyze', rangeValid ? `${selectedWeekIds.length} week${selectedWeekIds.length === 1 ? '' : 's'}` : '')}
             <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <select bind:value={startWeek} aria-label="From" class="w-full min-w-0 bg-surface-elevated text-content px-3 py-2.5 rounded-control border border-border-strong outline-none text-label">
+              <select value={startWeek} onchange={(e) => setStart(e.currentTarget.value)} aria-label="From" class="field min-w-0">
                 {#each weekOptions as opt}<option value={opt.id}>{opt.label}</option>{/each}
               </select>
               <Icon icon="ic:baseline-arrow-forward" class="text-content-subtle" />
-              <select bind:value={endWeek} aria-label="To" class="w-full min-w-0 bg-surface-elevated text-content px-3 py-2.5 rounded-control border border-border-strong outline-none text-label">
+              <select value={endWeek} onchange={(e) => setEnd(e.currentTarget.value)} aria-label="To" class="field min-w-0">
                 {#each weekOptions as opt}<option value={opt.id}>{opt.label}</option>{/each}
               </select>
             </div>
@@ -519,15 +529,15 @@
 
           {#if mode === 'generate'}
             <section class="space-y-2.5">
-              {@render heading('Uncertain days', 'Optional - they get a Plan B, e.g. outdoor if dry')}
-              <div class="grid grid-cols-7 gap-1" role="group" aria-label="Uncertain days">
+              {@render heading('Days I am unsure about', 'Optional - each gets a Plan B, e.g. outdoor if dry')}
+              <div class="grid grid-cols-7 gap-1" role="group" aria-label="Days I am unsure about">
                 {#each WEEK_DAYS as day}
                   {@const on = uncertainDays.includes(day)}
                   <button
                     onclick={() => toggleUncertain(day)}
                     aria-pressed={on}
-                    class="py-2 rounded-control text-label transition-colors {on ? 'bg-primary text-white' : 'bg-surface-elevated/50 text-content-subtle hover:text-content'}"
-                  >{day.slice(0, 2)}</button>
+                    class="min-h-11 rounded-control text-label transition-colors {on ? 'bg-primary text-white' : 'bg-surface-elevated/50 text-content-subtle hover:text-content'}"
+                  >{day.slice(0, 3)}</button>
                 {/each}
               </div>
             </section>
@@ -547,14 +557,14 @@
             <div class="p-3.5 flex items-center gap-3">
               <Icon icon="ic:baseline-straighten" class="text-xl text-content-subtle shrink-0" />
               <span class="min-w-0 flex-1">
-                <span class="text-label text-content block">Prompt size {formatTokens(tokens)}</span>
+                <span class="text-label text-content block">Prompt size: {pagesText(tokens)} <span class="text-content-subtle font-normal">({formatTokens(tokens)})</span></span>
                 <span class="text-caption text-content-subtle block">
                   {mode === 'analyze' ? 'The sessions of the chosen weeks' : `${history.fullWeeks} week${history.fullWeeks === 1 ? '' : 's'} in full${history.summaryWeeks ? `, ${history.summaryWeeks} summarized` : ''}`} · {compact ? 'compact' : 'full'}
                 </span>
               </span>
               <button
                 onclick={() => (tuneOpen = !tuneOpen)}
-                class="shrink-0 p-2 rounded-control transition-colors {tuneOpen ? 'bg-primary/10 text-primary' : 'text-content-subtle hover:text-content'}"
+                class="btn-icon shrink-0 {tuneOpen ? 'bg-primary/10 text-primary' : 'text-content-subtle hover:text-content'}"
                 aria-label="Prompt settings"
                 aria-expanded={tuneOpen}
               ><Icon icon="ic:baseline-tune" class="text-xl" /></button>
@@ -570,9 +580,9 @@
 
         {#if flows && lastAiChange?.source === 'ai'}
           <p class="text-caption text-content-subtle px-1 flex items-center gap-2 flex-wrap">
-            <span>Last AI change {new Date(lastAiChange.appliedAt).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lastAiChange.changedSince ? ' · edited since' : ''}</span>
-            <button onclick={() => (historyOpen = true)} class="text-primary hover:underline">History</button>
-            <button onclick={() => trainingState.undoPlanChange()} class="text-primary hover:underline">Undo</button>
+            <span>Last AI change {formatDay(lastAiChange.appliedAt, { weekday: 'short' })}, {new Date(lastAiChange.appliedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}{lastAiChange.changedSince ? ' · edited since' : ''}</span>
+            <button onclick={() => (historyOpen = true)} class="btn-quiet px-2 text-primary">History</button>
+            <button onclick={() => trainingState.undoPlanChange()} class="btn-quiet px-2 text-primary" title="Take back the last AI change">Undo last change</button>
           </p>
         {/if}
 
@@ -589,7 +599,7 @@
         {/if}
 
 
-        <p class="text-caption text-content-subtle leading-relaxed px-1">{mode === 'generate' ? 'You review every change before anything is applied. ' : mode === 'analyze' ? 'The reply is for reading in the chat. ' : ''}An AI's suggestions are ideas to check, not medical advice - for pain or injury, ask a doctor or physiotherapist.</p>
+        <p class="text-caption text-content-subtle leading-relaxed px-1">{mode === 'generate' ? 'You review every change before anything is applied. ' : mode === 'analyze' ? 'The reply is for reading in the chat. ' : ''}The AI runs in your own chat app, not here: copy the prompt, paste it there, then bring its reply back. An AI's suggestions are ideas to check, not medical advice - for pain or injury, ask a doctor or physiotherapist.</p>
 
       {:else if step === 'paste'}
         <div class="p-3.5 bg-surface-elevated/50 rounded-card flex items-start gap-3">
@@ -617,7 +627,7 @@
           onpaste={handlePaste}
           rows="8"
           placeholder="Paste the AI's reply here…"
-          class="w-full p-3.5 bg-surface-elevated text-content rounded-card border border-border-strong outline-none focus:border-primary/40 text-xs font-mono resize-y"
+          class="w-full p-3.5 bg-surface-elevated text-content rounded-card border border-border-strong outline-none focus:border-primary/40 text-label font-mono resize-y"
         ></textarea>
 
         {#if pasteText.trim() && issues.length > 0}
@@ -627,7 +637,7 @@
                 <Icon icon="ic:baseline-error-outline" class="text-sm" />
                 {issueGroups.length} problem{issueGroups.length === 1 ? '' : 's'} in the reply
               </p>
-              <button onclick={copyFixRequest} class="shrink-0 text-label text-primary flex items-center gap-1 hover:underline">
+              <button onclick={copyFixRequest} class="btn btn-secondary text-primary shrink-0">
                 <Icon icon={copiedErrors ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-sm" />
                 {copiedErrors ? 'Copied' : 'Copy fix request'}
               </button>
@@ -705,7 +715,7 @@
                   {#if item.details.length > 0}
                     <ul class="pl-8 space-y-0.5">
                       {#each item.details as line}
-                        <li class="text-caption font-mono leading-snug break-words {line.startsWith('+') || line.includes(': +') ? 'text-status-good' : line.startsWith('−') || line.includes(': −') ? 'text-status-risk' : 'text-content-muted'}">{line}</li>
+                        <li class="text-caption tabular-nums leading-snug break-words {line.startsWith('+') || line.includes(': +') ? 'text-status-good' : line.startsWith('−') || line.includes(': −') ? 'text-status-risk' : 'text-content-muted'}">{line}</li>
                       {/each}
                     </ul>
                   {/if}
@@ -731,7 +741,7 @@
       {#if step === 'ask'}
         {#if flows}
           <button onclick={() => step = 'paste'} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors">
-            I have a reply
+            I have the reply
           </button>
         {:else if copiedFor === mode}
           <button onclick={onClose} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors">

@@ -36,6 +36,16 @@ class ChecklistState {
     this.dismissed = true;
     write(DISMISS_KEY);
   }
+
+  /** Brings the card back (the Undo of `dismiss`). */
+  restore(): void {
+    this.dismissed = false;
+    try {
+      localStorage.removeItem(DISMISS_KEY);
+    } catch {
+      /* the flag just isn't cleared */
+    }
+  }
 }
 
 export const checklistState = new ChecklistState();

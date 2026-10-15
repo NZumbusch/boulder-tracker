@@ -6,7 +6,8 @@
    */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
-  import { decrementWeekId } from '../../../lib/dateUtils';
+  import { decrementWeekId, formatWeek } from '../../../lib/dateUtils';
+  import InfoButton from '../../common/InfoButton.svelte';
   import { recapWeekId, buildWeekRecap } from '../../../lib/planning/weekRecap';
   import { formatMinutes } from '../../../lib/session/formatSession';
   import { joinParts, G } from './format';
@@ -28,12 +29,12 @@
   }));
   const loadChange = $derived(recap.prevLoad > 0 ? (recap.load - recap.prevLoad) / recap.prevLoad : undefined);
   const mixTotal = $derived(recap.mix.reduce((sum, m) => sum + m.minutes, 0));
-  const categoryColor = (name: string) => trainingState.analyticsCategories.find((c) => c.name === name)?.color ?? 'bg-primary';
+  const categoryColor = (name: string) => trainingState.analyticsCategories.find((c) => c.name === name)?.color ?? 'bg-content-subtle';
 </script>
 
 <div class="card space-y-3">
   <SectionHeader label="Week Recap"
-    subtitle={recap.isCurrentWeek ? `This week so far · W${weekId.split('-W')[1]}` : `Last week · W${weekId.split('-W')[1]}`} />
+    subtitle={recap.isCurrentWeek ? `This week so far · ${formatWeek(weekId)}` : `Last week · ${formatWeek(weekId)}`} />
 
   {#if recap.planned === 0 && recap.sends.length === 0}
     <p class="text-caption text-content-subtle italic">Nothing planned or logged that week.</p>
@@ -50,11 +51,12 @@
 
     {#if recap.done > 0}
       <p class="text-caption text-content-subtle tabular-nums flex items-center gap-1.5">
-        <span>{joinParts(`load ${Math.round(recap.load)} pts`, recap.minutes > 0 && formatMinutes(recap.minutes))}</span>
+        <span>{joinParts(`load ${Math.round(recap.load)}`, recap.minutes > 0 && formatMinutes(recap.minutes))}</span>
+        <InfoButton term="load" />
         {#if trainingState.homeDetails['weekRecap.compare'] && loadChange !== undefined && Math.abs(loadChange) >= 0.05}
           <span class="flex items-center text-content-muted">
-            <Icon icon={loadChange > 0 ? 'ic:baseline-arrow-upward' : 'ic:baseline-arrow-downward'} class="text-xs" />
-            {Math.abs(Math.round(loadChange * 100))}% vs the week before
+            <Icon icon={loadChange > 0 ? 'ic:baseline-arrow-upward' : 'ic:baseline-arrow-downward'} class="text-xs" aria-hidden="true" />
+            <span class="sr-only">{loadChange > 0 ? 'Up' : 'Down'} </span>{Math.abs(Math.round(loadChange * 100))}% vs the week before
           </span>
         {/if}
       </p>
@@ -62,13 +64,17 @@
 
     {#if trainingState.homeDetails['weekRecap.mix'] && mixTotal > 0}
       <div class="space-y-1.5">
+        <p class="text-caption text-content-subtle flex items-center gap-1">Training mix <InfoButton term="mix" /></p>
         <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px]" aria-hidden="true">
           {#each recap.mix as m}
             <div class={categoryColor(m.name)} style="width: {(m.minutes / mixTotal) * 100}%"></div>
           {/each}
         </div>
-        <p class="text-caption text-content-subtle">
-          {recap.mix.slice(0, 3).map((m) => `${m.name} ${formatMinutes(m.minutes)}`).join(' · ')}{recap.mix.length > 3 ? ` · +${recap.mix.length - 3} more` : ''}
+        <p class="text-caption text-content-subtle flex flex-wrap gap-x-3 gap-y-0.5">
+          {#each recap.mix.slice(0, 3) as m}
+            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full {categoryColor(m.name)}" aria-hidden="true"></span>{m.name} {formatMinutes(m.minutes)}</span>
+          {/each}
+          {#if recap.mix.length > 3}<span>+{recap.mix.length - 3} more</span>{/if}
         </p>
       </div>
     {/if}

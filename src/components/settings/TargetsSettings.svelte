@@ -68,12 +68,12 @@
     setTimeout(() => (justSaved = false), 2000);
   }
 
-  const input = 'w-full max-w-[12rem] bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm';
+  const input = 'field !max-w-[12rem]';
 </script>
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Weekly targets</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Weekly targets</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">What a normal week should add up to. Home shows the week against these, Insights points out where the last weeks fell short or ran over, and the AI plans to them. Leave a box empty for no target.</p>
   </div>
 
@@ -91,7 +91,7 @@
       <input class={input} type="text" inputmode="numeric" placeholder="2800" bind:value={draft.loadMax} />
     </label>
   </div>
-  {#if rangeProblem}<p class="text-caption text-danger px-1">{rangeProblem}</p>{/if}
+  {#if rangeProblem}<p class="text-caption text-danger px-1" role="alert">{rangeProblem}</p>{/if}
   {#if draft.fingerDays.trim()}
     <p class="text-caption text-content-subtle px-1">Finger days count sessions with {fingerNames.length ? fingerNames.join(', ') : 'finger categories (none are set yet)'}. Change which under History &amp; Analytics → Filtered load.</p>
   {/if}
@@ -106,7 +106,7 @@
         <label class="flex items-center justify-between gap-3 py-2">
           <span class="flex items-center gap-2 min-w-0"><span class="w-2 h-2 rounded-full shrink-0 {c.color}"></span><span class="text-body text-content truncate">{c.name}</span></span>
           <span class="flex items-center gap-1.5 shrink-0">
-            <input class="w-16 bg-surface-elevated text-content p-2 rounded-control border border-border-strong outline-none text-sm text-right" type="text" inputmode="numeric" placeholder="–" bind:value={draft.shares[c.id]} aria-label="{c.name} share, percent" />
+            <input class="field !w-20 text-right" type="text" inputmode="numeric" placeholder="–" bind:value={draft.shares[c.id]} aria-label="{c.name} share, percent" />
             <span class="text-caption text-content-subtle">%</span>
           </span>
         </label>
@@ -122,7 +122,7 @@
   {/if}
 
   <div class="flex items-center gap-3">
-    <button onclick={save} disabled={!dirty || !!rangeProblem} class="px-5 py-2.5 bg-primary text-white text-label font-bold rounded-control disabled:opacity-40">Save targets</button>
-    {#if justSaved}<span class="text-caption text-success">Saved</span>{/if}
+    <button onclick={save} disabled={!dirty || !!rangeProblem} class="btn btn-primary px-5">Save targets</button>
+    {#if justSaved}<span class="text-caption text-success">Saved</span>{:else if dirty}<span class="text-caption text-status-caution">Unsaved changes</span>{/if}
   </div>
 </div>

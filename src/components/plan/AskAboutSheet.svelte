@@ -6,8 +6,7 @@
    * the app's data: it is a question, not a plan change.
    */
   import Icon from '@iconify/svelte';
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import Sheet from '../ui/Sheet.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { askAbout } from '../../lib/ai/askAbout.svelte';
   import { buildInsights, INSIGHT_GROUPS } from '../../lib/analytics/insights';
@@ -26,7 +25,6 @@
 
   const subject = $derived(askAbout.subject);
   const close = () => (askAbout.subject = null);
-  backWhile(() => askAbout.subject !== null, close);
 
   let question = $state('');
   let copied = $state(false);
@@ -105,49 +103,40 @@
 </script>
 
 {#if subject}
-  <div class="fixed inset-0 z-[150] pb-safe bg-app-bg/90 backdrop-blur-md flex items-end sm:items-center justify-center animate-in fade-in duration-150">
-    <div class="absolute inset-0" role="presentation" onclick={close}></div>
-    <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4" use:sheetDrag={close} role="dialog" aria-modal="true" aria-label="Ask the AI about this">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <h3 class="text-title text-content">Ask the AI</h3>
-          <p class="text-caption text-content-subtle truncate">About: {title}</p>
-        </div>
-        <button onclick={close} class="text-content-subtle hover:text-content shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
-      </div>
-
-      {#if reply}
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-label text-content-subtle">Answer{replyInfo ? ` · ${replyInfo}` : ''}</p>
-            <button onclick={copyReply} class="chip text-content-subtle hover:text-content"><Icon icon="ic:baseline-content-copy" class="text-sm" />Copy</button>
-          </div>
-          <div class="rounded-card bg-surface-elevated/50 border border-border p-3.5 max-h-72 overflow-y-auto whitespace-pre-wrap break-words text-body text-content leading-relaxed">{reply}</div>
-        </div>
-      {/if}
-
-      <label class="block space-y-1.5">
-        <span class="text-label text-content-subtle px-1 block">Your question</span>
-        <textarea bind:value={question} rows="3" class="w-full p-3.5 bg-surface-elevated border border-border-strong rounded-card text-body text-content outline-none focus:border-primary/40 resize-y"></textarea>
-      </label>
-      <p class="text-caption text-content-subtle px-1">The prompt carries the findings or the session, your coaching memory and the last weeks' digest · {formatTokens(tokens)}</p>
-
-      {#if copied}
-        <p class="text-body text-content flex items-center gap-2"><Icon icon="ic:baseline-check-circle" class="text-xl text-success shrink-0" />Copied. Paste it into any AI chat.</p>
-      {/if}
-
+  <Sheet title="Ask the AI" subtitle="About: {title}" onClose={close} level="nested">
+    {#if reply}
       <div class="space-y-2">
-        <button onclick={copy} disabled={!prompt} class="w-full py-3 bg-primary text-white text-label font-bold rounded-control flex items-center justify-center gap-1.5 disabled:opacity-40">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-label text-content-subtle">Answer{replyInfo ? ` · ${replyInfo}` : ''}</p>
+          <button onclick={copyReply} class="chip text-content-subtle hover:text-content"><Icon icon="ic:baseline-content-copy" class="text-sm" />Copy</button>
+        </div>
+        <div class="rounded-card bg-surface-elevated/50 p-3.5 whitespace-pre-wrap break-words text-body text-content leading-relaxed">{reply}</div>
+      </div>
+    {/if}
+
+    <label class="block space-y-1.5">
+      <span class="text-label text-content-subtle px-1 block">Your question</span>
+      <textarea bind:value={question} rows="3" class="field resize-y"></textarea>
+    </label>
+    <p class="text-caption text-content-subtle px-1">The prompt carries the findings or the session, your coaching memory and the last weeks' digest · {formatTokens(tokens)}</p>
+
+    {#if copied}
+      <p class="text-body text-content flex items-center gap-2"><Icon icon="ic:baseline-check-circle" class="text-xl text-success shrink-0" />Copied. Paste it into any AI chat.</p>
+    {/if}
+
+    {#snippet footer()}
+      <div class="flex-1 space-y-2">
+        <button onclick={copy} disabled={!prompt} class="btn btn-primary w-full">
           <Icon icon="ic:baseline-content-copy" class="text-base" />{copied ? 'Copy again' : 'Copy prompt'}
         </button>
         {#if directReady}
-          <button onclick={() => (sendOpen = true)} disabled={!prompt} class="w-full py-3 border border-border-strong rounded-control text-label font-bold text-content flex items-center justify-center gap-1.5 disabled:opacity-40">
+          <button onclick={() => (sendOpen = true)} disabled={!prompt} class="btn btn-secondary w-full">
             <Icon icon="ic:baseline-bolt" class="text-base text-status-caution" />Ask {service} directly{price ? ` · about ${formatUsd(price.typicalUsd)}` : ''}
           </button>
         {/if}
       </div>
-    </div>
-  </div>
+    {/snippet}
+  </Sheet>
 {/if}
 
 {#if sendOpen}

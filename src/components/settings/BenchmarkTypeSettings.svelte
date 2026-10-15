@@ -15,9 +15,6 @@
    * its history, Delete takes the test away (logged results stay, unlinked,
    * until Undo puts it back).
    */
-  import { portal } from '../../lib/ui/portal';
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { scopedUndo } from '../../lib/toast.svelte';
   import { generateId, showConfirm } from '../../lib/utils';
   import { trainingState } from '../../lib/state.svelte';
@@ -31,6 +28,10 @@
   import { BODYWEIGHT_METRIC_ID } from '../../lib/constants';
   import type { Workout } from '../../lib/types';
   import Icon from '@iconify/svelte';
+  import Sheet from '../ui/Sheet.svelte';
+  import Toggle from '../ui/Toggle.svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import { settingsPath } from '../../lib/settings/tree';
 
   let { benchmarkTypes = $bindable() }: { benchmarkTypes: BenchmarkTypeDef[] } = $props();
 
@@ -75,14 +76,15 @@
   type Row = { valueId: string; role: 'result' | 'condition'; label: string; fixedText: string; basis: 'added' | 'total' };
   let editing = $state<{ type: BenchmarkTypeDef; rows: Row[]; isNew: boolean } | null>(null);
   let choosing = $state(false);
-  backWhile(() => editing !== null, () => { editing = null; });
-  backWhile(() => choosing, () => { choosing = false; });
+  let initialDraft = '';
+  const dirty = $derived(editing !== null && JSON.stringify({ t: editing.type, r: editing.rows }) !== initialDraft);
 
   const rowOf = (f: BenchmarkField): Row => ({ valueId: f.valueId, role: f.role, label: f.label ?? '', fixedText: f.fixed === undefined ? '' : String(f.fixed), basis: f.basis ?? 'added' });
 
   function open(type: BenchmarkTypeDef, isNew: boolean) {
     const fields = type.fields ?? resolveFields(type, defs).map((f) => ({ valueId: f.valueId, role: f.role }));
     editing = { type: { ...type, fields: undefined }, rows: fields.map(rowOf), isNew };
+    initialDraft = JSON.stringify({ t: editing.type, r: editing.rows });
     choosing = false;
   }
   function startFromPreset(id: string) {
@@ -229,52 +231,47 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1 flex items-center gap-1.5">Tests <InfoButton term="tests" /></h3>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight). Everything is kept, and Analytics lets you filter, split and plot it any way you like.</p>
+    <h2 class="text-section uppercase text-content-muted px-1 flex items-center gap-1.5">Tests <InfoButton term="tests" /></h2>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time. Log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight). Everything is kept, and Analytics lets you filter, split and plot it any way you like.</p>
   </div>
 
   {#if weighInOffer && !dismissed.includes(weighInSignature)}
-    <div class="rounded-card bg-status-caution/10 p-4 space-y-3">
-      <div>
+    <div class="rounded-card bg-surface-elevated/50 p-4 space-y-3">
+      <div class="space-y-2">
         <div class="flex items-start justify-between gap-2">
           <p class="text-label font-semibold text-content">Weigh-ins are a daily reading now</p>
-          <button onclick={() => dismiss(weighInSignature)} class="tap p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
+          <button onclick={() => dismiss(weighInSignature)} class="btn-icon -m-2" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-xl" /></button>
         </div>
-        <p class="text-caption text-content-subtle leading-relaxed">
-          Your bodyweight lives under Home &rarr; Metrics, which is what the Home card, readiness and the % of bodyweight scores read - a Bodyweight test isn't needed, and the AI no longer schedules one.
-          {#if weighIn.entries.length > 0}{weighIn.entries.length} result{weighIn.entries.length === 1 ? '' : 's'} become{weighIn.entries.length === 1 ? 's' : ''} a daily reading{#if weighIn.keptDays > 0}; {weighIn.keptDays} day{weighIn.keptDays === 1 ? '' : 's'} already {weighIn.keptDays === 1 ? 'has' : 'have'} one and keep it{/if}.{/if}
-          {#if weighIn.typeIds.length > 0}The test is archived.{/if}
-          {#if weighInSlots.length > 0}{weighInSlots.length} planned session{weighInSlots.length === 1 ? '' : 's'} lose{weighInSlots.length === 1 ? 's' : ''} the weigh-in.{/if}
-          {#if weighInPlanSlots > 0}It is also taken out of {weighInPlanSlots} phase or Plan B session{weighInPlanSlots === 1 ? '' : 's'}.{/if}
-          {#if weighIn.skipped.length > 0}{weighIn.skipped.length} result{weighIn.skipped.length === 1 ? '' : 's'} had no usable weight or date and stay{weighIn.skipped.length === 1 ? 's' : ''} in history only.{/if}
-          No result is deleted; Undo is offered afterwards.
-        </p>
+        <p class="text-body text-content-muted leading-relaxed">Your bodyweight lives under Home, Metrics. The Home card, readiness and the percent-of-bodyweight scores read it from there, so a Bodyweight test is not needed.</p>
+        <p class="text-caption text-content-subtle">Moving them does this:</p>
+        <ul class="list-disc pl-5 text-caption text-content-muted leading-relaxed space-y-0.5">
+          {#if weighIn.entries.length > 0}<li>{weighIn.entries.length} result{weighIn.entries.length === 1 ? '' : 's'} become{weighIn.entries.length === 1 ? 's' : ''} a daily reading{#if weighIn.keptDays > 0} ({weighIn.keptDays} day{weighIn.keptDays === 1 ? '' : 's'} already {weighIn.keptDays === 1 ? 'has' : 'have'} one and keep{weighIn.keptDays === 1 ? 's' : ''} it){/if}</li>{/if}
+          {#if weighIn.typeIds.length > 0}<li>The Bodyweight test is archived</li>{/if}
+          {#if weighInSlots.length > 0}<li>{weighInSlots.length} planned session{weighInSlots.length === 1 ? '' : 's'} lose{weighInSlots.length === 1 ? 's' : ''} the weigh-in</li>{/if}
+          {#if weighInPlanSlots > 0}<li>It is taken out of {weighInPlanSlots} phase or Plan B session{weighInPlanSlots === 1 ? '' : 's'}</li>{/if}
+          {#if weighIn.skipped.length > 0}<li>{weighIn.skipped.length} result{weighIn.skipped.length === 1 ? '' : 's'} had no usable weight or date and stay{weighIn.skipped.length === 1 ? 's' : ''} in the history only</li>{/if}
+          <li>No result is deleted, and you can undo it afterwards</li>
+        </ul>
       </div>
-      <button onclick={moveWeighIns} class="w-full py-2.5 rounded-control bg-primary text-white text-label font-semibold">Move to Bodyweight</button>
+      <button onclick={moveWeighIns} class="btn btn-primary w-full">Move to Bodyweight</button>
     </div>
   {/if}
 
   {#if proposals.length > 0 && !dismissed.includes(tidySignature)}
-    <div class="rounded-card bg-status-caution/10 p-4 space-y-3">
+    <div class="rounded-card bg-surface-elevated/50 p-4 space-y-3">
       <div>
         <div class="flex items-start justify-between gap-2">
           <p class="text-label font-semibold text-content">Tidy up your tests</p>
-          <button onclick={() => dismiss(tidySignature)} class="tap p-1 -m-1 text-content-subtle hover:text-content" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-lg" /></button>
+          <button onclick={() => dismiss(tidySignature)} class="btn-icon -m-2" aria-label="Hide this for now"><Icon icon="ic:baseline-close" class="text-xl" /></button>
         </div>
         <p class="text-caption text-content-subtle leading-relaxed">Some of these look like leftovers: the same test kept twice, one lift kept as a max-reps test and a heaviest-single test, or one your daily metrics already cover. Tick what to do; Undo is offered afterwards, and no result is ever deleted.</p>
       </div>
       <div class="space-y-2.5">
         {#each proposals as p (p.id)}
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input type="checkbox" checked={isTicked(p)} onchange={(e) => (ticked[p.id] = e.currentTarget.checked)} class="mt-1 w-4 h-4 rounded accent-primary shrink-0" />
-            <span class="min-w-0">
-              <span class="block text-body text-content">{p.label}</span>
-              <span class="block text-caption text-content-subtle leading-relaxed">{p.detail}</span>
-            </span>
-          </label>
+          <Toggle checked={isTicked(p)} onChange={(v) => (ticked[p.id] = v)} label={p.label} hint={p.detail} />
         {/each}
       </div>
-      <button onclick={tidy} disabled={tickedCount === 0} class="w-full py-2.5 rounded-control bg-primary text-white text-label font-semibold disabled:opacity-40">Apply {tickedCount} change{tickedCount === 1 ? '' : 's'}</button>
+      <button onclick={tidy} disabled={tickedCount === 0} class="btn btn-primary w-full">Apply {tickedCount} change{tickedCount === 1 ? '' : 's'}</button>
     </div>
   {/if}
 
@@ -283,13 +280,13 @@
       {#if g.group || groups.length > 1}<p class="text-label text-content-subtle px-1">{g.group || 'Other'}</p>{/if}
       <div class="divide-y divide-border">
         {#each g.types as type (type.id)}
-          <button onclick={() => startEdit(type)} class="w-full flex items-center justify-between gap-3 py-3 text-left group">
+          <button onclick={() => startEdit(type)} class="w-full flex items-center justify-between gap-3 py-3 min-h-11 text-left group">
             <span class="min-w-0">
               <span class="block text-body font-bold text-content group-hover:text-primary transition-colors truncate">{type.name}</span>
               <span class="block text-caption text-content-subtle truncate">{summary(type)}</span>
             </span>
             <span class="flex items-center gap-2 shrink-0">
-              {#if resultCount(type.id) > 0}<span class="text-caption text-content-subtle tabular-nums">{resultCount(type.id)}</span>{/if}
+              {#if resultCount(type.id) > 0}<span class="text-caption text-content-subtle tabular-nums">{resultCount(type.id)} {resultCount(type.id) === 1 ? 'result' : 'results'}</span>{/if}
               <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" />
             </span>
           </button>
@@ -300,7 +297,7 @@
     <p class="text-caption text-content-subtle italic px-1">No tests yet.</p>
   {/each}
 
-  <button onclick={() => (choosing = true)} class="w-full py-2.5 text-label font-bold text-primary bg-primary/10 hover:bg-primary/15 rounded-control transition-colors flex items-center justify-center gap-1.5">
+  <button onclick={() => (choosing = true)} class="btn btn-secondary w-full gap-1.5 text-primary">
     <Icon icon="ic:baseline-add" class="text-lg" /> New test
   </button>
 
@@ -316,151 +313,144 @@
         {/each}
       </div>
       {#if archivedEmpty.length}
-        <button onclick={() => (showEmptyArchived = !showEmptyArchived)} class="px-1 py-1 text-caption text-primary">{showEmptyArchived ? 'Hide' : 'Show'} {archivedEmpty.length} archived without results</button>
+        <button onclick={() => (showEmptyArchived = !showEmptyArchived)} class="btn-quiet px-2 text-label text-primary">{showEmptyArchived ? 'Hide' : 'Show'} {archivedEmpty.length} archived without results</button>
       {/if}
     </div>
   {/if}
 </div>
 
 {#if choosing}
-  {@const closeChooser = () => (choosing = false)}
-  <div use:portal class="fixed inset-0 pb-safe z-[100] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) closeChooser(); }}>
-    <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar" use:sheetDrag={closeChooser}>
-      <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
-        <div><p class="text-caption uppercase text-content-subtle">New test</p><h3 class="text-title text-content">Start from</h3></div>
-        <button onclick={closeChooser} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
-      </div>
-      <div class="divide-y divide-border px-2 pb-4">
-        {#each BENCHMARK_PRESETS as preset (preset.id)}
-          <button onclick={() => startFromPreset(preset.id)} class="w-full flex items-center justify-between gap-3 px-3 py-3.5 text-left group">
-            <span class="min-w-0"><span class="block text-body font-bold text-content group-hover:text-primary transition-colors">{preset.label}</span><span class="block text-caption text-content-subtle">{preset.hint}</span></span>
-            <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl shrink-0" />
-          </button>
-        {/each}
-      </div>
+  <Sheet title="Start from" subtitle="New test" onClose={() => (choosing = false)}>
+    <div class="divide-y divide-border -mx-2">
+      {#each BENCHMARK_PRESETS as preset (preset.id)}
+        <button onclick={() => startFromPreset(preset.id)} class="w-full flex items-center justify-between gap-3 px-3 py-3.5 min-h-11 text-left group">
+          <span class="min-w-0"><span class="block text-body font-bold text-content group-hover:text-primary transition-colors">{preset.label}</span><span class="block text-caption text-content-subtle">{preset.hint}</span></span>
+          <Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl shrink-0" />
+        </button>
+      {/each}
     </div>
-  </div>
+  </Sheet>
 {/if}
 
 {#if editing && draft}
-  <div use:portal class="fixed inset-0 pb-safe z-[100] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) sheetClose(); }}>
-    <div class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar" use:sheetDrag={sheetClose}>
-      <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="text-caption uppercase text-content-subtle">{editing.isNew ? 'New test' : draft.archived ? 'Archived test' : 'Test'}</p>
-          <h3 class="text-title text-content truncate">{draft.name.trim() || 'Untitled'}</h3>
-        </div>
-        <button onclick={sheetClose} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
-      </div>
+  <Sheet
+    title={draft.name.trim() || (editing.isNew ? 'New test' : 'Test')}
+    subtitle={editing.isNew ? 'New test' : draft.archived ? 'Archived test' : 'Test'}
+    {dirty}
+    onClose={sheetClose}
+  >
+    <label class="block space-y-1.5">
+      <span class="text-label text-content-subtle">Name</span>
+      <input bind:value={editing.type.name} placeholder="e.g. Max hang" class="field {problem && editing.type.name ? '!border-danger' : ''}" />
+    </label>
+    <label class="block space-y-1.5">
+      <span class="text-label text-content-subtle">Folder (optional)</span>
+      <input bind:value={editing.type.group} list="benchmark-groups" placeholder="Groups tests in the list, for example Fingers" class="field" />
+      <datalist id="benchmark-groups">{#each existingGroups as g}<option value={g}></option>{/each}</datalist>
+    </label>
 
-      <div class="p-5 space-y-5">
-        <div class="grid grid-cols-5 gap-3">
-          <label class="col-span-3 block space-y-1.5">
-            <span class="text-label text-content-subtle">Name</span>
-            <input bind:value={editing.type.name} placeholder="e.g. Max Hang" class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border text-sm outline-none focus:border-primary/50 {problem && editing.type.name ? 'border-danger/50' : 'border-border-strong'}" />
-          </label>
-          <label class="col-span-2 block space-y-1.5">
-            <span class="text-label text-content-subtle">Folder</span>
-            <input bind:value={editing.type.group} list="benchmark-groups" placeholder="optional" class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50" />
-            <datalist id="benchmark-groups">{#each existingGroups as g}<option value={g}></option>{/each}</datalist>
-          </label>
-        </div>
-
-        <div class="space-y-2">
-          <span class="text-label text-content-subtle block">What it records</span>
-          <div class="space-y-2">
-            {#each editing.rows as row, i (row.valueId)}
-              {@const def = defs.find((d) => d.id === row.valueId)}
-              {@const isPrimary = row.role === 'result' && editing.rows.findIndex((r) => r.role === 'result') === i}
-              <div class="p-3 rounded-control bg-surface-elevated/50 border border-border space-y-2.5">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="min-w-0 text-body font-bold text-content truncate">{row.label.trim() || defName(row.valueId)}{#if def?.unit}<span class="text-content-subtle font-normal">&nbsp;· {def.measure === 'weight' ? trainingState.units.weight : def.unit}</span>{/if}</span>
-                  <span class="flex items-center shrink-0">
-                    <button onclick={() => moveRow(i, -1)} disabled={i === 0} class="tap p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move up"><Icon icon="ic:baseline-arrow-upward" class="text-base" /></button>
-                    <button onclick={() => moveRow(i, 1)} disabled={i === editing.rows.length - 1} class="tap p-1.5 text-content-subtle hover:text-content disabled:opacity-30" aria-label="Move down"><Icon icon="ic:baseline-arrow-downward" class="text-base" /></button>
-                    <button onclick={() => removeRow(i)} class="tap p-1.5 text-content-subtle hover:text-danger" aria-label="Remove"><Icon icon="ic:baseline-close" class="text-base" /></button>
-                  </span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="flex rounded-control overflow-hidden border border-border-strong shrink-0">
-                    {#each [['result', 'Result'], ['condition', 'Set-up']] as [role, label]}
-                      <button type="button" onclick={() => (row.role = role as Row['role'])} aria-pressed={row.role === role} class="px-3 py-1.5 text-label {row.role === role ? 'bg-primary/10 text-primary font-bold' : 'bg-surface text-content-muted'}">{label}</button>
-                    {/each}
-                  </div>
-                  {#if isPrimary}<span class="text-caption text-content-subtle">charted</span>{/if}
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <input bind:value={row.label} placeholder="Own name (optional)" aria-label="Name in this test" class="px-3 py-2 bg-surface text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50" />
-                  {#if def?.kind === 'choice'}
-                    <select bind:value={row.fixedText} aria-label="Always" class="px-3 py-2 bg-surface text-content rounded-control border border-border-strong text-sm outline-none">
-                      <option value="">Asked each time</option>
-                      {#each def.options ?? [] as o}<option value={o}>Always {o}</option>{/each}
-                    </select>
-                  {:else}
-                    <input bind:value={row.fixedText} inputmode="decimal" placeholder="Always… (optional)" aria-label="Always this value" class="px-3 py-2 bg-surface text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50" />
-                  {/if}
-                </div>
-                {#if def?.measure === 'weight'}
-                  <div class="flex rounded-control overflow-hidden border border-border-strong">
-                    {#each [['added', 'Added on top of bodyweight'], ['total', 'The whole load']] as [basis, label]}
-                      <button type="button" onclick={() => (row.basis = basis as Row['basis'])} aria-pressed={row.basis === basis} class="flex-1 px-3 py-1.5 text-label {row.basis === basis ? 'bg-primary/10 text-primary font-bold' : 'bg-surface text-content-muted'}">{label}</button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </div>
-          {#if unusedDefs.length > 0}
-            <select onchange={(e) => { addRow(e.currentTarget.value); e.currentTarget.value = ''; }} aria-label="Add a field" class="w-full px-3 py-2.5 bg-surface-elevated text-primary font-bold rounded-control border border-border-strong text-sm outline-none">
-              <option value="">+ Add a value…</option>
-              {#each unusedDefs as d (d.id)}<option value={d.id}>{d.name}{d.unit ? ` (${d.measure === 'weight' ? trainingState.units.weight : d.unit})` : ''}</option>{/each}
-            </select>
-          {/if}
-          <p class="text-caption text-content-subtle leading-relaxed"><b class="text-content-muted">Result</b>: something you measure - weight, reps, time. <b class="text-content-muted">Set-up</b>: how you did it (edge depth, an added load) - it starts from last time and is what Home compares by. Every value is kept either way: in the chart you can filter, split or plot against any of them, so nothing here locks how you look at the results later. The first result is what progress follows. Need another kind of value? Add it under Training setup → Value types.</p>
-        </div>
-
-        <div class="space-y-1.5">
-          <span class="text-label text-content-subtle block">Which way is better</span>
-          <div class="grid grid-cols-2 gap-2">
-            {#each [['higher', 'Higher'], ['lower', 'Lower']] as [dir, label]}
-              <button type="button" onclick={() => (editing!.type = { ...editing!.type, direction: dir as 'higher' | 'lower' })} aria-pressed={(draft.direction ?? 'higher') === dir} class="px-3 py-2 rounded-control text-label border transition-all {(draft.direction ?? 'higher') === dir ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'bg-surface-elevated border-border-strong text-content-muted'}">{label}</button>
-            {/each}
-          </div>
-        </div>
-
-        {#if canRelative || canEstimate}
-          <div class="space-y-1.5">
-            <span class="text-label text-content-subtle block">Chart it as</span>
-            <div class="flex flex-wrap gap-1.5">
-              {#each [['raw', 'As logged', true], ['relative', '% of bodyweight', canRelative && hasWeight], ['estimatedMax', 'Estimated max', canEstimate]] as [score, label, ok]}
-                {#if ok}
-                  <button type="button" onclick={() => setScore(score as BenchmarkScore)} aria-pressed={(draft.score ?? 'raw') === score} class="px-3 py-1.5 rounded-control text-label border transition-all {(draft.score ?? 'raw') === score ? 'bg-primary/10 border-primary/40 text-primary font-bold' : 'bg-surface-elevated border-border-strong text-content-muted'}">{label}</button>
-                {/if}
-              {/each}
+    <div class="space-y-2">
+      <span class="text-label text-content-subtle block">What it records</span>
+      <div class="space-y-2">
+        {#each editing.rows as row, i (row.valueId)}
+          {@const def = defs.find((d) => d.id === row.valueId)}
+          {@const isPrimary = row.role === 'result' && editing.rows.findIndex((r) => r.role === 'result') === i}
+          <div class="p-3 rounded-control bg-surface-elevated/50 space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="min-w-0 text-body font-bold text-content truncate">{row.label.trim() || defName(row.valueId)}{#if def?.unit}<span class="text-content-subtle font-normal">&nbsp;· {def.measure === 'weight' ? trainingState.units.weight : def.unit}</span>{/if}</span>
+              <span class="flex items-center shrink-0">
+                <button onclick={() => moveRow(i, -1)} disabled={i === 0} class="btn-icon disabled:opacity-30" aria-label="Move {defName(row.valueId)} up"><Icon icon="ic:baseline-arrow-upward" class="text-xl" /></button>
+                <button onclick={() => moveRow(i, 1)} disabled={i === editing.rows.length - 1} class="btn-icon disabled:opacity-30" aria-label="Move {defName(row.valueId)} down"><Icon icon="ic:baseline-arrow-downward" class="text-xl" /></button>
+                <button onclick={() => removeRow(i)} class="btn-icon hover:text-danger" aria-label="Remove {defName(row.valueId)}"><Icon icon="ic:baseline-close" class="text-xl" /></button>
+              </span>
             </div>
-            <p class="text-caption text-content-subtle">{(draft.score ?? 'raw') === 'estimatedMax' ? 'Weight and reps combined into one number (Epley: weight × (1 + reps ÷ 30)), so more reps and more weight can be compared.' : (draft.score ?? 'raw') === 'relative' ? 'The load against your bodyweight on the day (needs a bodyweight logged near it).' : 'The primary result, as you logged it.'}</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <Segmented
+                variant="setting"
+                label="Role of {defName(row.valueId)}"
+                value={row.role}
+                onChange={(role) => (row.role = role)}
+                options={[{ value: 'result', label: 'Result' }, { value: 'condition', label: 'Set-up' }]}
+              />
+              {#if isPrimary}<span class="text-caption text-content-subtle">charted</span>{/if}
+            </div>
+            <div class="grid grid-cols-1 gap-2">
+              <input bind:value={row.label} placeholder="Own name (optional)" aria-label="Name in this test" class="field" />
+              {#if def?.kind === 'choice'}
+                <select bind:value={row.fixedText} aria-label="Fixed value" class="field">
+                  <option value="">Asked each time</option>
+                  {#each def.options ?? [] as o}<option value={o}>Always {o}</option>{/each}
+                </select>
+              {:else}
+                <input bind:value={row.fixedText} inputmode="decimal" placeholder="Fixed value (optional): the same every time" aria-label="Fixed value" class="field" />
+              {/if}
+            </div>
+            {#if def?.measure === 'weight'}
+              <Segmented
+                variant="setting"
+                full
+                label="Weight counted as"
+                value={row.basis}
+                onChange={(basis) => (row.basis = basis)}
+                options={[{ value: 'added', label: 'Added on top of bodyweight' }, { value: 'total', label: 'The whole load' }]}
+              />
+            {/if}
           </div>
-        {/if}
-
-        <label class="block space-y-1.5">
-          <span class="text-label text-content-subtle">How to do it <span class="text-content-subtle/70">(optional)</span></span>
-          <textarea bind:value={editing.type.protocol} rows="3" placeholder="Warm-up, rest between attempts, how many tries…" class="w-full px-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 resize-y"></textarea>
-        </label>
-
-        {#if problem && (editing.type.name || editing.rows.length)}<p class="text-caption text-danger">{problem}</p>{/if}
-
-        <div class="flex gap-2">
-          <button onclick={save} disabled={!!problem} class="flex-1 py-3 bg-primary text-white text-label font-bold rounded-control disabled:opacity-40">Save</button>
-          <button onclick={sheetClose} class="px-5 py-3 bg-surface-elevated text-content-muted text-label font-bold rounded-control">Cancel</button>
-        </div>
-
-        {#if !editing.isNew}
-          <div class="pt-3 border-t border-border space-y-2">
-            <button onclick={() => setArchived(editing!.type, !editing!.type.archived)} class="w-full py-2.5 text-label font-bold text-content-muted hover:text-content bg-surface-elevated rounded-control transition-colors">{editing.type.archived ? 'Restore' : 'Archive - keep the results, stop new logging'}</button>
-            <button onclick={() => remove(editing!.type.id)} class="w-full py-2.5 text-label font-bold text-danger hover:bg-danger/10 rounded-control transition-colors">Delete…</button>
-          </div>
-        {/if}
+        {/each}
       </div>
+      {#if unusedDefs.length > 0}
+        <select onchange={(e) => { addRow(e.currentTarget.value); e.currentTarget.value = ''; }} aria-label="Add a field" class="field text-primary font-bold">
+          <option value="">Add a value</option>
+          {#each unusedDefs as d (d.id)}<option value={d.id}>{d.name}{d.unit ? ` (${d.measure === 'weight' ? trainingState.units.weight : d.unit})` : ''}</option>{/each}
+        </select>
+      {/if}
+      <p class="text-caption text-content-subtle leading-relaxed"><b class="text-content-muted">Result</b>: something you measure (weight, reps, time). <b class="text-content-muted">Set-up</b>: how you did it (edge depth, an added load). It starts from last time and is what Home compares by. Every value is kept either way, so in the chart you can filter, split or plot against any of them. The first result is what progress follows. Need another kind of value? Add it under {settingsPath('values')}.</p>
     </div>
-  </div>
+
+    <div class="space-y-1.5">
+      <span class="text-label text-content-subtle block">Which way is better</span>
+      <Segmented
+        variant="setting"
+        full
+        label="Which way is better"
+        value={draft.direction ?? 'higher'}
+        onChange={(dir) => (editing!.type = { ...editing!.type, direction: dir })}
+        options={[{ value: 'higher', label: 'Higher' }, { value: 'lower', label: 'Lower' }]}
+      />
+    </div>
+
+    {#if canRelative || canEstimate}
+      <div class="space-y-1.5">
+        <span class="text-label text-content-subtle block">Chart it as</span>
+        <Segmented
+          variant="setting"
+          full
+          label="Chart it as"
+          value={draft.score ?? 'raw'}
+          onChange={(score) => setScore(score)}
+          options={[{ value: 'raw', label: 'As logged' }, ...(canRelative && hasWeight ? [{ value: 'relative' as BenchmarkScore, label: '% of bodyweight' }] : []), ...(canEstimate ? [{ value: 'estimatedMax' as BenchmarkScore, label: 'Estimated max' }] : [])]}
+        />
+        <p class="text-caption text-content-subtle">{(draft.score ?? 'raw') === 'estimatedMax' ? 'Weight and reps combined into one number (weight × (1 + reps ÷ 30)), so more reps and more weight can be compared.' : (draft.score ?? 'raw') === 'relative' ? 'The load against your bodyweight on the day (needs a bodyweight logged near it).' : 'The primary result, as you logged it.'}</p>
+      </div>
+    {/if}
+
+    <label class="block space-y-1.5">
+      <span class="text-label text-content-subtle">How to do it (optional)</span>
+      <textarea bind:value={editing.type.protocol} rows="3" placeholder="Warm-up, rest between attempts, how many tries" class="field resize-y"></textarea>
+    </label>
+
+    {#if problem}<p class="text-caption {editing.type.name || editing.rows.length ? 'text-danger' : 'text-content-subtle'}" role={editing.type.name || editing.rows.length ? 'alert' : undefined}>{problem}</p>{/if}
+
+    {#if !editing.isNew}
+      <div class="pt-3 border-t border-border space-y-2">
+        <button onclick={() => setArchived(editing!.type, !editing!.type.archived)} class="btn btn-secondary w-full">{editing.type.archived ? 'Restore' : 'Archive (keep the results, stop new logging)'}</button>
+        <button onclick={() => remove(editing!.type.id)} class="btn btn-danger w-full">Delete</button>
+      </div>
+    {/if}
+
+    {#snippet footer()}
+      <button onclick={save} disabled={!!problem} class="btn btn-primary flex-1">Save</button>
+      <button onclick={sheetClose} class="btn btn-secondary">Cancel</button>
+    {/snippet}
+  </Sheet>
 {/if}

@@ -37,14 +37,14 @@
         </button>
         <button
           onclick={toggleCircuit}
-          class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center {circuitHud.running ? 'bg-danger text-white' : 'bg-success text-app-bg'} hover:opacity-90 transition-all shadow-lg active:scale-90"
+          class="shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-on-primary {circuitHud.running ? 'bg-danger' : 'bg-success'} hover:opacity-90 transition-all shadow-lg active:scale-90"
           aria-label={circuitHud.running ? 'Pause the circuit' : 'Resume the circuit'}
         >
           <Icon icon={circuitHud.running ? 'ic:baseline-pause' : 'ic:baseline-play-arrow'} class="text-2xl" />
         </button>
         <button
           onclick={() => trainingState.setTimerPillHidden(true)}
-          class="shrink-0 w-7 h-8 -ml-1 rounded-full flex items-center justify-center text-content-subtle hover:text-content transition-colors"
+          class="btn-icon shrink-0 text-content-subtle"
           aria-label="Hide the circuit"
           title="Hide - it keeps running"
         >

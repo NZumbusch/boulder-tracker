@@ -49,7 +49,7 @@
     <nav
       bind:this={panel}
       aria-label="Main menu"
-      class="absolute inset-y-0 left-0 w-[84%] max-w-80 bg-surface pt-safe pb-safe flex flex-col shadow-card animate-in slide-in-from-left duration-200"
+      class="absolute inset-y-0 left-0 w-[84%] max-w-80 bg-surface pt-safe pb-safe pl-[env(safe-area-inset-left)] flex flex-col shadow-card animate-in slide-in-from-left duration-200"
     >
       <div class="flex items-center justify-between pl-6 pr-2 pt-3 pb-1">
         <h2 data-sheet-title class="text-title text-content">Boulder Tracker</h2>

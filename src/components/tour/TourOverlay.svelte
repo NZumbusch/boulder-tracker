@@ -31,6 +31,10 @@
   let side = $state<'above' | 'below' | 'center' | null>(null);
   let cardTop = $state(MARGIN);
   let cardVisible = $state(false);
+  /** The notch and the gesture bar: the card never sits under them. Measured from a probe, since env() cannot be read in script. */
+  let probe = $state<HTMLElement | null>(null);
+  let safe = $state({ top: 0, bottom: 0 });
+  let nextButton = $state<HTMLButtonElement | null>(null);
 
   // Back steps back through the tour, and closes it from the first step.
   backWhile(() => tour.active, () => (tour.index === 0 ? void tour.end() : tour.back()));
@@ -41,9 +45,11 @@
   }
 
   function desiredTop(r: Rect | null, s: 'above' | 'below' | 'center'): number {
-    if (!r || s === 'center') return Math.max(MARGIN, (viewport.h - cardHeight) / 2);
+    const lo = MARGIN + safe.top;
+    const hi = viewport.h - cardHeight - MARGIN - safe.bottom;
+    if (!r || s === 'center') return Math.max(lo, (viewport.h - cardHeight) / 2);
     const top = s === 'below' ? r.top + r.height + GAP : r.top - cardHeight - GAP;
-    return Math.min(Math.max(MARGIN, top), viewport.h - cardHeight - MARGIN);
+    return Math.min(Math.max(lo, top), Math.max(lo, hi));
   }
 
   /*
@@ -73,6 +79,12 @@
     side = null;
     const tick = () => {
       if (viewport.w !== window.innerWidth || viewport.h !== window.innerHeight) viewport = { w: window.innerWidth, h: window.innerHeight };
+      if (probe) {
+        const cs = getComputedStyle(probe);
+        const top = parseFloat(cs.paddingTop) || 0;
+        const bottom = parseFloat(cs.paddingBottom) || 0;
+        if (top !== safe.top || bottom !== safe.bottom) safe = { top, bottom };
+      }
       const el = target ? document.querySelector<HTMLElement>(`[data-tour="${target}"]`) : null;
       const r = el?.getBoundingClientRect();
       let measured: Rect | null = null;
@@ -121,8 +133,15 @@
     return () => cancelAnimationFrame(frame);
   });
 
+  // Focus goes to the card when the tour opens (the dialog layer leaves the tour alone), so Enter and Tab work from the first step.
+  $effect(() => {
+    if (tour.active && nextButton) nextButton.focus({ preventScroll: true });
+  });
+
   function onKey(e: KeyboardEvent) {
     if (!tour.active) return;
+    // Enter on a focused button is that button's own press (Skip tour must skip, not advance first).
+    if (e.key === 'Enter' && (e.target as HTMLElement | null)?.closest('button, a, input, select, textarea')) return;
     if (e.key === 'ArrowRight' || e.key === 'Enter') tour.next();
     else if (e.key === 'ArrowLeft') tour.back();
     else if (e.key === 'Escape') void tour.end();
@@ -133,6 +152,7 @@
 
 {#if tour.active}
   <div class="fixed inset-0 z-[170]" role="dialog" aria-modal="true" aria-label="Tour: {tour.step.title}">
+    <div bind:this={probe} class="absolute inset-x-0 top-0 h-0 pointer-events-none safe-y" aria-hidden="true"></div>
     <!-- Swallows every tap on the app underneath. -->
     <div class="absolute inset-0 {rect ? '' : 'bg-black/65'}"></div>
     {#if rect}
@@ -144,7 +164,7 @@
 
     <div
       bind:clientHeight={cardHeight}
-      class="absolute left-1/2 -translate-x-1/2 w-[min(360px,calc(100vw-2rem))] bg-surface border border-border-strong rounded-card shadow-2xl p-4 space-y-3 transition-opacity ease-out motion-reduce:transition-none {cardVisible ? 'opacity-100 duration-200' : 'opacity-0 duration-100 pointer-events-none'}"
+      class="absolute left-1/2 -translate-x-1/2 w-[min(360px,calc(100vw-2rem))] bg-surface border border-border-strong rounded-card shadow-card p-4 space-y-3 transition-opacity ease-out motion-reduce:transition-none {cardVisible ? 'opacity-100 duration-200' : 'opacity-0 duration-100 pointer-events-none'}"
       style="top: {cardTop}px;"
     >
       <div class="space-y-1.5">
@@ -153,17 +173,20 @@
           <span class="text-caption text-content-subtle tabular-nums shrink-0">{tour.index + 1} / {tour.count}</span>
         </div>
         <p class="text-body text-content-muted leading-relaxed">{tour.step.body}</p>
+        {#if tour.step.target && cardVisible && side === 'center'}
+          <p class="text-caption text-content-subtle leading-relaxed">What this points at is not on your screen right now (it may be hidden in Settings).</p>
+        {/if}
       </div>
       <div class="flex items-center gap-2">
         {#if tour.index < tour.count - 1}
-          <button onclick={() => tour.end()} class="mr-auto px-1 py-2 text-label text-content-subtle hover:text-content">Skip tour</button>
+          <button onclick={() => tour.end()} class="btn btn-ghost mr-auto px-3">Skip tour</button>
         {:else}
           <span class="mr-auto"></span>
         {/if}
         {#if tour.index > 0}
-          <button onclick={() => tour.back()} class="px-3 py-2 text-label text-content-muted bg-surface-elevated rounded-control">Back</button>
+          <button onclick={() => tour.back()} class="btn btn-secondary">Back</button>
         {/if}
-        <button onclick={() => tour.next()} class="px-4 py-2 text-label text-white bg-primary rounded-control">
+        <button bind:this={nextButton} onclick={() => tour.next()} class="btn btn-primary px-5">
           {tour.index === tour.count - 1 ? 'Done' : 'Next'}
         </button>
       </div>
