@@ -20,6 +20,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-23-ui-round-two",
+    title: "A tidier, more readable app",
+    points: [
+      "Sheets, switches and buttons look and behave the same everywhere (and are at least 44 px to tap); dialogs close with Back or Escape and say why a button is disabled.",
+      "Mid-workout controls are bigger, an empty session has one clear Add an exercise, and ungrouping a circuit or deleting a saved timer can be undone.",
+      "Plan B is explained once with one control; every + on the Plan says what it adds; the week actions are in a labelled menu.",
+      "Analytics: tap a week in the load chart for its numbers, charts can be used with the keyboard and have a data table for screen readers, and chart colours no longer mix with status colours.",
+      "Settings: every page uses the same switches and choices, removals can be undone, and a backup restore shows what is in the file before it replaces your data.",
+      "Home says Ready / Take care / Rest with a Why link, and the alerts separate real signals from housekeeping.",
+    ],
+  },
+  {
     id: "2026-10-23-chips-order-and-session-card",
     title: "Calendar chips and session cards",
     points: [

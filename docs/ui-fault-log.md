@@ -33,6 +33,10 @@ Also landed: shared `Sheet`, `Segmented`, `Toggle`, button and field utilities (
 
 What a second round should do, in order: adopt the shared sheet and controls everywhere (removes most of the Part 3-5 items by itself), then 1, 12, 4, 6, then the Part 3-5 findings by severity.
 
+## 0.2 Status after round 2 (2026-10-15)
+
+Round 2 fixed or partly fixed about 400 of the roughly 480 tracked rows; the rest are decisions and a few files nobody owned. The summary, the decision list and the leftovers are in `docs/ui-round-2/README.md`; every finding has its state in the status file of its package. The table in 0.1 is the state before round 2.
+
 ## 1. Read this first
 
 ### 1.1 The twelve things I would fix first
