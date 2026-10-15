@@ -132,7 +132,7 @@
 
 <div class="space-y-3 pt-1">
   {#each phaseWorkouts as workout, wIndex}
-    <div class="p-5 bg-surface-elevated/30 border border-border-strong/50 rounded-card space-y-4 shadow-inner relative">
+    <div class="p-5 bg-surface-elevated/30 rounded-card space-y-4 relative">
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0 flex-1">
           <input bind:value={workout.name} class="w-full bg-transparent text-sm font-bold text-content border-b border-transparent focus:border-primary/30 outline-none pb-1 truncate" placeholder="Session Name" />
@@ -259,7 +259,7 @@
           {/each}
         </section>
         {#if editingWorkoutIndex === wIndex && isAddingExercise}
-          <div class="mt-4 p-4 bg-surface/80 rounded-card border border-border-strong animate-in zoom-in-95">
+          <div class="mt-4 p-4 bg-surface-elevated/50 rounded-card animate-in zoom-in-95">
             <ExerciseForm
               initialSlot={editingExerciseId ? workout.exercises?.find((e) => e.id === editingExerciseId) : null}
               mode="prescribed"

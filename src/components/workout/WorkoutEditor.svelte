@@ -371,7 +371,7 @@
         onfinalize={handleDndFinalize}
       >
         {#each workout.exercises as slot (slot.id)}
-          <div animate:flip={{ duration: motionMs(200) }} class="p-3 bg-surface/60 border border-border rounded-card flex items-center gap-2.5">
+          <div animate:flip={{ duration: motionMs(200) }} class="p-3 bg-surface/60 rounded-card flex items-center gap-2.5">
             <Icon icon="ic:baseline-drag-indicator" class="text-xl text-content-subtle shrink-0 cursor-grab active:cursor-grabbing" />
             <div class="min-w-0 flex-1">
               <p class="text-body font-bold text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</p>

@@ -221,7 +221,7 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
         </div>
       </div>
 
-      <div class="mt-6 p-5 bg-primary-hover/5 rounded-card border border-primary/10 flex items-center justify-between">
+      <div class="mt-6 p-5 bg-primary-hover/5 rounded-card flex items-center justify-between">
         <div class="flex items-center gap-2.5">
           <div class="bg-primary-hover w-1.5 h-1.5 rounded-full animate-pulse"></div>
           <span class="text-label text-content-muted">Total Load</span>

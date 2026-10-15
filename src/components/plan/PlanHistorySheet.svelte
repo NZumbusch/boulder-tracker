@@ -36,7 +36,7 @@
     </div>
 
     {#each entries as entry (entry.index)}
-      <div class="rounded-card border border-border p-3.5 space-y-2">
+      <div class="rounded-card p-3.5 space-y-2 bg-surface-elevated/40">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="text-label text-content">{entry.source === 'copy' ? 'Copied a week' : 'AI change'} · <span class="text-content-subtle font-normal">{when(entry.appliedAt)}</span></p>

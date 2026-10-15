@@ -420,7 +420,7 @@
     <div class="max-w-lg mx-auto w-full px-4 py-4 pb-32 space-y-4">
       {#if step === 'ask'}
         {#if mode === 'context'}
-          <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-1.5">
+          <div class="p-3.5 bg-surface-elevated/50 rounded-card space-y-1.5">
             <p class="text-body text-content">Just your training profile, with no question attached.</p>
             <p class="text-caption text-content-subtle leading-relaxed">Paste it into any AI chat first, then ask it whatever you like. It knows your exercises, recent sessions, benchmarks, goals and anything else you share.</p>
           </div>
@@ -511,7 +511,7 @@
                   <button
                     onclick={() => toggleUncertain(day)}
                     aria-pressed={on}
-                    class="py-2 rounded-control text-label border transition-colors {on ? 'bg-primary text-white border-primary' : 'border-border text-content-subtle hover:text-content'}"
+                    class="py-2 rounded-control text-label transition-colors {on ? 'bg-primary text-white' : 'bg-surface-elevated/50 text-content-subtle hover:text-content'}"
                   >{day.slice(0, 2)}</button>
                 {/each}
               </div>
@@ -520,7 +520,7 @@
         {/if}
 
         {#if copiedFor === mode}
-          <div class="p-3.5 bg-success/10 border border-success/30 rounded-card flex items-start gap-3 animate-in fade-in duration-200">
+          <div class="p-3.5 bg-success/10 rounded-card flex items-start gap-3 animate-in fade-in duration-200">
             <Icon icon="ic:baseline-check-circle" class="text-xl text-success shrink-0" />
             <p class="text-body text-content">Copied. Paste it into any AI chat{mode === 'context' ? ', then ask your question' : ''}.</p>
           </div>
@@ -528,7 +528,7 @@
 
         <!-- One line for everything about the size of the prompt; the tune icon opens the two settings that drive it. -->
         {#if mode !== 'organise'}
-          <div class="bg-surface/40 border border-border rounded-card">
+          <div class="bg-surface-elevated/50 rounded-card">
             <div class="p-3.5 flex items-center gap-3">
               <Icon icon="ic:baseline-straighten" class="text-xl text-content-subtle shrink-0" />
               <span class="min-w-0 flex-1">
@@ -563,7 +563,7 @@
 
         {#if flows && directReady && (mode === 'organise' || rangeValid)}
           <!-- Optional: send it from the app with your own key. The price is on the button, and a confirmation follows. -->
-          <button onclick={() => (sendOpen = true)} class="w-full p-3.5 rounded-card border border-border-strong text-left flex items-center gap-3 hover:bg-surface-elevated/50 transition-colors">
+          <button onclick={() => (sendOpen = true)} class="w-full p-3.5 rounded-card text-left flex items-center gap-3 hover:bg-surface-elevated/50 transition-colors bg-surface-elevated/40">
             <Icon icon="ic:baseline-bolt" class="text-xl text-status-caution shrink-0" />
             <span class="min-w-0 flex-1">
               <span class="text-label text-content block">Ask {directService} directly</span>
@@ -577,7 +577,7 @@
         <p class="text-caption text-content-subtle leading-relaxed px-1">{mode === 'generate' ? 'You review every change before anything is applied. ' : mode === 'analyze' ? 'The reply is for reading in the chat. ' : ''}An AI's suggestions are ideas to check, not medical advice - for pain or injury, ask a doctor or physiotherapist.</p>
 
       {:else if step === 'paste'}
-        <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-start gap-3">
+        <div class="p-3.5 bg-surface-elevated/50 rounded-card flex items-start gap-3">
           <Icon icon="ic:baseline-content-paste-go" class="text-xl text-primary shrink-0 mt-0.5" />
           <div class="min-w-0 flex-1 space-y-1">
             {#if directInfo}
@@ -606,7 +606,7 @@
         ></textarea>
 
         {#if pasteText.trim() && issues.length > 0}
-          <div class="p-3.5 bg-danger/10 border border-danger/30 rounded-card space-y-2.5">
+          <div class="p-3.5 bg-danger/10 rounded-card space-y-2.5">
             <div class="flex items-start justify-between gap-3">
               <p class="text-label text-danger flex items-center gap-1.5">
                 <Icon icon="ic:baseline-error-outline" class="text-sm" />
@@ -643,7 +643,7 @@
           </p>
         {/if}
         {#if changeSet.summary}
-          <div class="p-3.5 rounded-card bg-primary/5 border border-primary/20">
+          <div class="p-3.5 rounded-card bg-primary/5">
             <p class="text-caption uppercase text-primary mb-1">What the AI changed</p>
             <p class="text-body text-content leading-relaxed whitespace-pre-wrap break-words">{changeSet.summary}</p>
           </div>
@@ -653,7 +653,7 @@
           <span class="text-content-subtle">Untick anything you don't want; changes that depend on it are left out too.</span>
         </p>
         {#if repairs.length > 0}
-          <div class="p-3 bg-warning/10 border border-warning/30 rounded-card space-y-1.5">
+          <div class="p-3 bg-warning/10 rounded-card space-y-1.5">
             <button onclick={() => showRepairs = !showRepairs} class="w-full text-left text-caption text-warning font-bold flex items-center gap-1">
               <Icon icon="ic:baseline-auto-fix-high" class="text-sm" /> Fixed {repairs.length} value{repairs.length === 1 ? '' : 's'} in the reply automatically
               <Icon icon={showRepairs ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-sm ml-auto" />

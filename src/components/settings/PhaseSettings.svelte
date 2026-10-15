@@ -116,7 +116,7 @@
   </div>
 
   {#if isAddingPhase && editingPhase}
-    <div class="p-5 bg-surface-elevated/50 border border-primary/30 rounded-card space-y-4 animate-in zoom-in-95 shadow-inner">
+    <div class="p-5 bg-surface-elevated/50 rounded-card space-y-4 animate-in zoom-in-95">
       <div class="space-y-3">
         <div class="space-y-1"><label for="phase-name" class="text-label text-content-subtle ml-1">Phase Name</label><input id="phase-name" bind:value={editingPhase.name} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong focus:ring-1 focus:ring-primary outline-none text-sm" placeholder="e.g., Hypertrophy" /></div>
         <div class="space-y-1"><p class="text-label text-content-subtle ml-1">Color</p>
