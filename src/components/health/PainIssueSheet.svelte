@@ -5,9 +5,6 @@
    * reopening / deleting it. Opened from anywhere via `lib/pain/painUi`.
    */
   import { portal } from '../../lib/ui/portal';
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { keyboardAware } from '../../lib/ui/keyboardAware';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { formatDate } from '../../lib/dateUtils';
   import { checkInsFor, issueState, daysBetween, STATUS_LABELS, KIND_LABELS, TIMING_LABELS, TREND_LABELS, REGION_LABELS } from '../../lib/pain/issues';
@@ -15,6 +12,7 @@
   import PainCheckInButtons from './PainCheckInButtons.svelte';
   import PainReportSheet from './PainReportSheet.svelte';
   import RangeSlider from '../common/RangeSlider.svelte';
+  import Sheet from '../ui/Sheet.svelte';
   import Icon from '@iconify/svelte';
 
   let { issueId, onClose }: { issueId: string; onClose: () => void } = $props();
@@ -57,30 +55,21 @@
     resolved: 'bg-success/15 text-success', worse: 'bg-danger/15 text-danger', improving: 'bg-success/10 text-success',
     steady: 'bg-surface-elevated text-content-muted', new: 'bg-primary/10 text-primary',
   };
-
-  backWhile(() => !editing, () => onClose());
 </script>
 
 {#if issue && st}
-  <div use:portal class="fixed inset-0 pb-safe z-[117] flex items-end sm:items-center justify-center bg-app-bg/85 backdrop-blur-md" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div use:sheetDrag={onClose} use:keyboardAware class="bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border shadow-card max-h-[92vh] overflow-y-auto no-scrollbar animate-in slide-in-from-bottom-4 duration-200">
-      <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border px-5 py-4 flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="text-caption flex items-center gap-2">
+  <div use:portal>
+    <Sheet title={issue.bodyPart} subtitle={issue.region ? REGION_LABELS[issue.region] : 'Pain'} level="nested" {onClose}>
+      <div class="space-y-5">
+        <div class="space-y-1">
+          <p class="text-caption">
             <span class="px-1.5 py-0.5 rounded-control font-bold {STATUS_TONE[st.status]}">{STATUS_LABELS[st.status]}</span>
-            <span class="text-content-subtle">{issue.region ? REGION_LABELS[issue.region] : 'Pain'}</span>
           </p>
-          <h3 class="text-title text-content break-words mt-1">{issue.bodyPart}</h3>
-          <p class="text-caption text-content-subtle tabular-nums">
-            {formatDate(issue.startDate)} – {issue.endDate ? `${formatDate(issue.endDate)}${issue.endEstimated ? ' (est.)' : ''}` : 'now'} · {st.durationDays + 1} day{st.durationDays === 0 ? '' : 's'}{st.checkIns ? ` · peak ${st.peak}/10` : ''}
+          <p class="text-label text-content-subtle tabular-nums">
+            {formatDate(issue.startDate)} to {issue.endDate ? `${formatDate(issue.endDate)}${issue.endEstimated ? ' (est.)' : ''}` : 'now'} · {st.durationDays + 1} day{st.durationDays === 0 ? '' : 's'}{st.checkIns ? ` · peak ${st.peak}/10` : ''}
           </p>
         </div>
-        <button onclick={onClose} class="p-2 -mr-2 text-content-subtle hover:text-content shrink-0" aria-label="Close">
-          <Icon icon="ic:baseline-close" class="text-xl" />
-        </button>
-      </div>
 
-      <div class="p-5 space-y-5">
         {#if chart}
           <div class="space-y-1">
             <svg viewBox="0 0 {W} {H}" class="w-full h-24" role="img" aria-label="Severity over time">
@@ -95,23 +84,23 @@
               {/each}
             </svg>
             <p class="text-caption text-content-subtle flex justify-between tabular-nums">
-              <span>{formatDate(issue.startDate)}</span><span>severity 0–10</span><span>{issue.endDate ? formatDate(issue.endDate) : 'today'}</span>
+              <span>{formatDate(issue.startDate)}</span><span>severity 0 to 10</span><span>{issue.endDate ? formatDate(issue.endDate) : 'today'}</span>
             </p>
           </div>
         {/if}
 
         {#if !issue.endDate}
           <div class="space-y-2">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between gap-2">
               <span class="text-label text-content-subtle">How is it today?</span>
-              <button onclick={() => detailed = !detailed} class="text-caption text-content-subtle hover:text-primary">{detailed ? 'Just a tap' : 'Add a number / note'}</button>
+              <button onclick={() => detailed = !detailed} aria-expanded={detailed} class="btn btn-quiet px-2 text-caption text-content-subtle hover:text-primary">{detailed ? 'Just a tap' : 'Add a number or note'}</button>
             </div>
             {#if detailed}
               <div class="space-y-1">
                 <span class="flex justify-between text-caption text-content-subtle"><span>Severity</span><span class="tabular-nums text-content">{severity}/10</span></span>
                 <RangeSlider bind:value={severity} label="Severity" />
               </div>
-              <input bind:value={note} placeholder="Note (optional)" class="w-full px-3 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none" />
+              <input bind:value={note} placeholder="Note (optional)" aria-label="Check-in note" enterkeyhint="done" class="field" />
             {/if}
             <PainCheckInButtons onPick={answer} />
             {#if st.lastCheckIn}
@@ -121,17 +110,17 @@
         {/if}
 
         {#if issue.watchCategories?.length || trigger || issue.notes}
-          <div class="space-y-1.5 text-caption">
+          <div class="space-y-1.5 text-label">
             {#if issue.watchCategories?.length}<p class="text-content-muted"><span class="text-content-subtle">Warns before:</span> {issue.watchCategories.join(', ')}</p>{/if}
             {#if trigger}<p class="text-content-muted"><span class="text-content-subtle">Started during:</span> {trigger}</p>{/if}
             {#if issue.notes}<p class="text-content whitespace-pre-wrap break-words">{issue.notes}</p>{/if}
           </div>
         {/if}
 
-        <div class="space-y-2">
+        <div class="space-y-1">
           <h4 class="text-section uppercase text-content-muted">Check-ins · {checkIns.length}</h4>
           {#each [...checkIns].reverse() as l (l.id)}
-            <div class="flex items-start gap-2.5 py-1.5 border-b border-border/60 last:border-0">
+            <div class="flex items-center gap-2.5 py-1 border-b border-border/60 last:border-0">
               <span class="shrink-0 w-8 text-center py-0.5 rounded-control text-caption font-bold tabular-nums" style="background: color-mix(in srgb, {tone(l.severity)} 18%, transparent); color: {tone(l.severity)};">{l.severity}</span>
               <div class="min-w-0 flex-1">
                 <p class="text-label text-content tabular-nums">{formatDate(l.date)}{l.trend ? ` · ${TREND_LABELS[l.trend]}` : ''}</p>
@@ -140,8 +129,8 @@
                 {/if}
                 {#if l.notes}<p class="text-caption text-content-muted break-words">{l.notes}</p>{/if}
               </div>
-              <button onclick={() => trainingState.deletePainLog(l.id)} class="shrink-0 p-1 text-content-subtle hover:text-danger" aria-label="Delete this check-in">
-                <Icon icon="ic:baseline-close" class="text-sm" />
+              <button onclick={() => trainingState.deletePainLog(l.id)} class="btn-icon shrink-0 hover:text-danger" aria-label="Delete the check-in from {formatDate(l.date)}">
+                <Icon icon="ic:baseline-close" class="text-lg" />
               </button>
             </div>
           {:else}
@@ -150,24 +139,25 @@
         </div>
 
         <div class="pt-2 border-t border-border grid grid-cols-2 gap-2">
-          <button onclick={() => editing = true} class="py-2.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content text-label font-bold rounded-control flex items-center justify-center gap-1.5">
+          <button onclick={() => editing = true} class="btn btn-secondary">
             <Icon icon="ic:baseline-edit" class="text-base" /> Edit
           </button>
           {#if issue.endDate}
-            <button onclick={() => trainingState.reopenPainIssue(issue!.id)} class="py-2.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content text-label font-bold rounded-control flex items-center justify-center gap-1.5">
+            <button onclick={() => trainingState.reopenPainIssue(issue!.id)} class="btn btn-secondary">
               <Icon icon="ic:baseline-replay" class="text-base" /> It's back
             </button>
           {:else}
-            <button onclick={() => answer('gone')} class="py-2.5 bg-success/10 hover:bg-success/15 text-success text-label font-bold rounded-control flex items-center justify-center gap-1.5">
+            <button onclick={() => answer('gone')} class="btn bg-success/10 hover:bg-success/15 text-success">
               <Icon icon="ic:baseline-check-circle" class="text-base" /> It's gone
             </button>
           {/if}
-          <button onclick={() => { const id = issue!.id; onClose(); void trainingState.deletePainIssue(id); }} class="col-span-2 py-2 text-label text-content-subtle hover:text-danger">
-            Delete this issue and its check-ins
+          <!-- The delete takes the issue and its check-ins together; the toast that follows carries an Undo that puts all of it back. -->
+          <button onclick={() => { const id = issue!.id; onClose(); void trainingState.deletePainIssue(id); }} class="btn btn-danger col-span-2">
+            <Icon icon="ic:baseline-delete" class="text-base" /> Delete this issue and its check-ins
           </button>
         </div>
       </div>
-    </div>
+    </Sheet>
     <!-- Inside the portalled root: it must stay this block's only node. -->
     {#if editing}
       <PainReportSheet issue={issue} onClose={() => editing = false} />

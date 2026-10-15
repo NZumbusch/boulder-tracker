@@ -20,13 +20,13 @@
   };
 </script>
 
-<div class="grid grid-cols-4 gap-1.5">
+<div class="grid grid-cols-4 gap-1.5" role="group" aria-label="How is it today?">
   {#each ORDER as trend}
     <button
       type="button"
       {disabled}
       onclick={() => onPick(trend)}
-      class="py-2 rounded-control border text-label font-bold flex flex-col items-center gap-0.5 transition-all active:scale-95 disabled:opacity-40 {chosen === trend ? 'ring-2 ring-primary/60 ' : ''}{TONE[trend]}"
+      class="py-2 min-h-14 rounded-control border text-label font-bold flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 disabled:opacity-40 {chosen === trend ? 'ring-2 ring-primary ' : ''}{TONE[trend]}"
       aria-pressed={chosen === trend}
     >
       <Icon icon={TREND_ICONS[trend]} class="text-lg" />
