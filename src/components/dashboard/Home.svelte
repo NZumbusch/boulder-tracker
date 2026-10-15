@@ -6,7 +6,7 @@
   import CheckinCard from './home/CheckinCard.svelte';
   import { updater } from '../../lib/update/updater.svelte';
   /**
-   * Home: a header (date, phase and block week, quick log, settings) and
+   * Home: a header (date, phase and block week, quick log) and
    * the cards, in the order and with the visibility set in Settings. Each
    * card is its own component under `home/`; the values more than one card
    * reads live in `HomeData`, computed once here and passed down.
@@ -36,7 +36,6 @@
   import { driveSync } from '../../lib/sync/driveSync.svelte';
   import { healthConnect } from '../../lib/health/healthConnect.svelte';
   import { toast } from '../../lib/toast.svelte';
-  import { tour } from '../../lib/tour/tour.svelte';
 
   const data = new HomeData();
   const hasData = $derived(
@@ -102,30 +101,12 @@
       {#if trainingState.quickLogActions.some((a) => a.visible)}
         <button
           onclick={() => showQuickLog = true}
-          class="w-11 h-11 flex items-center justify-center rounded-full text-primary hover:bg-surface-elevated/70 transition-colors"
+          class="btn-icon text-primary"
           aria-label="Quick log: pain, bodyweight, send or test result"
           data-tour="home-quicklog"
           title="Quick log"
         >
-          <Icon icon="ic:baseline-plus" class="text-2xl" />
-        </button>
-      {/if}
-      <!-- With the bottom bar chosen there is no drawer to hold these. -->
-      {#if trainingState.navStyle === 'bar'}
-        <button
-          onclick={() => void tour.start()}
-          class="w-11 h-11 flex items-center justify-center rounded-full text-content-subtle hover:text-content hover:bg-surface-elevated/70 transition-colors"
-          aria-label="Take the tour"
-          title="Take the tour"
-        >
-          <Icon icon="ic:outline-help-outline" class="text-xl" />
-        </button>
-        <button
-          onclick={() => trainingState.navigate('settings')}
-          class="w-11 h-11 flex items-center justify-center rounded-full text-content-subtle hover:text-content hover:bg-surface-elevated/70 transition-colors"
-          aria-label="Settings"
-        >
-          <Icon icon="ic:baseline-settings" class="text-xl" />
+          <Icon icon="ic:baseline-edit" class="text-xl" />
         </button>
       {/if}
     {/snippet}
