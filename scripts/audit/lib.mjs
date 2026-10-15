@@ -152,5 +152,5 @@ export async function auditScreen(c, screen, { viewports = VIEWPORTS, themes = T
 /** Whether a row has anything an agent must look at. */
 export function flagged(row) {
   const i = row.issues ?? {};
-  return !!(row.error || i.pageOverflowX || i.offscreen?.length || i.clipped?.length || i.emptyButtons?.length);
+  return !!(row.error || i.pageOverflowX || i.offscreen?.length || i.clipped?.length || i.emptyButtons?.length || i.smallTargets?.length || i.tinyText?.length);
 }
