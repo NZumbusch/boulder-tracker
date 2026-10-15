@@ -38,6 +38,9 @@ import { buildWeeklyHistory } from "./weekSummary";
 export type InsightGroup = "push" | "strength" | "plan" | "body";
 export type InsightTone = "risk" | "caution" | "good" | "info";
 
+/** The Analytics tabs, by the question each answers: how is it going (Overview), what am I doing (Training), how am I holding up (Recovery), am I getting better (Progress). */
+export type AnalyticsTab = "overview" | "training" | "recovery" | "progress";
+
 /** Where tapping a finding goes: the ACWR sheet, or a chart on one of the Analytics tabs. */
 export type InsightLink =
   | { kind: "acwr" }
@@ -45,7 +48,7 @@ export type InsightLink =
   | { kind: "block"; blockId: string }
   | { kind: "taper"; goalId: string }
   | { kind: "exercise"; typeId: string }
-  | { kind: "panel"; tab: "training" | "body" | "performance"; section: string };
+  | { kind: "panel"; tab: AnalyticsTab; section: string };
 
 export interface Insight {
   id: string;
@@ -222,7 +225,7 @@ function fatigueInsight(i: InsightInputs): Insight | undefined {
     tone,
     title: tone === "good" ? "Fresh: no area above 4/10" : `${name} fatigue ${value.toFixed(1)}/10`,
     detail: tone === "good" ? `Highest is ${name.toLowerCase()} at ${value.toFixed(1)}/10.` : "From your recent session ratings, fading as you rest.",
-    link: { kind: "panel", tab: "training", section: "section-fatigue" },
+    link: { kind: "panel", tab: "recovery", section: "section-fatigue" },
   };
 }
 
@@ -265,7 +268,7 @@ function deloadInsight(i: InsightInputs): Insight | undefined {
     tone: r.sufficient && r.ratio !== undefined && r.ratio > i.config.acwrZones.caution ? "caution" : "info",
     title: `${HARD_WEEKS_BEFORE_DELOAD} weeks without an easier one: time for a lighter week`,
     detail: `${last.map((id, k) => `W${id.split("-W")[1]} ${n0(recent[k])}`).join(" · ")}. The AI can plan one: "Tired or sore" in Change plan.`,
-    link: { kind: "panel", tab: "training", section: "section-load" },
+    link: { kind: "panel", tab: "overview", section: "section-load" },
   };
 }
 
@@ -319,7 +322,7 @@ function benchmarkInsights(i: InsightInputs): Insight[] {
       tone: last.pct > 2 ? "good" : last.pct < -2 ? "caution" : "info",
       title: `${s.name}: ${sign}${Math.abs(Math.round(last.pct))}% since your first test`,
       detail: `${s.points.length} tests so far.`,
-      link: { kind: "panel", tab: "performance", section: "section-benchmarkOverview" },
+      link: { kind: "panel", tab: "progress", section: "section-benchmarkOverview" },
     });
   }
   return out.slice(0, 3);
@@ -329,7 +332,7 @@ function retestInsight(i: InsightInputs): Insight | undefined {
   const planned = plannedTestsByType(i.workouts, i.benchmarks);
   const status = testStatuses(i.benchmarkTypes, i.benchmarks, i.asOf, new Set(planned.keys()), i.config.retestWeeks);
   const due = status.filter((s) => s.due).sort((a, b) => (b.weeksSince ?? 0) - (a.weeksSince ?? 0));
-  const link: InsightLink = { kind: "panel", tab: "performance", section: "section-benchmarks" };
+  const link: InsightLink = { kind: "panel", tab: "progress", section: "section-benchmarks" };
   const open = due.filter((s) => !s.scheduled);
   if (open.length > 0) {
     const first = open[0];
@@ -369,7 +372,7 @@ function adherenceInsights(i: InsightInputs): Insight[] {
       tone: share >= 0.8 ? "good" : share < i.config.adherenceLow ? "caution" : "info",
       title: `${Math.round(share * 100)}% of planned sessions done, last 4 weeks`,
       detail: `${done} of ${done + missed} (skipped sessions don't count against you).`,
-      link: { kind: "panel", tab: "training", section: "section-load" },
+      link: { kind: "panel", tab: "overview", section: "section-load" },
     });
   }
   const todayIndex = isoDayIndex(WEEK_DAYS[(i.asOf.getDay() + 6) % 7]);
@@ -483,7 +486,7 @@ function targetInsights(i: InsightInputs): Insight[] {
     const sessions = i.workoutsForWeek(id).filter((w) => w.status === "completed");
     return { id, count: sessions.length, p: weekProgress(t, sessions, isFinger) };
   });
-  const link: InsightLink = { kind: "panel", tab: "training", section: "section-load" };
+  const link: InsightLink = { kind: "panel", tab: "overview", section: "section-load" };
   const active = weeks.filter((w) => w.count > 0);
   if (active.length < 2) return out;
 
@@ -547,7 +550,7 @@ function climbingInsight(i: InsightInputs): Insight | undefined {
     const rank = parseFontGrade(a.grade);
     return rank !== undefined && (b === undefined || rank > (parseFontGrade(b.grade) ?? -Infinity)) ? a : b;
   }, undefined);
-  const link: InsightLink = { kind: "panel", tab: "performance", section: "section-outdoor" };
+  const link: InsightLink = { kind: "panel", tab: "progress", section: "section-outdoor" };
   if (recent.length === 0) {
     return { id: "sends", group: "body", tone: "info", title: "No outdoor sends in 4 weeks", detail: season.hardest ? `Hardest this season: ${season.hardest.grade} (${season.hardest.name}).` : undefined, link };
   }
@@ -581,13 +584,13 @@ function recoveryInsights(i: InsightInputs): Insight[] {
         tone: "caution",
         title: `HRV ${Math.round(dip * 100)}% below baseline`,
         detail: `Last 3 days average ${Math.round(avg(hrv))} ms against ${Math.round(baseline)} ms over 14 days.`,
-        link: { kind: "panel", tab: "body", section: "section-recoveryTrend" },
+        link: { kind: "panel", tab: "recovery", section: "section-recoveryTrend" },
       });
     }
   }
   const sleep = recentOf("sleep-score", 3);
   if (sleep.length >= 2 && avg(sleep) < i.config.sleepLow) {
-    out.push({ id: "sleep", group: "body", tone: "caution", title: `Low sleep score: ${Math.round(avg(sleep))} lately`, link: { kind: "panel", tab: "body", section: "section-recoveryTrend" } });
+    out.push({ id: "sleep", group: "body", tone: "caution", title: `Low sleep score: ${Math.round(avg(sleep))} lately`, link: { kind: "panel", tab: "recovery", section: "section-recoveryTrend" } });
   }
   return out;
 }
@@ -641,7 +644,7 @@ function hrvPatternInsight(i: InsightInputs): Insight | undefined {
     tone: "info",
     title: `HRV dips after your heavy weeks`,
     detail: `It was ${Math.abs(Math.round(mean * 100))}% under its usual in the week after ${dips} of ${heavy} weeks with load over ${n0(HEAVY_WEEK * median)}.`,
-    link: { kind: "panel", tab: "body", section: "section-recoveryTrend" },
+    link: { kind: "panel", tab: "recovery", section: "section-recoveryTrend" },
   };
 }
 
@@ -661,7 +664,7 @@ function painPatternInsight(i: InsightInputs): Insight | undefined {
     tone: "caution",
     title: "Pain shows up around load spikes",
     detail: `${near.length} of your last ${recent.length} check-ins (${parts}) were within a week of a jump in load. Ramping up more slowly may keep it away.`,
-    link: { kind: "panel", tab: "body", section: "section-pain" },
+    link: { kind: "panel", tab: "recovery", section: "section-pain" },
   };
 }
 
@@ -690,6 +693,30 @@ export function buildInsights(input: InsightInputs): Insight[] {
   ];
   const list = found.filter((x): x is Insight => x !== undefined);
   return list.sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone]);
+}
+
+/**
+ * The tab a finding belongs on: the one its chart is on (so a finding sits right above what it points at), else the
+ * tab of the question it answers.
+ */
+export function findingTab(i: Insight): AnalyticsTab {
+  const link = i.link;
+  if (link?.kind === "panel") return link.tab;
+  if (link?.kind === "acwr") return "overview";
+  if (link?.kind === "plan" || link?.kind === "block" || link?.kind === "taper") return "training";
+  if (link?.kind === "exercise") return "progress";
+  return { push: "overview", strength: "progress", plan: "training", body: "recovery" }[i.group] as AnalyticsTab;
+}
+
+/**
+ * The few findings worth seeing before anything else, across every tab: what needs attention first, then what is
+ * worth a look, then (at most `good`) what is going well. `info` is left for its own tab.
+ */
+export function topFindings(all: Insight[], good = 2): Insight[] {
+  const urgent = all.filter((i) => i.tone === "risk" || i.tone === "caution");
+  // The load verdict (the ratio of this week's load to the usual) always shows, whatever it says: it answers "should I train hard today?".
+  const verdict = all.filter((i) => i.id === "acwr" && !urgent.includes(i));
+  return [...urgent, ...verdict, ...all.filter((i) => i.tone === "good" && i.id !== "acwr").slice(0, good)];
 }
 
 export const INSIGHT_GROUPS: { id: InsightGroup; label: string; question: string }[] = [

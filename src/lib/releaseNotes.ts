@@ -20,6 +20,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-19-analytics-by-question",
+    title: "Analytics, rebuilt around four questions",
+    points: [
+      "Four tabs: Overview (this window against the one before, what needs a look, the load chart, your training calendar), Training (mix; strain and finger load under More charts), Recovery (fatigue, the recovery chart, pain) and Progress (tests, exercises, sends).",
+      "Findings moved next to the charts they point at: the few that matter most on Overview, the rest at the top of their own tab. The summary tiles show once, and the range and paging work on every tab.",
+      "The load chart no longer puts two scales on one plot: weekly load as bars, the acute:chronic ratio in its own strip under it with its zones, one shared time axis.",
+      "Recovery keeps the overlaid chart you know, now with a labelled Overlay / Rows switch for one row per measure; week labels thin out instead of running together.",
+    ],
+  },
+  {
     id: "2026-10-18-top-bar-and-long-events",
     title: "The top bar scrolls with the page; long events stay in the calendar",
     points: [

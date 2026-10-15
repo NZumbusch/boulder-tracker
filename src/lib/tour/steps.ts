@@ -132,14 +132,14 @@ export const TOUR_STEPS: TourStep[] = ([
   {
     view: "analytics",
     target: "analytics-insights",
-    title: "Insights",
-    body: "What your numbers say right now, in plain words: whether to push or rest (load ratio, fatigue, and what the rest of the week would do to it), new bests, test results, plan adherence, and what you've neglected. Tap a finding for the chart behind it.",
+    title: "Worth a look",
+    body: "What your numbers say right now, in plain words: whether to push or rest (load ratio, fatigue, and what the rest of the week would do to it), new bests, test results, plan adherence, and what you've neglected. Tap a finding for the chart behind it; each tab has its own findings above its charts.",
   },
   {
     view: "analytics",
     target: "analytics-range",
     title: "Looking back",
-    body: "The charts under the other tabs cover a window you pick. Swipe sideways to page through earlier ones.",
+    body: "The charts cover a window you pick. Swipe sideways to page through earlier ones.",
   },
   {
     view: "analytics",
@@ -150,8 +150,8 @@ export const TOUR_STEPS: TourStep[] = ([
   {
     view: "analytics",
     target: "analytics-tabs",
-    title: "Insights, training, body, progress",
-    body: "Insights first; then fatigue, recovery and training mix under Training; sleep, HRV, bodyweight and pain under Body; tests and sends under Progress.",
+    title: "Four tabs, four questions",
+    body: "Overview: how the window went and what needs a look. Training: your mix and the plan. Recovery: fatigue, sleep, HRV, bodyweight and pain. Progress: tests, exercises and sends.",
   },
   {
     view: "settings",
