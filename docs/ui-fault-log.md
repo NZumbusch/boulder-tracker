@@ -10,6 +10,29 @@ Design audit of the whole app, screen by screen, written 2026-10-15 at the reque
 - **Honesty:** nothing here was tried on a phone or a tablet. Parts 3-5 come from reading code and from arithmetic on the colour tokens, not from rendering; the few I re-checked in the source myself are marked "(Confirmed in source)". Where a claim depends on runtime data it says "verify". The demo data is thin in places (two outdoor sends, rest days), which exaggerates some empty-looking charts.
 - **Size:** about 600 findings (66 from screens, about 150 for the live session and logging flows, 290 for Plan/Home/History/Analytics, 147 for settings and chrome). Severity: **P1** data loss or a feature that can fail to work, **P2** major (a frequent flow is hard, or an accessibility failure), **P3** minor, **P4** polish.
 
+## 0.1 Status after the first round of fixes (2026-10-15)
+
+Not done. About 600 findings were logged; one round of fixes has landed, which covers some of the twelve "fix first" items and a fraction of the rest. Checked by reading the commits and the code, and a headless smoke run of every screen on example data (no errors); nothing has been tried on a phone.
+
+| # in 1.1 | Item | State |
+| --- | --- | --- |
+| 1 | Deletes without confirm or undo | **Not started** (the Toast got a full-size, longer-lived Undo, which the fixes will need) |
+| 2 | Session bubble covers lists | **Done**: the bubble is a button in the bottom bar or a strip along the bottom, never floating |
+| 3 | Tap targets mid-workout | **Partly**: timer widget, set editor, run-adjust and session sheets reworked; circuit runner, steppers elsewhere not checked |
+| 4 | Charts unreadable by touch | **Not started** (the ACWR zone helper and a series colour stylesheet are groundwork) |
+| 5 | One colour, several meanings | **Partly**: a navigation accent and a series stylesheet; green/blue meanings in cards and charts not yet separated |
+| 6 | Plan B explained nine times | **Not started** |
+| 7 | Four different "+" | **Partly**: Home's header has a pencil for Quick log; Plan's + and the others unchanged |
+| 8 | Accessibility baseline | **Partly**: a visible focus ring, dialogs named after their title; `role="dialog"`/`aria-pressed`/icon labels across the sheets not done |
+| 9 | Date and week formats | **Done** (one way to write a day and a week; the day-early bug west of UTC fixed, and in the weather strips) |
+| 10 | Bar-mode navigation hides Settings | **Partly**: bar, rail and drawer share an accent and a bottom bar component; Settings and sync status in bar mode to be re-checked |
+| 11 | Jargon without help | **Partly**: glossary entries added; many terms still have no info button |
+| 12 | Silent disabled buttons and validation | **Not started** |
+
+Also landed: shared `Sheet`, `Segmented`, `Toggle`, button and field utilities (**built, not yet used by the 16 hand-copied sheets**), the Analytics windows no longer run two weeks into the future (V-52), identical exercise chips grouped in the week list (V-33), one trip/competition style in the calendar, units radio cards on the welcome screen. One helper (`lib/analytics/joinRuns.ts`, line-gap handling for charts) is written and tested but **not wired in yet**.
+
+What a second round should do, in order: adopt the shared sheet and controls everywhere (removes most of the Part 3-5 items by itself), then 1, 12, 4, 6, then the Part 3-5 findings by severity.
+
 ## 1. Read this first
 
 ### 1.1 The twelve things I would fix first
