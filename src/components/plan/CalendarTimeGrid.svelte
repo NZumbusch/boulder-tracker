@@ -434,6 +434,8 @@
                 aria-label="{s.workout.notes || 'Session'}, {meta(s)}"
                 title={s.workout.notes || 'Session'}
               >
+                <!-- Zoomed in, the whole card carries a wash of its category's colour, so the exercise blocks sit on a card of the session's own rather than on white. -->
+                {#if detail}<span class="absolute inset-0 cal-wash {colorOf(s)}"></span>{/if}
                 <!-- The banner: the session in the colour of its main category. -->
                 <span class="relative block px-2 py-1.5 {detail ? 'shrink-0' : 'flex-1 min-h-0'}">
                   <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
@@ -448,7 +450,7 @@
                 </span>
                 <!-- Zoomed in: each exercise a block of its own under the banner, as long as it takes, in its own category's colour. -->
                 {#if detail}
-                  <span class="flex-1 min-h-0 flex flex-col gap-0.5 p-0.5">
+                  <span class="relative flex-1 min-h-0 flex flex-col gap-0.5 p-1">
                     {#each segs as seg (seg.slotId)}
                       <span class="relative overflow-hidden rounded-md px-1.5 flex items-start min-h-[14px]" style="flex: {seg.minutes} 1 0">
                         <span class="absolute inset-0 cal-fill {soft(s)} {seg.color ?? colorOf(s)}"></span>
