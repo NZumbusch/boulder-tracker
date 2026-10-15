@@ -229,7 +229,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1 flex items-center gap-1.5">Tests <InfoButton term="tests" /></h3>
+    <h2 class="text-section uppercase text-content-muted px-1 flex items-center gap-1.5">Tests <InfoButton term="tests" /></h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Periodic tests tracked over time - log one from the + on Home. Each records what you measure and, where it matters, how you did it (edge depth, added weight). Everything is kept, and Analytics lets you filter, split and plot it any way you like.</p>
   </div>
 

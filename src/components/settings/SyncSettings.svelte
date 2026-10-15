@@ -50,7 +50,7 @@
   <div class="card space-y-4 animate-in fade-in">
     <div class="flex items-start justify-between gap-3">
       <div class="space-y-1 px-1 min-w-0">
-        <h3 class="text-section uppercase text-content-muted">Sync</h3>
+        <h2 class="text-section uppercase text-content-muted">Sync</h2>
         <p class="text-caption text-content-subtle leading-relaxed">
           Keeps this device and your others (phone, tablet) in step through your own Google Drive - a private app folder only this app can see.
         </p>

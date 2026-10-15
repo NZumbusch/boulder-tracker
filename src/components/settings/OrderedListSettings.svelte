@@ -36,7 +36,7 @@
 
 <div class="card space-y-3 animate-in fade-in">
   <div class="space-y-1">
-    <h3 class="text-section uppercase text-content-muted px-1">{title}</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">{title}</h2>
     {#if hint}<p class="text-caption text-content-subtle px-1">{hint}</p>{/if}
   </div>
   <div

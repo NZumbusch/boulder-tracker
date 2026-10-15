@@ -35,7 +35,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Sessions</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Sessions</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
       When you add an exercise part-way through a running session, what should it count as?
     </p>
@@ -62,7 +62,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">While a session runs</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">While a session runs</h2>
   </div>
 
   <div class="divide-y divide-border">

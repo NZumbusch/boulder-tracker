@@ -75,7 +75,7 @@
 
 <div class="space-y-4">
   <div class="card space-y-4 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Backup</h3><p class="text-caption text-content-subtle px-1">One file with everything - to keep, move to another phone, or restore from.</p></div>
+    <div class="space-y-2"><h2 class="text-section uppercase text-content-muted px-1">Backup</h2><p class="text-caption text-content-subtle px-1">One file with everything - to keep, move to another phone, or restore from.</p></div>
     <div class="divide-y divide-border">
       <button onclick={onExport} class="w-full flex items-center justify-between py-3 transition-colors group"><div class="flex items-center gap-3"><Icon icon="ic:baseline-download" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" /><div class="text-left"><p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Save a backup file</p><p class="text-caption text-content-subtle">Everything, as one .json file</p></div></div><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" /></button>
       <div class="relative">
@@ -108,7 +108,7 @@
   </div>
 
   <div class="card space-y-3 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Start Over</h3><p class="text-caption text-content-subtle px-1">Remove everything from this device and begin again from the welcome screen. A backup file is saved first.{#if driveSync.connected}{' '}Sync is switched off; your copy in Google Drive stays.{/if}</p></div>
+    <div class="space-y-2"><h2 class="text-section uppercase text-content-muted px-1">Start Over</h2><p class="text-caption text-content-subtle px-1">Remove everything from this device and begin again from the welcome screen. A backup file is saved first.{#if driveSync.connected}{' '}Sync is switched off; your copy in Google Drive stays.{/if}</p></div>
     <button onclick={deleteAllData} class="w-full py-2.5 text-label text-danger border border-danger/40 rounded-control hover:bg-danger/10 transition-colors">Delete all data</button>
   </div>
 </div>

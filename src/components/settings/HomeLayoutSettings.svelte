@@ -66,7 +66,7 @@
 
 <div class="card space-y-5 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Home sections</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Home sections</h2>
     <p class="text-caption text-content-subtle px-1">Drag the handle to reorder; toggle to show or hide. Open a section to choose what it shows.</p>
     <label class="flex items-center justify-between gap-3 py-2 px-1 cursor-pointer">
       <div class="min-w-0">
@@ -136,7 +136,7 @@
 
 <div class="card space-y-3 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Fatigue card</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Fatigue card</h2>
     <p class="text-caption text-content-subtle px-1">How the Fatigue card on Home draws the four axes.</p>
     <div class="flex bg-surface-elevated/50 p-1 rounded-control">
       <button

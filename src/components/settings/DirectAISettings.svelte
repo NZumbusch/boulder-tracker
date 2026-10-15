@@ -70,7 +70,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Direct AI connection</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Direct AI connection</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
       Optional. Copying the prompt into a chat you already have stays the default, and costs nothing extra on a chat plan. With a key, "Change plan" also offers <em>Ask directly</em>, which sends the prompt from this app and brings the reply straight into the review.
     </p>

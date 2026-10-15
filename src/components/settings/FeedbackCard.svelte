@@ -27,7 +27,7 @@
 </script>
 
 <section class="card space-y-3 animate-in fade-in" aria-labelledby="about-feedback">
-  <h3 id="about-feedback" class="text-section uppercase text-content-muted px-1">Report a bug or send feedback</h3>
+  <h2 id="about-feedback" class="text-section uppercase text-content-muted px-1">Report a bug or send feedback</h2>
   <p class="text-caption text-content-muted leading-relaxed">Opens a message with your app version and device filled in. You write the rest and send it yourself.</p>
   <label class="flex items-start gap-3 cursor-pointer">
     <input type="checkbox" bind:checked={includeLog} class="w-4 h-4 mt-0.5 rounded accent-primary shrink-0" />

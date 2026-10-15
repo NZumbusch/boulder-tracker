@@ -69,7 +69,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-1">
-    <h3 class="text-section uppercase text-content-muted">Errors &amp; warnings</h3>
+    <h2 class="text-section uppercase text-content-muted">Errors &amp; warnings</h2>
     <p class="text-caption text-content-subtle">Everything the app's console reports is kept here, on this device, so a problem can be traced afterwards.</p>
   </div>
 

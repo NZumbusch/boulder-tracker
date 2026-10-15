@@ -16,7 +16,7 @@
 
 {#if CHANGELOG.length > 0}
   <section class="card space-y-1 animate-in fade-in" aria-labelledby="about-new">
-    <h3 id="about-new" class="text-section uppercase text-content-muted px-1 pb-1">What's new</h3>
+    <h2 id="about-new" class="text-section uppercase text-content-muted px-1 pb-1">What's new</h2>
     <div class="divide-y divide-border">
       {#each entries as e (e.hash)}
         {#if e.detail}

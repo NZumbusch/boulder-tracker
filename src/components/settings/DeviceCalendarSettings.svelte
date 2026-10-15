@@ -24,7 +24,7 @@
 {#if deviceCalendar.supported}
   <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-1 px-1">
-      <h3 class="text-section uppercase text-content-muted">Phone calendar</h3>
+      <h2 class="text-section uppercase text-content-muted">Phone calendar</h2>
       <p class="text-caption text-content-subtle leading-relaxed">
         Shows the events from your phone's calendars (Google, Samsung, any account it syncs) beside your sessions on the Plan calendar, so you can plan around them. Read-only: nothing is written to your calendar. The events stay on this phone - never in backups or sync. The AI coach sees their titles and times only if you switch that on under What the AI sees (off by default).
       </p>

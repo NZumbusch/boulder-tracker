@@ -111,7 +111,7 @@
 
 <div class="card space-y-4">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Training Phases</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Training Phases</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">The macrocycle blocks (e.g. "Strength", "Deload") you assign to weeks on the Training Plan calendar. Tap a phase below to edit the default workouts it generates when assigned to a week.</p>
   </div>
 

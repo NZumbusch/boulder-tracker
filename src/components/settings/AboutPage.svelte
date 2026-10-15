@@ -74,7 +74,7 @@
 
   <!-- 2. Help and feedback -->
   <section class="card space-y-3 animate-in fade-in" aria-labelledby="about-help">
-    <h3 id="about-help" class="text-section uppercase text-content-muted px-1">Help</h3>
+    <h2 id="about-help" class="text-section uppercase text-content-muted px-1">Help</h2>
     <button
       onclick={() => tour.start()}
       disabled={trainingState.isSessionActive}
@@ -105,7 +105,7 @@
 
   <!-- 4. Privacy and safety -->
   <section class="card space-y-4 animate-in fade-in" aria-labelledby="about-privacy">
-    <h3 id="about-privacy" class="text-section uppercase text-content-muted px-1">Privacy and safety</h3>
+    <h2 id="about-privacy" class="text-section uppercase text-content-muted px-1">Privacy and safety</h2>
     <p class="text-caption text-content-muted leading-relaxed">
       No account, no server, no ads, no tracking: your data stays on this device, and in your own Google Drive if you turn on sync. The AI coach only copies a prompt, unless you set up the optional direct connection with your own API key.
     </p>
@@ -123,7 +123,7 @@
   <!-- 5. Who made it -->
   <section class="card space-y-3 animate-in fade-in" aria-labelledby="about-credits">
     <div class="px-1">
-      <h3 id="about-credits" class="text-section uppercase text-content-muted">Made by</h3>
+      <h2 id="about-credits" class="text-section uppercase text-content-muted">Made by</h2>
       <p class="text-body text-content mt-1">{APP_INFO.developer}</p>
     </div>
     <address class="not-italic divide-y divide-border border-t border-border">
@@ -134,7 +134,7 @@
 
   <!-- 6. What it uses -->
   <section class="card space-y-3 animate-in fade-in" aria-labelledby="about-uses">
-    <h3 id="about-uses" class="text-section uppercase text-content-muted px-1">Built with</h3>
+    <h2 id="about-uses" class="text-section uppercase text-content-muted px-1">Built with</h2>
     <div class="divide-y divide-border border-t border-border">
       {@render plainRow('Svelte and Capacitor', 'The app and its Android shell')}
       {@render plainRow('Material Icons, via Iconify', 'All icons')}

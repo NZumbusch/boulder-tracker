@@ -37,7 +37,7 @@
 <div class="space-y-4">
   <div class="card space-y-2 animate-in fade-in">
     <div class="space-y-1 px-1">
-      <h3 class="text-section uppercase text-content-muted">Home-screen widgets</h3>
+      <h2 class="text-section uppercase text-content-muted">Home-screen widgets</h2>
       <p class="text-caption text-content-subtle leading-relaxed">They update whenever the app saves, and keep the day and a running session's clock right on their own. Resize one on the home screen and it shows more.</p>
     </div>
     <div class="divide-y divide-border">

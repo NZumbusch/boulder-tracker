@@ -50,7 +50,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">AI Sharing</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">AI Sharing</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
       Controls what the AI Coach (Training Plan screen) includes in its prompt. Nothing leaves this device automatically: the prompt goes out only when you paste it into an AI yourself - or, if you set up a direct connection, when you confirm "Ask directly" and its cost.
     </p>

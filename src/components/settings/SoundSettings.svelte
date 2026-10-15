@@ -24,7 +24,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Sound &amp; vibration</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Sound &amp; vibration</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">The cues for go, rest, the 3-2-1 and the end.</p>
   </div>
 

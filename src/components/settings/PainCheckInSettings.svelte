@@ -11,7 +11,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-1 px-1">
-    <h3 class="text-section uppercase text-content-muted">Pain check-ins</h3>
+    <h2 class="text-section uppercase text-content-muted">Pain check-ins</h2>
     <p class="text-caption text-content-subtle leading-relaxed">While a pain issue is open, the app asks how it is - Gone, Better, Same or Worse - so its course and the day it ended are recorded without you having to remember.</p>
   </div>
 

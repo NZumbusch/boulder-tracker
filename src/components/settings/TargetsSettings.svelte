@@ -73,7 +73,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Weekly targets</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Weekly targets</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">What a normal week should add up to. Home shows the week against these, Insights points out where the last weeks fell short or ran over, and the AI plans to them. Leave a box empty for no target.</p>
   </div>
 

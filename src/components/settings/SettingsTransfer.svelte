@@ -63,7 +63,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Settings</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Settings</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
       Just your settings - layout, units, tunables, session behaviour, AI sharing. Not your location, reminders or text size, which belong to the device.
       {driveSync.connected ? 'They also sync through Drive with everything else.' : 'With Drive sync on they travel by themselves.'}

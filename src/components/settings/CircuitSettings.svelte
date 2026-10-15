@@ -27,7 +27,7 @@
 
 <div class="card space-y-3">
   <div class="px-1">
-    <h3 class="text-section uppercase text-content-muted">Circuits</h3>
+    <h2 class="text-section uppercase text-content-muted">Circuits</h2>
     <p class="text-caption text-content-subtle">Saved circuits and supersets to add to any session or phase template.</p>
   </div>
   {#if trainingState.circuits.length > 0}

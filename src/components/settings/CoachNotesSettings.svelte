@@ -85,7 +85,7 @@
   <!-- About me + standing goal: the user's. -->
   <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-1 px-1">
-      <h3 class="text-section uppercase text-content-muted">About me</h3>
+      <h2 class="text-section uppercase text-content-muted">About me</h2>
       <p class="text-caption text-content-subtle">Only what the app doesn't track already - leave anything blank.</p>
     </div>
     <div class="grid grid-cols-3 gap-2">
@@ -119,10 +119,10 @@
   <!-- Coach notes: the AI's memory, ticked by the user. -->
   <div class="card space-y-3 animate-in fade-in">
     <div class="space-y-1 px-1">
-      <h3 class="text-section uppercase text-content-muted flex items-center justify-between">
+      <h2 class="text-section uppercase text-content-muted flex items-center justify-between">
         <span>Coach notes</span>
         <span class="normal-case tracking-normal font-normal text-caption text-content-subtle tabular-nums">{notes.length} of {MAX_COACH_NOTES}</span>
-      </h3>
+      </h2>
       <p class="text-caption text-content-subtle leading-relaxed">What earlier AI coaches learned about you. An AI can propose adding, changing or removing notes when you change your plan with it - nothing is saved until you tick it in the review. Notes you write or edit are yours, and AIs leave them alone.</p>
     </div>
 

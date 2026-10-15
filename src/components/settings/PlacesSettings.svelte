@@ -92,7 +92,7 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Places</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Places</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
       Where you train: home, crags, gyms. A session can say where it is (pick one of these or type any place), the AI coach knows them, and the weather
       (Open-Meteo, no account) is read for the home and the crags that have coordinates. Kept on this device.

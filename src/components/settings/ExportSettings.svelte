@@ -24,7 +24,7 @@
 <div class="space-y-4">
   <div class="card space-y-4 animate-in fade-in">
     <div class="space-y-2">
-      <h3 class="text-section uppercase text-content-muted px-1">Calendar Integration</h3>
+      <h2 class="text-section uppercase text-content-muted px-1">Calendar Integration</h2>
       <p class="text-caption text-content-subtle px-1 leading-relaxed">Your planned sessions as an ICS file for any calendar app, each at its day and time with its exercises. Finished sessions are as long as they really took.</p>
     </div>
     <button
@@ -47,7 +47,7 @@
   </div>
 
   <div class="card space-y-4 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Printable Training Plan</h3><p class="text-caption text-content-subtle px-1 leading-relaxed">Generate a PDF of your workouts for any week range.</p></div>
+    <div class="space-y-2"><h2 class="text-section uppercase text-content-muted px-1">Printable Training Plan</h2><p class="text-caption text-content-subtle px-1 leading-relaxed">Generate a PDF of your workouts for any week range.</p></div>
     <button
       onclick={() => showPDFExport = true}
       class="w-full flex items-center justify-between py-2 transition-colors group"

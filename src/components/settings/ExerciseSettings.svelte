@@ -22,7 +22,7 @@
 
 <div class="card space-y-4">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Exercises</h3>
+    <h2 class="text-section uppercase text-content-muted px-1">Exercises</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Everything you can put in a session, in groups - each with the fields it tracks and an optional how-to.</p>
   </div>
 
