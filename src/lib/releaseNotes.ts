@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-21-ai-calendar",
+    title: "The AI coach can see your calendar - if you let it",
+    points: [
+      "Settings → What the AI sees → Phone calendar (Android, off by default): the coach's prompt then lists the titles and times of your phone-calendar events in the weeks it plans - never where, notes or guests - so it plans around lectures, trips and late nights.",
+      "The privacy policy is updated: places, the phone calendar, the direct AI connection with your own key, and what each AI sharing switch can include.",
+    ],
+  },
+  {
     id: "2026-10-20-calendar-contrast-and-swipe",
     title: "Calendar: clearer pale blocks, and swiping that works",
     points: [

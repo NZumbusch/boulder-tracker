@@ -107,7 +107,7 @@
   <section class="card space-y-4 animate-in fade-in" aria-labelledby="about-privacy">
     <h3 id="about-privacy" class="text-section uppercase text-content-muted px-1">Privacy and safety</h3>
     <p class="text-caption text-content-muted leading-relaxed">
-      No account, no server, no ads, no tracking: your data stays on this device, and in your own Google Drive if you turn on sync.
+      No account, no server, no ads, no tracking: your data stays on this device, and in your own Google Drive if you turn on sync. The AI coach only copies a prompt, unless you set up the optional direct connection with your own API key.
     </p>
     <div class="border-t border-border">
       {@render externalRow('Privacy policy', 'What is stored, and what leaves the device', APP_INFO.privacyUrl)}

@@ -17,7 +17,9 @@
    */
   import { portal } from '../../lib/ui/portal';
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekIdRange } from '../../lib/dateUtils';
+  import { getWeekId, getWeekIdRange, getWeekDates } from '../../lib/dateUtils';
+  import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
+  import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import { showAlert } from '../../lib/utils';
   import type { AIPromptMode } from '../../lib/ai/context';
   import { buildCoachPromptFor, estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
@@ -180,11 +182,24 @@
 
   /** The compact prompt leaves out the detail of phases the target weeks don't use and trims the lists; kept per device. */
   let compact = $state(loadCompact());
+  // The phone calendar's events in the weeks to plan - read only when sharing it is switched on (Settings → What the AI sees).
+  let calendarEvents = $state<DeviceEvent[]>([]);
+  let calendarRead = 0;
+  $effect(() => {
+    const first = selectedWeekIds[0];
+    const last = selectedWeekIds[selectedWeekIds.length - 1];
+    const wanted = trainingState.aiSharing.phoneCalendar === true && (mode === 'generate' || mode === 'analyze') && first && last;
+    const token = ++calendarRead;
+    if (!wanted) { calendarEvents = []; return; }
+    const from = Math.floor((getWeekDates(first)?.start.getTime() ?? 0) / 86_400_000);
+    const to = Math.floor((getWeekDates(last)?.end.getTime() ?? 0) / 86_400_000);
+    void deviceCalendar.eventsBetween(from, to).then((events) => { if (token === calendarRead) calendarEvents = events; });
+  });
   /** The prompt exactly as it will be copied - also what the size shown is measured on. */
   const prompt = $derived(
     mode === 'organise'
       ? buildOrganisePrompt(organiseSource, goal, effectiveAreas)
-      : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog, compact }),
+      : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog, compact, calendar: calendarEvents }),
   );
   const tokens = $derived(estimateTokens(prompt));
 
