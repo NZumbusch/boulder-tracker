@@ -111,7 +111,7 @@
           class="flex items-center justify-between gap-2 p-3.5 rounded-control border transition-colors
             {timeframe === 'current'
               ? 'bg-primary/5 border-primary/30'
-              : 'bg-surface-elevated/40 border-border-strong/40'}
+              : 'bg-surface-elevated/40 border-transparent'}
             {timeframe === 'past' ? 'opacity-70' : ''}"
         >
           <div class="flex items-center gap-2.5 flex-1 min-w-0">
@@ -141,7 +141,7 @@
           </div>
         </div>
       {:else}
-        <div class="p-6 bg-surface-elevated/20 rounded-card border border-dashed border-border text-center">
+        <div class="p-6 bg-surface-elevated/20 rounded-card text-center">
           <p class="text-caption text-content-subtle italic">No training blocks yet</p>
         </div>
       {/each}
@@ -153,7 +153,7 @@
       <button
         onclick={() => go(-1)}
         disabled={page === 0}
-        class="flex items-center gap-1 px-3 py-2 rounded-control border border-border-strong/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        class="flex items-center gap-1 px-3 py-2 rounded-control bg-surface-elevated/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
       >
         <Icon icon="ic:baseline-chevron-left" class="text-base" />
         Earlier
@@ -162,7 +162,7 @@
       <button
         onclick={() => page = todayPage}
         disabled={page === todayPage}
-        class="px-3 py-2 rounded-control border border-border-strong/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        class="px-3 py-2 rounded-control bg-surface-elevated/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
       >
         Today
       </button>
@@ -170,7 +170,7 @@
       <button
         onclick={() => go(1)}
         disabled={page >= totalPages - 1}
-        class="flex items-center gap-1 px-3 py-2 rounded-control border border-border-strong/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        class="flex items-center gap-1 px-3 py-2 rounded-control bg-surface-elevated/50 text-label text-content-muted hover:text-content hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-all"
       >
         Later
         <Icon icon="ic:baseline-chevron-right" class="text-base" />

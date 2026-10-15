@@ -237,7 +237,7 @@
         </p>
 
       {:else if step === 'paste'}
-        <div class="p-3.5 bg-surface/40 border border-border rounded-card flex items-start gap-3">
+        <div class="p-3.5 bg-surface-elevated/50 rounded-card flex items-start gap-3">
           <Icon icon="ic:baseline-content-paste-go" class="text-xl text-primary shrink-0 mt-0.5" />
           <div class="min-w-0 flex-1 space-y-1">
             <p class="text-body text-content">{promptCopied ? 'Prompt copied. Paste it into your AI chat and send it.' : 'Paste the reply from your AI chat.'}</p>
@@ -254,7 +254,7 @@
         ></textarea>
 
         {#if pasteText.trim() && issues.length > 0}
-          <div class="p-3.5 bg-danger/10 border border-danger/30 rounded-card space-y-2.5">
+          <div class="p-3.5 bg-danger/10 rounded-card space-y-2.5">
             <div class="flex items-start justify-between gap-3">
               <p class="text-label text-danger flex items-center gap-1.5">
                 <Icon icon="ic:baseline-error-outline" class="text-sm" />
@@ -295,7 +295,7 @@
         </div>
 
         {#if repairs.length > 0}
-          <p class="p-3 bg-warning/10 border border-warning/30 rounded-card text-caption text-content-muted leading-snug">
+          <p class="p-3 bg-warning/10 rounded-card text-caption text-content-muted leading-snug">
             <span class="text-warning font-bold">Fixed {repairs.length} value{repairs.length === 1 ? '' : 's'} automatically.</span>
             Anything that couldn't be represented was moved into the exercise's notes. Worth a quick look after saving.
           </p>
@@ -304,7 +304,7 @@
         <div class="space-y-2">
           {#each commit?.slots ?? [] as slot, i (slot.id)}
             {@const newName = unresolvedNameFor(i)}
-            <div class="p-3.5 bg-surface/40 border border-border rounded-card space-y-2">
+            <div class="p-3.5 bg-surface-elevated/50 rounded-card space-y-2">
               <div class="flex items-center gap-3">
                 <span class="shrink-0 w-7 h-7 rounded-full grid place-items-center text-caption font-bold bg-surface-elevated text-content-subtle">{(mode === 'add' && hasExercises ? workout.exercises.length : 0) + i + 1}</span>
                 <div class="min-w-0 flex-1">

@@ -265,6 +265,7 @@ Only checked in headless Chrome at phone width (dark and light), not on a phone 
 | 18.1 | Soft panels | Home, Analytics (all four tabs), History, Settings, the Plan week card, in dark and light. | Grouped content is a faint rounded panel with no border or shadow; nothing looks cut off or invisible; text contrast is fine. | | |
 | 18.2 | Flat sections | Settings → Plan calendar & day → "Flat sections instead of panels" on; go through the same screens. | No panels: sections separated by whitespace and a hairline, aligned with the page edge, no clipped content. Off again restores the panels. | | |
 | 18.3 | Quiet block grid | Plan → block view. Tap a week, page with the arrows, a week split between two phases, a year change. | Soft rounded weeks, selected = ring, this week = dot, the year inside its first week; the tooltip on hover (tablet/laptop) readable; overlapping-blocks dot visible. | | |
+| 18.5 | Sheets and editors | Block manager (list, add, edit), AI coach (all four modes), a session editor, phase template editor, benchmark forms. | No outlined boxes around groups; idle buttons filled; notices (warning, error) still stand out by their tint; inputs keep their outline and are easy to find. | | |
 | 18.4 | Filled chips | Plan B card (Edit B, Decide), Arrange, other chips; a selected chip (e.g. in the AI coach). | No outline on idle chips; selected ones still show their primary colour. | | |
 
 ## 18. Analytics rebuilt by question (2026-10-19)

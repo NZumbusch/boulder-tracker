@@ -97,7 +97,7 @@
       <button
         onclick={handlePlanNew}
         data-tour="add-plan"
-        class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card border border-border-strong/50 transition-all active:scale-[0.98] text-left flex flex-col gap-2"
+        class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card transition-all active:scale-[0.98] text-left flex flex-col gap-2"
       >
         <Icon icon="ic:baseline-edit-calendar" class="text-lg text-content-muted" />
         <span class="min-w-0">
@@ -109,7 +109,7 @@
       <button
         onclick={handleAddBenchmark}
         data-tour="add-benchmark"
-        class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card border border-border-strong/50 transition-all active:scale-[0.98] text-left flex flex-col gap-2"
+        class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card transition-all active:scale-[0.98] text-left flex flex-col gap-2"
       >
         <Icon icon="ic:baseline-insights" class="text-lg text-content-muted" />
         <span class="min-w-0">
@@ -122,7 +122,7 @@
     <button
       onclick={openQuickTimerSheet}
       data-tour="add-timer"
-      class="w-full p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card border border-border-strong/50 transition-all active:scale-[0.99] text-left flex items-center gap-3"
+      class="w-full p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3"
     >
       <Icon icon="ic:baseline-timer" class="text-lg text-content-muted shrink-0" />
       <span class="min-w-0 flex-1">

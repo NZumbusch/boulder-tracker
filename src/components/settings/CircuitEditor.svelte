@@ -100,7 +100,7 @@
 
   <div class="flex-1 overflow-y-auto no-scrollbar">
     <div class="max-w-lg mx-auto w-full px-4 py-4 pb-32 space-y-2.5">
-      <section class="rounded-card border border-border bg-surface/25 p-2 space-y-2">
+      <section class="rounded-card bg-surface-elevated/50 p-2 space-y-2">
         <GroupSettings
           {group}
           {minutes}

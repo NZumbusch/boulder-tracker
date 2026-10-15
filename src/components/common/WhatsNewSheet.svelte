@@ -64,7 +64,7 @@
       </div>
 
       {#if needsAction}
-        <div class="rounded-card bg-status-caution/10 border border-status-caution/30 p-3.5 space-y-2" data-testid="whatsnew-actions">
+        <div class="rounded-card bg-status-caution/10 p-3.5 space-y-2" data-testid="whatsnew-actions">
           <p class="text-label font-semibold text-content">Needs a look</p>
           <ul class="space-y-1 text-caption text-content-muted leading-relaxed list-disc pl-4">
             {#if actions.weighIn}<li>Weigh-ins are still kept as a test. Move them to your bodyweight readings (nothing is deleted; Undo is offered).</li>{/if}

@@ -76,7 +76,7 @@
     </p>
   </div>
 
-  <div class="p-3.5 rounded-card bg-status-caution/10 border border-status-caution/30 flex items-start gap-2.5">
+  <div class="p-3.5 rounded-card bg-status-caution/10 flex items-start gap-2.5">
     <Icon icon="ic:baseline-attach-money" class="text-xl text-status-caution shrink-0 mt-0.5" />
     <p class="text-caption text-content leading-relaxed">
       <strong>This can cost money.</strong> API usage is billed to your account by the provider, separately from any chat plan. A full Change plan request is a long prompt (tens of thousands of tokens). Nothing is sent without you confirming its estimated cost each time.

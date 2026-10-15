@@ -234,7 +234,7 @@
   </div>
 
   {#if weighInOffer && !dismissed.includes(weighInSignature)}
-    <div class="rounded-card bg-status-caution/10 border border-status-caution/30 p-4 space-y-3">
+    <div class="rounded-card bg-status-caution/10 p-4 space-y-3">
       <div>
         <div class="flex items-start justify-between gap-2">
           <p class="text-label font-semibold text-content">Weigh-ins are a daily reading now</p>
@@ -255,7 +255,7 @@
   {/if}
 
   {#if proposals.length > 0 && !dismissed.includes(tidySignature)}
-    <div class="rounded-card bg-status-caution/10 border border-status-caution/30 p-4 space-y-3">
+    <div class="rounded-card bg-status-caution/10 p-4 space-y-3">
       <div>
         <div class="flex items-start justify-between gap-2">
           <p class="text-label font-semibold text-content">Tidy up your tests</p>
