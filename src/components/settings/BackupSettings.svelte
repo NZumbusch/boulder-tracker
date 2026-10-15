@@ -4,7 +4,8 @@
   import { Capacitor } from '@capacitor/core';
   import { AUTO_BACKUP_KEEP } from '../../lib/storage/autoBackup';
   import { driveSync } from '../../lib/sync/driveSync.svelte';
-  import Icon from "@iconify/svelte";
+  import ActionRow from './ActionRow.svelte';
+  import Toggle from '../ui/Toggle.svelte';
   import { storage } from '../../lib/storage';
   import { wipeAllLocalData, AUTO_BACKUP_FOLDER, LEGACY_BACKUP_FOLDERS } from '../../lib/storage/persistence';
   import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -39,15 +40,30 @@
   });
   let fileInput = $state<HTMLInputElement>();
 
-  async function handleImportClick() {
+  /**
+   * Restore: the file is picked first, and the confirmation says what is in it next to what is on this device, so the
+   * replacement is never agreed to blind. The restore itself (and the safety copy it saves first) is the app's.
+   */
+  async function handlePicked(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    let incoming = 'a backup file';
+    try {
+      const data = JSON.parse(await file.text());
+      if (Array.isArray(data.workouts)) {
+        const saved = new Date(file.lastModified).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+        incoming = `a backup with ${data.workouts.length} session${data.workouts.length === 1 ? '' : 's'}, file dated ${saved}`;
+      }
+    } catch { /* the import itself reports an unreadable file */ }
     const confirmed = await showConfirm(
-      'Import Data',
-      'This replaces everything on this device with the file. A backup of what is here now is saved first.'
-        + (driveSync.connected ? ' Sync is on, so your other devices get the imported data too.' : '')
+      'Replace everything on this device?',
+      `This device has ${trainingState.workouts.length} session${trainingState.workouts.length === 1 ? '' : 's'}. They, and all your other data and settings, are replaced by ${incoming}. A backup of what is here now is saved first.`
+        + (driveSync.connected ? ' Sync is on, so your other devices get the restored data too.' : ''),
+      { ok: 'Replace everything', cancel: 'Keep my data' },
     );
-    if (confirmed) {
-      fileInput?.click();
-    }
+    if (!confirmed) { input.value = ''; return; }
+    onImport(e);
   }
 
   /**
@@ -58,12 +74,13 @@
   async function deleteAllData() {
     const confirmed = await showConfirm(
       'Delete all data?',
-      'This removes every session, plan, goal, log and setting from this device. A backup file is saved first.'
+      'This removes every session, plan, goal, log and setting from this device. A backup file is saved first.',
+      { ok: 'Delete everything', cancel: 'Keep my data' },
     );
     if (!confirmed) return;
     const outcome = await storage.exportData().catch(() => 'failed' as const);
     if (outcome === 'failed' || outcome === 'dismissed') {
-      const anyway = await showConfirm('No backup was saved', 'Delete everything anyway? This cannot be undone.');
+      const anyway = await showConfirm('No backup was saved', 'Delete everything anyway? This cannot be undone.', { ok: 'Delete without a backup', cancel: 'Keep my data' });
       if (!anyway) return;
     }
     if (driveSync.connected) await driveSync.disconnect();
@@ -75,41 +92,29 @@
 
 <div class="space-y-4">
   <div class="card space-y-4 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Backup</h3><p class="text-caption text-content-subtle px-1">One file with everything - to keep, move to another phone, or restore from.</p></div>
+    <div class="space-y-2"><h2 class="text-section uppercase text-content-muted px-1">Backup</h2><p class="text-caption text-content-subtle px-1">One file with everything - to keep, move to another phone, or restore from.</p></div>
     <div class="divide-y divide-border">
-      <button onclick={onExport} class="w-full flex items-center justify-between py-3 transition-colors group"><div class="flex items-center gap-3"><Icon icon="ic:baseline-download" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" /><div class="text-left"><p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Save a backup file</p><p class="text-caption text-content-subtle">Everything, as one .json file</p></div></div><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" /></button>
+      <ActionRow icon="ic:baseline-download" title="Save a backup file" hint="Everything, as one .json file" onclick={onExport} />
       <div class="relative">
-        <button onclick={handleImportClick} class="w-full flex items-center justify-between py-3 transition-colors group cursor-pointer"><div class="flex items-center gap-3"><Icon icon="ic:baseline-upload" class="text-xl text-content-subtle group-hover:text-primary transition-colors shrink-0" /><div class="text-left"><p class="text-body font-semibold text-content group-hover:text-primary transition-colors">Restore from a backup file</p><p class="text-caption text-content-subtle">Replaces what's on this device</p></div></div><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-xl" /></button>
-        <input bind:this={fileInput} type="file" accept=".json" class="hidden" onchange={onImport} />
+        <ActionRow icon="ic:baseline-upload" title="Restore from a backup file" hint="Replaces everything on this device. You see what is in the file first." onclick={() => fileInput?.click()} />
+        <input bind:this={fileInput} type="file" accept=".json" class="hidden" onchange={handlePicked} />
       </div>
     </div>
     {#if isNative}
-      <label class="flex items-center justify-between gap-3 py-3 border-t border-border cursor-pointer">
-        <div class="min-w-0">
-          <p class="text-body text-content">Automatic weekly backup</p>
-          <p class="text-caption text-content-subtle mt-0.5">
-            Once a week, to Documents/{AUTO_BACKUP_FOLDER}, keeping the last {AUTO_BACKUP_KEEP}.
-            {#if trainingState.lastAutoBackup}
-              Last: {new Date(trainingState.lastAutoBackup.at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{trainingState.lastAutoBackup.where !== `Documents/${AUTO_BACKUP_FOLDER}` && !trainingState.lastAutoBackup.where.startsWith('Documents/') ? ` (in ${trainingState.lastAutoBackup.where})` : ''}.
-            {/if}
-            {#if legacyFolder}
-              Older backups, from before the app was renamed, are in Documents/{legacyFolder} - you can delete that folder once there are backups in the new one.
-            {/if}
-          </p>
-        </div>
-        <input
-          type="checkbox"
+      <div class="border-t border-border">
+        <Toggle
           checked={trainingState.autoBackup}
-          onchange={(e) => trainingState.setAutoBackup(e.currentTarget.checked)}
-          class="w-5 h-5 rounded accent-primary shrink-0"
+          onChange={(v) => trainingState.setAutoBackup(v)}
+          label="Automatic weekly backup"
+          hint={`Once a week, to Documents/${AUTO_BACKUP_FOLDER}, keeping the last ${AUTO_BACKUP_KEEP}.${trainingState.lastAutoBackup ? ` Last: ${new Date(trainingState.lastAutoBackup.at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}${trainingState.lastAutoBackup.where !== `Documents/${AUTO_BACKUP_FOLDER}` && !trainingState.lastAutoBackup.where.startsWith('Documents/') ? ` (in ${trainingState.lastAutoBackup.where})` : ''}.` : ''}${legacyFolder ? ` Older backups, from before the app was renamed, are in Documents/${legacyFolder}. You can delete that folder once there are backups in the new one.` : ''}`}
         />
-      </label>
+      </div>
     {/if}
   </div>
 
   <div class="card space-y-3 animate-in fade-in">
-    <div class="space-y-2"><h3 class="text-section uppercase text-content-muted px-1">Start Over</h3><p class="text-caption text-content-subtle px-1">Remove everything from this device and begin again from the welcome screen. A backup file is saved first.{#if driveSync.connected}{' '}Sync is switched off; your copy in Google Drive stays.{/if}</p></div>
-    <button onclick={deleteAllData} class="w-full py-2.5 text-label text-danger border border-danger/40 rounded-control hover:bg-danger/10 transition-colors">Delete all data</button>
+    <div class="space-y-2"><h2 class="text-section uppercase text-content-muted px-1">Start over</h2><p class="text-caption text-content-subtle px-1">Remove everything from this device and begin again from the welcome screen. A backup file is saved first.{#if driveSync.connected}{' '}Sync is switched off; your copy in Google Drive stays.{/if}</p></div>
+    <button onclick={deleteAllData} class="btn btn-danger w-full">Delete all data</button>
   </div>
 </div>
 

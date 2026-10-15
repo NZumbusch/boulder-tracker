@@ -16,6 +16,8 @@
   import ExerciseTypeEditor from './ExerciseTypeEditor.svelte';
   import { localIsoDate } from '../../lib/dateUtils';
   import Icon from '@iconify/svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import { showUndo } from '../../lib/toast.svelte';
 
   let {
     exerciseTypes = $bindable(),
@@ -96,14 +98,20 @@
   }
 
   function remove(id: string) {
+    const before = exerciseTypes;
+    const gone = before.find((t) => t.id === id);
     exerciseTypes = exerciseTypes.filter((t) => t.id !== id);
     editing = null;
+    showUndo(`${gone?.name ?? 'Exercise'} deleted`, () => { if (!exerciseTypes.some((t) => t.id === id)) exerciseTypes = before; });
   }
 
   function commitRename() {
     if (!renaming) return;
     const { from, to } = renaming;
+    const before = exerciseTypes;
+    const affected = before.filter((t) => exerciseGroup(t) === from).length;
     exerciseTypes = renameGroup(exerciseTypes, from, to);
+    if (to.trim() !== from) showUndo(`Group "${from}" renamed to "${to.trim() || 'no name'}" for ${affected} exercise${affected === 1 ? '' : 's'}`, () => { exerciseTypes = before; });
     if (open.has(from)) open = new Set([...[...open].filter((g) => g !== from), to.trim()]);
     if (groupFilter === from) groupFilter = to.trim() || null;
     renaming = null;
@@ -118,11 +126,11 @@
 </script>
 
 {#snippet row(t: ExerciseTypeDef, showGroup: boolean)}
-  <button onclick={() => editing = { type: t, isNew: false }} class="w-full flex items-center gap-3 py-2.5 text-left group">
+  <button onclick={() => editing = { type: t, isNew: false }} class="w-full flex items-center gap-3 py-2.5 min-h-11 text-left group">
     <span class="min-w-0 flex-1">
       <span class="block text-body font-semibold text-content truncate group-hover:text-primary transition-colors">{t.name}</span>
       <span class="block text-caption text-content-subtle truncate tabular-nums">
-        {showGroup ? `${exerciseGroup(t)} · ` : ''}{usageLabel(t)}{t.description ? '' : ' · no how-to'}
+        {showGroup ? `${exerciseGroup(t)} · ` : ''}{usageLabel(t)}
       </span>
     </span>
     <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle shrink-0" />
@@ -135,12 +143,13 @@
     <input
       bind:value={query}
       type="search"
-      placeholder="Search {active.length} exercises…"
-      class="w-full pl-10 pr-9 py-2.5 bg-surface-elevated/60 text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 placeholder:text-content-subtle"
+      placeholder="Search {active.length} exercises"
+      aria-label="Search exercises"
+      class="field pl-10 pr-11 [&::-webkit-search-cancel-button]:appearance-none"
     />
     {#if query}
-      <button onclick={() => query = ''} class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-content-subtle hover:text-content" aria-label="Clear search">
-        <Icon icon="ic:baseline-close" class="text-base" />
+      <button onclick={() => query = ''} class="btn-icon absolute right-0 top-1/2 -translate-y-1/2" aria-label="Clear search">
+        <Icon icon="ic:baseline-close" class="text-xl" />
       </button>
     {/if}
   </div>
@@ -160,11 +169,12 @@
     <span class="text-caption text-content-subtle">
       {query.trim() ? `${results.length} found` : `${active.length} exercises · ${groups.length} groups`}
     </span>
-    <div class="seg">
-      <button onclick={() => sort = 'name'} class="seg-item {sort === 'name' ? 'seg-on' : ''}">A–Z</button>
-      <button onclick={() => sort = 'used'} class="seg-item {sort === 'used' ? 'seg-on' : ''}">Most used</button>
-      <button onclick={() => sort = 'recent'} class="seg-item {sort === 'recent' ? 'seg-on' : ''}">Recent</button>
-    </div>
+    <Segmented
+      label="Sort by"
+      value={sort}
+      onChange={(v) => (sort = v)}
+      options={[{ value: 'name', label: 'A–Z' }, { value: 'used', label: 'Most used' }, { value: 'recent', label: 'Recent' }]}
+    />
   </div>
 
   {#if query.trim()}
@@ -188,21 +198,22 @@
                 autofocus
                 data-own-enter
                 onkeydown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') renaming = null; }}
-                class="flex-1 min-w-0 px-3 py-2 bg-surface-elevated text-content rounded-control border border-primary/40 text-sm outline-none"
+                aria-label="New name for the group"
+                class="field flex-1 min-w-0"
               />
-              <button onclick={commitRename} class="px-3 py-2 text-label font-bold text-primary">Rename</button>
-              <button onclick={() => renaming = null} class="p-2 text-content-subtle" aria-label="Cancel"><Icon icon="ic:baseline-close" /></button>
+              <button onclick={commitRename} class="btn btn-primary">Rename</button>
+              <button onclick={() => renaming = null} class="btn-icon" aria-label="Cancel"><Icon icon="ic:baseline-close" class="text-xl" /></button>
             </div>
           {:else}
             <div class="flex items-center gap-2">
-              <button onclick={() => groupFilter === null && toggle(g.name)} class="flex-1 min-w-0 flex items-center gap-2 py-3 text-left">
+              <button onclick={() => toggle(g.name)} disabled={groupFilter !== null} aria-expanded={expanded} class="flex-1 min-w-0 flex items-center gap-2 py-3 min-h-11 text-left">
                 <Icon icon={expanded ? 'ic:baseline-expand-more' : 'ic:baseline-chevron-right'} class="text-lg text-content-subtle shrink-0" />
                 <span class="text-section uppercase text-content-muted truncate">{g.name}</span>
                 <span class="text-caption text-content-subtle tabular-nums">{g.types.length}</span>
               </button>
               {#if expanded}
-                <button onclick={() => renaming = { from: g.name, to: g.name }} class="p-2 text-content-subtle hover:text-content" aria-label="Rename group {g.name}" title="Rename group">
-                  <Icon icon="ic:baseline-edit" class="text-base" />
+                <button onclick={() => renaming = { from: g.name, to: g.name }} class="btn-icon" aria-label="Rename group {g.name}" title="Rename group">
+                  <Icon icon="ic:baseline-edit" class="text-xl" />
                 </button>
               {/if}
             </div>
@@ -219,14 +230,14 @@
     </div>
   {/if}
 
-  <button onclick={startNew} class="w-full py-3 rounded-control hover:bg-surface-elevated/50 flex items-center justify-center gap-2 text-primary transition-colors">
+  <button onclick={startNew} class="w-full min-h-11 py-3 rounded-control hover:bg-surface-elevated/50 flex items-center justify-center gap-2 text-primary transition-colors">
     <Icon icon="ic:baseline-plus" />
     <span class="text-label">{query.trim() ? `New exercise “${query.trim()}”` : 'New exercise'}</span>
   </button>
 
   {#if archived.length > 0}
     <div class="pt-2 border-t border-border">
-      <button onclick={() => showArchived = !showArchived} class="w-full flex items-center justify-between py-2 text-left">
+      <button onclick={() => showArchived = !showArchived} class="w-full flex items-center justify-between py-2 min-h-11 text-left" aria-expanded={showArchived}>
         <span class="text-label text-content-subtle">Archived · {archived.length}</span>
         <Icon icon={showArchived ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-lg text-content-subtle" />
       </button>
@@ -234,8 +245,8 @@
         <div class="divide-y divide-border">
           {#each archived as t (t.id)}
             <div class="flex items-center gap-2">
-              <div class="flex-1 min-w-0 opacity-70">{@render row(t, true)}</div>
-              <button onclick={() => setArchived(t.id, false)} class="shrink-0 px-3 py-1.5 text-label font-bold text-primary hover:bg-primary/10 rounded-control">Restore</button>
+              <div class="flex-1 min-w-0">{@render row(t, true)}</div>
+              <button onclick={() => setArchived(t.id, false)} class="btn btn-ghost shrink-0 text-primary">Restore</button>
             </div>
           {/each}
         </div>

@@ -16,7 +16,7 @@
     compact?: boolean;
   } = $props();
 
-  let buttons: HTMLButtonElement[] = [];
+  let buttons = $state<HTMLButtonElement[]>([]);
   // With nothing chosen yet the first card is the tab stop.
   const stop = $derived(options.findIndex((o) => o.value === value) >= 0 ? options.findIndex((o) => o.value === value) : 0);
 

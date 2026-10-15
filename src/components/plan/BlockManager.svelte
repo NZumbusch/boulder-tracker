@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import Sheet from '../ui/Sheet.svelte';
   /**
    * The only place phases are edited. A phase is a range of days, so it can
    * start or end mid-week; the Plan's block view and calendar show and work
@@ -14,8 +13,8 @@
   import type { TrainingBlock } from '../../lib/types';
   import { sortBlocks, upcomingWindow } from '../../lib/planning/blockPaging';
   import { blockFirstWeekId, phaseOnDay } from '../../lib/planning/trainingBlocks';
-  import { placeBlock, startPhaseOn, describeBlockChanges, daysWithoutPhase, shortDate } from '../../lib/planning/blockEdit';
-  import { weekMondayIso, weekSundayIso, weekIdOfIso } from '../../lib/dateUtils';
+  import { placeBlock, startPhaseOn, describeBlockChanges, daysWithoutPhase } from '../../lib/planning/blockEdit';
+  import { weekMondayIso, weekSundayIso, weekIdOfIso, formatDay } from '../../lib/dateUtils';
   import BlockBrowser from './BlockBrowser.svelte';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
   import Icon from "@iconify/svelte";
@@ -97,11 +96,11 @@
     const phase = phaseDefs.find((p) => p.id === startPhaseId);
     if (!phase || !focusDate) return;
     const current = $state.snapshot(trainingState.trainingBlocks) as TrainingBlock[];
-    await trainingState.setTrainingBlocks(startPhaseOn(current, focusDate, phase, generateId), `${phase.name} starts ${shortDate(focusDate)}`);
+    await trainingState.setTrainingBlocks(startPhaseOn(current, focusDate, phase, generateId), `${phase.name} starts ${formatDay(focusDate)}`);
     onClose();
   }
 
-  const longDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const longDay = (iso: string) => formatDay(iso, { weekday: 'long' });
   const dayCount = (b: TrainingBlock) => Math.round((Date.parse(b.endDate) - Date.parse(b.startDate)) / 86_400_000) + 1;
 
   async function handleDelete(id: string) {
@@ -113,25 +112,9 @@
     showBrowser = false;
     startEdit(block);
   }
-
-  // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
-  backWhile(() => true, () => onClose());
 </script>
 
-<div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
-  <div class="bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-5" use:sheetDrag={() => onClose()}>
-    <div class="flex items-center justify-between">
-      <div>
-        <h3 class="text-title text-content">Training Blocks</h3>
-        <p class="text-caption text-content-subtle mt-0.5">
-          {hiddenCount > 0 ? 'Current and upcoming' : 'Phases as ranges of days'}
-        </p>
-      </div>
-      <button onclick={onClose} class="text-content-subtle hover:text-content transition-colors">
-        <Icon icon="ic:baseline-close" class="text-xl" />
-      </button>
-    </div>
-
+<Sheet title="Training Blocks" subtitle="Which phase runs on which days" {onClose} level="sheet">
     {#if focusDate && !formOpen}
       <div class="p-4 bg-surface-elevated/50 rounded-card space-y-3">
         <div class="flex items-center justify-between gap-2">
@@ -140,15 +123,15 @@
             <p class="text-body font-bold text-content truncate">{focusBlock ? (focusBlock.name === phaseName(focusBlock.phaseId) ? focusBlock.name : `${focusBlock.name} · ${phaseName(focusBlock.phaseId)}`) : 'No phase'}</p>
           </div>
           {#if focusBlock}
-            <button onclick={() => startEdit(focusBlock)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Edit this block"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
+            <button onclick={() => startEdit(focusBlock)} class="btn-icon shrink-0" aria-label="Edit this block"><Icon icon="ic:baseline-edit" class="text-base" /></button>
           {/if}
         </div>
         <div class="flex gap-2">
-          <select bind:value={startPhaseId} aria-label="Phase to start on this day" class="flex-1 min-w-0 bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
-            <option value="">Start a phase on {shortDate(focusDate)}…</option>
+          <select bind:value={startPhaseId} aria-label="Phase to start on this day" class="field flex-1 min-w-0">
+            <option value="">Start a phase on {formatDay(focusDate)}…</option>
             {#each phaseDefs as phase}<option value={phase.id}>{phase.name}</option>{/each}
           </select>
-          <button onclick={handleStartPhase} disabled={!startPhaseId} class="px-4 py-3 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">Start</button>
+          <button onclick={handleStartPhase} disabled={!startPhaseId} class="btn btn-primary">Start</button>
         </div>
       </div>
     {/if}
@@ -157,11 +140,11 @@
       <div class="p-4 bg-surface-elevated/50 rounded-card space-y-3">
         <div class="space-y-1">
           <label for="block-name" class="text-label text-content-subtle ml-1">Name</label>
-          <input id="block-name" bind:value={editingBlock.name} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" placeholder="e.g. Finger Strength Block" />
+          <input id="block-name" bind:value={editingBlock.name} class="field" placeholder="e.g. Finger Strength Block" />
         </div>
         <div class="space-y-1">
           <label for="block-phase" class="text-label text-content-subtle ml-1">Phase</label>
-          <select id="block-phase" bind:value={editingBlock.phaseId} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+          <select id="block-phase" bind:value={editingBlock.phaseId} class="field">
             {#each phaseDefs as phase}
               <option value={phase.id}>{phase.name}</option>
             {/each}
@@ -170,37 +153,42 @@
         <div class="flex gap-3">
           <div class="flex-1 space-y-1">
             <label for="block-start" class="text-label text-content-subtle ml-1">First day</label>
-            <input id="block-start" type="date" bind:value={editingBlock.startDate} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+            <input id="block-start" type="date" bind:value={editingBlock.startDate} class="field" />
           </div>
           <div class="flex-1 space-y-1">
             <label for="block-end" class="text-label text-content-subtle ml-1">Last day</label>
-            <input id="block-end" type="date" bind:value={editingBlock.endDate} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+            <input id="block-end" type="date" bind:value={editingBlock.endDate} class="field" />
           </div>
         </div>
         {#if preview && (preview.changes.length || preview.gaps.length)}
           <div class="space-y-0.5 text-caption" aria-live="polite">
             {#each preview.changes as line}<p class="text-content-muted">{line}</p>{/each}
-            {#each preview.gaps as gap}<p class="text-warning">Leaves {gap.from === gap.to ? shortDate(gap.from) : `${shortDate(gap.from)} – ${shortDate(gap.to)}`} without a phase</p>{/each}
+            {#each preview.gaps as gap}<p class="text-warning">Leaves {gap.from === gap.to ? formatDay(gap.from) : `${formatDay(gap.from)} – ${formatDay(gap.to)}`} without a phase</p>{/each}
           </div>
         {/if}
         <div class="space-y-1">
           <label for="block-notes" class="text-label text-content-subtle ml-1">Notes</label>
-          <textarea id="block-notes" bind:value={editingBlock.notes} rows="3" class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm leading-relaxed resize-y" placeholder="What this block is for, how to progress it…"></textarea>
+          <textarea id="block-notes" bind:value={editingBlock.notes} rows="3" class="field leading-relaxed resize-y" placeholder="What this block is for, how to progress it…"></textarea>
         </div>
-        <div class="space-y-1">
-          <label for="block-priority" class="text-label text-content-subtle ml-1">Priority (higher wins on overlap)</label>
-          <input id="block-priority" type="number" bind:value={editingBlock.priority} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
-        </div>
+        <details class="group" open={!!editingBlock.priority}>
+          <summary class="text-label text-content-subtle cursor-pointer min-h-11 flex items-center">Advanced: priority</summary>
+          <div class="space-y-1 pb-1">
+            <label for="block-priority" class="text-label text-content-subtle ml-1">Priority (higher wins on overlap)</label>
+            <input id="block-priority" type="number" inputmode="numeric" bind:value={editingBlock.priority} class="field" />
+            <p class="text-caption text-content-subtle ml-1">Only matters when two blocks cover the same day: the one with the higher number is the phase shown. Leave at 0 for a normal plan.</p>
+          </div>
+        </details>
         <div class="flex gap-2 pt-1">
-          <button onclick={handleSave} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control">Save</button>
-          <button onclick={() => formOpen = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button>
+          <button onclick={handleSave} class="btn btn-primary flex-1">Save</button>
+          <button onclick={() => formOpen = false} class="btn btn-secondary">Cancel</button>
         </div>
       </div>
     {:else}
-      <button onclick={startAdd} class="w-full py-3.5 bg-surface-elevated/40 hover:bg-surface-elevated/70 rounded-card flex items-center justify-center gap-2 text-content-subtle hover:text-content-muted transition-all">
-        <Icon icon="ic:baseline-plus" /><span class="text-label">Add Block</span>
+      <button onclick={startAdd} class="btn btn-secondary w-full">
+        <Icon icon="ic:baseline-plus" /><span>Add block</span>
       </button>
 
+      {#if hiddenCount > 0}<p class="text-caption text-content-subtle -mb-2">Showing the current block and what comes next.</p>{/if}
       <div class="space-y-2">
         {#each visibleBlocks as block}
           <div class="flex items-center justify-between p-3.5 bg-surface-elevated/50 rounded-control">
@@ -211,15 +199,15 @@
                   <span class="truncate">{block.name}</span>
                   {#if block.notes}<Icon icon="ic:baseline-sticky-note-2" class="text-xs text-primary/70 shrink-0" />{/if}
                 </p>
-                <p class="text-caption text-content-subtle mt-0.5">{phaseName(block.phaseId)} · {shortDate(block.startDate)} – {shortDate(block.endDate)} · {dayCount(block)} day{dayCount(block) === 1 ? '' : 's'}{block.priority ? ` · priority ${block.priority}` : ''}</p>
+                <p class="text-caption text-content-subtle mt-0.5">{block.name === phaseName(block.phaseId) ? "" : `${phaseName(block.phaseId)} · `}{formatDay(block.startDate)} – {formatDay(block.endDate)} · {dayCount(block)} day{dayCount(block) === 1 ? '' : 's'}{block.priority ? ` · priority ${block.priority}` : ''}</p>
               </div>
             </div>
-            <div class="flex items-center gap-1 ml-2">
+            <div class="flex items-center ml-1 -mr-2">
               {#if blockFirstWeekId(block) <= trainingState.currentWeekId}
-                <button onclick={() => openBlockReview(block.id)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Review this block" title="How the block went"><Icon icon="ic:baseline-insights" class="text-sm" /></button>
+                <button onclick={() => openBlockReview(block.id)} class="btn-icon" aria-label="Review {block.name}" title="How the block went"><Icon icon="ic:baseline-insights" class="text-base" /></button>
               {/if}
-              <button onclick={() => startEdit(block)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
-              <button onclick={() => handleDelete(block.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+              <button onclick={() => startEdit(block)} class="btn-icon" aria-label="Edit {block.name}"><Icon icon="ic:baseline-edit" class="text-base" /></button>
+              <button onclick={() => handleDelete(block.id)} class="btn-icon hover:text-danger" aria-label="Delete {block.name}"><Icon icon="ic:baseline-delete" class="text-base" /></button>
             </div>
           </div>
         {:else}
@@ -229,7 +217,7 @@
         {#if hiddenCount > 0}
           <button
             onclick={() => showBrowser = true}
-            class="w-full pt-1 text-caption text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1"
+            class="btn btn-ghost w-full text-label"
           >
             Show all {blocks.length} blocks
             <span class="opacity-70">({hiddenCount} more)</span>
@@ -238,16 +226,15 @@
         {:else if blocks.length > 0}
           <button
             onclick={() => showBrowser = true}
-            class="w-full pt-1 text-caption text-content-subtle hover:text-primary transition-colors flex items-center justify-center gap-1"
+            class="btn btn-ghost w-full text-label"
           >
-            Browse full timeline
+            See the full timeline
             <Icon icon="ic:baseline-expand-more" class="text-sm" />
           </button>
         {/if}
       </div>
     {/if}
-  </div>
-</div>
+</Sheet>
 
 {#if showBrowser}
   <BlockBrowser

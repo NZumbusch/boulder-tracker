@@ -54,12 +54,13 @@
       value={group.name ?? ''}
       oninput={(e) => set({ name: e.currentTarget.value || undefined })}
       placeholder={namePlaceholder}
-      class="min-w-0 flex-1 bg-transparent text-body font-bold text-content outline-none border-b border-dashed border-border-strong focus:border-primary/60 pb-0.5 transition-colors"
+      aria-label="Circuit name"
+      class="min-w-0 flex-1 min-h-11 bg-transparent text-body font-bold text-content outline-none border-b border-dashed border-border-strong focus:border-primary/60 pb-0.5 transition-colors"
     />
     {#if minutes}<span class="text-caption text-content-subtle tabular-nums shrink-0">~{formatMinutes(Math.ceil(minutes))}</span>{/if}
     {@render actions?.()}
     {#if onUngroup}
-      <button onclick={onUngroup} class="shrink-0 px-2 py-1 text-caption font-bold text-content-subtle hover:text-content transition-colors" title="Turn back into separate exercises">
+      <button onclick={onUngroup} class="btn-quiet shrink-0 px-3 text-label font-bold text-content-subtle hover:text-content" title="Turn back into separate exercises">
         Ungroup
       </button>
     {/if}
@@ -69,12 +70,12 @@
     <div class="min-w-0">
       <p class="text-caption text-content-subtle mb-1">Rounds</p>
       <div class="flex items-center bg-surface-elevated/50 border border-border-strong rounded-control">
-        <button onclick={() => set({ rounds: Math.max(1, group.rounds - 1) })} class="px-2 py-1.5 text-content-subtle hover:text-content" aria-label="One round fewer">
-          <Icon icon="ic:baseline-remove" class="text-base" />
+        <button onclick={() => set({ rounds: Math.max(1, group.rounds - 1) })} class="btn-quiet min-w-11 text-content-subtle hover:text-content" aria-label="One round fewer">
+          <Icon icon="ic:baseline-remove" class="text-xl" />
         </button>
-        <span class="flex-1 text-center text-label font-bold text-content tabular-nums">{group.rounds}</span>
-        <button onclick={() => set({ rounds: group.rounds + 1 })} class="px-2 py-1.5 text-content-subtle hover:text-content" aria-label="One more round">
-          <Icon icon="ic:baseline-add" class="text-base" />
+        <span class="flex-1 text-center text-body font-bold text-content tabular-nums">{group.rounds}</span>
+        <button onclick={() => set({ rounds: group.rounds + 1 })} class="btn-quiet min-w-11 text-content-subtle hover:text-content" aria-label="One more round">
+          <Icon icon="ic:baseline-add" class="text-xl" />
         </button>
       </div>
     </div>
@@ -83,8 +84,8 @@
       <input
         type="number" min="0" step="5" inputmode="numeric" placeholder="0"
         value={group.transition ?? ''}
-        onchange={(e) => set({ transition: seconds(e.currentTarget.value) })}
-        class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content text-label font-bold tabular-nums rounded-control border border-border-strong outline-none focus:border-primary/50"
+        oninput={(e) => set({ transition: seconds(e.currentTarget.value) })}
+        class="field px-2.5 font-bold tabular-nums"
       />
     </label>
     <label class="min-w-0 block">
@@ -92,8 +93,8 @@
       <input
         type="number" min="0" step="15" inputmode="numeric" placeholder={group.transition ? String(group.transition) : '0'}
         value={group.roundRest ?? ''}
-        onchange={(e) => set({ roundRest: seconds(e.currentTarget.value) })}
-        class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content text-label font-bold tabular-nums rounded-control border border-border-strong outline-none focus:border-primary/50"
+        oninput={(e) => set({ roundRest: seconds(e.currentTarget.value) })}
+        class="field px-2.5 font-bold tabular-nums"
       />
     </label>
   </div>

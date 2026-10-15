@@ -5,7 +5,8 @@
   import { trainingState } from '../../lib/state.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
   import { storage } from '../../lib/storage';
-  import { showAlert, showConfirm } from '../../lib/utils';
+  import { showConfirm } from '../../lib/utils';
+  import { showUndo } from '../../lib/toast.svelte';
   import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, BenchmarkTypeDef, AnalyticsCategory } from '../../lib/types';
   import ExerciseSettings from './ExerciseSettings.svelte';
   import PhaseSettings from './PhaseSettings.svelte';
@@ -60,7 +61,7 @@
   // --- Navigation: Settings -> a section -> one of its pages ---
   // What this device can show: the browser has no widgets, notifications or
   // Health Connect, and those pages stay out of the lists (and the search).
-  const ctx: SettingsContext = $derived({ native: Capacitor.isNativePlatform(), widgets: widgetsAvailable(), healthConnect: healthConnect.supported, deviceCalendar: deviceCalendar.supported });
+  const ctx: SettingsContext = $derived({ native: Capacitor.isNativePlatform(), widgets: widgetsAvailable(), healthConnect: healthConnect.supported, deviceCalendar: deviceCalendar.supported, wakeLock: typeof navigator !== 'undefined' && 'wakeLock' in navigator });
   let section = $state<SectionId | null>(null);
   let page = $state<PageId | null>(null);
   let query = $state('');
@@ -86,6 +87,18 @@
     if (!wanted) return;
     untrack(() => openPage(wanted));
     trainingState.uiStore.settingsPageRequest = null;
+  });
+  // A page opens at its top: the app's own scroll reset only follows the tab, so a sub-page opened from a scrolled list
+  // would land mid-page.
+  let root: HTMLDivElement | undefined;
+  $effect(() => {
+    void section; void page;
+    let el: HTMLElement | null = root?.parentElement ?? null;
+    while (el) {
+      const oy = getComputedStyle(el).overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) { el.scrollTo({ top: 0, behavior: 'auto' }); break; }
+      el = el.parentElement;
+    }
   });
   function goBack() {
     if (page && !singlePage) page = null;
@@ -130,7 +143,9 @@
   });
   let lastSaved: Record<Catalog, string> | null = null;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
-  let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
+  let saveState = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  let saveError = $state('');
+  let savedTimer: ReturnType<typeof setTimeout> | undefined;
 
   onMount(async () => {
     templates = await storage.getTemplates();
@@ -197,33 +212,45 @@
       for (const k of changed) lastSaved[k] = now[k];
       await trainingState.refresh();
       saveState = 'saved';
+      clearTimeout(savedTimer);
+      savedTimer = setTimeout(() => { if (saveState === 'saved') saveState = 'idle'; }, 2500);
     } catch (err) {
-      saveState = 'idle';
-      await showAlert('Settings Error', err instanceof Error ? err.message : 'Failed to save settings.');
+      saveState = 'error';
+      saveError = err instanceof Error && err.message ? err.message : 'Something went wrong while writing to storage.';
     }
   }
 
   async function resetTemplates() {
-    const confirmed = await showConfirm('Reset Templates', 'Reset all templates to default? This will overwrite your customizations.');
+    const confirmed = await showConfirm('Reset all session templates?', 'Every phase goes back to the sessions the app ships with. Your own edits to them are replaced; the phases themselves (names, colours) stay. You can undo this right after.', { ok: 'Reset templates', cancel: 'Keep mine' });
     if (!confirmed) return;
+    const before = $state.snapshot(templates);
     await trainingState.resetTemplates();
     templates = await storage.getTemplates();
     // Already saved by the reset - don't write it again.
     if (lastSaved) lastSaved.templates = current().templates;
+    // Putting the old ones back is an ordinary edit: the autosave writes it.
+    showUndo('Templates reset', () => { templates = before; });
   }
 </script>
 
-<div class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
+<div bind:this={root} class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <!-- A nested page gets a back arrow; the top of Settings the menu (or, with the bottom bar - which has no Settings tab - an arrow back Home). -->
   <AppBar title={title} onBack={section !== null ? goBack : trainingState.navStyle === 'bar' ? () => trainingState.navigate('home') : undefined}>
     {#snippet actions()}
-      {#if section === 'setup' && saveState !== 'idle'}
+      {#if section === 'setup' && (saveState === 'saving' || saveState === 'saved')}
         <span class="text-caption text-content-subtle flex items-center gap-1 pr-2" aria-live="polite">
           {#if saveState === 'saving'}Saving…{:else}<Icon icon="ic:baseline-check" class="text-sm text-success" /> Saved{/if}
         </span>
       {/if}
     {/snippet}
   </AppBar>
+
+  {#if saveState === 'error'}
+    <div class="flex items-center gap-3 rounded-control bg-danger/10 px-3 py-2" role="alert">
+      <p class="flex-1 text-label text-danger">Your last change was not saved. {saveError}</p>
+      <button type="button" class="btn btn-danger shrink-0" onclick={persist}>Try again</button>
+    </div>
+  {/if}
 
   {#if section === null}
     <!-- Search: a setting by name, to the page it lives on. -->
@@ -234,8 +261,13 @@
         bind:value={query}
         placeholder="Search settings"
         aria-label="Search settings"
-        class="w-full pl-10 pr-3 py-2.5 bg-surface-elevated text-content rounded-control border border-border-strong text-body outline-none focus:border-primary/50 placeholder:text-content-subtle"
+        class="field pl-10 pr-11 [&::-webkit-search-cancel-button]:appearance-none"
       />
+      {#if query}
+        <button type="button" class="btn-icon absolute right-0 top-1/2 -translate-y-1/2" aria-label="Clear search" onclick={() => (query = '')}>
+          <Icon icon="ic:baseline-close" class="text-xl" />
+        </button>
+      {/if}
     </div>
 
     {#if query.trim()}
@@ -243,7 +275,7 @@
         <div class="card py-1 divide-y divide-border">
           {#each hits as hit (hit.page + hit.label)}
             {@const where = findPage(hit.page)}
-            <NavRow icon={where.page.icon} title={hit.label} hint={where.section.pages.length === 1 ? where.section.label : `${where.section.label} › ${where.page.label}`} onclick={() => openPage(hit.page)} />
+            <NavRow icon={where.page.icon} title={hit.label} hint={where.section.pages.length === 1 ? where.section.label : `${where.section.label} → ${where.page.label}`} onclick={() => openPage(hit.page)} />
           {/each}
         </div>
       {:else}
@@ -261,10 +293,10 @@
       <div class="card space-y-2">
         <div class="flex items-center gap-2 text-primary">
           <Icon icon="ic:baseline-info" class="text-lg" />
-          <span class="text-label">How These Fit Together</span>
+          <h2 class="text-label">How these fit together</h2>
         </div>
-        <p class="text-caption text-content-muted leading-relaxed">
-          <strong class="text-content">Exercises</strong> define what you can log in a workout, grouped for charts by <strong class="text-content">Analytics Category</strong>. <strong class="text-content">Training Phases</strong> (Strength, Deload, ...) are the macrocycle blocks you assign to weeks on the Training Plan calendar — each starts with default workouts you can edit. <strong class="text-content">Benchmarks</strong> are separate periodic tests (max hang, max pull-up) logged on their own, not part of a workout.
+        <p class="text-body text-content-muted leading-relaxed">
+          <strong class="text-content">Exercises</strong> are what you can log in a workout. They are grouped into <strong class="text-content">categories</strong> for the analytics charts. <strong class="text-content">Phases</strong> (Strength, Deload and so on) are the blocks of weeks you set on the Plan calendar; each starts with sessions you can edit. <strong class="text-content">Tests</strong> (max hang, max pull-up) are repeated now and then and logged on their own, not as part of a workout.
         </p>
       </div>
     {/if}
@@ -300,7 +332,7 @@
     </div>
   {:else if page === 'planCalendar'}
     <div class="space-y-4">
-      <TunablesSettings topic="layout" title="Views" ids={['ui.flatCards', 'plan.weekAgenda', 'plan.weekListOnPhone', 'plan.exerciseList', 'plan.highContrast', 'plan.eventEdges', 'plan.calendarPhases', 'plan.calendarPhaseNames', 'plan.calendarPhaseTint', 'plan.calendarCategoryColors']} />
+      <TunablesSettings topic="layout" title="Views" ids={['plan.weekAgenda', 'plan.weekListOnPhone', 'plan.exerciseList', 'plan.highContrast', 'plan.eventEdges', 'plan.calendarPhases', 'plan.calendarPhaseNames', 'plan.calendarPhaseTint', 'plan.calendarCategoryColors']} />
       <TunablesSettings topic="layout" title="Day" ids={['day.startHour']} />
     </div>
   {:else if page === 'history'}
@@ -308,8 +340,8 @@
       <OrderedListSettings
         list="analyticsSections"
         title="Analytics cards"
-        hint="Drag to reorder; untick to hide."
-        labels={{ load: 'Rolling Load & ACWR', strain: 'Monotony & Strain', fingerLoad: 'Filtered Load', heatmap: 'Training Calendar', mix: 'Training Mix', fatigue: 'Fatigue', recoveryTrend: 'Recovery (HRV · Sleep · RHR · weight)', pain: 'Pain', outdoor: 'Outdoor Ascents', benchmarks: 'Benchmark Progress', benchmarkOverview: 'All Benchmarks' }}
+        hint="Drag to reorder, switch off to hide."
+        labels={{ load: 'Rolling load and ACWR', strain: 'Monotony and strain', fingerLoad: 'Filtered load', heatmap: 'Training calendar', mix: 'Training mix', fatigue: 'Fatigue', recoveryTrend: 'Recovery (HRV, sleep, resting heart rate, weight)', pain: 'Pain', outdoor: 'Outdoor ascents', benchmarks: 'Test progress', benchmarkOverview: 'All tests' }}
       />
       <ChartSettings />
     </div>

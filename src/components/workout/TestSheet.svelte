@@ -12,8 +12,8 @@
   import Icon from '@iconify/svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import { onMount, tick } from 'svelte';
+  import Sheet from '../ui/Sheet.svelte';
   import type { Benchmark, ExerciseSlot } from '../../lib/types';
   import { askedFields, groupTypes, primaryField, resolveFields, unitLabel, resultValues, type ResolvedField } from '../../lib/benchmarks/model';
   import { inputsFromValues, lastConditions, makeTestSlot, resultForSlot, resultText, resultsOf, testResultId, valuesFromInputs } from '../../lib/benchmarks/testSlot';
@@ -66,7 +66,12 @@
   });
 
   function close() { props.onClose(); }
-  backWhile(() => true, close);
+
+  // Closing with something typed asks first.
+  const signature = () => JSON.stringify([typeId, inputs, notes]);
+  let baseline = $state<string | null>(null);
+  onMount(() => { void tick().then(() => (baseline = signature())); });
+  const dirty = $derived(baseline !== null && signature() !== baseline);
 
   function savePlan() {
     if (props.mode !== 'plan') return;
@@ -108,24 +113,14 @@
     props.onSaved(result);
   }
 
-  const inputClass = 'w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm';
+  const inputClass = 'field';
 </script>
 
-<div class="fixed inset-0 z-[160] pb-safe bg-app-bg/90 backdrop-blur-md flex items-end sm:items-center justify-center animate-in fade-in duration-150">
-  <div class="absolute inset-0" role="presentation" onclick={close}></div>
-  <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4" use:sheetDrag={close} role="dialog" aria-modal="true" aria-label={props.mode === 'plan' ? 'Plan a test' : 'Record the result'}>
-    <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <h3 class="text-title text-content">{props.mode === 'plan' ? (existing ? 'Edit the test' : 'Plan a test') : 'Record the result'}</h3>
-        {#if props.mode === 'result' && type}<p class="text-caption text-content-subtle">{type.name}</p>{/if}
-      </div>
-      <button onclick={close} class="text-content-subtle hover:text-content shrink-0" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
-    </div>
-
+<Sheet title={props.mode === 'plan' ? (existing ? 'Edit the test' : 'Plan a test') : 'Record the result'} subtitle={props.mode === 'result' && type ? type.name : undefined} level="top" {dirty} discardMessage="What you entered will be lost." onClose={close}>
     {#if props.mode === 'plan'}
       <div class="space-y-1">
         <label for="test-pick" class="text-label text-content-subtle ml-1">Test</label>
-        <select id="test-pick" bind:value={typeId} class="{inputClass} appearance-none">
+        <select id="test-pick" bind:value={typeId} class={inputClass}>
           <option value="" disabled>Choose a test</option>
           {#each groups as g (g.group)}
             {#if g.group && groups.length > 1}
@@ -135,7 +130,7 @@
             {/if}
           {/each}
         </select>
-        {#if types.length === 0}<p class="text-caption text-content-subtle px-1">There are no tests yet. Add one under Settings → Training setup → Tests.</p>{/if}
+        {#if types.length === 0}<p class="text-label text-content-subtle px-1">There are no tests yet. Add one under Settings, Training setup, Tests.</p>{/if}
       </div>
     {/if}
 
@@ -144,7 +139,7 @@
         {#if last}Last done {weeksAgo === 0 ? 'this week' : `${weeksAgo} week${weeksAgo === 1 ? '' : 's'} ago`}: {resultText(last, type, defs, weight)}{:else}Never done yet.{/if}
       </p>
       {#if type.protocol}
-        <button onclick={() => (showProtocol = !showProtocol)} class="w-full text-left px-1 text-caption text-content-subtle hover:text-content transition-colors">
+        <button onclick={() => (showProtocol = !showProtocol)} class="w-full text-left px-1 min-h-11 text-label text-content-subtle hover:text-content transition-colors" aria-expanded={showProtocol}>
           <span class="flex items-center gap-1 font-bold"><Icon icon={showProtocol ? 'ic:baseline-expand-more' : 'ic:baseline-chevron-right'} class="text-sm" /> How to do it</span>
           {#if showProtocol}<span class="block mt-1 whitespace-pre-wrap break-words text-content-muted">{type.protocol}</span>{/if}
         </button>
@@ -156,15 +151,15 @@
             {@const isPrimary = primary?.valueId === f.valueId}
             <div class="space-y-1 {isPrimary || askedAll.length <= 2 ? 'col-span-2' : ''}">
               <label for="test-{f.valueId}" class="block text-label text-content-subtle ml-1">
-                {f.label}{#if props.mode === 'result' && props.slot.test?.conditions?.[f.valueId] !== undefined}<span class="text-content-subtle/70">&nbsp;· planned</span>{/if}{#if unitLabel(f, weight)}<span class="text-content-subtle/70">&nbsp;({unitLabel(f, weight)})</span>{/if}
+                {f.label}{#if props.mode === 'result' && props.slot.test?.conditions?.[f.valueId] !== undefined}<span class="text-content-faint">&nbsp;· planned</span>{/if}{#if unitLabel(f, weight)}<span class="text-content-faint">&nbsp;({unitLabel(f, weight)})</span>{/if}
               </label>
               {#if f.kind === 'choice'}
-                <select id="test-{f.valueId}" bind:value={inputs[f.valueId]} class="{inputClass} appearance-none">
+                <select id="test-{f.valueId}" bind:value={inputs[f.valueId]} class={inputClass}>
                   <option value="">–</option>
                   {#each f.options as o}<option value={o}>{o}</option>{/each}
                 </select>
               {:else}
-                <input id="test-{f.valueId}" type="text" inputmode="decimal" bind:value={inputs[f.valueId]} class="{inputClass} {isPrimary ? '' : 'max-w-[12rem]'}" />
+                <input id="test-{f.valueId}" type="text" inputmode="decimal" enterkeyhint="next" aria-invalid={isPrimary && error !== ''} bind:value={inputs[f.valueId]} class="{inputClass} {isPrimary ? '' : 'max-w-[12rem]'}" />
               {/if}
             </div>
           {/each}
@@ -174,18 +169,20 @@
 
       <div class="space-y-1">
         <label for="test-notes" class="text-label text-content-subtle ml-1">{props.mode === 'plan' ? 'Note for the session (optional)' : 'Notes'}</label>
-        <textarea id="test-notes" bind:value={notes} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm h-20"></textarea>
+        <textarea id="test-notes" bind:value={notes} class="{inputClass} h-20 resize-y"></textarea>
       </div>
     {/if}
 
-    {#if error}<p class="text-caption text-danger">{error}</p>{/if}
-
-    <button
-      onclick={props.mode === 'plan' ? savePlan : saveResult}
-      disabled={!type}
-      class="w-full py-3.5 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control transition-all active:scale-[0.99] disabled:opacity-40"
-    >
-      {props.mode === 'plan' ? (existing ? 'Save' : 'Add to session') : recorded ? 'Update the result' : 'Save the result'}
-    </button>
-  </div>
-</div>
+    {#snippet footer()}
+      <div class="flex-1 min-w-0 space-y-2">
+        {#if error}<p class="text-label text-danger" role="alert">{error}</p>{:else if !type}<p class="text-caption text-content-subtle" role="status">Choose a test to continue.</p>{/if}
+        <button
+          onclick={props.mode === 'plan' ? savePlan : saveResult}
+          disabled={!type}
+          class="btn btn-primary w-full"
+        >
+          {props.mode === 'plan' ? (existing ? 'Save' : 'Add to session') : recorded ? 'Update the result' : 'Save the result'}
+        </button>
+      </div>
+    {/snippet}
+</Sheet>

@@ -35,6 +35,11 @@
     trainingState.setPlanBOccurrence(alt.id, occ.key, { likely: side === (alt.likely ?? 'A') ? undefined : side });
   }
   const sideLabel = (side: PlanSide) => (alt.outdoor === side ? `Plan ${side} · outdoor` : `Plan ${side}`);
+  /** The explanation lives behind one (?) instead of under the control it is about. */
+  let showHelp = $state(false);
+  const stateText = $derived(
+    occ.decided ? `Plan ${occ.decided} ${decidedByLog ? 'locked in' : 'chosen'}` : `Undecided, counting Plan ${occ.active}`,
+  );
 </script>
 
 <div class="rounded-control bg-surface-elevated/40 p-3 space-y-2.5">
@@ -42,27 +47,14 @@
     <Icon icon="ic:baseline-call-split" class="text-primary text-lg shrink-0 mt-0.5" />
     <div class="min-w-0 flex-1">
       <p class="text-label font-semibold text-content break-words">{alt.label || 'Plan B'}</p>
-      <p class="text-caption text-content-subtle">
-        {occurrenceDaysLabel(alt, occ.key)}{alt.repeatUntilWeekId ? ' · every week' : ''} ·
-        {#if occ.decided}
-          Plan {occ.decided} {decidedByLog ? 'locked in' : 'chosen'}
-        {:else}
-          undecided, counting Plan {occ.active}
-        {/if}
-      </p>
+      <p class="text-caption text-content-subtle">{occurrenceDaysLabel(alt, occ.key)}{alt.repeatUntilWeekId ? ' · every week' : ''}</p>
     </div>
-    <!-- While editing, the banner above has the one Done button. -->
+    <!-- One way in: the sheet changes the sessions of Plan B and its settings. -->
     {#if !editingThis}
-      <button
-        onclick={() => (trainingState.planBEditing = { altId: alt.id, key: occ.key })}
-        class="chip transition-colors text-content-subtle hover:text-content"
-      >
-        <Icon icon="ic:baseline-edit" class="text-sm" />Edit B
+      <button onclick={onSettings} class="chip transition-colors text-content-subtle hover:text-content shrink-0" aria-label="Edit Plan B: its sessions and settings">
+        <Icon icon="ic:baseline-edit" class="text-sm" />Edit
       </button>
     {/if}
-    <button onclick={onSettings} class="tap p-1 text-content-subtle hover:text-content transition-colors" aria-label="Plan B settings" title="Plan B settings">
-      <Icon icon="ic:baseline-tune" class="text-lg" />
-    </button>
   </div>
 
   <!-- What Plan B actually does differently - the point of the whole card. -->
@@ -71,7 +63,7 @@
       {#each describeChanges(alt, occ.key) as line}<li>Plan B · {line}</li>{/each}
     </ul>
   {:else}
-    <p class="text-caption text-content-subtle pl-7">No differences yet - tap Edit B, then change, remove or add sessions.</p>
+    <p class="text-caption text-content-subtle pl-7">No differences yet - tap Edit to change, remove or add sessions.</p>
   {/if}
 
   <div class="flex items-center gap-2">
@@ -82,7 +74,7 @@
         <button
           onclick={() => pick(side)}
           disabled={!!occ.decided}
-          class="seg-item flex-1 py-1.5 text-label transition-colors {on ? 'bg-primary text-white' : 'hover:text-content'} {occ.decided && !on ? 'opacity-50' : ''}"
+          class="seg-item flex-1 py-1.5 text-label transition-colors {on ? 'bg-primary text-on-primary' : 'hover:text-content'} {occ.decided && !on ? 'opacity-50' : ''}"
           aria-pressed={on}
         >{sideLabel(side)}</button>
       {/each}
@@ -90,7 +82,7 @@
     {#if !occ.decided}
       <button
         onclick={() => trainingState.setPlanBOccurrence(alt.id, occ.key, { chosen: occ.active })}
-        class="chip text-primary border-primary/30 hover:bg-primary/10 transition-colors shrink-0"
+        class="chip min-h-11 text-primary border-primary/30 hover:bg-primary/10 transition-colors shrink-0"
         title="Go with Plan {occ.active}; the other one stays visible as not chosen"
       >
         <Icon icon="ic:baseline-check" class="text-sm" />Decide
@@ -98,23 +90,36 @@
     {:else if !decidedByLog}
       <button
         onclick={() => trainingState.setPlanBOccurrence(alt.id, occ.key, { chosen: undefined })}
-        class="chip text-content-subtle hover:text-content transition-colors shrink-0"
+        class="chip min-h-11 text-content-subtle hover:text-content transition-colors shrink-0"
       >
         <Icon icon="ic:baseline-undo" class="text-sm" />Reopen
       </button>
     {/if}
   </div>
 
-  <!-- Said in words every time: what counts now, why, and what changes it. -->
-  <p class="text-caption text-content-subtle leading-relaxed">
-    {#if !occ.decided}
-      Undecided - the numbers count Plan {occ.active} for now. It locks by itself when you log a session only one plan has, or tap Decide.
-    {:else if decidedByLog}
-      Locked to Plan {occ.decided}: you logged {lockedBy}, which only Plan {occ.decided} has. Plan {occ.decided === 'A' ? 'B' : 'A'}'s sessions stay greyed out; delete the logged session to unlock.
-    {:else}
-      You chose Plan {occ.decided}. Plan {occ.decided === 'A' ? 'B' : 'A'}'s sessions stay greyed out; Reopen to change your mind.
-    {/if}
-  </p>
+  <!-- The state, said once; what it means and what changes it is one tap away. -->
+  <div class="flex items-center gap-1">
+    <p class="text-caption text-content-muted flex-1">{stateText}</p>
+    <button
+      onclick={() => (showHelp = !showHelp)}
+      class="btn-icon min-w-9 min-h-9 -my-1.5 -mr-1.5"
+      aria-label="How Plan A and Plan B work"
+      aria-expanded={showHelp}
+    >
+      <Icon icon="ic:outline-help-outline" class="text-base" />
+    </button>
+  </div>
+  {#if showHelp}
+    <p class="text-caption text-content-subtle leading-relaxed">
+      {#if !occ.decided}
+        The numbers count Plan {occ.active} for now. It locks by itself when you log a session only one plan has, or when you tap Decide.
+      {:else if decidedByLog}
+        You logged {lockedBy}, which only Plan {occ.decided} has. Plan {occ.decided === 'A' ? 'B' : 'A'}'s sessions stay greyed out; delete the logged session to unlock.
+      {:else}
+        Plan {occ.decided === 'A' ? 'B' : 'A'}'s sessions stay greyed out; Reopen to change your mind.
+      {/if}
+    </p>
+  {/if}
 
   {#each hints as hint (hint.date)}
     <p class="text-caption flex items-center gap-1.5 {looksGood(hint) ? 'text-status-good' : 'text-content-subtle'}">

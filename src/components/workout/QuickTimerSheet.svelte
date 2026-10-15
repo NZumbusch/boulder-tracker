@@ -8,9 +8,8 @@
    */
   import { untrack } from 'svelte';
   import Icon from '@iconify/svelte';
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
-  import { keyboardAware } from '../../lib/ui/keyboardAware';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import Sheet from '../ui/Sheet.svelte';
+  import { showUndo } from '../../lib/toast.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { closeQuickTimerSheet, startQuickRun } from '../../lib/timer/quickTimer.svelte';
   import { cleanPresetValues, describePreset, type PresetVariant } from '../../lib/timer/presets';
@@ -75,11 +74,20 @@
   }
   let managing = $state(false);
 
-  backWhile(() => true, () => closeQuickTimerSheet());
+  /** A preset is removed at once, with an Undo that puts it back. */
+  function removePreset(id: string) {
+    const gone = presets.find((x) => x.id === id);
+    if (!gone) return;
+    trainingState.deleteTimerPreset(id);
+    showUndo(`"${gone.name}" deleted`, () => trainingState.saveTimerPreset($state.snapshot(gone) as typeof gone));
+  }
 
-  function setField(name: string, raw: string, min: number) {
+  /** Said out loud when a typed number was raised to its minimum, rather than changing it silently. */
+  let notice = $state('');
+  function setField(name: string, raw: string, min: number, label: string) {
     const n = Number(raw);
-    if (!Number.isFinite(n)) return;
+    if (raw.trim() === '' || !Number.isFinite(n)) return;
+    notice = n < min ? `${label} is at least ${min}.` : '';
     fields[kind][name] = Math.max(min, n);
   }
   const INPUTS: Record<Kind, { name: string; label: string; unit?: string; min: number; step: number }[]> = {
@@ -101,60 +109,55 @@
   };
 </script>
 
-<div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
-  <div class="absolute inset-0" onclick={closeQuickTimerSheet} onkeydown={(e) => e.key === 'Escape' && closeQuickTimerSheet()} role="button" tabindex="-1" aria-label="Close"></div>
-  <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4" use:sheetDrag={() => closeQuickTimerSheet()} use:keyboardAware>
-    <div class="flex items-center justify-between gap-3">
-      <h3 class="text-title text-content">Timer</h3>
-      <button onclick={closeQuickTimerSheet} class="tap p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
-    </div>
-
-    {#if presets.length > 0}
-      <div class="space-y-1.5">
-        <div class="flex items-center justify-between px-1">
-          <p class="text-caption uppercase text-content-subtle">Saved</p>
-          <button onclick={() => (managing = !managing)} class="text-caption text-primary">{managing ? 'Done' : 'Edit'}</button>
-        </div>
-        <div class="divide-y divide-border">
-          {#each presets as p (p.id)}
-            <div class="flex items-center gap-2 py-2">
-              <button onclick={() => startPreset(p.id)} class="min-w-0 flex-1 text-left" aria-label="Start {p.name}">
-                <span class="block text-body text-content truncate">{p.name}</span>
-                <span class="block text-caption text-content-subtle truncate">{describePreset(p)}</span>
-              </button>
-              {#if managing}
-                <button onclick={() => trainingState.deleteTimerPreset(p.id)} class="p-2 text-content-subtle hover:text-danger" aria-label="Delete {p.name}"><Icon icon="ic:baseline-delete-outline" class="text-xl" /></button>
-              {:else}
-                <button onclick={() => startPreset(p.id)} class="p-2 text-primary" aria-label="Start {p.name}"><Icon icon="ic:baseline-play-circle" class="text-2xl" /></button>
-              {/if}
-            </div>
-          {/each}
-        </div>
+<Sheet title="Timer" level="nested" onClose={closeQuickTimerSheet}>
+  {#if presets.length > 0}
+    <div class="space-y-1.5">
+      <div class="flex items-center justify-between px-1">
+        <p class="text-caption uppercase text-content-subtle">Saved</p>
+        <button onclick={() => (managing = !managing)} class="btn-quiet px-3 -mr-3 text-label font-bold text-primary">{managing ? 'Done' : 'Edit'}</button>
       </div>
-    {/if}
-
-    <div class="flex flex-wrap gap-1.5" role="tablist" aria-label="Kind of timer">
-      {#each KINDS as k (k.id)}
-        <button role="tab" aria-selected={kind === k.id} onclick={() => (kind = k.id)}
-          class="px-3 py-1.5 rounded-full text-label font-bold border transition-colors {kind === k.id ? 'bg-primary text-white border-transparent' : 'border-border-strong text-content-muted hover:text-content'}">{k.label}</button>
-      {/each}
-    </div>
-    <p class="text-caption text-content-subtle">{HINT[kind]}</p>
-
-    {#if INPUTS[kind].length > 0}
-      <div class="grid grid-cols-3 gap-2">
-        {#each INPUTS[kind] as input (input.name)}
-          <label class="space-y-1 min-w-0">
-            <span class="text-caption text-content-subtle truncate block">{input.label}{input.unit ? ` (${input.unit})` : ''}</span>
-            <input type="number" inputmode="decimal" min={input.min} step={input.step} value={f[input.name]} oninput={(e) => setField(input.name, e.currentTarget.value, input.min)}
-              class="w-full px-2.5 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums" />
-          </label>
+      <div class="divide-y divide-border">
+        {#each presets as p (p.id)}
+          <div class="flex items-center gap-2 py-1">
+            <button onclick={() => startPreset(p.id)} class="min-w-0 flex-1 min-h-11 flex flex-col justify-center text-left" aria-label="Start {p.name}">
+              <span class="block text-body text-content truncate">{p.name}</span>
+              <span class="block text-caption text-content-subtle truncate">{describePreset(p)}</span>
+            </button>
+            {#if managing}
+              <button onclick={() => removePreset(p.id)} class="btn-icon hover:text-danger" aria-label="Delete {p.name}"><Icon icon="ic:baseline-delete-outline" class="text-xl" /></button>
+            {:else}
+              <button onclick={() => startPreset(p.id)} class="btn-icon text-primary" aria-label="Start {p.name}"><Icon icon="ic:baseline-play-circle" class="text-2xl" /></button>
+            {/if}
+          </div>
         {/each}
       </div>
-    {/if}
+    </div>
+  {/if}
 
-    <button onclick={go} class="w-full py-4 bg-primary hover:bg-primary-hover text-white rounded-control text-label font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+  <div class="flex flex-wrap gap-1.5" role="tablist" aria-label="Kind of timer">
+    {#each KINDS as k (k.id)}
+      <button role="tab" aria-selected={kind === k.id} onclick={() => { kind = k.id; notice = ''; }}
+        class="px-3 min-h-11 rounded-full text-label font-bold border transition-colors {kind === k.id ? 'bg-primary text-on-primary border-transparent' : 'border-border-strong text-content-muted hover:text-content'}">{k.label}</button>
+    {/each}
+  </div>
+  <p class="text-caption text-content-subtle">{HINT[kind]}</p>
+
+  {#if INPUTS[kind].length > 0}
+    <div class="grid grid-cols-3 gap-2">
+      {#each INPUTS[kind] as input (input.name)}
+        <label class="space-y-1 min-w-0">
+          <span class="text-caption text-content-subtle truncate block">{input.label}{input.unit ? ` (${input.unit})` : ''}</span>
+          <input type="number" inputmode={input.step < 1 ? 'decimal' : 'numeric'} enterkeyhint="done" min={input.min} step={input.step} value={f[input.name]} oninput={(e) => setField(input.name, e.currentTarget.value, input.min, input.label)}
+            class="field px-2.5 tabular-nums" />
+        </label>
+      {/each}
+    </div>
+    {#if notice}<p class="text-caption text-warning" role="status">{notice}</p>{/if}
+  {/if}
+
+  {#snippet footer()}
+    <button onclick={go} class="btn btn-primary flex-1 py-4">
       <Icon icon="ic:baseline-play-arrow" class="text-xl" /> Open timer
     </button>
-  </div>
-</div>
+  {/snippet}
+</Sheet>

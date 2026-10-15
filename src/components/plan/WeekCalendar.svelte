@@ -32,6 +32,15 @@
     onSelectWeek: (weekId: string) => void;
   } = $props();
 
+  /** "42" from "2026-W42": the number printed in each cell, so a cell can be read without its colour. */
+  const weekNumber = (id: string) => String(Number(id.slice(-2)));
+  const yearsLabel = $derived.by(() => {
+    if (!weeks.length) return '';
+    const first = weeks[0].year, last = weeks[weeks.length - 1].year;
+    return first === last ? `${first}` : `${first} to ${last}`;
+  });
+  const anyOverlap = $derived(weeks.some((w) => w.hasOverlap));
+
   const FALLBACK_COLOR = 'bg-surface-elevated/40 hover:bg-surface-elevated';
 
   /** Columns in the grid below - the tooltip anchoring needs to know which one a cell is in. */
@@ -58,7 +67,7 @@
   <!-- No min-width: a floor wider than the card's inner width made the
        whole page scroll sideways on a narrow phone. The cells are
        aspect-square and simply get smaller instead. -->
-  <div class="grid grid-cols-10 gap-1.5">
+  <div class="grid grid-cols-10 gap-1.5" role="group" aria-label="Weeks, {yearsLabel}">
     {#each weeks as week, i}
       {@const showYear = i === 0 || weeks[i].year !== weeks[i - 1].year}
       <button
@@ -78,9 +87,9 @@
             {/each}
           </span>
         {/if}
-        {#if showYear}<div class="absolute top-0.5 left-1 z-10 leading-none text-content text-[9px] font-bold pointer-events-none">{week.year}</div>{/if}
-        {#if week.isCurrent}<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-content rounded-full z-20"></div>{/if}
-        {#if week.hasOverlap}<div class="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-white rounded-full z-20" title="Multiple training blocks overlap this week"></div>{/if}
+        {#if showYear}<div class="absolute top-0.5 left-0.5 z-10 leading-none text-content text-caption font-bold pointer-events-none">{week.year}</div>{/if}
+        <span class="absolute inset-0 z-10 flex justify-center pointer-events-none tabular-nums text-caption leading-none text-content {showYear ? 'items-end pb-0.5' : 'items-center'} {week.isCurrent ? 'font-black underline decoration-2 underline-offset-2' : 'font-medium'}" aria-hidden="true">{weekNumber(week.id)}</span>
+        {#if week.hasOverlap}<div class="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-content ring-1 ring-surface rounded-full z-20" title="Multiple training blocks overlap this week"></div>{/if}
         <!-- `hidden` rather than `opacity-0`: an invisible element is still
              laid out, so 50 nowrap tooltips were adding scrollable empty
              space to the right of the page. Hiding it outright costs only
@@ -89,4 +98,7 @@
       </button>
     {/each}
   </div>
+  {#if anyOverlap}
+    <p class="mt-2 flex items-center gap-1.5 text-caption text-content-subtle"><span class="w-1.5 h-1.5 bg-content ring-1 ring-surface rounded-full shrink-0" aria-hidden="true"></span>Two blocks cover this week</p>
+  {/if}
 </div>

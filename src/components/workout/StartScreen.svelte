@@ -13,6 +13,7 @@
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
   import Icon from "@iconify/svelte";
   import { openQuickTimerSheet } from '../../lib/timer/quickTimer.svelte';
+  import { tick } from 'svelte';
 
   let { plannedWorkouts = [] }: { plannedWorkouts: Workout[] } = $props();
 
@@ -52,9 +53,16 @@
     trainingState.startSession($state.snapshot(p) as Workout);
   }
 
-  function handleAddBenchmark() {
+  let benchmarkForm = $state<HTMLElement>();
+  async function handleAddBenchmark() {
     isAddingBenchmark = true;
+    // The form opens below the three cards: bring it into view, or the tap looks like it did nothing.
+    await tick();
+    benchmarkForm?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
+
+  /** At least one planned session cannot be started because another is running. */
+  const someBlocked = $derived(trainingState.isSessionActive && plannedWorkouts.some((p) => !trainingState.sessionStore.isRunning(p.id)));
 </script>
 
 <div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-12">
@@ -68,13 +76,13 @@
     {#if trainingState.isSessionActive}
       <button
         onclick={() => trainingState.sessionStore.openModal()}
-        class="w-full p-4 bg-success hover:bg-success-hover text-white rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3"
+        class="w-full p-4 bg-success hover:bg-success-hover text-on-primary rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3"
       >
         <Icon icon="ic:baseline-play-circle" class="text-2xl shrink-0" />
         <span class="min-w-0 flex-1">
           <span class="text-label font-bold block truncate">Back to your session</span>
-          <span class="text-caption text-white/75 block truncate">
-            {trainingState.sessionStore.progress.settled}/{trainingState.sessionStore.progress.total} done &middot; already running
+          <span class="text-caption text-on-primary/90 block">
+            {trainingState.sessionStore.progress.settled}/{trainingState.sessionStore.progress.total} done · already running
           </span>
         </span>
         <Icon icon="ic:baseline-chevron-right" class="text-lg shrink-0" />
@@ -83,12 +91,12 @@
       <button
         onclick={handleStartNow}
         data-tour="add-start"
-        class="w-full p-4 bg-primary hover:bg-primary-hover text-white rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3 shadow-[0_4px_18px_-6px_color-mix(in_srgb,var(--color-primary)_70%,transparent)]"
+        class="w-full p-4 bg-primary hover:bg-primary-hover text-on-primary rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3"
       >
         <Icon icon="ic:baseline-play-circle" class="text-2xl shrink-0" />
         <span class="min-w-0 flex-1">
-          <span class="text-label font-bold block truncate">Start Now</span>
-          <span class="text-caption text-white/75 block truncate">Empty session &mdash; add exercises as you go</span>
+          <span class="text-label font-bold block truncate">Start now</span>
+          <span class="text-caption text-on-primary/90 block">Empty session. Add exercises as you go.</span>
         </span>
       </button>
     {/if}
@@ -101,8 +109,8 @@
       >
         <Icon icon="ic:baseline-edit-calendar" class="text-lg text-content-muted" />
         <span class="min-w-0">
-          <span class="text-label font-bold block truncate">Plan a Session</span>
-          <span class="text-caption text-content-subtle block truncate">Save it for later</span>
+          <span class="text-label font-bold block">Plan a session</span>
+          <span class="text-caption text-content-subtle block">Save it for later</span>
         </span>
       </button>
 
@@ -113,8 +121,8 @@
       >
         <Icon icon="ic:baseline-insights" class="text-lg text-content-muted" />
         <span class="min-w-0">
-          <span class="text-label font-bold block truncate">Log a test</span>
-          <span class="text-caption text-content-subtle block truncate">Record a result</span>
+          <span class="text-label font-bold block">Log a test</span>
+          <span class="text-caption text-content-subtle block">Record a result</span>
         </span>
       </button>
     </div>
@@ -127,22 +135,31 @@
       <Icon icon="ic:baseline-timer" class="text-lg text-content-muted shrink-0" />
       <span class="min-w-0 flex-1">
         <span class="text-label font-bold block truncate">Timer</span>
-        <span class="text-caption text-content-subtle block truncate">Intervals, a pacer, countdown &mdash; no session needed</span>
+        <span class="text-caption text-content-subtle block">Intervals, a pacer or a countdown. No session needed.</span>
       </span>
       <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle shrink-0" />
     </button>
 
     {#if isAddingBenchmark}
+      <div bind:this={benchmarkForm} class="scroll-mt-4">
       <BenchmarkForm
         weekId={trainingState.currentWeekId}
         onSave={() => isAddingBenchmark = false}
         onCancel={() => isAddingBenchmark = false}
       />
+      </div>
     {/if}
 
-    {#if plannedWorkouts.length > 0}
+    {#if plannedWorkouts.length === 0}
+      <div class="px-1 py-2 space-y-1">
+        <h3 class="text-section uppercase text-content-subtle">Planned for this week</h3>
+        <p class="text-label text-content-subtle">Nothing planned this week.</p>
+        <button onclick={() => trainingState.navigate('plan')} class="btn btn-quiet px-0 text-label font-bold text-primary">Open Plan</button>
+      </div>
+    {:else}
       <div class="space-y-2">
         <h3 class="text-section uppercase text-content-subtle px-1">Planned for this week</h3>
+        {#if someBlocked}<p class="px-1 text-caption text-content-subtle">A session is already running. Finish or discard it to start another.</p>{/if}
         <!-- Ordered by day, then start time - see sortWorkoutsBySchedule,
              which WorkoutStore.getPlannedWorkoutsForWeek applies. -->
         {#each plannedWorkouts as p}
@@ -152,9 +169,9 @@
             onclick={() => handleStartPlanned(p)}
             disabled={blocked}
             title={blocked ? 'Finish or discard the running session first' : undefined}
-            class="w-full px-3 py-2.5 rounded-control text-left transition-all group flex items-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed {p.provisional ? 'bg-surface/30 border border-dashed border-border hover:border-border-strong' : 'bg-surface/50 border border-border hover:bg-surface-elevated hover:border-border-strong'}"
+            class="w-full px-3 py-2.5 min-h-14 rounded-control text-left transition-all group flex items-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed {p.provisional ? 'bg-surface-elevated/30 hover:bg-surface-elevated/60' : 'bg-surface-elevated/50 hover:bg-surface-elevated'}"
           >
-            <span class="w-9 shrink-0 text-center text-caption font-bold text-primary-hover bg-primary-hover/10 py-1 rounded-control leading-none">
+            <span class="w-10 shrink-0 text-center text-caption font-bold text-primary bg-primary/10 py-1 rounded-control leading-none">
               {p.dayOfWeek ? p.dayOfWeek.slice(0, 3) : '—'}
             </span>
             <span class="min-w-0 flex-1">

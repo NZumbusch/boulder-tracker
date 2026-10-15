@@ -42,6 +42,12 @@
     markNotesSeen();
     open = false;
   }
+  // A stray tap on the scrim, a drag or Back must not use up the "Needs a look" actions: while some are waiting the sheet
+  // only counts as seen when a button says so, and comes back at the next launch otherwise.
+  function dismiss() {
+    if (needsAction) open = false;
+    else close();
+  }
   function reviewTests() {
     close();
     trainingState.uiStore.openSettingsPage('benchmarks');
@@ -49,7 +55,7 @@
 </script>
 
 {#if open}
-  <Sheet title="What's new" subtitle="Since you last opened the app. Every change is listed under About → What's new." level="top" onClose={close}>
+  <Sheet title="What's new" subtitle="Since you last opened the app. The latest changes are also under About → What's new." level="top" onClose={dismiss}>
     {#if needsAction}
       <div class="rounded-card bg-status-caution/10 p-3.5 space-y-2" data-testid="whatsnew-actions">
         <p class="text-label font-semibold text-content">Needs a look</p>

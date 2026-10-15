@@ -19,10 +19,13 @@
 </script>
 
 <div class="space-y-4">
+  {#if !native}
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">Reminders on the phone need the Android app. The nudges inside the app work everywhere.</p>
+  {/if}
   <NotificationSettings />
   <TunablesSettings topic="layout" title="Nudges in the app" ids={['progress.retestWeeks', 'alerts.backupDays', 'alerts.insightNotify', 'alerts.insightHour']} />
+  <h2 class="text-section uppercase text-content-muted px-1 -mb-2">Reminders that live with their feature</h2>
   <div class="card py-1 divide-y divide-border animate-in fade-in">
-    <p class="text-caption text-content-subtle px-1 pt-3 pb-2 leading-relaxed">{native ? 'These reminders sit with the feature they belong to:' : 'Reminders on the phone need the Android app. These belong to a feature:'}</p>
     {#each elsewhere as e (e.page)}
       <NavRow icon={findPage(e.page).page.icon} title={e.title} hint={e.hint} onclick={() => onopen(e.page)} />
     {/each}

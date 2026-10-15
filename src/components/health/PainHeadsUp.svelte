@@ -27,15 +27,15 @@
 
 {#if touched.length}
   {#if variant === 'chip'}
-    <span class="inline-flex align-middle items-center gap-0.5 px-1.5 py-px rounded-full text-[10px] font-semibold bg-status-caution/15 text-status-caution" title="Hits an open pain issue: {touched.map((i) => i.bodyPart).join(', ')}">
-      <Icon icon="ic:baseline-healing" class="text-[11px]" />{touched.length === 1 ? touched[0].bodyPart.split(' - ')[0] : `${touched.length} issues`}
+    <span class="inline-flex align-middle items-center gap-0.5 px-1.5 py-px rounded-full text-caption font-semibold bg-status-caution/15 text-content" title="Hits an open pain issue: {touched.map((i) => i.bodyPart).join(', ')}">
+      <Icon icon="ic:baseline-healing" class="text-xs text-status-caution" />{touched.length === 1 ? touched[0].bodyPart.split(' - ')[0] : `${touched.length} issues`}
     </span>
   {:else}
     {#each touched as issue (issue.id)}
-      <button onclick={() => openPainIssue(issue.id)} class="w-full flex items-start gap-2 px-3 py-2 rounded-control bg-status-caution/10 border border-status-caution/30 text-left text-caption text-content">
+      <button onclick={() => openPainIssue(issue.id)} class="w-full flex items-start gap-2 px-3 py-2.5 min-h-11 rounded-control bg-status-caution/10 border border-status-caution/30 text-left text-label text-content">
         <Icon icon="ic:baseline-healing" class="text-base text-status-caution shrink-0 mt-px" />
         <span class="min-w-0 flex-1">
-          Easy on your <span class="font-bold">{inSentence(issue.bodyPart)}</span>{levelOf(issue.id) !== undefined ? ` (${levelOf(issue.id)}/10)` : ''} - this session has {issue.watchCategories!.filter((c) => sessionCats.has(c)).join(', ')}.
+          Easy on your <span class="font-bold">{inSentence(issue.bodyPart)}</span>{levelOf(issue.id) !== undefined ? ` (${levelOf(issue.id)}/10)` : ''}. This session has {issue.watchCategories!.filter((c) => sessionCats.has(c)).join(', ')}.
         </span>
         <Icon icon="ic:baseline-chevron-right" class="text-base text-content-subtle shrink-0" />
       </button>

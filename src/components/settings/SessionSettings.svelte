@@ -13,6 +13,8 @@
   import type { AddedExerciseTarget } from '../../lib/preferences/migrate';
   import Icon from '@iconify/svelte';
   import { Capacitor } from '@capacitor/core';
+  import Toggle from '../ui/Toggle.svelte';
+  import { rovingRadios } from './rovingRadios';
 
   const isNative = Capacitor.isNativePlatform();
   const wakeLockSupported = typeof navigator !== 'undefined' && 'wakeLock' in navigator;
@@ -35,19 +37,22 @@
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">Sessions</h3>
+    <h2 class="text-section uppercase text-content-muted px-1" id="added-exercise-heading">Exercises added mid-session</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">
       When you add an exercise part-way through a running session, what should it count as?
     </p>
   </div>
 
-  <div class="divide-y divide-border">
+  <div class="divide-y divide-border" role="radiogroup" aria-labelledby="added-exercise-heading" use:rovingRadios>
     {#each OPTIONS as option}
       {@const selected = trainingState.addedExerciseTarget === option.value}
       <button
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        tabindex={selected ? 0 : -1}
         onclick={() => trainingState.setAddedExerciseTarget(option.value)}
-        aria-pressed={selected}
-        class="w-full flex items-start justify-between gap-3 py-3 text-left transition-colors {selected ? 'text-primary' : 'text-content'}"
+        class="w-full flex items-start justify-between gap-3 py-3 min-h-11 text-left transition-colors {selected ? 'text-primary' : 'text-content'}"
       >
         <Icon icon={option.icon} class="text-xl shrink-0 mt-0.5" />
         <div class="min-w-0 flex-1">
@@ -60,45 +65,46 @@
   </div>
 </div>
 
-<div class="card space-y-4 animate-in fade-in">
-  <div class="space-y-2">
-    <h3 class="text-section uppercase text-content-muted px-1">While a session runs</h3>
-  </div>
+<div class="card space-y-2 animate-in fade-in">
+  <h2 class="text-section uppercase text-content-muted px-1">Screen, notification and haptics</h2>
 
   <div class="divide-y divide-border">
     {#if wakeLockSupported}
-      <label class="w-full flex items-center justify-between py-3 cursor-pointer gap-3">
-        <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted shrink-0" />
-          <span>
-            <span class="block text-body text-content">Keep screen on</span>
-            <span class="block text-caption text-content-subtle">The whole time a session runs (not while paused)</span>
-          </span>
+      <div class="flex items-center gap-3">
+        <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted shrink-0" />
+        <div class="flex-1 min-w-0">
+          <Toggle
+            checked={trainingState.sessionKeepAwake}
+            onChange={(v) => trainingState.setSessionKeepAwake(v)}
+            label="Keep the screen on during a session"
+            hint="The whole time a session runs (not while paused)"
+          />
         </div>
-        <input type="checkbox" checked={trainingState.sessionKeepAwake} onchange={(e) => trainingState.setSessionKeepAwake(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0" />
-      </label>
+      </div>
     {/if}
     {#if isNative}
-      <label class="w-full flex items-center justify-between py-3 cursor-pointer gap-3">
-        <div class="flex items-center gap-3">
-          <Icon icon="ic:baseline-directions-run" class="text-lg text-content-muted shrink-0" />
-          <div>
-            <span class="block text-body text-content">Session notification</span>
-            <span class="block text-caption text-content-subtle">Its clock, the current exercise and how far you are, with Pause / Resume</span>
-          </div>
-        </div>
-        <input type="checkbox" checked={trainingState.sessionNotification} onchange={(e) => trainingState.setSessionNotification(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0" />
-      </label>
-    {/if}
-    <label class="w-full flex items-center justify-between py-3 cursor-pointer gap-3">
       <div class="flex items-center gap-3">
-        <Icon icon="ic:baseline-touch-app" class="text-lg text-content-muted shrink-0" />
-        <span>
-          <span class="block text-body text-content">Haptic feedback</span>
-          <span class="block text-caption text-content-subtle">A short buzz when an exercise or session is done, and on swipes and long-presses</span>
-        </span>
+        <Icon icon="ic:baseline-directions-run" class="text-lg text-content-muted shrink-0" />
+        <div class="flex-1 min-w-0">
+          <Toggle
+            checked={trainingState.sessionNotification}
+            onChange={(v) => trainingState.setSessionNotification(v)}
+            label="Session notification"
+            hint="Its clock, the current exercise and how far you are, with Pause and Resume"
+          />
+        </div>
       </div>
-      <input type="checkbox" checked={trainingState.hapticsEnabled} onchange={(e) => trainingState.setHapticsEnabled(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0" />
-    </label>
+    {/if}
+    <div class="flex items-center gap-3">
+      <Icon icon="ic:baseline-touch-app" class="text-lg text-content-muted shrink-0" />
+      <div class="flex-1 min-w-0">
+        <Toggle
+          checked={trainingState.hapticsEnabled}
+          onChange={(v) => trainingState.setHapticsEnabled(v)}
+          label="Haptic feedback"
+          hint="A short buzz when an exercise or session is done, and on swipes and long-presses"
+        />
+      </div>
+    </div>
   </div>
 </div>
