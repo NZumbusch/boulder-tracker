@@ -18,10 +18,7 @@ const ALLOWED = new Set([
   "components/analytics/HeatmapPanel.svelte",
   "components/analytics/LoadPanel.svelte",
   "components/analytics/PhaseBand.svelte",
-  "components/dashboard/home/ThisWeekCard.svelte",
-  "components/history/History.svelte",
   // Rendered to an image at a fixed size (not the app's text scale): the share cards.
-  "components/history/WorkoutShareImage.svelte",
   "components/plan/WeekShareImage.svelte",
   "components/plan/PhaseStrip.svelte",
   "components/settings/ErrorLogCard.svelte",
