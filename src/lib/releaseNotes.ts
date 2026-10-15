@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-18-calm-panels",
+    title: "Calmer panels everywhere",
+    points: [
+      "Grouped content on Home, Analytics, History, Settings and the Plan's week card is a soft panel without borders or shadows now, and small buttons and chips are filled instead of outlined.",
+      "The Plan's block grid is quieter: no box around it, smaller rounded weeks in softer colours, the current week a dot, the selected one a ring, the year written inside its first week.",
+      "Settings → Plan calendar & day → \"Flat sections instead of panels\" drops the panels altogether: sections are separated by whitespace and a hairline, like the calendar.",
+    ],
+  },
+  {
     id: "2026-10-18-samsung-style-calendar",
     title: "The calendar looks more like Samsung Calendar",
     points: [

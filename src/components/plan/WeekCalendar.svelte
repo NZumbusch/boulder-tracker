@@ -32,7 +32,7 @@
     onSelectWeek: (weekId: string) => void;
   } = $props();
 
-  const FALLBACK_COLOR = 'bg-surface-elevated/50 hover:bg-surface-elevated';
+  const FALLBACK_COLOR = 'bg-surface-elevated/40 hover:bg-surface-elevated';
 
   /** Columns in the grid below - the tooltip anchoring needs to know which one a cell is in. */
   const COLUMNS = 10;
@@ -54,38 +54,38 @@
   }
 </script>
 
-<div class="card relative">
+<div class="relative px-1">
   <!-- No min-width: a floor wider than the card's inner width made the
        whole page scroll sideways on a narrow phone. The cells are
        aspect-square and simply get smaller instead. -->
-  <div class="grid grid-cols-10 gap-2">
+  <div class="grid grid-cols-10 gap-1.5">
     {#each weeks as week, i}
       {@const showYear = i === 0 || weeks[i].year !== weeks[i - 1].year}
       <button
         onclick={() => onSelectWeek(week.id)}
         aria-label={`${week.tooltip}${week.isCurrent ? ', this week' : ''}`}
         aria-pressed={selectedWeekId === week.id}
-        class="aspect-square rounded-control transition-all duration-300 relative group hover:z-20
-          {week.runs ? 'overflow-hidden' : (week.color || FALLBACK_COLOR)}
-          {selectedWeekId === week.id ? 'ring-1 ring-primary ring-offset-1 ring-offset-surface scale-110 z-10 shadow-lg' : 'hover:scale-110'}
-          {week.isCurrent ? 'border-2 border-primary' : ''}"
+        class="aspect-square rounded-md transition-all duration-200 relative group hover:z-20
+          {week.runs || week.color ? '' : FALLBACK_COLOR}
+          {selectedWeekId === week.id ? 'ring-2 ring-content z-10' : ''}"
       >
+        {#if week.color && !week.runs}<span class="absolute inset-0 rounded-md {week.color} opacity-80 group-hover:opacity-100 transition-opacity pointer-events-none" aria-hidden="true"></span>{/if}
         {#if week.runs}
           <!-- A week split between phases: a segment as wide as its days, per phase. Phase colours are classes, so these are children, not a gradient. -->
-          <span class="absolute inset-0 flex pointer-events-none" aria-hidden="true">
+          <span class="absolute inset-0 flex overflow-hidden rounded-md opacity-80 pointer-events-none" aria-hidden="true">
             {#each week.runs as run}
               <span class="{run.color || FALLBACK_COLOR.split(' ')[0]} h-full" style="flex: {run.to - run.from + 1} 1 0"></span>
             {/each}
           </span>
         {/if}
-        {#if showYear}<div class="absolute -top-3.5 -left-1.5 z-10 px-1 py-px leading-tight rounded-control bg-surface-elevated text-content border border-border-strong shadow-sm text-caption font-bold whitespace-nowrap">{week.year}</div>{/if}
-        {#if week.isCurrent}<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary-hover rounded-full border-2 border-app-bg z-20"></div>{/if}
-        {#if week.hasOverlap}<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-white rounded-full border border-app-bg z-20" title="Multiple training blocks overlap this week"></div>{/if}
+        {#if showYear}<div class="absolute top-0.5 left-1 z-10 leading-none text-content text-[9px] font-bold pointer-events-none">{week.year}</div>{/if}
+        {#if week.isCurrent}<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-content rounded-full z-20"></div>{/if}
+        {#if week.hasOverlap}<div class="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-white rounded-full z-20" title="Multiple training blocks overlap this week"></div>{/if}
         <!-- `hidden` rather than `opacity-0`: an invisible element is still
              laid out, so 50 nowrap tooltips were adding scrollable empty
              space to the right of the page. Hiding it outright costs only
              the fade, and a hover tooltip never shows on touch anyway. -->
-        <div class="hidden group-hover:block absolute bottom-full {tooltipAnchor(i)} mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none whitespace-nowrap z-30 shadow-card border border-border-strong">{week.tooltip}</div>
+        <div class="hidden group-hover:block absolute bottom-full {tooltipAnchor(i)} mb-2 px-2 py-1 bg-surface-elevated text-caption text-content rounded-control pointer-events-none whitespace-nowrap z-30 shadow-card">{week.tooltip}</div>
       </button>
     {/each}
   </div>
