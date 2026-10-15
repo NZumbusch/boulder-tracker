@@ -9,6 +9,11 @@ import { backDepth } from "../navigation/backStack.svelte";
  *
  * An overlay is a visible `fixed inset-0` element with a `z-[100+]` class.
  * The guided tour is left alone: it points at things in the page.
+ *
+ * Two extras: an overlay without a name gets one from its first heading (or
+ * `[data-sheet-title]`), so a screen reader hears "Training Blocks, dialog"
+ * and not just "dialog"; and anything marked `data-dialog-keep` (the toast with
+ * its Undo) stays usable behind a dialog.
  */
 const OVERLAY = '.fixed.inset-0[class*="z-["]';
 const MARK = "data-dialog-inert";
@@ -22,6 +27,18 @@ function overlays(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>(OVERLAY)]
     .filter((el) => zOf(el) >= 100 && el.getClientRects().length > 0 && !el.getAttribute("aria-label")?.startsWith("Tour"))
     .sort((a, b) => zOf(a) - zOf(b));
+}
+
+/** Names an unnamed dialog after its title: `[data-sheet-title]`, else the first h1-h3 inside it. */
+export function nameDialog(dialog: HTMLElement): void {
+  const has = (el: Element) => el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby");
+  // The panel inside a wrapper can carry the role itself (InfoSheet): then that panel is the one to name.
+  const target = dialog.querySelector<HTMLElement>('[role="dialog"]') ?? dialog;
+  if (has(target)) return;
+  const title = target.querySelector<HTMLElement>("[data-sheet-title]") ?? target.querySelector<HTMLElement>("h1, h2, h3");
+  if (!title || !(title.textContent ?? "").trim()) return;
+  if (!title.id) title.id = `dlg-title-${Math.random().toString(36).slice(2, 8)}`;
+  target.setAttribute("aria-labelledby", title.id);
 }
 
 let lastTop: HTMLElement | null = null;
@@ -38,10 +55,11 @@ function update() {
   }
   if (!top.getAttribute("role")) top.setAttribute("role", "dialog");
   top.setAttribute("aria-modal", "true");
+  nameDialog(top);
   // Everything that is not the overlay or one of its ancestors.
   for (let node: HTMLElement = top; node.parentElement; node = node.parentElement) {
     for (const sibling of node.parentElement.children) {
-      if (sibling === node || sibling.tagName === "SCRIPT" || sibling.tagName === "STYLE") continue;
+      if (sibling === node || sibling.tagName === "SCRIPT" || sibling.tagName === "STYLE" || sibling.hasAttribute("data-dialog-keep")) continue;
       sibling.setAttribute("inert", "");
       sibling.setAttribute(MARK, "");
     }
