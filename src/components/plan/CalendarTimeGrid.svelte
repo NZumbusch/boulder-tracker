@@ -424,7 +424,7 @@
                 <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(it.e)}"></span>
                 <span class="relative block">
                   <span class="block {showMeta ? 'text-label truncate' : 'text-caption leading-[14px] break-words'}">{it.e.title}</span>
-                  {#if showMeta}<span class="block text-caption opacity-80">{hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}</span>{/if}
+                  {#if showMeta && heightPx >= 44}<span class="block text-caption opacity-80">{hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}</span>{/if}
                 </span>
               </button>
             {:else}

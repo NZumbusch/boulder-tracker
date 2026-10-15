@@ -521,14 +521,14 @@
           <!-- The phases the week holds, with their days when it is split. Tapping one opens the Block manager at that day - phases are edited there. -->
           <div class="flex items-center gap-x-3 gap-y-0.5 flex-wrap" data-tour="plan-phase">
             {#each selectedWeekPhases as part (part.block.id)}
-              <button onclick={() => openBlockManager(part.days[0])} class="text-left group flex items-baseline gap-1.5" aria-label="Edit the {phaseName(part.block.phaseId)} phase">
+              <button onclick={() => openBlockManager(part.days[0])} class="tap text-left group flex items-baseline gap-1.5" aria-label="Edit the {phaseName(part.block.phaseId)} phase">
                 {#if selectedWeekPhases.length > 1}<span class="w-2 h-2 rounded-full self-center shrink-0 {phaseColor(part.block.phaseId)}"></span>{/if}
                 <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(part.block.phaseId) ?? part.block.name}</h3>
                 <Icon icon="ic:baseline-edit" class="text-sm text-content-subtle self-center shrink-0" />
                 {#if selectedWeekPhases.length > 1}<span class="text-caption text-content-subtle whitespace-nowrap">{dayRangeText(weekDayIndex(part.days[0]), weekDayIndex(part.days[part.days.length - 1]))}</span>{/if}
               </button>
             {:else}
-              <button onclick={() => openBlockManager(trainingState.selectedWeekId ? weekMondayIso(trainingState.selectedWeekId) : undefined)} class="text-left group min-h-9 flex items-center">
+              <button onclick={() => openBlockManager(trainingState.selectedWeekId ? weekMondayIso(trainingState.selectedWeekId) : undefined)} class="text-left group min-h-10 flex items-center">
                 <h3 class="text-label text-content-subtle group-hover:text-primary-hover transition-colors">No phase - tap to add</h3>
               </button>
             {/each}
@@ -576,7 +576,7 @@
           <button
             onclick={copyLastWeekHere}
             disabled={previousWeekCount === 0}
-            class="w-full flex items-center gap-2 text-left disabled:opacity-40 disabled:cursor-not-allowed group"
+            class="tap w-full flex items-center gap-2 text-left disabled:opacity-40 disabled:cursor-not-allowed group"
           >
             <Icon icon="ic:baseline-south" class="text-base text-primary shrink-0" />
             <span class="min-w-0 flex-1">
@@ -587,10 +587,13 @@
           <div class="pt-3 border-t border-border/60 flex items-center gap-2 flex-wrap">
             <Icon icon="ic:baseline-repeat" class="text-base text-primary shrink-0" />
             <span class="text-label text-content">Repeat this week into the next</span>
-            <select bind:value={repeatCount} class="field w-auto" aria-label="Number of weeks">
-              {#each [1, 2, 3, 4, 5, 6, 7, 8] as n}<option value={n}>{n}</option>{/each}
-            </select>
-            <span class="text-label text-content">week{repeatCount === 1 ? '' : 's'}</span>
+            <!-- The number and its unit wrap together, so "week" never ends up alone beside the button. -->
+            <span class="inline-flex items-center gap-2">
+              <select bind:value={repeatCount} class="field w-auto" aria-label="Number of weeks">
+                {#each [1, 2, 3, 4, 5, 6, 7, 8] as n}<option value={n}>{n}</option>{/each}
+              </select>
+              <span class="text-label text-content">week{repeatCount === 1 ? '' : 's'}</span>
+            </span>
             <button
               onclick={repeatThisWeek}
               disabled={weekWorkouts.length === 0}
@@ -600,7 +603,7 @@
           <p class="text-caption text-content-subtle">Replaces the planned sessions there; completed ones stay. You can undo it.</p>
           <button
             onclick={() => { showCopy = false; trainingState.editPlanBAt(trainingState.selectedWeekId!); }}
-            class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
+            class="tap w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
           >
             <Icon icon="ic:baseline-call-split" class="text-base text-primary shrink-0" />
             <span class="min-w-0 flex-1">
@@ -611,7 +614,7 @@
           <button
             onclick={() => { showCopy = false; sharingWeek = true; }}
             disabled={weekWorkouts.length === 0}
-            class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left disabled:opacity-40 disabled:cursor-not-allowed group"
+            class="tap w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left disabled:opacity-40 disabled:cursor-not-allowed group"
           >
             <Icon icon="ic:baseline-ios-share" class="text-base text-primary shrink-0" />
             <span class="text-label text-content group-hover:text-primary transition-colors">Share this week as an image</span>
@@ -619,7 +622,7 @@
           {#if canResetWeek}
             <button
               onclick={() => { showCopy = false; trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!); }}
-              class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
+              class="tap w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
             >
               <Icon icon="ic:baseline-restore" class="text-base text-primary shrink-0" />
               <span class="min-w-0 flex-1">
@@ -630,7 +633,7 @@
           {/if}
           <button
             onclick={() => { showCopy = false; trainingState.clearWeek(trainingState.selectedWeekId!); }}
-            class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
+            class="tap w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
           >
             <Icon icon="ic:baseline-delete-sweep" class="text-base text-danger shrink-0" />
             <span class="min-w-0 flex-1">

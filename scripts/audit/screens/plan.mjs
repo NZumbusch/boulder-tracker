@@ -50,6 +50,24 @@ const EVENTS_JS = `const { deviceCalendar } = await import('/src/lib/calendar/de
 const eventsOn = (c) => c.st(EVENTS_JS);
 const eventsOff = (c) => c.st(`const { deviceCalendar } = await import('/src/lib/calendar/deviceCalendar.svelte.ts');
   delete deviceCalendar.load; deviceCalendar.events = []; deviceCalendar.enabled = false; deviceCalendar.calendars = []; deviceCalendar.supported = false; deviceCalendar.granted = false; deviceCalendar.selected = [];`);
+const aiKeyOn = (c) => c.st(`const { saveKey } = await import('/src/lib/ai/direct/store.ts'); saveKey('anthropic', 'sk-ant-audit-not-a-real-key')`);
+const aiKeyOff = (c) => c.ev(`localStorage.removeItem('bt.aiKey.anthropic')`);
+/** Two plan changes the coach can roll back (an AI change and a copied week), written straight into the undo store. */
+const historyOn = async (c) => { const r = await c.st(`const { writePlanUndo, readPlanUndo } = await import('/src/lib/storage/persistence.ts');
+  const now = Date.now();
+  await writePlanUndo([
+    { source: 'copy', appliedAt: new Date(now - 86400000).toISOString(), before: { workouts: [], trainingBlocks: [] }, after: { workouts: [], trainingBlocks: [] }, label: { goal: '', lines: ['Copied week 41 over week 42 (2 sessions)'] } },
+    { source: 'ai', appliedAt: new Date(now - 3600000).toISOString(), before: { workouts: [], trainingBlocks: [] }, after: { workouts: [], trainingBlocks: [] }, label: { goal: 'Tired this week, swap Thursday for a rest day and keep the long Saturday session for outdoor bouldering if it is dry', lines: ['Moved Board Session to Friday', 'Added a rest day on Thursday', 'Shortened Dynamic Moves by 15 minutes', 'Changed the finger block to repeaters', 'Dropped one core exercise', 'Added a mobility finisher'] } },
+  ]); return JSON.stringify(await readPlanUndo()).length`); if (!(Number(r) > 100)) throw new Error('plan history not written: ' + r); };
+const historyOff = (c) => c.st(`const { writePlanUndo } = await import('/src/lib/storage/persistence.ts'); await writePlanUndo(null)`);
+/** Opens the Ask AI sheet through its store (the call is a function body that sees askAboutSession/-Block/-Insights and `t`). */
+async function askOpen(c, call) {
+  await plan(c);
+  // The module URL the app itself loaded (a plain import after an edit can give a second copy, with its own state).
+  await c.st(`const u = performance.getEntriesByType('resource').map(r => r.name).find(n => /askAbout\\.svelte\\.ts/.test(n)) || '/src/lib/ai/askAbout.svelte.ts';
+    const { askAboutSession, askAboutBlock, askAboutInsights } = await import(u); ${call}`); await sleep(900);
+  if (!(await c.ev(`!!document.querySelector('[role=dialog]')`))) throw new Error('ask sheet did not open');
+}
 const closeN = async (c, n = 2) => { for (let i = 0; i < n; i++) await c.close(); };
 const clickSession = (c) => c.click('Board Session', { exact: false });
 
@@ -79,6 +97,10 @@ export const screens = [
   { id: 'plan-cal-month-empty', area: 'plan', setup: async (c) => { await seed(c, EMPTY); await plan(c, { view: 'calendar', mode: 'month' }); }, teardown: restore },
   { id: 'plan-cal-day-empty', area: 'plan', setup: async (c) => { await seed(c, EMPTY); await plan(c, { view: 'calendar', mode: 'day' }); }, teardown: restore },
   { id: 'plan-cal-year-empty', area: 'plan', setup: async (c) => { await seed(c, EMPTY); await plan(c, { view: 'calendar', mode: 'year' }); }, teardown: restore },
+  // Nothing at all: no sessions and no phase blocks
+  { id: 'plan-weeks-nothing', area: 'plan', pages: 2, setup: async (c) => { await seed(c, EMPTY + `d.trainingBlocks = [];`); await plan(c); }, teardown: restore },
+  { id: 'plan-cal-week-nothing', area: 'plan', setup: async (c) => { await seed(c, EMPTY + `d.trainingBlocks = [];`); await setTunables(c, { 'plan.weekAgenda': false, 'plan.weekListOnPhone': false }); await plan(c, { view: 'calendar', mode: 'week' }); }, teardown: async (c) => { await resetTunables(c); await restore(c); } },
+  { id: 'plan-cal-month-nothing', area: 'plan', setup: async (c) => { await seed(c, EMPTY + `d.trainingBlocks = [];`); await plan(c, { view: 'calendar', mode: 'month' }); }, teardown: restore },
   // Calendar with the phone's events and the look options
   { id: 'plan-cal-week-events', area: 'plan', pages: 2, setup: async (c) => { await setTunables(c, { 'plan.weekAgenda': false, 'plan.weekListOnPhone': false }); await plan(c, { view: 'calendar', mode: 'week' }); await eventsOn(c); await sleep(500); }, teardown: async (c) => { await eventsOff(c); await resetTunables(c); } },
   { id: 'plan-cal-list-events', area: 'plan', pages: 3, setup: async (c) => { await setTunables(c, { 'plan.weekAgenda': true }); await plan(c, { view: 'calendar', mode: 'week' }); await eventsOn(c); await sleep(500); }, teardown: async (c) => { await eventsOff(c); await resetTunables(c); } },
@@ -101,15 +123,21 @@ export const screens = [
   // AI
   { id: 'plan-ai-coach', area: 'plan', pages: 4, setup: async (c) => { await plan(c); await c.click('AI Coach'); await sleep(900); } },
   { id: 'plan-ai-coach-empty', area: 'plan', pages: 3, setup: async (c) => { await seed(c, EMPTY); await plan(c); await c.click('AI Coach'); await sleep(900); }, teardown: async (c) => { await closeN(c, 1); await restore(c); } },
-  { id: 'plan-ai-send', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.click('AI Coach'); await sleep(700); await c.click('Send', { exact: false, within: '[role=dialog]' }); await sleep(600); }, teardown: (c) => closeN(c, 2) },
-  { id: 'plan-ai-history', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.click('AI Coach'); await sleep(700); await c.click('Plan changes', { exact: false, within: '[role=dialog]' }) || await c.click('history', { exact: false, within: '[role=dialog]' }) || await c.click('Go back', { exact: false, within: '[role=dialog]' }); await sleep(600); }, teardown: (c) => closeN(c, 2) },
-  { id: 'plan-ask-session', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.st(`const { askAboutSession } = await import('/src/lib/ai/askAbout.svelte.ts'); const w = t.workouts.find(x => x.status === 'completed'); askAboutSession(w.id)`); await sleep(800); } },
-  { id: 'plan-ask-block', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.st(`const { askAboutBlock } = await import('/src/lib/ai/askAbout.svelte.ts'); askAboutBlock(t.trainingBlocks[0].id)`); await sleep(800); } },
-  { id: 'plan-ask-insights', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.st(`const { askAboutInsights } = await import('/src/lib/ai/askAbout.svelte.ts'); const { INSIGHT_GROUPS } = await import('/src/lib/analytics/insights.ts'); askAboutInsights(INSIGHT_GROUPS[0].id ?? INSIGHT_GROUPS[0])`); await sleep(800); } },
+  { id: 'plan-ai-analyze', area: 'plan', pages: 3, setup: async (c) => { await plan(c); await c.click('AI Coach'); await sleep(700); await c.click('Analyze', { within: '[role=dialog]' }); await sleep(600); } },
+  { id: 'plan-ai-context', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.click('AI Coach'); await sleep(700); await c.click('Context', { within: '[role=dialog]' }); await sleep(600); } },
+  { id: 'plan-ai-organise', area: 'plan', pages: 3, setup: async (c) => { await plan(c); await c.click('AI Coach'); await sleep(700); await c.click('Organise', { within: '[role=dialog]' }); await sleep(600); } },
+  { id: 'plan-ai-paste', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.click('AI Coach'); await sleep(700); await c.click('I have the reply', { exact: false }); await sleep(600); } },
+  { id: 'plan-ai-direct', area: 'plan', pages: 3, setup: async (c) => { await aiKeyOn(c); await plan(c); await c.click('AI Coach'); await sleep(900); }, teardown: async (c) => { await closeN(c, 1); await aiKeyOff(c); } },
+  { id: 'plan-ai-send', area: 'plan', pages: 2, setup: async (c) => { await aiKeyOn(c); await plan(c); await c.click('AI Coach'); await sleep(700); if (!(await c.click('directly', { exact: false }))) throw new Error('no direct button'); await sleep(700); }, teardown: async (c) => { await closeN(c, 2); await aiKeyOff(c); } },
+  { id: 'plan-ai-history', area: 'plan', pages: 2, setup: async (c) => { await historyOn(c); await plan(c); await c.click('AI Coach'); await sleep(900); if (!(await c.click('History', { exact: true, within: '[role=dialog]' }))) throw new Error('no History button'); await sleep(700); }, teardown: async (c) => { await closeN(c, 2); await historyOff(c); } },
+  { id: 'plan-ask-session', area: 'plan', pages: 2, setup: async (c) => { await askOpen(c, `askAboutSession(t.workouts.find(x => x.status === 'completed').id)`); } },
+  { id: 'plan-ask-block', area: 'plan', pages: 2, setup: async (c) => { await askOpen(c, `askAboutBlock(t.trainingBlocks[0].id)`); } },
+  { id: 'plan-ask-insights', area: 'plan', pages: 2, setup: async (c) => { await askOpen(c, `const { INSIGHT_GROUPS } = await import('/src/lib/analytics/insights.ts'); askAboutInsights(INSIGHT_GROUPS[0].id)`); } },
+  { id: 'plan-ask-direct', area: 'plan', pages: 2, setup: async (c) => { await aiKeyOn(c); await askOpen(c, `askAboutSession(t.workouts.find(x => x.status === 'completed').id)`); }, teardown: async (c) => { await closeN(c, 1); await aiKeyOff(c); } },
 
   // Plan B
   { id: 'plan-planb-week', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.scrollTo(0.45); await sleep(300); } },
-  { id: 'plan-planb-edit', area: 'plan', pages: 3, setup: async (c) => { await plan(c); await c.st(`t.editPlanBAt(t.currentWeekId)`); await sleep(900); }, teardown: async (c) => { await c.st(`t.finishPlanBEditing()`); await sleep(400); } },
-  { id: 'plan-planb-settings', area: 'plan', pages: 2, setup: async (c) => { await plan(c); await c.st(`t.editPlanBAt(t.currentWeekId)`); await sleep(900); await c.click('Plan B settings'); await sleep(700); }, teardown: async (c) => { await closeN(c, 1); await c.st(`t.finishPlanBEditing()`); await sleep(400); } },
+  { id: 'plan-planb-sheet', area: 'plan', pages: 2, setup: async (c) => { await plan(c); if (!(await c.click('Edit', { exact: true }))) throw new Error('no Plan B edit button'); await sleep(900); }, teardown: (c) => closeN(c, 1) },
+  { id: 'plan-planb-editing', area: 'plan', pages: 3, setup: async (c) => { await plan(c); await c.click('Edit', { exact: true }); await sleep(800); if (!(await c.click("Change Plan B's sessions", { exact: false }))) throw new Error('no change button'); await sleep(900); }, teardown: async (c) => { await c.st(`t.finishPlanBEditing()`); await sleep(400); } },
   { id: 'plan-planb-new', area: 'plan', pages: 2, setup: async (c) => { await seed(c, `d.planAlternatives = [];`); await plan(c); await c.click('Week actions'); await c.click('Plan B for uncertain days', { exact: false }); await sleep(900); }, teardown: async (c) => { await c.st(`t.finishPlanBEditing()`); await sleep(300); await restore(c); } },
 ];

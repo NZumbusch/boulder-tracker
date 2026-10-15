@@ -92,13 +92,13 @@
 
   {#if isTrip}
     <div class="flex gap-2">
-      <label class="flex-1 space-y-1">
+      <label class="flex-1 min-w-0 space-y-1">
         <span class="text-caption text-content-subtle ml-1">From</span>
-        <input type="date" value={draft.date} oninput={(e) => setStart(e.currentTarget.value)} class={inputClass} />
+        <input type="date" value={draft.date} oninput={(e) => setStart(e.currentTarget.value)} class="{inputClass} min-w-0" />
       </label>
-      <label class="flex-1 space-y-1">
+      <label class="flex-1 min-w-0 space-y-1">
         <span class="text-caption text-content-subtle ml-1">To <span class="whitespace-nowrap">(or same day)</span></span>
-        <input type="date" bind:value={draft.endDate} min={draft.date} class={inputClass} />
+        <input type="date" bind:value={draft.endDate} min={draft.date} class="{inputClass} min-w-0" />
       </label>
     </div>
 

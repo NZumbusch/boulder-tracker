@@ -228,7 +228,7 @@
           role="radio"
           aria-checked={mode === m.id}
           onclick={() => setMode(m.id)}
-          class="tap mode-btn px-3 py-1.5 min-h-8 text-caption rounded-control transition-colors {mode === m.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+          class="tap mode-btn px-2 min-[400px]:px-3 py-1.5 min-h-8 text-caption rounded-control transition-colors {mode === m.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
         >{m.label}</button>
       {/each}
     </div>

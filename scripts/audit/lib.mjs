@@ -103,7 +103,7 @@ export async function startAudit({ port = 9440, profile = 'audit', appUrl = 'htt
     /** Press Escape / the Back key: closes the top sheet. */
     close: async () => { await ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`); await wait(500); },
     /** Scroll the main scroll container (or a given selector) to a fraction of its height. */
-    scrollTo: async (frac, sel) => ev(`(()=>{const els=${sel ? `[document.querySelector(${JSON.stringify(sel)})]` : '[...document.querySelectorAll("*")].filter(e=>{const o=getComputedStyle(e).overflowY;return (o==="auto"||o==="scroll")&&e.scrollHeight>e.clientHeight+40})'};const e=els.filter(Boolean).sort((a,b)=>b.clientHeight-a.clientHeight)[0];if(e)e.scrollTop=(e.scrollHeight-e.clientHeight)*${frac};return !!e})()`),
+    scrollTo: async (frac, sel) => ev(`(()=>{const els=${sel ? `[document.querySelector(${JSON.stringify(sel)})]` : '[...(([...document.querySelectorAll("[role=dialog]")].pop())||document).querySelectorAll("*")].filter(e=>{const o=getComputedStyle(e).overflowY;return (o==="auto"||o==="scroll")&&e.scrollHeight>e.clientHeight+40})'};const e=els.filter(Boolean).sort((a,b)=>b.clientHeight-a.clientHeight)[0];if(e)e.scrollTop=(e.scrollHeight-e.clientHeight)*${frac};return !!e})()`),
     setTheme: (theme) => ev(`document.documentElement.dataset.theme=${JSON.stringify(theme)}`),
   };
   return c;
