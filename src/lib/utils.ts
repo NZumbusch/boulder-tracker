@@ -23,12 +23,16 @@ export async function showAlert(title: string, message: string): Promise<void> {
 }
 
 /**
- * Shows a native confirmation dialog.
+ * Shows a native confirmation dialog. `labels` name the two buttons after what
+ * they do ("Delete" / "Keep") - a destructive confirm that says OK invites a
+ * reflex tap.
  */
-export async function showConfirm(title: string, message: string): Promise<boolean> {
+export async function showConfirm(title: string, message: string, labels?: { ok?: string; cancel?: string }): Promise<boolean> {
   const { value } = await Dialog.confirm({
     title,
     message,
+    ...(labels?.ok ? { okButtonTitle: labels.ok } : {}),
+    ...(labels?.cancel ? { cancelButtonTitle: labels.cancel } : {}),
   });
   return value;
 }

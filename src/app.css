@@ -26,6 +26,11 @@
 
   --color-border: var(--theme-border);
   --color-border-strong: var(--theme-border-strong);
+  /* The outline of an input: 3:1 against its ground in every theme (border-strong is a decorative divider and is not). */
+  --color-field: var(--theme-field-border);
+  /* A scrim behind a sheet, and the ink on a primary/success/danger fill - one token each instead of bg-black/40..65 and text-white. */
+  --color-scrim: var(--theme-scrim);
+  --color-on-primary: var(--theme-on-primary);
 
   --color-content: var(--theme-content);
   --color-content-muted: var(--theme-content-muted);
@@ -91,6 +96,10 @@
   --theme-content-muted: #a1a1aa; /* zinc-400 */
   --theme-content-subtle: #8e8e98; /* between zinc-400 and 500: 4.6:1 even on the elevated surface */
 
+  --theme-field-border: color-mix(in srgb, var(--theme-content) 42%, var(--theme-surface));
+  --theme-scrim: color-mix(in srgb, var(--theme-app-bg) 88%, transparent);
+  --theme-on-primary: #ffffff;
+
   --theme-primary: #2563eb; /* blue-600 */
   --theme-primary-hover: #3b82f6; /* blue-500 */
   /* The same hues as text: a fill that carries white text is too dark to read as text on a dark surface. */
@@ -128,6 +137,7 @@
 
   --theme-primary: #2563eb;
   --theme-primary-hover: #1d4ed8;
+  --theme-primary-text: #2563eb; /* the fill is dark enough to be text on a light surface */
 
   /* Success, warning and danger are used as text as well as fills; the light
      theme's were 2.3-3.8:1 on white. These are 4.5:1+ for text, and white
@@ -144,7 +154,7 @@
 
   /* Darker than the dark theme's for contrast against a light surface. */
   --theme-status-good: #059669; /* emerald-600 */
-  --theme-status-caution: #d97706; /* amber-600 */
+  --theme-status-caution: #b45309; /* amber-700: 5:1 as text on white (amber-600 was 3.2:1) */
   --theme-status-risk: #dc2626; /* red-600 */
   --theme-status-neutral: #52525b; /* zinc-600, matches this theme's content-muted */
 }
@@ -164,6 +174,7 @@
 
   --theme-primary: #3b82f6;
   --theme-primary-hover: #60a5fa;
+  --theme-primary-text: #60a5fa;
 
   --theme-success: #10b981;
   --theme-success-hover: #34d399;
@@ -174,6 +185,8 @@
 
   --theme-tertiary: #a855f7;
   --theme-tertiary-hover: #c084fc;
+  --theme-field-border: #ffffff;
+  --theme-scrim: rgb(0 0 0 / 0.9);
 
   /* Brighter than the dark theme's, matching how primary/success are also
      bumped brighter here - a near-black background needs more saturation
@@ -268,7 +281,7 @@
   @apply flex bg-surface-elevated/50 p-0.5 rounded-control;
 }
 @utility seg-item {
-  @apply px-2.5 py-1 text-caption rounded-control transition-colors text-content-subtle;
+  @apply px-3 py-2 min-h-10 text-caption rounded-control transition-colors text-content-subtle;
 }
 @utility seg-on {
   @apply bg-surface text-content shadow-sm;
@@ -276,8 +289,55 @@
 /* A small bordered pill - legend entries, filters, pickers. Tall enough
    (28px) to tap reliably. */
 @utility chip {
-  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control border border-transparent bg-surface-elevated/60 text-caption;
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 min-h-9 rounded-control border border-transparent bg-surface-elevated/60 text-caption;
 }
+
+/* Buttons. Every button is at least 44 px tall (`btn`), one shape, four weights: primary (the one thing to do), secondary
+   (a filled alternative), ghost (quiet text), danger (destructive, never the filled primary). `btn-icon` is a round icon
+   button with a 44 px target, `btn-quiet` a text/icon control that keeps its look but gets the same target. */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 min-h-11 px-4 rounded-control text-label font-bold transition-colors disabled:opacity-40 disabled:pointer-events-none;
+}
+@utility btn-primary {
+  @apply bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-hover;
+}
+@utility btn-secondary {
+  @apply bg-surface-elevated text-content hover:bg-surface-elevated-hover;
+}
+@utility btn-ghost {
+  @apply text-content-muted hover:text-content hover:bg-surface-elevated/60;
+}
+@utility btn-danger {
+  @apply bg-danger/10 text-danger hover:bg-danger/20;
+}
+@utility btn-icon {
+  @apply inline-grid place-items-center min-w-11 min-h-11 rounded-full text-content-muted hover:text-content hover:bg-surface-elevated/60 transition-colors;
+}
+@utility btn-quiet {
+  @apply inline-flex items-center justify-center min-h-11 rounded-control transition-colors;
+}
+/* A text field, select or textarea: 16 px type (no zoom-on-focus on iOS), a 44 px target and an outline that is visible. */
+@utility field {
+  @apply w-full min-h-11 px-3 py-2.5 rounded-control bg-surface-elevated/50 text-content text-base border border-field outline-none placeholder:text-content-subtle focus:border-primary;
+}
+
+/* Keyboard focus is always visible: a two-pixel ring in the link colour, on top of whatever an element does itself
+   (many fields drop the browser outline and only change their border, which is a faint cue). Not for mouse or touch
+   on buttons (`:focus-visible` is the browser's own rule for that); text fields always show it, as they should. */
+:where(a, button, summary, [role="button"], [role="tab"], [role="radio"], [role="switch"], [tabindex]):focus-visible {
+  outline: 2px solid var(--theme-primary-text, var(--theme-primary)) !important;
+  outline-offset: 2px;
+}
+:where(input, select, textarea):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--theme-primary-text, var(--theme-primary)) 75%, transparent) !important;
+  outline-offset: 0;
+}
+:where([tabindex="-1"]):focus-visible { outline: none !important; }
+
+/* The high-contrast theme has one surface colour, so what separates a selected segment, a chip or a panel is a line. */
+:root[data-theme="contrast"] .card { border: 1px solid var(--theme-border); }
+:root[data-theme="contrast"] .seg-on { outline: 2px solid var(--theme-content); outline-offset: -2px; }
+:root[data-theme="contrast"] .chip { border-color: var(--theme-border); }
 
 /* Safe areas (notch, home indicator) - non-zero only on phones that have
    them, with index.html's viewport-fit=cover. `safe-y` goes on every
@@ -330,8 +390,9 @@ body {
   color: var(--theme-content);
   overflow-x: hidden;
   overflow-y: hidden;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
+  height: 100dvh;
   position: fixed;
 }
 
