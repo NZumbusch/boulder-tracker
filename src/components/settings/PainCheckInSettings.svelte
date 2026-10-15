@@ -3,70 +3,61 @@
   import { Capacitor } from '@capacitor/core';
   import { trainingState } from '../../lib/state.svelte';
   import Icon from '@iconify/svelte';
+  import Toggle from '../ui/Toggle.svelte';
 
   const prefs = $derived(trainingState.painCheckIns);
   const native = Capacitor.isNativePlatform();
-  const numberClass = 'w-16 px-2 py-1.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm text-center tabular-nums outline-none';
+  const numberClass = 'field !w-20 text-center tabular-nums';
+  /** A cleared box is left alone (an empty field is not 0 days); anything else is clamped by the store. */
+  const daysFrom = (el: HTMLInputElement): number | null => (el.value.trim() === '' ? null : Number(el.value));
 </script>
 
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-1 px-1">
     <h2 class="text-section uppercase text-content-muted">Pain check-ins</h2>
-    <p class="text-caption text-content-subtle leading-relaxed">While a pain issue is open, the app asks how it is - Gone, Better, Same or Worse - so its course and the day it ended are recorded without you having to remember.</p>
+    <p class="text-caption text-content-subtle leading-relaxed">While a pain issue is open, the app asks how it is (gone, better, same or worse), so its course and the day it ended are recorded without you having to remember.</p>
   </div>
 
   <div class="divide-y divide-border">
-    <label class="w-full flex items-center justify-between gap-3 py-3 cursor-pointer">
-      <span class="flex items-center gap-3">
-        <Icon icon="ic:baseline-home" class="text-lg text-content-muted shrink-0" />
-        <span>
-          <span class="block text-body text-content">On Home</span>
-          <span class="block text-caption text-content-subtle">Asks once a day about issues not checked in yet</span>
-        </span>
-      </span>
-      <input type="checkbox" checked={prefs.home} onchange={(e) => trainingState.setPainCheckIns({ home: e.currentTarget.checked })} class="w-5 h-5 rounded accent-primary shrink-0" />
-    </label>
-    <label class="w-full flex items-center justify-between gap-3 py-3 cursor-pointer">
-      <span class="flex items-center gap-3">
-        <Icon icon="ic:baseline-check-circle" class="text-lg text-content-muted shrink-0" />
-        <span>
-          <span class="block text-body text-content">After a session</span>
-          <span class="block text-caption text-content-subtle">In the rating sheet: how did each open issue take it?</span>
-        </span>
-      </span>
-      <input type="checkbox" checked={prefs.session} onchange={(e) => trainingState.setPainCheckIns({ session: e.currentTarget.checked })} class="w-5 h-5 rounded accent-primary shrink-0" />
-    </label>
-    <div class="flex items-center justify-between gap-3 py-3">
-      <span class="flex items-center gap-3">
+    <div class="flex items-center gap-3">
+      <Icon icon="ic:baseline-home" class="text-lg text-content-muted shrink-0" />
+      <div class="flex-1 min-w-0">
+        <Toggle checked={prefs.home} onChange={(v) => trainingState.setPainCheckIns({ home: v })} label="On Home" hint="Asks once a day about issues not checked in yet" />
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <Icon icon="ic:baseline-check-circle" class="text-lg text-content-muted shrink-0" />
+      <div class="flex-1 min-w-0">
+        <Toggle checked={prefs.session} onChange={(v) => trainingState.setPainCheckIns({ session: v })} label="After a session" hint="In the rating sheet: how did each open issue take it?" />
+      </div>
+    </div>
+    <div class="flex items-center justify-between gap-3 py-2">
+      <label for="pain-stale-days" class="flex items-center gap-3 min-w-0">
         <Icon icon="ic:baseline-help-outline" class="text-lg text-content-muted shrink-0" />
         <span>
-          <span class="block text-body text-content">Ask to close after</span>
+          <span class="block text-body text-content">Ask whether it is over after</span>
           <span class="block text-caption text-content-subtle">Days without a check-in before Home asks "still an issue?"</span>
         </span>
-      </span>
+      </label>
       <span class="flex items-center gap-1.5 shrink-0">
-        <input type="number" min="1" max="60" value={prefs.staleDays} onchange={(e) => trainingState.setPainCheckIns({ staleDays: Number(e.currentTarget.value) })} class={numberClass} />
+        <input id="pain-stale-days" type="number" inputmode="numeric" min="1" max="60" value={prefs.staleDays} onchange={(e) => { const n = daysFrom(e.currentTarget); if (n === null) e.currentTarget.value = String(prefs.staleDays); else trainingState.setPainCheckIns({ staleDays: n }); }} class={numberClass} />
         <span class="text-caption text-content-subtle">days</span>
       </span>
     </div>
     {#if native}
-      <label class="w-full flex items-center justify-between gap-3 py-3 cursor-pointer">
-        <span class="flex items-center gap-3">
-          <Icon icon="ic:baseline-notifications" class="text-lg text-content-muted shrink-0" />
-          <span>
-            <span class="block text-body text-content">Reminder notification</span>
-            <span class="block text-caption text-content-subtle">When an open issue hasn't been checked in for a while</span>
-          </span>
-        </span>
-        <input type="checkbox" checked={prefs.reminder} onchange={(e) => trainingState.setPainCheckIns({ reminder: e.currentTarget.checked })} class="w-5 h-5 rounded accent-primary shrink-0" />
-      </label>
+      <div class="flex items-center gap-3">
+        <Icon icon="ic:baseline-notifications" class="text-lg text-content-muted shrink-0" />
+        <div class="flex-1 min-w-0">
+          <Toggle checked={prefs.reminder} onChange={(v) => trainingState.setPainCheckIns({ reminder: v })} label="Reminder notification" hint="When an open issue hasn't been checked in for a while" />
+        </div>
+      </div>
       {#if prefs.reminder}
-        <div class="flex items-center justify-between gap-3 py-3 pl-9">
-          <span class="text-body text-content">After</span>
+        <div class="flex flex-wrap items-center justify-between gap-3 py-2 pl-9">
+          <label for="pain-reminder-days" class="text-body text-content">Remind me after</label>
           <span class="flex items-center gap-1.5">
-            <input type="number" min="1" max="60" value={prefs.reminderDays} onchange={(e) => trainingState.setPainCheckIns({ reminderDays: Number(e.currentTarget.value) })} class={numberClass} />
+            <input id="pain-reminder-days" type="number" inputmode="numeric" min="1" max="60" value={prefs.reminderDays} onchange={(e) => { const n = daysFrom(e.currentTarget); if (n === null) e.currentTarget.value = String(prefs.reminderDays); else trainingState.setPainCheckIns({ reminderDays: n }); }} class={numberClass} />
             <span class="text-caption text-content-subtle">days, at</span>
-            <input type="time" value={prefs.reminderTime} onchange={(e) => trainingState.setPainCheckIns({ reminderTime: e.currentTarget.value })} class="px-2 py-1.5 bg-surface-elevated text-content rounded-control border border-border-strong text-sm tabular-nums outline-none" />
+            <input type="time" aria-label="Reminder time" value={prefs.reminderTime} onchange={(e) => trainingState.setPainCheckIns({ reminderTime: e.currentTarget.value })} class="field !w-auto tabular-nums" />
           </span>
         </div>
       {/if}
