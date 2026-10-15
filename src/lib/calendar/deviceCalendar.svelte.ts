@@ -13,20 +13,29 @@ import { trainingState } from "../state.svelte";
 import { DeviceCalendar, deviceCalendarSupported, type NativeCalendar } from "../native/deviceCalendar";
 import { DAY_MS } from "../planning/calendarEvents";
 import { toDeviceEvents, type DeviceEvent } from "./deviceEvents";
+import { eventColor, parseHex } from "./eventColor";
 
 const SETTINGS_KEY = "boulder_tracker_device_calendar";
 
 interface Settings {
   enabled: boolean;
   calendarIds: string[];
+  /** A colour picked for a calendar, by its id - replaces the colour the phone gives it. */
+  colors: Record<string, string>;
 }
 
 function loadSettings(): Settings {
+  const empty: Settings = { enabled: false, calendarIds: [], colors: {} };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { enabled: false, calendarIds: [], ...JSON.parse(raw) };
+    if (raw) {
+      const saved = JSON.parse(raw);
+      const colors: Record<string, string> = {};
+      for (const [id, hex] of Object.entries(saved?.colors ?? {})) if (typeof hex === "string" && parseHex(hex)) colors[id] = hex;
+      return { ...empty, ...saved, colors };
+    }
   } catch { /* fall through */ }
-  return { enabled: false, calendarIds: [] };
+  return empty;
 }
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -42,6 +51,8 @@ class DeviceCalendarStore {
   granted = $state(false);
   calendars = $state<NativeCalendar[]>([]);
   selected = $state<string[]>([]);
+  /** The colours picked for calendars (`setColor`), by calendar id. */
+  colors = $state<Record<string, string>>({});
   /** Events of the range last asked for (`load`), a day either side. */
   events = $state<DeviceEvent[]>([]);
   error = $state<string | null>(null);
@@ -57,6 +68,7 @@ class DeviceCalendarStore {
     const s = loadSettings();
     this.enabled = s.enabled;
     this.selected = s.calendarIds;
+    this.colors = s.colors;
     if (this.enabled) await this.refreshStatus();
     void App.addListener("resume", () => {
       this.version++;
@@ -84,7 +96,7 @@ class DeviceCalendarStore {
         return;
       }
       this.calendars = (await DeviceCalendar.listCalendars()).calendars;
-      this.#save({ enabled: true, calendarIds: this.calendars.filter((c) => c.visible).map((c) => c.id) });
+      this.#save({ enabled: true, calendarIds: this.calendars.filter((c) => c.visible).map((c) => c.id), colors: this.colors });
       this.version++;
     } catch (err) {
       this.error = errorText(err);
@@ -92,14 +104,32 @@ class DeviceCalendarStore {
   }
 
   disconnect(): void {
-    this.#save({ enabled: false, calendarIds: this.selected });
+    this.#save({ enabled: false, calendarIds: this.selected, colors: this.colors });
     this.events = [];
   }
 
   toggle(id: string): void {
     const calendarIds = this.selected.includes(id) ? this.selected.filter((x) => x !== id) : [...this.selected, id];
-    this.#save({ enabled: this.enabled, calendarIds });
+    this.#save({ enabled: this.enabled, calendarIds, colors: this.colors });
     this.version++;
+  }
+
+  /** Picks a colour for a calendar; `null` goes back to the phone's own. */
+  setColor(id: string, hex: string | null): void {
+    const colors = { ...this.colors };
+    if (hex && parseHex(hex)) colors[id] = hex;
+    else delete colors[id];
+    this.#save({ enabled: this.enabled, calendarIds: this.selected, colors });
+  }
+
+  /** The colour a calendar is shown in: the one picked for it, else the phone's. */
+  calendarColor(id: string): string | undefined {
+    return this.colors[id] ?? this.calendars.find((c) => c.id === id)?.color;
+  }
+
+  /** The colour of an event on the calendar (picked for its calendar, else its own - kept clear of the session colour). */
+  colorOf(event: DeviceEvent): string {
+    return eventColor(event, this.colors, this.calendars.find((c) => c.id === event.calendarId)?.color);
   }
 
   /** Reads the events between two day indexes (inclusive) of the chosen calendars. */
@@ -131,6 +161,7 @@ class DeviceCalendarStore {
   #save(s: Settings): void {
     this.enabled = s.enabled;
     this.selected = s.calendarIds;
+    this.colors = s.colors;
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* the choice just won't be remembered */ }
   }
 }
