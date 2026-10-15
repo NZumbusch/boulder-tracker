@@ -4,6 +4,7 @@
   import { describeWeatherCode } from '../../../lib/weather/codes';
   import { formatTempDelta, temperatureUnit, displayWind, windUnit } from '../../../lib/units';
   import { bestWindow } from '../../../lib/weather/conditions';
+  import { weekdayName } from '../../../lib/weather/dayLabel';
   import { T, FRICTION_STYLE, currentFriction, dayFriction, frictionText, joinParts, formatRelativeAge } from './format';
   import SectionHeader from './SectionHeader.svelte';
   import Icon from '@iconify/svelte';
@@ -117,7 +118,7 @@
           {@const dayCode = describeWeatherCode(day.weatherCode)}
           <div class="flex flex-col items-center gap-1 shrink-0 w-12 pt-2">
             <span class="text-caption {i === 0 ? 'text-content-muted' : 'text-content-subtle'}">
-              {i === 0 ? 'Today' : new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}
+              {i === 0 ? 'Today' : weekdayName(day.date)}
             </span>
             <span title={dayCode.label} class="flex"><Icon icon={dayCode.icon} class="text-lg text-primary" aria-label={dayCode.label} /></span>
             <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
