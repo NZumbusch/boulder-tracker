@@ -119,7 +119,7 @@ describe("visibleHours", () => {
 
 describe("dayAgenda", () => {
   const session = (id: string, startMin?: number) => ({ workout: { id } as Workout, day: 0, startMin, minutes: 60, done: false });
-  const event = (id: string, startMin?: number, allDay = false) => ({ id, title: id, calendarId: "c", day: 0, startMin, minutes: 30, allDay, begin: 0, end: 0 });
+  const event = (id: string, startMin?: number, allDay = false) => ({ id, title: id, calendarId: "c", day: 0, startMin, minutes: 30, allDay, begin: 0, end: 0, firstDay: 0, lastDay: 0 });
   const order = (items: ReturnType<typeof dayAgenda>) => items.map((i) => (i.kind === "session" ? i.session.workout.id : i.event.id));
 
   it("puts phone events and sessions in the order of their start times", () => {
