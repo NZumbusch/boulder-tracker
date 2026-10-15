@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { swipeDirection, SWIPE_MIN_DISTANCE_PX } from "./swipe";
+import { swipeDirection, swipeGuard, SWIPE_MIN_DISTANCE_PX } from "./swipe";
 
 describe("swipeDirection", () => {
   it("swiping right goes to earlier weeks, left to later ones", () => {
@@ -23,5 +23,21 @@ describe("swipeDirection", () => {
 
   it("returns null for non-finite input", () => {
     expect(swipeDirection(NaN, 0)).toBeNull();
+  });
+});
+
+describe("a slightly slanted swipe (how a thumb really swipes)", () => {
+  it("counts at 50 px across and 35 px up or down", () => {
+    expect(swipeDirection(-50, 35)).toBe("next");
+    expect(swipeDirection(50, -35)).toBe("prev");
+  });
+  it("still leaves a clearly diagonal gesture to the scroll", () => {
+    expect(swipeDirection(60, 60)).toBeNull();
+  });
+});
+
+describe("swipeGuard", () => {
+  it("is open by default and closes a swipe while it is held", () => {
+    expect(swipeGuard.until).toBeLessThanOrEqual(Date.now());
   });
 });

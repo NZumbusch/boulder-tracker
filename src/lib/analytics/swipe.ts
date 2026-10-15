@@ -12,9 +12,16 @@
 export type SwipeDirection = "prev" | "next";
 
 /** Minimum horizontal travel, in CSS px, before a gesture counts as a swipe. */
-export const SWIPE_MIN_DISTANCE_PX = 56;
+export const SWIPE_MIN_DISTANCE_PX = 44;
 /** How many times larger the horizontal travel must be than the vertical. */
-export const SWIPE_AXIS_RATIO = 1.5;
+export const SWIPE_AXIS_RATIO = 1.25;
+
+/**
+ * Something else is using the finger (a session being dragged to another day): a swipe that ends before `until`
+ * (`Date.now()` ms) is not a swipe. Set it while it lasts and for a moment after, since the touch ends can arrive in
+ * either order.
+ */
+export const swipeGuard = { until: 0 };
 
 /** The page a gesture moving `dx`/`dy` px asks for, or null for "not a swipe". */
 export function swipeDirection(dx: number, dy: number): SwipeDirection | null {
@@ -30,7 +37,9 @@ export function swipeDirection(dx: number, dy: number): SwipeDirection | null {
  * header arrows are right there.
  *
  * A gesture starting inside `[data-no-swipe]` (anything that scrolls
- * sideways itself) is ignored.
+ * sideways itself) is ignored - nothing else: blocks, bars and buttons are
+ * swiped from like anywhere else (they fill most of a busy calendar, so a
+ * swipe that had to start on empty ground worked one time in ten).
  */
 export function swipePaging(node: HTMLElement, onSwipe: (direction: SwipeDirection) => void) {
   let handler = onSwipe;
@@ -59,7 +68,7 @@ export function swipePaging(node: HTMLElement, onSwipe: (direction: SwipeDirecti
   const onEnd = (event: TouchEvent) => {
     if (!start) return;
     const touch = event.changedTouches[0];
-    const direction = touch ? swipeDirection(touch.clientX - start.x, touch.clientY - start.y) : null;
+    const direction = touch && Date.now() >= swipeGuard.until ? swipeDirection(touch.clientX - start.x, touch.clientY - start.y) : null;
     start = null;
     if (direction) {
       suppressUntil = Date.now() + 500;

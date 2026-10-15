@@ -278,6 +278,13 @@ Only checked in headless Chrome at phone width (dark and light), not on a phone 
 | 19.4 | Recovery layout | Recovery tab: Overlay / Rows. | The overlaid % chart as before; Rows gives one row per measure; the choice is kept. | | |
 | 19.5 | Settings | Settings → History & Analytics: hide a card, reorder. | Hidden cards go from their tab; with a tab empty the note says so (not Overview); the order within a tab follows the list. | | |
 
+## 20. Calendar contrast and swiping (2026-10-20)
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 20.1 | Calendar contrast | Plan → Week/Day with phone events in a pale colour, light theme. Settings → Plan calendar & day → Higher contrast on/off. | Pale events have a visible edge and tint against the grey ground; with the setting on, sessions and events are solid with a firmer edge (also on dark and in Month and the week list). | | |
+| 20.2 | Swipe | Plan (Day, Week, Month, list): swipe left and right ten times each, starting on blocks, on bars, on empty ground, with a slightly slanted thumb. Hold a session and drag it to another day. | Every swipe pages (left = later); nothing opens after a swipe; dragging a held session moves it and does not page. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
