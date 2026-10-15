@@ -11,6 +11,7 @@
   import type { GoalEvent, GoalKind, TripProject } from '../../lib/types';
   import LocationEditor from '../settings/LocationEditor.svelte';
   import Icon from '@iconify/svelte';
+  import { GOAL_STYLE } from '../../lib/planning/goalStyle';
 
   let { goal, kind, onDone }: {
     /** The goal to edit, or undefined to add a new one of `kind`. */
@@ -73,7 +74,7 @@
     onDone();
   }
 
-  const inputClass = 'w-full bg-surface text-content p-3 rounded-control border border-border-strong outline-none text-sm';
+  const inputClass = 'field';
 
   /** A stored (Font) grade in the chosen display scale. */
   const G = (grade: string | undefined) => (grade ? displayGrade(grade, trainingState.units.grades) : '');
@@ -81,10 +82,13 @@
 
 <div class="p-4 bg-surface-elevated/50 rounded-card space-y-3">
   <p class="text-label text-content-subtle flex items-center gap-1.5">
-    <Icon icon={isTrip ? 'ic:baseline-terrain' : 'ic:baseline-flag'} class="text-primary" />
+    <Icon icon={GOAL_STYLE[draft.kind].icon} class="text-primary" />
     {goal ? 'Edit' : 'New'} {isTrip ? 'outdoor trip' : 'competition'}
   </p>
-  <input bind:value={draft.name} placeholder={isTrip ? 'Trip name, e.g. Font autumn' : 'Event name'} class={inputClass} />
+  <label class="block space-y-1">
+    <span class="text-caption text-content-subtle ml-1">Name</span>
+    <input bind:value={draft.name} placeholder={isTrip ? 'e.g. Font autumn' : 'e.g. Regional cup'} class={inputClass} />
+  </label>
 
   {#if isTrip}
     <div class="flex gap-2">
@@ -93,7 +97,7 @@
         <input type="date" value={draft.date} oninput={(e) => setStart(e.currentTarget.value)} class={inputClass} />
       </label>
       <label class="flex-1 space-y-1">
-        <span class="text-caption text-content-subtle ml-1">To (same day for a day trip)</span>
+        <span class="text-caption text-content-subtle ml-1">To <span class="whitespace-nowrap">(or same day)</span></span>
         <input type="date" bind:value={draft.endDate} min={draft.date} class={inputClass} />
       </label>
     </div>
@@ -125,15 +129,15 @@
           <span class="text-label text-content flex-1 truncate">
             {project.name ?? `Any ${G(project.grade)}`}{project.name && project.grade ? ` ${G(project.grade)}` : ''}{project.flash ? ' · flash' : ''}
           </span>
-          <button onclick={() => removeProject(project.id)} class="text-content-subtle hover:text-danger" aria-label="Remove project">
-            <Icon icon="ic:baseline-close" class="text-sm" />
+          <button onclick={() => removeProject(project.id)} class="btn-icon -my-2 -mr-2 hover:text-danger" aria-label="Remove project {project.name ?? G(project.grade)}">
+            <Icon icon="ic:baseline-close" class="text-base" />
           </button>
         </div>
       {/each}
-      <div class="flex gap-2">
-        <input data-own-enter bind:value={projectName} placeholder="Problem (optional)" class="{inputClass} flex-[2]" onkeydown={(e) => e.key === 'Enter' && addProject()} />
-        <input data-own-enter bind:value={projectGrade} placeholder={trainingState.units.grades === 'v' ? 'Grade, e.g. V6' : 'Grade, e.g. 7A'} class="{inputClass} flex-1" onkeydown={(e) => e.key === 'Enter' && addProject()} />
-        <button onclick={addProject} class="px-3 bg-surface text-primary rounded-control border border-border-strong" aria-label="Add project"><Icon icon="ic:baseline-plus" /></button>
+      <div class="flex flex-wrap gap-2">
+        <input data-own-enter bind:value={projectName} aria-label="Problem name (optional)" placeholder="Problem (optional)" class="{inputClass} basis-full min-[420px]:basis-0 min-[420px]:flex-[2]" onkeydown={(e) => e.key === 'Enter' && addProject()} />
+        <input data-own-enter bind:value={projectGrade} aria-label="Grade" placeholder={trainingState.units.grades === 'v' ? 'Grade, e.g. V6' : 'Grade, e.g. 7A'} class="{inputClass} flex-1 min-w-0" onkeydown={(e) => e.key === 'Enter' && addProject()} />
+        <button onclick={addProject} class="btn btn-secondary text-primary" aria-label="Add this project"><Icon icon="ic:baseline-plus" />Add</button>
       </div>
       {#if !projectName.trim() && projectGrade.trim()}
         <label class="flex items-center gap-2 text-caption text-content-subtle ml-1">
@@ -142,11 +146,17 @@
       {/if}
     </div>
   {:else}
-    <input type="date" bind:value={draft.date} class={inputClass} />
+    <label class="block space-y-1">
+      <span class="text-caption text-content-subtle ml-1">Date</span>
+      <input type="date" bind:value={draft.date} class={inputClass} />
+    </label>
   {/if}
 
+  {#if !draft.name.trim() || !draft.date}
+    <p class="text-caption text-content-subtle ml-1">{!draft.name.trim() ? 'Give it a name to save.' : 'Pick a date to save.'}</p>
+  {/if}
   <div class="flex gap-2">
-    <button onclick={save} disabled={!draft.name.trim() || !draft.date} class="flex-1 py-2.5 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">Save</button>
-    <button onclick={onDone} class="px-4 py-2.5 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button>
+    <button onclick={save} disabled={!draft.name.trim() || !draft.date} class="btn btn-primary flex-1">Save</button>
+    <button onclick={onDone} class="btn btn-secondary">Cancel</button>
   </div>
 </div>

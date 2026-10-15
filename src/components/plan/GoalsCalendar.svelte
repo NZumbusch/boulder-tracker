@@ -8,6 +8,7 @@
   import type { GoalEvent, GoalKind } from '../../lib/types';
   import { upcomingGoals, pastGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates } from '../../lib/goals/goals';
   import GoalForm from './GoalForm.svelte';
+  import { GOAL_STYLE } from '../../lib/planning/goalStyle';
   import NoteSheet from '../common/NoteSheet.svelte';
   import ListRow from '../common/ListRow.svelte';
   import Icon from "@iconify/svelte";
@@ -18,7 +19,6 @@
   const next = $derived(upcoming[0]);
 
   let adding = $state<GoalKind | null>(null);
-  let chooseKind = $state(false);
   let editingId = $state<string | null>(null);
   let noteGoal = $state<GoalEvent | null>(null);
   let showPast = $state(false);
@@ -43,13 +43,13 @@
       onclick={() => editingId = goal.id}
     >
       {#snippet leading()}
-        <Icon icon={goal.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-flag'} class="text-primary text-lg shrink-0" />
+        <Icon icon={GOAL_STYLE[goal.kind].icon} class="text-primary text-lg shrink-0" />
       {/snippet}
       {#snippet trailing()}
-        <button onclick={() => noteGoal = goal} class="tap p-1.5 transition-colors {goal.notes ? 'text-primary' : 'text-content-subtle hover:text-content'}" aria-label="{goal.notes ? 'Open' : 'Add'} note">
+        <button onclick={() => noteGoal = goal} class="btn-icon {goal.notes ? 'text-primary' : ''}" aria-label="{goal.notes ? 'Open' : 'Add'} note for {goal.name}">
           <Icon icon={goal.notes ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-base" />
         </button>
-        <button onclick={() => trainingState.deleteGoal(goal.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete"><Icon icon="ic:baseline-delete" class="text-base" /></button>
+        <button onclick={() => trainingState.deleteGoal(goal.id)} class="btn-icon hover:text-danger" aria-label="Delete {goal.name}"><Icon icon="ic:baseline-delete" class="text-base" /></button>
       {/snippet}
     </ListRow>
   {/if}
@@ -65,18 +65,16 @@
         <p class="text-caption text-content-subtle mt-0.5">Competitions and outdoor trips to peak for</p>
       {/if}
     </div>
-    <button onclick={() => { chooseKind = !chooseKind; adding = null; }} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a goal" aria-expanded={chooseKind}>
-      <Icon icon="ic:baseline-plus" class="text-lg" />
-    </button>
   </div>
 
-  {#if chooseKind}
-    <div class="flex gap-2 animate-in fade-in">
-      <button onclick={() => { adding = 'competition'; chooseKind = false; }} class="chip text-content hover:border-primary/40 transition-colors">
-        <Icon icon="ic:baseline-flag" class="text-primary" /> Competition
+  <!-- Two labelled buttons instead of a bare + and a second choice. -->
+  {#if !adding}
+    <div class="flex flex-wrap gap-2">
+      <button onclick={() => (adding = 'competition')} class="chip text-content hover:border-primary/40 transition-colors">
+        <Icon icon={GOAL_STYLE.competition.icon} class="text-primary" /> Add competition
       </button>
-      <button onclick={() => { adding = 'trip'; chooseKind = false; }} class="chip text-content hover:border-primary/40 transition-colors">
-        <Icon icon="ic:baseline-terrain" class="text-primary" /> Outdoor trip
+      <button onclick={() => (adding = 'trip')} class="chip text-content hover:border-primary/40 transition-colors">
+        <Icon icon={GOAL_STYLE.trip.icon} class="text-primary" /> Add outdoor trip
       </button>
     </div>
   {/if}
@@ -97,7 +95,7 @@
 
   {#if past.length > 0}
     <div>
-      <button onclick={() => showPast = !showPast} class="flex items-center gap-1 text-label text-content-subtle hover:text-content" aria-expanded={showPast}>
+      <button onclick={() => showPast = !showPast} class="btn-quiet gap-1 text-label text-content-subtle hover:text-content" aria-expanded={showPast}>
         <Icon icon="ic:baseline-chevron-right" class="text-base transition-transform {showPast ? 'rotate-90' : ''}" />
         Past goals ({past.length})
       </button>
