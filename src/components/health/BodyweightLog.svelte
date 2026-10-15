@@ -124,14 +124,14 @@
           <span>{formatWeight(chartRange.max, trainingState.units.weight)}</span>
           <span>{formatWeight(chartRange.min, trainingState.units.weight)}</span>
         </div>
-        <div class="h-28 flex-1 flex items-end justify-between gap-1.5" role="group" aria-label="Last {chartEntries.length} weigh-ins - tap a bar to read it">
+        <div class="h-28 flex-1 flex items-end justify-between" role="group" aria-label="Last {chartEntries.length} weigh-ins - tap a bar to read it">
           {#each chartEntries as e, i (e.id)}
             <button
               type="button"
               onclick={() => (picked = picked === i ? null : i)}
               aria-pressed={picked === i}
               aria-label="{formatDate(e.date)}: {formatWeight(e.value, trainingState.units.weight)}"
-              class="flex-1 h-full flex flex-col items-center justify-end"
+              class="flex-1 h-full flex flex-col items-center justify-end px-[3px]"
             >
               <span
                 class="w-full rounded-t-lg transition-colors {picked === null || picked === i ? 'bg-primary' : 'bg-primary/35'}"

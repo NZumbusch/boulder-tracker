@@ -51,7 +51,7 @@
       </div>
     {/if}
     {#if trainingState.homeDetails['trainingBlock.loadTrend'] && blockTrend.some((b) => b.planned > 0 || b.actual > 0)}
-      <div class="flex items-end gap-1 h-10 pt-1" role="group" aria-label="Planned vs logged load per week of this block">
+      <div class="flex items-end gap-1 h-10 mt-1" role="group" aria-label="Planned vs logged load per week of this block">
         {#each blockTrend as bar}
           {@const isCurrent = bar.weekId === currentWeekId}
           <button

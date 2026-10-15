@@ -139,7 +139,7 @@
           </span>
         {/snippet}
         {#if row.label === 'Load ratio'}
-          <button class="flex items-center gap-3 w-full text-left min-h-9" onclick={showAcwr} aria-label="Load ratio: what it is made of">{@render rowBody(row)}<Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-base shrink-0 -ml-2" /></button>
+          <button class="flex items-center gap-3 w-full text-left min-h-10" onclick={showAcwr} aria-label="Load ratio: what it is made of">{@render rowBody(row)}<Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-base shrink-0 -ml-2" /></button>
         {:else}
           <div class="flex items-center gap-3">{@render rowBody(row)}</div>
         {/if}

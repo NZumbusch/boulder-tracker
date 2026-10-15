@@ -42,7 +42,7 @@
     </SectionHeader>
     {#each due as { issue, st, stale } (issue.id)}
       <div class="space-y-2">
-        <button onclick={() => openPainIssue(issue.id)} class="w-full text-left flex items-center gap-1.5 min-w-0">
+        <button onclick={() => openPainIssue(issue.id)} class="tap w-full text-left flex items-center gap-1.5 min-w-0">
           <span class="text-body font-semibold text-content truncate">{issue.bodyPart}</span>
           <span class="text-caption text-content-subtle shrink-0 tabular-nums">
             {st.severity !== undefined ? `${st.severity}/10 · ` : ''}{stale ? `no check-in for ${st.daysSinceCheckIn} days` : `day ${st.durationDays + 1}`}
