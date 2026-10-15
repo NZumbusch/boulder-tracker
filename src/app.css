@@ -394,13 +394,13 @@ body {
 :root[data-theme="contrast"] .cal-fill { opacity: 1; }
 :root[data-theme="contrast"] .cal-fill.cal-soft { opacity: 0.6; }
 /* A fine edge in the block's own colour (darkened), so a pale block - a phone-calendar event on the grey grid - doesn't dissolve into its ground. */
-.cal-edge { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cal-edge, #71717a) 65%, var(--theme-content) 20%); }
+.cal-edges .cal-edge { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cal-edge, #71717a) 65%, var(--theme-content) 20%); }
 /* Settings -> Plan calendar: higher contrast - solid fills, a firmer edge. */
 .cal-hc .cal-fill { opacity: 1; }
 .cal-hc .cal-fill.cal-soft { opacity: 0.78; }
 :root[data-theme="light"] .cal-hc .cal-fill { opacity: 0.8; }
 :root[data-theme="light"] .cal-hc .cal-fill.cal-soft { opacity: 0.6; }
-.cal-hc .cal-edge { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--cal-edge, #71717a) 70%, var(--theme-content) 45%); }
+.cal-hc .cal-edge, .cal-hc.cal-edges .cal-edge { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--cal-edge, #71717a) 70%, var(--theme-content) 45%); }
 .cal-ink { color: #fff; }
 :root[data-theme="light"] .cal-ink { color: var(--theme-content); }
 
