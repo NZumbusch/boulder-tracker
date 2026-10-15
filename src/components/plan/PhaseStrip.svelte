@@ -16,7 +16,7 @@
   {#each runs as run, i (i)}
     <svelte:element
       this={onPick ? 'button' : 'div'}
-      class="min-w-0 text-left"
+      class="min-w-0 text-left {onPick ? 'tap' : ''}"
       style="flex: {run.count} 1 0"
       onclick={onPick ? () => onPick(run.from) : undefined}
       aria-label={onPick ? (run.mark ? `Edit the ${run.mark.name} phase` : 'No phase - start one') : undefined}

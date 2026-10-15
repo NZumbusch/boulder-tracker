@@ -9,6 +9,6 @@ class AskAboutState {
 
 export const askAbout = new AskAboutState();
 
-export const askAboutInsights = (group: InsightGroup) => (askAbout.subject = { kind: "insights", group });
-export const askAboutSession = (workoutId: string) => (askAbout.subject = { kind: "session", workoutId });
-export const askAboutBlock = (blockId: string) => (askAbout.subject = { kind: "block", blockId });
+export const askAboutInsights = (group: InsightGroup) => { askAbout.subject = { kind: "insights", group }; };
+export const askAboutSession = (workoutId: string) => { askAbout.subject = { kind: "session", workoutId }; };
+export const askAboutBlock = (blockId: string) => { askAbout.subject = { kind: "block", blockId }; };

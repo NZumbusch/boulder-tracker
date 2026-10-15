@@ -228,7 +228,7 @@
           role="radio"
           aria-checked={mode === m.id}
           onclick={() => setMode(m.id)}
-          class="px-3 py-1.5 min-h-8 text-caption rounded-control transition-colors {mode === m.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+          class="tap mode-btn px-3 py-1.5 min-h-8 text-caption rounded-control transition-colors {mode === m.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
         >{m.label}</button>
       {/each}
     </div>
@@ -326,3 +326,8 @@
     <EventSheet event={eventOpen} calendar={deviceCalendar.calendars.find((c) => c.id === eventOpen?.calendarId)} onClose={() => (eventOpen = null)} />
   {/if}
 </div>
+
+<style>
+  /* Day / Week / Month / Year keep their look; the touch area grows up and down to 40px and not sideways, where the buttons touch. */
+  .mode-btn::after { inset: -4px 0; }
+</style>

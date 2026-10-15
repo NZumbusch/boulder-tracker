@@ -79,7 +79,7 @@
 
 <div>
   {#if mini}
-    <button onclick={() => onPickMonth?.(month)} class="text-label text-content hover:text-primary transition-colors mb-1">{monthName}</button>
+    <button onclick={() => onPickMonth?.(month)} class="tap text-label text-content hover:text-primary transition-colors mb-1">{monthName}</button>
   {:else}
     <div class="grid grid-cols-7 mb-1">
       {#each ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as d}

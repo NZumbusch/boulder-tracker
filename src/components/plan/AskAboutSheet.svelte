@@ -24,7 +24,7 @@
   import AiSendSheet from './AiSendSheet.svelte';
 
   const subject = $derived(askAbout.subject);
-  const close = () => (askAbout.subject = null);
+  const close = () => { askAbout.subject = null; };
 
   let question = $state('');
   let copied = $state(false);

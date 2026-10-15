@@ -46,7 +46,7 @@
     {#if detail}<p class="text-caption text-content-subtle truncate">{detail}</p>{/if}
   {/snippet}
   {#if onclick}
-    <button type="button" {onclick} use:longPress={onlongpress} class="min-w-0 flex-1 text-left group select-none">{@render body()}</button>
+    <button type="button" {onclick} use:longPress={onlongpress} class="tap min-w-0 flex-1 text-left group select-none">{@render body()}</button>
   {:else}
     <div class="min-w-0 flex-1">{@render body()}</div>
   {/if}

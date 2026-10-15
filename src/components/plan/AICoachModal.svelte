@@ -740,11 +740,11 @@
     <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center gap-2">
       {#if step === 'ask'}
         {#if flows}
-          <button onclick={() => step = 'paste'} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors">
+          <button onclick={() => step = 'paste'} class="px-3 py-2.5 min-h-10 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors">
             I have the reply
           </button>
         {:else if copiedFor === mode}
-          <button onclick={onClose} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors">
+          <button onclick={onClose} class="px-3 py-2.5 min-h-10 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors">
             Done
           </button>
         {/if}
@@ -752,35 +752,35 @@
         <button
           onclick={copyPrompt}
           disabled={(mode !== 'context' && mode !== 'organise' && !rangeValid) || (mode === 'organise' && effectiveAreas.length === 0)}
-          class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+          class="px-5 py-2.5 min-h-10 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
         >
           <Icon icon={copiedFor === mode ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-base" />
           {copiedFor === mode ? 'Copy again' : mode === 'context' ? 'Copy context' : 'Copy prompt'}
         </button>
       {:else if step === 'paste'}
-        <button onclick={() => step = 'ask'} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
+        <button onclick={() => step = 'ask'} class="px-3 py-2.5 min-h-10 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
           <Icon icon="ic:baseline-arrow-back" class="text-base" /> Back
         </button>
-        <button onclick={copyPrompt} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
+        <button onclick={copyPrompt} class="px-3 py-2.5 min-h-10 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
           <Icon icon={copiedAgain ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-base" /> {copiedAgain ? 'Copied' : 'Copy again'}
         </button>
         <div class="flex-1"></div>
         <button
           onclick={() => step = 'review'}
           disabled={!canReview}
-          class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+          class="px-5 py-2.5 min-h-10 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
         >
           Review <Icon icon="ic:baseline-arrow-forward" class="text-base" />
         </button>
       {:else}
-        <button onclick={() => step = 'paste'} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
+        <button onclick={() => step = 'paste'} class="px-3 py-2.5 min-h-10 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
           <Icon icon="ic:baseline-arrow-back" class="text-base" /> Back
         </button>
         <div class="flex-1"></div>
         <button
           onclick={apply}
           disabled={applying || appliedCount === 0}
-          class="px-5 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
+          class="px-5 py-2.5 min-h-10 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
         >
           <Icon icon="ic:baseline-check" class="text-base" />
           {applying ? 'Applying…' : `Apply ${appliedCount} of ${plan?.items.length ?? 0}`}

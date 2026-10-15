@@ -74,7 +74,7 @@
         onclick={() => onSelectWeek(week.id)}
         aria-label={`${week.tooltip}${week.isCurrent ? ', this week' : ''}`}
         aria-pressed={selectedWeekId === week.id}
-        class="aspect-square rounded-md transition-all duration-200 relative group hover:z-20
+        class="tap week-cell aspect-square rounded-md transition-all duration-200 relative group hover:z-20
           {week.runs || week.color ? '' : FALLBACK_COLOR}
           {selectedWeekId === week.id ? 'ring-2 ring-content z-10' : ''}"
       >
@@ -102,3 +102,8 @@
     <p class="mt-2 flex items-center gap-1.5 text-caption text-content-subtle"><span class="w-1.5 h-1.5 bg-content ring-1 ring-surface rounded-full shrink-0" aria-hidden="true"></span>Two blocks cover this week</p>
   {/if}
 </div>
+
+<style>
+  /* The cells sit 6px apart, so the finger-sized area grows only to meet the next cell (36px), not the usual 8px each side. */
+  .week-cell::after { inset: -3px; }
+</style>
