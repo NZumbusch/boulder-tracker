@@ -268,15 +268,15 @@ Only checked in headless Chrome at phone width (dark and light), not on a phone 
 | 18.5 | Sheets and editors | Block manager (list, add, edit), AI coach (all four modes), a session editor, phase template editor, benchmark forms. | No outlined boxes around groups; idle buttons filled; notices (warning, error) still stand out by their tint; inputs keep their outline and are easy to find. | | |
 | 18.4 | Filled chips | Plan B card (Edit B, Decide), Arrange, other chips; a selected chip (e.g. in the AI coach). | No outline on idle chips; selected ones still show their primary colour. | | |
 
-## 18. Analytics rebuilt by question (2026-10-19)
+## 19. Analytics rebuilt by question (2026-10-19)
 
 | # | Test | Steps | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 18.1 | Tabs | Analytics: Overview, Training, Recovery, Progress. | Overview: summary tiles (once), Worth a look, the load chart, the training calendar. Training: its findings, mix, "More charts" (strain, finger load) folded. Recovery: findings, fatigue, recovery chart, pain. Progress: findings, exercises, sends, tests. Range, paging and CSV are there on every tab. | | |
-| 18.2 | Findings | Tap a finding on Overview and on a tab. | Overview lists what needs attention first (then up to two good ones, and always the load verdict); a tab lists the findings for its charts. Tapping goes to the chart on its tab (opening More charts if needed) or the ACWR/plan/block/exercise sheet. | | |
-| 18.3 | Load chart | Overview → Rolling load on 4W, 3M, 1Y. | Bars with a few labelled lines, ramp-spike flags over their bars; under them the ratio strip with tinted zones and the 0.8 / 1.5 edges, dots coloured by zone; the same columns line up; labels thin out without running together. | | |
-| 18.4 | Recovery layout | Recovery tab: Overlay / Rows. | The overlaid % chart as before; Rows gives one row per measure; the choice is kept. | | |
-| 18.5 | Settings | Settings → History & Analytics: hide a card, reorder. | Hidden cards go from their tab; with a tab empty the note says so (not Overview); the order within a tab follows the list. | | |
+| 19.1 | Tabs | Analytics: Overview, Training, Recovery, Progress. | Overview: summary tiles (once), Worth a look, the load chart, the training calendar. Training: its findings, mix, "More charts" (strain, finger load) folded. Recovery: findings, fatigue, recovery chart, pain. Progress: findings, exercises, sends, tests. Range, paging and CSV are there on every tab. | | |
+| 19.2 | Findings | Tap a finding on Overview and on a tab. | Overview lists what needs attention first (then up to two good ones, and always the load verdict); a tab lists the findings for its charts. Tapping goes to the chart on its tab (opening More charts if needed) or the ACWR/plan/block/exercise sheet. | | |
+| 19.3 | Load chart | Overview → Rolling load on 4W, 3M, 1Y. | Bars with a few labelled lines, ramp-spike flags over their bars; under them the ratio strip with tinted zones and the 0.8 / 1.5 edges, dots coloured by zone; the same columns line up; labels thin out without running together. | | |
+| 19.4 | Recovery layout | Recovery tab: Overlay / Rows. | The overlaid % chart as before; Rows gives one row per measure; the choice is kept. | | |
+| 19.5 | Settings | Settings → History & Analytics: hide a card, reorder. | Hidden cards go from their tab; with a tab empty the note says so (not Overview); the order within a tab follows the list. | | |
 
 ## After the run
 
