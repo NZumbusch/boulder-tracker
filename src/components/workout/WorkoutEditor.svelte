@@ -284,7 +284,7 @@
           {#each DAYS as day}
             <button
               onclick={() => { workout.dayOfWeek = day; openChip = null; }}
-              class="px-3 min-h-11 rounded-control text-label border transition-colors {workout.dayOfWeek === day ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
+              class="px-3 min-h-11 rounded-control text-label border transition-colors {workout.dayOfWeek === day ? 'bg-primary border-primary text-on-primary' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
             >{day.slice(0, 3)}</button>
           {/each}
           <button
@@ -330,7 +330,7 @@
               {#each trainingState.places as place (place.name)}
                 <button
                   onclick={() => { workout.location = place.name; openChip = null; }}
-                  class="px-3 min-h-11 rounded-control text-label border transition-colors {workout.location === place.name ? 'bg-primary border-primary text-white' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
+                  class="px-3 min-h-11 rounded-control text-label border transition-colors {workout.location === place.name ? 'bg-primary border-primary text-on-primary' : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content'}"
                 >{place.name}</button>
               {/each}
             </div>

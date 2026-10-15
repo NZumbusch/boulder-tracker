@@ -161,11 +161,12 @@
       </div>
     {/if}
 
+    {#if selectedCount === 0 && reviewable.length > 0}<p class="text-caption text-content-subtle" role="status">Tick at least one send to import.</p>{/if}
     <div class="flex gap-2">
-      <button onclick={onDone} class="flex-1 py-2.5 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button>
-      <button onclick={confirm} disabled={selectedCount === 0 || importing} class="flex-1 py-2.5 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40">
-        {importing ? 'Importing…' : `Import ${selectedCount}`}
+      <button onclick={confirm} disabled={selectedCount === 0 || importing} class="btn btn-primary flex-1">
+        {importing ? 'Importing…' : selectedCount === 0 ? 'Import' : `Import ${selectedCount}`}
       </button>
+      <button onclick={onDone} class="btn btn-ghost">Cancel</button>
     </div>
   </div>
 {/if}

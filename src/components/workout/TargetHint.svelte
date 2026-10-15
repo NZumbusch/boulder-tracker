@@ -28,8 +28,8 @@
 </script>
 
 {#if status}
-  <span class="inline-flex items-center gap-0.5 text-caption font-mono tabular-nums {status === 'at' ? 'text-status-good' : 'text-content-subtle'}">
-    <Icon icon={ICONS[status]} class="text-[10px]" />
+  <span class="inline-flex items-center gap-1 text-label tabular-nums {status === 'at' ? 'text-status-good' : 'text-content-subtle'}" title={status === 'at' ? 'At the target' : status === 'above' ? 'Above the target' : 'Below the target'}>
+    <Icon icon={ICONS[status]} class="text-sm" />
     Target: {prescribed}{unit}
   </span>
 {/if}

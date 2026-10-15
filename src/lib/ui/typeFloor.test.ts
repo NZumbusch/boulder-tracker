@@ -19,7 +19,6 @@ const ALLOWED = new Set([
   "components/analytics/LoadPanel.svelte",
   "components/analytics/PhaseBand.svelte",
   "components/dashboard/home/ThisWeekCard.svelte",
-  "components/health/PainHeadsUp.svelte",
   "components/history/History.svelte",
   // Rendered to an image at a fixed size (not the app's text scale): the share cards.
   "components/history/WorkoutShareImage.svelte",
@@ -28,9 +27,7 @@ const ALLOWED = new Set([
   "components/plan/PhaseStrip.svelte",
   "components/plan/TrainingPlan.svelte",
   "components/plan/WeekCalendar.svelte",
-  "components/sends/GradeChart.svelte",
   "components/settings/ErrorLogCard.svelte",
-  "components/workout/TargetHint.svelte",
 ]);
 
 function files(dir: string): string[] {
