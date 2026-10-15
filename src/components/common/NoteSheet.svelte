@@ -10,6 +10,7 @@
    * marker of where they came from.
    */
   import Sheet from '../ui/Sheet.svelte';
+  import { showConfirm } from '../../lib/utils';
 
   let { title, subtitle, text, placeholder = 'Anything worth remembering about this…', onSave, onClose }: {
     title: string;
@@ -25,6 +26,11 @@
   let draft = $state(text);
   let saving = $state(false);
   const changed = $derived(draft.trim() !== text.trim());
+
+  async function clear() {
+    if (!(await showConfirm('Clear this note?', 'The text is deleted and cannot be brought back.', { ok: 'Clear', cancel: 'Keep it' }))) return;
+    await save('');
+  }
 
   async function save(value: string) {
     saving = true;
@@ -50,7 +56,7 @@
   {#snippet footer()}
     <button onclick={() => save(draft)} disabled={saving || !changed} class="btn btn-primary flex-1">Save</button>
     {#if text.trim()}
-      <button onclick={() => save('')} disabled={saving} class="btn btn-secondary text-danger">Clear</button>
+      <button onclick={clear} disabled={saving} class="btn btn-secondary text-danger">Clear</button>
     {/if}
     <button onclick={onClose} class="btn btn-secondary">Cancel</button>
   {/snippet}

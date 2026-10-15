@@ -24,7 +24,7 @@
   <table class="w-full text-caption border-separate border-spacing-0">
     <thead>
       <tr>
-        <th class="text-left font-normal text-content-subtle pb-2 pr-2"></th>
+        <th class="text-left font-normal text-content-subtle pb-2 pr-2"><span class="sr-only">Feature</span></th>
         {#each COLUMNS as c}<th class="text-left font-semibold text-content pb-2 px-1.5 align-bottom">{c}</th>{/each}
       </tr>
     </thead>

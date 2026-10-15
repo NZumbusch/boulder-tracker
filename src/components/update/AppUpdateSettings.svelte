@@ -3,6 +3,8 @@
   import Icon from '@iconify/svelte';
   import { updater } from '../../lib/update/updater.svelte';
   import UpdateCard from './UpdateCard.svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import Toggle from '../ui/Toggle.svelte';
 
   const lastChecked = $derived(
     updater.lastCheckedAt ? new Date(updater.lastCheckedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'never',
@@ -21,30 +23,26 @@
     <div class="space-y-1.5 px-1">
       <p class="text-body text-content">Channel</p>
       <!-- A setting, so the filled segment. -->
-      <div class="flex bg-surface-elevated/50 p-1 rounded-control" role="group" aria-label="Update channel">
-        {#each [['stable', 'Stable'], ['testing', 'Testing']] as [id, label]}
-          <button
-            onclick={() => updater.setChannel(id as 'stable' | 'testing')}
-            aria-pressed={updater.channel === id}
-            class="flex-1 py-2 text-label rounded-control transition-all {updater.channel === id ? 'bg-primary text-white shadow-md' : 'text-content-muted hover:text-content'}"
-          >{label}</button>
-        {/each}
-      </div>
+      <Segmented
+        label="Update channel"
+        variant="setting"
+        full
+        value={updater.channel}
+        onChange={(v) => updater.setChannel(v)}
+        options={[{ value: 'stable', label: 'Stable' }, { value: 'testing', label: 'Testing' }]}
+      />
       <p class="text-caption text-content-subtle">
-        {updater.channel === 'stable' ? 'Builds that were tried out and promoted.' : 'Every new build, as soon as it\'s pushed - may have rough edges.'}
+        {updater.channel === 'stable' ? 'Builds that were tried out and promoted.' : 'Every new build as soon as it is ready - may have rough edges.'}
+        Switching never installs an older version.
       </p>
       {#if updater.aheadOfChannel}
         <p class="text-caption text-content-subtle">You're on a newer build ({updater.installedCode}) than stable ({updater.latestOnChannel?.versionCode}). Android can't go back to an older version - the next stable build newer than yours will update you.</p>
       {/if}
     </div>
 
-    <label class="flex items-center justify-between cursor-pointer px-1">
-      <div class="min-w-0">
-        <p class="text-body text-content">Check automatically</p>
-        <p class="text-caption text-content-subtle mt-0.5">When the app opens, at most every few hours. Nothing installs without you.</p>
-      </div>
-      <input type="checkbox" checked={updater.auto} onchange={(e) => updater.setAuto(e.currentTarget.checked)} class="w-5 h-5 rounded accent-primary shrink-0 ml-3" />
-    </label>
+    <div class="px-1">
+      <Toggle label="Check automatically" hint="When the app opens, at most every few hours. Nothing installs without you." checked={updater.auto} onChange={(v) => updater.setAuto(v)} />
+    </div>
 
     <UpdateCard />
 
@@ -52,13 +50,13 @@
       <button
         onclick={() => updater.check(true)}
         disabled={updater.status !== 'idle'}
-        class="w-full py-2.5 rounded-control bg-surface-elevated text-content text-label font-bold transition-colors hover:bg-surface-elevated/70 disabled:opacity-60 flex items-center justify-center gap-1.5"
+        class="btn btn-secondary w-full"
       >
         <Icon icon="ic:baseline-refresh" class="text-base {updater.status === 'checking' ? 'animate-spin' : ''}" />
         {updater.status === 'checking' ? 'Checking…' : 'Check now'}
       </button>
       {#if updater.upToDate}<p class="text-caption text-success px-1">You're on the newest build.</p>{/if}
-      {#if updater.error}<p class="text-caption text-status-caution px-1">{updater.error}</p>{/if}
+      {#if updater.error}<p class="text-caption text-status-caution px-1" role="alert">{updater.error}</p>{/if}
     {/if}
   </div>
 {/if}
