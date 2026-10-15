@@ -2,7 +2,8 @@
   /** Progress: consistency, latest benchmarks and retests, sends, and the last trip. */
   import { trainingState } from '../../../lib/state.svelte';
   import type { HomeData } from './homeData.svelte';
-  import { formatDate } from '../../../lib/dateUtils';
+  import { formatDay, formatWeek, getWeekDates } from '../../../lib/dateUtils';
+  import { WEEK_DAYS } from '../../../lib/constants';
   import { latestBenchmarks, sendsSummary, consistency } from '../../../lib/analytics/progress';
   import { plannedTestsByType, testStatuses } from '../../../lib/benchmarks/testSlot';
   import InfoButton from '../../common/InfoButton.svelte';
@@ -20,6 +21,14 @@
   const statuses = $derived(testStatuses(trainingState.benchmarkTypes, trainingState.benchmarks, data.asOf, new Set(planned.keys()), trainingState.retestWeeks));
   const watch = $derived(statuses.filter((s) => s.due || s.scheduled).sort((a, b) => Number(b.due) - Number(a.due) || (b.weeksSince ?? 0) - (a.weeksSince ?? 0)).slice(0, 3));
   let scheduling = $state(false);
+  /** The day a test is planned for, written as a date ("Mon, Oct 19"), not as a week id. */
+  function plannedWhen(where: { day?: string; week: string } | undefined): string {
+    if (!where) return '';
+    const start = getWeekDates(where.week)?.start;
+    const i = where.day ? (WEEK_DAYS as readonly string[]).indexOf(where.day) : -1;
+    if (!start || i < 0) return formatWeek(where.week, 'short');
+    return formatDay(new Date(start.getTime() + i * 86400000).toISOString().slice(0, 10), { weekday: 'short' });
+  }
   const sends = $derived(sendsSummary(trainingState.outdoorAscents, data.asOf));
   const consistencyStats = $derived(consistency(trainingState.workouts, data.asOf));
   const lastTrip = $derived.by(() => {
@@ -35,12 +44,12 @@
 </script>
 
 <div class="card space-y-3">
-  <SectionHeader label="Progress" />
+  <SectionHeader label="Progress" subtitle="Consistency, tests and sends" />
   {#if showConsistency}
     <div class="flex items-baseline justify-between gap-3">
       <p class="text-body text-content"><span class="text-metric tabular-nums">{consistencyStats.done}</span>{' '}<span class="text-content-subtle">of the last {consistencyStats.due} sessions done</span></p>
       {#if consistencyStats.weekStreak > 1}
-        <span class="text-label text-primary shrink-0">{consistencyStats.weekStreak}-week streak</span>
+        <span class="text-label text-success shrink-0">{consistencyStats.weekStreak}-week streak</span>
       {/if}
     </div>
   {/if}
@@ -54,9 +63,9 @@
           <span class="text-label text-content tabular-nums shrink-0 flex items-baseline gap-1.5">
             <span>{b.latestText}</span>
             {#if b.changeText && b.change !== 0}
-              <span class={b.improved ? 'text-status-good' : 'text-status-caution'}>{b.changeText}</span>
+              <span class="inline-flex items-center {b.improved ? 'text-status-good' : 'text-status-caution'}"><Icon icon={b.improved ? 'ic:baseline-arrow-upward' : 'ic:baseline-arrow-downward'} class="text-xs" aria-hidden="true" /><span class="sr-only">{b.improved ? 'Improved' : 'Down'} </span>{b.changeText}</span>
             {/if}
-            <span class="text-content-subtle">· {formatDate(b.latestDate)}</span>
+            <span class="text-content-subtle">· {formatDay(b.latestDate)}</span>
           </span>
         </div>
       {/each}
@@ -72,7 +81,7 @@
           <span class="text-caption shrink-0 flex items-baseline gap-1.5 tabular-nums">
             {#if t.weeksSince !== undefined}<span class="text-content-subtle">{t.weeksSince} wk ago</span>{/if}
             {#if t.scheduled}
-              <span class="px-1.5 py-px rounded-full bg-primary/10 text-primary">Planned{where?.day ? ` ${where.day.slice(0, 3)}` : ''} W{where?.week.split('-W')[1]}</span>
+              <span class="px-1.5 py-px rounded-full bg-primary/10 text-primary">Planned {plannedWhen(where)}</span>
             {:else}
               <span class="px-1.5 py-px rounded-full bg-status-caution/15 text-status-caution">Due</span>
             {/if}
@@ -80,7 +89,7 @@
         </div>
       {/each}
       {#if nothingPlanned}
-        <button onclick={() => (scheduling = true)} class="text-caption text-primary flex items-center gap-1"><Icon icon="ic:baseline-auto-awesome" class="text-sm" />Have the AI schedule them</button>
+        <button onclick={() => (scheduling = true)} class="btn btn-secondary self-start"><Icon icon="ic:baseline-auto-awesome" class="text-base" />Have the AI schedule them</button>
       {/if}
     </div>
   {/if}
@@ -88,10 +97,10 @@
     <div class="pt-2 border-t border-border/60 space-y-1">
       <p class="text-label text-content-muted flex items-center gap-1.5">
         <Icon icon="ic:baseline-terrain" class="text-sm text-primary shrink-0" />
-        <span class="truncate">Last send: <span class="text-content">{sends.last.name || 'Outdoor send'} {G(sends.last.grade)}</span> · {formatDate(sends.last.date)}</span>
+        <span class="truncate">Last send: <span class="text-content">{sends.last.name || 'Outdoor send'} {G(sends.last.grade)}</span> · {formatDay(sends.last.date)}</span>
       </p>
       {#if sends.hardest}
-        <p class="text-caption text-content-subtle">Hardest this season: <span class="text-content">{G(sends.hardest.grade)}</span>{sends.hardest.name ? ` (${sends.hardest.name})` : ''} · {sends.countThisSeason} send{sends.countThisSeason === 1 ? '' : 's'}</p>
+        <p class="text-caption text-content-subtle break-words">Hardest this season: <span class="text-content">{G(sends.hardest.grade)}</span>{sends.hardest.name ? ` (${sends.hardest.name})` : ''} · {sends.countThisSeason} send{sends.countThisSeason === 1 ? '' : 's'}</p>
       {/if}
     </div>
   {/if}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { sheetDrag } from '../../lib/ui/sheetDrag';
+  import Sheet from '../ui/Sheet.svelte';
   /**
    * Settings for one Plan B: its name, which plan is the outdoor one (for
    * the weather hint and the evening-before reminder), which plan counts
@@ -8,9 +8,8 @@
    */
   import Icon from '@iconify/svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { allOccurrenceKeys, describeChanges, occurrenceDaysLabel } from '../../lib/planning/planB';
-  import { incrementWeekId, getWeekIdRange, getWeekDateRange } from '../../lib/dateUtils';
+  import { incrementWeekId, getWeekIdRange, getWeekDateRange, formatWeek } from '../../lib/dateUtils';
   import type { PlanAlternative, PlanSide } from '../../lib/types';
 
   let { alt, occurrence, onClose }: { alt: PlanAlternative; occurrence: string; onClose: () => void } = $props();
@@ -60,6 +59,12 @@
     onClose();
   }
 
+  /** Closes this sheet and puts the week into the mode where Plan B's own sessions are changed, added or removed. */
+  function editSessions() {
+    trainingState.planBEditing = { altId: alt.id, key: occurrence };
+    onClose();
+  }
+
   async function remove() {
     // Taken before closing: the sheet's props read through to state that
     // closing clears (the same trap as the session viewer's Delete).
@@ -68,83 +73,68 @@
     await trainingState.deletePlanB(id);
   }
 
-  backWhile(() => true, () => onClose());
+  /** "this week only", then steps; the weeks a stretch already repeats for stay selectable. */
+  const REPEAT_STEPS = [1, 2, 3, 4, 6, 8, 12, 16, 26];
+  const repeatOptions = $derived([...new Set([...REPEAT_STEPS, repeatWeeks])].sort((a, b) => a - b));
 </script>
 
-<div class="fixed inset-0 pb-safe bg-app-bg/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[100] backdrop-blur-md">
-  <div class="absolute inset-0" onclick={onClose} onkeydown={(e) => e.key === 'Escape' && onClose()} role="button" tabindex="-1" aria-label="Close"></div>
-  <div class="relative bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4" use:sheetDrag={() => onClose()}>
-    <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <h3 class="text-title text-content flex items-center gap-2">
-          <Icon icon="ic:baseline-call-split" class="text-primary text-xl shrink-0" />
-          <span class="truncate">Plan B</span>
-        </h3>
-        <p class="text-caption text-content-subtle mt-0.5">{occurrenceDaysLabel(alt, occurrence)} · {getWeekDateRange(occurrence)}</p>
-      </div>
-      <button onclick={onClose} class="text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close">
-        <Icon icon="ic:baseline-close" class="text-xl" />
-      </button>
-    </div>
+<Sheet title="Plan B" icon="ic:baseline-call-split" subtitle="{occurrenceDaysLabel(alt, occurrence)} · {formatWeek(occurrence)} · {getWeekDateRange(occurrence)}" {onClose}>
+  <label class="block space-y-1">
+    <span class="text-label text-content-subtle">Name</span>
+    <input bind:value={label} placeholder="Outdoor if dry" class="field" />
+  </label>
 
-    <label class="block space-y-1">
-      <span class="text-label text-content-subtle">Name</span>
-      <input
-        bind:value={label}
-        placeholder="Outdoor if dry"
-        class="w-full bg-surface-elevated/50 text-content px-3 py-2.5 rounded-control border border-border-strong outline-none text-sm focus:border-primary/60"
-      />
-    </label>
+  <div class="space-y-1">
+    <span class="text-label text-content-subtle block">What Plan B does differently</span>
+    {#each changes as line}
+      <p class="text-caption text-content">{line}</p>
+    {:else}
+      <p class="text-caption text-content-subtle">Nothing yet.</p>
+    {/each}
+    <button onclick={editSessions} class="btn btn-secondary w-full mt-1"><Icon icon="ic:baseline-edit" class="text-base" />Change Plan B's sessions</button>
+  </div>
 
-    <div class="space-y-1">
-      <span class="text-label text-content-subtle block">What Plan B does differently</span>
-      {#each changes as line}
-        <p class="text-caption text-content">{line}</p>
-      {:else}
-        <p class="text-caption text-content-subtle italic">Nothing yet - tap Edit B and change, add or remove sessions.</p>
+  <div class="space-y-1.5">
+    <span class="text-label text-content-subtle block">Which one is the outdoor plan?</span>
+    <p class="text-caption text-content-subtle">Used for the weather hint and the evening-before reminder.</p>
+    <div class="seg" role="group" aria-label="Outdoor plan">
+      {#each [['', 'Neither'], ['A', 'Plan A'], ['B', 'Plan B']] as [value, text]}
+        <button onclick={() => outdoor = value as PlanSide | ''} class="seg-item flex-1 text-label {outdoor === value ? 'bg-primary text-on-primary' : 'hover:text-content'}" aria-pressed={outdoor === value}>{text}</button>
       {/each}
     </div>
+  </div>
 
-    <div class="space-y-1.5">
-      <span class="text-label text-content-subtle block">Outdoor plan <span class="text-caption">(weather hint, evening-before reminder)</span></span>
-      <div class="seg" role="group" aria-label="Outdoor plan">
-        {#each [['', 'Neither'], ['A', 'Plan A'], ['B', 'Plan B']] as [value, text]}
-          <button onclick={() => outdoor = value as PlanSide | ''} class="seg-item flex-1 py-1.5 text-label {outdoor === value ? 'bg-primary text-white' : 'hover:text-content'}" aria-pressed={outdoor === value}>{text}</button>
-        {/each}
-      </div>
-    </div>
-
-    <div class="space-y-1.5">
-      <span class="text-label text-content-subtle block">Counts until you decide <span class="text-caption">(load, week totals, reminders)</span></span>
-      <div class="seg" role="group" aria-label="Plan that counts by default">
-        {#each ['A', 'B'] as const as side}
-          <button onclick={() => likely = side} class="seg-item flex-1 py-1.5 text-label {likely === side ? 'bg-primary text-white' : 'hover:text-content'}" aria-pressed={likely === side}>Plan {side}</button>
-        {/each}
-      </div>
-    </div>
-
-    <label class="flex items-center gap-2 flex-wrap">
-      <Icon icon="ic:baseline-repeat" class="text-base text-primary shrink-0" />
-      <span class="text-label text-content">Repeat for</span>
-      <select bind:value={repeatWeeks} class="bg-surface-elevated text-content px-2 py-1 rounded-control border border-border-strong outline-none text-label" aria-label="Number of weeks">
-        {#each Array.from({ length: 26 }, (_, i) => i + 1) as n}<option value={n}>{n === 1 ? 'this week only' : `${n} weeks`}</option>{/each}
-      </select>
-    </label>
-
-    <div class="flex gap-2">
-      <button onclick={save} disabled={saving} class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-control disabled:opacity-40 transition-opacity">Save</button>
-      <button onclick={onClose} class="px-4 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button>
-    </div>
-
-    <div class="pt-3 border-t border-border/60 flex flex-wrap gap-2">
-      {#if isRepeating}
-        <button onclick={toggleSkip} class="chip text-content-subtle hover:text-content transition-colors">
-          <Icon icon={skippedHere ? 'ic:baseline-undo' : 'ic:baseline-block'} class="text-sm" />{skippedHere ? 'Use it this week again' : 'Not this week'}
-        </button>
-      {/if}
-      <button onclick={remove} class="chip text-danger hover:bg-danger/10 transition-colors ml-auto">
-        <Icon icon="ic:baseline-delete" class="text-sm" />Delete Plan B
-      </button>
+  <div class="space-y-1.5">
+    <span class="text-label text-content-subtle block">Which plan do you expect to do?</span>
+    <p class="text-caption text-content-subtle">Totals and reminders follow it until you choose.</p>
+    <div class="seg" role="group" aria-label="Plan that counts by default">
+      {#each ['A', 'B'] as const as side}
+        <button onclick={() => likely = side} class="seg-item flex-1 text-label {likely === side ? 'bg-primary text-on-primary' : 'hover:text-content'}" aria-pressed={likely === side}>Plan {side}</button>
+      {/each}
     </div>
   </div>
-</div>
+
+  <div class="flex items-center gap-2 flex-wrap">
+    <Icon icon="ic:baseline-repeat" class="text-base text-primary shrink-0" />
+    <label for="planb-repeat" class="text-label text-content">Repeat for</label>
+    <select id="planb-repeat" bind:value={repeatWeeks} class="field w-auto">
+      {#each repeatOptions as n}<option value={n}>{n === 1 ? 'this week only' : `${n} weeks`}</option>{/each}
+    </select>
+  </div>
+
+  <div class="flex flex-wrap gap-2 pt-1">
+    {#if isRepeating}
+      <button onclick={toggleSkip} class="btn btn-ghost">
+        <Icon icon={skippedHere ? 'ic:baseline-undo' : 'ic:baseline-block'} class="text-base" />{skippedHere ? 'Use it this week again' : 'Not this week'}
+      </button>
+    {/if}
+    <button onclick={remove} class="btn btn-danger ml-auto">
+      <Icon icon="ic:baseline-delete" class="text-base" />Delete Plan B
+    </button>
+  </div>
+
+  {#snippet footer()}
+    <button onclick={save} disabled={saving} class="btn btn-primary flex-1">Save</button>
+    <button onclick={onClose} class="btn btn-secondary">Cancel</button>
+  {/snippet}
+</Sheet>

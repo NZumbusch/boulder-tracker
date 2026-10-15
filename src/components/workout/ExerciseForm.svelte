@@ -371,14 +371,14 @@
     <button
       type="button"
       onclick={() => pickerOpen = true}
-      class="w-full bg-surface-elevated text-left p-3.5 rounded-control border border-border-strong hover:border-primary/50 transition-all flex items-center gap-3"
+      class="field text-left flex items-center gap-3 hover:border-primary"
     >
       <span class="min-w-0 flex-1">
         {#if activeTypeDef}
-          <span class="block text-sm font-medium text-content truncate">{activeTypeDef.name}</span>
+          <span class="block text-body font-medium text-content truncate">{activeTypeDef.name}</span>
           <span class="block text-caption text-content-subtle truncate">{exerciseGroup(activeTypeDef)}{activeTypeDef.archived ? ' · archived' : ''}</span>
         {:else}
-          <span class="block text-sm font-medium text-content-subtle">Choose an exercise…</span>
+          <span class="block text-body font-medium text-content-subtle">Choose an exercise…</span>
         {/if}
       </span>
       <Icon icon="ic:baseline-unfold-more" class="text-lg text-content-subtle shrink-0" />
@@ -394,7 +394,7 @@
         <label for="ex-duration" class="text-label text-content-subtle">Duration (min)</label>
         <TargetHint prescribed={targetValues.duration} current={duration} unit="m" />
       </div>
-      <input id="ex-duration" type="number" bind:value={duration} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none transition-all text-sm {validationErrors.duration ? 'border-danger/50 focus:border-danger' : ''}" />
+      <input id="ex-duration" type="number" inputmode="decimal" enterkeyhint="next" bind:value={duration} class="field {validationErrors.duration ? '!border-danger' : ''}" />
       {#if validationErrors.duration}<p class="text-label text-danger ml-1">{validationErrors.duration}</p>{/if}
     </div>
   {/if}
@@ -402,26 +402,27 @@
   <div class="form-grid fields-grid pt-1">
     {#if activeParams.includes('boulderingGrades') || activeParams.includes('grades')}
       <div class="grid grid-cols-2 gap-3">
-        <div class="space-y-1.5"><label for="ex-min-grade" class="text-label text-content-subtle ml-1">Min Grade</label><select id="ex-min-grade" bind:value={minGrade} class="w-full bg-surface-elevated text-content p-2.5 rounded-control border border-border-strong outline-none text-xs">{#each bGrades as g} <option value={g}>{g}</option> {/each}</select></div>
-        <div class="space-y-1.5"><label for="ex-max-grade" class="text-label text-content-subtle ml-1">Max Grade</label><select id="ex-max-grade" bind:value={maxGrade} class="w-full bg-surface-elevated text-content p-2.5 rounded-control border border-border-strong outline-none text-xs">{#each bGrades as g} <option value={g}>{g}</option> {/each}</select></div>
+        <div class="space-y-1.5"><label for="ex-min-grade" class="text-label text-content-subtle ml-1">Min grade</label><select id="ex-min-grade" bind:value={minGrade} class="field">{#each bGrades as g} <option value={g}>{g}</option> {/each}</select></div>
+        <div class="space-y-1.5"><label for="ex-max-grade" class="text-label text-content-subtle ml-1">Max grade</label><select id="ex-max-grade" bind:value={maxGrade} class="field">{#each bGrades as g} <option value={g}>{g}</option> {/each}</select></div>
       </div>
     {/if}
 
     {#if activeParams.includes('routeGrades')}
       <div class="grid grid-cols-2 gap-3">
-        <div class="space-y-1.5"><label for="ex-min-rgrade" class="text-label text-content-subtle ml-1">Min Grade</label><select id="ex-min-rgrade" bind:value={minGrade} class="w-full bg-surface-elevated text-content p-2.5 rounded-control border border-border-strong outline-none text-xs">{#each rGrades as g} <option value={g}>{g}</option> {/each}</select></div>
-        <div class="space-y-1.5"><label for="ex-max-rgrade" class="text-label text-content-subtle ml-1">Max Grade</label><select id="ex-max-rgrade" bind:value={maxGrade} class="w-full bg-surface-elevated text-content p-2.5 rounded-control border border-border-strong outline-none text-xs">{#each rGrades as g} <option value={g}>{g}</option> {/each}</select></div>
+        <div class="space-y-1.5"><label for="ex-min-rgrade" class="text-label text-content-subtle ml-1">Min grade</label><select id="ex-min-rgrade" bind:value={minGrade} class="field">{#each rGrades as g} <option value={g}>{g}</option> {/each}</select></div>
+        <div class="space-y-1.5"><label for="ex-max-rgrade" class="text-label text-content-subtle ml-1">Max grade</label><select id="ex-max-rgrade" bind:value={maxGrade} class="field">{#each rGrades as g} <option value={g}>{g}</option> {/each}</select></div>
       </div>
     {/if}
 
-    {#if activeParams.includes('cadence')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-cadence" class="text-label text-content-subtle">Cadence (boulders or routes / min)</label><TargetHint prescribed={targetValues.cadence} current={cadence} /></div><input id="ex-cadence" type="number" bind:value={cadence} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
+    {#if activeParams.includes('cadence')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-cadence" class="text-label text-content-subtle">Cadence (boulders or routes / min)</label><TargetHint prescribed={targetValues.cadence} current={cadence} /></div><input id="ex-cadence" type="number" inputmode="numeric" enterkeyhint="next" bind:value={cadence} class="field" /></div>{/if}
     {#if activeParams.includes('climbingStyle')}
       <div class="space-y-1.5">
-        <p class="text-label text-content-subtle ml-1">Climbing Style</p>
+        <p class="text-label text-content-subtle ml-1">Climbing style</p>
         <div class="flex flex-wrap gap-2">
           {#each climbingStyles as style}
             <button
               type="button"
+              aria-pressed={climbingStyle.includes(style)}
               onclick={() => {
                 if (climbingStyle.includes(style)) {
                   climbingStyle = climbingStyle.filter(s => s !== style);
@@ -429,7 +430,7 @@
                   climbingStyle = [...climbingStyle, style];
                 }
               }}
-              class="px-3 py-1.5 rounded-control border text-label transition-all {climbingStyle.includes(style) ? 'bg-primary-hover border-primary text-white' : 'bg-surface-elevated border-border-strong text-content-muted hover:text-content'}"
+              class="px-3 min-h-10 rounded-control border text-label transition-all {climbingStyle.includes(style) ? 'bg-primary border-primary text-on-primary' : 'bg-surface-elevated border-border-strong text-content-muted hover:text-content'}"
             >
               {style}
             </button>
@@ -437,33 +438,34 @@
         </div>
       </div>
     {/if}
-    {#if activeParams.includes('boardType')}<div class="space-y-1.5"><label for="ex-board-type" class="text-label text-content-subtle ml-1">Board Type</label><select id="ex-board-type" bind:value={boardType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each boardTypes as type} <option value={type}>{type}</option> {/each}</select></div>{/if}
-    {#if activeParams.includes('boardAngle') && !(perSetOpen && perSetKeys.includes('boardAngle'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-board-angle" class="text-label text-content-subtle">Board Angle (°)</label><TargetHint prescribed={targetValues.boardAngle} current={boardAngle} unit="°" /></div><select id="ex-board-angle" bind:value={boardAngle} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each boardAngles as angle} <option value={angle}>{angle}°</option> {/each}</select></div>{/if}
+    {#if activeParams.includes('boardType')}<div class="space-y-1.5"><label for="ex-board-type" class="text-label text-content-subtle ml-1">Board type</label><select id="ex-board-type" bind:value={boardType} class="field">{#each boardTypes as type} <option value={type}>{type}</option> {/each}</select></div>{/if}
+    {#if activeParams.includes('boardAngle') && !(perSetOpen && perSetKeys.includes('boardAngle'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-board-angle" class="text-label text-content-subtle">Board angle (°)</label><TargetHint prescribed={targetValues.boardAngle} current={boardAngle} unit="°" /></div><select id="ex-board-angle" bind:value={boardAngle} class="field">{#each boardAngles as angle} <option value={angle}>{angle}°</option> {/each}</select></div>{/if}
 
     <div class="contents">
-      {#if activeParams.includes('sets') && !perSetOpen}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-sets" class="text-label text-content-subtle">Sets</label><TargetHint prescribed={targetValues.sets} current={sets} /></div><input id="ex-sets" type="number" bind:value={sets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.sets ? 'border-danger/50' : ''}" />{#if validationErrors.sets}<p class="text-label text-danger ml-1">{validationErrors.sets}</p>{/if}</div>{/if}
-      {#if activeParams.includes('reps') && !(perSetOpen && perSetKeys.includes('reps'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={repsRepresentative(targetValues.reps)} current={reps} /></div><input id="ex-reps" type="number" bind:value={reps} oninput={() => repsEdited = true} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" />{#if !repsEdited && Array.isArray(originalReps)}<p class="text-caption text-content-subtle ml-1">Per set: {originalReps.join(', ')} &mdash; editing replaces all sets</p>{/if}</div>{/if}
-      {#if activeParams.includes('movesPerRoute')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-moves" class="text-label text-content-subtle">Moves per route</label><TargetHint prescribed={targetValues.movesPerRoute} current={movesPerRoute} /></div><input id="ex-moves" type="number" bind:value={movesPerRoute} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
+      {#if activeParams.includes('sets') && !perSetOpen}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-sets" class="text-label text-content-subtle">Sets</label><TargetHint prescribed={targetValues.sets} current={sets} /></div><input id="ex-sets" type="number" inputmode="numeric" enterkeyhint="next" bind:value={sets} class="field {validationErrors.sets ? '!border-danger' : ''}" />{#if validationErrors.sets}<p class="text-label text-danger ml-1">{validationErrors.sets}</p>{/if}</div>{/if}
+      {#if activeParams.includes('reps') && !(perSetOpen && perSetKeys.includes('reps'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-reps" class="text-label text-content-subtle">Reps</label><TargetHint prescribed={repsRepresentative(targetValues.reps)} current={reps} /></div><input id="ex-reps" type="number" inputmode="numeric" enterkeyhint="next" bind:value={reps} oninput={() => repsEdited = true} class="field" />{#if !repsEdited && Array.isArray(originalReps)}<p class="text-caption text-content-subtle ml-1">Per set: {originalReps.join(', ')}. Editing replaces all sets.</p>{/if}</div>{/if}
+      {#if activeParams.includes('movesPerRoute')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-moves" class="text-label text-content-subtle">Moves per route</label><TargetHint prescribed={targetValues.movesPerRoute} current={movesPerRoute} /></div><input id="ex-moves" type="number" inputmode="numeric" enterkeyhint="next" bind:value={movesPerRoute} class="field" /></div>{/if}
     </div>
-    {#if activeParams.includes('holdType')}<div class="space-y-1.5"><label for="ex-hold" class="text-label text-content-subtle ml-1">Hold Type</label><select id="ex-hold" bind:value={holdType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each holdTypes as h} <option value={h}>{h}</option> {/each}</select></div>{/if}
-    {#if activeParams.includes('timeOn') && !(perSetOpen && perSetKeys.includes('timeOn'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-on" class="text-label text-content-subtle">Time On (s)</label><TargetHint prescribed={targetValues.timeOn} current={timeOn} unit="s" /></div><input id="ex-on" type="number" bind:value={timeOn} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
-    {#if activeParams.includes('timeOn') && activeParams.includes('reps')}<div class="space-y-1.5"><label for="ex-replabel" class="text-label text-content-subtle ml-1">Each rep is a</label><select id="ex-replabel" bind:value={repLabel} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm"><option value="">Hang / work (default)</option>{#each REP_LABELS as l}<option value={l}>{l}{l === 'Side' || l === 'Arm' || l === 'Leg' ? ' - timer says Switch between' : ''}</option>{/each}</select></div>{/if}
-    {#if !inGroup && mode === 'prescribed' && (activeParams.includes('timeOn') || activeParams.includes('cadence') || activeParams.includes('reps'))}<div class="space-y-1.5"><label for="ex-leadin" class="text-label text-content-subtle ml-1">Get ready before the timer (s)</label><input id="ex-leadin" type="number" min="0" max="120" inputmode="numeric" placeholder="Default ({trainingState.tunable('timer.leadIn')} s)" value={leadInText} oninput={(e) => (leadInText = e.currentTarget.value)} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
-    {#if activeParams.includes('timeOff')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-off" class="text-label text-content-subtle">Time Off (s)</label><TargetHint prescribed={targetValues.timeOff} current={timeOff} unit="s" /></div><input id="ex-off" type="number" bind:value={timeOff} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
-    {#if activeParams.includes('restTime')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-rest" class="text-label text-content-subtle">Between Sets (s)</label><TargetHint prescribed={targetValues.timeBetweenSets} current={timeBetweenSets} unit="s" /></div><input id="ex-rest" type="number" bind:value={timeBetweenSets} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
-    {#if activeParams.includes('holdSize') && !(perSetOpen && perSetKeys.includes('holdSize'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-size" class="text-label text-content-subtle">Hold Size (mm)</label><TargetHint prescribed={targetValues.holdSize} current={holdSize} unit="mm" /></div><input id="ex-size" type="number" bind:value={holdSize} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm {validationErrors.holdSize ? 'border-danger/50' : ''}" />{#if validationErrors.holdSize}<p class="text-label text-danger ml-1">{validationErrors.holdSize}</p>{/if}</div>{/if}
-    {#if activeParams.includes('weight') && !(perSetOpen && perSetKeys.includes('weight'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-weight" class="text-label text-content-subtle">Weight ({trainingState.units.weight})</label><TargetHint prescribed={targetValues.weight !== undefined ? toDisplayWeight(targetValues.weight) : undefined} current={weight} unit={trainingState.units.weight} /></div><input id="ex-weight" type="number" bind:value={weight} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" placeholder="e.g. 10" /></div>{/if}
-    {#if activeParams.includes('bodyweightPercent') && !(perSetOpen && perSetKeys.includes('bodyweightPercent'))}<div class="space-y-4 pt-1"><label for="ex-bw" class="flex justify-between text-label text-content-subtle ml-1"><span>Added Weight (% of BW)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.bodyweightPercent} current={bodyweightPercent} unit="%" /><span class="text-primary font-mono text-caption tabular-nums">{bodyweightPercent}%{#if latestBodyweightKg} <span class="text-content-subtle">(≈ {formatWeight(latestBodyweightKg * bodyweightPercent / 100, trainingState.units.weight)})</span>{/if}</span></span></label><RangeSlider id="ex-bw" min={50} max={220} bind:value={bodyweightPercent} /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>50%</span><span>100% (BW)</span><span>220%</span></div></div>{/if}
+    {#if activeParams.includes('holdType')}<div class="space-y-1.5"><label for="ex-hold" class="text-label text-content-subtle ml-1">Hold type</label><select id="ex-hold" bind:value={holdType} class="field">{#each holdTypes as h} <option value={h}>{h}</option> {/each}</select></div>{/if}
+    {#if activeParams.includes('timeOn') && !(perSetOpen && perSetKeys.includes('timeOn'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-on" class="text-label text-content-subtle">Time on (s)</label><TargetHint prescribed={targetValues.timeOn} current={timeOn} unit="s" /></div><input id="ex-on" type="number" inputmode="numeric" enterkeyhint="next" bind:value={timeOn} class="field" /></div>{/if}
+    {#if activeParams.includes('timeOn') && activeParams.includes('reps')}<div class="space-y-1.5"><label for="ex-replabel" class="text-label text-content-subtle ml-1">Each rep is a</label><select id="ex-replabel" bind:value={repLabel} class="field"><option value="">Hang / work (default)</option>{#each REP_LABELS as l}<option value={l}>{l}{l === 'Side' || l === 'Arm' || l === 'Leg' ? ' - timer says Switch between' : ''}</option>{/each}</select></div>{/if}
+    {#if !inGroup && mode === 'prescribed' && (activeParams.includes('timeOn') || activeParams.includes('cadence') || activeParams.includes('reps'))}<div class="space-y-1.5"><label for="ex-leadin" class="text-label text-content-subtle ml-1">Get ready before the timer (s)</label><input id="ex-leadin" type="number" min="0" max="120" inputmode="numeric" placeholder="Default ({trainingState.tunable('timer.leadIn')} s)" value={leadInText} oninput={(e) => (leadInText = e.currentTarget.value)} class="field" /></div>{/if}
+    {#if activeParams.includes('timeOff')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-off" class="text-label text-content-subtle">Time off (s)</label><TargetHint prescribed={targetValues.timeOff} current={timeOff} unit="s" /></div><input id="ex-off" type="number" inputmode="numeric" enterkeyhint="next" bind:value={timeOff} class="field" /></div>{/if}
+    {#if activeParams.includes('restTime')}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-rest" class="text-label text-content-subtle">Between sets (s)</label><TargetHint prescribed={targetValues.timeBetweenSets} current={timeBetweenSets} unit="s" /></div><input id="ex-rest" type="number" inputmode="numeric" enterkeyhint="next" bind:value={timeBetweenSets} class="field" /></div>{/if}
+    {#if activeParams.includes('holdSize') && !(perSetOpen && perSetKeys.includes('holdSize'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-size" class="text-label text-content-subtle">Hold size (mm)</label><TargetHint prescribed={targetValues.holdSize} current={holdSize} unit="mm" /></div><input id="ex-size" type="number" inputmode="decimal" enterkeyhint="next" bind:value={holdSize} class="field {validationErrors.holdSize ? '!border-danger' : ''}" />{#if validationErrors.holdSize}<p class="text-label text-danger ml-1">{validationErrors.holdSize}</p>{/if}</div>{/if}
+    {#if activeParams.includes('weight') && !(perSetOpen && perSetKeys.includes('weight'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-weight" class="text-label text-content-subtle">Weight ({trainingState.units.weight})</label><TargetHint prescribed={targetValues.weight !== undefined ? toDisplayWeight(targetValues.weight) : undefined} current={weight} unit={trainingState.units.weight} /></div><input id="ex-weight" type="number" enterkeyhint="next" bind:value={weight} class="field" placeholder="e.g. 10" /></div>{/if}
+    {#if activeParams.includes('bodyweightPercent') && !(perSetOpen && perSetKeys.includes('bodyweightPercent'))}<div class="space-y-4 pt-1"><label for="ex-bw" class="flex justify-between text-label text-content-subtle ml-1"><span>Added weight (% of BW)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.bodyweightPercent} current={bodyweightPercent} unit="%" /><span class="text-primary font-mono text-caption tabular-nums">{bodyweightPercent}%{#if latestBodyweightKg} <span class="text-content-subtle">(≈ {formatWeight(latestBodyweightKg * bodyweightPercent / 100, trainingState.units.weight)})</span>{/if}</span></span></label><RangeSlider id="ex-bw" min={50} max={220} bind:value={bodyweightPercent} /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>50%</span><span>100% (BW)</span><span>220%</span></div></div>{/if}
     {#if activeParams.includes('maxWeightPercent') && !(perSetOpen && perSetKeys.includes('maxWeightPercent'))}<div class="space-y-4 pt-1"><label for="ex-mw" class="flex justify-between text-label text-content-subtle ml-1"><span>Load (% of Max)</span><span class="flex items-center gap-2"><TargetHint prescribed={targetValues.maxWeightPercent} current={maxWeightPercent} unit="%" /><span class="text-success font-mono text-caption tabular-nums">{maxWeightPercent}%</span></span></label><RangeSlider id="ex-mw" min={10} max={150} bind:value={maxWeightPercent} tone="success" /><div class="flex justify-between text-caption text-content-muted px-1 mt-1"><span>10%</span><span>100% (Max)</span><span>150%</span></div></div>{/if}
-    {#if activeParams.includes('distance') && !(perSetOpen && perSetKeys.includes('distance'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-distance" class="text-label text-content-subtle">Distance (km)</label><TargetHint prescribed={targetValues.distance} current={distance} unit="km" /></div><input id="ex-distance" type="number" step="0.1" bind:value={distance} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" /></div>{/if}
-    {#if activeParams.includes('campusStyle')}<div class="space-y-1.5"><label for="ex-campus" class="text-label text-content-subtle ml-1">Campus Style</label><select id="ex-campus" bind:value={campusType} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm">{#each campusStyles as c} <option value={c}>{c}</option> {/each}</select></div>{/if}
+    {#if activeParams.includes('distance') && !(perSetOpen && perSetKeys.includes('distance'))}<div class="space-y-1.5"><div class="flex justify-between items-center ml-1"><label for="ex-distance" class="text-label text-content-subtle">Distance (km)</label><TargetHint prescribed={targetValues.distance} current={distance} unit="km" /></div><input id="ex-distance" type="number" inputmode="decimal" enterkeyhint="next" step="0.1" bind:value={distance} class="field" /></div>{/if}
+    {#if activeParams.includes('campusStyle')}<div class="space-y-1.5"><label for="ex-campus" class="text-label text-content-subtle ml-1">Campus style</label><select id="ex-campus" bind:value={campusType} class="field">{#each campusStyles as c} <option value={c}>{c}</option> {/each}</select></div>{/if}
     {#if activeParams.includes('mobilityType')}
       <div class="space-y-1.5">
-        <p class="text-label text-content-subtle ml-1">Mobility Focus</p>
+        <p class="text-label text-content-subtle ml-1">Mobility focus</p>
         <div class="flex flex-wrap gap-2">
           {#each mobilityTypes as type}
             <button
               type="button"
+              aria-pressed={mobilityType.includes(type)}
               onclick={() => {
                 if (mobilityType.includes(type)) {
                   mobilityType = mobilityType.filter(t => t !== type);
@@ -471,7 +473,7 @@
                   mobilityType = [...mobilityType, type];
                 }
               }}
-              class="px-3 py-1.5 rounded-control border text-label transition-all {mobilityType.includes(type) ? 'bg-primary-hover border-primary text-white' : 'bg-surface-elevated border-border-strong text-content-muted hover:text-content'}"
+              class="px-3 min-h-10 rounded-control border text-label transition-all {mobilityType.includes(type) ? 'bg-primary border-primary text-on-primary' : 'bg-surface-elevated border-border-strong text-content-muted hover:text-content'}"
             >
               {type}
             </button>
@@ -486,6 +488,7 @@
           {#each leadStyles as style}
             <button
               type="button"
+              aria-pressed={leadStyle.includes(style)}
               onclick={() => {
                 if (leadStyle.includes(style)) {
                   leadStyle = leadStyle.filter(s => s !== style);
@@ -493,7 +496,7 @@
                   leadStyle = [...leadStyle, style];
                 }
               }}
-              class="px-3 py-1.5 rounded-control border text-label transition-all {leadStyle.includes(style) ? 'bg-primary-hover border-primary text-white' : 'bg-surface-elevated border-border-strong text-content-muted hover:text-content'}"
+              class="px-3 min-h-10 rounded-control border text-label transition-all {leadStyle.includes(style) ? 'bg-primary border-primary text-on-primary' : 'bg-surface-elevated border-border-strong text-content-muted hover:text-content'}"
             >
               {style}
             </button>
@@ -509,9 +512,9 @@
           {#if def.kind === 'number'}<TargetHint prescribed={typeof targetValues.custom?.[def.id] === 'number' ? (targetValues.custom[def.id] as number) : undefined} current={customDraft[def.id] === undefined || customDraft[def.id] === '' ? undefined : Number(customDraft[def.id])} unit={def.unit ?? ''} />{/if}
         </div>
         {#if def.kind === 'number'}
-          <input id="ex-custom-{def.id}" type="number" inputmode="decimal" step="any" value={customDraft[def.id] ?? ''} oninput={(e) => customDraft[def.id] = e.currentTarget.value} placeholder="—" class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm" />
+          <input id="ex-custom-{def.id}" type="number" inputmode="decimal" step="any" value={customDraft[def.id] ?? ''} oninput={(e) => customDraft[def.id] = e.currentTarget.value} placeholder="—" class="field" />
         {:else}
-          <select id="ex-custom-{def.id}" value={customDraft[def.id] ?? ''} onchange={(e) => customDraft[def.id] = e.currentTarget.value} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm appearance-none cursor-pointer">
+          <select id="ex-custom-{def.id}" value={customDraft[def.id] ?? ''} onchange={(e) => customDraft[def.id] = e.currentTarget.value} class="field">
             <option value="">—</option>
             {#each def.options ?? [] as option}<option value={option}>{option}</option>{/each}
             {#if customDraft[def.id] && !(def.options ?? []).includes(customDraft[def.id])}<option value={customDraft[def.id]}>{customDraft[def.id]}</option>{/if}
@@ -519,11 +522,11 @@
         {/if}
       </div>
     {/each}
-    {#if activeParams.includes('routeDifficulty')}<div class="space-y-1.5"><label for="ex-route-diff" class="text-label text-content-subtle ml-1">Route Difficulty</label><select id="ex-route-diff" bind:value={routeDifficulty} class="w-full bg-surface-elevated text-content p-3.5 rounded-control border border-border-strong outline-none text-sm appearance-none cursor-pointer"><option value="Easy">Easy</option><option value="Moderate">Moderate</option><option value="Hard">Hard</option></select></div>{/if}
+    {#if activeParams.includes('routeDifficulty')}<div class="space-y-1.5"><label for="ex-route-diff" class="text-label text-content-subtle ml-1">Route difficulty</label><select id="ex-route-diff" bind:value={routeDifficulty} class="field"><option value="Easy">Easy</option><option value="Moderate">Moderate</option><option value="Hard">Hard</option></select></div>{/if}
 
     <details class="group border-t border-border/50 pt-4">
-      <summary class="flex justify-between items-center cursor-pointer list-none text-section uppercase text-content-subtle hover:text-content outline-none transition-colors">
-        <span>Customize Tracked Fields</span>
+      <summary class="flex justify-between items-center cursor-pointer list-none min-h-11 text-label font-bold text-content-subtle hover:text-content outline-none transition-colors">
+        <span>Customize tracked fields</span>
         <Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg group-open:rotate-180 transition-transform" />
       </summary>
       <div class="grid grid-cols-2 gap-2 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -537,7 +540,8 @@
                 activeParams = [...activeParams, id];
               }
             }}
-            class="px-3 py-2 rounded-control text-label border transition-all flex items-center gap-2 {activeParams.includes(id) ? 'bg-primary-hover/10 border-primary/50 text-primary-hover' : 'bg-surface border-border text-content-subtle'}"
+            role="checkbox" aria-checked={activeParams.includes(id)}
+            class="px-3 min-h-11 rounded-control text-label border transition-all flex items-center gap-2 {activeParams.includes(id) ? 'bg-primary/10 border-primary/50 text-primary' : 'bg-surface border-border text-content-subtle'}"
           >
             <Icon icon={activeParams.includes(id) ? 'ic:baseline-check-box' : 'ic:baseline-check-box-outline-blank'} class="text-sm" />
             <span class="text-left flex-1">{paramLabel(id, trainingState.valueDefs)}</span>
@@ -547,8 +551,8 @@
     </details>
 
     <div class="space-y-1.5 pt-4 border-t border-border/50">
-      <label for="ex-category" class="text-label text-content-subtle ml-1">Analytics Type</label>
-      <select id="ex-category" bind:value={categoryOverride} class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border-strong outline-none text-sm appearance-none cursor-pointer">
+      <label for="ex-category" class="text-label text-content-subtle ml-1">Counts toward</label>
+      <select id="ex-category" bind:value={categoryOverride} class="field">
         <option value="">Default ({activeTypeDef?.category || 'Other'})</option>
         {#each trainingState.analyticsCategories as cat}
           <option value={cat.id}>{cat.name}</option>
@@ -582,32 +586,35 @@
     <div class="space-y-1.5 pt-4 border-t border-border/50">
       {#if mode === 'logged' && initialSlot?.prescribed}
         <label for="ex-plan-notes" class="text-label text-content-subtle ml-1">Plan note</label>
-        <textarea id="ex-plan-notes" bind:value={planNoteText} placeholder="Focus on footwork..." class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border-strong outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
+        <textarea id="ex-plan-notes" bind:value={planNoteText} placeholder="e.g. focus on footwork" class="field" rows="2"></textarea>
       {/if}
       <label for="ex-notes" class="text-label text-content-subtle ml-1">{mode === 'logged' ? 'How it went' : 'Exercise Notes'}</label>
-      <textarea id="ex-notes" bind:value={notes} placeholder={mode === 'logged' ? 'How did it feel? Anything worth remembering?' : 'Focus on footwork...'} class="w-full bg-surface-elevated/50 text-content p-3.5 rounded-control border border-border-strong outline-none transition-all placeholder:text-content-subtle text-sm" rows="2"></textarea>
+      <textarea id="ex-notes" bind:value={notes} placeholder={mode === 'logged' ? 'How did it feel? Anything worth remembering?' : 'e.g. keep the hips close to the wall'} class="field" rows="2"></textarea>
     </div>
 
     <div class="space-y-4 pt-4 border-t border-border/50">
-      <label for="ex-planned-load" class="flex justify-between text-label text-success ml-1">
-        <span>Target Intensity / Load</span>
+      <label for="ex-planned-load" class="flex justify-between text-label text-content-subtle ml-1">
+        <span>Target intensity</span>
         <span class="flex items-center gap-2">
           <TargetHint prescribed={targetValues.plannedLoad} current={plannedLoad} unit="/10" />
           <span class="text-success font-mono text-caption tabular-nums">{plannedLoad}/10</span>
         </span>
       </label>
       <RangeSlider id="ex-planned-load" bind:value={plannedLoad} tone="success" />
-      <p class="text-caption text-content-subtle italic ml-1 leading-relaxed">Estimated stress for this specific exercise.</p>
+      <p class="text-caption text-content-subtle ml-1 leading-relaxed">Estimated stress for this exercise, from 1 (very easy) to 10 (as hard as it gets).</p>
     </div>
   </div>
 
-  <button
-    onclick={handleSubmit}
-    disabled={!isValid || !activeTypeDef}
-    class="w-full bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold py-4 rounded-control shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
-  >
-    {initialSlot ? 'Update Exercise' : 'Add Exercise'}
-  </button>
+  <div class="sticky bottom-0 -mx-5 -mb-5 px-5 pt-3 pb-4 bg-surface/95 backdrop-blur-sm space-y-2 rounded-b-card">
+    {#if !activeTypeDef}
+      <p class="text-caption text-content-subtle" role="status">Choose an exercise to add it.</p>
+    {:else if !isValid}
+      <p class="text-label text-danger" role="alert">{Object.values(validationErrors)[0]}</p>
+    {/if}
+    <button onclick={handleSubmit} disabled={!isValid || !activeTypeDef} class="btn btn-primary w-full">
+      {initialSlot ? 'Update exercise' : 'Add exercise'}
+    </button>
+  </div>
 </div>
 
 {#if pickerOpen}

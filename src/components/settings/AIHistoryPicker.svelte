@@ -13,7 +13,7 @@
     <select
       value={value.fullWeeks}
       onchange={(e) => onchange({ ...value, fullWeeks: Number(e.currentTarget.value) })}
-      class="w-full bg-surface-elevated text-content px-3 py-2 rounded-control border border-border-strong outline-none text-label"
+      class="field"
     >
       {#each AI_HISTORY_FULL_WEEK_OPTIONS as n}<option value={n}>Last {weeks(n)}</option>{/each}
     </select>
@@ -23,7 +23,7 @@
     <select
       value={value.summaryWeeks}
       onchange={(e) => onchange({ ...value, summaryWeeks: Number(e.currentTarget.value) })}
-      class="w-full bg-surface-elevated text-content px-3 py-2 rounded-control border border-border-strong outline-none text-label"
+      class="field"
     >
       {#each AI_HISTORY_SUMMARY_WEEK_OPTIONS as n}<option value={n}>{n === 0 ? 'None' : `${weeks(n)} before`}</option>{/each}
     </select>

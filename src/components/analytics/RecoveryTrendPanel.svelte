@@ -34,6 +34,8 @@
   import { BODYWEIGHT_METRIC_ID, SLEEP_DURATION_METRIC } from '../../lib/constants';
   import Icon from "@iconify/svelte";
   import ChartEmpty from './ChartEmpty.svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import { formatDay } from '../../lib/dateUtils';
 
   let { firstDay, lastDay, today, timeline }: {
     /** First and last day index of the window (Monday of the first week, Sunday of the last). */
@@ -46,11 +48,12 @@
   } = $props();
 
   const STYLE: Record<string, { short: string; color: string }> = {
-    hrv: { short: 'HRV', color: 'var(--color-primary)' },
-    'sleep-score': { short: 'Sleep', color: 'var(--color-tertiary)' },
+    // Series colours (src/series.css): HRV 1, sleep 2, resting HR 3 - the same on every chart.
+    hrv: { short: 'HRV', color: 'var(--color-series-1)' },
+    'sleep-score': { short: 'Sleep score', color: 'var(--color-series-2)' },
     // The same slot, in hours, when the window has no sleep scores (Health Connect).
-    'sleep-duration': { short: 'Sleep', color: 'var(--color-tertiary)' },
-    rhr: { short: 'RHR', color: 'var(--color-warning)' },
+    'sleep-duration': { short: 'Sleep (h)', color: 'var(--color-series-2)' },
+    rhr: { short: 'RHR', color: 'var(--color-series-3)' },
   };
 
   const mode = $derived(trainingState.recoveryChartMode);
@@ -103,6 +106,10 @@
         })
       : new Map<number, number>(),
   );
+  const latestReadiness = $derived.by(() => {
+    for (let d = drawnLast; d >= firstDay; d--) { const v = readiness.get(d); if (v !== undefined) return v; }
+    return undefined;
+  });
   const insights = $derived(loadRecoveryInsights(trainingState.dailyMetrics, trainingState.workouts, today));
 
   // --- Path building. Everything is drawn in a 0-100 viewBox stretched to
@@ -245,6 +252,15 @@
     if (!isTapPointer(event)) selected = dayAt(event);
   }
   const taps = new TapTracker();
+  /** Arrow keys walk the days (from the latest reading), Home and End jump, Escape clears. */
+  function onKey(event: KeyboardEvent) {
+    if (event.key === 'Escape') { selected = null; return; }
+    const from = selected ?? latestDay ?? drawnLast;
+    const next = event.key === 'ArrowLeft' ? from - 1 : event.key === 'ArrowRight' ? from + 1 : event.key === 'Home' ? firstDay : event.key === 'End' ? drawnLast : null;
+    if (next === null) return;
+    event.preventDefault();
+    selected = Math.max(firstDay, Math.min(drawnLast, next));
+  }
   function onTap(event: PointerEvent) {
     // A swipe across the chart pages the window; it must not also pick a day.
     if (!isTapPointer(event) || !taps.isTap(event)) return;
@@ -274,7 +290,7 @@
     if (readoutDay === null) return null;
     const i = readoutDay - firstDay;
     return {
-      date: new Date(`${dayIndexToIso(readoutDay)}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }),
+      date: formatDay(dayIndexToIso(readoutDay), { weekday: 'short' }),
       metrics: metrics.map((m) => ({ ...m, day: m.series[i] })),
       readiness: readiness.get(readoutDay),
       load: loadByDay.get(readoutDay) ?? 0,
@@ -301,29 +317,12 @@
 <div id="section-recoveryTrend" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div class="min-w-0">
-      <h3 class="text-section uppercase text-content-muted">Recovery</h3>
+      <h3 class="text-section uppercase text-content-muted">Recovery Trends</h3>
       <p class="text-caption text-content-subtle mt-0.5">
-        {mode === 'overlay' ? '% vs your 28-day baseline · up is better' : 'Shaded: your normal range'}
+        {mode === 'overlay' ? '% vs your 28-day baseline, up is better (resting HR is flipped, so lower HR reads as up). One line per measure on one shared scale.' : 'One row per measure in its own unit. Shaded: your normal range.'}
       </p>
     </div>
-    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control shrink-0" role="group" aria-label="Chart layout">
-      <button
-        onclick={() => trainingState.setRecoveryChartMode('overlay')}
-        class="px-2.5 py-1 text-caption rounded-control transition-colors {mode === 'overlay' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-        aria-pressed={mode === 'overlay'}
-        title="All measures on one chart, as % vs your baseline"
-      >
-        Overlay
-      </button>
-      <button
-        onclick={() => trainingState.setRecoveryChartMode('lanes')}
-        class="px-2.5 py-1 text-caption rounded-control transition-colors {mode === 'lanes' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-        aria-pressed={mode === 'lanes'}
-        title="One row per measure, each on its own scale"
-      >
-        Rows
-      </button>
-    </div>
+    <Segmented label="Chart layout" options={[{ value: 'overlay', label: 'Overlay' }, { value: 'lanes', label: 'Rows' }]} value={mode} onChange={(v) => trainingState.setRecoveryChartMode(v)} />
   </div>
 
     <!-- Legend doubles as the metric filter. -->
@@ -332,17 +331,17 @@
         <button
           onclick={() => toggleMetric(m.id)}
           aria-pressed={!hidden.has(m.id)}
-          class="flex items-center gap-1.5 px-2 py-0.5 rounded-control border border-border text-caption transition-opacity {hidden.has(m.id) ? 'opacity-40' : ''}"
+          class="chip transition-opacity {hidden.has(m.id) ? 'opacity-40 line-through' : ''}"
         >
           <span class="w-2 h-2 rounded-full" style="background: {m.color}"></span>
-          <span class="text-content-muted">{m.short}</span>
+          <span class="text-content-muted">{m.short}{m.id === 'rhr' && mode === 'overlay' ? ' (flipped)' : ''}</span>
         </button>
       {/each}
     </div>
 
     <!-- Readout for the tapped day (or the latest), instead of a floating
          tooltip - it never has to fit beside a finger on a phone. -->
-    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-caption tabular-nums min-h-[1.25rem]">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-caption tabular-nums min-h-[1.25rem]" aria-live="polite">
       {#if readout}
         <span class="text-content-muted">{readout.date}</span>
         {#each readout.metrics as m (m.id)}
@@ -359,16 +358,20 @@
     </div>
 
     <div class="flex gap-2">
-      <div class="w-8 shrink-0"></div>
+      <div class="w-10 shrink-0"></div>
       <div class="flex-1 min-w-0">
         <PhaseBand segments={timeline.segments} goals={timeline.goals} xOf={(day) => ((day - firstDay) / dayCount) * 100} />
       </div>
     </div>
 
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
     <div
       bind:this={plotEl}
       class="relative cursor-crosshair select-none"
-      role="presentation"
+      role="application"
+      tabindex="0"
+      aria-label="Recovery measures by day. Left and right arrow keys move between days; the readout above gives the values."
+      onkeydown={onKey}
       onpointerdown={taps.down}
       onpointermove={onMove}
       onpointerleave={(e) => { if (!isTapPointer(e)) selected = null; }}
@@ -376,7 +379,7 @@
     >
       {#if mode === 'overlay'}
         <div class="flex gap-2">
-          <div class="w-8 shrink-0 h-40 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
+          <div class="w-10 shrink-0 h-40 flex flex-col justify-between items-end text-caption leading-none text-content-subtle tabular-nums">
             <span>+{overlayRange}%</span>
             <span>0</span>
             <span>−{overlayRange}%</span>
@@ -411,7 +414,7 @@
           {#each lanePaths as lane (lane.id)}
             {@const latest = [...lane.series].reverse().find((d) => d.avg !== undefined)}
             <div class="flex gap-2">
-              <div class="w-8 shrink-0 text-caption leading-tight text-right pt-4" style="color: {lane.color}">{lane.short}</div>
+              <div class="w-10 shrink-0 text-caption leading-tight text-right pt-4" style="color: {lane.color}">{lane.short}</div>
               <div class="flex-1 min-w-0">
                 <!-- The 7-day value on its own line above the lane: inside the
                      plot it sat on top of the newest days and hid them. -->
@@ -436,10 +439,10 @@
 
       <!-- Readiness (0-100) and daily load, sharing the same day axis. -->
       <div class="flex gap-2 mt-2">
-        <div class="w-8 shrink-0 text-caption leading-tight text-right text-content-subtle">Ready</div>
+        <div class="w-10 shrink-0 text-caption leading-tight text-right text-content-subtle">Ready{#if latestReadiness !== undefined}<span class="block text-content tabular-nums">{Math.round(latestReadiness)}</span>{/if}</div>
         <div class="flex-1 min-w-0 h-8 relative">
           <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-            <path d={readinessLine} stroke="var(--color-status-good)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
+            <path d={readinessLine} stroke="var(--color-series-4)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none" />
           </svg>
           {#if readoutDay !== null}
             <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(readoutDay)}%"></div>
@@ -448,7 +451,7 @@
       </div>
       {#if bodyweight || everWeighed}
         <div class="flex gap-2 mt-2">
-          <div class="w-8 shrink-0 text-caption leading-tight text-right text-content-subtle pt-4">Weight</div>
+          <div class="w-10 shrink-0 text-caption leading-tight text-right text-content-subtle pt-4">Weight</div>
           <div class="flex-1 min-w-0">
             <p class="h-4 text-right text-caption leading-none text-content-subtle tabular-nums">
               {#if bodyweight?.latest !== undefined}{formatWeight(bodyweight.latest, trainingState.units.weight)}{/if}
@@ -466,7 +469,7 @@
         </div>
       {/if}
       <div class="flex gap-2 mt-1">
-        <div class="w-8 shrink-0 text-caption leading-tight text-right text-content-subtle">Load</div>
+        <div class="w-10 shrink-0 text-caption leading-tight text-right text-content-subtle">Load</div>
         <div class="flex-1 min-w-0 h-8 relative">
           <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
             {#each axisDays as day}
@@ -480,17 +483,17 @@
       </div>
 
       <div class="flex gap-2">
-        <div class="w-8 shrink-0"></div>
+        <div class="w-10 shrink-0"></div>
         <div class="flex-1 min-w-0" bind:this={axisEl}>
           <div class="border-t border-border-strong/60"></div>
           <div class="relative h-4">
             {#each axisDays as day, i}
               {#if showsLabel(i, axisDays.length, axisStep)}
                 <span
-                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
+                  class="absolute top-0 text-caption leading-tight text-content-subtle whitespace-nowrap"
                   style="left: {xOf(day)}%; transform: translateX({i === 0 ? '0' : i === axisDays.length - 1 ? '-100%' : '-50%'});"
                 >
-                  {new Date(`${dayIndexToIso(day)}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  {formatDay(dayIndexToIso(day))}
                 </span>
               {/if}
             {/each}
@@ -519,7 +522,7 @@
             <Icon icon="ic:baseline-insights" class="text-sm shrink-0 mt-0.5 text-content-subtle" />
             <span>
               {insightText(insight.metricId, insight.afterHard, insight.afterRest)}
-              <span class="text-content-subtle">({insight.hardDays} hard, {insight.restDays} rest days, last 6 months)</span>
+              <span class="text-content-subtle">({insight.hardDays} hard, {insight.restDays} rest days, over the last 6 months whatever range is chosen)</span>
             </span>
           </p>
         {/each}

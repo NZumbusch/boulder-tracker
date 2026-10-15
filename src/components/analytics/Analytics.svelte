@@ -41,6 +41,7 @@
   import BenchmarkOverviewPanel from './BenchmarkOverviewPanel.svelte';
   import { dayIndexToIso, localDayIndex } from '../../lib/analytics/recoverySeries';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
+  import Segmented from '../ui/Segmented.svelte';
   import LoadPanel from './LoadPanel.svelte';
   import MixPanel from './MixPanel.svelte';
   import BenchmarkPanel from './BenchmarkPanel.svelte';
@@ -156,7 +157,7 @@
   // points at; the Overview shows the few that matter most right now, across all of them.
   const findings = $derived(buildInsights(trainingState.insightInputs()));
   const tabFindings = $derived(tab === 'overview' ? topFindings(findings) : findings.filter((f) => findingTab(f) === tab));
-  const FINDINGS_TITLE: Record<Tab, string> = { overview: 'Worth a look', training: 'About your training', recovery: 'About your recovery', progress: 'About your progress' };
+  const FINDINGS_TITLE: Record<Tab, string> = { overview: 'Findings', training: 'Training findings', recovery: 'Recovery findings', progress: 'Progress findings' };
   const ASK_GROUP: Record<Tab, InsightGroup> = { overview: 'push', training: 'plan', recovery: 'body', progress: 'strength' };
 
   /** An insight's link: the ACWR breakdown, or the chart behind it on its own tab. */
@@ -170,6 +171,21 @@
     if (MORE_OF[link.section.replace('section-', '')]) moreOpen = true;
     await tick();
     document.getElementById(link.section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // --- Tabs by keyboard: arrows move along the row and the focus goes with the selection (roving tabindex).
+  async function onTabKeys(event: KeyboardEvent) {
+    const i = TABS.findIndex((t) => t.id === tab);
+    const next = event.key === 'ArrowRight' ? (i + 1) % TABS.length
+      : event.key === 'ArrowLeft' ? (i - 1 + TABS.length) % TABS.length
+      : event.key === 'Home' ? 0
+      : event.key === 'End' ? TABS.length - 1
+      : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    tab = TABS[next].id;
+    await tick();
+    document.getElementById(`analytics-tab-${tab}`)?.focus();
   }
 
   // --- Handlers ---
@@ -219,10 +235,11 @@
     return { hrv: ids.has('hrv'), rhr: ids.has('rhr'), sleep: ids.has('sleep-score') || ids.has('sleep-duration'), sends: trainingState.outdoorAscents.length > 0 };
   });
   const RANGE_WORDS: Record<typeof range, string> = { '4w': '4 weeks', '3m': '3 months', '6m': '6 months', '1y': 'year' };
+  // "the previous 4 weeks" / "the previous year": the window just before this one, of the same length.
   const comparisonLabel = $derived(
     summary.partial
-      ? `Arrows: vs the same number of days of the ${RANGE_WORDS[range]} before`
-      : `Arrows: vs the ${RANGE_WORDS[range]} before`,
+      ? `Change vs the same days of the previous ${RANGE_WORDS[range]}`
+      : `Change vs the previous ${RANGE_WORDS[range]}`,
   );
 
   // --- Phase band: blocks and goals over the window.
@@ -449,75 +466,64 @@
 </div>
 {:else}
 <div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
-  <AppBar title="Analytics">
+  <AppBar title="Analytics" subtitle={windowDateRange}>
     {#snippet actions()}
-      <!-- Window paging and CSV export share one quiet row of controls. -->
+      <!-- Window paging: a step is one whole range, so the buttons say which. "Today" is only there when you are away
+           from the current window. -->
         <button
           onclick={() => navigate('prev')}
-          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
-          aria-label="Earlier"
+          class="btn-icon"
+          aria-label="Previous {RANGE_WORDS[range]}"
+          title="Previous {RANGE_WORDS[range]}"
         >
-          <Icon icon="ic:baseline-chevron-left" class="text-lg" />
+          <Icon icon="ic:baseline-chevron-left" class="text-2xl" />
         </button>
-        <button
-          onclick={() => navigate('today')}
-          class="px-2 py-1 text-caption rounded-control hover:bg-surface-elevated transition-colors {viewOffset === 0 ? 'text-content-subtle/50' : 'text-primary'}"
-        >
-          Today
-        </button>
+        {#if viewOffset !== 0}
+          <button onclick={() => navigate('today')} class="btn-quiet px-3 text-label text-primary hover:bg-surface-elevated/60">Today</button>
+        {/if}
         <button
           onclick={() => navigate('next')}
-          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
-          aria-label="Later"
+          class="btn-icon"
+          aria-label="Next {RANGE_WORDS[range]}"
+          title="Next {RANGE_WORDS[range]}"
         >
-          <Icon icon="ic:baseline-chevron-right" class="text-lg" />
-        </button>
-        <button
-          onclick={() => trainingState.exportToCSV()}
-          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
-          aria-label="Export CSV"
-          title="Export CSV"
-        >
-          <Icon icon="ic:baseline-download" class="text-base" />
+          <Icon icon="ic:baseline-chevron-right" class="text-2xl" />
         </button>
     {/snippet}
   </AppBar>
   <div class="flex flex-col gap-2.5">
-    <div class="grid grid-cols-4 gap-0.5 bg-surface-elevated/50 p-1 rounded-control" role="tablist" data-tour="analytics-tabs">
+    <div class="seg grid grid-cols-4 gap-0.5" role="tablist" aria-label="Analytics sections" data-tour="analytics-tabs">
       {#each TABS as t}
         <button
           role="tab"
+          id="analytics-tab-{t.id}"
           aria-selected={tab === t.id}
+          aria-controls="analytics-panel"
+          tabindex={tab === t.id ? 0 : -1}
           onclick={() => (tab = t.id)}
-          class="min-w-0 py-1.5 text-label rounded-control transition-colors {tab === t.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+          onkeydown={onTabKeys}
+          class="seg-item min-w-0 text-label {tab === t.id ? 'seg-on' : 'hover:text-content'}"
         >
           {t.label}
         </button>
       {/each}
     </div>
 
-    <!-- Range preset, and what it covers in dates. -->
-    <div class="flex items-center justify-between gap-3 px-1">
-      <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Range" data-tour="analytics-range">
-        {#each ANALYTICS_RANGES as r}
-          <button
-            role="radio"
-            aria-checked={range === r}
-            onclick={() => setRange(r)}
-            class="px-2.5 py-1 text-caption rounded-control transition-colors {range === r ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-          >
-            {RANGE_LABELS[r]}
-          </button>
-        {/each}
-      </div>
-      <span class="text-caption text-content-subtle/80 text-right leading-tight">{windowDateRange}</span>
+    <!-- Range preset; the dates it covers are the page title's second line. -->
+    <div data-tour="analytics-range">
+      <Segmented
+        label="Range"
+        options={ANALYTICS_RANGES.map((r) => ({ value: r, label: RANGE_LABELS[r] }))}
+        value={range}
+        onChange={setRange}
+      />
     </div>
   </div>
 
   <!-- touch-action keeps vertical scrolling native while a sideways swipe
        pages the window (see lib/analytics/swipe.ts). -->
-  <div class="space-y-4 touch-pan-y" bind:this={panelsEl} bind:clientWidth={panelsWidth} use:swipePaging={(d) => navigate(d)}>
-    {#if tab === 'overview'}<SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} logged={summaryLogged} />{/if}
+  <div class="space-y-4 touch-pan-y" role="tabpanel" id="analytics-panel" aria-labelledby="analytics-tab-{tab}" bind:this={panelsEl} bind:clientWidth={panelsWidth} use:swipePaging={(d) => navigate(d)}>
+    {#if tab === 'overview'}<SummaryStrip current={summary.current} previous={summary.previous} {comparisonLabel} logged={summaryLogged} onOpen={openInsight} />{/if}
 
 
     <div class="space-y-5">
@@ -605,7 +611,7 @@
           class="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-control bg-surface-elevated/50 text-label text-content-subtle hover:text-content transition-colors"
           aria-expanded={moreOpen}
         >
-          <span>More charts <span class="text-content-subtle/70">· {moreSections.length === 1 ? '1 chart' : `${moreSections.length} charts`}</span></span>
+          <span>More charts <span class="text-content-subtle">· {moreSections.length === 1 ? '1 chart' : `${moreSections.length} charts`}</span></span>
           <Icon icon={moreOpen ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-xl" />
         </button>
         {#if moreOpen}
@@ -614,10 +620,16 @@
       {/if}
 
       {#if tabSections.length === 0 && tab !== 'overview'}
-        <p class="text-caption text-content-subtle italic text-center py-8 px-8 leading-relaxed">
-          Every card on this tab is hidden - turn them back on under {settingsPath('history')}
-        </p>
+        <div class="text-center py-8 px-8 space-y-2">
+          <p class="text-caption text-content-subtle italic leading-relaxed">Every card on this tab is hidden.</p>
+          <button onclick={() => trainingState.uiStore.openSettingsPage('history')} class="btn btn-ghost text-primary">Turn them back on: {settingsPath('history')}</button>
+        </div>
       {/if}
+
+      <!-- What the CSV holds is said on the button: every logged session with its exercises, not the charts. -->
+      <button onclick={() => trainingState.exportToCSV()} class="btn btn-ghost w-full">
+        <Icon icon="ic:baseline-download" class="text-lg" />Export all sessions as CSV
+      </button>
 
     </div>
   </div>

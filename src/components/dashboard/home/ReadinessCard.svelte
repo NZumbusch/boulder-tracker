@@ -9,6 +9,7 @@
   import { slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { motionMs } from '../../../lib/motion';
+  import { READINESS_WORD } from '../../../lib/home/readinessWords';
 
   let { data }: { data: HomeData } = $props();
   const readiness = $derived(data.readiness);
@@ -24,16 +25,6 @@
     risk: 'bg-status-risk',
     neutral: 'bg-status-neutral',
   };
-  // Bold hero treatment: a status-tinted gradient + border in this app's
-  // status tokens. Full literal Tailwind class strings, not
-  // built via template interpolation - Tailwind's JIT can't see classes
-  // assembled at runtime, only ones it can find as complete strings.
-  const STATUS_HERO_BG: Record<ReadinessStatus, string> = {
-    good: 'bg-surface-elevated/35 border-transparent',
-    caution: 'bg-surface-elevated/35 border-transparent',
-    risk: 'bg-surface-elevated/35 border-transparent',
-    neutral: 'bg-surface-elevated/35 border-transparent',
-  };
   const STATUS_ICON: Record<ReadinessStatus, string> = {
     good: 'ic:baseline-local-fire-department',
     caution: 'ic:baseline-info',
@@ -45,7 +36,7 @@
   let showBreakdown = $state(false);
   const BREAKDOWN_ROWS = $derived([
     { label: 'Fatigue', penalty: readiness.penalties.fatigue, max: MAX_FATIGUE_PENALTY, used: readiness.inputsUsed.fatigue },
-    { label: 'Load', penalty: readiness.penalties.acwr, max: MAX_ACWR_PENALTY, used: readiness.inputsUsed.acwr },
+    { label: 'Load ratio', penalty: readiness.penalties.acwr, max: MAX_ACWR_PENALTY, used: readiness.inputsUsed.acwr },
     { label: 'Sleep', penalty: readiness.penalties.sleep, max: MAX_SLEEP_PENALTY, used: readiness.inputsUsed.sleep },
     { label: 'HRV', penalty: readiness.penalties.hrv, max: MAX_HRV_PENALTY, used: readiness.inputsUsed.hrv },
     // Only with an open issue - no pain isn't "no data".
@@ -90,9 +81,7 @@
   const canBreakDown = $derived(trainingState.homeDetails['readiness.breakdown'] && readiness.score !== undefined);
 </script>
 
-<div
-  class="relative overflow-hidden rounded-card border p-5 transition-colors {STATUS_HERO_BG[readiness.status]}"
->
+<div class="card relative overflow-hidden">
  <div class="flex items-center gap-5">
   <button
     class="relative w-28 h-28 shrink-0 rounded-full {canBreakDown ? 'cursor-pointer' : 'cursor-default'}"
@@ -121,9 +110,14 @@
     </div>
   </button>
   <div class="min-w-0 space-y-1.5">
-    <span class="text-section uppercase {STATUS_COLOR[readiness.status]}">{readiness.status}</span>
+    <span class="text-section uppercase {STATUS_COLOR[readiness.status]}">{READINESS_WORD[readiness.status]}</span>
     <p class="text-body text-content leading-snug">{readiness.advice}</p>
     <!-- Stays put when the breakdown opens: hiding it made the card jump. -->
+    {#if canBreakDown}
+      <button onclick={() => (showBreakdown = !showBreakdown)} class="btn-quiet -ml-1 px-1 text-label text-primary gap-0.5" aria-expanded={showBreakdown}>
+        {showBreakdown ? 'Hide why' : 'Why this score'}<Icon icon={showBreakdown ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-base" />
+      </button>
+    {/if}
     {#if trainingState.homeDetails['readiness.confidence']}
       <p class="text-caption text-content-subtle flex items-start gap-1">
         <Icon icon="ic:baseline-insights" class="text-content-subtle text-sm mt-0.5 shrink-0" />
@@ -136,21 +130,21 @@
     <div class="mt-4 pt-3 border-t border-border/60 space-y-2" transition:slide={{ duration: motionMs(260), easing: cubicOut }}>
       {#each BREAKDOWN_ROWS as row}
         {#snippet rowBody(row: (typeof BREAKDOWN_ROWS)[number])}
-          <span class="w-14 text-label text-content-subtle shrink-0">{row.label}</span>
+          <span class="min-w-14 whitespace-nowrap text-label text-content-subtle shrink-0">{row.label}</span>
           <div class="flex-1 h-1.5 bg-surface-elevated rounded-control overflow-hidden border border-border-strong/30">
             <div class="h-full rounded-control origin-left {STATUS_BAR[rowStatus(row.penalty, row.max, row.used)]} breakdown-bar" style="width: {Math.min(100, (row.penalty / row.max) * 100)}%"></div>
           </div>
-          <span class="w-12 text-right text-label tabular-nums shrink-0 {!row.used ? 'text-content-subtle' : rowStatus(row.penalty, row.max, row.used) === 'good' ? 'text-content' : STATUS_COLOR[rowStatus(row.penalty, row.max, row.used)]}">
+          <span class="min-w-12 whitespace-nowrap text-right text-label tabular-nums shrink-0 {!row.used ? 'text-content-subtle' : rowStatus(row.penalty, row.max, row.used) === 'good' ? 'text-content' : STATUS_COLOR[rowStatus(row.penalty, row.max, row.used)]}">
             {row.used ? (Math.round(row.penalty) > 0 ? `−${Math.round(row.penalty)}` : '0') : 'no data'}
           </span>
         {/snippet}
-        {#if row.label === 'Load'}
-          <button class="flex items-center gap-3 w-full text-left" onclick={showAcwr}>{@render rowBody(row)}</button>
+        {#if row.label === 'Load ratio'}
+          <button class="flex items-center gap-3 w-full text-left min-h-9" onclick={showAcwr} aria-label="Load ratio: what it is made of">{@render rowBody(row)}<Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-base shrink-0 -ml-2" /></button>
         {:else}
           <div class="flex items-center gap-3">{@render rowBody(row)}</div>
         {/if}
       {/each}
-      <p class="text-caption text-content-subtle">Points taken off 100. Each bar is coloured by how much of its maximum it costs. Tap Load to see what it is made of.</p>
+      <p class="text-caption text-content-subtle">Points taken off 100. Each bar is coloured by how much of its maximum it costs. Tap Load ratio to see what it is made of.</p>
     </div>
   {/if}
 </div>

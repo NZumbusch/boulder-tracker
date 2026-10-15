@@ -9,6 +9,8 @@
   import { formatSize, shortCommit, commitUrl } from '../../lib/update/appUpdate';
 
   let { compact = false }: { compact?: boolean } = $props();
+  /** The build's fingerprint is for the curious: behind "Details", not on the card. */
+  let details = $state(false);
 
   const busy = $derived(updater.status === 'backing-up' || updater.status === 'downloading' || updater.status === 'installing');
   const changes = $derived(compact ? updater.changes.slice(0, 3) : updater.changes);
@@ -23,25 +25,28 @@
         <p class="text-caption text-content-subtle tabular-nums">
           Build {updater.available.versionCode}{updater.installedCode ? ` · you have ${updater.installedCode}` : ''}{formatSize(updater.available.size) ? ` · ${formatSize(updater.available.size)}` : ''}
         </p>
-        <p class="text-caption text-content-subtle tabular-nums truncate">
-          {#if shortCommit(updater.available.commit)}commit <a href={commitUrl(updater.available.commit)} target="_blank" rel="noopener" class="text-primary">{shortCommit(updater.available.commit)}</a> · {/if}SHA-256 {updater.available.sha256.slice(0, 12)}…
-        </p>
+        <button type="button" onclick={() => (details = !details)} aria-expanded={details} class="btn-quiet tap text-caption text-content-subtle hover:text-content -ml-1 px-1 min-h-0">{details ? 'Hide details' : 'Details'}</button>
+        {#if details}
+          <p class="text-caption text-content-subtle tabular-nums break-all">
+            {#if shortCommit(updater.available.commit)}commit <a href={commitUrl(updater.available.commit)} target="_blank" rel="noopener" class="text-primary">{shortCommit(updater.available.commit)}</a> · {/if}SHA-256 {updater.available.sha256.slice(0, 12)}…
+          </p>
+        {/if}
       </div>
       {#if compact && !busy}
-        <button onclick={() => updater.dismiss()} class="tap p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Not now">
-          <Icon icon="ic:baseline-close" class="text-lg" />
+        <button onclick={() => updater.dismiss()} class="btn-icon -mr-2 -mt-1" aria-label="Not now">
+          <Icon icon="ic:baseline-close" class="text-xl" />
         </button>
       {/if}
     </div>
 
     {#if changes.length}
       <ul class="text-caption text-content-muted space-y-0.5 list-disc list-inside">
-        {#each changes as line}<li class="truncate">{line}</li>{/each}
+        {#each changes as line}<li class="break-words">{line}</li>{/each}
       </ul>
     {/if}
 
     {#if updater.status === 'downloading'}
-      <div class="h-1.5 rounded-full bg-surface-elevated overflow-hidden" role="progressbar" aria-valuenow={Math.round(updater.progress * 100)} aria-valuemin={0} aria-valuemax={100}>
+      <div class="h-1.5 rounded-full bg-surface-elevated overflow-hidden" role="progressbar" aria-label="Download progress" aria-valuenow={Math.round(updater.progress * 100)} aria-valuemin={0} aria-valuemax={100}>
         <div class="h-full bg-primary transition-[width] duration-150" style="width: {Math.round(updater.progress * 100)}%"></div>
       </div>
     {/if}
@@ -49,19 +54,19 @@
       <p class="text-caption text-content-subtle flex items-center gap-1"><Icon icon="ic:baseline-check" class="text-sm text-success" />Backed up to {updater.backedUpTo}</p>
     {/if}
     {#if updater.error}
-      <p class="text-caption text-status-caution">{updater.error}</p>
+      <p class="text-caption text-status-caution" role="alert">{updater.error}</p>
     {/if}
 
     <button
       onclick={() => updater.install()}
       disabled={busy}
-      class="w-full py-2.5 rounded-control bg-primary hover:bg-primary-hover text-white text-label font-bold transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+      class="btn btn-primary w-full"
     >
       <Icon icon="ic:baseline-download" class="text-base" />
       {updater.status === 'backing-up' ? 'Backing up your data…' : updater.status === 'downloading' ? `Downloading ${Math.round(updater.progress * 100)}%` : updater.status === 'installing' ? 'Opening installer…' : 'Install'}
     </button>
     {#if !compact}
-      <p class="text-caption text-content-subtle">A backup of your data goes to Documents/BoulderTracker first. The download is checked against the SHA-256 above before Android asks you to confirm; your data stays - it's an update, not a reinstall.</p>
+      <p class="text-caption text-content-subtle">A backup of your data goes to Documents/BoulderTracker first. The download is checked against its SHA-256 fingerprint (under Details) before Android asks you to confirm; your data stays - it's an update, not a reinstall.</p>
     {/if}
   </div>
 {/if}

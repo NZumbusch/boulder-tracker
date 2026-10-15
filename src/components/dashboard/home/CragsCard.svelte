@@ -9,6 +9,7 @@
   import { outdoorSuggestion } from '../../../lib/weather/suggestion';
   import { T, FRICTION_STYLE, currentFriction, dayFriction, frictionText, formatRelativeAge } from './format';
   import SectionHeader from './SectionHeader.svelte';
+  import FrictionMark from './FrictionMark.svelte';
   import Icon from '@iconify/svelte';
 
   let { data }: { data: HomeData } = $props();
@@ -37,8 +38,9 @@
       {@const state = trainingState.cragWeather[i]}
       {@const snap = state?.snapshot}
       <div>
-        <button onclick={() => openCrag = openCrag === i ? null : i} class="w-full flex items-center gap-3 py-2.5 text-left" aria-expanded={openCrag === i}>
-          <span class="text-body font-semibold text-content flex-1 truncate">{crag.name}</span>
+        <div class="flex items-center gap-2">
+        <button onclick={() => openCrag = openCrag === i ? null : i} class="min-w-0 flex-1 flex items-center gap-3 py-2.5 text-left" aria-expanded={openCrag === i}>
+          <span class="text-body font-semibold text-content flex-1 min-w-0 line-clamp-2 break-words">{crag.name}</span>
           {#if snap}
             {@const f = currentFriction(snap)}
             <span class="text-label text-content tabular-nums">{T(snap.currentTempC)}</span>
@@ -48,12 +50,14 @@
               </span>
             {/if}
           {:else if state?.unavailable}
-            <span class="text-caption text-content-subtle italic">unavailable</span>
+            <span class="text-caption text-content-subtle">unavailable</span>
           {:else}
             <span class="text-caption text-content-subtle italic">loading…</span>
           {/if}
           <Icon icon="ic:baseline-chevron-right" class="text-content-subtle transition-transform {openCrag === i ? 'rotate-90' : ''}" />
         </button>
+        {#if state?.unavailable}<button onclick={() => void trainingState.refreshWeather()} class="btn btn-secondary shrink-0">Retry</button>{/if}
+        </div>
         {#if openCrag === i && snap}
           <div class="pb-2.5 space-y-2">
             {#if snap.recentRain && snap.recentRain.last72hMm > 0}
@@ -63,15 +67,11 @@
               {#each snap.daily as day}
                 {@const code = describeWeatherCode(day.weatherCode)}
                 {@const df = dayFriction(day)}
-                <div class="flex flex-col items-center gap-1 shrink-0 w-11">
+                <div class="flex flex-col items-center gap-1 shrink-0 w-12">
                   <span class="text-caption text-content-subtle">{forecastDayLabel(day.date, todayIso)}</span>
                   <span title={code.label} class="flex"><Icon icon={code.icon} class="text-lg text-primary" aria-label={code.label} /></span>
                   <span class="text-caption text-content tabular-nums">{T(day.tempMaxC)}</span>
-                  {#if trainingState.homeDetails['weather.frictionNumber']}
-                    <span class="text-caption tabular-nums leading-none {FRICTION_STYLE[df.label].text}" title={df.label}>{df.score.toFixed(0)}</span>
-                  {:else}
-                    <span class="w-2 h-2 rounded-full {FRICTION_STYLE[df.label].dot}" title={df.label}></span>
-                  {/if}
+                  <FrictionMark friction={df} />
                 </div>
               {/each}
             </div>

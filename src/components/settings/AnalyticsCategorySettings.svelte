@@ -1,9 +1,11 @@
 <script lang="ts">
   import { trainingState } from '../../lib/state.svelte';
-  import { generateId, showAlert } from '../../lib/utils';
+  import { generateId } from '../../lib/utils';
   import { scopedUndo } from '../../lib/toast.svelte';
   import type { AnalyticsCategory, ExerciseSlot, WorkoutTemplate } from '../../lib/types';
   import Icon from "@iconify/svelte";
+  import ColorPicker from './ColorPicker.svelte';
+  import { DEFAULT_COLOR } from './colorChoices';
 
   let {
     analyticsCategories = $bindable(),
@@ -13,7 +15,7 @@
     templates: Record<string, WorkoutTemplate[]>;
   } = $props();
 
-  const predefinedColors = ['bg-success-hover', 'bg-tertiary-hover', 'bg-indigo-500', 'bg-rose-500', 'bg-amber-500', 'bg-sky-500', 'bg-zinc-500', 'bg-warning', 'bg-cyan-500', 'bg-fuchsia-500', 'bg-lime-500', 'bg-teal-500', 'bg-pink-500'];
+  let formError = $state('');
 
   let editingAnalyticsCategory = $state<AnalyticsCategory | null>(null);
   let isAddingAnalyticsCategory = $state(false);
@@ -57,9 +59,10 @@
   function startAddAnalyticsCategory() {
     editingAnalyticsCategory = {
       id: generateId(),
-      name: 'New Category',
-      color: predefinedColors[0]
+      name: 'New category',
+      color: DEFAULT_COLOR
     };
+    formError = '';
     isAddingAnalyticsCategory = true;
   }
 
@@ -68,7 +71,7 @@
 
     const name = editingAnalyticsCategory.name.trim();
     if (!name) {
-      showAlert('Input Error', 'Category name cannot be empty.');
+      formError = 'Give the category a name.';
       return;
     }
 
@@ -78,7 +81,7 @@
     );
 
     if (isDuplicate) {
-      showAlert('Input Error', 'A category with this name already exists.');
+      formError = 'A category with this name already exists.';
       return;
     }
 
@@ -149,46 +152,46 @@
 </script>
 
 {#if isAddingAnalyticsCategory && editingAnalyticsCategory}
-    <div class="p-5 bg-surface-elevated/50 rounded-card space-y-4 animate-in zoom-in-95">
+    <div class="p-4 bg-surface-elevated/50 rounded-card space-y-4 animate-in zoom-in-95">
       <div class="space-y-3">
-        <div class="space-y-1"><label for="ac-name" class="text-label text-content-subtle ml-1">Category Name</label><input id="ac-name" bind:value={editingAnalyticsCategory.name} class="w-full bg-surface text-content p-3 rounded-control border border-border-strong focus:ring-1 focus:ring-tertiary outline-none text-sm" placeholder="e.g., Flexibility" /></div>
-        <div class="space-y-1"><p class="text-label text-content-subtle ml-1">Color</p>
-          <div class="flex flex-wrap gap-2">
-            {#each predefinedColors as color}
-              <button type="button" aria-label="Select color {color}" onclick={() => editingAnalyticsCategory!.color = color} class="w-6 h-6 rounded-full {color} {editingAnalyticsCategory!.color === color ? 'ring-2 ring-white ring-offset-2 ring-offset-surface' : 'opacity-70 hover:opacity-100'} transition-all"></button>
-            {/each}
-          </div>
+        <div class="space-y-1">
+          <label for="ac-name" class="text-label text-content-subtle ml-1">Category name</label>
+          <input id="ac-name" bind:value={editingAnalyticsCategory.name} oninput={() => (formError = '')} aria-invalid={formError ? 'true' : undefined} aria-describedby={formError ? 'ac-name-error' : undefined} class="field" placeholder="e.g. Flexibility" />
+          {#if formError}<p id="ac-name-error" class="text-caption text-danger ml-1" role="alert">{formError}</p>{/if}
+        </div>
+        <div class="space-y-1"><p class="text-label text-content-subtle ml-1">Colour</p>
+          <ColorPicker value={editingAnalyticsCategory.color ?? DEFAULT_COLOR} onChange={(c) => (editingAnalyticsCategory!.color = c)} label="Category colour" />
         </div>
       </div>
-      <div class="flex gap-2 pt-2"><button onclick={saveAnalyticsCategory} class="flex-1 py-3 bg-tertiary text-white text-sm font-bold rounded-control">Save</button><button onclick={() => isAddingAnalyticsCategory = false} class="px-5 py-3 bg-surface-elevated text-content-muted text-sm font-bold rounded-control">Cancel</button></div>
+      <div class="flex gap-2 pt-2"><button onclick={saveAnalyticsCategory} class="btn btn-primary flex-1">Save</button><button onclick={() => (isAddingAnalyticsCategory = false)} class="btn btn-secondary">Cancel</button></div>
     </div>
   {:else}
     <div class="divide-y divide-border">
-      {#each analyticsCategories as cat, index}
+      {#each analyticsCategories as cat, index (cat.id)}
         <div class="flex items-center justify-between py-3 group">
           <div class="flex items-center gap-3"><div class="w-3 h-3 rounded-full {cat.color}"></div><div><p class="text-body font-bold text-content">{cat.name}</p></div></div>
-          <div class="flex items-center gap-0.5">
-            <button onclick={() => moveAnalyticsCategoryUp(index)} disabled={index === 0} class="tap p-1.5 text-content-subtle hover:text-content disabled:opacity-30 disabled:hover:text-content-subtle transition-colors" aria-label="Move Up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" /></button>
-            <button onclick={() => moveAnalyticsCategoryDown(index)} disabled={index === analyticsCategories.length - 1} class="tap p-1.5 text-content-subtle hover:text-content disabled:opacity-30 disabled:hover:text-content-subtle transition-colors" aria-label="Move Down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg" /></button>
-            <button onclick={() => { editingAnalyticsCategory = { ...cat }; isAddingAnalyticsCategory = true; }} class="tap p-1.5 text-content-subtle hover:text-content transition-colors" aria-label="Edit Category"><Icon icon="ic:baseline-edit" class="text-sm" /></button>
-            <button onclick={() => deleteAnalyticsCategory(cat.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete Category"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+          <div class="flex items-center">
+            <button onclick={() => moveAnalyticsCategoryUp(index)} disabled={index === 0} class="btn-icon disabled:opacity-30" aria-label="Move {cat.name} up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-xl" /></button>
+            <button onclick={() => moveAnalyticsCategoryDown(index)} disabled={index === analyticsCategories.length - 1} class="btn-icon disabled:opacity-30" aria-label="Move {cat.name} down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-xl" /></button>
+            <button onclick={() => { editingAnalyticsCategory = { ...cat }; formError = ''; isAddingAnalyticsCategory = true; }} class="btn-icon" aria-label="Edit {cat.name}"><Icon icon="ic:baseline-edit" class="text-xl" /></button>
+            <button onclick={() => deleteAnalyticsCategory(cat.id)} class="btn-icon hover:text-danger" aria-label="Delete {cat.name}"><Icon icon="ic:baseline-delete" class="text-xl" /></button>
           </div>
         </div>
       {/each}
-      <button onclick={startAddAnalyticsCategory} class="w-full py-3 rounded-control hover:bg-surface-elevated/50 flex items-center justify-center gap-2 text-primary transition-colors"><Icon icon="ic:baseline-plus" /><span class="text-label">Add Category</span></button>
+      <button onclick={startAddAnalyticsCategory} class="w-full min-h-11 py-3 rounded-control hover:bg-surface-elevated/50 flex items-center justify-center gap-2 text-primary transition-colors"><Icon icon="ic:baseline-plus" /><span class="text-label">Add category</span></button>
     </div>
   {/if}
 
   {#if missingCategories.length > 0}
-    <div class="mt-6 p-4 bg-warning/10 rounded-card space-y-3 animate-in fade-in">
-      <div class="flex items-center gap-2 text-warning">
-        <Icon icon="ic:baseline-warning" class="text-lg" />
-        <span class="text-label">Missing Categories Found</span>
+    <div class="mt-6 p-4 bg-surface-elevated/50 rounded-card space-y-3 animate-in fade-in">
+      <div class="flex items-center gap-2 text-content">
+        <Icon icon="ic:baseline-warning" class="text-lg text-status-caution" />
+        <span class="text-label">Categories that are used but missing</span>
       </div>
-      <p class="text-caption text-content-muted leading-relaxed">The following categories are referenced by existing exercises or modalities but don't exist. Add them back to track them in Analytics.</p>
+      <p class="text-caption text-content-muted leading-relaxed">These categories are used by existing exercises but are not in the list. Add them back to track them in Analytics.</p>
       <div class="space-y-2">
         {#each missingCategories as mCat}
-          <div class="flex items-center justify-between p-2.5 bg-surface/50 rounded-control border border-warning/20">
+          <div class="flex items-center justify-between p-2.5 bg-surface/50 rounded-control">
             <span class="text-label text-content">{mCat}</span>
             <button
               onclick={() => {
@@ -198,7 +201,7 @@
                   color: 'bg-status-neutral'
                 }];
               }}
-              class="px-3 py-1.5 bg-warning hover:bg-warning-hover text-white text-label rounded-control transition-colors"
+              class="btn btn-secondary"
             >
               Restore
             </button>

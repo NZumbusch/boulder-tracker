@@ -9,7 +9,8 @@
   import { insertCircuit } from '../../lib/exercise/circuits';
   import ExerciseForm from '../workout/ExerciseForm.svelte';
   import Icon from "@iconify/svelte";
-  import { dndzone, type DndEvent } from 'svelte-dnd-action';
+  import { dragHandleZone, dragHandle, type DndEvent } from 'svelte-dnd-action';
+  import { scopedUndo } from '../../lib/toast.svelte';
   import { flip } from 'svelte/animate';
 
   let {
@@ -30,12 +31,20 @@
 
   function addWorkoutToPhase() {
     if (!templates[phaseId]) templates[phaseId] = [];
-    const newWorkout: WorkoutTemplate = { id: generateId(), name: 'New Default Workout', exercises: [] };
+    const newWorkout: WorkoutTemplate = { id: generateId(), name: 'New session', exercises: [] };
     templates[phaseId] = [...templates[phaseId], newWorkout];
   }
 
+  const undoable = scopedUndo();
   function removeWorkoutFromPhase(index: number) {
+    const removed = $state.snapshot(templates[phaseId][index]) as WorkoutTemplate;
     templates[phaseId] = templates[phaseId].filter((_, i: number) => i !== index);
+    undoable(`${removed.name || 'Session'} removed`, () => {
+      if (templates[phaseId].some((w) => w.id === removed.id)) return;
+      const list = [...templates[phaseId]];
+      list.splice(Math.min(index, list.length), 0, removed);
+      templates[phaseId] = list;
+    });
   }
 
   function saveExerciseToTemplate(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues }) {
@@ -125,50 +134,61 @@
   function removeExerciseFromTemplate(workoutIndex: number, exerciseId: string) {
     const workout = templates[phaseId][workoutIndex];
     if (workout.exercises) {
+      const before = { exercises: $state.snapshot(workout.exercises) as ExerciseSlot[], groups: $state.snapshot(workout.groups) };
+      const name = slotTypeName(workout.exercises.find((e) => e.id === exerciseId)!, trainingState.exerciseTypes);
+      const sessionId = workout.id;
       setGrouped(workoutIndex, { ...workout, exercises: workout.exercises.filter((e) => e.id !== exerciseId) });
+      undoable(`${name} removed`, () => {
+        const w = templates[phaseId]?.find((t) => t.id === sessionId);
+        if (!w) return;
+        w.exercises = before.exercises;
+        w.groups = before.groups;
+      });
     }
   }
 </script>
 
 <div class="space-y-3 pt-1">
-  {#each phaseWorkouts as workout, wIndex}
-    <div class="p-5 bg-surface-elevated/30 rounded-card space-y-4 relative">
+  {#each phaseWorkouts as workout, wIndex (workout.id)}
+    <div class="p-3 bg-surface-elevated/30 rounded-card space-y-4 relative">
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0 flex-1">
-          <input bind:value={workout.name} class="w-full bg-transparent text-sm font-bold text-content border-b border-transparent focus:border-primary/30 outline-none pb-1 truncate" placeholder="Session Name" />
+          <input bind:value={workout.name} class="w-full bg-transparent text-body font-bold text-content border-b border-border focus:border-primary outline-none pb-1 truncate" placeholder="Session name" aria-label="Session name" />
           <textarea
             value={workout.description ?? ''}
             oninput={(e) => { const v = e.currentTarget.value; if (v.trim()) workout.description = v; else delete workout.description; }}
             rows="1"
             placeholder="Session note (optional) - intent, pacing, what to focus on"
-            class="w-full mt-1 bg-transparent text-caption text-content-muted border-b border-transparent focus:border-primary/30 outline-none resize-y"
+            class="w-full mt-1 bg-transparent text-caption text-content-muted border-b border-border focus:border-primary outline-none resize-y"
+            aria-label="Session note"
           ></textarea>
         </div>
-        <div class="flex items-center gap-0.5 flex-shrink-0">
+        <div class="flex items-center flex-shrink-0">
           <button onclick={() => {
             if (wIndex > 0) {
               const temp = templates[phaseId][wIndex - 1];
               templates[phaseId][wIndex - 1] = workout;
               templates[phaseId][wIndex] = temp;
             }
-          }} disabled={wIndex === 0} class="tap p-1 text-content-subtle hover:text-content disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Move Up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-lg" /></button>
+          }} disabled={wIndex === 0} class="btn-icon disabled:opacity-30" aria-label="Move session up" title="Move up"><Icon icon="ic:baseline-keyboard-arrow-up" class="text-xl" /></button>
           <button onclick={() => {
             if (wIndex < phaseWorkouts.length - 1) {
               const temp = templates[phaseId][wIndex + 1];
               templates[phaseId][wIndex + 1] = workout;
               templates[phaseId][wIndex] = temp;
             }
-          }} disabled={wIndex === phaseWorkouts.length - 1} class="tap p-1 text-content-subtle hover:text-content disabled:opacity-30 disabled:cursor-not-allowed transition-colors mr-1" title="Move Down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-lg" /></button>
+          }} disabled={wIndex === phaseWorkouts.length - 1} class="btn-icon disabled:opacity-30" aria-label="Move session down" title="Move down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-xl" /></button>
 
-          <button onclick={() => duplicateWorkoutInPhase(wIndex)} class="tap p-1.5 text-content-subtle hover:text-content transition-colors" title="Duplicate Session"><Icon icon="ic:baseline-content-copy" class="text-sm" /></button>
-          <button onclick={() => removeWorkoutFromPhase(wIndex)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" title="Delete Session"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+          <button onclick={() => duplicateWorkoutInPhase(wIndex)} class="btn-icon" aria-label="Duplicate session" title="Duplicate session"><Icon icon="ic:baseline-content-copy" class="text-lg" /></button>
+          <button onclick={() => removeWorkoutFromPhase(wIndex)} class="btn-icon hover:text-danger" aria-label="Delete session" title="Delete session"><Icon icon="ic:baseline-delete" class="text-xl" /></button>
         </div>
       </div>
-      <div class="flex flex-wrap gap-1 mt-2">
+      <div class="flex flex-wrap gap-1.5 mt-2" role="group" aria-label="Day of the week">
         {#each days as day}
           <button
             onclick={() => workout.dayOfWeek = day}
-            class="px-2 py-1 rounded-control text-label transition-all border
+            aria-pressed={workout.dayOfWeek === day}
+            class="px-2.5 py-2 min-h-10 rounded-control text-label transition-all border
               {workout.dayOfWeek === day
                 ? 'bg-primary border-primary text-white shadow-lg'
                 : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content-muted'}"
@@ -178,7 +198,8 @@
         {/each}
         <button
           onclick={() => workout.dayOfWeek = undefined}
-          class="px-2 py-1 rounded-control text-label transition-all border
+          aria-pressed={!workout.dayOfWeek}
+          class="px-2.5 py-2 min-h-10 rounded-control text-label transition-all border
             {!workout.dayOfWeek
               ? 'bg-surface-elevated-hover border-border-strong text-content shadow-lg'
               : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content-muted'}"
@@ -192,16 +213,16 @@
            open-ended session, not a zero-length one. -->
       <div class="flex gap-2">
         <label class="flex-1 space-y-1">
-          <span class="text-label text-content-subtle ml-1 block">Start Time</span>
+          <span class="text-label text-content-subtle ml-1 block">Start time</span>
           <input
             type="time"
             value={workout.startTime ?? ''}
             onchange={(e) => workout.startTime = e.currentTarget.value || undefined}
-            class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content rounded-control border border-border-strong text-label outline-none focus:border-primary/50 transition-colors"
+            class="field"
           />
         </label>
         <label class="flex-1 space-y-1">
-          <span class="text-label text-content-subtle ml-1 block">Planned (min)</span>
+          <span class="text-label text-content-subtle ml-1 block">Planned minutes</span>
           <input
             type="number"
             min="1"
@@ -212,7 +233,7 @@
               const n = Number(e.currentTarget.value);
               workout.plannedDuration = e.currentTarget.value === '' || !Number.isFinite(n) || n <= 0 ? undefined : n;
             }}
-            class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content rounded-control border border-border-strong text-label outline-none focus:border-primary/50 transition-colors"
+            class="field"
           />
         </label>
       </div>
@@ -226,13 +247,13 @@
           placeholder="—"
           value={workout.location ?? ''}
           onchange={(e) => workout.location = e.currentTarget.value.trim() || undefined}
-          class="w-full px-2.5 py-1.5 bg-surface-elevated/50 text-content rounded-control border border-border-strong text-label outline-none focus:border-primary/50 transition-colors"
+          class="field"
         />
       </label>
       <div class="space-y-2">
         <section
           class="space-y-2 min-h-[40px] outline-none"
-          use:dndzone={{items: workout.exercises || [], dropTargetStyle: {}}}
+          use:dragHandleZone={{items: workout.exercises || [], dropTargetStyle: {}}}
           onconsider={(e) => handleTemplateDndConsider(wIndex, e)}
           onfinalize={(e) => handleTemplateDndFinalize(wIndex, e)}
         >
@@ -240,8 +261,8 @@
             {@const startsGroup = groupStartingAt(workout, eIndex)}
             <div animate:flip={{ duration: motionMs(200) }} class="flex items-center justify-between p-2 bg-surface/50 rounded-control border transition-all hover:border-border-strong group/ex {exercise.groupId ? 'border-l-2 border-l-content-subtle/40 border-border ml-2' : 'border-border'}">
               <div class="flex items-center gap-2 min-w-0">
-                <div class="flex flex-col items-center justify-center gap-0 opacity-40 group-hover/ex:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
-                  <Icon icon="ic:baseline-drag-indicator" class="text-[16px]" />
+                <div use:dragHandle aria-label="Drag to reorder {slotTypeName(exercise, trainingState.exerciseTypes)}" class="grid place-items-center min-w-10 min-h-10 text-content-subtle cursor-grab active:cursor-grabbing touch-none">
+                  <Icon icon="ic:baseline-drag-indicator" class="text-xl" />
                 </div>
                 <div class="min-w-0">
                   {#if startsGroup}
@@ -250,10 +271,10 @@
                   <p class="text-label text-content-muted truncate">{slotTypeName(exercise, trainingState.exerciseTypes)}</p>
                 </div>
               </div>
-              <div class="flex items-center gap-1 flex-shrink-0">
-                <button onclick={() => duplicateExerciseInTemplate(wIndex, exercise)} class="text-content-subtle hover:text-content transition-colors p-1" title="Duplicate Exercise"><Icon icon="ic:baseline-content-copy" class="text-xs" /></button>
-                <button onclick={() => editExerciseInTemplate(wIndex, exercise)} class="text-content-subtle hover:text-content transition-colors p-1" title="Edit Exercise"><Icon icon="ic:baseline-edit" class="text-xs" /></button>
-                <button onclick={() => removeExerciseFromTemplate(wIndex, exercise.id)} class="text-content-subtle hover:text-danger transition-colors p-1"><Icon icon="ic:baseline-close" class="text-xs" /></button>
+              <div class="flex items-center flex-shrink-0">
+                <button onclick={() => duplicateExerciseInTemplate(wIndex, exercise)} class="btn-icon" aria-label="Duplicate {slotTypeName(exercise, trainingState.exerciseTypes)}" title="Duplicate"><Icon icon="ic:baseline-content-copy" class="text-lg" /></button>
+                <button onclick={() => editExerciseInTemplate(wIndex, exercise)} class="btn-icon" aria-label="Edit {slotTypeName(exercise, trainingState.exerciseTypes)}" title="Edit"><Icon icon="ic:baseline-edit" class="text-lg" /></button>
+                <button onclick={() => removeExerciseFromTemplate(wIndex, exercise.id)} class="btn-icon hover:text-danger" aria-label="Remove {slotTypeName(exercise, trainingState.exerciseTypes)}" title="Remove"><Icon icon="ic:baseline-close" class="text-xl" /></button>
               </div>
             </div>
           {/each}
@@ -266,19 +287,19 @@
               inGroup={!!(editingExerciseId && workout.exercises?.find((e) => e.id === editingExerciseId)?.groupId)}
               onSave={saveExerciseToTemplate}
             />
-            <button onclick={() => { isAddingExercise = false; editingWorkoutIndex = null; editingExerciseId = null; }} class="w-full mt-3 py-2 text-label text-content-subtle hover:text-content">Cancel</button>
+            <button onclick={() => { isAddingExercise = false; editingWorkoutIndex = null; editingExerciseId = null; }} class="btn btn-ghost w-full mt-3">Cancel</button>
           </div>
         {:else}
           <div class="flex gap-2">
-            <button onclick={() => { editingWorkoutIndex = wIndex; isAddingExercise = true; editingExerciseId = null; }} class="flex-1 py-2.5 border border-dashed border-border-strong rounded-control text-label text-content-subtle hover:border-border-strong hover:text-content-muted transition-all">Add Component</button>
+            <button onclick={() => { editingWorkoutIndex = wIndex; isAddingExercise = true; editingExerciseId = null; }} class="flex-1 min-h-11 py-2.5 border border-dashed border-border-strong rounded-control text-label text-content-muted hover:text-content transition-all">Add exercise</button>
             {#if trainingState.circuits.length > 0}
               <select
                 aria-label="Add a saved circuit"
                 value=""
                 onchange={(e) => { addCircuitToTemplate(wIndex, e.currentTarget.value); e.currentTarget.value = ''; }}
-                class="px-2.5 py-2.5 bg-transparent border border-dashed border-border-strong rounded-control text-label text-content-subtle outline-none cursor-pointer"
+                class="px-2.5 min-h-11 bg-transparent border border-dashed border-border-strong rounded-control text-label text-content-muted outline-none cursor-pointer"
               >
-                <option value="" disabled>+ Circuit</option>
+                <option value="" disabled>Add circuit</option>
                 {#each trainingState.circuits as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
               </select>
             {/if}
@@ -289,7 +310,7 @@
   {:else}
     <div class="p-4 bg-surface-elevated/20 rounded-control border border-dashed border-border text-center"><p class="text-caption text-content-subtle italic">No sessions yet</p></div>
   {/each}
-  <button onclick={addWorkoutToPhase} class="w-full py-2.5 border-2 border-dashed border-border hover:border-border-strong rounded-card flex items-center justify-center gap-2 text-content-subtle hover:text-content-muted transition-all"><Icon icon="ic:baseline-plus" class="text-sm" /><span class="text-label">Add Session</span></button>
+  <button onclick={addWorkoutToPhase} class="w-full min-h-11 py-2.5 border border-dashed border-border-strong rounded-card flex items-center justify-center gap-2 text-content-muted hover:text-content transition-all"><Icon icon="ic:baseline-plus" class="text-sm" /><span class="text-label">Add session</span></button>
 </div>
 
 <datalist id="template-places">

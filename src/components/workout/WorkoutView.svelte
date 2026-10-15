@@ -13,6 +13,7 @@
   import { formatMinutes } from '../../lib/session/formatSession';
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import { loggedDateFor } from '../../lib/planning/scheduledDate';
+  import { formatDay } from '../../lib/dateUtils';
   import ExerciseCard from './ExerciseCard.svelte';
   import GroupCard from './GroupCard.svelte';
   import { workoutItems, groupMinutes } from '../../lib/exercise/groups';
@@ -37,7 +38,7 @@
   const subtitle = $derived.by(() => {
     const parts: string[] = [];
     if (isCompleted) {
-      if (workout.date) parts.push(new Date(workout.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }));
+      if (workout.date) parts.push(formatDay(workout.date, { weekday: 'short' }));
       const mins = sessionDuration(workout);
       if (mins > 0) parts.push(formatMinutes(mins));
       if (workout.loadFactor) parts.push(`load ${Math.round(workout.loadFactor)} pts`);
@@ -52,6 +53,30 @@
   });
 
   let menuOpen = $state(false);
+  let menuEl = $state<HTMLElement>();
+  // A tap anywhere else (or Escape) closes the menu. The header is blurred, which turns a fixed scrim inside it into a header-sized one.
+  $effect(() => {
+    if (!menuOpen) return;
+    const away = (e: Event) => { if (menuEl && !menuEl.contains(e.target as Node)) menuOpen = false; };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') menuOpen = false; };
+    document.addEventListener('pointerdown', away, true);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', esc); };
+  });
+
+  // "Swipe to flip through" is a hint: shown the first few times, then left out.
+  const HINT_KEY = 'bt.hint.flipSessions';
+  const HINT_SHOWS = 3;
+  let flipHint = $state(false);
+  let hintCounted = false;
+  $effect(() => {
+    if (!position || hintCounted) return;
+    hintCounted = true;
+    try {
+      const n = Number(localStorage.getItem(HINT_KEY) ?? 0);
+      if (n < HINT_SHOWS) { flipHint = true; localStorage.setItem(HINT_KEY, String(n + 1)); }
+    } catch { /* no storage: no hint */ }
+  });
 
   const items = $derived(workoutItems(workout));
   const minutesByGroup = $derived(groupMinutes(workout, isCompleted ? 'actual' : 'estimate'));
@@ -112,7 +137,7 @@
 
 <header class="shrink-0 border-b border-border bg-surface/80 backdrop-blur-md">
   <div class="max-w-lg mx-auto w-full px-4 pt-4 pb-3 flex items-start gap-3">
-    <button onclick={onClose} class="p-2 -ml-2 text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close">
+    <button onclick={onClose} class="btn-icon -ml-2 shrink-0" aria-label="Close">
       <Icon icon="ic:baseline-close" class="text-2xl" />
     </button>
     <div class="min-w-0 flex-1">
@@ -132,49 +157,46 @@
       <h2 class="text-title text-content break-words">{workout.notes || 'Session'}</h2>
       <p class="text-caption text-content-subtle mt-0.5">{subtitle}</p>
       {#if position && onStep}
-        <div class="mt-1.5 flex items-center gap-1 text-caption text-content-subtle tabular-nums">
-          <button onclick={() => onStep(-1)} disabled={position.index === 0} class="p-0.5 -ml-1 rounded-control hover:text-content disabled:opacity-30" aria-label="Previous session">
+        <div class="flex items-center gap-1 text-caption text-content-subtle tabular-nums">
+          <button onclick={() => onStep(-1)} disabled={position.index === 0} class="btn-icon -ml-3 disabled:opacity-30" aria-label="Previous session">
             <Icon icon="ic:baseline-chevron-left" class="text-lg" />
           </button>
           <span>{position.index + 1} / {position.total}</span>
-          <button onclick={() => onStep(1)} disabled={position.index === position.total - 1} class="p-0.5 rounded-control hover:text-content disabled:opacity-30" aria-label="Next session">
+          <button onclick={() => onStep(1)} disabled={position.index === position.total - 1} class="btn-icon disabled:opacity-30" aria-label="Next session">
             <Icon icon="ic:baseline-chevron-right" class="text-lg" />
           </button>
-          <span class="text-content-subtle/70">· swipe to flip through</span>
+          {#if flipHint}<span>· swipe to flip through</span>{/if}
         </div>
       {/if}
     </div>
-    <div class="relative shrink-0">
-      <button onclick={() => menuOpen = !menuOpen} class="p-2 -mr-2 text-content-subtle hover:text-content transition-colors" aria-label="More actions" aria-expanded={menuOpen}>
+    <div class="relative shrink-0" bind:this={menuEl}>
+      <button onclick={() => menuOpen = !menuOpen} class="btn-icon -mr-2" aria-label="More actions" aria-expanded={menuOpen}>
         <Icon icon="ic:baseline-more-vert" class="text-2xl" />
       </button>
       {#if menuOpen}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="fixed inset-0 z-10" onclick={() => menuOpen = false}></div>
         <div class="absolute right-0 top-full mt-1 z-20 w-52 bg-surface-elevated border border-border-strong rounded-control shadow-card overflow-hidden animate-in fade-in slide-in-from-top-2">
-          <button onclick={() => { menuOpen = false; askAboutSession(workout.id); }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+          <button onclick={() => { menuOpen = false; askAboutSession(workout.id); }} class="w-full flex items-center gap-2 px-3 min-h-11 text-label text-content hover:bg-surface transition-colors text-left">
             <Icon icon="ic:baseline-auto-awesome" class="text-sm" /> Ask the AI about it
           </button>
-          <button onclick={duplicate} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+          <button onclick={duplicate} class="w-full flex items-center gap-2 px-3 min-h-11 text-label text-content hover:bg-surface transition-colors text-left">
             <Icon icon="ic:baseline-content-copy" class="text-sm" /> Duplicate
           </button>
           {#if canPlanB}
-            <button onclick={planB} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+            <button onclick={planB} class="w-full flex items-center gap-2 px-3 min-h-11 text-label text-content hover:bg-surface transition-colors text-left">
               <Icon icon="ic:baseline-call-split" class="text-sm" /> {planBHere ? 'Edit Plan B' : 'Make a Plan B'}
             </button>
           {/if}
           {#if workout.planB?.side === 'B' && !isCompleted}
-            <button onclick={sameAsPlanA} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+            <button onclick={sameAsPlanA} class="w-full flex items-center gap-2 px-3 min-h-11 text-label text-content hover:bg-surface transition-colors text-left">
               <Icon icon="ic:baseline-undo" class="text-sm" /> Same as Plan A
             </button>
           {/if}
           {#if isCompleted}
-            <button onclick={() => { menuOpen = false; sharing = true; }} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-content hover:bg-surface transition-colors text-left">
+            <button onclick={() => { menuOpen = false; sharing = true; }} class="w-full flex items-center gap-2 px-3 min-h-11 text-label text-content hover:bg-surface transition-colors text-left">
               <Icon icon="ic:baseline-share" class="text-sm" /> Share
             </button>
           {/if}
-          <button onclick={remove} class="w-full flex items-center gap-2 px-3 py-2.5 text-label text-danger hover:bg-surface transition-colors text-left">
+          <button onclick={remove} class="w-full flex items-center gap-2 px-3 min-h-11 text-label text-danger hover:bg-surface transition-colors text-left">
             <Icon icon="ic:baseline-delete" class="text-sm" /> Delete
           </button>
         </div>
@@ -203,13 +225,13 @@
           {#each RATING_AXES as r}
             <div class="min-w-0 text-center">
               <p class="text-caption text-content-subtle truncate">{r.label}</p>
-              <p class="text-label font-bold text-content tabular-nums">{workout[r.key] ?? '—'}</p>
+              <p class="text-label font-bold text-content tabular-nums" aria-label="{r.label}: {workout[r.key] ?? 'not rated'}">{workout[r.key] ?? '–'}</p>
             </div>
           {/each}
         </div>
         <button
           onclick={() => trainingState.openFatigueModal(workout)}
-          class="shrink-0 px-2.5 py-1.5 text-label text-primary bg-primary/10 hover:bg-primary/20 rounded-control transition-colors"
+          class="btn btn-quiet shrink-0 px-3 text-label text-primary bg-primary/10 hover:bg-primary/20"
         >Re-rate</button>
       </div>
     {/if}
@@ -242,36 +264,41 @@
         </GroupCard>
       {/if}
     {:else}
-      <p class="py-12 border-2 border-dashed border-border rounded-card text-center text-caption text-content-subtle italic">No exercises in this session.</p>
+      <div class="py-10 border-2 border-dashed border-border rounded-card text-center space-y-2">
+        <p class="text-label text-content-subtle">No exercises in this session.</p>
+        <button onclick={onEdit} class="btn btn-quiet px-3 text-label font-bold text-primary">Add exercises</button>
+      </div>
     {/each}
   </div>
 </div>
 
 <footer class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
-  <div class="max-w-lg mx-auto w-full px-4 py-3 flex items-center gap-2">
-    <button onclick={onEdit} class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5">
-      <Icon icon="ic:baseline-edit" class="text-base" /> Edit
-    </button>
-    {#if !isCompleted && !isThisRunning && workout.exercises.length > 0}
-      <button
-        onclick={logAsPlanned}
-        class="px-3 py-2.5 rounded-control text-label font-bold text-content-subtle hover:text-content transition-colors flex items-center gap-1.5"
-        title="Mark it done exactly as planned, then rate it"
-      >
-        <Icon icon="ic:baseline-done-all" class="text-base" /> Log as planned
-      </button>
+  <div class="max-w-lg mx-auto w-full px-4 py-3 space-y-1.5">
+    {#if blocked && !isCompleted}
+      <p class="text-caption text-content-subtle" role="status">Another session is running. Finish or discard it to start this one.</p>
+    {:else if !isCompleted && !isThisRunning && workout.exercises.length > 0}
+      <p class="text-caption text-content-subtle">Log as planned marks every exercise done as planned, then asks how it went.</p>
     {/if}
-    <div class="flex-1"></div>
-    {#if !isCompleted}
-      <button
-        onclick={start}
-        disabled={blocked}
-        title={blocked ? 'Finish or discard the running session first' : undefined}
-        class="px-5 py-2.5 text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed {isThisRunning ? 'bg-success hover:bg-success-hover' : 'bg-primary hover:bg-primary-hover'}"
-      >
-        <Icon icon="ic:baseline-play-arrow" class="text-base" /> {isThisRunning ? 'Resume' : 'Start'}
+    <div class="flex items-center gap-2">
+      <button onclick={onEdit} class="btn btn-ghost px-3">
+        <Icon icon="ic:baseline-edit" class="text-base" /> Edit
       </button>
-    {/if}
+      {#if !isCompleted && !isThisRunning && workout.exercises.length > 0}
+        <button onclick={logAsPlanned} class="btn btn-ghost px-3">
+          <Icon icon="ic:baseline-done-all" class="text-base" /> Log as planned
+        </button>
+      {/if}
+      <div class="flex-1"></div>
+      {#if !isCompleted}
+        <button
+          onclick={start}
+          disabled={blocked}
+          class="btn px-5 {isThisRunning ? 'bg-success hover:bg-success-hover text-on-primary' : 'btn-primary'}"
+        >
+          <Icon icon="ic:baseline-play-arrow" class="text-base" /> {isThisRunning ? 'Resume' : 'Start'}
+        </button>
+      {/if}
+    </div>
   </div>
 </footer>
 

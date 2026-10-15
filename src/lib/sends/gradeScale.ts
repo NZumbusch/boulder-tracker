@@ -64,3 +64,8 @@ export function gradeFromInput(input: string): string {
   if (/^v(b|\d{1,2})$/i.test(trimmed)) return vToFont(trimmed) ?? trimmed;
   return trimmed;
 }
+
+/** Whether typed text is a grade the app can place on its charts: a Font grade, or a V grade that converts to one. */
+export function isKnownGrade(input: string): boolean {
+  return parseFontGrade(normalizeGrade(gradeFromInput(input))) !== undefined;
+}

@@ -23,6 +23,6 @@
         </button>
       {/each}
     </div>
-    <button onclick={openQuickTimerSheet} class="w-full pt-2 text-label font-bold text-primary text-left px-0.5">{presets.length > 4 ? `All ${presets.length} timers…` : 'Another timer…'}</button>
+    <button onclick={openQuickTimerSheet} class="btn-quiet w-full justify-start text-label font-bold text-primary px-0.5">{presets.length > 4 ? `All ${presets.length} timers…` : 'Another timer…'}</button>
   </div>
 {/if}

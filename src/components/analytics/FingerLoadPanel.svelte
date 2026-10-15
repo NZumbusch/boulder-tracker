@@ -15,6 +15,7 @@
   import { fingerCategoryIds } from '../../lib/analytics/proMetrics';
   import Icon from '@iconify/svelte';
   import ChartEmpty from './ChartEmpty.svelte';
+  import ChartTable from './ChartTable.svelte';
 
   let { columns, axisStep }: {
     columns: { id: string; label: string; isCurrent: boolean; finger: number; total: number }[];
@@ -54,14 +55,14 @@
 <div id="section-fingerLoad" class="scroll-mt-4 card space-y-3">
   <div class="flex items-start justify-between gap-3">
     <div>
-      <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Filtered Load <InfoButton term="fingerLoad" /></h3>
+      <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Finger Load <InfoButton term="fingerLoad" /></h3>
       <p class="text-caption text-content-subtle mt-0.5">
         {windowShare !== undefined ? `${windowShare}% of this window's load` : 'Load from the categories you pick - fingers by default'}
       </p>
     </div>
     <button
       onclick={() => (choosing = !choosing)}
-      class="flex items-center gap-1 px-2 py-1 rounded-control border border-border text-caption text-content-subtle hover:text-content transition-colors shrink-0"
+      class="chip text-content-subtle hover:text-content transition-colors shrink-0"
       aria-expanded={choosing}
     >
       <Icon icon="ic:baseline-tune" class="text-sm" /> Categories
@@ -76,34 +77,38 @@
           <button
             onclick={() => toggle(c.id)}
             aria-pressed={chosen.has(c.id)}
-            class="px-2 py-0.5 rounded-control border text-caption transition-colors {chosen.has(c.id) ? 'border-primary bg-primary/15 text-content' : 'border-border text-content-subtle'}"
+            class="chip transition-colors {chosen.has(c.id) ? 'border-primary bg-primary/15 text-content' : 'text-content-subtle'}"
           >
             {c.name}
           </button>
         {/each}
       </div>
       {#if trainingState.fingerCategoryIds !== null}
-        <button onclick={() => trainingState.setFingerCategoryIds(null)} class="text-caption text-primary">Back to the automatic guess</button>
+        <button onclick={() => trainingState.setFingerCategoryIds(null)} class="btn-quiet text-caption text-primary">Back to the automatic guess</button>
       {/if}
     </div>
   {/if}
 
-    <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
+    <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted" aria-live="polite">
       {#if selected}
         {selected.label}
         <span class="text-content-subtle"> · </span><span class="text-content">{Math.round(selected.finger)}</span> filtered load
         {#if selected.share !== undefined}<span class="text-content-subtle"> · {Math.round(selected.share * 100)}% of total</span>{/if}
-        {#if selected.ramp}<span class="{selected.spike ? 'text-status-risk' : 'text-content-subtle'}"> · {selected.ramp > 0 ? '+' : ''}{Math.round(selected.ramp * 100)}% vs before</span>{/if}
+        {#if selected.ramp}<span class="{selected.spike ? 'text-status-caution' : 'text-content-subtle'}"> · {selected.ramp > 0 ? '+' : ''}{Math.round(selected.ramp * 100)}% vs the column before</span>{/if}
       {:else}
-        <span class="text-content-subtle/70" class:invisible={!hasAny}>Tap a column for its values · ⚠ = more than {Math.round(RAMP_RATE_SPIKE_THRESHOLD * 100)}% up on the column before</span>
+        <span class="text-content-subtle" class:invisible={!hasAny}>Tap a column for its values</span>
       {/if}
     </div>
 
     <div class="h-32 flex flex-col gap-2">
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
       <div
         bind:this={picker.el}
         class="flex-1 relative flex items-end gap-px cursor-crosshair select-none"
-        role="presentation"
+        role="application"
+        tabindex="0"
+        aria-label="Finger load by column. Left and right arrow keys move between columns; a table of the numbers follows."
+        onkeydown={picker.key}
         onpointerdown={picker.down}
         onpointermove={picker.move}
         onpointerleave={picker.leave}
@@ -112,11 +117,11 @@
         {#each withRamp as c, i (c.id)}
           <div class="flex-1 h-full flex justify-center items-end">
             <div
-              class="w-[62%] max-w-[16px] rounded-[2px] relative transition-opacity {c.isCurrent ? 'bg-warning' : 'bg-warning/45'} {picker.selected !== null && picker.selected !== i ? 'opacity-40' : ''}"
+              class="w-[62%] max-w-[16px] rounded-[2px] relative transition-opacity {c.isCurrent ? 'bg-series-3' : 'bg-series-3/55'} {picker.selected !== null && picker.selected !== i ? 'opacity-40' : ''}"
               style="height: {(c.finger / maxLoad) * 100}%"
             >
               {#if c.spike}
-                <Icon icon="ic:baseline-warning" class="absolute -top-4 left-1/2 -translate-x-1/2 text-status-risk text-xs" />
+                <Icon icon="ic:baseline-warning" class="absolute -top-4 left-1/2 -translate-x-1/2 text-status-caution text-sm" />
               {/if}
             </div>
           </div>
@@ -128,10 +133,19 @@
         {#each columns as c, i (c.id)}
           <div class="flex-1 flex justify-center">
             {#if showsLabel(i, columns.length, axisStep)}
-              <span class="text-caption leading-tight tabular-nums {c.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">{c.label}</span>
+              <span class="text-caption leading-tight tabular-nums {c.isCurrent ? 'text-primary' : 'text-content-subtle'}">{c.label}</span>
             {/if}
           </div>
         {/each}
       </div>
     </div>
+    <div class="flex items-center gap-x-4 gap-y-1 flex-wrap text-caption text-content-subtle">
+      <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-[2px] bg-series-3"></span>Finger load</span>
+      <span class="flex items-center gap-1.5"><Icon icon="ic:baseline-warning" class="text-sm text-status-caution" />more than {Math.round(RAMP_RATE_SPIKE_THRESHOLD * 100)}% up on the column before</span>
+    </div>
+    <ChartTable
+      caption="Finger load by column"
+      columns={['Column', 'Finger load', 'Share of total', 'Change on the column before']}
+      rows={withRamp.map((c) => [c.label, Math.round(c.finger), c.share !== undefined ? `${Math.round(c.share * 100)}%` : '–', c.ramp ? `${c.ramp > 0 ? '+' : ''}${Math.round(c.ramp * 100)}%` : '–'])}
+    />
 </div>

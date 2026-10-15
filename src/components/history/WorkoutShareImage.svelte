@@ -117,7 +117,7 @@
       {#each styles as style, i}
         <button
           onclick={() => styleIndex = i}
-          class="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all snap-center {styleIndex === i ? 'bg-primary text-white shadow-lg scale-105' : 'bg-surface-elevated text-content-subtle hover:text-content'}"
+          class="shrink-0 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all snap-center {styleIndex === i ? 'bg-primary text-white shadow-lg scale-105' : 'bg-surface-elevated text-content-subtle hover:text-content'}"
         >
           {style}
         </button>
@@ -145,7 +145,7 @@
       <div class="relative z-10 shrink-0">
         <div class="flex items-center gap-2 mb-1.5">
           <div class="w-2 h-2 bg-[#2563eb] rounded-full"></div>
-          <span class="text-[10px] font-black text-[#3b82f6] uppercase tracking-[0.2em]">{formatDate(workout.date)}</span>
+          <span class="text-[11px] font-black text-[#3b82f6] uppercase tracking-[0.2em]">{formatDate(workout.date)}</span>
         </div>
         <h2 class="{titleClass} font-black text-white tracking-tighter leading-tight break-words">{title}</h2>
       </div>
@@ -155,7 +155,7 @@
         {#if activeStyle === 'overview'}
           <div class="flex flex-wrap gap-2 content-start">
             {#each exercises as exercise}
-              <div class="text-[10px] px-3 py-1.5 bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white font-bold shrink-0">
+              <div class="text-[11px] px-3 py-1.5 bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white font-bold shrink-0">
                 {slotTypeName(exercise, trainingState.exerciseTypes)}
               </div>
             {/each}
@@ -166,7 +166,7 @@
             {#each exercises as exercise}
               <div class="flex justify-between items-center gap-2 border-b border-[rgba(255,255,255,0.1)] pb-2.5">
                 <div class="text-xs font-bold text-[rgba(255,255,255,0.9)] truncate">{slotTypeName(exercise, trainingState.exerciseTypes)}</div>
-                <div class="text-[10px] font-mono font-bold text-[rgba(255,255,255,0.7)] bg-[rgba(255,255,255,0.05)] px-2 py-1 rounded-md shrink-0">
+                <div class="text-[11px] font-mono font-bold text-[rgba(255,255,255,0.7)] bg-[rgba(255,255,255,0.05)] px-2 py-1 rounded-md shrink-0">
                   {shortValue(exercise)}
                 </div>
               </div>
@@ -177,16 +177,16 @@
           <div class="h-full flex flex-col justify-center gap-3">
             <div class="flex gap-3">
               <div class="flex-1 min-w-0 bg-[rgba(255,255,255,0.05)] p-3.5 rounded-2xl border border-[rgba(255,255,255,0.1)]">
-                <p class="text-[8px] font-black uppercase tracking-widest text-[#3b82f6] mb-1">Top Focus</p>
+                <p class="text-[11px] font-black uppercase tracking-widest text-[#3b82f6] mb-1">Top Focus</p>
                 <p class="text-sm font-bold text-white tracking-tight leading-tight truncate">{topExercise ? slotTypeName(topExercise, trainingState.exerciseTypes) : 'Resting'}</p>
               </div>
               <div class="flex-1 min-w-0 bg-[rgba(255,255,255,0.05)] p-3.5 rounded-2xl border border-[rgba(255,255,255,0.1)]">
-                <p class="text-[8px] font-black uppercase tracking-widest text-[#3b82f6] mb-1">Volume</p>
-                <p class="text-2xl font-black text-white tracking-tighter leading-none">{totalSets} <span class="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.5)]">Sets</span></p>
+                <p class="text-[11px] font-black uppercase tracking-widest text-[#3b82f6] mb-1">Volume</p>
+                <p class="text-2xl font-black text-white tracking-tighter leading-none">{totalSets} <span class="text-[11px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.5)]">Sets</span></p>
               </div>
             </div>
             <div class="bg-[rgba(255,255,255,0.05)] p-3.5 rounded-2xl border border-[rgba(255,255,255,0.1)]">
-              <p class="text-[8px] font-black uppercase tracking-widest text-[#3b82f6] mb-1">Time</p>
+              <p class="text-[11px] font-black uppercase tracking-widest text-[#3b82f6] mb-1">Time</p>
               <p class="text-2xl font-black text-white tracking-tighter leading-none">{formatMinutes(durationMinutes)}</p>
             </div>
           </div>
@@ -207,16 +207,16 @@
         <div class="flex items-end gap-5">
           <div>
             <p class="text-3xl font-black text-white tracking-tighter leading-none">{Math.round(workout.loadFactor || 0)}</p>
-            <p class="text-[8px] font-black uppercase text-[#71717a] tracking-[0.2em] mt-1.5">Total Load</p>
+            <p class="text-[11px] font-black uppercase text-[#71717a] tracking-[0.2em] mt-1.5">Total Load</p>
           </div>
           <div>
             <p class="text-3xl font-black text-white tracking-tighter leading-none">{exerciseCount}</p>
-            <p class="text-[8px] font-black uppercase text-[#71717a] tracking-[0.2em] mt-1.5">Exercises</p>
+            <p class="text-[11px] font-black uppercase text-[#71717a] tracking-[0.2em] mt-1.5">Exercises</p>
           </div>
         </div>
 
         <div class="text-right">
-          <p class="text-[10px] font-black text-[rgba(255,255,255,0.3)] tracking-widest uppercase">Boulder Tracker</p>
+          <p class="text-[11px] font-black text-[rgba(255,255,255,0.3)] tracking-widest uppercase">Boulder Tracker</p>
         </div>
       </div>
     </div>
@@ -228,7 +228,7 @@
       <button
         onclick={onClose}
         disabled={busy !== null}
-        class="shrink-0 px-5 py-4 bg-surface hover:bg-surface-elevated disabled:opacity-50 text-content rounded-2xl font-black uppercase text-[10px] tracking-widest transition-colors border border-border"
+        class="shrink-0 px-5 py-4 bg-surface hover:bg-surface-elevated disabled:opacity-50 text-content rounded-2xl font-black uppercase text-[11px] tracking-widest transition-colors border border-border"
       >
         Close
       </button>
@@ -236,7 +236,7 @@
         <button
           onclick={handleCopy}
           disabled={busy !== null}
-          class="shrink-0 px-5 py-4 bg-surface hover:bg-surface-elevated disabled:opacity-50 text-content rounded-2xl font-black uppercase text-[10px] tracking-widest transition-colors border border-border flex items-center justify-center gap-2"
+          class="shrink-0 px-5 py-4 bg-surface hover:bg-surface-elevated disabled:opacity-50 text-content rounded-2xl font-black uppercase text-[11px] tracking-widest transition-colors border border-border flex items-center justify-center gap-2"
         >
           <Icon icon="ic:baseline-content-copy" class="text-sm" />
           {busy === 'copy' ? '...' : 'Copy'}
@@ -245,7 +245,7 @@
       <button
         onclick={handleShare}
         disabled={busy !== null}
-        class="flex-1 min-w-0 py-4 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+        class="flex-1 min-w-0 py-4 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2"
       >
         <Icon icon="ic:baseline-ios-share" class="text-sm" />
         {busy === 'share' ? 'Preparing...' : 'Share'}

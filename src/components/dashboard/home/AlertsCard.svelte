@@ -35,39 +35,51 @@
       },
     }),
   );
-  const ALERT_DOT: Record<AlertSeverity, string> = {
-    risk: 'bg-status-risk',
-    caution: 'bg-status-caution',
-    info: 'bg-status-neutral',
+  /** Severity is an icon and a word as well as a colour. */
+  const SEVERITY: Record<AlertSeverity, { icon: string; color: string; word: string }> = {
+    risk: { icon: 'ic:baseline-warning', color: 'text-status-risk', word: 'Warning' },
+    caution: { icon: 'ic:baseline-warning-amber', color: 'text-status-caution', word: 'Caution' },
+    info: { icon: 'ic:baseline-info', color: 'text-status-neutral', word: 'Note' },
   };
+  /** Housekeeping (backups, gaps in the data, unrated sessions) is kept apart from signals about training and health. */
+  const isHousekeeping = (a: { id: string }) => a.id === 'backup' || a.id.startsWith('gap-') || a.id.startsWith('unrated-');
+  const signals = $derived(alerts.filter((a) => !isHousekeeping(a)));
+  const housekeeping = $derived(alerts.filter(isHousekeeping));
   function rateSession(workoutId: string) {
     const workout = trainingState.workouts.find((w) => w.id === workoutId);
     if (workout) trainingState.openFatigueModal(workout);
   }
+  function run(alert: (typeof alerts)[number]) {
+    if (alert.exportBackup) void trainingState.exportData();
+    else if (alert.painIssueId) openPainIssue(alert.painIssueId);
+    else if (alert.rateWorkoutId) rateSession(alert.rateWorkoutId);
+  }
 </script>
 
+{#snippet row(alert: (typeof alerts)[number])}
+  {@const sev = SEVERITY[alert.severity]}
+  {@const tappable = !!(alert.exportBackup || alert.painIssueId || alert.rateWorkoutId)}
+  {#snippet inner()}
+    <span class="text-body h-[1lh] shrink-0 flex items-center {sev.color}"><Icon icon={sev.icon} class="text-base" /><span class="sr-only">{sev.word}: </span></span>
+    <span class="text-body text-content flex-1">{alert.text}</span>
+    {#if tappable}<span class="text-body h-[1lh] shrink-0 flex items-center"><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-lg" /></span>{/if}
+  {/snippet}
+  {#if tappable}
+    <button onclick={() => run(alert)} class="w-full min-h-11 flex items-start gap-2.5 text-left py-2 hover:bg-surface-elevated/40 rounded-control -mx-1 px-1 transition-colors">{@render inner()}</button>
+  {:else}
+    <div class="flex items-start gap-2.5 py-1.5">{@render inner()}</div>
+  {/if}
+{/snippet}
+
 {#if alerts.length > 0}
-  <div class="card space-y-3">
-    <SectionHeader label="Alerts" />
-    {#each alerts as alert (alert.id)}
-      {#if alert.exportBackup}
-        <button onclick={() => trainingState.exportData()} class="w-full flex items-start gap-2.5 text-left group">
-          <span class="text-body h-[1lh] shrink-0 flex items-center"><span class="w-2 h-2 rounded-full {ALERT_DOT[alert.severity]}"></span></span>
-          <span class="text-body text-content group-hover:text-primary transition-colors flex-1">{alert.text}</span>
-          <span class="text-body h-[1lh] shrink-0 flex items-center"><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-lg" /></span>
-        </button>
-      {:else if alert.rateWorkoutId || alert.painIssueId}
-        <button onclick={() => alert.painIssueId ? openPainIssue(alert.painIssueId) : rateSession(alert.rateWorkoutId!)} class="w-full flex items-start gap-2.5 text-left group">
-          <span class="text-body h-[1lh] shrink-0 flex items-center"><span class="w-2 h-2 rounded-full {ALERT_DOT[alert.severity]}"></span></span>
-          <span class="text-body text-content group-hover:text-primary transition-colors flex-1">{alert.text}</span>
-          <span class="text-body h-[1lh] shrink-0 flex items-center"><Icon icon="ic:baseline-chevron-right" class="text-content-subtle text-lg" /></span>
-        </button>
-      {:else}
-        <div class="flex items-start gap-2.5">
-          <span class="text-body h-[1lh] shrink-0 flex items-center"><span class="w-2 h-2 rounded-full {ALERT_DOT[alert.severity]}"></span></span>
-          <span class="text-body text-content">{alert.text}</span>
-        </div>
-      {/if}
-    {/each}
+  <div class="card space-y-2">
+    <SectionHeader label="Alerts" subtitle={signals.length > 0 ? `${signals.length} to look at` : undefined} />
+    {#each signals as alert (alert.id)}{@render row(alert)}{/each}
+    {#if housekeeping.length > 0}
+      <div class="{signals.length > 0 ? 'pt-2 border-t border-border/60' : ''} space-y-0.5">
+        {#if signals.length > 0}<p class="text-caption text-content-subtle">Housekeeping</p>{/if}
+        {#each housekeeping as alert (alert.id)}{@render row(alert)}{/each}
+      </div>
+    {/if}
   </div>
 {/if}

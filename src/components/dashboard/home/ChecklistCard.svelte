@@ -12,6 +12,12 @@
   import { checklistState } from '../../../lib/home/checklistState.svelte';
   import { buildChecklist, type ChecklistItemId } from '../../../lib/home/starterChecklist';
   import SectionHeader from './SectionHeader.svelte';
+  import { showUndo } from '../../../lib/toast.svelte';
+
+  function hide() {
+    checklistState.dismiss();
+    showUndo('Get started card hidden', () => checklistState.restore());
+  }
 
   let { onBodyweight }: { onBodyweight: () => void } = $props();
 
@@ -42,14 +48,11 @@
 
 {#if checklist.visible && !trainingState.demoActive}
   <div class="card space-y-3 animate-in fade-in">
-    <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <SectionHeader label="Get started" subtitle="{checklist.doneCount} of {checklist.total} done" />
-      </div>
-      <button onclick={() => checklistState.dismiss()} class="tap p-1 -mr-1 text-content-subtle hover:text-content shrink-0" aria-label="Hide this card for good">
-        <Icon icon="ic:baseline-close" class="text-lg" />
-      </button>
-    </div>
+    <SectionHeader label="Get started" subtitle="{checklist.doneCount} of {checklist.total} done">
+      {#snippet action()}
+        <button onclick={hide} class="btn-icon" aria-label="Hide this card"><Icon icon="ic:baseline-close" class="text-lg" /></button>
+      {/snippet}
+    </SectionHeader>
 
     <div class="divide-y divide-border">
       {#each checklist.items as item (item.id)}
@@ -66,6 +69,6 @@
       {/each}
     </div>
 
-    <button onclick={() => void tour.startExample()} class="text-caption text-primary">Or look around with example data first</button>
+    <button onclick={() => void tour.startExample()} class="btn-quiet text-caption text-primary">Or look around with example data first</button>
   </div>
 {/if}

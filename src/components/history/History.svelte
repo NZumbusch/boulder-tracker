@@ -1,7 +1,6 @@
 <script lang="ts">
   import AppBar from '../nav/AppBar.svelte';
   import { openSessionActions } from '../../lib/sessionActions.svelte';
-  import { RATING_AXES } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import type { Workout } from '../../lib/types';
@@ -14,6 +13,9 @@
   import { displayGrade } from '../../lib/sends/gradeScale';
   import Icon from "@iconify/svelte";
   import { onMount, tick } from 'svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import SectionHeader from '../dashboard/home/SectionHeader.svelte';
+  import { formatDay, parseDay } from '../../lib/dateUtils';
 
   // History: overflow menu, month
   // grouping, richer row content (duration/fatigue/block), and the new
@@ -66,14 +68,17 @@
     return w.blockId ? trainingState.trainingBlocks.find((b) => b.id === w.blockId) : undefined;
   }
 
-  const filteredWorkouts = $derived(completedWorkouts.slice().sort((a, b) => {
+  // Newest first. Sorted once; the filters below only narrow this list.
+  const sortedWorkouts = $derived(completedWorkouts.slice().sort((a, b) => {
     const timeA = new Date(a.date || 0).getTime();
     const timeB = new Date(b.date || 0).getTime();
     if (timeA !== timeB) return timeA - timeB;
     const startA = a.startTime || "00:00";
     const startB = b.startTime || "00:00";
     return startA.localeCompare(startB);
-  }).reverse().filter(w => {
+  }).reverse());
+
+  const filteredWorkouts = $derived(sortedWorkouts.filter(w => {
     // Compared by day, so the "to" date includes sessions later that same day.
     if (filterFromDate && w.date && w.date.slice(0, 10) < filterFromDate) return false;
     if (filterToDate && w.date && w.date.slice(0, 10) > filterToDate) return false;
@@ -144,14 +149,35 @@
           [filterMinDuration, filterMaxDuration].filter((v) => v !== '').length),
   );
 
+  /** The filters that apply, each with the way to switch it off - shown as chips once the panel is closed. */
+  const activeChips = $derived.by(() => {
+    const chips: { label: string; clear: () => void }[] = [];
+    if (filterSearch) chips.push({ label: `Search: ${filterSearch}`, clear: () => (filterSearch = '') });
+    if (filterFromDate) chips.push({ label: `From ${formatDay(filterFromDate)}`, clear: () => (filterFromDate = '') });
+    if (filterToDate) chips.push({ label: `To ${formatDay(filterToDate)}`, clear: () => (filterToDate = '') });
+    if (onSends) {
+      if (filterMinGrade) chips.push({ label: `Min grade ${displayGrade(filterMinGrade, trainingState.units.grades)}`, clear: () => (filterMinGrade = '') });
+      if (filterMaxGrade) chips.push({ label: `Max grade ${displayGrade(filterMaxGrade, trainingState.units.grades)}`, clear: () => (filterMaxGrade = '') });
+      if (filterStyle) chips.push({ label: filterStyle, clear: () => (filterStyle = '') });
+      if (filterCrag) chips.push({ label: filterCrag, clear: () => (filterCrag = '') });
+    } else {
+      if (filterAnalyticsType) chips.push({ label: filterAnalyticsType, clear: () => (filterAnalyticsType = '') });
+      if (filterExerciseTypeId) chips.push({ label: trainingState.exerciseTypes.find((t) => t.id === filterExerciseTypeId)?.name ?? 'Exercise type', clear: () => (filterExerciseTypeId = '') });
+      if (filterBlockId) chips.push({ label: trainingState.trainingBlocks.find((b) => b.id === filterBlockId)?.name ?? 'Block', clear: () => (filterBlockId = '') });
+      if (filterMinDuration !== '') chips.push({ label: `Min ${filterMinDuration} min`, clear: () => (filterMinDuration = '') });
+      if (filterMaxDuration !== '') chips.push({ label: `Max ${filterMaxDuration} min`, clear: () => (filterMaxDuration = '') });
+    }
+    return chips;
+  });
+
   function monthKey(dateStr: string | null): string {
     if (!dateStr) return 'unknown';
-    const d = new Date(dateStr);
+    const d = parseDay(dateStr);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
   function monthLabel(dateStr: string | null): string {
     if (!dateStr) return 'Unknown';
-    return new Date(dateStr).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return parseDay(dateStr).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   }
 
   const groupedWorkouts = $derived.by(() => {
@@ -191,61 +217,70 @@
       <button
         onclick={() => showFilters = !showFilters}
         class="relative w-11 h-11 flex items-center justify-center rounded-full transition-colors hover:bg-surface-elevated/70 {showFilters || activeFilterCount > 0 ? 'text-primary' : 'text-content-subtle hover:text-content'}"
-        aria-label="Toggle Filters"
+        aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : 'Filters'}
         data-tour="history-filters"
         aria-expanded={showFilters}
       >
         <Icon icon="ic:baseline-filter-list" class="text-xl" />
         {#if activeFilterCount > 0 && !showFilters}
-          <span class="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold grid place-items-center tabular-nums">{activeFilterCount}</span>
+          <span class="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-primary text-on-primary text-[11px] font-bold grid place-items-center tabular-nums">{activeFilterCount}</span>
         {/if}
       </button>
     {/snippet}
   </AppBar>
 
-  <div class="seg p-1" data-tour="history-tabs">
-    {#each [['sessions', 'Sessions'], ['sends', 'Sends']] as [id, label]}
-      <button
-        onclick={() => trainingState.uiStore.historyTab = id as 'sessions' | 'sends'}
-        class="seg-item flex-1 py-1.5 text-label {trainingState.uiStore.historyTab === id ? 'seg-on' : 'hover:text-content'}"
-        aria-pressed={trainingState.uiStore.historyTab === id}
-      >{label}</button>
-    {/each}
+  <div data-tour="history-tabs">
+    <Segmented
+      label="History view"
+      options={[{ value: 'sessions', label: 'Sessions' }, { value: 'sends', label: 'Sends' }]}
+      value={trainingState.uiStore.historyTab}
+      onChange={(v) => (trainingState.uiStore.historyTab = v)}
+    />
   </div>
+
+  {#if !showFilters && activeChips.length > 0}
+    <div class="flex flex-wrap gap-2" aria-label="Active filters">
+      {#each activeChips as chip}
+        <button type="button" onclick={chip.clear} class="chip max-w-full" aria-label="Remove filter: {chip.label}">
+          <span class="truncate">{chip.label}</span><Icon icon="ic:baseline-close" class="text-sm shrink-0" aria-hidden="true" />
+        </button>
+      {/each}
+    </div>
+  {/if}
 
   {#if showFilters}
     <div class="card space-y-4 animate-in slide-in-from-top-2">
       <div class="flex items-center justify-between">
         <h4 class="text-section uppercase text-content-muted">Filters</h4>
-        <button onclick={clearFilters} class="text-label text-content-subtle hover:text-primary transition-colors">Clear All</button>
+        <button onclick={clearFilters} class="btn-quiet px-2 text-label text-content-subtle hover:text-primary">Clear all</button>
       </div>
       <div class="grid grid-cols-1 gap-4">
         <div class="space-y-1.5">
           <label for="filter-search" class="text-label text-content-subtle ml-1">Search</label>
-          <input id="filter-search" type="text" bind:value={filterSearch} placeholder={onSends ? 'Name, crag or notes' : 'Name or notes'} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+          <input id="filter-search" type="text" bind:value={filterSearch} placeholder={onSends ? 'Name, crag or notes' : 'Name or notes'} class="field" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
-            <label for="filter-date" class="text-label text-content-subtle ml-1">From Date</label>
-            <input id="filter-date" type="date" bind:value={filterFromDate} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+            <label for="filter-date" class="text-label text-content-subtle ml-1">From date</label>
+            <input id="filter-date" type="date" bind:value={filterFromDate} class="field" />
           </div>
           <div class="space-y-1.5">
-            <label for="filter-date-to" class="text-label text-content-subtle ml-1">To Date</label>
-            <input id="filter-date-to" type="date" bind:value={filterToDate} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" />
+            <label for="filter-date-to" class="text-label text-content-subtle ml-1">To date</label>
+            <input id="filter-date-to" type="date" bind:value={filterToDate} class="field" />
           </div>
         </div>
         {#if onSends}
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <label for="filter-min-grade" class="text-label text-content-subtle ml-1">Min Grade</label>
-              <select id="filter-min-grade" bind:value={filterMinGrade} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+              <label for="filter-min-grade" class="text-label text-content-subtle ml-1">Min grade</label>
+              <select id="filter-min-grade" bind:value={filterMinGrade} class="field">
                 <option value="">Any</option>
                 {#each gradeOptions('min') as g}<option value={g.value}>{g.label}</option>{/each}
               </select>
             </div>
             <div class="space-y-1.5">
-              <label for="filter-max-grade" class="text-label text-content-subtle ml-1">Max Grade</label>
-              <select id="filter-max-grade" bind:value={filterMaxGrade} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+              <label for="filter-max-grade" class="text-label text-content-subtle ml-1">Max grade</label>
+              <select id="filter-max-grade" bind:value={filterMaxGrade} class="field">
                 <option value="">Any</option>
                 {#each gradeOptions('max') as g}<option value={g.value}>{g.label}</option>{/each}
               </select>
@@ -254,14 +289,14 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <label for="filter-style" class="text-label text-content-subtle ml-1">Style</label>
-              <select id="filter-style" bind:value={filterStyle} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+              <select id="filter-style" bind:value={filterStyle} class="field">
                 <option value="">Any</option>
                 {#each sendStyles as style}<option value={style}>{style}</option>{/each}
               </select>
             </div>
             <div class="space-y-1.5">
               <label for="filter-crag" class="text-label text-content-subtle ml-1">Crag</label>
-              <select id="filter-crag" bind:value={filterCrag} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+              <select id="filter-crag" bind:value={filterCrag} class="field">
                 <option value="">Any</option>
                 {#each sendCrags as crag}<option value={crag}>{crag}</option>{/each}
               </select>
@@ -269,8 +304,8 @@
           </div>
         {:else}
         <div class="space-y-1.5">
-          <label for="filter-type" class="text-label text-content-subtle ml-1">Includes Analytics Type</label>
-          <select id="filter-type" bind:value={filterAnalyticsType} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+          <label for="filter-type" class="text-label text-content-subtle ml-1">Includes analytics type</label>
+          <select id="filter-type" bind:value={filterAnalyticsType} class="field">
             <option value="">Any</option>
             {#each trainingState.analyticsCategories as cat}
               <option value={cat.name}>{cat.name}</option>
@@ -279,8 +314,8 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
-            <label for="filter-exercise-type" class="text-label text-content-subtle ml-1">Exercise Type</label>
-            <select id="filter-exercise-type" bind:value={filterExerciseTypeId} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+            <label for="filter-exercise-type" class="text-label text-content-subtle ml-1">Exercise type</label>
+            <select id="filter-exercise-type" bind:value={filterExerciseTypeId} class="field">
               <option value="">Any</option>
               {#each trainingState.exerciseTypes as type}
                 <option value={type.id}>{type.name}</option>
@@ -288,8 +323,8 @@
             </select>
           </div>
           <div class="space-y-1.5">
-            <label for="filter-block" class="text-label text-content-subtle ml-1">Training Block</label>
-            <select id="filter-block" bind:value={filterBlockId} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm appearance-none">
+            <label for="filter-block" class="text-label text-content-subtle ml-1">Training block</label>
+            <select id="filter-block" bind:value={filterBlockId} class="field">
               <option value="">Any</option>
               {#each trainingState.trainingBlocks as block}
                 <option value={block.id}>{block.name}</option>
@@ -299,12 +334,12 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
-            <label for="filter-min-dur" class="text-label text-content-subtle ml-1">Min Duration (m)</label>
-            <input id="filter-min-dur" type="number" bind:value={filterMinDuration} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" placeholder="Any" />
+            <label for="filter-min-dur" class="text-label text-content-subtle ml-1">Min duration (min)</label>
+            <input id="filter-min-dur"  type="number" inputmode="numeric" bind:value={filterMinDuration} class="field" placeholder="min" />
           </div>
           <div class="space-y-1.5">
-            <label for="filter-max-dur" class="text-label text-content-subtle ml-1">Max Duration (m)</label>
-            <input id="filter-max-dur" type="number" bind:value={filterMaxDuration} class="w-full bg-surface-elevated text-content p-3 rounded-control border border-border-strong outline-none text-sm" placeholder="Any" />
+            <label for="filter-max-dur" class="text-label text-content-subtle ml-1">Max duration (min)</label>
+            <input id="filter-max-dur"  type="number" inputmode="numeric" bind:value={filterMaxDuration} class="field" placeholder="min" />
           </div>
         </div>
         {/if}
@@ -323,27 +358,20 @@
            session (the same row as Home's Recent Activity). Tapping a row
            opens the session, where edit, share, duplicate and delete live. -->
       <div class="card space-y-1">
-        <div class="flex items-baseline justify-between gap-3">
-          <span class="text-section uppercase text-content-muted">{group.label}</span>
-          <span class="text-caption text-content-subtle tabular-nums">{group.workouts.length} session{group.workouts.length === 1 ? '' : 's'} · {Math.round(group.totalLoad)} load pts</span>
-        </div>
+        <SectionHeader label={group.label} subtitle="{group.workouts.length} session{group.workouts.length === 1 ? '' : 's'} · load {Math.round(group.totalLoad)}" info="load" />
         <div class="divide-y divide-border">
           {#each group.workouts as workout (workout.id)}
             {@const block = blockForWorkout(workout)}
             {@const duration = workoutDuration(workout)}
-            {@const ratings = RATING_AXES.filter((axis) => workout[axis.key] !== undefined).map((axis) => `${axis.label[0]}${workout[axis.key]}`).join(' ')}
             <div id="workout-{workout.id}" class="scroll-mt-20">
               <ListRow
                 title={workout.notes || 'Session'}
                 meta={[
-                  workout.date ? `${new Date(workout.date).toLocaleDateString(undefined, { weekday: 'short' })} ${new Date(workout.date).getDate()}` : undefined,
+                  workout.date ? formatDay(workout.date, { weekday: 'short' }) : undefined,
                   duration > 0 ? `${duration} min` : undefined,
-                  ratings || undefined,
-                ].filter(Boolean).join(' · ')}
-                detail={[
-                  [...new Set(workout.exercises.map((e) => slotTypeName(e, trainingState.exerciseTypes)))].join(', '),
                   block?.name,
-                ].filter(Boolean).join(' · ') || undefined}
+                ].filter(Boolean).join(' · ')}
+                detail={[...new Set(workout.exercises.map((e) => slotTypeName(e, trainingState.exerciseTypes)))].join(', ') || undefined}
                 value={Math.round(workout.loadFactor)}
                 valueHint="load"
                 onclick={() => openWorkout(workout, 'view', false, filteredWorkouts)}
@@ -354,15 +382,23 @@
         </div>
       </div>
     {:else}
-      <p class="text-caption text-content-subtle italic text-center py-12">No workout history yet.</p>
+      <div class="text-center py-12 space-y-3">
+        {#if activeFilterCount > 0}
+          <p class="text-caption text-content-subtle">No sessions match these filters.</p>
+          <button onclick={clearFilters} class="btn btn-secondary">Clear filters</button>
+        {:else}
+          <p class="text-caption text-content-subtle">No workout history yet.</p>
+          <button onclick={() => trainingState.navigate('add')} class="btn btn-secondary">Log a session</button>
+        {/if}
+      </div>
     {/each}
 
     {#if filteredWorkouts.length > limit}
       <button
         onclick={() => limit += 50}
-        class="w-full py-3 text-label text-primary hover:bg-surface-elevated rounded-control transition-colors"
+        class="btn btn-ghost w-full text-primary"
       >
-        Load More
+        Show more ({displayedWorkouts.length} of {filteredWorkouts.length})
       </button>
     {/if}
   </div>

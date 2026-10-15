@@ -23,6 +23,9 @@
   import type { AcwrResult } from '../../lib/analytics/loadAnalytics';
   import type { Workout, DayOfWeek } from '../../lib/types';
   import Icon from '@iconify/svelte';
+  import InfoButton from '../common/InfoButton.svelte';
+  import { formatMinutes } from '../../lib/session/formatSession';
+  import { formatDay } from '../../lib/dateUtils';
 
   let { bucket, acwr, onClose }: {
     bucket: Bucket;
@@ -109,34 +112,38 @@
         <h3 class="text-title text-content">{title}</h3>
         <p class="text-caption text-content-subtle mt-0.5">{dateRange}{blocks.length ? ` · ${blocks.join(', ')}` : ''}</p>
       </div>
-      <button onclick={onClose} class="text-content-subtle hover:text-content transition-colors shrink-0" aria-label="Close">
+      <button onclick={onClose} class="btn-icon shrink-0" aria-label="Close">
         <Icon icon="ic:baseline-close" class="text-xl" />
       </button>
     </div>
 
-    <div class="grid grid-cols-3 gap-1.5 text-center">
+    <div class="grid grid-cols-2 gap-1.5 text-center">
       <div class="p-2 rounded-control bg-surface-elevated/40">
         <p class="text-body font-semibold text-content tabular-nums">{done.length}<span class="text-content-subtle font-normal">/{sessions.length}</span></p>
-        <p class="text-caption text-content-subtle">sessions</p>
+        <p class="text-caption text-content-subtle">sessions done</p>
       </div>
       <div class="p-2 rounded-control bg-surface-elevated/40">
-        <p class="text-body font-semibold text-content tabular-nums">{Math.round(stats.load)}{#if progress !== undefined}<span class="text-content-subtle font-normal"> · {Math.round(progress * 100)}%</span>{/if}</p>
-        <p class="text-caption text-content-subtle">load{progress !== undefined ? ' · of plan' : ''}</p>
+        <p class="text-body font-semibold text-content tabular-nums">{formatMinutes(stats.minutes)}</p>
+        <p class="text-caption text-content-subtle">time</p>
       </div>
       <div class="p-2 rounded-control bg-surface-elevated/40">
-        <p class="text-body font-semibold text-content tabular-nums">{(stats.minutes / 60).toFixed(1)}</p>
-        <p class="text-caption text-content-subtle">hours</p>
+        <p class="text-body font-semibold text-content tabular-nums">{Math.round(stats.load)}</p>
+        <p class="text-caption text-content-subtle">load (points)</p>
+      </div>
+      <div class="p-2 rounded-control bg-surface-elevated/40">
+        <p class="text-body font-semibold text-content tabular-nums">{progress !== undefined ? `${Math.round(progress * 100)}%` : '–'}</p>
+        <p class="text-caption text-content-subtle">of the plan done</p>
       </div>
     </div>
 
     {#if acwr && (acwr.ratio !== undefined || acwr.rampRate)}
       <div class="flex flex-wrap gap-x-4 gap-y-1 text-caption tabular-nums">
         {#if acwr.ratio !== undefined}
-          <span><span class="text-content-subtle">ACWR</span> <span class={acwrClass}>{acwr.ratio.toFixed(2)}</span>{!acwr.sufficient ? ' (building history)' : ''}</span>
+          <span class="inline-flex items-center gap-1"><span class="text-content-subtle">ACWR</span> <span class={acwrClass}>{acwr.ratio.toFixed(2)}</span>{!acwr.sufficient ? ' (building history, not counted)' : ''}<InfoButton term="acwr" /></span>
         {/if}
         {#if acwr.rampRate}
-          <span class={acwr.spike ? 'text-status-risk' : 'text-content-muted'}>
-            <span class="text-content-subtle">Load vs {bucket.kind === 'week' ? 'week' : 'month'} before</span> {acwr.rampRate > 0 ? '+' : ''}{Math.round(acwr.rampRate * 100)}%{acwr.spike ? ' ⚠' : ''}
+          <span class={acwr.spike ? 'text-status-caution' : 'text-content-muted'}>
+            <span class="text-content-subtle">Load vs {bucket.kind === 'week' ? 'week' : 'month'} before</span> {acwr.rampRate > 0 ? '+' : ''}{Math.round(acwr.rampRate * 100)}%{#if acwr.spike} <Icon icon="ic:baseline-warning" class="inline text-sm align-text-bottom text-status-caution" />{/if}
           </span>
         {/if}
       </div>
@@ -150,7 +157,7 @@
         {#if bodyweight !== undefined}
           <span><span class="text-content-subtle">Weight</span> {formatWeight(bodyweight, trainingState.units.weight)}</span>
         {/if}
-        <span class="text-content-subtle/70">averages</span>
+        <span class="text-content-subtle">averages</span>
       </div>
     {/if}
 
@@ -203,7 +210,7 @@
         <h4 class="text-section uppercase text-content-muted">Pain</h4>
         {#each pain as p (p.id)}
           <p class="text-caption text-content-muted">
-            <span class="text-content-subtle">{new Date(p.date).toLocaleDateString(undefined, { weekday: 'short' })} {new Date(p.date).getDate()}</span>
+            <span class="text-content-subtle">{formatDay(p.date, { weekday: 'short' })}</span>
             {p.bodyPart} · {p.severity}/10{p.notes ? ` · ${p.notes}` : ''}
           </p>
         {/each}

@@ -35,12 +35,12 @@
   {#if open.length}
     <div class="divide-y divide-border">
       {#each open as { issue, st } (issue.id)}
-        <button onclick={() => openPainIssue(issue.id)} class="w-full flex items-center gap-3 py-2.5 text-left group">
+        <button onclick={() => openPainIssue(issue.id)} class="w-full flex items-center gap-3 py-2.5 min-h-11 text-left group">
           <span class="shrink-0 w-8 text-center py-1 rounded-control text-caption font-bold tabular-nums {sevClass(st.severity)}">{st.severity ?? '–'}</span>
           <span class="min-w-0 flex-1">
             <span class="block text-body font-semibold text-content truncate group-hover:text-primary">{issue.bodyPart}</span>
             <span class="block text-caption text-content-subtle truncate">
-              <span class={STATUS_TONE[st.status]}>{STATUS_LABELS[st.status]}</span> · {st.durationDays + 1} day{st.durationDays === 0 ? '' : 's'} · checked {st.daysSinceCheckIn === 0 ? 'today' : `${st.daysSinceCheckIn} d ago`}
+              <span class={STATUS_TONE[st.status]}>{STATUS_LABELS[st.status]}</span> · {st.durationDays + 1} day{st.durationDays === 0 ? '' : 's'} · checked {st.daysSinceCheckIn === 0 ? 'today' : `${st.daysSinceCheckIn} day${st.daysSinceCheckIn === 1 ? '' : 's'} ago`}
             </span>
           </span>
           <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle shrink-0" />
@@ -49,23 +49,23 @@
     </div>
   {/if}
 
-  <button onclick={openPainReport} class="w-full py-3 bg-primary hover:bg-primary-hover text-white text-label font-bold rounded-control flex items-center justify-center gap-1.5">
+  <button onclick={openPainReport} class="btn btn-primary w-full">
     <Icon icon="ic:baseline-plus" class="text-base" /> New pain issue
   </button>
 
   {#if resolved.length}
     <div class="pt-1 border-t border-border">
-      <button onclick={() => showResolved = !showResolved} class="w-full flex items-center justify-between py-2 text-left">
+      <button onclick={() => showResolved = !showResolved} class="w-full flex items-center justify-between min-h-11 py-2 text-left" aria-expanded={showResolved}>
         <span class="text-label text-content-subtle">Resolved · {resolved.length}</span>
         <Icon icon={showResolved ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-lg text-content-subtle" />
       </button>
       {#if showResolved}
         <div class="divide-y divide-border">
           {#each resolved as { issue, st } (issue.id)}
-            <button onclick={() => openPainIssue(issue.id)} class="w-full flex items-center gap-3 py-2 text-left">
+            <button onclick={() => openPainIssue(issue.id)} class="w-full flex items-center gap-3 py-2 min-h-11 text-left">
               <span class="min-w-0 flex-1">
                 <span class="block text-label text-content truncate">{issue.bodyPart}</span>
-                <span class="block text-caption text-content-subtle tabular-nums">{formatDate(issue.startDate)} – {formatDate(issue.endDate!)}{issue.endEstimated ? ' (est.)' : ''} · {st.durationDays + 1} d · peak {st.peak}</span>
+                <span class="block text-caption text-content-subtle tabular-nums">{formatDate(issue.startDate)} – {formatDate(issue.endDate!)}{issue.endEstimated ? ' (est.)' : ''} · {st.durationDays + 1} day{st.durationDays === 0 ? '' : 's'} · peak {st.peak}/10</span>
               </span>
               <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle shrink-0" />
             </button>

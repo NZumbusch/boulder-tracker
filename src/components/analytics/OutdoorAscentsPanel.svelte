@@ -12,6 +12,8 @@
   import { showsLabel, pickAxisTicks, labelStep as labelStepFor } from '../../lib/analytics/chartWindow';
   import { ColumnPicker } from '../../lib/analytics/columnPicker.svelte';
   import ChartEmpty from './ChartEmpty.svelte';
+  import ChartTable from './ChartTable.svelte';
+  import { adjacentRuns } from '../../lib/analytics/joinRuns';
 
   export interface WeekAscentPoint {
     id: string;
@@ -102,7 +104,12 @@
     const tops = weeks
       .map((w, i) => (w.ascents.length ? { i, rank: Math.max(...w.ascents.map((a) => a.rank)) } : null))
       .filter((t): t is { i: number; rank: number } => t !== null);
-    const topLine = tops.length > 1 ? `M ${tops.map((t) => `${xOf(t.i)},${100 - yPercent(t.rank)}`).join(' L ')}` : '';
+    // The hardest-of-each-week line joins only neighbouring weeks: a slope across weeks with no sends would read as a decline.
+    const byColumn = new Map(tops.map((t) => [t.i, t]));
+    const topLine = adjacentRuns(tops.map((t) => t.i))
+      .filter((run) => run.length > 1)
+      .map((run) => `M ${run.map((i) => `${xOf(i)},${100 - yPercent(byColumn.get(i)!.rank)}`).join(' L ')}`)
+      .join(' ');
     return { dots, topLine };
   });
   const total = $derived(weeks.reduce((a, w) => a + w.ascents.length, 0));
@@ -125,7 +132,7 @@
     </p>
   </div>
 
-    <div class="text-caption min-h-[1.25rem] text-content-muted">
+    <div class="text-caption min-h-[1.25rem] text-content-muted" aria-live="polite">
       {#if selected && hasAscents}
         <span>{weekLabels[selected.weekId] ?? ''}</span>
         {#if selected.ascents.length === 0}
@@ -136,17 +143,17 @@
           {/each}
         {/if}
       {:else if hasAscents}
-        <span class="text-content-subtle/70">Tap a column for its sends</span>
+        <span class="text-content-subtle">Tap a column for its sends</span>
       {/if}
     </div>
 
     <!-- Grade gutter beside the plot. Labels sit at the same height the
          dots use, so they line up with the scale exactly. -->
     <div class="flex gap-2">
-      <div class="w-9 shrink-0 h-36 relative">
+      <div class="min-w-9 shrink-0 h-36 relative">
         {#each gradeTicks as tick (tick.rank)}
           <span
-            class="absolute right-0 -translate-y-1/2 text-caption leading-none text-content-subtle/70 tabular-nums whitespace-nowrap"
+            class="absolute right-0 -translate-y-1/2 text-caption leading-none text-content-subtle tabular-nums whitespace-nowrap"
             style="bottom: {yPercent(tick.rank)}%;"
           >
             {G(tick.grade)}
@@ -154,10 +161,14 @@
         {/each}
       </div>
       <div class="flex-1 min-w-0" bind:clientWidth={plotWidth}>
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
         <div
           bind:this={picker.el}
           class="h-36 relative cursor-crosshair select-none"
-          role="presentation"
+          role="application"
+          tabindex="0"
+          aria-label="Outdoor sends by week. Left and right arrow keys move between weeks; a table of the sends follows."
+          onkeydown={picker.key}
           onpointerdown={picker.down}
           onpointermove={picker.move}
           onpointerleave={picker.leave}
@@ -167,12 +178,12 @@
             <div class="absolute inset-x-0 border-t border-content-subtle/10 pointer-events-none" style="bottom: {yPercent(tick.rank)}%"></div>
           {/each}
           <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path d={plotted.topLine} fill="none" stroke="var(--color-tertiary)" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="3 3" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+            <path d={plotted.topLine} fill="none" stroke="var(--color-series-5)" stroke-opacity="0.8" stroke-width="1.5" stroke-dasharray="3 3" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
             {#each plotted.dots as d (d.id)}
               {@const dim = picker.selected !== null && picker.selected !== d.column}
-              <path d="M {d.x},{d.y} h 0" stroke="var(--color-tertiary)" stroke-opacity={dim ? 0.3 : 1} stroke-width="8" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+              <path d="M {d.x},{d.y} h 0" stroke="var(--color-series-1)" stroke-opacity={dim ? 0.3 : 1} stroke-width="10" stroke-linecap="round" vector-effect="non-scaling-stroke" />
               {#if !d.flash}
-                <path d="M {d.x},{d.y} h 0" stroke="var(--color-surface)" stroke-width="4" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+                <path d="M {d.x},{d.y} h 0" stroke="var(--color-surface)" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke" />
               {/if}
             {/each}
           </svg>
@@ -184,7 +195,7 @@
         <div class="border-t border-border-strong/60"></div>
         <div class="flex gap-px">
           {#each weeks as week, i (week.weekId)}
-            <span class="flex-1 text-center text-caption leading-tight text-content-subtle/70 tabular-nums">
+            <span class="flex-1 text-center text-caption leading-tight text-content-subtle tabular-nums">
               {showsLabel(i, weeks.length, labelStep) ? (weekLabels[week.weekId] ?? week.weekId) : ''}
             </span>
           {/each}
@@ -193,10 +204,16 @@
     </div>
 
     <div class="flex items-center gap-x-4 gap-y-1 flex-wrap">
-      <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-tertiary"></span><span class="text-caption text-content-subtle">Flash / onsight</span></div>
-      <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full border-2 border-tertiary"></span><span class="text-caption text-content-subtle">Redpoint / other</span></div>
-      <div class="flex items-center gap-1.5"><span class="w-3.5 h-0 border-t border-dashed border-tertiary"></span><span class="text-caption text-content-subtle">Hardest</span></div>
+      <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-series-1"></span><span class="text-caption text-content-subtle">Flash / onsight</span></div>
+      <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full border-2 border-series-1"></span><span class="text-caption text-content-subtle">Redpoint / other</span></div>
+      <div class="flex items-center gap-1.5"><span class="w-3.5 h-0 border-t border-dashed border-series-5"></span><span class="text-caption text-content-subtle">Hardest each week, between neighbouring weeks</span></div>
     </div>
+
+  <ChartTable
+    caption="Outdoor sends by week"
+    columns={['Week', 'Sends', 'Hardest']}
+    rows={weeks.map((w) => [weekLabels[w.weekId] ?? w.weekId, w.ascents.length, w.ascents.length ? G([...w.ascents].sort((a, b) => b.rank - a.rank)[0].grade) : '–'])}
+  />
 
   {#if unparsedCount > 0}
     <p class="text-caption text-content-subtle italic">{unparsedCount} ascent{unparsedCount === 1 ? '' : 's'} in this window {unparsedCount === 1 ? 'has' : 'have'} a grade format that couldn't be plotted.</p>

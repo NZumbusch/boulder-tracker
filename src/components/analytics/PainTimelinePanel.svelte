@@ -55,7 +55,7 @@
 <div id="section-pain" class="scroll-mt-4 card space-y-3">
   <div>
     <h3 class="text-section uppercase text-content-muted">Pain</h3>
-    <p class="text-caption text-content-subtle mt-0.5">Each issue from start to end over daily load · ringed: load spike that week or the one before</p>
+    <p class="text-caption text-content-subtle mt-0.5">Each issue from start to end, over daily load</p>
   </div>
 
     <div class="space-y-1">
@@ -66,7 +66,7 @@
       {/if}
       {#each rows as row (row.issueId)}
         <div class="flex items-center gap-2">
-          <button onclick={() => openPainIssue(row.issueId)} class="w-20 shrink-0 text-left text-caption text-content-muted hover:text-primary truncate" title={row.bodyPart}>{row.bodyPart}</button>
+          <button onclick={() => openPainIssue(row.issueId)} class="w-20 shrink-0 text-left text-caption text-content-muted hover:text-primary leading-tight line-clamp-2 break-words min-h-6">{row.bodyPart}</button>
           <div class="flex-1 min-w-0 h-6 relative">
             <div class="absolute inset-x-0 top-1/2 border-t border-border"></div>
             <!-- The issue's stretch: solid while it lasted, fading out while
@@ -77,15 +77,24 @@
             ></div>
             {#each row.points as p (p.id)}
               {@const size = 6 + p.severity}
+              <!-- A 24px target around the dot; a triangle marks a load spike nearby as well as the ring. -->
               <button
                 type="button"
                 onpointerup={(e) => { if (isTapPointer(e)) selected = selected?.id === p.id ? null : { row: row.issueId, id: p.id }; }}
                 onclick={(e) => { if (isKeyboardActivation(e)) selected = selected?.id === p.id ? null : { row: row.issueId, id: p.id }; }}
                 onpointerenter={(e) => { if (!isTapPointer(e)) selected = { row: row.issueId, id: p.id }; }}
-                aria-label="{row.bodyPart}, severity {p.severity}"
-                class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full {spikeIds.has(p.id) ? 'ring-2 ring-status-risk/60 ring-offset-1 ring-offset-surface' : ''} {selected?.id === p.id ? 'outline outline-1 outline-content' : ''}"
-                style="left: {xOf(p.day)}%; width: {size}px; height: {size}px; background: {severityColor(p.severity)};"
-              ></button>
+                aria-label="{row.bodyPart}, severity {p.severity}{spikeIds.has(p.id) ? ', load spike nearby' : ''}"
+                class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center"
+                style="left: {xOf(p.day)}%;"
+              >
+                <span
+                  class="block rounded-full {spikeIds.has(p.id) ? 'ring-2 ring-status-risk/60 ring-offset-1 ring-offset-surface' : ''} {selected?.id === p.id ? 'outline outline-1 outline-content' : ''}"
+                  style="width: {size}px; height: {size}px; background: {severityColor(p.severity)};"
+                ></span>
+                {#if spikeIds.has(p.id)}
+                  <svg class="absolute top-0 right-0" width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><polygon points="4.5,0.5 8.5,8 0.5,8" fill="var(--color-status-risk)" /></svg>
+                {/if}
+              </button>
             {/each}
           </div>
         </div>
@@ -107,7 +116,7 @@
             {#each days as day, i}
               {#if showsLabel(i, days.length, axisStep)}
                 <span
-                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
+                  class="absolute top-0 text-caption leading-tight text-content-subtle whitespace-nowrap"
                   style="left: {xOf(day)}%; transform: translateX({i === 0 ? '0' : i === days.length - 1 ? '-100%' : '-50%'});"
                 >{fmtDay(day)}</span>
               {/if}
@@ -117,11 +126,17 @@
       </div>
     </div>
 
-    <p class="text-caption text-content-muted min-h-[1.25rem]">
+    <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-content-subtle">
+      <span class="inline-flex items-center gap-1"><svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><polygon points="4.5,0.5 8.5,8 0.5,8" fill="var(--color-status-risk)" /></svg>ringed: load spike that week or the one before</span>
+      <span>fading bar: still open</span>
+      <span>dashed end: estimated end</span>
+    </p>
+
+    <p class="text-caption text-content-muted min-h-[1.25rem]" aria-live="polite">
       {#if selectedInfo}
         <span class="text-content-subtle">{selectedInfo.date}</span> · {selectedInfo.bodyPart} · {selectedInfo.severity}/10{selectedInfo.notes ? ` · ${selectedInfo.notes}` : ''}{selectedInfo.spike ? ' · load spike nearby' : ''}
       {:else}
-        <span class="text-content-subtle/70">{rows.length > 0 ? 'Tap a dot for details' : ''}</span>
+        <span class="text-content-subtle">{rows.length > 0 ? 'Tap a dot for details' : ''}</span>
       {/if}
     </p>
 </div>

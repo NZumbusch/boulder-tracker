@@ -141,7 +141,7 @@
       </div>
       <!-- A + on every row said "add" seven times: it stays on days with nothing planned and on today (the header's add covers the rest). -->
       {#if agenda.length === 0 || day === today}
-        <button onclick={() => onAdd(day)} class="tap p-1 self-start mt-1 text-content-subtle hover:text-primary rounded-control transition-colors" aria-label="Add a session on {dayNameOf(day)}">
+        <button onclick={() => onAdd(day)} class="btn-icon self-start -mt-0.5 hover:text-primary" aria-label="Add a session on {dayNameOf(day)}" title="Add a session">
           <Icon icon="ic:baseline-plus" class="text-lg" />
         </button>
       {/if}

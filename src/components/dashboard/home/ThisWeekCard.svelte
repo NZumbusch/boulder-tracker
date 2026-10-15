@@ -10,7 +10,8 @@
   import { WEEK_DAYS } from '../../../lib/constants';
   import NoteSheet from '../../common/NoteSheet.svelte';
   import { buildWeekRecap, planProgress } from '../../../lib/planning/weekRecap';
-  import { decrementWeekId } from '../../../lib/dateUtils';
+  import { decrementWeekId, formatWeek } from '../../../lib/dateUtils';
+  import InfoButton from '../../common/InfoButton.svelte';
   import { formatMinutes } from '../../../lib/session/formatSession';
   import { joinParts } from './format';
   import SectionHeader from './SectionHeader.svelte';
@@ -43,7 +44,7 @@
     return weekProgress(targets, data.weekWorkouts.filter((w) => w.status === 'completed'), (w) => isFingerSession(w, trainingState.exerciseTypes, trainingState.analyticsCategories, fingers));
   });
   const mixTotal = $derived(recap.mix.reduce((sum, m) => sum + m.minutes, 0));
-  const categoryColor = (name: string) => trainingState.analyticsCategories.find((c) => c.name === name)?.color ?? 'bg-primary';
+  const categoryColor = (name: string) => trainingState.analyticsCategories.find((c) => c.name === name)?.color ?? 'bg-content-subtle';
   const weekTripDays = $derived(data.weekTripDays);
   const weekNote = $derived(trainingState.getWeekNote(currentWeekId));
   let noteOpen = $state(false);
@@ -61,7 +62,7 @@
 </script>
 
 <div class="card space-y-3">
-  <SectionHeader label="This Week" subtitle="W{currentWeekId.split('-W')[1]}" info="load"
+  <SectionHeader label="This Week" subtitle={formatWeek(currentWeekId)} info="load"
   note={trainingState.homeDetails['thisWeek.note'] ? { has: !!weekNote, open: () => noteOpen = true, what: 'week' } : undefined} />
   {#if trainingState.homeDetails['thisWeek.strip']}
     <div class="grid grid-cols-7 gap-1">
@@ -70,14 +71,14 @@
         <button
           onclick={() => peekDay = peekDay === i ? null : i}
           class="flex flex-col items-center gap-1 py-1 rounded-control {peekDay === i ? 'bg-surface-elevated/60' : ''}"
-          aria-label="{cell.day}: {mark.label}{cell.sessions.length ? `, ${cell.sessions.join(', ')}` : ''}"
+          aria-label="{cell.day}: {mark.label}{weekTripDays[i] && trainingState.homeDetails['thisWeek.tripDays'] ? `, trip: ${weekTripDays[i]!.name}` : ''}{cell.sessions.length ? `, ${cell.sessions.join(', ')}` : ''}"
         >
-          <span class="text-caption {cell.isToday ? 'text-primary font-bold' : 'text-content-subtle'}">{WEEK_DAYS[i].slice(0, 1)}</span>
-          <span class="w-6 h-6 rounded-full border flex items-center justify-center {mark.class} {cell.isToday ? 'ring-2 ring-primary/50' : ''}">
-            {#if mark.icon}<Icon icon={mark.icon} class={cell.status === 'planned' ? 'text-[8px]' : 'text-xs'} />{/if}
+          <span class="text-caption {cell.isToday ? 'text-primary font-bold' : 'text-content-subtle'}">{WEEK_DAYS[i].slice(0, 2)}</span>
+          <span class="w-7 h-7 rounded-full border flex items-center justify-center {mark.class} {cell.isToday ? 'ring-2 ring-primary/50' : ''}">
+            {#if mark.icon}<Icon icon={mark.icon} class={cell.status === 'planned' ? 'text-xs' : 'text-sm'} />{/if}
           </span>
           {#if weekTripDays[i] && trainingState.homeDetails['thisWeek.tripDays']}
-            <Icon icon="ic:baseline-terrain" class="text-[10px] text-primary -mt-0.5" aria-label="Trip: {weekTripDays[i]!.name}" />
+            <Icon icon="ic:baseline-terrain" class="text-sm text-primary -mt-0.5" aria-hidden="true" />
           {/if}
         </button>
       {/each}
@@ -95,22 +96,22 @@
   <div class="flex items-center justify-between gap-2 flex-wrap">
     <p class="text-body text-content tabular-nums">
       <span class="text-metric">{Math.round(recap.load)}</span>
-      <span class="text-caption text-content-subtle">load pts{recap.minutes > 0 ? ` · ${formatMinutes(recap.minutes)}` : ''}</span>
+      <span class="text-caption text-content-subtle">load{recap.minutes > 0 ? ` · ${formatMinutes(recap.minutes)}` : ''}</span>
     </p>
     {#if acwrInfo && trainingState.homeDetails['thisWeek.acwr']}
       <button onclick={showAcwr} class="tap px-2 py-0.5 rounded-full text-caption tabular-nums shrink-0 inline-flex items-center gap-1 {ACWR_PILL[acwrInfo.status]}" aria-label="Load ratio {acwr.ratio!.toFixed(2)}, {acwrInfo.label}. What it is made of">Load ratio {acwr.ratio!.toFixed(2)} · {acwrInfo.label}<Icon icon="ic:baseline-chevron-right" class="text-xs -mr-0.5" /></button>
     {:else if trainingState.homeDetails['thisWeek.acwr'] && acwr.insufficientReason}
       <!-- Said, not just hidden: ACWR needs a real 4-week baseline. -->
-      <button onclick={showAcwr} class="text-caption text-content-subtle shrink-0 inline-flex items-center gap-0.5" aria-label="Why there is no ACWR yet">
-        {acwr.insufficientReason === 'break' ? `ACWR after a break · ${acwr.activeWeeks}/3 weeks` : 'ACWR from 4 weeks in'}<Icon icon="ic:baseline-chevron-right" class="text-xs" />
+      <button onclick={showAcwr} class="btn-quiet text-caption text-primary shrink-0 gap-0.5" aria-label="Why there is no load ratio yet">
+        {acwr.insufficientReason === 'break' ? `Load ratio after a break · ${acwr.activeWeeks}/3 weeks` : 'Load ratio needs 4 weeks of history'}<Icon icon="ic:baseline-chevron-right" class="text-xs" />
       </button>
     {/if}
   </div>
 
   {#if targetProgress && weekProgressText(targetProgress)}
     <p class="text-caption tabular-nums flex items-center gap-1.5 {targetProgress.load?.state === 'above' ? 'text-status-caution' : 'text-content-subtle'}">
-      <Icon icon="ic:baseline-flag" class="text-sm shrink-0" />
-      <span>{weekProgressText(targetProgress)}</span>
+      <Icon icon={targetProgress.load?.state === 'above' ? 'ic:baseline-warning-amber' : 'ic:baseline-flag'} class="text-sm shrink-0" />
+      <span>{targetProgress.load?.state === 'above' ? 'Over target · ' : ''}{weekProgressText(targetProgress)}</span>
     </p>
   {/if}
 
@@ -124,7 +125,7 @@
         )}
       </p>
       {#if progress !== undefined}
-        <div class="h-1.5 bg-surface-elevated rounded-full overflow-hidden" aria-hidden="true">
+        <div class="h-1.5 bg-surface-elevated rounded-full overflow-hidden" role="img" aria-label="Plan progress: {Math.round(progress * 100)}% of the plan">
           <div class="h-full bg-success rounded-full transition-all duration-700" style="width: {Math.min(100, progress * 100)}%"></div>
         </div>
       {/if}
@@ -135,13 +136,17 @@
 
   {#if trainingState.homeDetails['thisWeek.mix'] && mixTotal > 0}
     <div class="space-y-1.5">
+      <p class="text-caption text-content-subtle flex items-center gap-1">Training mix <InfoButton term="mix" /></p>
       <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px]" aria-hidden="true">
         {#each recap.mix as m}
           <div class={categoryColor(m.name)} style="width: {(m.minutes / mixTotal) * 100}%"></div>
         {/each}
       </div>
-      <p class="text-caption text-content-subtle">
-        {recap.mix.slice(0, 3).map((m) => `${m.name} ${formatMinutes(m.minutes)}`).join(' · ')}{recap.mix.length > 3 ? ` · +${recap.mix.length - 3} more` : ''}
+      <p class="text-caption text-content-subtle flex flex-wrap gap-x-3 gap-y-0.5">
+        {#each recap.mix.slice(0, 3) as m}
+          <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full {categoryColor(m.name)}" aria-hidden="true"></span>{m.name} {formatMinutes(m.minutes)}</span>
+        {/each}
+        {#if recap.mix.length > 3}<span>+{recap.mix.length - 3} more</span>{/if}
       </p>
     </div>
   {/if}
@@ -150,7 +155,7 @@
 {#if noteOpen}
   <NoteSheet
     title="Week note"
-    subtitle="This week · {currentWeekId}"
+    subtitle="This week · {formatWeek(currentWeekId)}"
     text={weekNote}
     placeholder="Circumstances, ideas, anything that explains this week…"
     onSave={(text) => trainingState.saveWeekNote(currentWeekId, text)}

@@ -7,7 +7,7 @@
    * button. The default Cancel keeps an accidental tap from spending money.
    */
   import Icon from '@iconify/svelte';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import Sheet from '../ui/Sheet.svelte';
   import { providerInfo, modelInfo } from '../../lib/ai/direct/providers';
   import { estimateCost, actualCost, formatUsd } from '../../lib/ai/direct/cost';
   import { loadConfig, loadKey, recordSpend } from '../../lib/ai/direct/store';
@@ -55,46 +55,35 @@
     if (sending) abort?.abort();
     else onClose();
   }
-  backWhile(() => true, cancel);
 </script>
 
-<div class="fixed inset-0 z-[170] bg-app-bg/90 backdrop-blur-md flex items-end sm:items-center justify-center animate-in fade-in duration-150">
-  <div class="absolute inset-0" role="presentation" onclick={cancel}></div>
-  <div class="relative bg-surface w-full max-w-lg rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 shadow-2xl space-y-4 pb-safe" role="dialog" aria-modal="true" aria-label="Send to {service}">
-    <div class="flex items-start gap-3">
-      <Icon icon="ic:baseline-attach-money" class="text-2xl text-status-caution shrink-0" />
-      <div class="min-w-0">
-        <h3 class="text-title text-content">Send to {service}?</h3>
-        <p class="text-caption text-content-subtle">{listed?.label ?? config.model}</p>
-      </div>
+<Sheet title="Send to {service}?" subtitle={listed?.label ?? config.model} onClose={cancel} level="top">
+  {#if !hasKey}
+    <p class="text-body text-content">No key is saved for {service}. Add one under Settings → AI &amp; coach → Direct AI connection.</p>
+  {:else if !estimate}
+    <p class="text-body text-content">There's no price set for this model, so the cost can't be estimated. Enter its prices under Settings → AI &amp; coach → Direct AI connection first.</p>
+  {:else}
+    <div class="rounded-card bg-surface-elevated/60 p-4 space-y-1.5">
+      <div class="flex items-baseline justify-between gap-3"><span class="text-caption text-content-subtle">Prompt</span><span class="text-body tabular-nums text-content">{formatTokens(tokens)}</span></div>
+      <div class="flex items-baseline justify-between gap-3"><span class="text-caption text-content-subtle">Expected cost</span><span class="text-metric tabular-nums text-content">about {formatUsd(estimate.typicalUsd)}</span></div>
+      <div class="flex items-baseline justify-between gap-3"><span class="text-caption text-content-subtle">At most (longest reply)</span><span class="text-body tabular-nums text-content">{formatUsd(estimate.maxUsd)}</span></div>
     </div>
+    <p class="text-caption text-content-subtle leading-relaxed flex gap-2">
+      <Icon icon="ic:baseline-attach-money" class="text-xl text-status-caution shrink-0 -mt-0.5" />
+      <span><strong class="text-content">This can cost money</strong>, billed by {service} to your API account. The token count is an estimate (give or take a fifth), and prices are the ones in your settings. Your prompt - the training data your sharing settings allow - is sent to {service}.</span>
+    </p>
+  {/if}
 
-    {#if !hasKey}
-      <p class="text-body text-content">No key is saved for {service}. Add one under Settings → AI &amp; coach → Direct AI connection.</p>
-    {:else if !estimate}
-      <p class="text-body text-content">There's no price set for this model, so the cost can't be estimated. Enter its prices under Settings → AI &amp; coach → Direct AI connection first.</p>
-    {:else}
-      <div class="rounded-card bg-surface-elevated/60 p-4 space-y-1.5">
-        <div class="flex items-baseline justify-between gap-3"><span class="text-caption text-content-subtle">Prompt</span><span class="text-body tabular-nums text-content">{formatTokens(tokens)}</span></div>
-        <div class="flex items-baseline justify-between gap-3"><span class="text-caption text-content-subtle">Expected cost</span><span class="text-metric tabular-nums text-content">about {formatUsd(estimate.typicalUsd)}</span></div>
-        <div class="flex items-baseline justify-between gap-3"><span class="text-caption text-content-subtle">At most (longest reply)</span><span class="text-body tabular-nums text-content">{formatUsd(estimate.maxUsd)}</span></div>
-      </div>
-      <p class="text-caption text-content-subtle leading-relaxed">
-        <strong class="text-content">This can cost money</strong>, billed by {service} to your API account. The token count is an estimate (give or take a fifth), and prices are the ones in your settings. Your prompt - the training data your sharing settings allow - is sent to {service}.
-      </p>
+  {#if error}
+    <p class="text-caption text-danger flex items-start gap-1.5" role="alert"><Icon icon="ic:baseline-error-outline" class="text-base shrink-0 mt-0.5" />{error}</p>
+  {/if}
+
+  {#snippet footer()}
+    <button onclick={cancel} class="btn btn-secondary flex-1">{sending ? 'Cancel request' : 'Cancel'}</button>
+    {#if hasKey && estimate}
+      <button onclick={send} disabled={sending} class="btn btn-primary flex-1">
+        {#if sending}<Icon icon="ic:baseline-sync" class="text-base animate-spin" />Waiting for {service}…{:else}Send · about {formatUsd(estimate.typicalUsd)}{/if}
+      </button>
     {/if}
-
-    {#if error}
-      <p class="text-caption text-danger flex items-start gap-1.5"><Icon icon="ic:baseline-error-outline" class="text-base shrink-0 mt-0.5" />{error}</p>
-    {/if}
-
-    <div class="flex gap-2">
-      <button onclick={cancel} class="flex-1 py-3 rounded-control bg-surface-elevated text-content font-semibold text-label border border-border-strong">{sending ? 'Cancel request' : 'Cancel'}</button>
-      {#if hasKey && estimate}
-        <button onclick={send} disabled={sending} class="flex-1 py-3 rounded-control bg-primary text-white font-semibold text-label disabled:opacity-60 flex items-center justify-center gap-2">
-          {#if sending}<Icon icon="ic:baseline-sync" class="text-base animate-spin" />Waiting for {service}…{:else}Send · about {formatUsd(estimate.typicalUsd)}{/if}
-        </button>
-      {/if}
-    </div>
-  </div>
-</div>
+  {/snippet}
+</Sheet>

@@ -12,6 +12,7 @@
   import { onDestroy } from 'svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
+  import { formatDay, formatWeek } from '../../lib/dateUtils';
   import { weekStartDay } from '../../lib/analytics/range';
   import { localDayIndex, dayIndexToIso } from '../../lib/analytics/recoverySeries';
   import { openWorkout } from '../../lib/workoutModal.svelte';
@@ -38,7 +39,7 @@
   ];
   const MODE_KEY = 'plan.calendarMode';
 
-  let { onAdd, onEditPhase }: { onAdd: (weekId: string, day: DayOfWeek, startTime?: string) => void; onEditPhase?: (isoDate: string) => void } = $props();
+  let { onAdd, onEditPhase, onShowWeeks }: { onAdd: (weekId: string, day: DayOfWeek, startTime?: string) => void; onEditPhase?: (isoDate: string) => void; onShowWeeks?: () => void } = $props();
 
   function storedMode(): Mode {
     try {
@@ -119,14 +120,14 @@
 
   const label = $derived.by(() => {
     const fmt = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString(undefined, { ...o, timeZone: 'UTC' });
-    if (mode === 'day') return fmt(focusDate, { weekday: 'short', day: 'numeric', month: 'short', year: year === utc(today).getUTCFullYear() ? undefined : 'numeric' });
-    if (mode === 'week') return `${fmt(utc(weekStart), { day: 'numeric', month: 'short' })} – ${fmt(utc(weekStart + 6), { day: 'numeric', month: 'short' })}`;
+    if (mode === 'day') return formatDay(dayIndexToIso(focus), { weekday: 'short' });
+    if (mode === 'week') return `${formatDay(dayIndexToIso(weekStart))} – ${formatDay(dayIndexToIso(weekStart + 6))}`;
     if (mode === 'month') return fmt(focusDate, { month: 'long', year: 'numeric' });
     return String(year);
   });
   /** Always something under the title, so the header keeps its height from view to view: the week (Day, Week) or the totals (Month, Year). */
   const sublabel = $derived.by(() => {
-    if (mode === 'day' || mode === 'week') return weekIdOfDayIndex(mode === 'day' ? focus : weekStart).replace('-W', ' · week ');
+    if (mode === 'day' || mode === 'week') return `${year} · ${formatWeek(weekIdOfDayIndex(mode === 'day' ? focus : weekStart)).toLowerCase()}`;
     const counted = sessions.filter((s) => !faded(s));
     const done = counted.filter((s) => s.done).length;
     return counted.length === 0 ? 'Nothing planned' : `${done} done · ${counted.length - done} planned`;
@@ -207,13 +208,13 @@
   <div class="flex items-start justify-between gap-2 min-h-[3rem] short:contents">
     <div class="min-w-0 short:order-1 short:flex-1">
       <h3 class="text-title text-content truncate leading-tight">{label}</h3>
-      <p class="text-caption text-content-subtle truncate h-4">{sublabel}</p>
+      <p class="text-caption text-content-subtle truncate min-h-4">{sublabel}</p>
     </div>
     <div class="flex items-center gap-0.5 shrink-0 short:order-3">
       <button onclick={() => step('prev')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Previous {mode}">
         <Icon icon="ic:baseline-chevron-left" class="text-lg" />
       </button>
-      <button onclick={() => (focus = today)} class="px-2 py-1 text-caption rounded-control hover:bg-surface-elevated transition-colors {isHere ? 'text-content-subtle/50' : 'text-primary'}">Today</button>
+      {#if !isHere}<button onclick={() => (focus = today)} class="btn-quiet px-2 text-caption rounded-control hover:bg-surface-elevated text-primary">Today</button>{/if}
       <button onclick={() => step('next')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Next {mode}">
         <Icon icon="ic:baseline-chevron-right" class="text-lg" />
       </button>
@@ -227,7 +228,7 @@
           role="radio"
           aria-checked={mode === m.id}
           onclick={() => setMode(m.id)}
-          class="px-2.5 py-1 text-caption rounded-control transition-colors {mode === m.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
+          class="px-3 py-1.5 min-h-8 text-caption rounded-control transition-colors {mode === m.id ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
         >{m.label}</button>
       {/each}
     </div>
@@ -241,8 +242,8 @@
       {/if}
     <!-- With the drawer navigation the floating + adds a session (the app shell's); the bottom bar has no such button, so the + stays here. -->
     {#if trainingState.navStyle === 'bar'}
-      <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
-      <Icon icon="ic:baseline-plus" class="text-lg" />
+      <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="chip text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
+      <Icon icon="ic:baseline-plus" class="text-sm" />Add session
     </button>
     {/if}
     </div>
@@ -274,7 +275,7 @@
       {byCategory}
     />
     {#if noDayCount > 0}
-      <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
+      <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - {#if onShowWeeks}<button onclick={onShowWeeks} class="text-primary underline underline-offset-2">set one in the Weeks view</button>{:else}set one in the Weeks view{/if}.</p>
     {/if}
   {:else if mode === 'day' || mode === 'week'}
     <CalendarTimeGrid
@@ -300,15 +301,18 @@
       onMove={moveSession}
     />
     {#if sessions.length === 0}
-      <p class="text-caption text-content-subtle italic text-center py-4">{mode === 'day' ? 'Nothing planned - tap + to add a session.' : 'Nothing planned this week.'}</p>
+      <div class="flex flex-col items-center gap-2 py-3">
+        <p class="text-caption text-content-subtle">{mode === 'day' ? 'Nothing planned on this day.' : 'Nothing planned this week.'}</p>
+        <button onclick={() => addAtFocus()} class="btn btn-secondary text-primary"><Icon icon="ic:baseline-plus" class="text-base" />Add a session</button>
+      </div>
     {/if}
     {#if noDayCount > 0}
-      <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - set one in the block view.</p>
+      <p class="text-caption text-content-subtle">{noDayCount} session{noDayCount === 1 ? '' : 's'} this week with no day - {#if onShowWeeks}<button onclick={onShowWeeks} class="text-primary underline underline-offset-2">set one in the Weeks view</button>{:else}set one in the Weeks view{/if}.</p>
     {/if}
   {:else if mode === 'month'}
     <CalendarMonth {year} {month} byDay={countedByDay} events={eventDays} {today} onPickDay={openDay} {phases} goals={goalsOnDays} exerciseTypes={trainingState.exerciseTypes} categories={trainingState.analyticsCategories} {eventColor} {byCategory} />
   {:else}
-    <div class="grid grid-cols-3 gap-x-3 gap-y-4 min-[700px]:grid-cols-4">
+    <div class="grid grid-cols-2 min-[460px]:grid-cols-3 gap-x-3 gap-y-4 min-[700px]:grid-cols-4">
       {#each Array.from({ length: 12 }, (_, i) => i) as m (m)}
         <CalendarMonth {year} month={m} byDay={countedByDay} {today} mini onPickDay={openDay} onPickMonth={openMonth} {phases} />
       {/each}

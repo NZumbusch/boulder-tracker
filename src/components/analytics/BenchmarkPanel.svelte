@@ -22,7 +22,8 @@
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
   import { toUtcDayIndex } from '../../lib/dateUtils';
-  import { generateId } from '../../lib/utils';
+  import { generateId, showConfirm } from '../../lib/utils';
+  import { formatDay } from '../../lib/dateUtils';
   import type { BenchmarkView } from '../../lib/types';
   import { bodyweightsOf, isImprovement, metricsOf } from '../../lib/benchmarks/series';
   import { detailsText, resolveFields } from '../../lib/benchmarks/model';
@@ -41,8 +42,10 @@
   } = $props();
 
   /** One colour per line when a view draws several. */
-  const PALETTE = ['var(--color-primary)', 'var(--color-tertiary)', 'var(--color-success)', 'var(--color-warning)', 'var(--color-danger)', 'var(--color-status-neutral)'];
-  const COLOR_B = 'var(--color-tertiary)';
+  const PALETTE = ['var(--color-series-1)', 'var(--color-series-2)', 'var(--color-series-3)', 'var(--color-series-4)', 'var(--color-series-5)', 'var(--color-series-6)'];
+  /** Past the sixth line the colours repeat, so the repeats are dashed to stay apart. */
+  const dashOf = (i: number) => (i >= PALETTE.length ? '5 3' : undefined);
+  const COLOR_B = 'var(--color-series-2)';
 
   let selectedTypeId = $state<string>('');
   let selectedViewId = $state<string>('');
@@ -147,8 +150,7 @@
   const gain = $derived(change && type && yMetric?.id === (fields.find((f) => f.role === 'result')?.valueId) ? isImprovement(change.abs, type) : change ? isImprovement(change.abs, {}) : undefined);
 
   const fmt = (v: number) => String(Number(v.toFixed(1)));
-  const fmtDay = (day: number, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) =>
-    new Date(`${dayIndexToIso(day)}T12:00:00`).toLocaleDateString(undefined, opts);
+  const fmtDay = (day: number, year = false) => formatDay(dayIndexToIso(day), { year: year ? true : 'auto' });
 
   // --- Readout: the point nearest the pointer, or the latest ---
   let selected = $state<number | null>(null);
@@ -217,13 +219,14 @@
   }
   async function removeSaved() {
     if (!savedBase) return;
+    if (!(await showConfirm('Delete this view?', `"${savedBase.name}" is removed from ${type?.name ?? 'the test'}. Your results are not touched.`, { ok: 'Delete view' }))) return;
     await saveViews(saved.filter((v) => v.id !== savedBase.id));
     selectedViewId = '';
   }
   const hint = $derived(filtersText(draft.filters, fields, weight));
 
   const chip = (on: boolean, dim = false) =>
-    `shrink-0 px-2.5 py-1 rounded-control border text-caption transition-colors whitespace-nowrap ${on ? 'border-primary bg-primary/15 text-content' : 'border-border text-content-subtle hover:text-content'} ${dim && !on ? 'opacity-50' : ''}`;
+    `shrink-0 min-h-9 px-3 py-1.5 rounded-control border text-caption transition-colors whitespace-nowrap ${on ? 'border-primary bg-primary/15 text-content' : 'border-border text-content-subtle hover:text-content'} ${dim && !on ? 'opacity-50' : ''}`;
 </script>
 
 {#if types.length > 0}
@@ -239,7 +242,7 @@
           <span class="text-title text-content">{fmt(latest.y)}</span>
           <span class="text-caption text-content-subtle">{yMetric.unit}</span>
           {#if change}
-            <span class="text-caption font-semibold {gain === true ? 'text-status-good' : gain === false ? 'text-status-caution' : 'text-content-subtle'}">
+            <span class="text-caption font-semibold {gain === true ? 'text-status-good' : gain === false ? 'text-status-caution' : 'text-content-subtle'}">{gain === true ? 'Improved ' : gain === false ? 'Slower ' : ''}
               {change.abs > 0 ? '+' : change.abs < 0 ? '−' : '±'}{fmt(Math.abs(change.abs))}{yMetric.id === 'relative' ? ' pts' : ` ${yMetric.unit}`}{change.pct !== undefined && yMetric.id !== 'relative' ? ` (${change.pct > 0 ? '+' : ''}${Math.round(change.pct)}%)` : ''}
             </span>
             <span class="text-caption text-content-subtle">in this range</span>
@@ -259,11 +262,11 @@
     <div class="flex items-center gap-1.5" data-no-swipe>
       <div class="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 min-w-0 flex-1">
         {#each offered as v (v.id)}
-          <button onclick={() => (selectedViewId = v.id)} aria-pressed={v.id === base.id} class={chip(v.id === base.id)}>{v.name}{#if v.onHome}<span class="text-content-subtle/70">&nbsp;· Home</span>{/if}</button>
+          <button onclick={() => (selectedViewId = v.id)} aria-pressed={v.id === base.id} class={chip(v.id === base.id)}>{v.name}{#if v.onHome}<span class="text-content-subtle">&nbsp;· Home</span>{/if}</button>
         {/each}
       </div>
-      <button onclick={() => (adjusting = !adjusting)} aria-expanded={adjusting} class="shrink-0 flex items-center gap-1 px-2 py-1 text-caption rounded-control {adjusting || dirty ? 'text-primary' : 'text-content-subtle hover:text-content'}">
-        <Icon icon="ic:baseline-tune" class="text-base" />Adjust{#if dirty}&nbsp;·&nbsp;edited{/if}
+      <button onclick={() => (adjusting = !adjusting)} aria-expanded={adjusting} class="btn-quiet shrink-0 gap-1 px-3 text-caption {adjusting || dirty ? 'text-primary' : 'text-content-subtle hover:text-content'}">
+        <Icon icon="ic:baseline-tune" class="text-base" />Adjust{#if dirty} (edited){/if}
       </button>
     </div>
     {#if hint && !adjusting}<p class="text-caption text-content-subtle px-1 -mt-1.5">Only {hint}</p>{/if}
@@ -273,16 +276,16 @@
       <div class="flex flex-wrap items-center gap-2 text-caption" data-no-swipe>
         {#if naming}
           <input bind:value={nameText} placeholder="Name this view" aria-label="View name" class="min-w-0 flex-1 bg-surface-elevated text-content rounded-control border border-border-strong px-2 py-1 outline-none" onkeydown={(e) => { if (e.key === 'Enter') saveAsNew(); }} />
-          <button onclick={saveAsNew} disabled={!nameText.trim()} class="px-2.5 py-1 rounded-control bg-primary text-white font-bold disabled:opacity-40">Save</button>
-          <button onclick={() => (naming = false)} class="px-2 py-1 text-content-subtle">Cancel</button>
+          <button onclick={saveAsNew} disabled={!nameText.trim()} class="px-3 min-h-10 rounded-control bg-primary text-white font-bold disabled:opacity-40">Save</button>
+          <button onclick={() => (naming = false)} class="px-3 min-h-10 text-content-subtle">Cancel</button>
         {:else}
-          {#if savedBase && dirty}<button onclick={updateSaved} class="px-2.5 py-1 rounded-control bg-primary text-white font-bold">Update “{savedBase.name}”</button>{/if}
-          <button onclick={() => { naming = true; nameText = ''; }} class="px-2.5 py-1 rounded-control border border-border text-content-muted hover:text-content">Save as a new view</button>
+          {#if savedBase && dirty}<button onclick={updateSaved} class="px-3 min-h-10 rounded-control bg-primary text-white font-bold">Update “{savedBase.name}”</button>{/if}
+          <button onclick={() => { naming = true; nameText = ''; }} class="px-3 min-h-10 rounded-control border border-border text-content-muted hover:text-content">Save as a new view</button>
           {#if savedBase}
-            <button onclick={toggleHome} class="px-2.5 py-1 rounded-control border border-border text-content-muted hover:text-content">{savedBase.onHome ? 'Remove from Home' : 'Show on Home'}</button>
-            <button onclick={removeSaved} class="px-2 py-1 text-danger">Delete view</button>
+            <button onclick={toggleHome} class="px-3 min-h-10 rounded-control border border-border text-content-muted hover:text-content">{savedBase.onHome ? 'Remove from Home' : 'Show on Home'}</button>
+            <button onclick={removeSaved} class="px-3 min-h-10 text-danger">Delete view</button>
           {/if}
-          {#if dirty}<button onclick={() => (draft = $state.snapshot(base) as BenchmarkView)} class="px-2 py-1 text-content-subtle hover:text-content">Reset</button>{/if}
+          {#if dirty}<button onclick={() => (draft = $state.snapshot(base) as BenchmarkView)} class="px-3 min-h-10 text-content-subtle hover:text-content">Reset</button>{/if}
         {/if}
       </div>
     {/if}
@@ -290,7 +293,7 @@
     {#if lines.length > 1}
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-caption text-content-subtle">
         {#each lines as l, i (l.key)}
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full shrink-0" style="background: {PALETTE[i % PALETTE.length]}"></span>{l.label}</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {PALETTE[i % PALETTE.length]}"></span>{l.label}</span>
         {/each}
       </div>
     {:else if y2Metric}
@@ -300,9 +303,9 @@
       </div>
     {/if}
 
-    <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
+    <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted" aria-live="polite">
       {#if readoutPoint && readoutResult && yMetric}
-        <span class="text-content-subtle">{fmtDay(readoutPoint.day, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+        <span class="text-content-subtle">{fmtDay(readoutPoint.day, true)}</span>
         · <span class="text-content">{fmt(readoutPoint.y)} {yMetric.unit}</span>
         {#if readoutPoint.y2 !== undefined && y2Metric}· <span style="color: {COLOR_B}">{fmt(readoutPoint.y2)} {y2Metric.unit}</span>{/if}
         {#if xMetric}at <span class="text-content">{fmt(readoutPoint.x)} {xMetric.unit}</span>{/if}
@@ -321,10 +324,20 @@
         {/if}
       </div>
       <div class="flex-1 min-w-0">
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
         <div
           bind:this={plotEl}
           class="{overDate ? 'h-36' : 'h-40 border-l border-b border-border-strong/60'} relative cursor-crosshair select-none"
-          role="presentation"
+          role="application"
+          tabindex="0"
+          aria-label="Test results chart. Left and right arrow keys move between results; the readout above gives the values."
+          onkeydown={(e) => {
+            if (e.key === 'Escape') { selected = null; return; }
+            if (!points.length || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+            e.preventDefault();
+            const from = selected ?? points.length - 1;
+            selected = Math.max(0, Math.min(points.length - 1, from + (e.key === 'ArrowRight' ? 1 : -1)));
+          }}
           onpointerdown={taps.down}
           onpointermove={(e) => { if (!isTapPointer(e)) selected = nearest(e); }}
           onpointerleave={(e) => { if (!isTapPointer(e)) selected = null; }}
@@ -336,16 +349,9 @@
             <div class="border-t border-content-subtle/10"></div>
           </div>
           <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
-            <defs>
-              <linearGradient id="benchmark-gradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.18" />
-                <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
-              </linearGradient>
-            </defs>
             {#each lines as l, i (l.key)}
               {@const color = PALETTE[i % PALETTE.length]}
-              {#if lines.length === 1 && !paths2 && paths[i].area}<path d={paths[i].area} fill="url(#benchmark-gradient)" />{/if}
-              <path d={paths[i].line} fill="none" stroke={color} stroke-opacity={fades ? 0.4 : 1} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+                            <path d={paths[i].line} fill="none" stroke={color} stroke-opacity={fades ? 0.4 : 1} stroke-dasharray={dashOf(i)} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
               {#if fades}
                 {#each l.points as p, k (p.id)}
                   <path d="M {xPct(p)},{yPct(p.y, yBounds)} h 0" stroke={color} stroke-opacity={0.3 + 0.7 * ((k + 1) / l.points.length)} stroke-width={k === l.points.length - 1 ? 10 : 7} stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
@@ -385,14 +391,14 @@
             {#each axisDays as day, i}
               {#if showsLabel(i, axisDays.length, axisStep)}
                 <span
-                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
+                  class="absolute top-0 text-caption leading-tight text-content-subtle whitespace-nowrap"
                   style="left: {((day - firstDay + 0.5) / dayCount) * 100}%; transform: translateX({i === 0 ? '0' : i === axisDays.length - 1 ? '-100%' : '-50%'});"
                 >{fmtDay(day)}</span>
               {/if}
             {/each}
           </div>
         {:else}
-          <div class="flex justify-between pt-0.5 text-caption leading-none text-content-subtle/70 tabular-nums">
+          <div class="flex justify-between pt-0.5 text-caption leading-none text-content-subtle tabular-nums">
             {#if points.length > 0}
               <span>{fmt(xBounds.lo)}</span>
               <span>{xMetric?.label} ({xMetric?.unit})</span>
