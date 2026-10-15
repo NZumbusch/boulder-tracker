@@ -71,7 +71,7 @@
     <div class="flex gap-[2px]">
       {#each monthLabels as label, i (i)}
         <div class="flex-1 min-w-0 relative h-3">
-          {#if label}<span class="absolute left-0 text-[9px] leading-3 text-content-subtle/70 whitespace-nowrap">{label}</span>{/if}
+          {#if label}<span class="absolute left-0 text-[9px] leading-3 text-content-subtle whitespace-nowrap">{label}</span>{/if}
         </div>
       {/each}
     </div>

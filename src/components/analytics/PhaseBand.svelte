@@ -32,6 +32,7 @@
   import Icon from '@iconify/svelte';
   import { isTapPointer, isKeyboardActivation } from '../../lib/analytics/chartTips.svelte';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
+  import { formatDay } from '../../lib/dateUtils';
 
   let { segments, goals, xOf }: {
     segments: PhaseSegment[];
@@ -60,7 +61,7 @@
     return () => document.removeEventListener('pointerdown', onDown, true);
   });
 
-  const fmt = (day: number) => new Date(`${dayIndexToIso(day)}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  const fmt = (day: number) => formatDay(dayIndexToIso(day));
   const activeInfo = $derived.by(() => {
     const seg = drawn.find((s) => s.key === active);
     if (seg) return { icon: 'ic:baseline-view-week', text: `${seg.name} · ${fmt(seg.startDay)} – ${fmt(seg.endDay)}` };
@@ -76,7 +77,7 @@
 <!-- Always takes its row, even with no blocks or goals in the window, so
      the chart under it doesn't jump while paging into unplanned weeks. -->
 <div bind:this={el} class="space-y-0.5">
-    <div class="relative h-5" aria-label="Training blocks and goals">
+    <div class="relative h-7" role="group" aria-label="Training blocks and goals">
       {#each drawn as s (s.key)}
         <button
           type="button"
@@ -85,19 +86,19 @@
           onpointerenter={(e) => { if (!isTapPointer(e)) active = s.key; }}
           onpointerleave={(e) => { if (!isTapPointer(e) && active === s.key) active = null; }}
           aria-label="{s.name}, {fmt(s.startDay)} to {fmt(s.endDay)}"
-          class="absolute top-1 h-3 rounded-[3px] {s.colorClass} overflow-hidden text-left transition-opacity {active && active !== s.key ? 'opacity-40' : 'opacity-70'}"
+          class="absolute top-1 h-5 rounded-[3px] {s.colorClass} overflow-hidden text-left transition-opacity {active && active !== s.key ? 'opacity-40' : ''}"
           style="left: calc({s.left}% + 1px); width: calc({s.width}% - 2px);"
         >
-          {#if s.width >= 16}
-            <span class="block px-1 text-[9px] leading-3 font-semibold text-white truncate">{s.name}</span>
+          {#if s.width >= 20}
+            <span class="block px-1 text-caption leading-5 font-semibold text-white truncate">{s.name}</span>
           {/if}
         </button>
       {/each}
       {#each marks as g (g.key)}
         {#if g.kind === 'trip' && g.width > 0}
-          <div class="absolute bottom-0 h-0.5 bg-content/60 rounded-full pointer-events-none" style="left: {g.left}%; width: {g.width}%;"></div>
+          <div class="absolute bottom-0.5 h-0.5 bg-content/60 rounded-full pointer-events-none" style="left: {g.left}%; width: {g.width}%;"></div>
         {/if}
-        <!-- A 24px target around a 14px flag. -->
+        <!-- A 28px target around a 14px flag. -->
         <button
           type="button"
           onpointerup={(e) => { if (isTapPointer(e)) active = active === g.key ? null : g.key; }}
@@ -105,7 +106,7 @@
           onpointerenter={(e) => { if (!isTapPointer(e)) active = g.key; }}
           onpointerleave={(e) => { if (!isTapPointer(e) && active === g.key) active = null; }}
           aria-label={g.name}
-          class="absolute -top-1.5 w-6 h-6 flex items-center justify-center -translate-x-1/2"
+          class="absolute -top-0.5 w-7 h-7 flex items-center justify-center -translate-x-1/2"
           style="left: {g.left}%;"
         >
           <Icon icon={g.kind === 'trip' ? 'ic:baseline-terrain' : 'ic:baseline-emoji-events'} class="text-sm text-content drop-shadow" />

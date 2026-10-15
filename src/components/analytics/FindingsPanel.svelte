@@ -27,12 +27,37 @@
     footnote?: string;
   } = $props();
 
-  const TONE: Record<InsightTone, { dot: string; label: string }> = {
-    risk: { dot: 'bg-status-risk', label: 'Needs attention' },
-    caution: { dot: 'bg-status-caution', label: 'Worth a look' },
-    good: { dot: 'bg-status-good', label: 'Going well' },
-    info: { dot: 'bg-content-subtle/50', label: 'For information' },
+  // A shape as well as a colour, so a tone is not told by colour alone: warning, circled !, check, info.
+  const TONE: Record<InsightTone, { icon: string; cls: string; label: string }> = {
+    risk: { icon: 'ic:baseline-warning', cls: 'text-status-risk', label: 'Needs attention' },
+    caution: { icon: 'ic:baseline-error-outline', cls: 'text-status-caution', label: 'Worth a look' },
+    good: { icon: 'ic:baseline-check-circle', cls: 'text-status-good', label: 'Going well' },
+    info: { icon: 'ic:baseline-info', cls: 'text-content-subtle', label: 'For information' },
   };
+
+  /** Where a finding's chevron goes, in words: the card it opens, or what it opens. */
+  const CARD: Record<string, string> = {
+    'section-load': 'Rolling load',
+    'section-mix': 'Training mix',
+    'section-strain': 'Monotony & strain',
+    'section-fingerLoad': 'Finger load',
+    'section-recoveryTrend': 'Recovery trends',
+    'section-fatigue': 'Fatigue',
+    'section-pain': 'Pain',
+    'section-outdoor': 'Outdoor ascents',
+    'section-benchmarks': 'Test progress',
+    'section-benchmarkOverview': 'All tests',
+    'section-heatmap': 'Training days',
+    'section-exercises': 'Exercises',
+  };
+  function target(link: InsightLink): string {
+    if (link.kind === 'panel') return CARD[link.section] ?? 'the chart';
+    if (link.kind === 'acwr') return 'What the ratio is made of';
+    if (link.kind === 'plan') return 'The plan';
+    if (link.kind === 'block') return 'The block review';
+    if (link.kind === 'taper') return 'The taper plan';
+    return 'The exercise';
+  }
 </script>
 
 {#if items.length > 0 || emptyText}
@@ -40,8 +65,8 @@
     <div class="px-1 pb-1 flex items-center justify-between gap-3">
       <h3 class="text-section uppercase text-content-muted">{title}</h3>
       {#if askGroup && items.length > 0}
-        <button onclick={() => askAboutInsights(askGroup)} class="shrink-0 p-1.5 -mr-1 rounded-control text-content-subtle hover:text-primary hover:bg-surface-elevated transition-colors" aria-label="Ask the AI about {title}" title="Ask the AI about this">
-          <Icon icon="ic:baseline-auto-awesome" class="text-lg" />
+        <button onclick={() => askAboutInsights(askGroup)} class="btn-quiet shrink-0 gap-1.5 px-3 -mr-1 text-label text-primary hover:bg-surface-elevated/60" aria-label="Ask the AI about {title}">
+          <Icon icon="ic:baseline-auto-awesome" class="text-lg" />Ask AI
         </button>
       {/if}
     </div>
@@ -51,15 +76,16 @@
       <div class="divide-y divide-border">
         {#each items as insight (insight.id)}
           {#snippet body()}
-            <span class="mt-[6.5px] w-2 h-2 rounded-full shrink-0 {TONE[insight.tone].dot}" role="img" aria-label={TONE[insight.tone].label}></span>
+            <span class="mt-0.5 shrink-0 {TONE[insight.tone].cls}" role="img" aria-label={TONE[insight.tone].label}><Icon icon={TONE[insight.tone].icon} class="text-lg" /></span>
             <span class="min-w-0 flex-1 text-left">
               <span class="block text-body font-semibold text-content">{insight.title}</span>
               {#if insight.detail}<span class="block text-caption text-content-subtle leading-relaxed">{insight.detail}</span>{/if}
+              {#if insight.link}<span class="block text-caption text-primary mt-0.5">{target(insight.link)}</span>{/if}
             </span>
           {/snippet}
           {#if insight.link}
             {@const link = insight.link}
-            <button type="button" onclick={() => onOpen(link)} class="w-full flex items-start gap-3 py-3 text-left">
+            <button type="button" onclick={() => onOpen(link)} class="w-full flex items-start gap-3 py-3 min-h-11 text-left">
               {@render body()}
               <Icon icon="ic:baseline-chevron-right" class="text-xl text-content-subtle shrink-0 mt-[0.5px]" />
             </button>
@@ -68,7 +94,7 @@
           {/if}
         {/each}
       </div>
-      {#if footnote}<p class="px-1 pt-2 text-caption text-content-subtle/80 leading-relaxed">{footnote}</p>{/if}
+      {#if footnote}<p class="px-1 pt-2 text-caption text-content-subtle leading-relaxed">{footnote}</p>{/if}
     {/if}
   </div>
 {/if}

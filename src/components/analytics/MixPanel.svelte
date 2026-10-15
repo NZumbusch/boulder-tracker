@@ -15,6 +15,9 @@
   import { showsLabel } from '../../lib/analytics/chartWindow';
   import type { ChartData } from './chartTypes';
   import ChartEmpty from './ChartEmpty.svelte';
+  import ChartTable from './ChartTable.svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import { formatMinutes } from '../../lib/session/formatSession';
 
   // `tips` is accepted for a uniform panel API; this chart reads out through its column picker instead.
   let { chartData, axisStep }: { chartData: ChartData; axisStep: number; tips?: ChartTips } = $props();
@@ -54,7 +57,7 @@
   $effect(() => picker.listen());
   const selected = $derived(picker.selected !== null ? columns[picker.selected] : null);
 
-  const hours = (minutes: number) => (minutes >= 600 ? `${Math.round(minutes / 60)} h` : `${(minutes / 60).toFixed(1)} h`);
+  const hours = formatMinutes;
 </script>
 
 <div id="section-mix" class="scroll-mt-4 card space-y-3">
@@ -64,23 +67,18 @@
       <p class="text-caption text-content-subtle mt-0.5">{windowTotal > 0 ? `${hours(windowTotal)} in this window` : 'Time by category'}</p>
     </div>
   </div>
-  <div class="flex items-center justify-between gap-2">
-    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
-      <button onclick={() => (showRelative = true)} class="px-2 py-0.5 text-caption rounded-control {showRelative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Share</button>
-      <button onclick={() => (showRelative = false)} class="px-2 py-0.5 text-caption rounded-control {!showRelative ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Minutes</button>
-    </div>
-    <div class="flex bg-surface-elevated/50 p-0.5 rounded-control">
-      <button onclick={() => (includePlanned = false)} class="px-2 py-0.5 text-caption rounded-control {!includePlanned ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">Done</button>
-      <button onclick={() => (includePlanned = true)} class="px-2 py-0.5 text-caption rounded-control {includePlanned ? 'bg-surface text-content shadow-sm' : 'text-content-subtle'}">+ Planned</button>
-    </div>
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <Segmented label="Show shares or minutes" options={[{ value: 'share', label: 'Share' }, { value: 'minutes', label: 'Minutes' }]} value={showRelative ? 'share' : 'minutes'} onChange={(v) => (showRelative = v === 'share')} />
+    <Segmented label="Which sessions" options={[{ value: 'done', label: 'Done' }, { value: 'planned', label: '+ Planned' }]} value={includePlanned ? 'planned' : 'done'} onChange={(v) => (includePlanned = v === 'planned')} />
   </div>
+  <p class="text-caption text-content-subtle -mt-1">{showRelative ? 'Each column is 100%, split by category' : 'Column height is the time spent'} · {includePlanned ? 'sessions done and still planned' : 'sessions done only'}</p>
 
   <!-- The window at a glance: one bar, where the time went (an empty
        track in an empty window, so nothing below it moves). -->
-  <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px] bg-surface-elevated/60">
+  <div class="flex h-2.5 rounded-full overflow-hidden gap-[2px] bg-surface-elevated/60" aria-hidden="true">
       {#each windowShares as t (t.cat.id)}
         {#if t.share > 0}
-          <div class="{t.cat.color} h-full" style="width: {t.share * 100}%" title="{t.cat.name} {Math.round(t.share * 100)}%"></div>
+          <div class="{t.cat.color} h-full" style="width: {t.share * 100}%"></div>
         {/if}
       {/each}
   </div>
@@ -95,7 +93,7 @@
         <button
           onclick={() => toggleCategory(t.cat.id)}
           aria-pressed={!hiddenCategoryIds.has(t.cat.id)}
-          class="flex items-center gap-1.5 px-2 py-0.5 rounded-control border border-border text-caption transition-opacity {hiddenCategoryIds.has(t.cat.id) || windowTotal === 0 ? 'opacity-40' : ''}"
+          class="chip transition-opacity {hiddenCategoryIds.has(t.cat.id) || windowTotal === 0 ? 'opacity-40 line-through' : ''}"
         >
           <span class="w-2 h-2 rounded-full {t.cat.color}"></span>
           <span class="text-content-muted">{t.cat.name}</span>
@@ -105,7 +103,7 @@
     {/each}
   </div>
 
-  <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted">
+  <div class="text-caption tabular-nums min-h-[1.25rem] text-content-muted" aria-live="polite">
     {#if selected}
       <span>{selected.week.label}</span>
       {#if selected.total === 0}
@@ -117,15 +115,19 @@
         {/each}
       {/if}
     {:else}
-      <span class="text-content-subtle/70" class:invisible={windowTotal === 0}>Tap a column for its breakdown</span>
+      <span class="text-content-subtle" class:invisible={windowTotal === 0}>Tap a column for its breakdown</span>
     {/if}
   </div>
 
   <div>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
     <div
       bind:this={picker.el}
       class="h-36 relative flex items-end gap-px cursor-crosshair select-none"
-      role="presentation"
+      role="application"
+      tabindex="0"
+      aria-label="Training mix by column. Left and right arrow keys move between columns; a table of the numbers follows."
+      onkeydown={picker.key}
       onpointerdown={picker.down}
       onpointermove={picker.move}
       onpointerleave={picker.leave}
@@ -152,10 +154,16 @@
       {#each chartData.weeks as week, i (week.id)}
         <div class="flex-1 flex justify-center">
           {#if showsLabel(i, chartData.weeks.length, axisStep)}
-            <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">{week.label}</span>
+            <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle'}">{week.label}</span>
           {/if}
         </div>
       {/each}
     </div>
   </div>
+
+  <ChartTable
+    caption="Training mix, minutes per category"
+    columns={['Column', ...visibleCategories.map((c) => c.name)]}
+    rows={columns.map((col) => [col.week.label, ...visibleCategories.map((c) => formatMinutes(minutesOf(col.week, c.name)))])}
+  />
 </div>

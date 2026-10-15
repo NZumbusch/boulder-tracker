@@ -1,26 +1,34 @@
 <script lang="ts">
   import InfoButton from '../common/InfoButton.svelte';
   /**
-   * Rolling Load: weekly rated load as bars (with ramp-rate spike flags) and,
-   * in a pane of its own under them on the same x-axis, the acute:chronic
-   * ratio with its zone bands - never two scales on one plot - and the training blocks and goals as a band above. Tapping a
-   * column opens its detail sheet; its plot's measured width sets how far
-   * the x-axis labels are thinned - see `chartWidth` in Analytics.svelte.
+   * Rolling Load: weekly rated load as bars (with a flag on weeks that jumped on the one before) and, in a pane of
+   * its own under them on the same x-axis, the acute:chronic ratio with its zone bands - never two scales on one plot -
+   * and the training blocks and goals as a band above.
+   *
+   * The two panes are one target: hover, tap or the arrow keys pick a column and its numbers print in the line above
+   * the plot (a tooltip is hover-only and a finger covers it). The readout's "Details" opens the column's sheet; a
+   * tap no longer jumps straight there. The plot's measured width sets how far the x-axis labels are thinned - see
+   * `chartWidth` in Analytics.svelte.
    */
   import { trainingState } from '../../lib/state.svelte';
   import type { AcwrResult } from '../../lib/analytics/loadAnalytics';
+  import { acwrZone, ACWR_ZONE_LABEL, type AcwrZoneId } from '../../lib/analytics/acwrZone';
   import type { ChartTips } from '../../lib/analytics/chartTips.svelte';
+  import { isTapPointer } from '../../lib/analytics/chartTips.svelte';
+  import { TapTracker, columnAt, stepColumn } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel } from '../../lib/analytics/chartWindow';
   import type { ChartData } from './chartTypes';
   import type { TimelineSegment, TimelineGoal } from '../../lib/analytics/timeline';
   import PhaseBand from './PhaseBand.svelte';
+  import ZoneMark from './ZoneMark.svelte';
+  import ChartEmpty from './ChartEmpty.svelte';
+  import ChartTable from './ChartTable.svelte';
   import Icon from "@iconify/svelte";
 
   let {
     chartData,
     acwrResults,
     axisStep,
-    tips,
     timeline,
     xOfDay,
     onSelect,
@@ -31,12 +39,13 @@
     chartData: ChartData;
     acwrResults: AcwrResult[];
     axisStep: number;
-    tips: ChartTips;
+    /** Accepted for a uniform panel API; this chart reads out through its own line. */
+    tips?: ChartTips;
     /** Blocks and goals for the band over the plot. */
     timeline: { segments: TimelineSegment[]; goals: TimelineGoal[] };
     /** A day's x on this chart's columns (0-100). */
     xOfDay: (day: number) => number;
-    /** A column was tapped - Analytics opens its detail sheet. */
+    /** The readout's "Details" was pressed - Analytics opens the column's sheet. */
     onSelect: (index: number) => void;
     /**
      * How much of each column's plan is done, per column id - logged vs
@@ -54,19 +63,6 @@
   // ACWR zone edges - adjustable under Settings -> Training model.
   const acwrZones = $derived(trainingState.acwrZones);
 
-  type RatioStatus = 'good' | 'caution' | 'risk' | 'neutral';
-  const RATIO_STATUS_VAR: Record<RatioStatus, string> = {
-    good: 'var(--color-status-good)',
-    caution: 'var(--color-status-caution)',
-    risk: 'var(--color-status-risk)',
-    neutral: 'var(--color-status-neutral)',
-  };
-  function ratioStatus(r: AcwrResult): RatioStatus {
-    if (r.ratio === undefined || !r.sufficient) return 'neutral';
-    if (r.ratio >= acwrZones.highRisk) return 'risk';
-    if (r.ratio >= acwrZones.caution) return 'caution';
-    return 'good';
-  }
   // A fixed ratio axis, the same for every window: it used to stretch to
   // the window's highest ratio, so one outlier (a 4.0 after a break, not
   // even counted) moved every dot and squashed the zone bands, and the
@@ -74,7 +70,7 @@
   // linear over the lower ACWR_LINEAR_SHARE of the plot (where the zones
   // live); above it, up to ACWR_AXIS_MAX, is squeezed into the rest, below
   // a little headroom so the top dot doesn't sit on the card's edge.
-  // Higher still gets an arrow at the top; the tip gives the real value.
+  // Higher still gets an arrow at the top; the readout gives the real value.
   const ACWR_LINEAR_MAX = 2;
   const ACWR_AXIS_MAX = 5;
   const ACWR_LINEAR_SHARE = 80;
@@ -99,7 +95,7 @@
       ratio: r.ratio,
       sufficient: r.sufficient,
       insufficientReason: r.insufficientReason,
-      status: ratioStatus(r),
+      zone: r.ratio === undefined ? null : acwrZone(r.ratio, acwrZones),
       spike: r.spike,
       rampRate: r.rampRate,
       barTopY: week ? 100 - (week.totalLoad / chartData.maxLoad) * 100 : 100,
@@ -119,7 +115,7 @@
     if (current.length > 1) segments.push(current);
     return segments;
   }
-  // The line only joins ratios that mean something: after a break the ratio explodes or reads 0, and those points stay as hollow dots without a line through them.
+  // The line only joins ratios that mean something: after a break the ratio explodes or reads 0, and those points stay as hollow marks without a line through them.
   /** Hairlines at half and all of the window's biggest week (the axis leaves 15 % headroom above it). */
   const compact = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k` : String(Math.round(v)));
   const loadTicks = $derived.by(() => {
@@ -127,153 +123,229 @@
     return [0.5, 1].map((f) => ({ value: f, y: 100 - ((top * f) / chartData.maxLoad) * 100, label: compact(top * f) }));
   });
   const acwrRatioSegments = $derived(buildLineSegments(acwrOverlayPoints.map((p) => ({ x: p.x, y: p.sufficient ? p.ratioY : null }))));
+
+  const monthly = $derived(chartData.weeks.length > 0 && !/^W\d+$/.test(chartData.weeks[0].label));
+  const before = $derived(monthly ? 'month' : 'week');
+  const hasLoad = $derived(chartData.weeks.some((w) => w.totalLoad > 0));
+  /** No ratio is counted anywhere in the window yet: say what it needs rather than leave the pane bare. */
+  const noRatioYet = $derived(acwrResults.length > 0 && hasLoad && !acwrResults.some((r) => r.sufficient));
+  const afterBreakOnly = $derived(noRatioYet && acwrResults.some((r) => r.insufficientReason === 'break'));
+
+  // --- One target for both panes: hover (mouse), tap or keys pick a column. Hover is temporary; a tap or key press
+  // keeps the column until you tap it again or touch outside the card, so the Details button stays reachable.
+  let picked = $state<number | null>(null);
+  let hovered = $state<number | null>(null);
+  const active = $derived(hovered ?? picked);
+  let plotEl = $state<HTMLElement | null>(null);
+  let cardEl = $state<HTMLElement | null>(null);
+  const taps = new TapTracker();
+  const colAt = (e: PointerEvent) => (plotEl ? columnAt(e.clientX, plotEl.getBoundingClientRect(), chartData.weeks.length) : null);
+  function onKey(e: KeyboardEvent) {
+    const next = stepColumn(picked, chartData.weeks.length, e.key);
+    if (next === undefined) return;
+    e.preventDefault();
+    picked = next;
+  }
+  $effect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (cardEl && !cardEl.contains(e.target as Node)) picked = null;
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  });
+  // Paging to another window must not leave a stale column picked.
+  $effect(() => {
+    void chartData.weeks[0]?.id;
+    picked = null;
+    hovered = null;
+  });
+
+  const readout = $derived.by(() => {
+    if (active === null) return null;
+    const week = chartData.weeks[active];
+    const p = acwrOverlayPoints[active];
+    if (!week || !p) return null;
+    return { index: active, week, p, plan: planDone[week.id] };
+  });
+  const zoneText = (zone: AcwrZoneId | null) => (zone ? ACWR_ZONE_LABEL[zone] : '');
+  const rampText = (p: { rampRate: number }) => `${p.rampRate > 0 ? '+' : p.rampRate < 0 ? '−' : ''}${Math.abs(Math.round(p.rampRate * 100))}%`;
 </script>
 
-<div id="section-load" class="scroll-mt-4 card space-y-3 relative" data-tour="analytics-load">
+<div id="section-load" class="scroll-mt-4 card space-y-3 relative" data-tour="analytics-load" bind:this={cardEl}>
   <div class="relative z-10">
     <h3 class="text-section uppercase text-content-muted flex items-center gap-1.5">Rolling Load <InfoButton term="load" /></h3>
-    <p class="text-caption text-content-subtle mt-0.5">Load per week, and how it compares with your usual · tap a column for details</p>
+    <p class="text-caption text-content-subtle mt-0.5">Training load per {before} (points), and how it compares with your usual</p>
   </div>
 
-  <!-- pr-5 everywhere below: room for the ratio axis labels right of the plot. -->
-  <div class="relative z-10 pr-5">
+  <!-- The picked column's numbers. A reserved two lines, so paging and picking never move the chart. -->
+  <div class="relative z-10 min-h-[2.5rem] flex items-start justify-between gap-2" aria-live="polite">
+    {#if readout}
+      <p class="text-caption tabular-nums text-content-muted leading-snug">
+        <span class="text-content font-semibold">{readout.week.label}</span>
+        <span class="text-content-subtle"> · </span><span class="text-content">{Math.round(readout.week.totalLoad)}</span> load
+        {#if readout.plan !== undefined}<span class="text-content-subtle"> · {Math.round(readout.plan * 100)}% of the plan</span>{/if}
+        <br />
+        {#if readout.p.ratio !== undefined && readout.p.ratioY !== null}
+          <span class="inline-flex items-center gap-1 align-middle"><ZoneMark zone={readout.p.zone!} filled={readout.p.sufficient} size={11} /><span class="text-content-subtle">ACWR</span> <span class="text-content">{readout.p.ratio.toFixed(2)}</span>
+            <span class="text-content-subtle">{readout.p.sufficient ? zoneText(readout.p.zone) : readout.p.insufficientReason === 'break' ? 'after a break, not counted' : 'building history, not counted'}</span></span>
+        {/if}
+        {#if readout.p.rampRate}
+          <span class="{readout.p.spike ? 'text-status-caution' : 'text-content-subtle'}">
+            {#if readout.p.ratioY !== null}<span class="text-content-subtle"> · </span>{/if}{#if readout.p.spike}<Icon icon="ic:baseline-warning" class="inline text-sm align-text-bottom" /> {/if}load {rampText(readout.p)} on the {before} before
+          </span>
+        {/if}
+      </p>
+      <button onclick={() => onSelect(readout.index)} class="btn-quiet shrink-0 px-3 text-label text-primary hover:bg-surface-elevated/60">Details</button>
+    {:else}
+      <p class="text-caption text-content-subtle leading-snug py-1" class:invisible={!hasLoad}>Tap a {before} for its numbers, then Details for its sessions.</p>
+    {/if}
+  </div>
+
+  <!-- One padding for the band and both panes (36 px: the axis labels sit in it), so the band lines up with the plot. -->
+  <div class="relative z-10 pr-9 space-y-2">
     <PhaseBand segments={timeline.segments} goals={timeline.goals} xOf={xOfDay} />
-  </div>
 
-  <!-- Two panes on one shared x-axis, each with its own scale and nothing drawn over anything else: the week's load as
-       bars (top), the acute:chronic ratio under it (a ratio is not a load, so it never shares an axis with the bars).
-       The top plot's measured width decides how far every chart's x-axis labels are thinned - see `chartWidth`. -->
-  <div class="relative z-10 pr-7 space-y-2">
-    <div class="h-36 relative flex items-end justify-between gap-px" bind:clientWidth={chartWidth}>
-      <!-- Hairlines at half and full of the window's biggest week, labelled just outside the plot. -->
-      <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-        {#each loadTicks as t (t.value)}
-          <div class="absolute inset-x-0 border-t border-content-subtle/15" style="top: {t.y}%"></div>
-          <span class="absolute right-0 translate-x-full -translate-y-1/2 pl-1 text-[9px] leading-none text-content-subtle/70 tabular-nums" style="top: {t.y}%">{t.label}</span>
-        {/each}
-      </div>
-
-      {#each chartData.weeks as week, wi}
-        <button
-          type="button"
-          data-tip-trigger
-          onclick={() => onSelect(wi)}
-          aria-label="{week.label}: {Math.round(week.totalLoad)} load - details"
-          class="flex-1 flex flex-col items-center group relative h-full justify-end hover:z-30"
-        >
-          <!-- Flat fill, no gradient or glow; the current week is the only one at full strength, which is the whole
-               emphasis budget this chart spends. -->
-          <div
-            class="w-[62%] max-w-[16px] rounded-t-[3px] transition-[height] duration-500 relative {week.isCurrent ? 'bg-primary' : 'bg-primary/45 group-hover:bg-primary/70'}"
-            style="height: {(week.totalLoad / chartData.maxLoad) * 100}%"
-          >
-            <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-20 border border-border shadow-card pointer-events-none">
-              <span class="block">{week.label} · {Math.round(week.totalLoad)} load</span>
-              {#if planDone[week.id] !== undefined}<span class="block text-content-subtle">{Math.round(planDone[week.id] * 100)}% of the plan</span>{/if}
-            </div>
-          </div>
-        </button>
-      {/each}
-
-      <!-- Ramp-rate spike flags, over the bar they are about. -->
-      <div class="absolute inset-0 pointer-events-none">
-        {#each acwrOverlayPoints as p, pi}
-          {#if p.spike}
-            <button
-              type="button"
-              data-tip-trigger
-              data-tip-open={tips.isOpen(`spike-${pi}`)}
-              onclick={() => tips.toggle(`spike-${pi}`)}
-              aria-label="Ramp-rate spike"
-              class="absolute pointer-events-auto group hover:z-40 {tips.isOpen(`spike-${pi}`) ? 'z-40' : 'z-20'}"
-              style="left: {p.x}%; top: {Math.max(p.barTopY - 8, 2)}%; transform: translate(-50%, -50%);"
-            >
-              <Icon icon="ic:baseline-warning" class="text-status-risk text-xs" />
-              <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
-                Ramp-rate spike: +{Math.round(p.rampRate * 100)}%
-              </div>
-            </button>
-          {/if}
-        {/each}
-      </div>
-    </div>
-    <div class="border-t border-border-strong/60"></div>
-
-    <!-- The ratio: its own pane, its zones tinted, its edges labelled. -->
-    <p class="text-caption text-content-subtle flex items-center gap-1.5 pt-1">Acute : chronic load <InfoButton term="acwr" /></p>
-    <div class="h-20 relative">
-      <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <rect x="0" y={ratioToY(acwrMaxRatio)} width="100" height={Math.max(ratioToY(acwrZones.highRisk) - ratioToY(acwrMaxRatio), 0)} fill="var(--color-status-risk)" opacity="0.08" />
-        <rect x="0" y={ratioToY(acwrZones.highRisk)} width="100" height={Math.max(ratioToY(acwrZones.caution) - ratioToY(acwrZones.highRisk), 0)} fill="var(--color-status-caution)" opacity="0.08" />
-        <rect x="0" y={ratioToY(acwrZones.caution)} width="100" height={Math.max(ratioToY(acwrZones.sweetMin) - ratioToY(acwrZones.caution), 0)} fill="var(--color-status-good)" opacity="0.08" />
-        {#each acwrRatioSegments as seg}
-          <path
-            d="M {seg.map((p) => `${p.x} ${p.y}`).join(' L ')}"
-            fill="none"
-            stroke="var(--color-content-subtle)"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            vector-effect="non-scaling-stroke"
-            opacity="0.7"
-          />
-        {/each}
-      </svg>
-      <div class="absolute inset-y-0 right-0 pointer-events-none" aria-hidden="true">
-        <!-- The caution edge sits too close to the high-risk one to label both; its band says the rest. -->
-        {#each [acwrZones.sweetMin, acwrZones.highRisk] as edge (edge)}
-          <span class="absolute right-0 translate-x-full -translate-y-1/2 pl-1 text-[9px] leading-none text-content-subtle/70 tabular-nums" style="top: {ratioToY(edge)}%;">{edge.toFixed(1)}</span>
-        {/each}
-      </div>
-      <div class="absolute inset-0 pointer-events-none">
-        {#each acwrOverlayPoints as p, pi}
-          {#if p.ratioY !== null}
-            <button
-              type="button"
-              data-tip-trigger
-              data-tip-open={tips.isOpen(`acwr-${pi}`)}
-              onclick={() => tips.toggle(`acwr-${pi}`)}
-              aria-label="ACWR {p.ratio?.toFixed(2) ?? 'unavailable'}"
-              class="absolute pointer-events-auto group hover:z-40 {tips.isOpen(`acwr-${pi}`) ? 'z-40' : 'z-20'}"
-              style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);"
-            >
-              {#if p.offScale}
-                <!-- Above the axis: an arrow at the top rather than a dot pretending to be at the maximum. -->
-                <Icon icon="ic:baseline-arrow-drop-up" class="text-base -my-1.5" style="color: {RATIO_STATUS_VAR[p.status]}; opacity: {p.sufficient ? 1 : 0.6};" />
-              {:else}
-                <div
-                  class="w-2 h-2 rounded-full border-2 transition-transform group-hover:scale-125"
-                  style="background: {p.sufficient ? RATIO_STATUS_VAR[p.status] : 'var(--color-surface)'}; border-color: {RATIO_STATUS_VAR[p.status]};"
-                ></div>
-              {/if}
-              <div class="chart-tip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-surface-elevated text-caption text-content rounded-control whitespace-nowrap z-30 border border-border shadow-card pointer-events-none">
-                ACWR {p.ratio?.toFixed(2)}{!p.sufficient ? (p.insufficientReason === 'break' ? ' · after a break, not counted' : ' · building history') : ''}
-              </div>
-            </button>
-          {/if}
-        {/each}
-      </div>
-    </div>
-
-    <!-- The shared x-axis. Labels are thinned to whatever fits (see `axisStep`), counted back from the most recent week
-         so it is always the one that keeps its label. -->
-    <div class="flex justify-between gap-px">
-      {#each chartData.weeks as week, i}
-        <div class="flex-1 flex justify-center">
-          {#if showsLabel(i, chartData.weeks.length, axisStep)}
-            <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">{week.label}</span>
-          {/if}
+    <!-- Two panes on one shared x-axis, each with its own scale and nothing drawn over anything else: the week's load as
+         bars (top), the acute:chronic ratio under it (a ratio is not a load, so it never shares an axis with the bars).
+         The top plot's measured width decides how far every chart's x-axis labels are thinned - see `chartWidth`. -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+    <div
+      bind:this={plotEl}
+      class="relative select-none outline-offset-4"
+      role="application"
+      tabindex="0"
+      aria-label="Rolling load by {before} with its acute to chronic ratio. Left and right arrow keys move between {before}s; a table of the numbers follows."
+      onkeydown={onKey}
+      onpointerdown={taps.down}
+      onpointermove={(e) => { if (!isTapPointer(e)) hovered = colAt(e); }}
+      onpointerleave={(e) => { if (!isTapPointer(e)) hovered = null; }}
+      onpointerup={(e) => { if (taps.isTap(e)) { const i = colAt(e); picked = i === picked ? null : i; } }}
+    >
+      <div class="h-36 relative flex items-end justify-between gap-px cursor-pointer" bind:clientWidth={chartWidth}>
+        <!-- Hairlines at half and full of the window's biggest week, labelled just outside the plot. -->
+        <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+          {#each loadTicks as t (t.value)}
+            <div class="absolute inset-x-0 border-t border-content-subtle/15" style="top: {t.y}%"></div>
+            <span class="absolute right-0 translate-x-full -translate-y-1/2 pl-1 text-caption leading-none text-content-subtle tabular-nums" style="top: {t.y}%">{t.label}</span>
+          {/each}
         </div>
-      {/each}
+
+        {#each chartData.weeks as week, wi}
+          <div class="flex-1 flex flex-col items-center relative h-full justify-end">
+            <!-- Flat fill, no gradient or glow; the current week is the only one at full strength, which is the whole
+                 emphasis budget this chart spends. -->
+            <div
+              class="w-[62%] max-w-[16px] rounded-t-[3px] transition-[height,opacity] duration-500 {week.isCurrent ? 'bg-series-1' : 'bg-series-1/55'} {active !== null && active !== wi ? 'opacity-40' : ''}"
+              style="height: {(week.totalLoad / chartData.maxLoad) * 100}%"
+            ></div>
+          </div>
+        {/each}
+
+        <!-- A flag over a bar that jumped on the one before it (the readout says by how much). -->
+        <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+          {#each acwrOverlayPoints as p}
+            {#if p.spike}
+              <Icon icon="ic:baseline-warning" class="absolute text-status-caution text-sm" style="left: {p.x}%; top: {Math.max(p.barTopY - 8, 2)}%; transform: translate(-50%, -50%);" />
+            {/if}
+          {/each}
+        </div>
+        {#if !hasLoad}<ChartEmpty>No completed sessions in this window</ChartEmpty>{/if}
+      </div>
+      <div class="border-t border-border-strong/60 my-2"></div>
+
+      <!-- The ratio: its own pane, its zones tinted and named in the legend below. -->
+      <p class="text-caption text-content-subtle flex items-center gap-1.5 pb-1">Acute : chronic load (ACWR) <InfoButton term="acwr" /></p>
+      <div class="h-20 relative cursor-pointer">
+        <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <rect x="0" y={ratioToY(acwrMaxRatio)} width="100" height={Math.max(ratioToY(acwrZones.highRisk) - ratioToY(acwrMaxRatio), 0)} fill="var(--color-status-risk)" opacity="0.15" />
+          <rect x="0" y={ratioToY(acwrZones.highRisk)} width="100" height={Math.max(ratioToY(acwrZones.caution) - ratioToY(acwrZones.highRisk), 0)} fill="var(--color-status-caution)" opacity="0.15" />
+          <rect x="0" y={ratioToY(acwrZones.caution)} width="100" height={Math.max(ratioToY(acwrZones.sweetMin) - ratioToY(acwrZones.caution), 0)} fill="var(--color-status-good)" opacity="0.15" />
+          <rect x="0" y={ratioToY(acwrZones.sweetMin)} width="100" height={Math.max(100 - ratioToY(acwrZones.sweetMin), 0)} fill="var(--color-status-neutral)" opacity="0.12" />
+          {#each acwrRatioSegments as seg}
+            <path
+              d="M {seg.map((p) => `${p.x} ${p.y}`).join(' L ')}"
+              fill="none"
+              stroke="var(--color-content-subtle)"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              vector-effect="non-scaling-stroke"
+              opacity="0.7"
+            />
+          {/each}
+        </svg>
+        <div class="absolute inset-y-0 right-0 pointer-events-none" aria-hidden="true">
+          <!-- The caution edge sits too close to the high-risk one to label both; its band says the rest. -->
+          {#each [acwrZones.sweetMin, acwrZones.highRisk] as edge (edge)}
+            <span class="absolute right-0 translate-x-full -translate-y-1/2 pl-1 text-caption leading-none text-content-subtle tabular-nums" style="top: {ratioToY(edge)}%;">{edge.toFixed(1)}</span>
+          {/each}
+        </div>
+        <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+          {#each acwrOverlayPoints as p, pi}
+            {#if p.ratioY !== null}
+              <div class="absolute transition-opacity {active !== null && active !== pi ? 'opacity-40' : ''}" style="left: {p.x}%; top: {p.ratioY}%; transform: translate(-50%, -50%);">
+                {#if p.offScale}
+                  <!-- Above the axis: an arrow at the top rather than a mark pretending to be at the maximum. -->
+                  <Icon icon="ic:baseline-arrow-drop-up" class="text-base -my-1.5 text-status-risk" style="opacity: {p.sufficient ? 1 : 0.6};" />
+                {:else}
+                  <ZoneMark zone={p.zone ?? 'low'} filled={p.sufficient} size={active === pi ? 14 : 11} />
+                {/if}
+              </div>
+            {/if}
+          {/each}
+        </div>
+      </div>
+
+      {#if active !== null}
+        <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {((active + 0.5) / Math.max(chartData.weeks.length, 1)) * 100}%"></div>
+      {/if}
+
+      <!-- The shared x-axis. Labels are thinned to whatever fits (see `axisStep`), counted back from the most recent week
+           so it is always the one that keeps its label. -->
+      <div class="flex justify-between gap-px mt-1">
+        {#each chartData.weeks as week, i}
+          <div class="flex-1 flex justify-center">
+            {#if showsLabel(i, chartData.weeks.length, axisStep)}
+              <span class="text-caption leading-tight tabular-nums {week.isCurrent ? 'text-primary' : active === i ? 'text-content' : 'text-content-subtle'}">{week.label}</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    </div>
+
+    <!-- What the marks mean: zone, by shape and colour, with the edges as set in Settings. Hollow = not counted yet. -->
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-content-subtle">
+      <span class="inline-flex items-center gap-1"><ZoneMark zone="low" size={10} />low &lt;{acwrZones.sweetMin.toFixed(1)}</span>
+      <span class="inline-flex items-center gap-1"><ZoneMark zone="sweet" size={10} />sweet spot</span>
+      <span class="inline-flex items-center gap-1"><ZoneMark zone="caution" size={10} />caution &gt;{acwrZones.caution.toFixed(1)}</span>
+      <span class="inline-flex items-center gap-1"><ZoneMark zone="risk" size={10} />high risk &gt;{acwrZones.highRisk.toFixed(1)}</span>
+      <span class="inline-flex items-center gap-1"><ZoneMark zone="low" filled={false} size={10} />not counted yet</span>
+      <span class="inline-flex items-center gap-1"><Icon icon="ic:baseline-warning" class="text-sm text-status-caution" />load jumped on the {before} before</span>
     </div>
   </div>
+
+  {#if noRatioYet}
+    <p class="text-caption text-content-subtle relative z-10">{afterBreakOnly ? 'The ratio is not counted right after a break.' : 'The ratio needs about 4 weeks of logged sessions before it is counted.'}</p>
+  {/if}
 
   <!-- Always there ("–" with nothing completed) so the card keeps its height while paging. -->
   <p class="text-caption text-content-subtle relative z-10">
     Plan: <span class="text-content tabular-nums">{windowPlanDone !== undefined ? `${Math.round(windowPlanDone * 100)}%` : '–'}</span> of the planned work done so far
   </p>
 
-  {#if acwrResults.length === 0}
-    <p class="text-caption text-content-subtle italic text-center py-2">No completed sessions yet</p>
-  {/if}
+  <ChartTable
+    caption="Rolling load by {before}"
+    columns={[before === 'week' ? 'Week' : 'Month', 'Load', '% of the plan', 'ACWR', 'ACWR zone', `Load change on the ${before} before`]}
+    rows={chartData.weeks.map((w, i) => {
+      const p = acwrOverlayPoints[i];
+      return [
+        w.label,
+        Math.round(w.totalLoad),
+        planDone[w.id] !== undefined ? `${Math.round(planDone[w.id] * 100)}%` : '–',
+        p?.ratio !== undefined ? p.ratio.toFixed(2) : '–',
+        p?.zone ? (p.sufficient ? ACWR_ZONE_LABEL[p.zone] : 'not counted yet') : '–',
+        p?.rampRate ? rampText(p) : '–',
+      ];
+    })}
+  />
 </div>

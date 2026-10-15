@@ -126,7 +126,7 @@
     </div>
 
     <div class="flex gap-2">
-      <div class="w-6 shrink-0 h-40 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
+      <div class="w-6 shrink-0 h-40 flex flex-col justify-between items-end text-caption leading-none text-content-subtle tabular-nums">
         <span>10</span><span>5</span><span>0</span>
       </div>
       <div class="flex-1 min-w-0" bind:clientWidth={plotWidth}>
@@ -161,7 +161,7 @@
           {#each samples as s, i (s.weekId)}
             <div class="flex-1 flex justify-center">
               {#if showsLabel(i, samples.length, axisStep)}
-                <span class="text-caption leading-tight tabular-nums {i === readoutIndex && picker.selected !== null ? 'text-content' : 'text-content-subtle/70'}">{weekLabels[s.weekId] ?? ''}</span>
+                <span class="text-caption leading-tight tabular-nums {i === readoutIndex && picker.selected !== null ? 'text-content' : 'text-content-subtle'}">{weekLabels[s.weekId] ?? ''}</span>
               {/if}
             </div>
           {/each}
@@ -170,6 +170,6 @@
     </div>
 
     {#if coverage.total > 0 && coverage.arms < coverage.total}
-      <p class="text-caption text-content-subtle/70">Arms rated on {coverage.arms} of {coverage.total} sessions in this window</p>
+      <p class="text-caption text-content-subtle">Arms rated on {coverage.arms} of {coverage.total} sessions in this window</p>
     {/if}
 </div>

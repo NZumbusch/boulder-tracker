@@ -136,7 +136,7 @@
           {/each}
         {/if}
       {:else if hasAscents}
-        <span class="text-content-subtle/70">Tap a column for its sends</span>
+        <span class="text-content-subtle">Tap a column for its sends</span>
       {/if}
     </div>
 
@@ -146,7 +146,7 @@
       <div class="w-9 shrink-0 h-36 relative">
         {#each gradeTicks as tick (tick.rank)}
           <span
-            class="absolute right-0 -translate-y-1/2 text-caption leading-none text-content-subtle/70 tabular-nums whitespace-nowrap"
+            class="absolute right-0 -translate-y-1/2 text-caption leading-none text-content-subtle tabular-nums whitespace-nowrap"
             style="bottom: {yPercent(tick.rank)}%;"
           >
             {G(tick.grade)}
@@ -184,7 +184,7 @@
         <div class="border-t border-border-strong/60"></div>
         <div class="flex gap-px">
           {#each weeks as week, i (week.weekId)}
-            <span class="flex-1 text-center text-caption leading-tight text-content-subtle/70 tabular-nums">
+            <span class="flex-1 text-center text-caption leading-tight text-content-subtle tabular-nums">
               {showsLabel(i, weeks.length, labelStep) ? (weekLabels[week.weekId] ?? week.weekId) : ''}
             </span>
           {/each}

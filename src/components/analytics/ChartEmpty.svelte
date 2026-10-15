@@ -10,7 +10,7 @@
   let { children }: { children: Snippet } = $props();
 </script>
 
-<div class="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none px-4" role="status">
   <p class="text-caption text-content-subtle italic text-center leading-relaxed px-2.5 py-1 rounded-control bg-surface/80">
     {@render children()}
   </p>

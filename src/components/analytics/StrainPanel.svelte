@@ -76,7 +76,7 @@
       <span class="text-content-subtle"> · monotony</span> <span class="text-content">{selected.monotony?.toFixed(2) ?? '–'}</span>
       <span class="text-content-subtle"> · load</span> <span class="text-content">{Math.round(selected.load)}</span>
     {:else}
-      <span class="text-content-subtle/70" class:invisible={!columns.some((c) => c.load > 0)}>Tap a column for its values</span>
+      <span class="text-content-subtle" class:invisible={!columns.some((c) => c.load > 0)}>Tap a column for its values</span>
     {/if}
   </div>
 
@@ -110,7 +110,7 @@
       {#each columns as c, i (c.id)}
         <div class="flex-1 flex justify-center">
           {#if showsLabel(i, columns.length, axisStep)}
-            <span class="text-caption leading-tight tabular-nums {c.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">{c.label}</span>
+            <span class="text-caption leading-tight tabular-nums {c.isCurrent ? 'text-primary' : 'text-content-subtle'}">{c.label}</span>
           {/if}
         </div>
       {/each}

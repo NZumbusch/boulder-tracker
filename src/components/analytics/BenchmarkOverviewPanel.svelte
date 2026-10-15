@@ -58,7 +58,7 @@
     </div>
 
     <div class="flex gap-2">
-      <div class="w-9 shrink-0 h-36 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
+      <div class="w-9 shrink-0 h-36 flex flex-col justify-between items-end text-caption leading-none text-content-subtle tabular-nums">
         {#if colored.length > 0}
           <span>{signed(bounds.hi)}</span>
           <span>{signed((bounds.hi + bounds.lo) / 2)}</span>
@@ -84,7 +84,7 @@
           {#each days as day, i}
             {#if showsLabel(i, days.length, axisStep)}
               <span
-                class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
+                class="absolute top-0 text-caption leading-tight text-content-subtle whitespace-nowrap"
                 style="left: {xOf(day)}%; transform: translateX({i === 0 ? '0' : i === days.length - 1 ? '-100%' : '-50%'});"
               >{fmtDay(day)}</span>
             {/if}

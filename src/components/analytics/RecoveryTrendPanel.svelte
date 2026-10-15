@@ -376,7 +376,7 @@
     >
       {#if mode === 'overlay'}
         <div class="flex gap-2">
-          <div class="w-8 shrink-0 h-40 flex flex-col justify-between items-end text-caption leading-none text-content-subtle/70 tabular-nums">
+          <div class="w-8 shrink-0 h-40 flex flex-col justify-between items-end text-caption leading-none text-content-subtle tabular-nums">
             <span>+{overlayRange}%</span>
             <span>0</span>
             <span>−{overlayRange}%</span>
@@ -487,7 +487,7 @@
             {#each axisDays as day, i}
               {#if showsLabel(i, axisDays.length, axisStep)}
                 <span
-                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
+                  class="absolute top-0 text-caption leading-tight text-content-subtle whitespace-nowrap"
                   style="left: {xOf(day)}%; transform: translateX({i === 0 ? '0' : i === axisDays.length - 1 ? '-100%' : '-50%'});"
                 >
                   {new Date(`${dayIndexToIso(day)}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}

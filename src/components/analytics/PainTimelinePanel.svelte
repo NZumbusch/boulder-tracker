@@ -107,7 +107,7 @@
             {#each days as day, i}
               {#if showsLabel(i, days.length, axisStep)}
                 <span
-                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
+                  class="absolute top-0 text-caption leading-tight text-content-subtle whitespace-nowrap"
                   style="left: {xOf(day)}%; transform: translateX({i === 0 ? '0' : i === days.length - 1 ? '-100%' : '-50%'});"
                 >{fmtDay(day)}</span>
               {/if}
@@ -121,7 +121,7 @@
       {#if selectedInfo}
         <span class="text-content-subtle">{selectedInfo.date}</span> · {selectedInfo.bodyPart} · {selectedInfo.severity}/10{selectedInfo.notes ? ` · ${selectedInfo.notes}` : ''}{selectedInfo.spike ? ' · load spike nearby' : ''}
       {:else}
-        <span class="text-content-subtle/70">{rows.length > 0 ? 'Tap a dot for details' : ''}</span>
+        <span class="text-content-subtle">{rows.length > 0 ? 'Tap a dot for details' : ''}</span>
       {/if}
     </p>
 </div>

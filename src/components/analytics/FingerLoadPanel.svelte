@@ -95,7 +95,7 @@
         {#if selected.share !== undefined}<span class="text-content-subtle"> · {Math.round(selected.share * 100)}% of total</span>{/if}
         {#if selected.ramp}<span class="{selected.spike ? 'text-status-risk' : 'text-content-subtle'}"> · {selected.ramp > 0 ? '+' : ''}{Math.round(selected.ramp * 100)}% vs before</span>{/if}
       {:else}
-        <span class="text-content-subtle/70" class:invisible={!hasAny}>Tap a column for its values · ⚠ = more than {Math.round(RAMP_RATE_SPIKE_THRESHOLD * 100)}% up on the column before</span>
+        <span class="text-content-subtle" class:invisible={!hasAny}>Tap a column for its values · ⚠ = more than {Math.round(RAMP_RATE_SPIKE_THRESHOLD * 100)}% up on the column before</span>
       {/if}
     </div>
 
@@ -128,7 +128,7 @@
         {#each columns as c, i (c.id)}
           <div class="flex-1 flex justify-center">
             {#if showsLabel(i, columns.length, axisStep)}
-              <span class="text-caption leading-tight tabular-nums {c.isCurrent ? 'text-primary' : 'text-content-subtle/70'}">{c.label}</span>
+              <span class="text-caption leading-tight tabular-nums {c.isCurrent ? 'text-primary' : 'text-content-subtle'}">{c.label}</span>
             {/if}
           </div>
         {/each}

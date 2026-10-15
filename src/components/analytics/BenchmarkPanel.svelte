@@ -259,7 +259,7 @@
     <div class="flex items-center gap-1.5" data-no-swipe>
       <div class="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 min-w-0 flex-1">
         {#each offered as v (v.id)}
-          <button onclick={() => (selectedViewId = v.id)} aria-pressed={v.id === base.id} class={chip(v.id === base.id)}>{v.name}{#if v.onHome}<span class="text-content-subtle/70">&nbsp;· Home</span>{/if}</button>
+          <button onclick={() => (selectedViewId = v.id)} aria-pressed={v.id === base.id} class={chip(v.id === base.id)}>{v.name}{#if v.onHome}<span class="text-content-subtle">&nbsp;· Home</span>{/if}</button>
         {/each}
       </div>
       <button onclick={() => (adjusting = !adjusting)} aria-expanded={adjusting} class="shrink-0 flex items-center gap-1 px-2 py-1 text-caption rounded-control {adjusting || dirty ? 'text-primary' : 'text-content-subtle hover:text-content'}">
@@ -385,14 +385,14 @@
             {#each axisDays as day, i}
               {#if showsLabel(i, axisDays.length, axisStep)}
                 <span
-                  class="absolute top-0 text-caption leading-tight text-content-subtle/70 whitespace-nowrap"
+                  class="absolute top-0 text-caption leading-tight text-content-subtle whitespace-nowrap"
                   style="left: {((day - firstDay + 0.5) / dayCount) * 100}%; transform: translateX({i === 0 ? '0' : i === axisDays.length - 1 ? '-100%' : '-50%'});"
                 >{fmtDay(day)}</span>
               {/if}
             {/each}
           </div>
         {:else}
-          <div class="flex justify-between pt-0.5 text-caption leading-none text-content-subtle/70 tabular-nums">
+          <div class="flex justify-between pt-0.5 text-caption leading-none text-content-subtle tabular-nums">
             {#if points.length > 0}
               <span>{fmt(xBounds.lo)}</span>
               <span>{xMetric?.label} ({xMetric?.unit})</span>

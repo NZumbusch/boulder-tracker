@@ -150,7 +150,7 @@
         {#if bodyweight !== undefined}
           <span><span class="text-content-subtle">Weight</span> {formatWeight(bodyweight, trainingState.units.weight)}</span>
         {/if}
-        <span class="text-content-subtle/70">averages</span>
+        <span class="text-content-subtle">averages</span>
       </div>
     {/if}
 
