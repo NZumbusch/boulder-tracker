@@ -2,6 +2,7 @@
   import AppBar from '../nav/AppBar.svelte';
   import { fabActions } from '../../lib/navigation/fabActions.svelte';
   import InfoButton from '../common/InfoButton.svelte';
+  import Segmented from '../ui/Segmented.svelte';
   import { showInfo } from '../../lib/help/infoSheet.svelte';
   import { motionMs, motionReduced, scrollBehavior } from '../../lib/motion';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
@@ -10,7 +11,7 @@
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId, weekMondayIso } from '../../lib/dateUtils';
+  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId, weekMondayIso, formatWeek } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
   import { getBlocksForWeek, getDominantBlockForWeek, phasesInWeek, weekRuns, describeRuns, dayRangeText } from '../../lib/planning/trainingBlocks';
   import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
@@ -143,7 +144,7 @@
 
       tempWeeks.push({
         id,
-        label: `Week ${id.split('-W')[1]}`,
+        label: formatWeek(id),
         phaseId: dominant?.phaseId,
         isCurrent: id === currentWeekId,
         year: d.getUTCFullYear(),
@@ -167,7 +168,7 @@
       // (`bg-surface-elevated/50`) with a flat mid-gray on every unassigned
       // cell. Passing `undefined` here lets that component's own fallback apply.
       color: w.phaseId ? phaseDefById.get(w.phaseId)?.color : undefined,
-      tooltip: `${w.id}${phaseName(w.phaseId) ? ` - ${w.runs.length > 1 ? describeRuns(w.runs.map((r) => ({ name: r.block ? phaseName(r.block.phaseId) : undefined, from: r.from, to: r.to }))) : phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}`,
+      tooltip: `${formatWeek(w.id)}${phaseName(w.phaseId) ? ` - ${w.runs.length > 1 ? describeRuns(w.runs.map((r) => ({ name: r.block ? phaseName(r.block.phaseId) : undefined, from: r.from, to: r.to }))) : phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}`,
       hasOverlap: w.hasOverlap,
       // A week with more than one run is split between phases (or has days no phase has): drawn in segments.
       runs: w.runs.length > 1 ? w.runs.map((r) => ({ color: r.block ? phaseDefById.get(r.block.phaseId)?.color : undefined, from: r.from, to: r.to })) : undefined,
@@ -433,32 +434,12 @@
 <div class="w-full {shownView === 'calendar' ? 'max-w-5xl' : 'max-w-lg'} space-y-4 animate-in fade-in duration-200 pb-12">
   <AppBar title="Plan">
     {#snippet actions()}
-      {#if !inPlanBMode}
-        <div class="flex bg-surface-elevated/50 p-0.5 rounded-control mr-1" role="radiogroup" aria-label="Plan view">
-          <button
-            role="radio"
-            aria-checked={view === 'blocks'}
-            onclick={() => setView('blocks')}
-            title="Blocks and weeks"
-            aria-label="Blocks view"
-            class="tap p-1.5 rounded-control transition-colors {view === 'blocks' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-          ><Icon icon="ic:baseline-grid-view" class="text-base" /></button>
-          <button
-            role="radio"
-            aria-checked={view === 'calendar'}
-            onclick={() => setView('calendar')}
-            title="Calendar"
-            aria-label="Calendar view"
-            class="tap p-1.5 rounded-control transition-colors {view === 'calendar' ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"
-          ><Icon icon="ic:baseline-calendar-month" class="text-base" /></button>
-        </div>
-      {/if}
       <button
         onclick={() => openBlockManager()}
         class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
-        aria-label="Manage training blocks"
+        aria-label="Phases and training blocks"
         data-tour="plan-blocks"
-        title="Training blocks"
+        title="Phases and training blocks"
       >
         <Icon icon="ic:baseline-view-week" class="text-xl" />
       </button>
@@ -475,8 +456,18 @@
   </AppBar>
 
   <div class="flex flex-col gap-4">
+    {#if !inPlanBMode}
+      <div class="px-1">
+        <Segmented
+          label="Plan view"
+          options={[{ value: 'blocks', label: 'Weeks', title: 'Phases and weeks, with the sessions of the selected week' }, { value: 'calendar', label: 'Calendar', title: 'Day, week, month and year calendar' }]}
+          value={view}
+          onChange={setView}
+        />
+      </div>
+    {/if}
     {#if shownView === 'calendar'}
-      <PlanCalendar bind:this={calendarRef} onAdd={handleAddWorkout} onEditPhase={openBlockManager} />
+      <PlanCalendar bind:this={calendarRef} onAdd={handleAddWorkout} onEditPhase={openBlockManager} onShowWeeks={() => setView('blocks')} />
     {:else}
     <div class="flex items-start justify-between gap-2 px-1">
       <div class="flex flex-wrap gap-x-3 gap-y-1.5 pt-1.5">
@@ -492,9 +483,11 @@
         <button onclick={() => navigate('prev')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Earlier weeks">
           <Icon icon="ic:baseline-chevron-left" class="text-lg" />
         </button>
-        <button onclick={() => navigate('today')} class="px-2 py-1 text-caption rounded-control hover:bg-surface-elevated transition-colors {trainingState.weekOffset === 0 && trainingState.selectedWeekId === trainingState.currentWeekId ? 'text-content-subtle/50' : 'text-primary'}">
-          Today
-        </button>
+        {#if !(trainingState.weekOffset === 0 && trainingState.selectedWeekId === trainingState.currentWeekId)}
+          <button onclick={() => navigate('today')} class="btn-quiet px-2 text-caption text-primary hover:bg-surface-elevated">
+            Today
+          </button>
+        {/if}
         <button onclick={() => navigate('next')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Later weeks">
           <Icon icon="ic:baseline-chevron-right" class="text-lg" />
         </button>
@@ -524,18 +517,19 @@
            the actions used to drop onto their own row, leaving a gap. -->
       <div class="flex items-start justify-between gap-2">
         <div class="flex-1 min-w-0 relative">
-          <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : `Week ${selectedWeekData.id.split('-W')[1]}`} <span class="normal-case tracking-normal font-normal text-content-subtle whitespace-nowrap block min-[380px]:inline"><span class="hidden min-[380px]:inline">·&nbsp;</span>{getWeekDateRange(selectedWeekData.id)}</span></span>
+          <span class="text-section uppercase text-content-muted block">{selectedWeekData.isCurrent ? 'This week' : formatWeek(selectedWeekData.id)} <span class="normal-case tracking-normal font-normal text-content-subtle whitespace-nowrap block min-[380px]:inline"><span class="hidden min-[380px]:inline">·&nbsp;</span>{getWeekDateRange(selectedWeekData.id)}</span></span>
           <!-- The phases the week holds, with their days when it is split. Tapping one opens the Block manager at that day - phases are edited there. -->
           <div class="flex items-center gap-x-3 gap-y-0.5 flex-wrap" data-tour="plan-phase">
             {#each selectedWeekPhases as part (part.block.id)}
               <button onclick={() => openBlockManager(part.days[0])} class="text-left group flex items-baseline gap-1.5" aria-label="Edit the {phaseName(part.block.phaseId)} phase">
                 {#if selectedWeekPhases.length > 1}<span class="w-2 h-2 rounded-full self-center shrink-0 {phaseColor(part.block.phaseId)}"></span>{/if}
                 <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(part.block.phaseId) ?? part.block.name}</h3>
+                <Icon icon="ic:baseline-edit" class="text-sm text-content-subtle self-center shrink-0" />
                 {#if selectedWeekPhases.length > 1}<span class="text-caption text-content-subtle whitespace-nowrap">{dayRangeText(weekDayIndex(part.days[0]), weekDayIndex(part.days[part.days.length - 1]))}</span>{/if}
               </button>
             {:else}
-              <button onclick={() => openBlockManager(trainingState.selectedWeekId ? weekMondayIso(trainingState.selectedWeekId) : undefined)} class="text-left group">
-                <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">No Phase</h3>
+              <button onclick={() => openBlockManager(trainingState.selectedWeekId ? weekMondayIso(trainingState.selectedWeekId) : undefined)} class="text-left group min-h-9 flex items-center">
+                <h3 class="text-label text-content-subtle group-hover:text-primary-hover transition-colors">No phase - tap to add</h3>
               </button>
             {/each}
             <InfoButton term="phases" />
@@ -558,35 +552,17 @@
                saves no session - see WeekNote. -->
           <button
             onclick={() => showWeekNote = true}
-            class="tap p-1.5 rounded-control transition-colors hover:bg-surface-elevated {selectedWeekNote ? 'text-primary' : 'text-content-subtle hover:text-content'}"
+            class="btn-icon rounded-control {selectedWeekNote ? 'text-primary' : 'text-content-subtle hover:text-content'}"
             title={selectedWeekNote ? 'Week note' : 'Add a week note'}
             aria-label={selectedWeekNote ? 'Open week note' : 'Add a week note'}
           >
             <Icon icon={selectedWeekNote ? 'ic:baseline-sticky-note-2' : 'ic:outline-sticky-note-2'} class="text-lg" />
           </button>
-          {#if canResetWeek}
-            <button
-              onclick={() => trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!)}
-              class="tap p-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors"
-              title="Discard this week's saved changes and follow the phase templates again"
-              aria-label="Reset week to its phase"
-            >
-              <Icon icon="ic:baseline-restore" class="text-lg" />
-            </button>
-          {/if}
-          <button
-            onclick={() => trainingState.clearWeek(trainingState.selectedWeekId!)}
-            class="tap p-1.5 rounded-control text-content-subtle hover:text-danger hover:bg-danger/10 transition-colors"
-            title="Clear all data for this week"
-            aria-label="Clear week"
-          >
-            <Icon icon="ic:baseline-delete-sweep" class="text-lg" />
-          </button>
           <button
             onclick={() => showCopy = !showCopy}
-            class="tap p-1.5 rounded-control transition-colors hover:bg-surface-elevated {showCopy ? 'text-primary bg-surface-elevated' : 'text-content-subtle hover:text-content'}"
-            title="Copy, repeat or share this week"
-            aria-label="Copy, repeat or share this week"
+            class="btn-icon rounded-control {showCopy ? 'text-primary bg-surface-elevated' : 'text-content-subtle hover:text-content'}"
+            title="Week actions: copy, repeat, Plan B, share, reset, clear"
+            aria-label="Week actions"
             aria-expanded={showCopy}
           >
             <Icon icon="ic:baseline-more-horiz" class="text-lg" />
@@ -595,7 +571,8 @@
       </div>
 
       {#if showCopy}
-        <div class="p-3.5 rounded-control bg-surface-elevated/40 space-y-3 animate-in fade-in duration-150">
+        <div class="p-3.5 rounded-control bg-surface-elevated/40 space-y-3 animate-in fade-in duration-150" role="group" aria-label="Week actions">
+          <p class="text-section uppercase text-content-muted">Week actions</p>
           <button
             onclick={copyLastWeekHere}
             disabled={previousWeekCount === 0}
@@ -604,21 +581,21 @@
             <Icon icon="ic:baseline-south" class="text-base text-primary shrink-0" />
             <span class="min-w-0 flex-1">
               <span class="block text-label text-content group-hover:text-primary transition-colors">Copy last week here</span>
-              <span class="block text-caption text-content-subtle">{previousWeekId} · {previousWeekCount} session{previousWeekCount === 1 ? '' : 's'}</span>
+              <span class="block text-caption text-content-subtle">{formatWeek(previousWeekId)} · {previousWeekCount} session{previousWeekCount === 1 ? '' : 's'}</span>
             </span>
           </button>
           <div class="pt-3 border-t border-border/60 flex items-center gap-2 flex-wrap">
             <Icon icon="ic:baseline-repeat" class="text-base text-primary shrink-0" />
             <span class="text-label text-content">Repeat this week into the next</span>
-            <select bind:value={repeatCount} class="bg-surface-elevated text-content px-2 py-1 rounded-control border border-border-strong outline-none text-label" aria-label="Number of weeks">
+            <select bind:value={repeatCount} class="field w-auto" aria-label="Number of weeks">
               {#each [1, 2, 3, 4, 5, 6, 7, 8] as n}<option value={n}>{n}</option>{/each}
             </select>
             <span class="text-label text-content">week{repeatCount === 1 ? '' : 's'}</span>
             <button
               onclick={repeatThisWeek}
               disabled={weekWorkouts.length === 0}
-              class="ml-auto px-3 py-1.5 text-label font-bold text-white bg-primary hover:bg-primary-hover rounded-control transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >Repeat</button>
+              class="btn btn-primary ml-auto"
+            >Replace {repeatCount} week{repeatCount === 1 ? '' : 's'}</button>
           </div>
           <p class="text-caption text-content-subtle">Replaces the planned sessions there; completed ones stay. You can undo it.</p>
           <button
@@ -638,6 +615,28 @@
           >
             <Icon icon="ic:baseline-ios-share" class="text-base text-primary shrink-0" />
             <span class="text-label text-content group-hover:text-primary transition-colors">Share this week as an image</span>
+          </button>
+          {#if canResetWeek}
+            <button
+              onclick={() => { showCopy = false; trainingState.resetWeekToPhaseDefaults(trainingState.selectedWeekId!); }}
+              class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
+            >
+              <Icon icon="ic:baseline-restore" class="text-base text-primary shrink-0" />
+              <span class="min-w-0 flex-1">
+                <span class="block text-label text-content group-hover:text-primary transition-colors">Reset week to its phase</span>
+                <span class="block text-caption text-content-subtle">Discard this week's saved changes and follow the phase templates again</span>
+              </span>
+            </button>
+          {/if}
+          <button
+            onclick={() => { showCopy = false; trainingState.clearWeek(trainingState.selectedWeekId!); }}
+            class="w-full pt-3 border-t border-border/60 flex items-center gap-2 text-left group"
+          >
+            <Icon icon="ic:baseline-delete-sweep" class="text-base text-danger shrink-0" />
+            <span class="min-w-0 flex-1">
+              <span class="block text-label text-danger">Clear this week</span>
+              <span class="block text-caption text-content-subtle">Deletes its sessions and test results; asks first</span>
+            </span>
           </button>
         </div>
       {/if}
@@ -660,9 +659,9 @@
             <p class="text-caption text-content-muted">Tap a session to change or remove it for Plan B, or + to add one. Plan A stays as it is.{editedPlanB?.repeatUntilWeekId ? ' Applies to every week it repeats.' : ''}</p>
           </div>
           {#if editedPlanB && editingPlanB.key}
-            <button onclick={() => planBSettings = { alt: editedPlanB, key: editingPlanB.key! }} class="tap p-1 text-content-subtle hover:text-content" aria-label="Plan B settings"><Icon icon="ic:baseline-tune" class="text-lg" /></button>
+            <button onclick={() => planBSettings = { alt: editedPlanB, key: editingPlanB.key! }} class="btn-icon" aria-label="Plan B settings"><Icon icon="ic:baseline-tune" class="text-lg" /></button>
           {/if}
-          <button onclick={() => trainingState.finishPlanBEditing()} class="px-3 py-1.5 rounded-control bg-primary text-white text-label font-bold shrink-0">Done</button>
+          <button onclick={() => trainingState.finishPlanBEditing()} class="btn btn-primary shrink-0">Done</button>
         </div>
       {/if}
 
@@ -675,7 +674,7 @@
         <p class="flex items-center gap-2 text-caption text-content-subtle px-1">
           <Icon icon="ic:baseline-call-split" class="text-sm shrink-0" />
           <span class="flex-1 min-w-0 truncate">{alt.label || 'Plan B'} is skipped this week</span>
-          <button onclick={() => trainingState.setPlanBOccurrence(alt.id, key, { skipped: undefined })} class="text-primary shrink-0">Use it again</button>
+          <button onclick={() => trainingState.setPlanBOccurrence(alt.id, key, { skipped: undefined })} class="btn-quiet px-2 text-primary shrink-0">Use it again</button>
         </p>
       {/each}
 
@@ -690,9 +689,9 @@
           >
             <span class="text-caption {cell.isToday ? 'text-primary font-bold' : 'text-content-subtle'}">{cell.day.slice(0, 1)}</span>
             <span class="text-label tabular-nums {cell.isToday ? 'text-primary font-bold' : 'text-content'}">{cell.date ?? ''}</span>
-            <span class="flex gap-0.5 h-1.5">
+            <span class="flex gap-0.5 h-2">
               {#each cell.sessions.slice(0, 3) as w (w.id)}
-                <span class="w-1.5 h-1.5 rounded-full {w.status === 'completed' ? 'bg-success' : w.provisional ? 'border border-dashed border-primary' : 'border border-primary'} {counts(w) ? '' : 'opacity-35'}"></span>
+                <span class="w-2 h-2 rounded-full {w.status === 'completed' ? 'bg-success' : w.provisional ? 'border border-dashed border-primary' : 'border border-primary'} {counts(w) ? '' : 'opacity-35'}"></span>
               {/each}
             </span>
             <!-- Inside a Plan B stretch. -->
@@ -716,11 +715,11 @@
                 aria-pressed={arranging}
                 class="chip transition-colors {arranging ? 'border-primary bg-primary/15 text-content' : 'text-content-subtle hover:text-content'}"
               >
-                <Icon icon="ic:baseline-drag-indicator" class="text-sm" />{arranging ? 'Done' : 'Arrange'}
+                <Icon icon="ic:baseline-drag-indicator" class="text-sm" />{arranging ? 'Finish arranging' : 'Arrange'}
               </button>
             {/if}
-            <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session">
-              <Icon icon="ic:baseline-plus" class="text-lg" />
+            <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="chip text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session to this week">
+              <Icon icon="ic:baseline-plus" class="text-sm" />Add session
             </button>
           </div>
         </div>
@@ -756,10 +755,10 @@
                       <PainHeadsUp {workout} />
                     {/snippet}
                     {#snippet metaLead()}
-                      {#if isMissed(workout)}<span class="inline-flex align-middle px-1.5 py-px rounded-full text-[10px] font-semibold uppercase tracking-wide bg-danger/10 text-danger">Missed</span>{/if}
+                      {#if isMissed(workout)}<span class="inline-flex align-middle px-1.5 py-px rounded-full text-caption font-semibold bg-danger/10 text-danger">Missed</span>{/if}
                       {#if workout.planB}
                         <!-- Which plan this session belongs to - only sessions the two plans don't share get one. On the meta line so a long title can't hide it. -->
-                        <span class="inline-flex align-middle px-1.5 py-px rounded-full text-[10px] font-semibold uppercase tracking-wide {workout.planB.side === 'B' ? 'bg-primary/15 text-primary' : 'bg-surface-elevated text-content-muted'}">{planBMeta(workout)}</span>
+                        <span class="inline-flex align-middle px-1.5 py-px rounded-full text-caption font-semibold {workout.planB.side === 'B' ? 'bg-primary/15 text-primary' : 'bg-surface-elevated text-content-muted'}">{planBMeta(workout)}</span>
                       {/if}
                     {/snippet}
                     {#snippet leading()}
@@ -788,7 +787,7 @@
                           onclick={() => trainingState.startSession(workout)}
                           disabled={trainingState.isSessionActive && !isThisRunning}
                           title={trainingState.isSessionActive && !isThisRunning ? 'Finish or discard the running session first' : undefined}
-                          class="flex items-center gap-1 px-3 py-1.5 rounded-control text-label font-semibold shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed {isThisRunning ? 'bg-success/15 text-success' : 'bg-primary/10 text-primary hover:bg-primary/20'}"
+                          class="flex items-center gap-1 px-3 min-h-10 rounded-control text-label font-semibold shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed {isThisRunning ? 'bg-success/15 text-success' : 'bg-primary/10 text-primary hover:bg-primary/20'}"
                         >
                           <Icon icon="ic:baseline-play-arrow" class="text-sm" />{isThisRunning ? 'Resume' : 'Start'}
                         </button>
@@ -796,7 +795,7 @@
                     {/snippet}
                   </ListRow>
                 {:else}
-                  <p class="text-caption text-content-subtle/60 italic py-2">Drop here</p>
+                  <p class="text-caption text-content-subtle italic py-2">Drop here</p>
                 {/each}
               </div>
             </div>
@@ -807,7 +806,7 @@
       <div class="pt-3 border-t border-border space-y-2">
         <div class="flex items-center justify-between">
           <h4 class="text-section uppercase text-content-muted flex items-center gap-1.5">Tests <InfoButton term="tests" /></h4>
-          <button onclick={handleAddBenchmark} class="tap p-1.5 rounded-control text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a test result"><Icon icon="ic:baseline-plus" class="text-lg" /></button>
+          <button onclick={handleAddBenchmark} class="chip text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a test result"><Icon icon="ic:baseline-plus" class="text-sm" />Add test</button>
         </div>
 
         {#if isAddingBenchmark}
@@ -824,7 +823,7 @@
             {@const shown = describeResult(benchmark, trainingState.benchmarkTypes, trainingState.valueDefs, trainingState.units.weight)}
             <ListRow title={shown.title} value={shown.value} onclick={() => handleEditBenchmark(benchmark)}>
               {#snippet trailing()}
-                <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="tap p-1.5 text-content-subtle hover:text-danger transition-colors" aria-label="Delete test result"><Icon icon="ic:baseline-delete" class="text-sm" /></button>
+                <button onclick={() => trainingState.deleteBenchmark(benchmark.id)} class="btn-icon hover:text-danger" aria-label="Delete test result"><Icon icon="ic:baseline-delete" class="text-base" /></button>
               {/snippet}
             </ListRow>
           {:else}
@@ -860,7 +859,7 @@
   {@const weekId = trainingState.selectedWeekId}
   <NoteSheet
     title="Week note"
-    subtitle="{weekId} · {getWeekDateRange(weekId)}"
+    subtitle="{formatWeek(weekId)} · {getWeekDateRange(weekId)}"
     text={selectedWeekNote}
     placeholder="Circumstances, ideas, anything that explains this week…"
     onSave={(text) => trainingState.saveWeekNote(weekId, text)}
