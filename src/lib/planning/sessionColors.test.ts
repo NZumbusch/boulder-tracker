@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sessionColor, exerciseSegments } from "./sessionColors";
+import { sessionColor, exerciseSegments, calendarSessionColor, SESSION_CLASS } from "./sessionColors";
 import type { AnalyticsCategory, ExerciseSlot, ExerciseTypeDef, Workout } from "../types";
 
 const categories: AnalyticsCategory[] = [
@@ -53,5 +53,17 @@ describe("sessionColor", () => {
   it("is undefined when nothing has a known category", () => {
     expect(sessionColor(session([slot("a", "x", 10)]), types, categories)).toBeUndefined();
     expect(sessionColor(session([]), types, categories)).toBeUndefined();
+  });
+});
+
+describe("calendarSessionColor", () => {
+  const mixed = session([slot("a", "hb", 20), slot("b", "lb", 40)]);
+  it("is one shared colour for every session by default", () => {
+    expect(calendarSessionColor(mixed, types, categories, false)).toBe(SESSION_CLASS);
+    expect(calendarSessionColor(session([slot("a", "hb", 50)]), types, categories, false)).toBe(SESSION_CLASS);
+  });
+  it("is the main category's colour when asked, the shared one when it has none", () => {
+    expect(calendarSessionColor(mixed, types, categories, true)).toBe("bg-amber-500");
+    expect(calendarSessionColor(session([slot("a", "x", 10)]), types, categories, true)).toBe(SESSION_CLASS);
   });
 });

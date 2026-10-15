@@ -43,3 +43,14 @@ export function sessionColor(workout: Workout, types: ExerciseTypeDef[], categor
   for (const [color, m] of minutes) if (best === undefined || m > (minutes.get(best) ?? 0)) best = color;
   return best;
 }
+
+/** The one colour sessions share on the calendar (Tailwind class); `SESSION_HEX` in `calendar/eventColor.ts` is the same colour. */
+export const SESSION_CLASS = "bg-emerald-500";
+
+/**
+ * A session's fill on the calendar: the shared session colour, or - with `byCategory` - the category that takes
+ * most of it (the shared colour still when it has none).
+ */
+export function calendarSessionColor(workout: Workout, types: ExerciseTypeDef[], categories: AnalyticsCategory[], byCategory: boolean): string {
+  return (byCategory ? sessionColor(workout, types, categories) : undefined) ?? SESSION_CLASS;
+}

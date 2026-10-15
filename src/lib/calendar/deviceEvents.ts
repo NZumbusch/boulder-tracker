@@ -16,6 +16,9 @@ export interface DeviceEvent {
   /** The event as the calendar holds it (epoch ms; an all-day event's are UTC midnights, end exclusive) - the detail sheet shows the whole of it, not this day's share. */
   begin: number;
   end: number;
+  /** The first and last calendar day the whole event touches (day indexes) - `day` is only this piece's. */
+  firstDay: number;
+  lastDay: number;
   /** The event's own colour (its calendar's, unless it has one). */
   color?: string;
   location?: string;
@@ -56,9 +59,13 @@ export function toDeviceEvents(events: NativeEvent[]): DeviceEvent[] {
   const out: DeviceEvent[] = [];
   for (const e of events) {
     const title = e.title?.trim() || "(No title)";
+    const span = e.allDay
+      ? { firstDay: Math.floor(e.begin / DAY_MS), lastDay: Math.max(Math.floor(e.begin / DAY_MS), Math.floor((e.end - 1) / DAY_MS)) }
+      : { firstDay: dayIndexOfLocal(new Date(e.begin)), lastDay: dayIndexOfLocal(new Date(Math.max(e.end, e.begin + 60_000) - 1)) };
     const more = {
       begin: e.begin,
       end: e.end,
+      ...span,
       ...(e.color ? { color: e.color } : {}),
       ...(e.location?.trim() ? { location: e.location.trim() } : {}),
       ...(plainNotes(e.description) ? { notes: plainNotes(e.description) } : {}),

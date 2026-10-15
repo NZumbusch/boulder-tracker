@@ -300,7 +300,7 @@
     </div>
   {:else if page === 'planCalendar'}
     <div class="space-y-4">
-      <TunablesSettings topic="layout" title="Views" ids={['plan.weekAgenda', 'plan.weekListOnPhone', 'plan.exerciseList', 'plan.calendarPhases', 'plan.calendarPhaseNames']} />
+      <TunablesSettings topic="layout" title="Views" ids={['plan.weekAgenda', 'plan.weekListOnPhone', 'plan.exerciseList', 'plan.calendarPhases', 'plan.calendarPhaseNames', 'plan.calendarPhaseTint', 'plan.calendarCategoryColors']} />
       <TunablesSettings topic="layout" title="Day" ids={['day.startHour']} />
     </div>
   {:else if page === 'history'}
