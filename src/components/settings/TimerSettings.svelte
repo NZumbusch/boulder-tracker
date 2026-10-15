@@ -8,6 +8,7 @@
    */
   import { trainingState } from '../../lib/state.svelte';
   import Icon from "@iconify/svelte";
+  import Toggle from '../ui/Toggle.svelte';
   import { Capacitor } from '@capacitor/core';
   import { exactAlarmStatus, openExactAlarmSetting } from '../../lib/notifications/timerAlerts';
 
@@ -28,80 +29,66 @@
   });
 </script>
 
-<div class="card space-y-4 animate-in fade-in">
+<div class="card space-y-2 animate-in fade-in">
   <div class="space-y-2">
-    <h2 class="text-section uppercase text-content-muted px-1">Timer</h2>
+    <h2 class="text-section uppercase text-content-muted px-1">Countdowns and warnings</h2>
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Intervals, rests, countdowns and circuits.</p>
   </div>
 
   <div class="divide-y divide-border">
-    <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-      <div class="flex items-center gap-3 min-w-0 pr-3">
-        <Icon icon="ic:baseline-looks-3" class="text-lg text-content-muted" />
-        <div>
-          <span class="block text-body text-content">3-2-1 countdown</span>
-          <span class="block text-caption text-content-subtle">Beeps the last three seconds of a countdown, rest or interval phase</span>
-        </div>
+    <div class="flex items-center gap-3">
+      <Icon icon="ic:baseline-looks-3" class="text-lg text-content-muted shrink-0" />
+      <div class="flex-1 min-w-0">
+        <Toggle
+          checked={trainingState.timerCountdownTicks}
+          onChange={(v) => trainingState.setTimerCountdownTicks(v)}
+          label="3-2-1 countdown"
+          hint="Beeps the last three seconds of a countdown, rest or interval phase"
+        />
       </div>
-      <input
-        type="checkbox"
-        checked={trainingState.timerCountdownTicks}
-        onchange={(e) => trainingState.setTimerCountdownTicks(e.currentTarget.checked)}
-        class="w-5 h-5 rounded accent-primary shrink-0"
-      />
-    </label>
+    </div>
 
-    <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-      <div class="flex items-center gap-3 min-w-0 pr-3">
-        <Icon icon="ic:baseline-notifications-active" class="text-lg text-content-muted" />
-        <div>
-          <span class="block text-body text-content">15 s warning</span>
-          <span class="block text-caption text-content-subtle">A heads-up 15 seconds before a countdown or rest ends</span>
-        </div>
+    <div class="flex items-center gap-3">
+      <Icon icon="ic:baseline-notifications-active" class="text-lg text-content-muted shrink-0" />
+      <div class="flex-1 min-w-0">
+        <Toggle
+          checked={trainingState.timerWarnBeforeEnd}
+          onChange={(v) => trainingState.setTimerWarnBeforeEnd(v)}
+          label="15 s warning"
+          hint="A heads-up 15 seconds before a countdown or rest ends"
+        />
       </div>
-      <input
-        type="checkbox"
-        checked={trainingState.timerWarnBeforeEnd}
-        onchange={(e) => trainingState.setTimerWarnBeforeEnd(e.currentTarget.checked)}
-        class="w-5 h-5 rounded accent-primary shrink-0"
-      />
-    </label>
+    </div>
 
     {#if wakeLockSupported}
-      <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-        <div class="flex items-center gap-3 min-w-0 pr-3">
-          <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted" />
-          <span class="text-body text-content">Keep screen on while a timer runs</span>
+      <div class="flex items-center gap-3">
+        <Icon icon="ic:baseline-lightbulb" class="text-lg text-content-muted shrink-0" />
+        <div class="flex-1 min-w-0">
+          <Toggle
+            checked={trainingState.timerKeepAwakeEnabled}
+            onChange={(v) => trainingState.setTimerKeepAwakeEnabled(v)}
+            label="Keep the screen on while a timer runs"
+          />
         </div>
-        <input
-          type="checkbox"
-          checked={trainingState.timerKeepAwakeEnabled}
-          onchange={(e) => trainingState.setTimerKeepAwakeEnabled(e.currentTarget.checked)}
-          class="w-5 h-5 rounded accent-primary"
-        />
-      </label>
+      </div>
     {/if}
 
     {#if isNative}
-      <label class="w-full flex items-center justify-between py-3 cursor-pointer">
-        <div class="flex items-center gap-3 min-w-0 pr-3">
-          <Icon icon="ic:baseline-phone-android" class="text-lg text-content-muted" />
-          <div>
-            <span class="block text-body text-content">Timer in the background</span>
-            <span class="block text-caption text-content-subtle">While a timer runs: a notification with the live countdown (Pause / +30 s), and the beeps keep playing when the phone is locked - music gets quieter for each beep instead of stopping</span>
-          </div>
+      <div class="flex items-center gap-3">
+        <Icon icon="ic:baseline-phone-android" class="text-lg text-content-muted shrink-0" />
+        <div class="flex-1 min-w-0">
+          <Toggle
+            checked={trainingState.timerBackgroundAlerts}
+            onChange={(v) => trainingState.setTimerBackgroundAlerts(v)}
+            label="Timer in the background"
+            hint="While a timer runs: a notification with the live countdown (Pause and +30 s), and the beeps keep playing when the phone is locked. Music gets quieter for each beep instead of stopping"
+          />
         </div>
-        <input
-          type="checkbox"
-          checked={trainingState.timerBackgroundAlerts}
-          onchange={(e) => trainingState.setTimerBackgroundAlerts(e.currentTarget.checked)}
-          class="w-5 h-5 rounded accent-primary shrink-0"
-        />
-      </label>
+      </div>
       {#if trainingState.timerBackgroundAlerts && exactAlarms === 'denied'}
         <div class="flex items-center justify-between gap-3 py-3">
           <p class="text-caption text-status-caution">Only matters if the timer notification can't run: plain alerts may then arrive late. Allowing exact alarms keeps them on time.</p>
-          <button onclick={() => openExactAlarmSetting()} class="chip text-primary shrink-0">Allow</button>
+          <button onclick={() => openExactAlarmSetting()} class="btn btn-secondary shrink-0">Allow</button>
         </div>
       {/if}
     {/if}

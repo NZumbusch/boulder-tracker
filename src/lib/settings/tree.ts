@@ -208,7 +208,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "How much the timer speaks up", page: "timer", words: "quiet silent loudness audio level podcast audiobook music duck pause mute announcements" },
   { label: "Beep sound style", page: "timer", words: "classic soft sharp chime tone" },
   { label: "Cue volume", page: "timer", words: "loud quiet media volume" },
-  { label: "Vibrate with the cues", page: "timer" },
+  { label: "Vibrate with the timer cues", page: "timer" },
   { label: "Speak the exercises", page: "timer", words: "voice tts announce text to speech next up" },
   { label: "Speech engine, voice, speed and pitch", page: "timer", words: "tts language" },
   { label: "Readiness score", page: "model", words: "acwr fatigue zones thresholds" },

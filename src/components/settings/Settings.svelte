@@ -340,7 +340,7 @@
       <OrderedListSettings
         list="analyticsSections"
         title="Analytics cards"
-        hint="Drag to reorder, untick to hide."
+        hint="Drag to reorder, switch off to hide."
         labels={{ load: 'Rolling load and ACWR', strain: 'Monotony and strain', fingerLoad: 'Filtered load', heatmap: 'Training calendar', mix: 'Training mix', fatigue: 'Fatigue', recoveryTrend: 'Recovery (HRV, sleep, resting heart rate, weight)', pain: 'Pain', outdoor: 'Outdoor ascents', benchmarks: 'Test progress', benchmarkOverview: 'All tests' }}
       />
       <ChartSettings />

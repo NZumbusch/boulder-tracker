@@ -2,12 +2,13 @@
   import { motionMs } from '../../lib/motion';
   /**
    * A user-ordered, individually hideable list in Settings - drag the
-   * handle to reorder, tick to show. Used for the Analytics cards and the
+   * handle to reorder, use the switch to show. Used for the Analytics cards and the
    * quick-log actions; Home sections have their own (with per-card options).
    */
   import { trainingState } from '../../lib/state.svelte';
   import { dragHandleZone, dragHandle, type DndEvent } from 'svelte-dnd-action';
   import Icon from '@iconify/svelte';
+  import Toggle from '../ui/Toggle.svelte';
 
   let { list, title, hint, labels }: {
     list: 'analyticsSections' | 'quickLogActions';
@@ -46,18 +47,13 @@
     onfinalize={finalize}
   >
     {#each items as item (item.id)}
-      <div class="flex items-center gap-2 py-2">
-        <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle touch-none p-1" aria-label="Drag to reorder {labels[item.id]}">
-          <Icon icon="ic:baseline-drag-indicator" class="text-lg" />
+      <div class="flex items-center gap-1">
+        <div use:dragHandle class="cursor-grab active:cursor-grabbing text-content-subtle touch-none grid place-items-center min-w-11 min-h-11" aria-label="Drag to reorder {labels[item.id]}">
+          <Icon icon="ic:baseline-drag-indicator" class="text-xl" />
         </div>
-        <span class="text-body text-content flex-1">{labels[item.id] ?? item.id}</span>
-        <input
-          type="checkbox"
-          checked={item.visible}
-          onchange={(e) => trainingState.setListVisible(list, item.id, e.currentTarget.checked)}
-          class="w-5 h-5 rounded accent-primary"
-          aria-label="Show {labels[item.id]}"
-        />
+        <div class="flex-1 min-w-0">
+          <Toggle checked={item.visible} onChange={(v) => trainingState.setListVisible(list, item.id, v)} label={labels[item.id] ?? item.id} />
+        </div>
       </div>
     {/each}
   </div>
