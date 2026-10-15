@@ -76,6 +76,8 @@
       ? Math.ceil(countdownRemainingMs(targetTime, basic, now) / 1000)
       : Math.floor(clockElapsedMs(basic, now) / 1000),
   );
+  /** A running timer, or a paused one with time on it, shows its time when tucked away - a paused timer must not look idle. */
+  const showTime = $derived(isRunning || (basic.bankedMs > 0 && time > 0));
   /** Cue bookkeeping for the countdown's 3-2-1 and warning. */
   let basicLastTick = -1;
   let basicWarned = false;
@@ -243,7 +245,7 @@
     return {
       icon: mode === 'timer' ? 'ic:baseline-hourglass-empty' : 'ic:baseline-timer',
       running: isRunning,
-      text: isRunning ? formatTime(time) : null,
+      text: showTime ? formatTime(time) : null,
     };
   }
 
@@ -349,30 +351,28 @@
 <!-- Tucked away: a small button at the side. It still shows a running
      timer's time, and a tap brings the whole timer back. -->
 {#if visible && !docked && trainingState.timerPillHidden}
-  {@const running = isRunning}
   <button
     onclick={() => trainingState.setTimerPillHidden(false)}
-    class="fixed {bottomClass} right-4 z-[111] h-11 min-w-11 px-3 rounded-full flex items-center justify-center gap-1.5 bg-surface/90 backdrop-blur-md border border-border shadow-card text-label tabular-nums animate-in fade-in {running ? 'text-primary' : 'text-content-subtle'}"
-    aria-label="Show the timer"
+    class="fixed {bottomClass} right-4 z-[111] h-11 min-w-11 px-3 rounded-full flex items-center justify-center gap-1.5 bg-surface border border-border shadow-card text-label tabular-nums animate-in fade-in {isRunning ? 'text-primary' : 'text-content-subtle'}"
+    aria-label={showTime ? `Show the timer, ${formatTime(time)}${isRunning ? '' : ', paused'}` : 'Show the timer'}
   >
     <Icon icon={mode === 'timer' ? 'ic:baseline-hourglass-empty' : 'ic:baseline-timer'} class="text-lg" />
-    {#if running}
+    {#if showTime}
       {formatTime(time)}
     {/if}
   </button>
 {/if}
 
-<!-- Full-width row that centres the pill. Positioning the pill itself at
-     left: 50% only gave it half the screen to lay out in, so the minimised
-     interval readout wrapped into a narrow broken column. The row lets taps
-     through; only the pill takes them. -->
+<!-- Full-width row that centres the widget. Positioning it at left: 50% only gave it half the screen to lay out in, so
+     the minimised interval readout wrapped into a narrow broken column. The row lets taps through; only the widget
+     takes them. -->
 <div class="fixed {bottomClass} inset-x-0 px-4 z-[111] flex flex-col items-center gap-2 short:items-start pointer-events-none [&>*]:pointer-events-auto {!visible || trainingState.timerPillHidden ? 'hidden' : ''}">
   {#if presets.length > 0}
-    <div class="flex items-center gap-1.5 bg-surface/90 backdrop-blur-md border border-border rounded-control px-2 py-1 shadow-card animate-in fade-in">
+    <div class="flex flex-wrap items-center gap-1 bg-surface border border-border rounded-control px-1 shadow-card animate-in fade-in">
       {#each presets as preset}
         <button
           onclick={() => applyPreset(preset.seconds)}
-          class="text-label text-content-subtle hover:text-primary transition-colors px-1"
+          class="btn-quiet px-3 text-label text-content-muted hover:text-primary"
         >
           {preset.label} {formatTime(preset.seconds)}
         </button>
@@ -380,70 +380,76 @@
     </div>
   {/if}
 
-  <!-- Sized to fit a narrow phone (~360 px) - it used to run off both edges. -->
-  <div class="max-w-full short:scale-90 short:origin-bottom-left bg-surface/90 backdrop-blur-md border border-border shadow-2xl rounded-full p-1.5 flex items-center gap-2 animate-in slide-in-from-bottom-10">
-    <div class="shrink-0 flex items-center gap-0.5 bg-surface-elevated rounded-full p-1 border border-border-strong">
+  <!-- Every control is a 44 px target. On a narrow phone the controls wrap onto a second row (modes and time above,
+       the buttons you press while resting below) instead of shrinking; in landscape they sit on one row. -->
+  <div class="max-w-full bg-surface border border-border shadow-2xl rounded-3xl px-2 py-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 animate-in slide-in-from-bottom-10">
+    <div class="shrink-0 flex items-center gap-0.5 bg-surface-elevated rounded-full p-0.5" role="group" aria-label="Timer mode">
       <button
         onclick={() => selectMode('stopwatch')}
-        class="w-7 h-7 rounded-full flex items-center justify-center transition-colors {mode === 'stopwatch' ? 'bg-primary text-white' : 'text-content-subtle hover:text-content'}"
+        class="w-11 h-11 rounded-full flex items-center justify-center transition-colors {mode === 'stopwatch' ? 'bg-primary text-on-primary' : 'text-content-subtle hover:text-content'}"
         aria-label="Stopwatch"
+        aria-pressed={mode === 'stopwatch'}
       >
-        <Icon icon="ic:baseline-timer" class="text-lg" />
+        <Icon icon="ic:baseline-timer" class="text-xl" />
       </button>
       <button
         onclick={() => selectMode('timer')}
-        class="w-7 h-7 rounded-full flex items-center justify-center transition-colors {mode === 'timer' ? 'bg-warning text-white' : 'text-content-subtle hover:text-content'}"
+        class="w-11 h-11 rounded-full flex items-center justify-center transition-colors {mode === 'timer' ? 'bg-warning text-on-primary' : 'text-content-subtle hover:text-content'}"
         aria-label="Countdown"
+        aria-pressed={mode === 'timer'}
       >
-        <Icon icon="ic:baseline-hourglass-empty" class="text-lg" />
+        <Icon icon="ic:baseline-hourglass-empty" class="text-xl" />
       </button>
       {#if onOpenRun}
         <button
           onclick={onOpenRun}
-          class="w-7 h-7 rounded-full flex items-center justify-center transition-colors text-content-subtle hover:text-content"
+          class="w-11 h-11 rounded-full flex items-center justify-center transition-colors text-content-subtle hover:text-content"
           aria-label="Intervals, sets and pacer"
           title="Intervals, sets and pacer"
         >
-          <Icon icon="ic:baseline-repeat" class="text-lg" />
+          <Icon icon="ic:baseline-repeat" class="text-xl" />
         </button>
       {/if}
     </div>
 
-    <div class="min-w-14 text-center text-metric text-content tabular-nums">
+    <div class="min-w-16 text-center text-metric text-content tabular-nums">
       {formatTime(time)}
     </div>
 
-    <div class="shrink-0 flex items-center gap-1.5">
+    <button
+      onclick={() => trainingState.setTimerPillHidden(true)}
+      class="btn-icon shrink-0"
+      aria-label="Hide the timer"
+      title="Hide - it keeps running"
+    >
+      <Icon icon="ic:baseline-keyboard-arrow-down" class="text-2xl" />
+    </button>
+
+    <!-- Reset sits at one end and Start at the other, so a tap on Start never lands on Reset. -->
+    <div class="shrink-0 flex items-center justify-between gap-3 max-sm:w-full short:w-auto">
+      <button
+        onclick={reset}
+        class="btn-icon bg-surface-elevated"
+        aria-label="Reset to zero"
+        title="Reset to zero"
+      >
+        <Icon icon="ic:baseline-refresh" class="text-xl" />
+      </button>
+
       {#if mode === 'timer'}
-        <div class="flex flex-col gap-1">
-          <button onclick={() => addTime(30)} class="text-label text-content-muted hover:text-content bg-surface-elevated px-1 rounded-control transition-colors">+30s</button>
-          <button onclick={() => addTime(-30)} class="text-label text-content-muted hover:text-content bg-surface-elevated px-1 rounded-control transition-colors">-30s</button>
+        <div class="flex items-center gap-1">
+          <button onclick={() => addTime(-30)} aria-label="Subtract 30 seconds" class="btn btn-secondary px-3 tabular-nums">−30s</button>
+          <button onclick={() => addTime(30)} aria-label="Add 30 seconds" class="btn btn-secondary px-3 tabular-nums">+30s</button>
         </div>
       {/if}
 
       <button
         onclick={toggle}
-        class="w-10 h-10 rounded-full flex items-center justify-center {isRunning ? 'bg-danger text-white' : 'bg-success text-app-bg'} hover:opacity-90 transition-all shadow-lg active:scale-90"
+        class="w-12 h-12 rounded-full flex items-center justify-center {isRunning ? 'bg-danger' : 'bg-success'} text-on-primary hover:opacity-90 transition-all shadow-lg active:scale-95"
         aria-label={isRunning ? 'Pause' : 'Start'}
       >
-        <Icon icon={isRunning ? "ic:baseline-pause" : "ic:baseline-play-arrow"} class="text-2xl" />
-      </button>
-
-      <button
-        onclick={reset}
-        class="w-8 h-8 rounded-full flex items-center justify-center bg-surface-elevated text-content-subtle hover:text-content border border-border-strong transition-colors active:scale-90"
-        aria-label="Reset"
-      >
-        <Icon icon="ic:baseline-refresh" class="text-lg" />
+        <Icon icon={isRunning ? "ic:baseline-pause" : "ic:baseline-play-arrow"} class="text-3xl" />
       </button>
     </div>
-    <button
-      onclick={() => trainingState.setTimerPillHidden(true)}
-      class="shrink-0 w-7 h-8 -ml-1 rounded-full flex items-center justify-center text-content-subtle hover:text-content transition-colors"
-      aria-label="Hide the timer"
-      title="Hide - it keeps running"
-    >
-      <Icon icon="ic:baseline-keyboard-arrow-down" class="text-xl" />
-    </button>
   </div>
 </div>

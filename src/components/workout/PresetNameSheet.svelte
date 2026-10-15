@@ -1,5 +1,6 @@
 <script lang="ts">
   /** Names a timer preset: one field and Save. */
+  import Sheet from '../ui/Sheet.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { toast } from '../../lib/toast.svelte';
   import { generateId } from '../../lib/utils';
@@ -9,9 +10,10 @@
   let { values, leadIn, suggestion = '', onDone }: { values: ExerciseValues; leadIn: number; suggestion?: string; onDone: () => void } = $props();
   // svelte-ignore state_referenced_locally
   let name = $state(suggestion);
+  const trimmed = $derived(name.trim());
+  const duplicate = $derived(trimmed !== '' && trainingState.timerPresets.some((p) => p.name.trim().toLowerCase() === trimmed.toLowerCase()));
 
   function save() {
-    const trimmed = name.trim();
     if (!trimmed) return;
     trainingState.saveTimerPreset({ id: generateId(), name: trimmed, variant: variantOf(values), values, leadIn });
     toast.show(`Saved "${trimmed}"`);
@@ -19,14 +21,21 @@
   }
 </script>
 
-<div class="fixed inset-0 z-[120] bg-black/50 flex items-end sm:items-center justify-center">
-  <div class="absolute inset-0" onclick={onDone} role="presentation"></div>
-  <form onsubmit={(e) => { e.preventDefault(); save(); }} class="relative w-full max-w-lg bg-surface rounded-t-2xl sm:rounded-card border-t sm:border border-border p-5 pb-8 space-y-3 shadow-2xl">
+<Sheet title="Save as preset" level="nested" onClose={onDone}>
+  <form id="preset-name-form" onsubmit={(e) => { e.preventDefault(); save(); }} class="space-y-1.5">
     <label class="block space-y-1.5">
       <span class="text-label text-content-subtle">Name this preset</span>
       <!-- svelte-ignore a11y_autofocus -->
-      <input autofocus bind:value={name} maxlength="40" class="w-full px-3 py-3 bg-surface-elevated text-content rounded-control border border-border-strong text-body outline-none focus:border-primary/50" />
+      <input autofocus bind:value={name} maxlength="40" enterkeyhint="done" class="field" />
     </label>
-    <button type="submit" disabled={!name.trim()} class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-control text-label font-bold disabled:opacity-40">Save</button>
+    {#if !trimmed}
+      <p class="text-caption text-content-subtle">Give it a name to save it.</p>
+    {:else if duplicate}
+      <p class="text-caption text-warning">You already have a preset with this name - saving adds another.</p>
+    {/if}
   </form>
-</div>
+  {#snippet footer()}
+    <button type="submit" form="preset-name-form" disabled={!trimmed} class="btn btn-primary flex-1">Save</button>
+    <button type="button" onclick={onDone} class="btn btn-ghost">Cancel</button>
+  {/snippet}
+</Sheet>

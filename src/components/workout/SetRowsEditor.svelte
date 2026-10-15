@@ -7,6 +7,7 @@
    * the same one, so one entry fills the rest.
    */
   import Icon from '@iconify/svelte';
+  import { showUndo } from '../../lib/toast.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { displayWeight, toKg } from '../../lib/units';
   import { PARAMETER_LABELS } from '../../lib/constants';
@@ -27,6 +28,8 @@
   const stepOf = (k: PerSetKey) => (isWeight(k) ? (trainingState.units.weight === 'lb' ? 5 : 2.5) : k === 'boardAngle' ? 5 : 1);
   const stepped = (k: PerSetKey) => k === 'reps' || k === 'weight';
 
+  /** A field with steppers needs its card's width (two 44 px buttons beside the box), so those cards use one column. */
+  const stackFields = $derived(keys.some(stepped));
   /** One field fills the row; two sit side by side; an odd one out spans the width; landscape spreads up to three. */
   const GRID: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-2 short:grid-cols-3', 4: 'grid-cols-2' };
   const cell = (_i: number) => ''; // an odd one out keeps its place in the column grid, same width as the rest
@@ -66,32 +69,40 @@
   }
   function remove(i: number) {
     if (draft.length <= 1) return;
+    const gone = $state.snapshot(draft[i]) as Record<string, string>;
     draft = draft.filter((_, j) => j !== i);
     emit();
+    showUndo(`Set ${i + 1} removed`, () => {
+      const next = [...draft];
+      next.splice(Math.min(i, next.length), 0, gone);
+      draft = next;
+      emit();
+    });
   }
 </script>
 
 <div class="space-y-2">
-  <p class="text-label text-content-subtle">Set by set <span class="text-caption">&mdash; a number typed in a set carries on to the later sets that had the same one</span></p>
+  <p class="text-label text-content-subtle">Set by set</p>
+  <p class="text-caption text-content-subtle">A number typed in a set carries on to the later sets that had the same one.</p>
   {#if keys.length === 1}
     <!-- One number per set: a plain list, the set name beside its box. -->
     {@const k = keys[0]}
     <div class="rounded-control border border-border divide-y divide-border bg-surface-elevated/30">
       {#each draft as row, i (i)}
-        <div class="flex items-center gap-2 px-2.5 py-1.5">
-          <span class="w-12 shrink-0 text-caption font-bold text-content-muted">Set {i + 1}</span>
-          <span class="flex-1 min-w-0 max-w-[10rem] flex items-stretch gap-1">
+        <div class="flex items-center gap-2 px-2.5 py-1">
+          <span class="w-11 shrink-0 text-caption font-bold text-content-muted">Set {i + 1}</span>
+          <span class="flex-1 min-w-0 max-w-[14rem] flex items-stretch gap-1">
             {#if stepped(k)}
-              <button type="button" onclick={() => bump(i, k, -1)} class="shrink-0 w-9 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted grid place-items-center active:scale-95" aria-label="Less {label(k)}"><Icon icon="ic:baseline-remove" class="text-base" /></button>
+              <button type="button" onclick={() => bump(i, k, -1)} class="shrink-0 w-11 min-h-11 rounded-control bg-surface-elevated/60 text-content-muted grid place-items-center active:scale-95" aria-label="Less {label(k)}, set {i + 1}"><Icon icon="ic:baseline-remove" class="text-lg" /></button>
             {/if}
-            <input type="number" inputmode="decimal" step="any" value={row[k] ?? ''} oninput={(e) => edit(i, k, e.currentTarget.value)} placeholder="—" aria-label="{label(k)}, set {i + 1}" class="w-full min-w-0 px-2 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 tabular-nums {stepped(k) ? 'text-center' : ''}" />
+            <input type="number" inputmode="decimal" step="any" value={row[k] ?? ''} oninput={(e) => edit(i, k, e.currentTarget.value)} placeholder="—" aria-label="{label(k)}, set {i + 1}" enterkeyhint="next" class="field min-w-0 px-2 tabular-nums {stepped(k) ? 'text-center' : ''}" />
             {#if stepped(k)}
-              <button type="button" onclick={() => bump(i, k, 1)} class="shrink-0 w-9 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted grid place-items-center active:scale-95" aria-label="More {label(k)}"><Icon icon="ic:baseline-add" class="text-base" /></button>
+              <button type="button" onclick={() => bump(i, k, 1)} class="shrink-0 w-11 min-h-11 rounded-control bg-surface-elevated/60 text-content-muted grid place-items-center active:scale-95" aria-label="More {label(k)}, set {i + 1}"><Icon icon="ic:baseline-add" class="text-lg" /></button>
             {/if}
           </span>
-          <span class="shrink-0 w-10 text-caption text-content-subtle">{isWeight(k) ? trainingState.units.weight : UNITS[k] ?? ''}</span>
+          <span class="shrink-0 w-8 text-caption text-content-subtle">{isWeight(k) ? trainingState.units.weight : UNITS[k] ?? ''}</span>
           {#if draft.length > 1}
-            <button type="button" onclick={() => remove(i)} class="shrink-0 p-1 text-content-subtle hover:text-danger transition-colors" aria-label="Remove set {i + 1}"><Icon icon="ic:baseline-close" class="text-sm" /></button>
+            <button type="button" onclick={() => remove(i)} class="btn-icon shrink-0 hover:text-danger" aria-label="Remove set {i + 1}"><Icon icon="ic:baseline-close" class="text-xl" /></button>
           {/if}
         </div>
       {/each}
@@ -104,20 +115,20 @@
           <div class="flex items-center justify-between gap-2">
             <span class="text-caption font-bold text-content-muted">Set {i + 1}</span>
             {#if draft.length > 1}
-              <button type="button" onclick={() => remove(i)} class="tap p-1 text-content-subtle hover:text-danger transition-colors" aria-label="Remove set {i + 1}"><Icon icon="ic:baseline-close" class="text-sm" /></button>
+              <button type="button" onclick={() => remove(i)} class="btn-icon -my-2 -mr-2 hover:text-danger" aria-label="Remove set {i + 1}"><Icon icon="ic:baseline-close" class="text-xl" /></button>
             {/if}
           </div>
-          <div class="grid {GRID[Math.min(keys.length, 4)] ?? 'grid-cols-2'} gap-2">
+          <div class="grid {stackFields ? 'grid-cols-1 short:grid-cols-2' : (GRID[Math.min(keys.length, 4)] ?? 'grid-cols-2')} gap-2">
             {#each keys as k, ki (k)}
               <label class="min-w-0 block {cell(ki)}">
                 <span class="block text-caption text-content-subtle truncate mb-0.5">{label(k)}{isWeight(k) ? ` (${trainingState.units.weight})` : UNITS[k] ? ` (${UNITS[k]})` : ''}</span>
                 <span class="flex items-stretch gap-1">
                   {#if stepped(k)}
-                    <button type="button" onclick={() => bump(i, k, -1)} class="shrink-0 w-8 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted grid place-items-center active:scale-95" aria-label="Less {label(k)}"><Icon icon="ic:baseline-remove" class="text-base" /></button>
+                    <button type="button" onclick={() => bump(i, k, -1)} class="shrink-0 w-11 min-h-11 rounded-control bg-surface-elevated/60 text-content-muted grid place-items-center active:scale-95" aria-label="Less {label(k)}, set {i + 1}"><Icon icon="ic:baseline-remove" class="text-lg" /></button>
                   {/if}
-                  <input type="number" inputmode="decimal" step="any" value={row[k] ?? ''} oninput={(e) => edit(i, k, e.currentTarget.value)} placeholder="—" class="w-full min-w-0 px-2 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 tabular-nums {stepped(k) ? 'text-center' : ''}" />
+                  <input type="number" inputmode="decimal" step="any" value={row[k] ?? ''} oninput={(e) => edit(i, k, e.currentTarget.value)} placeholder="—" aria-label="{label(k)}, set {i + 1}" enterkeyhint="next" class="field min-w-0 px-2 tabular-nums {stepped(k) ? 'text-center' : ''}" />
                   {#if stepped(k)}
-                    <button type="button" onclick={() => bump(i, k, 1)} class="shrink-0 w-8 rounded-control bg-surface-elevated/60 border border-border-strong/50 text-content-muted grid place-items-center active:scale-95" aria-label="More {label(k)}"><Icon icon="ic:baseline-add" class="text-base" /></button>
+                    <button type="button" onclick={() => bump(i, k, 1)} class="shrink-0 w-11 min-h-11 rounded-control bg-surface-elevated/60 text-content-muted grid place-items-center active:scale-95" aria-label="More {label(k)}, set {i + 1}"><Icon icon="ic:baseline-add" class="text-lg" /></button>
                   {/if}
                 </span>
               </label>
@@ -127,5 +138,5 @@
       {/each}
     </div>
   {/if}
-  <button type="button" onclick={add} class="w-full py-2 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1"><Icon icon="ic:baseline-add" class="text-base" /> Add a set</button>
+  <button type="button" onclick={add} class="btn btn-secondary w-full text-content-muted"><Icon icon="ic:baseline-add" class="text-lg" /> Add a set</button>
 </div>

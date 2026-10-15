@@ -6,9 +6,9 @@
    * (and, if wanted, a preset).
    */
   import Icon from '@iconify/svelte';
+  import Sheet from '../ui/Sheet.svelte';
   import type { ExerciseValues } from '../../lib/types';
   import { untrack } from 'svelte';
-  import { backWhile } from '../../lib/navigation/backStack.svelte';
 
   let {
     variant,
@@ -28,8 +28,6 @@
     onSavePreset?: (values: ExerciseValues, leadIn: number) => void;
     onClose: () => void;
   } = $props();
-
-  backWhile(() => true, () => onClose());
 
   type Field = { key: string; label: string; unit?: string; min: number; step: number; read: (v: ExerciseValues) => number | undefined; write: (v: ExerciseValues, n: number) => ExerciseValues };
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
@@ -57,9 +55,12 @@
   let lead = $state(untrack(() => leadIn));
   function untrackedCopy(v: ExerciseValues): ExerciseValues { return JSON.parse(JSON.stringify(v)); }
 
+  /** Said out loud when a typed number was raised to its minimum, rather than changing it silently. */
+  let notice = $state('');
   function set(f: Field, raw: string) {
     const n = Number(raw);
-    if (!Number.isFinite(n)) return;
+    if (raw.trim() === '' || !Number.isFinite(n)) return;
+    notice = n < f.min ? `${f.label} is at least ${f.min}${f.unit ? ` ${f.unit}` : ''}.` : '';
     draft = f.write(draft, Math.max(f.min, n));
   }
   /** Whether two sets of numbers differ in any field the sheet edits. */
@@ -68,37 +69,30 @@
   const differsFromBase = $derived(!!baseValues && differ(draft, baseValues));
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="absolute inset-0 z-10 bg-black/50 flex items-end" onclick={onClose}>
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="w-full max-h-[85%] overflow-y-auto no-scrollbar bg-surface rounded-t-card border-t border-border-strong p-5 pb-8 space-y-4 animate-in slide-in-from-bottom-10" onclick={(e) => e.stopPropagation()}>
-    <div class="flex items-center justify-between gap-3">
-      <h3 class="text-title text-content">Adjust</h3>
-      <button onclick={onClose} class="tap p-1 -mr-1 text-content-subtle hover:text-content" aria-label="Close"><Icon icon="ic:baseline-close" class="text-xl" /></button>
-    </div>
-    <p class="text-caption text-content-subtle">Applies from where the timer is now. The plan itself isn't changed.</p>
-    <div class="grid grid-cols-3 gap-2">
-      {#each fields as f (f.key)}
-        <label class="space-y-1 min-w-0">
-          <span class="text-caption text-content-subtle truncate block">{f.label}{f.unit ? ` (${f.unit})` : ''}</span>
-          <input type="number" inputmode="decimal" min={f.min} step={f.step} value={f.read(draft) ?? ''} oninput={(e) => set(f, e.currentTarget.value)}
-            class="w-full px-2.5 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums" />
-        </label>
-      {/each}
+<Sheet title="Adjust" subtitle="Applies from where the timer is now. The plan itself isn't changed." level="nested" {onClose}>
+  <div class="grid grid-cols-3 gap-2">
+    {#each fields as f (f.key)}
       <label class="space-y-1 min-w-0">
-        <span class="text-caption text-content-subtle truncate block">Get ready (s)</span>
-        <input type="number" inputmode="numeric" min="0" step="1" value={lead} oninput={(e) => { const n = Number(e.currentTarget.value); if (Number.isFinite(n)) lead = Math.max(0, Math.round(n)); }}
-          class="w-full px-2.5 py-2 bg-surface-elevated text-content rounded-control border border-border-strong text-sm outline-none focus:border-primary/50 transition-colors tabular-nums" />
+        <span class="text-caption text-content-subtle truncate block">{f.label}{f.unit ? ` (${f.unit})` : ''}</span>
+        <input type="number" inputmode={f.step < 1 ? 'decimal' : 'numeric'} enterkeyhint="done" min={f.min} step={f.step} value={f.read(draft) ?? ''} oninput={(e) => set(f, e.currentTarget.value)} class="field px-2.5 tabular-nums" />
       </label>
-    </div>
-    <div class="space-y-2">
-      <button onclick={() => onApply(draft, lead)} disabled={!changed} class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-control text-label font-bold disabled:opacity-40 transition-all active:scale-[0.98]">Apply</button>
-      {#if differsFromBase}
-        <button onclick={() => { draft = untrackedCopy(baseValues!); }} class="w-full py-2 text-label font-bold text-content-muted hover:text-content transition-colors">Back to the plan's numbers</button>
-      {/if}
-      {#if onSavePreset}
-        <button onclick={() => onSavePreset(draft, lead)} class="w-full py-2 text-label font-bold text-content-muted hover:text-content transition-colors flex items-center justify-center gap-1.5"><Icon icon="ic:baseline-bookmark-add" class="text-base" /> Apply and save as a preset</button>
-      {/if}
-    </div>
+    {/each}
+    <label class="space-y-1 min-w-0">
+      <span class="text-caption text-content-subtle truncate block">Get ready (s)</span>
+      <input type="number" inputmode="numeric" enterkeyhint="done" min="0" step="1" value={lead} oninput={(e) => { const n = Number(e.currentTarget.value); if (e.currentTarget.value.trim() !== '' && Number.isFinite(n)) { lead = Math.max(0, Math.round(n)); notice = n < 0 ? 'Get ready is at least 0 s.' : ''; } }} class="field px-2.5 tabular-nums" />
+    </label>
   </div>
-</div>
+  {#if notice}<p class="text-caption text-warning" role="status">{notice}</p>{/if}
+  {#if differsFromBase}
+    <button onclick={() => { draft = untrackedCopy(baseValues!); }} class="btn btn-ghost w-full">Back to the plan's numbers</button>
+  {/if}
+  {#if onSavePreset}
+    <button onclick={() => onSavePreset(draft, lead)} class="btn btn-ghost w-full"><Icon icon="ic:baseline-bookmark-add" class="text-base" /> Apply and save as a preset</button>
+  {/if}
+  {#snippet footer()}
+    <div class="flex-1 min-w-0">
+      <button onclick={() => onApply(draft, lead)} disabled={!changed} class="btn btn-primary w-full">Apply</button>
+      {#if !changed}<p class="text-caption text-content-subtle text-center mt-1">Change a number to apply it.</p>{/if}
+    </div>
+  {/snippet}
+</Sheet>
