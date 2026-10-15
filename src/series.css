@@ -1,0 +1,41 @@
+/* A categorical palette for chart series ("which line is which"), kept apart from the colours that mean something else:
+   primary is for actions and selection, tertiary/warning/danger/status-* are for status and warnings. A chart series
+   takes a slot here (`var(--color-series-1)`, `bg-series-1`, `text-series-1` ...) and keeps it, so a purple line is never
+   Strain on one chart and Sleep on the next, and an orange bar is never a warning.
+
+   Fixed assignments:
+     1 Load, HRV, flash/onsight   2 Strain, Sleep   3 Finger load, RHR   4 Readiness, Core   5 Arms, Hardest   6 the quiet sixth
+   The six are told apart by hue and by lightness (the dark theme's are lighter), at 3:1 or better against their ground
+   as a mark. Lines and dots also differ in shape or dash where two share a chart. */
+:root {
+  --theme-series-1: #38bdf8; /* sky */
+  --theme-series-2: #a78bfa; /* violet */
+  --theme-series-3: #f472b6; /* pink */
+  --theme-series-4: #2dd4bf; /* teal */
+  --theme-series-5: #d9b45e; /* sand */
+  --theme-series-6: #94a3b8; /* slate */
+}
+:root[data-theme="light"] {
+  --theme-series-1: #0284c7;
+  --theme-series-2: #7c3aed;
+  --theme-series-3: #db2777;
+  --theme-series-4: #0f766e;
+  --theme-series-5: #a16207;
+  --theme-series-6: #64748b;
+}
+:root[data-theme="contrast"] {
+  --theme-series-1: #7dd3fc;
+  --theme-series-2: #c4b5fd;
+  --theme-series-3: #f9a8d4;
+  --theme-series-4: #5eead4;
+  --theme-series-5: #fde68a;
+  --theme-series-6: #cbd5e1;
+}
+@theme {
+  --color-series-1: var(--theme-series-1);
+  --color-series-2: var(--theme-series-2);
+  --color-series-3: var(--theme-series-3);
+  --color-series-4: var(--theme-series-4);
+  --color-series-5: var(--theme-series-5);
+  --color-series-6: var(--theme-series-6);
+}

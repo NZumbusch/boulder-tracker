@@ -78,3 +78,49 @@ export function percentChange(now: number | undefined, before: number | undefine
   if (now === undefined || before === undefined || before === 0) return undefined;
   return ((now - before) / before) * 100;
 }
+
+/** Whether a rise is good news for a tile: recovery metrics have a direction, training volume does not. */
+export type TileSense = "neutral" | "higher" | "lower";
+
+export interface TileChange {
+  arrow: "up" | "down" | "flat";
+  /** What is printed: "+12%", "−3", "same". */
+  text: string;
+  /** For screen readers and the sentence under the tile: "up 12%", "3 fewer than before". */
+  spoken: string;
+  /** "better" / "worse" for metrics with a direction, else undefined - said in words so colour is never the only cue. */
+  verdict?: "better" | "worse";
+}
+
+/**
+ * How a summary tile moved against the window before. Counts (sessions,
+ * sends) are compared as a difference - "+1" - because "+100%" of two is
+ * noise; everything else as a percentage.
+ */
+export function tileChange(
+  now: number | undefined,
+  before: number | undefined,
+  sense: TileSense,
+  isCount = false,
+): TileChange | undefined {
+  if (now === undefined || before === undefined) return undefined;
+  let amount: number;
+  let text: string;
+  let spoken: string;
+  if (isCount) {
+    amount = now - before;
+    const n = Math.abs(amount);
+    text = amount === 0 ? "same" : `${amount > 0 ? "+" : "−"}${n}`;
+    spoken = amount === 0 ? "the same as before" : `${n} ${amount > 0 ? "more" : "fewer"} than before`;
+  } else {
+    const pct = percentChange(now, before);
+    if (pct === undefined) return undefined;
+    amount = Math.round(pct);
+    text = amount === 0 ? "same" : `${amount > 0 ? "+" : "−"}${Math.abs(amount)}%`;
+    spoken = amount === 0 ? "about the same as before" : `${amount > 0 ? "up" : "down"} ${Math.abs(amount)}%`;
+  }
+  const arrow = amount === 0 ? "flat" : amount > 0 ? "up" : "down";
+  if (arrow === "flat" || sense === "neutral") return { arrow, text, spoken };
+  const better = sense === "higher" ? amount > 0 : amount < 0;
+  return { arrow, text, spoken, verdict: better ? "better" : "worse" };
+}

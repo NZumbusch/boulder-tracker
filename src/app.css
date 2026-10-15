@@ -14,6 +14,8 @@
    the transition together, and the reduced-motion rule further down
    overrides both. */
 @import "tw-animate-css";
+/* Chart series colours (a categorical palette apart from status and action colours). */
+@import "./series.css";
 
 /* A landscape phone: little height, so screens go side by side and drop their extras (`short:`). */
 @custom-variant short (@media (max-height: 500px));
