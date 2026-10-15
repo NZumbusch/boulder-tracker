@@ -23,10 +23,7 @@ const ALLOWED = new Set([
   // Rendered to an image at a fixed size (not the app's text scale): the share cards.
   "components/history/WorkoutShareImage.svelte",
   "components/plan/WeekShareImage.svelte",
-  "components/plan/CalendarMonth.svelte",
   "components/plan/PhaseStrip.svelte",
-  "components/plan/TrainingPlan.svelte",
-  "components/plan/WeekCalendar.svelte",
   "components/settings/ErrorLogCard.svelte",
 ]);
 
