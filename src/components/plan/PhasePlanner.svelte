@@ -267,7 +267,7 @@
       {:else if !selected}
         <p class="text-content-subtle">Tap a phase to select it, then drag its ends to change the days. Tap an empty day to start one there.</p>
       {:else}
-        <p class="text-content-subtle">Drag the ends to change the first or last day; drag the bar to move it.</p>
+        <p class="text-content-subtle">Drag the ends to change the first or last day; drag the bar to move it.{scale === 'month' ? '' : ' Zoomed out, it snaps to whole weeks.'}</p>
       {/if}
     </div>
 

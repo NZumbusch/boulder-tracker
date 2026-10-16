@@ -10,7 +10,7 @@
   import type { PhaseDef, TrainingBlock } from '../../lib/types';
   import { addDaysIso, toUtcDayIndex } from '../../lib/dateUtils';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
-  import { assignLanes, blockLength, dragDays, gapsInPlan, daysBetween } from '../../lib/planning/phaseTimeline';
+  import { assignLanes, blockLength, dragDays, gapsInPlan, daysBetween, snapToWeek } from '../../lib/planning/phaseTimeline';
   import { swipeGuard } from '../../lib/analytics/swipe';
 
   let {
@@ -88,10 +88,21 @@
   let suppressClickUntil = 0;
   let drag = $state<{ id: string; mode: Mode; x0: number; delta: number } | null>(null);
 
+  /** Zoomed out (Quarter, Year) a day is a few pixels wide: dragging snaps to whole weeks instead of asking for a steady finger. */
+  const snap = $derived(pxPerDay <= 6);
   function draftOf(b: TrainingBlock, mode: Mode, delta: number): { start: string; end: string } {
-    if (mode === 'move') return { start: addDaysIso(b.startDate, delta), end: addDaysIso(b.endDate, delta) };
-    if (mode === 'start') return { start: addDaysIso(b.startDate, Math.min(delta, daysBetween(b.startDate, b.endDate))), end: b.endDate };
-    return { start: b.startDate, end: addDaysIso(b.endDate, Math.max(delta, -daysBetween(b.startDate, b.endDate))) };
+    const length = daysBetween(b.startDate, b.endDate);
+    if (mode === 'move') {
+      const start = addDaysIso(b.startDate, delta);
+      const placed = snap ? snapToWeek(start, 'start') : start;
+      return { start: placed, end: addDaysIso(placed, length) };
+    }
+    if (mode === 'start') {
+      const start = addDaysIso(b.startDate, Math.min(delta, length));
+      return { start: snap ? snapToWeek(start, 'start') : start, end: b.endDate };
+    }
+    const end = addDaysIso(b.endDate, Math.max(delta, -length));
+    return { start: b.startDate, end: snap ? snapToWeek(end, 'end') : end };
   }
   /** The blocks as drawn: the one being dragged already where the finger has put it. */
   const shown = $derived(
@@ -125,7 +136,7 @@
     onDraft?.(null);
     if (delta !== 0) suppressClickUntil = Date.now() + 300;
     const b = blocks.find((x) => x.id === id);
-    if (b && delta !== 0) { const d = draftOf(b, mode, delta); onCommit(id, d.start, d.end); }
+    if (b && delta !== 0) { const d = draftOf(b, mode, delta); if (d.start !== b.startDate || d.end !== b.endDate) onCommit(id, d.start, d.end); }
   }
   function cancel() {
     drag = null;

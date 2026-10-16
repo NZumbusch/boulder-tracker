@@ -358,7 +358,7 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 25.3 | Move a bar | Select a bar, drag its body. | The block moves by whole days; the same-priority neighbour is trimmed. A bar that is not selected scrolls the timeline instead. | | |
 | 25.4 | Split, Move, Repeat | On a block: Split (pick a day), Move (+1 wk with "everything after it"), Repeat (include the next block, 2 copies). | Each sheet previews the result before saving; Undo restores. | | |
 | 25.5 | Gaps and overlaps | Make a hole between two blocks; add a block with priority 1 over another. | "Needs a look" lists the gap (tap Fill) and the pair that runs together; the gap is a dashed bar on the timeline. | | |
-| 25.6 | Scales | Month / Quarter / Year. | The timeline zooms; the choice is remembered. Dragging at Year scale is coarse (about 2 px a day) - zoom in to be exact. | | |
+| 25.6 | Scales | Month / Quarter / Year. | The timeline zooms; the choice is remembered. At Quarter and Year scale a drag snaps to whole weeks (first day to Monday, last to Sunday); Month scale is exact to the day. | | |
 | 25.7 | Focus on sessions | Plan > Calendar > Day or Week: tap the dumbbell button. | Phone events turn grey, sessions take their main exercise category's colour; tap again to go back; it is remembered. Also in Month; not in Year. | | |
 
 ## After the run
