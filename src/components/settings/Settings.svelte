@@ -347,6 +347,7 @@
         hint="Drag to reorder, switch off to hide."
         labels={{ load: 'Rolling load and ACWR', strain: 'Monotony and strain', fingerLoad: 'Filtered load', heatmap: 'Training calendar', mix: 'Training mix', fatigue: 'Fatigue', recoveryTrend: 'Recovery (HRV, sleep, resting heart rate, weight)', pain: 'Pain', outdoor: 'Outdoor ascents', benchmarks: 'Test progress', benchmarkOverview: 'All tests' }}
       />
+      <TunablesSettings topic="layout" title="Rolling Load" ids={['analytics.plannedOutline']} />
       <ChartSettings />
     </div>
   {:else if page === 'live'}

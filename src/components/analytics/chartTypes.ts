@@ -7,6 +7,8 @@ export interface ChartWeek {
   totalLoad: number;
   /** How much of the column's planned work is logged (see `planProgress`); undefined with nothing planned. */
   planProgress?: number;
+  /** Planned load (an estimate from the plan's exercises, its own scale): drawn as an outline, never compared with `totalLoad`. */
+  plannedLoad?: number;
   /** Minutes per category name, planned and completed sessions together. */
   categories: Record<string, number>;
   /** Minutes per category name, completed sessions only. */

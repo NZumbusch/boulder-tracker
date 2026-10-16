@@ -32,4 +32,6 @@ export const screens = [
       await c.nav('analytics'); await c.ev(`document.querySelector('button[aria-label^="Hide this finding"]')?.click()`); await sleep(600);
       await c.click('More actions'); await sleep(300); await c.click('Hidden findings', { exact: false }); await sleep(600);
     }, teardown: async (c) => { await c.st(`t.setFindingHidden(null, false)`); await c.close(); } },
+  { id: 'analytics-load-outlines', area: 'followup3', setup: async (c) => { await c.nav('analytics'); await c.ev(`document.getElementById('section-load')?.scrollIntoView()`); await sleep(500); } },
+  { id: 'analytics-load-no-outlines', area: 'followup3', setup: async (c) => { await c.st(`t.setTunable('analytics.plannedOutline', false)`); await c.nav('analytics'); await c.ev(`document.getElementById('section-load')?.scrollIntoView()`); await sleep(500); }, teardown: async (c) => { await c.st(`t.setTunable('analytics.plannedOutline', true)`); await c.close(); } },
 ];

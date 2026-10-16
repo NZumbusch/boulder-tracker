@@ -17,6 +17,7 @@
   import { isTapPointer } from '../../lib/analytics/chartTips.svelte';
   import { TapTracker, columnAt, stepColumn } from '../../lib/analytics/columnPicker.svelte';
   import { showsLabel } from '../../lib/analytics/chartWindow';
+  import { outlineHeights } from '../../lib/analytics/plannedOutline';
   import type { ChartData } from './chartTypes';
   import type { TimelineSegment, TimelineGoal } from '../../lib/analytics/timeline';
   import PhaseBand from './PhaseBand.svelte';
@@ -123,6 +124,11 @@
     return [0.5, 1].map((f) => ({ value: f, y: 100 - ((top * f) / chartData.maxLoad) * 100, label: compact(top * f) }));
   });
   const acwrRatioSegments = $derived(buildLineSegments(acwrOverlayPoints.map((p) => ({ x: p.x, y: p.sufficient ? p.ratioY : null }))));
+
+  // Planned load as an outline behind each bar: its own scale (see `plannedOutline.ts`), a setting, no comparison text anywhere.
+  const showPlanned = $derived(trainingState.tunableOn('analytics.plannedOutline'));
+  const outlines = $derived(outlineHeights(chartData.weeks.map((w) => w.plannedLoad ?? 0)));
+  const anyOutline = $derived(showPlanned && outlines.some((h) => h !== null));
 
   const monthly = $derived(chartData.weeks.length > 0 && !/^W\d+$/.test(chartData.weeks[0].label));
   const before = $derived(monthly ? 'month' : 'week');
@@ -232,6 +238,9 @@
 
         {#each chartData.weeks as week, wi}
           <div class="flex-1 flex flex-col items-center relative h-full justify-end">
+            {#if showPlanned && outlines[wi] !== null}
+              <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[86%] max-w-[22px] rounded-t-[4px] border-[1.5px] border-b-0 border-series-1 pointer-events-none transition-opacity {active !== null && active !== wi ? 'opacity-40' : ''}" style="height: {outlines[wi]}%" aria-hidden="true"></div>
+            {/if}
             <!-- Flat fill, no gradient or glow; the current week is the only one at full strength, which is the whole
                  emphasis budget this chart spends. -->
             <div
@@ -315,6 +324,10 @@
 
     <!-- What the marks mean: zone, by shape and colour, with the edges as set in Settings. Hollow = not counted yet. -->
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-content-subtle">
+      {#if anyOutline}
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-2.5 h-3 rounded-t-[2px] bg-series-1/70" aria-hidden="true"></span>logged load</span>
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3.5 rounded-t-[3px] border-[1.5px] border-b-0 border-series-1" aria-hidden="true"></span>planned load, on its own scale <InfoButton term="load" /></span>
+      {/if}
       <span class="inline-flex items-center gap-1"><ZoneMark zone="low" size={10} />low &lt;{acwrZones.sweetMin.toFixed(1)}</span>
       <span class="inline-flex items-center gap-1"><ZoneMark zone="sweet" size={10} />sweet spot</span>
       <span class="inline-flex items-center gap-1"><ZoneMark zone="caution" size={10} />caution &gt;{acwrZones.caution.toFixed(1)}</span>
@@ -335,12 +348,13 @@
 
   <ChartTable
     caption="Rolling load by {before}"
-    columns={[before === 'week' ? 'Week' : 'Month', 'Load', '% of the plan', 'ACWR', 'ACWR zone', `Load change on the ${before} before`]}
+    columns={[before === 'week' ? 'Week' : 'Month', 'Load', ...(showPlanned ? ['Planned load (own scale)'] : []), '% of the plan', 'ACWR', 'ACWR zone', `Load change on the ${before} before`]}
     rows={chartData.weeks.map((w, i) => {
       const p = acwrOverlayPoints[i];
       return [
         w.label,
         Math.round(w.totalLoad),
+        ...(showPlanned ? [w.plannedLoad ? Math.round(w.plannedLoad) : '–'] : []),
         planDone[w.id] !== undefined ? `${Math.round(planDone[w.id] * 100)}%` : '–',
         p?.ratio !== undefined ? p.ratio.toFixed(2) : '–',
         p?.zone ? (p.sufficient ? ACWR_ZONE_LABEL[p.zone] : 'not counted yet') : '–',

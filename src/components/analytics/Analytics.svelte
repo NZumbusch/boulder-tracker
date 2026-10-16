@@ -12,6 +12,7 @@
   import FindingsPanel from './FindingsPanel.svelte';
   import HiddenFindingsSheet from './HiddenFindingsSheet.svelte';
   import OverflowMenu, { type OverflowItem } from '../ui/OverflowMenu.svelte';
+  import { columnPlannedLoad } from '../../lib/analytics/plannedOutline';
   import { splitFindings } from '../../lib/analytics/hiddenFindings';
   import { showUndo } from '../../lib/toast.svelte';
   import ExerciseProgressPanel from './ExerciseProgressPanel.svelte';
@@ -335,6 +336,7 @@
         label: bucket.label,
         totalLoad: columns[i].load,
         planProgress: planProgress(columns[i].workouts),
+        plannedLoad: columnPlannedLoad(columns[i].workouts),
         categories: columns[i].categories,
         completedCategories: columns[i].completedCategories,
         totalDuration: Object.values(columns[i].categories).reduce((a, b) => a + b, 0),
