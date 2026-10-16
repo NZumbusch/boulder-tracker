@@ -34,7 +34,7 @@
   import { defaultPlanChoice, focusToProfile, type Discipline, type StartGoal } from '../../lib/onboarding/focus';
   import type { WeatherLocation } from '../../lib/preferences/migrate';
 
-  type Step = 'intro' | 'returning' | 'platforms' | 'focus' | 'level' | 'plan' | 'units' | 'location' | 'install' | 'done';
+  type Step = 'intro' | 'returning' | 'platforms' | 'focus' | 'plan' | 'units' | 'location' | 'install' | 'done';
   const native = Capacitor.isNativePlatform();
   const info = readBrowserInfo(native);
   const inApp = isInAppBrowser(info);
@@ -47,7 +47,7 @@
   const steps = $derived<Step[]>(
     returning ? ['intro', 'returning']
     : gate ? ['intro', 'install']
-    : ['intro', ...(native ? [] : (['platforms'] as Step[])), 'focus', 'level', 'plan', 'units', 'location', 'done'],
+    : ['intro', ...(native ? [] : (['platforms'] as Step[])), 'focus', 'plan', 'units', 'location', 'done'],
   );
 
   let index = $state(0);
@@ -100,10 +100,17 @@
   // --- What they climb, and what for ---
   let discipline = $state<Discipline | null>(null);
   let goal = $state<StartGoal | null>(null);
+  /** What you climb, what for and how you train go on together: the first two skippable, the level always applied. */
   async function chooseFocus() {
-    const profile = focusToProfile(discipline, goal, trainingState.athleteProfile);
-    if (profile) await trainingState.saveAthleteProfile(profile);
-    planChoice = defaultPlanChoice(goal);
+    applying = true;
+    try {
+      const profile = focusToProfile(discipline, goal, trainingState.athleteProfile);
+      if (profile) await trainingState.saveAthleteProfile(profile);
+      planChoice = defaultPlanChoice(goal);
+      await trainingState.applyStarterSet(level);
+    } finally {
+      applying = false;
+    }
     next();
   }
 
@@ -117,16 +124,6 @@
     index = 1;
   }
   const copyLink = () => copyPageLink(browserName);
-
-  async function chooseLevel() {
-    applying = true;
-    try {
-      await trainingState.applyStarterSet(level);
-    } finally {
-      applying = false;
-    }
-    next();
-  }
 
   function setMetric(metric: boolean) {
     trainingState.setUnit('weight', metric ? 'kg' : 'lb');
@@ -245,14 +242,12 @@
           <h2 class="text-title text-content">What are you after?</h2>
         </div>
         <RadioCards label="Your goal" options={FOCUS_GOALS} value={goal} onChange={(v) => (goal = v)} compact />
-        <p class="text-caption text-content-subtle leading-relaxed">Both go into "About me" and your standing goal for the AI coach ({settingsPath('coach')}), where you can change them. Skippable.</p>
-
-      {:else if step === 'level'}
-        <div class="space-y-2">
+        <p class="text-caption text-content-subtle leading-relaxed">The first two go into "About me" and your standing goal for the AI coach ({settingsPath('coach')}), where you can change them. Leave them empty to skip.</p>
+        <div class="space-y-2 pt-2">
           <h2 class="text-title text-content">How do you train?</h2>
           <p class="text-body text-content-muted leading-relaxed">This picks the sessions each training phase starts with. You can edit them, or switch, any time under {settingsPath('phases')}.</p>
         </div>
-        <RadioCards label="Training level" options={DEFAULT_TEMPLATE_LIBRARY.map((s) => ({ value: s.id, label: s.name, hint: s.description }))} value={level} onChange={(v) => (level = v)} />
+        <RadioCards label="Training level" options={DEFAULT_TEMPLATE_LIBRARY.map((s) => ({ value: s.id, label: s.name, hint: s.description }))} value={level} onChange={(v) => (level = v)} compact />
 
       {:else if step === 'plan'}
         <div class="space-y-2">
@@ -356,9 +351,7 @@
       {:else if step === 'plan'}
         <button onclick={choosePlan} disabled={applying} class="btn btn-primary flex-1">{planChoice === 'none' ? 'Continue without a plan' : 'Use this plan'}</button>
       {:else if step === 'focus'}
-        <button onclick={chooseFocus} class="btn btn-primary flex-1">{discipline || goal ? 'Continue' : 'Skip'}</button>
-      {:else if step === 'level'}
-        <button onclick={chooseLevel} disabled={applying} class="btn btn-primary flex-1">Continue</button>
+        <button onclick={chooseFocus} disabled={applying} class="btn btn-primary flex-1">Continue</button>
       {:else}
         <button onclick={next} class="btn btn-primary flex-1">
           {step === 'location' && !trainingState.homeLocation ? 'Skip' : 'Continue'}
