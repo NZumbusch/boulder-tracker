@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { edgeFade } from '../../lib/ui/edgeFade';
   import InfoButton from '../common/InfoButton.svelte';
   /**
    * Test progress: one test's results in the Analytics window.
@@ -252,7 +253,7 @@
     </div>
 
     <!-- The test: chips that scroll sideways (and so don't page the window). Dimmed = nothing in this window. -->
-    <div class="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" data-no-swipe>
+    <div use:edgeFade class="edge-fade-x flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1" data-no-swipe>
       {#each types as t (t.id)}
         <button onclick={() => { selectedTypeId = t.id; selectedViewId = ''; }} aria-pressed={t.id === typeId} class={chip(t.id === typeId, !typesWithResults.has(t.id))}>{t.name}</button>
       {/each}
@@ -260,7 +261,7 @@
 
     <!-- How to look at it: everything, like the latest, or a saved view; Adjust opens the controls. -->
     <div class="flex items-center gap-1.5" data-no-swipe>
-      <div class="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 min-w-0 flex-1">
+      <div use:edgeFade class="edge-fade-x flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 min-w-0 flex-1">
         {#each offered as v (v.id)}
           <button onclick={() => (selectedViewId = v.id)} aria-pressed={v.id === base.id} class={chip(v.id === base.id)}>{v.name}{#if v.onHome}<span class="text-content-subtle">&nbsp;· Home</span>{/if}</button>
         {/each}

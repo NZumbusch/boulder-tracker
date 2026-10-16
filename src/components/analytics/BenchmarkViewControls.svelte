@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { edgeFade } from '../../lib/ui/edgeFade';
   /**
    * The "Adjust" controls of the test chart: what is plotted, which results
    * count (a filter per field), one line per value of a field, and every
@@ -101,7 +102,7 @@
         {@const values = distinctValues(results, f, fields)}
         <div class="space-y-1">
           <p class="text-caption text-content-muted">{f.label}{unitLabel(f, weight) ? ` (${unitLabel(f, weight)})` : ''}</p>
-          <div class="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 items-center">
+          <div use:edgeFade class="edge-fade-x flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 items-center">
             <button onclick={() => setFilter(f.valueId, undefined)} aria-pressed={!cur} class={chip(!cur)}>Any</button>
             {#if hasNone(f)}<button onclick={() => setFilter(f.valueId, { op: 'none' })} aria-pressed={cur?.op === 'none'} class={chip(cur?.op === 'none')}>None</button>{/if}
             {#if values.length <= MAX_VALUE_CHIPS}

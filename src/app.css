@@ -285,6 +285,18 @@
     max-width: 45rem;
   }
 }
+/* A sideways-scrolling row (see `edgeFade`): a soft fade on the side that still has content hidden. */
+@utility edge-fade-x {
+  &[data-fade-end] {
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+  }
+  &[data-fade-start] {
+    mask-image: linear-gradient(to left, #000 calc(100% - 1.5rem), transparent);
+  }
+  &[data-fade-start][data-fade-end] {
+    mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+  }
+}
 @utility card {
   @apply bg-surface-elevated/35 rounded-card p-4;
 }
