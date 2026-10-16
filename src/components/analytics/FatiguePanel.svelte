@@ -1,6 +1,6 @@
 <script lang="ts">
   import InfoButton from '../common/InfoButton.svelte';
-  import { RATING_AXES } from '../../lib/constants';
+  import { RATING_AXES, FATIGUE_AXIS_COLORS } from '../../lib/constants';
   /**
    * Analytics' Fatigue panel. Home already shows fatigue "as of now" -
    * following the "Home = now, Analytics = history, no duplicated panels"
@@ -44,13 +44,8 @@
   const axisStep = $derived(labelStep(samples.length, plotWidth));
 
   type AxisKey = (typeof RATING_AXES)[number]['key'];
-  // Series colours (src/series.css) and a dash each, so the four lines are told apart without colour.
-  const COLORS: Record<AxisKey, string> = {
-    fingers: 'var(--color-series-3)',
-    arms: 'var(--color-series-5)',
-    core: 'var(--color-series-4)',
-    systemic: 'var(--color-series-6)',
-  };
+  // Series colours (src/series.css, shared with Home) and a dash each, so the four lines are told apart without colour.
+  const COLORS = FATIGUE_AXIS_COLORS;
   const DASH: Record<AxisKey, string | undefined> = { fingers: undefined, arms: '7 3', core: '2 3', systemic: '10 3 2 3' };
   /** Ratings at or above this read as high fatigue - shaded faintly. */
   const HIGH = 7;

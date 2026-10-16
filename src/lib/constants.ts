@@ -13,14 +13,16 @@ export const RATING_AXES = [
 ] as const;
 
 /**
- * One colour per fatigue axis, shared by every fatigue display (Home's
- * bars, Analytics' trend chart) so an axis looks the same everywhere.
+ * One colour per fatigue axis, shared by every fatigue display (Home's bars,
+ * History's letters, Analytics' trend chart) so an axis looks the same
+ * everywhere. These are chart series colours (src/series.css, slots 3/5/4/6),
+ * not status colours - warning, success and primary mean something else.
  */
 export const FATIGUE_AXIS_COLORS: Record<(typeof RATING_AXES)[number]["key"], string> = {
-  fingers: "var(--color-warning)",
-  arms: "var(--color-tertiary)",
-  core: "var(--color-success)",
-  systemic: "var(--color-primary)",
+  fingers: "var(--color-series-3)",
+  arms: "var(--color-series-5)",
+  core: "var(--color-series-4)",
+  systemic: "var(--color-series-6)",
 };
 
 /**
