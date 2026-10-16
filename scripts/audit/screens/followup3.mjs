@@ -19,5 +19,7 @@ export const screens = [
       await c.st(`t.setTunable('plan.weekPatterns', true)`); await plan(c, { view: 'blocks' });
       await c.ev(`document.querySelector('[aria-label^="Phases: tap"] button')?.click()`); await sleep(500);
     }, teardown: async (c) => { await c.st(`t.setTunable('plan.weekPatterns', false)`); await c.close(); } },
+  { id: 'plan-calendar-goals-on', area: 'followup3', setup: async (c) => { await plan(c, { view: 'calendar', mode: 'month' }); await c.scrollTo(1, 'main'); } },
+  { id: 'plan-calendar-goals-off', area: 'followup3', setup: async (c) => { await c.st(`t.setTunable('plan.goalsInCalendar', false)`); await plan(c, { view: 'calendar', mode: 'month' }); await c.scrollTo(1, 'main'); }, teardown: async (c) => { await c.st(`t.setTunable('plan.goalsInCalendar', true)`); await c.close(); } },
   { id: 'plan-goal-form', area: 'followup3', setup: async (c) => { await plan(c, { view: 'blocks' }); await c.click('Add competition'); await sleep(500); await c.scrollTo(1); } },
 ];

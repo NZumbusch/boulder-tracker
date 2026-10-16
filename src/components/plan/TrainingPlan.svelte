@@ -868,7 +868,9 @@
     </div>
   {/if}
 
-  <div data-tour="plan-goals"><GoalsCalendar /></div>
+  {#if shownView !== 'calendar' || trainingState.tunableOn('plan.goalsInCalendar')}
+    <div data-tour="plan-goals"><GoalsCalendar /></div>
+  {/if}
 </div>
 
 {#if sharingWeek && trainingState.selectedWeekId}
