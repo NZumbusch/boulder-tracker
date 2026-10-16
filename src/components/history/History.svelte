@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fabActions } from '../../lib/navigation/fabActions.svelte';
   import AppBar from '../nav/AppBar.svelte';
   import { openSessionActions } from '../../lib/sessionActions.svelte';
   import { openWorkout } from '../../lib/workoutModal.svelte';
@@ -396,8 +397,8 @@
           <p class="text-caption text-content-subtle">No sessions match these filters.</p>
           <button onclick={clearFilters} class="btn btn-secondary">Clear filters</button>
         {:else}
-          <p class="text-caption text-content-subtle">No workout history yet.</p>
-          <button onclick={() => trainingState.navigate('add')} class="btn btn-secondary">Log a session</button>
+          <p class="text-caption text-content-subtle">No workout history yet.{#if fabActions.showing} Tap + to log a session.{/if}</p>
+          {#if !fabActions.showing}<button onclick={() => trainingState.navigate('add')} class="btn btn-secondary">Log a session</button>{/if}
         {/if}
       </div>
     {/each}

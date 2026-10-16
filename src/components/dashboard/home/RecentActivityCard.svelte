@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fabActions } from '../../../lib/navigation/fabActions.svelte';
   /** The latest completed sessions (and, optionally, outdoor sends). */
   import { trainingState } from '../../../lib/state.svelte';
   import { formatDay } from '../../../lib/dateUtils';
@@ -44,8 +45,8 @@
       {/if}
     {:else}
       <div class="flex items-center justify-between gap-3 py-2">
-        <p class="text-caption text-content-subtle">No completed sessions yet.</p>
-        <button onclick={() => trainingState.navigate('add')} class="btn btn-secondary shrink-0">Log a session</button>
+        <p class="text-caption text-content-subtle">No completed sessions yet.{#if fabActions.showing} Tap + to log one.{/if}</p>
+        {#if !fabActions.showing}<button onclick={() => trainingState.navigate('add')} class="btn btn-secondary shrink-0">Log a session</button>{/if}
       </div>
     {/each}
   </div>

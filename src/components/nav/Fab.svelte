@@ -20,6 +20,11 @@
   const label = $derived(action === 'add-to-plan' ? 'Add a session to the plan' : 'Log a workout');
 
   $effect(() => {
+    fabActions.showing = action !== null;
+    return () => (fabActions.showing = false);
+  });
+
+  $effect(() => {
     document.documentElement.style.setProperty('--fab-b', action ? '76px' : '0px');
     return () => document.documentElement.style.setProperty('--fab-b', '0px');
   });

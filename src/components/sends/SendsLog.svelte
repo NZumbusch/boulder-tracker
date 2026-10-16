@@ -68,7 +68,7 @@
 <div class="space-y-4">
   <div class="flex gap-2">
     <button onclick={() => mode = mode === 'add' ? 'list' : 'add'} aria-pressed={mode === 'add'} class="btn transition-colors {mode === 'add' ? 'btn-secondary' : 'btn-primary'}">
-      <Icon icon={mode === 'add' ? 'ic:baseline-close' : 'ic:baseline-plus'} class="text-base" /> {mode === 'add' ? 'Close' : 'Add send'}
+      {#if mode === 'add'}<Icon icon="ic:baseline-close" class="text-base" /> Close{:else}Add send{/if}
     </button>
     <button onclick={() => mode = mode === 'import' ? 'list' : 'import'} aria-pressed={mode === 'import'} class="btn transition-colors {mode === 'import' ? 'btn-secondary' : 'btn-ghost'}">
       <Icon icon="ic:baseline-upload-file" class="text-base" /> {mode === 'import' ? 'Close import' : 'Import from 8a.nu'}

@@ -28,7 +28,6 @@
     isFaded,
     onOpen,
     onOpenEvent,
-    onAdd,
     phases = new Map(),
     phaseNames = false,
     goals = new Map(),
@@ -47,7 +46,6 @@
     onOpen: (s: CalendarSession, siblings: CalendarSession[]) => void;
     /** A phone-calendar event was tapped. */
     onOpenEvent?: (e: DeviceEvent) => void;
-    onAdd: (day: number) => void;
     /** The phase on each day, drawn as a bar down the row's edge (empty = off). */
     phases?: Map<number, PhaseMark>;
     phaseNames?: boolean;
@@ -141,12 +139,6 @@
           <p class="text-caption text-content-subtle pt-1.5">Rest</p>
         {/if}
       </div>
-      <!-- A + on every row said "add" seven times: it stays on days with nothing planned and on today (the header's add covers the rest). -->
-      {#if agenda.length === 0 || day === today}
-        <button onclick={() => onAdd(day)} class="btn-icon self-start -mt-0.5 hover:text-primary" aria-label="Add a session on {dayNameOf(day)}" title="Add a session">
-          <Icon icon="ic:baseline-plus" class="text-lg" />
-        </button>
-      {/if}
     </div>
   {/each}
 </div>

@@ -6,6 +6,7 @@
 </script>
 
 <script lang="ts">
+  import { fabActions } from '../../lib/navigation/fabActions.svelte';
   import AppBar from '../nav/AppBar.svelte';
   import { tick } from 'svelte';
   import FindingsPanel from './FindingsPanel.svelte';
@@ -460,7 +461,7 @@
         </li>
       {/each}
     </ul>
-    <button onclick={() => trainingState.navigate('add')} class="w-full min-h-10 py-2.5 bg-primary text-white text-label rounded-control">Log a session</button>
+    {#if !fabActions.showing}<button onclick={() => trainingState.navigate('add')} class="w-full min-h-10 py-2.5 bg-primary text-white text-label rounded-control">Log a session</button>{/if}
     <button onclick={() => void tour.startExample()} class="w-full min-h-10 py-2.5 border border-border-strong text-label text-content rounded-control hover:bg-surface-elevated">See it with example data</button>
   </div>
 </div>

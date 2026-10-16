@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fabActions } from '../../../lib/navigation/fabActions.svelte';
   import { formatClockText } from '../../../lib/timeFormat';
   import PainHeadsUp from '../../health/PainHeadsUp.svelte';
   import { openSessionActions } from '../../../lib/sessionActions.svelte';
@@ -100,7 +101,7 @@
           <p class="text-caption text-content-subtle truncate">Next: {nextWhen} · {next.workout.notes || 'Session'}</p>
         {/if}
       </div>
-      <button onclick={() => trainingState.navigate('add')} class="btn btn-secondary shrink-0">Start a session</button>
+      {#if !fabActions.showing}<button onclick={() => trainingState.navigate('add')} class="btn btn-secondary shrink-0">Start a session</button>{/if}
     </div>
   {/each}
   </div>

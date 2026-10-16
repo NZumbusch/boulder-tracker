@@ -731,14 +731,14 @@
                 <Icon icon="ic:baseline-drag-indicator" class="text-sm" />{arranging ? 'Finish arranging' : 'Arrange'}
               </button>
             {/if}
-            <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="chip text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session to this week">
-              <Icon icon="ic:baseline-plus" class="text-sm" />Add session
-            </button>
+            {#if !fabActions.showing}
+              <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="chip text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session to this week">Add session</button>
+            {/if}
           </div>
         </div>
 
         {#if weekWorkouts.length === 0}
-          <p class="text-caption text-content-subtle italic py-3">Nothing planned - tap a day above or + to add a session.</p>
+          <p class="text-caption text-content-subtle italic py-3">Nothing planned - tap a day above or {fabActions.showing ? '+' : 'Add session'} to add a session.</p>
         {:else}
           {#each listedDays as dayKey (dayKey)}
             <div id="plan-day-{dayKey}" class="scroll-mt-20">
@@ -819,7 +819,7 @@
       <div class="pt-3 border-t border-border space-y-2">
         <div class="flex items-center justify-between">
           <h4 class="text-section uppercase text-content-muted flex items-center gap-1.5">Tests <InfoButton term="tests" /></h4>
-          <button onclick={handleAddBenchmark} class="chip text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a test result"><Icon icon="ic:baseline-plus" class="text-sm" />Add test</button>
+          <button onclick={handleAddBenchmark} class="chip text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a test result">Add test</button>
         </div>
 
         {#if isAddingBenchmark}

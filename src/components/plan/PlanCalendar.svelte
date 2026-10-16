@@ -243,7 +243,7 @@
     <!-- With the drawer navigation the floating + adds a session (the app shell's); the bottom bar has no such button, so the + stays here. -->
     {#if trainingState.navStyle === 'bar'}
       <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="chip text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
-      <Icon icon="ic:baseline-plus" class="text-sm" />Add session
+      Add session
     </button>
     {/if}
     </div>
@@ -266,7 +266,6 @@
       isFaded={faded}
       onOpen={open}
       onOpenEvent={(e) => (eventOpen = e)}
-      onAdd={(day) => addAt(day)}
       {phases}
       {phaseNames}
       goals={goalsOnDays}
@@ -303,7 +302,6 @@
     {#if sessions.length === 0}
       <div class="flex flex-col items-center gap-2 py-3">
         <p class="text-caption text-content-subtle">{mode === 'day' ? 'Nothing planned on this day.' : 'Nothing planned this week.'}</p>
-        <button onclick={() => addAtFocus()} class="btn btn-secondary text-primary"><Icon icon="ic:baseline-plus" class="text-base" />Add a session</button>
       </div>
     {/if}
     {#if noDayCount > 0}
