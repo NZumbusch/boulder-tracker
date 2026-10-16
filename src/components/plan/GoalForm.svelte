@@ -113,7 +113,7 @@
         {#each trainingState.crags as crag}
           <button
             onclick={() => draft.location = { ...crag }}
-            class="px-2.5 py-1 rounded-full border text-caption transition-colors {draft.location?.name === crag.name ? 'bg-primary/15 border-primary/40 text-primary' : 'border-border-strong/60 text-content-subtle hover:text-content'}"
+            class="tap px-2.5 py-1 rounded-full border text-caption transition-colors {draft.location?.name === crag.name ? 'bg-primary/15 border-primary/40 text-primary' : 'border-border-strong/60 text-content-subtle hover:text-content'}"
           >
             {crag.name}
           </button>
