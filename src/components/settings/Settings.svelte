@@ -40,7 +40,7 @@
   import { healthConnect } from '../../lib/health/healthConnect.svelte';
   import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
   import {
-    findPage, findSection, searchSettings, visiblePages, visibleSections,
+    findPage, findSection, resolvePageId, searchSettings, visiblePages, visibleSections,
     type PageId, type SectionId, type SettingsContext,
   } from '../../lib/settings/tree';
   import NavRow from '../common/NavRow.svelte';
@@ -85,9 +85,11 @@
   }
   // Another screen asked for a page (the "what's new" sheet sends you to Tests).
   $effect(() => {
-    const wanted = trainingState.uiStore.settingsPageRequest;
-    if (!wanted) return;
-    untrack(() => openPage(wanted));
+    const asked = trainingState.uiStore.settingsPageRequest;
+    if (!asked) return;
+    // An old or unknown id still lands somewhere sensible (see `resolvePageId`) rather than throwing.
+    const wanted = resolvePageId(asked);
+    if (wanted) untrack(() => openPage(wanted));
     trainingState.uiStore.settingsPageRequest = null;
   });
   // A page opens at its top: the app's own scroll reset only follows the tab, so a sub-page opened from a scrolled list
@@ -359,11 +361,16 @@
     </div>
   {:else if page === 'timer'}
     <div class="space-y-4">
-      <AudioLevelSettings />
       <TimerSettings />
       <TunablesSettings topic="layout" title="Single-exercise timer" ids={['timer.leadIn', 'timer.setRest', 'timer.openNext']} />
+      <div class="card py-1"><NavRow icon={findPage('sounds').page.icon} title={findPage('sounds').page.label} hint="How much it speaks up, beeps, vibration, spoken exercises" onclick={() => openPage('sounds')} /></div>
+    </div>
+  {:else if page === 'sounds'}
+    <div class="space-y-4">
+      <AudioLevelSettings />
       <SoundSettings />
       <VoiceSettings />
+      <div class="card py-1"><NavRow icon={findPage('timer').page.icon} title={findPage('timer').page.label} hint="3-2-1, 15 s warning, screen on, background alerts" onclick={() => openPage('timer')} /></div>
     </div>
   {:else if page === 'model'}
     <div class="space-y-4">

@@ -46,7 +46,7 @@ const S = (id, area, setup, extra = {}) => ({ id, area, setup, teardown: clean, 
 const PAGES = [
   ['exercises', 3], ['circuits', 2], ['phases', 3], ['benchmarks', 4], ['targets', 2], ['values', 3],
   ['general', 2], ['units', 1], ['home', 3], ['planCalendar', 2], ['history', 3],
-  ['live', 2], ['timer', 5], ['model', 4], ['pain', 2], ['weather', 3], ['reminders', 2],
+  ['live', 2], ['timer', 2], ['sounds', 4], ['model', 4], ['pain', 2], ['weather', 3], ['reminders', 2],
   ['coach', 3], ['aiSharing', 3], ['aiDirect', 3], ['sync', 3], ['healthConnect', 2], ['deviceCalendar', 2], ['exports', 1], ['widgets', 2], ['about', 4],
 ];
 const SECTIONS = ['Training setup', 'App & display', 'Sessions & timer', 'Model & health', 'Reminders & nudges', 'AI & coach', 'Data & connections', 'About & Help'];

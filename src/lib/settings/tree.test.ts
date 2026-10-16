@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SETTINGS_SECTIONS, findPage, searchSettings, settingsPath, visiblePages, visibleSections, type SettingsContext } from "./tree";
+import { SETTINGS_SECTIONS, findPage, resolvePageId, searchSettings, settingsPath, visiblePages, visibleSections, type SettingsContext } from "./tree";
 
 const phone: SettingsContext = { native: true, widgets: true, healthConnect: true, deviceCalendar: true };
 const browser: SettingsContext = { native: false, widgets: false, healthConnect: false, deviceCalendar: false };
@@ -23,22 +23,48 @@ describe("the settings tree", () => {
     expect(settingsPath("coach")).toBe("Settings → AI & coach → Coach notes");
     expect(settingsPath("about")).toBe("Settings → About & Help");
     expect(findPage("timer").section.id).toBe("sessions");
+    expect(findPage("sounds").section.id).toBe("sessions");
+  });
+
+  it("keeps old and unknown page ids from breaking a request to open a page", () => {
+    expect(resolvePageId("timer")).toBe("timer");
+    expect(resolvePageId("sounds")).toBe("sounds");
+    expect(resolvePageId("voice")).toBe("sounds");
+    expect(resolvePageId("timerSound")).toBe("sounds");
+    expect(resolvePageId("phases")).toBe("phases");
+    expect(resolvePageId("nope")).toBeNull();
+    expect(resolvePageId(null)).toBeNull();
+  });
+
+  it("splits the timer: behaviour on one page, sound and voice on the other", () => {
+    const pageOf = (q: string) => searchSettings(q, phone).map((h) => h.page);
+    expect(pageOf("3-2-1 countdown")).toContain("timer");
+    expect(pageOf("15 second warning")).toContain("timer");
+    expect(pageOf("beep sound style")).toContain("sounds");
+    expect(pageOf("speak the exercises")).toContain("sounds");
+    expect(pageOf("vibrate")).toContain("sounds");
+  });
+
+  it("points every search entry at a page that exists", () => {
+    for (const q of ["theme", "timer", "sound", "voice", "reminder", "sync", "units"]) {
+      for (const hit of searchSettings(q, phone)) expect(() => findPage(hit.page)).not.toThrow();
+    }
   });
 });
 
 describe("searchSettings", () => {
   it("finds a setting by its name or an alternative word", () => {
-    expect(searchSettings("volume", phone)[0]).toEqual({ label: "Cue volume", page: "timer" });
-    expect(searchSettings("tts", phone).some((h) => h.page === "timer")).toBe(true);
+    expect(searchSettings("volume", phone)[0]).toEqual({ label: "Cue volume", page: "sounds" });
+    expect(searchSettings("tts", phone).some((h) => h.page === "sounds")).toBe(true);
     expect(searchSettings("fahrenheit", phone)[0].page).toBe("units");
   });
 
   it("does not list a page again when a setting on it already matched", () => {
-    expect(searchSettings("volume", phone)).toEqual([{ label: "Cue volume", page: "timer" }]);
+    expect(searchSettings("volume", phone)).toEqual([{ label: "Cue volume", page: "sounds" }]);
   });
 
   it("needs every word, ignores case, and finds pages by name", () => {
-    expect(searchSettings("TIMER sound", phone).some((h) => h.page === "timer")).toBe(true);
+    expect(searchSettings("TIMER sound", phone).some((h) => h.page === "sounds")).toBe(true);
     expect(searchSettings("zzzz", phone)).toEqual([]);
     expect(searchSettings("   ", phone)).toEqual([]);
     expect(searchSettings("pain", phone).map((h) => h.page)).toContain("pain");

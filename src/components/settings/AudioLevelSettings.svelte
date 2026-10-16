@@ -27,7 +27,7 @@
 <div class="card space-y-4 animate-in fade-in">
   <div class="space-y-2">
     <h2 class="text-section uppercase text-content-muted px-1">How much it speaks up</h2>
-    <p class="text-caption text-content-subtle px-1 leading-relaxed">From nothing to every cue. This sets the beep, 3-2-1, 15 s warning and voice switches further down the page, and takes effect straight away, also in a running session. You can still fine-tune each of them.</p>
+    <p class="text-caption text-content-subtle px-1 leading-relaxed">From nothing to every cue. This sets the beep and voice switches further down the page and the 3-2-1 and 15 s warning on the Timer page, and takes effect straight away, also in a running session. You can still fine-tune each of them.</p>
   </div>
 
   <div class="space-y-2">

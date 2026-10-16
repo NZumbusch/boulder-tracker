@@ -9,7 +9,7 @@ export type SectionId = "setup" | "display" | "sessions" | "health" | "reminders
 export type PageId =
   | "exercises" | "circuits" | "phases" | "benchmarks" | "values" | "targets"
   | "general" | "units" | "home" | "planCalendar" | "history"
-  | "live" | "timer"
+  | "live" | "timer" | "sounds"
   | "model" | "pain" | "weather"
   | "reminders"
   | "coach" | "aiSharing" | "aiDirect"
@@ -82,7 +82,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     icon: "ic:baseline-timer",
     pages: [
       { id: "live", label: "Live sessions", hint: "Added exercises, screen, notification, haptics", icon: "ic:baseline-play-circle-outline" },
-      { id: "timer", label: "Timer, sound & voice", hint: "Countdown warnings, beep style and volume, spoken exercises", icon: "ic:baseline-timer" },
+      { id: "timer", label: "Timer", hint: "Countdown warnings, screen and background alerts, rest and get-ready time", icon: "ic:baseline-timer" },
+      { id: "sounds", label: "Sound & voice", hint: "How much the timer speaks up, beep style and volume, spoken exercises", icon: "ic:baseline-volume-up" },
     ],
   },
   {
@@ -135,6 +136,27 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     pages: [{ id: "about", label: "About & Help", hint: "Tour, install on iPhone, contact, privacy policy", icon: "ic:baseline-info" }],
   },
 ];
+
+/**
+ * Page ids that used to exist, or that people may still hold (a saved link, a note, a tour step), and where they open
+ * now. A request for an id nobody knows opens nothing instead of throwing.
+ */
+const PAGE_ALIASES: Record<string, PageId> = {
+  timerSound: "sounds",
+  timerSounds: "sounds",
+  voice: "sounds",
+  sound: "sounds",
+  audio: "sounds",
+  phaseTemplates: "phases",
+  templates: "phases",
+};
+
+/** The page an id (current or an old alias) stands for, or null. */
+export function resolvePageId(id: string | null | undefined): PageId | null {
+  if (!id) return null;
+  if (SETTINGS_SECTIONS.some((s) => s.pages.some((p) => p.id === id))) return id as PageId;
+  return PAGE_ALIASES[id] ?? null;
+}
 
 /** A page and the section it is in. */
 export function findPage(id: PageId): { section: SettingsSection; page: SettingsPage } {
@@ -205,12 +227,14 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "15 second warning", page: "timer", words: "heads-up rest" },
   { label: "Timer in the background", page: "timer", words: "notification locked screen alarms", needs: "native" },
   { label: "Keep screen on while a timer runs", page: "timer", needs: "wakeLock" },
-  { label: "How much the timer speaks up", page: "timer", words: "quiet silent loudness audio level podcast audiobook music duck pause mute announcements" },
-  { label: "Beep sound style", page: "timer", words: "classic soft sharp chime tone" },
-  { label: "Cue volume", page: "timer", words: "loud quiet media volume" },
-  { label: "Vibrate with the timer cues", page: "timer" },
-  { label: "Speak the exercises", page: "timer", words: "voice tts announce text to speech next up" },
-  { label: "Speech engine, voice, speed and pitch", page: "timer", words: "tts language" },
+  { label: "How much the timer speaks up", page: "sounds", words: "quiet silent loudness audio level podcast audiobook music duck pause mute announcements" },
+  { label: "Audible beep", page: "sounds", words: "sound on off mute" },
+  { label: "Open the next exercise's timer", page: "timer", words: "live session after logging" },
+  { label: "Beep sound style", page: "sounds", words: "classic soft sharp chime tone" },
+  { label: "Cue volume", page: "sounds", words: "loud quiet media volume" },
+  { label: "Vibrate with the timer cues", page: "sounds" },
+  { label: "Speak the exercises", page: "sounds", words: "voice tts announce text to speech next up" },
+  { label: "Speech engine, voice, speed and pitch", page: "sounds", words: "tts language" },
   { label: "Readiness score", page: "model", words: "acwr fatigue zones thresholds" },
   { label: "Fatigue recovery and rest-day alert", page: "model", words: "decay soften" },
   { label: "Pain check-ins", page: "pain", words: "still there gone better worse" },

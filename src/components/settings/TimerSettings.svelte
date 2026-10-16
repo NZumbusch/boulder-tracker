@@ -1,9 +1,8 @@
 <script lang="ts">
   /**
    * The timer itself: what runs in the background, the screen, and which
-   * warnings it gives. (How it sounds and what it says are the next two
-   * cards on this page; the live session's own behaviour is under Live
-   * sessions.) Keep-awake only when `navigator.wakeLock` exists - degrade
+   * warnings it gives. (How it sounds and what it says are on the Sound &
+   * voice page; the live session's own behaviour is under Live sessions.) Keep-awake only when `navigator.wakeLock` exists - degrade
    * silently rather than showing a dead toggle.
    */
   import { trainingState } from '../../lib/state.svelte';
