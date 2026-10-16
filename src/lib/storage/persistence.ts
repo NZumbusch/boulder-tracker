@@ -461,6 +461,43 @@ export async function readPlanUndo<T>(): Promise<T | null> {
   }
 }
 
+// --- The data a backup restore replaced (see storage.importData, "Restore previous") ---
+// One slot, overwritten by the next restore. Beside the database, not in it.
+const RESTORE_SNAPSHOT_KEY = "backup_pre_restore";
+const RESTORE_SNAPSHOT_FILE = "boulder_tracker_pre_restore.json";
+
+export interface RestoreSnapshot { at: string; workouts: number; data: any }
+
+export async function writeRestoreSnapshot(snapshot: RestoreSnapshot): Promise<boolean> {
+  if (demoMode) return false;
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await Filesystem.writeFile({ path: RESTORE_SNAPSHOT_FILE, data: JSON.stringify(snapshot), directory: Directory.Data, encoding: Encoding.UTF8 });
+    } else {
+      await localforage.setItem(RESTORE_SNAPSHOT_KEY, snapshot);
+    }
+    return true;
+  } catch (err) {
+    console.error("Failed to write the pre-restore snapshot", err);
+    return false;
+  }
+}
+
+export async function readRestoreSnapshot(): Promise<RestoreSnapshot | null> {
+  try {
+    let snap: any;
+    if (Capacitor.isNativePlatform()) {
+      const res = await Filesystem.readFile({ path: RESTORE_SNAPSHOT_FILE, directory: Directory.Data, encoding: Encoding.UTF8 });
+      snap = JSON.parse(res.data as string);
+    } else {
+      snap = await localforage.getItem(RESTORE_SNAPSHOT_KEY);
+    }
+    return snap && Array.isArray(snap.data?.workouts) ? (snap as RestoreSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * "Delete all data": everything this app keeps on the device - the
  * training data, its migration backup and plan undo, sync bookkeeping and
@@ -472,7 +509,7 @@ export async function wipeAllLocalData(): Promise<void> {
   // First, so a write still queued from before can't recreate the file.
   _dbState = null;
   if (Capacitor.isNativePlatform()) {
-    for (const path of [NATIVE_DB_FILE, MIGRATION_BACKUP_FILE, PLAN_UNDO_FILE]) {
+    for (const path of [NATIVE_DB_FILE, MIGRATION_BACKUP_FILE, PLAN_UNDO_FILE, RESTORE_SNAPSHOT_FILE]) {
       await Filesystem.deleteFile({ path, directory: Directory.Data }).catch(() => {});
     }
   }

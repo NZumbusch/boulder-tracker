@@ -34,7 +34,7 @@ import type { SettingsRecord } from "../preferences/portable";
 import { scrubValueDef } from "../exercise/valueDefs";
 import { saveFile } from "../share/saveFile";
 import type { ShareOutcome } from "../share/imageShare";
-import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo } from "./persistence";
+import { initDB, flushDB, setDbState, writeMigrationBackup, toPlain, _dbState, writePlanUndo, readPlanUndo, writeRestoreSnapshot, readRestoreSnapshot } from "./persistence";
 
 /** The tables a bulk plan change (AI change set, copied week) can touch - what its undo snapshot holds. */
 const PLAN_TABLE_NAMES = ["exerciseTypes", "phaseDefs", "templates", "trainingBlocks", "workouts", "dismissedSessions", "weekNotes", "planAlternatives", "coachNotes", "circuits", "analyticsCategories", "valueDefs", "benchmarkTypes", "goals", "painIssues", "places"] as const;
@@ -116,6 +116,40 @@ function coalesceBlocksInDb(db: { trainingBlocks: TrainingBlock[]; workouts: Wor
   db.trainingBlocks = toPlain(r.blocks);
   db.workouts = toPlain(db.workouts.map((w) => (w.blockId && r.remap[w.blockId] ? { ...w, blockId: r.remap[w.blockId] } : w)));
   return true;
+}
+
+/** Puts a backup's tables in place of what is stored (already migrated), and saves. */
+async function replaceDatabase(data: any): Promise<void> {
+  if (data.workouts) _dbState.workouts = data.workouts;
+  if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
+  // Always set (a backup can have none): the replaced data's dismissals must not outlive it.
+  _dbState.dismissedSessions = data.dismissedSessions ?? [];
+  delete _dbState.weekOverrides;
+  if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
+  if (data.planAlternatives) _dbState.planAlternatives = data.planAlternatives;
+  if (data.athleteProfile) _dbState.athleteProfile = data.athleteProfile;
+  if (data.coachNotes) _dbState.coachNotes = data.coachNotes;
+  if (data.circuits) _dbState.circuits = data.circuits;
+  if (data.goals) _dbState.goals = data.goals;
+  _dbState.places = data.places ?? [];
+  if (data.templates) _dbState.templates = data.templates;
+  if (data.phaseDefs) _dbState.phaseDefs = data.phaseDefs;
+  if (data.exerciseTypes) _dbState.exerciseTypes = data.exerciseTypes;
+  if (data.benchmarks) _dbState.benchmarks = data.benchmarks;
+  if (data.benchmarkTypes) _dbState.benchmarkTypes = data.benchmarkTypes;
+  if (data.analyticsCategories) _dbState.analyticsCategories = data.analyticsCategories;
+  if (data.metricDefs) _dbState.metricDefs = data.metricDefs;
+  if (data.dailyMetrics) _dbState.dailyMetrics = data.dailyMetrics;
+  if (data.painLogs) _dbState.painLogs = data.painLogs;
+  if (data.painIssues) _dbState.painIssues = data.painIssues;
+  if (data.outdoorAscents) _dbState.outdoorAscents = data.outdoorAscents;
+  if (data.settings) _dbState.settings = data.settings;
+  if (data.valueDefs) _dbState.valueDefs = data.valueDefs;
+  _dbState.exportVersion = data.exportVersion || "1.0";
+
+  await flushDB();
+  // A plan-undo snapshot belongs to the data this replaced.
+  await writePlanUndo(null);
 }
 
 export const storage = {
@@ -806,6 +840,29 @@ export const storage = {
     });
   },
 
+  /** What the last backup restore replaced, if it was kept: when, and how many sessions. */
+  async getRestoreSnapshot(): Promise<{ at: string; workouts: number } | null> {
+    const snap = await readRestoreSnapshot();
+    return snap ? { at: snap.at, workouts: snap.workouts } : null;
+  },
+
+  /**
+   * Puts back what the last restore replaced. The data being replaced now is
+   * kept in the same slot, so a second tap undoes this one. Returns false
+   * when there is nothing to go back to.
+   */
+  async restorePrevious(): Promise<boolean> {
+    const snap = await readRestoreSnapshot();
+    if (!snap) return false;
+    await initDB();
+    const current = { at: new Date().toISOString(), workouts: (_dbState.workouts ?? []).length, data: toPlain(_dbState) };
+    // The slot is only given up once the copy of the present data is safe.
+    if (!(await writeRestoreSnapshot(current))) throw new Error("The current data could not be kept, so nothing was restored.");
+    runDataMigrations(snap.data);
+    await replaceDatabase(snap.data);
+    return true;
+  },
+
   /**
    * Replaces everything with a backup file. `confirmImport` sees what the
    * file holds before anything is touched; answering false stops the import
@@ -835,36 +892,10 @@ export const storage = {
           runDataMigrations(data);
           onProgress("Saving", 0.6);
 
-          if (data.workouts) _dbState.workouts = data.workouts;
-          if (data.trainingBlocks) _dbState.trainingBlocks = data.trainingBlocks;
-          // Always set (a backup can have none): the replaced data's dismissals must not outlive it.
-          _dbState.dismissedSessions = data.dismissedSessions ?? [];
-          delete _dbState.weekOverrides;
-          if (data.weekNotes) _dbState.weekNotes = data.weekNotes;
-          if (data.planAlternatives) _dbState.planAlternatives = data.planAlternatives;
-          if (data.athleteProfile) _dbState.athleteProfile = data.athleteProfile;
-          if (data.coachNotes) _dbState.coachNotes = data.coachNotes;
-          if (data.circuits) _dbState.circuits = data.circuits;
-          if (data.goals) _dbState.goals = data.goals;
-          _dbState.places = data.places ?? [];
-          if (data.templates) _dbState.templates = data.templates;
-          if (data.phaseDefs) _dbState.phaseDefs = data.phaseDefs;
-          if (data.exerciseTypes) _dbState.exerciseTypes = data.exerciseTypes;
-          if (data.benchmarks) _dbState.benchmarks = data.benchmarks;
-          if (data.benchmarkTypes) _dbState.benchmarkTypes = data.benchmarkTypes;
-          if (data.analyticsCategories) _dbState.analyticsCategories = data.analyticsCategories;
-          if (data.metricDefs) _dbState.metricDefs = data.metricDefs;
-          if (data.dailyMetrics) _dbState.dailyMetrics = data.dailyMetrics;
-          if (data.painLogs) _dbState.painLogs = data.painLogs;
-          if (data.painIssues) _dbState.painIssues = data.painIssues;
-          if (data.outdoorAscents) _dbState.outdoorAscents = data.outdoorAscents;
-          if (data.settings) _dbState.settings = data.settings;
-          if (data.valueDefs) _dbState.valueDefs = data.valueDefs;
-          _dbState.exportVersion = data.exportVersion || "1.0";
-
-          await flushDB();
-          // A plan-undo snapshot belongs to the data this import replaced.
-          await writePlanUndo(null);
+          // Keep what is here now, so the restore can be taken back.
+          await initDB();
+          await writeRestoreSnapshot({ at: new Date().toISOString(), workouts: (_dbState.workouts ?? []).length, data: toPlain(_dbState) });
+          await replaceDatabase(data);
           resolve();
         } catch (err) {
           reject(err);

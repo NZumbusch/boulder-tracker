@@ -24,7 +24,14 @@
 
   /** Backups from before the rename, if this phone has any - only then is the old folder mentioned. */
   let legacyFolder = $state<string | null>(null);
+  /** What the last restore replaced, if it was kept - offered as "Restore previous". */
+  let previous = $state<{ at: string; workouts: number } | null>(null);
+  async function loadPrevious() { previous = await trainingState.restoreSnapshotInfo(); }
+  async function restorePrevious() {
+    if (await trainingState.restorePrevious()) await loadPrevious();
+  }
   onMount(async () => {
+    void loadPrevious();
     if (!isNative) return;
     for (const folder of LEGACY_BACKUP_FOLDERS) {
       try {
@@ -99,6 +106,14 @@
         <ActionRow icon="ic:baseline-upload" title="Restore from a backup file" hint="Replaces everything on this device. You see what is in the file first." onclick={() => fileInput?.click()} />
         <input bind:this={fileInput} type="file" accept=".json" class="hidden" onchange={handlePicked} />
       </div>
+      {#if previous}
+        <ActionRow
+          icon="ic:baseline-restore"
+          title="Restore previous"
+          hint={`Undo the last restore: back to the ${previous.workouts} session${previous.workouts === 1 ? '' : 's'} this device had on ${new Date(previous.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.`}
+          onclick={restorePrevious}
+        />
+      {/if}
     </div>
     {#if isNative}
       <div class="border-t border-border">
