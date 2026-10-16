@@ -71,7 +71,7 @@
   });
 
   // --- Derived State ---
-  const plannedThisWeek = $derived(trainingState.getPlannedWorkoutsForWeek(trainingState.currentWeekId));
+  const plannedThisWeek = $derived(trainingState.getStartableWorkoutsForWeek(trainingState.currentWeekId));
 
   $effect(() => {
     if (typeof document !== 'undefined') {

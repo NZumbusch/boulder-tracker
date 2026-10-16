@@ -150,3 +150,35 @@ describe("outside Plan B mode", () => {
     expect(names(trainingState.getWeekPlanView(W1).shown)).toEqual(["Board", "Max hangs"]);
   });
 });
+
+describe("the Log a workout list (getStartableWorkoutsForWeek)", () => {
+  it("shows Plan B's session beside Plan A's while undecided, tagged, in schedule order", async () => {
+    await makeOutdoorPlanB();
+    await trainingState.finishPlanBEditing();
+    // Plan A still counts, so the counted-only list has no Outdoor...
+    expect(names(trainingState.getPlannedWorkoutsForWeek(W1))).toEqual(["Board", "Max hangs"]);
+    // ...but the list on the + screen offers it.
+    const list = trainingState.getStartableWorkoutsForWeek(W1);
+    expect(names(list)).toEqual(["Board", "Max hangs", "Outdoor"]);
+    expect(named(list, "Outdoor").planB).toMatchObject({ side: "B", active: false });
+    expect(list.map((w) => w.dayOfWeek)).toEqual(["Monday", "Saturday", "Saturday"]);
+  });
+
+  it("starting the Plan B session from the list keeps its Plan B id", async () => {
+    const outdoor = await makeOutdoorPlanB();
+    await trainingState.finishPlanBEditing();
+    expect(trainingState.getStartableWorkoutsForWeek(W1).find((w) => w.notes === "Outdoor")?.id).toBe(outdoor.id);
+  });
+
+  it("once a side is chosen, the side not chosen drops out", async () => {
+    const outdoor = await makeOutdoorPlanB();
+    await trainingState.finishPlanBEditing();
+    const view = trainingState.getWeekPlanView(W1);
+    await trainingState.setPlanBOccurrence(outdoor.planB?.altId ?? view.occurrences[0].alt.id, view.occurrences[0].key, { chosen: "A" });
+    expect(names(trainingState.getStartableWorkoutsForWeek(W1))).toEqual(["Board", "Max hangs"]);
+  });
+
+  it("is the plain planned list when there is no Plan B, and leaves out done sessions", async () => {
+    expect(trainingState.getStartableWorkoutsForWeek(W1).map((w) => w.id)).toEqual(trainingState.getPlannedWorkoutsForWeek(W1).map((w) => w.id));
+  });
+});

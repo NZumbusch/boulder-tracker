@@ -776,6 +776,19 @@ class TrainingState {
   }
 
   /**
+   * The "Log a workout" screen's list: what counts, plus - while a Plan B is
+   * still undecided - the sessions only its other side has, tagged `planB`,
+   * so a Plan B session can be started from here too. Once a side is chosen
+   * the side not chosen drops out. (The counted-only list stays
+   * `getPlannedWorkoutsForWeek`, for Home, the widget and the numbers.)
+   */
+  getStartableWorkoutsForWeek(weekId: string) {
+    const planned = applyPlanBsToWeek(this.planBContext, weekId).shown
+      .filter((w) => w.status === 'planned' && (!w.planB || w.planB.active || !w.planB.decided));
+    return sortWorkoutsBySchedule(planned);
+  }
+
+  /**
    * Puts a week back under its phases' control, undoing hand edits and
    * deleted sessions. Destructive to this week's saved planned sessions, so
    * it confirms first; completed sessions are always kept.

@@ -176,7 +176,10 @@
               {p.dayOfWeek ? p.dayOfWeek.slice(0, 3) : '—'}
             </span>
             <span class="min-w-0 flex-1">
-              <span class="text-label font-bold text-content block truncate">{p.notes}</span>
+              <span class="text-label font-bold text-content flex items-center gap-1.5 min-w-0">
+                <span class="truncate">{p.notes}</span>
+                {#if p.planB}<span class="shrink-0 text-caption font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-control leading-none" title="Part of a Plan B. Logging it chooses that side.">Plan {p.planB.side}</span>{/if}
+              </span>
               <span class="text-caption text-content-subtle flex items-center gap-1">
                 {#if p.provisional}
                   <!-- Still projected from the phase - logging it saves just this session. -->
