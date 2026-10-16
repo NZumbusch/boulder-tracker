@@ -1047,12 +1047,13 @@
     <!-- Footer: the session-shape controls on top, and below them the three that need a thumb - Pause, End, Finish. On a short (landscape) screen it is one row. -->
     <footer bind:offsetHeight={footerH} class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
       <div class="max-w-lg short:max-w-none mx-auto w-full px-4 py-2 short:py-1 flex flex-col gap-2 short:flex-row short:items-center short:gap-3">
+        <!-- One even row of quiet tools, edge to edge like the pills below: each takes an equal share. -->
         <div class="flex items-center gap-2 short:flex-1 short:min-w-0">
           {#if exercises.length > 0}
             <!-- Nothing to reorder in an empty session: the button is not there rather than greyed out for no visible reason. -->
             <button
               onclick={() => { isEditingPlan = !isEditingPlan; isPickingCircuit = false; pickedSlotIds = []; }}
-              class="btn-quiet px-3 text-label font-bold gap-1.5 {isEditingPlan
+              class="btn-quiet flex-1 px-3 text-label font-bold gap-1.5 {isEditingPlan
                 ? 'bg-primary/15 text-primary'
                 : 'text-content-subtle hover:text-content'}"
               title="Reorder or remove exercises"
@@ -1063,20 +1064,19 @@
           {/if}
           <button
             onclick={() => isAddingExercise = true}
-            class="btn-quiet px-3 text-label font-bold text-content-subtle hover:text-content gap-1.5"
+            class="btn-quiet flex-1 px-3 text-label font-bold text-content-subtle hover:text-content gap-1.5"
             title="Add an exercise you did that wasn't planned"
           >
             <Icon icon="ic:baseline-plus" class="text-base" />
             Add
           </button>
-          <div class="flex-1"></div>
           {#if timer && trainingState.timerPillHidden && !circuitRun}
             {@const t = timer.tucked()}
             <!-- The timer, tucked away: it keeps running, shows its time
                  here, and a tap brings the whole thing back. -->
             <button
               onclick={() => trainingState.setTimerPillHidden(false)}
-              class="h-11 min-w-11 px-3 rounded-full flex items-center justify-center gap-1.5 border text-label font-bold tabular-nums transition-colors {t.running ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
+              class="h-11 min-w-11 flex-1 px-3 rounded-full flex items-center justify-center gap-1.5 border text-label font-bold tabular-nums transition-colors {t.running ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
               aria-label="Show the timer"
               title="Timer"
             >
@@ -1096,7 +1096,7 @@
           </button>
           <button
             onclick={() => isExiting = true}
-            class="btn btn-secondary flex-1 short:flex-none short:px-5 hover:text-danger"
+            class="btn flex-1 short:flex-none short:px-5 rounded-full border border-danger/50 bg-danger/5 text-danger hover:bg-danger/10 active:bg-danger/15"
             aria-label="End the session"
           >
             <Icon icon="ic:baseline-stop-circle" class="text-xl" />
