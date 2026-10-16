@@ -63,6 +63,7 @@ export class PreferencesStore {
   widgetReadinessDetail = $state<WidgetReadinessDetail>('factors');
   welcomeDone = $state(true);
   simpleHome = $state(defaultPreferences().simpleHome);
+  homeCollapsed = $state<HomeSectionPreference['id'][]>(defaultPreferences().homeCollapsed);
 
   constructor() {
     if (typeof localStorage === 'undefined') return;
@@ -135,6 +136,7 @@ export class PreferencesStore {
     this.widgetReadinessDetail = prefs.widgetReadinessDetail;
     this.welcomeDone = prefs.welcomeDone;
     this.simpleHome = prefs.simpleHome;
+    this.homeCollapsed = prefs.homeCollapsed;
   }
 
   setTextScale(scale: TextScale) {
@@ -387,6 +389,13 @@ export class PreferencesStore {
     this.persist();
   }
 
+  /** Folds or opens one Home card (tap its header). */
+  setHomeCollapsed(id: HomeSectionPreference['id'], collapsed: boolean) {
+    const without = this.homeCollapsed.filter((x) => x !== id);
+    this.homeCollapsed = collapsed ? [...without, id] : without;
+    this.persist();
+  }
+
   setSimpleHome(on: boolean) {
     this.simpleHome = on;
     this.persist();
@@ -454,6 +463,7 @@ export class PreferencesStore {
       widgetReadinessDetail: this.widgetReadinessDetail,
       welcomeDone: this.welcomeDone,
       simpleHome: this.simpleHome,
+      homeCollapsed: this.homeCollapsed,
       theme: parseTheme(legacyTheme),
       notificationsEnabled: legacyNotifications === null ? defaultPreferences().notificationsEnabled : legacyNotifications === 'true',
     };

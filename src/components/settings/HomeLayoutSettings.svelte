@@ -69,7 +69,7 @@
 <div class="card space-y-5 animate-in fade-in">
   <div class="space-y-2">
     <h2 class="text-section uppercase text-content-muted px-1">Home sections</h2>
-    <p class="text-caption text-content-subtle px-1">Drag the handle to reorder, use the switch to show or hide. Open a section's options to choose what it shows.</p>
+    <p class="text-caption text-content-subtle px-1">Drag the handle to reorder, use the switch to show or hide. Open a section's options to choose what it shows. On Home, tap a card's title to fold it to its header; Home remembers which.</p>
     <Toggle
       checked={trainingState.simpleHome}
       onChange={(v) => trainingState.setSimpleHome(v)}

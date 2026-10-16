@@ -300,6 +300,8 @@
 @utility card {
   @apply bg-surface-elevated/35 rounded-card p-4;
 }
+/* A Home card folded to its header (CollapsibleCard): everything after the title row goes. */
+[data-collapsed="true"] > .card > :not(:first-child) { display: none; }
 /* "Flat sections" (Settings -> Views): no panel, a hairline between sections like the calendar. */
 :root[data-cards="flat"] .card {
   background: transparent;

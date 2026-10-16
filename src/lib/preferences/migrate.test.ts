@@ -30,6 +30,7 @@ describe('defaultPreferences', () => {
       widgetReadinessDetail: 'factors',
       welcomeDone: false,
       simpleHome: true,
+      homeCollapsed: [],
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
       planBReminderEnabled: true,
@@ -144,6 +145,7 @@ describe('migratePreferences', () => {
       widgetReadinessDetail: 'metrics' as const,
       welcomeDone: true,
       simpleHome: false,
+      homeCollapsed: ['metrics', 'weather'] as const,
     };
     expect(migratePreferences(valid)).toEqual(valid);
   });
@@ -554,5 +556,16 @@ describe('navMode', () => {
     expect(migratePreferences({ ...defaultPreferences(), navMode: 'bar' }).navMode).toBe('bar');
     expect(migratePreferences({ ...defaultPreferences(), navMode: 'drawer' }).navMode).toBe('drawer');
     expect(migratePreferences({ ...defaultPreferences(), navMode: 'sidebar' as never }).navMode).toBe('auto');
+  });
+});
+
+describe('homeCollapsed', () => {
+  it('defaults to every card open, also for an older blob', () => {
+    expect(defaultPreferences().homeCollapsed).toEqual([]);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).homeCollapsed).toEqual([]);
+  });
+  it('keeps known ids once each in order and drops the rest', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeCollapsed: ['weather', 'nope', 'metrics', 'weather', 3] }).homeCollapsed).toEqual(['weather', 'metrics']);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeCollapsed: 'metrics' }).homeCollapsed).toEqual([]);
   });
 });

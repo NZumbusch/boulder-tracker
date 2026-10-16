@@ -177,6 +177,8 @@ export interface Preferences {
   welcomeDone: boolean;
   /** Home hides cards that are empty shells until there is data (`lib/home/newUser.ts`). */
   simpleHome: boolean;
+  /** Home cards the user has folded to their header (tap the header). Empty = every card open, the default. */
+  homeCollapsed: HomeSectionId[];
 }
 
 /** See `Preferences.addedExerciseTarget`. */
@@ -352,6 +354,7 @@ export function defaultPreferences(): Preferences {
     widgetReadinessDetail: 'factors',
     welcomeDone: false,
     simpleHome: true,
+    homeCollapsed: [],
     aiHistory: { ...DEFAULT_AI_HISTORY },
     autoBackup: true,
     aiSharing: {
@@ -384,6 +387,16 @@ const RECOVERY_CHART_MODES: RecoveryChartMode[] = ['overlay', 'lanes'];
  * appended visible, in `HOME_SECTION_IDS`'s canonical order - so a section
  * can never silently disappear or duplicate, and this can never throw.
  */
+/** Known section ids only, each once, in the saved order; anything else is dropped. */
+export function validateHomeCollapsed(raw: unknown): HomeSectionId[] {
+  if (!Array.isArray(raw)) return [];
+  const result: HomeSectionId[] = [];
+  for (const id of raw) {
+    if ((HOME_SECTION_IDS as readonly unknown[]).includes(id) && !result.includes(id as HomeSectionId)) result.push(id as HomeSectionId);
+  }
+  return result;
+}
+
 function validateHomeSections(raw: unknown): HomeSectionPreference[] {
   return validateOrderedToggles(raw, HOME_SECTION_IDS);
 }
@@ -594,6 +607,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     widgetReadinessDetail: WIDGET_READINESS_DETAILS.includes(candidate.widgetReadinessDetail as WidgetReadinessDetail) ? (candidate.widgetReadinessDetail as WidgetReadinessDetail) : defaults.widgetReadinessDetail,
     welcomeDone: typeof candidate.welcomeDone === 'boolean' ? candidate.welcomeDone : true,
     simpleHome: typeof candidate.simpleHome === 'boolean' ? candidate.simpleHome : defaults.simpleHome,
+    homeCollapsed: validateHomeCollapsed(candidate.homeCollapsed),
   };
 }
 

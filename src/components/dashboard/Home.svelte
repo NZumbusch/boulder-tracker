@@ -31,6 +31,7 @@
   import NextGoalCard from './home/NextGoalCard.svelte';
   import RecentActivityCard from './home/RecentActivityCard.svelte';
   import WeatherCard from './home/WeatherCard.svelte';
+  import CollapsibleCard from './home/CollapsibleCard.svelte';
   import Icon from "@iconify/svelte";
   import PullToRefresh from '../common/PullToRefresh.svelte';
   import { driveSync } from '../../lib/sync/driveSync.svelte';
@@ -136,7 +137,7 @@
 
   {#each trainingState.homeSections as section (section.id)}
     {#if section.visible && !isHiddenWhileNew(section.id, trainingState.simpleHome, hasData)}
-      <div data-tour="home-{section.id}" class="empty:hidden">
+      <CollapsibleCard id={section.id}>
       {#if section.id === 'checklist'}<ChecklistCard onBodyweight={() => { quickLogStart = 'bodyweight'; showQuickLog = true; }} />
       {:else if section.id === 'readiness'}<ReadinessCard {data} />
       {:else if section.id === 'alerts'}<AlertsCard {data} />
@@ -153,7 +154,7 @@
       {:else if section.id === 'recentActivity'}<RecentActivityCard />
       {:else if section.id === 'weather'}<WeatherCard />
       {/if}
-      </div>
+      </CollapsibleCard>
     {/if}
   {/each}
 </div>

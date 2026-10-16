@@ -566,6 +566,8 @@ class TrainingState {
 
   /** Whether the first-run welcome has been seen on this device. */
   get welcomeDone() { return this.preferencesStore.welcomeDone; }
+  get homeCollapsed() { return this.preferencesStore.homeCollapsed; }
+  setHomeCollapsed(id: HomeSectionPreference['id'], collapsed: boolean) { this.preferencesStore.setHomeCollapsed(id, collapsed); }
   get simpleHome() { return this.preferencesStore.simpleHome; }
   setSimpleHome(on: boolean) { this.preferencesStore.setSimpleHome(on); }
   setWelcomeDone(done: boolean) { this.preferencesStore.setWelcomeDone(done); }
