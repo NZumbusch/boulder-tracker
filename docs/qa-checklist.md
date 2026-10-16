@@ -320,6 +320,23 @@ Only checked in headless Chrome (phone portrait, phone landscape, tablet landsca
 | 22.7 | Undo in Settings | Settings > Phases: delete a phase, go back to the Settings list, Undo. Leave Settings and try again on a delete. | Undo works after leaving the page that held it, also after leaving Settings (it then restores from the saved data). | | |
 | 22.8 | One setup step | Fresh install welcome. | What you climb, What are you after and How do you train are one step ("Step 2 of 6"); Continue always applies the level. | | |
 
+## 23. Follow-up round 3: History letters, folding, Plan, Analytics (2026-10-27)
+
+Only checked in headless Chrome (phone portrait, phone landscape, laptop, light and dark); nothing on a phone.
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 23.1 | History fatigue letters | History with sessions that have ratings. | Each such row has F A C S with numbers (letters in the Fatigue colours); a one-line legend above the list names them; a screen reader hears the words. Rows without ratings show nothing. | | |
+| 23.2 | Fatigue colours | Home Fatigue card next to Analytics > Recovery > Fatigue. | Fingers, arms, core and systemic have the same colour in both. | | |
+| 23.3 | Fold a Home card | Tap the title of Metrics, then Fatigue; leave Home and come back; restart the app. | The cards stay folded to their title row (with a chevron); tapping the title or the empty part of the header opens them again. The Readiness hero has no fold. | | |
+| 23.4 | Phase patterns | Settings > Plan calendar & day > Patterns on phases: on. Plan > Weeks. | Each phase's weeks and its legend dot carry a fine pattern (the first phase is plain); off removes them. | | |
+| 23.5 | Legend filter | Plan > Weeks: tap a phase in the legend, another, then Show all. | Weeks without a chosen phase fade; Show all (or tapping again) restores them. A week split between two phases stays bright for either. | | |
+| 23.6 | Goals card in the calendar | Settings > Plan calendar & day > Goals card under the calendar: off. Plan > Calendar and Weeks. | The Goals card is gone under the calendar, still in Weeks; goals still show in the calendar. | | |
+| 23.7 | Hide a finding | Analytics > Overview: the eye-off button on a finding, then Undo; hide again. Top menu (three dots). | The finding goes (the next one fills in on Overview); the menu shows "Hidden findings (1)"; the sheet lists it with Show, and Show all again brings everything back. Without hidden findings the menu holds only the CSV export. | | |
+| 23.8 | CSV export | Top menu > Export all sessions as CSV. | The file downloads as before; there is no export button at the bottom of Analytics. | | |
+| 23.9 | Planned load outlines | Analytics > Overview > Rolling Load, with planned sessions. Settings > History & Analytics > Rolling Load: switch off. | Outlined bars (planned) behind the filled bars (logged) with a legend that says the outline has its own scale; no percentage or comparison text beside them. Off removes them and the table column. | | |
+| 23.10 | Settings card names | Settings > History & Analytics. | The cards are named as Analytics prints them (Rolling Load, Training Days, Recovery Trends, Finger Load ...), each with its tab. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.

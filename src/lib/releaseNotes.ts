@@ -20,6 +20,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-27-fold-cards-and-findings",
+    title: "Fold Home cards, hide findings, fatigue letters back",
+    points: [
+      "Home: tap a card's title to fold it to its header; Home remembers which cards you folded. The Fatigue colours now match the Analytics chart.",
+      "History: each session row shows its ratings as F7 A7 C6 S6 again, with a one-line legend above the list.",
+      "Plan: the phase legend filters the weeks, and Settings > Plan calendar & day can add a pattern per phase (for colour blindness) and hide the Goals card under the calendar.",
+      "Analytics: hide a finding you don't want (bring it back from the new top menu, which also holds the CSV export). Rolling Load can draw planned load as outlines behind the bars, on a scale of its own. Settings lists the cards by the names Analytics prints.",
+    ],
+  },
+  {
     id: "2026-10-26-session-bar-and-one-plus",
     title: "Pause and End at your thumb, one + per screen",
     points: [
