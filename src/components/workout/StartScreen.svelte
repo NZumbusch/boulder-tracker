@@ -14,6 +14,7 @@
   import BenchmarkForm from '../common/BenchmarkForm.svelte';
   import Icon from "@iconify/svelte";
   import { openQuickTimerSheet } from '../../lib/timer/quickTimer.svelte';
+  import { openPastSessionSheet } from '../../lib/session/pastSessionUi.svelte';
   import { tick } from 'svelte';
 
   let { plannedWorkouts = [] }: { plannedWorkouts: Workout[] } = $props();
@@ -128,18 +129,31 @@
       </button>
     </div>
 
-    <button
-      onclick={openQuickTimerSheet}
-      data-tour="add-timer"
-      class="w-full p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card transition-all active:scale-[0.99] text-left flex items-center gap-3"
-    >
-      <Icon icon="ic:baseline-timer" class="text-lg text-content-muted shrink-0" />
-      <span class="min-w-0 flex-1">
-        <span class="text-label font-bold block truncate">Timer</span>
-        <span class="text-caption text-content-subtle block">Intervals, a pacer or a countdown. No session needed.</span>
-      </span>
-      <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle shrink-0" />
-    </button>
+<div class="grid grid-cols-2 gap-2.5">
+      <button
+        onclick={openPastSessionSheet}
+        data-tour="add-past"
+        class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card transition-all active:scale-[0.98] text-left flex flex-col gap-2"
+      >
+        <Icon icon="ic:baseline-history" class="text-lg text-content-muted" />
+        <span class="min-w-0">
+          <span class="text-label font-bold block">Past session</span>
+          <span class="text-caption text-content-subtle block">Log one you did</span>
+        </span>
+      </button>
+
+      <button
+        onclick={openQuickTimerSheet}
+        data-tour="add-timer"
+        class="p-3.5 bg-surface-elevated/60 hover:bg-surface-elevated text-content rounded-card transition-all active:scale-[0.98] text-left flex flex-col gap-2"
+      >
+        <Icon icon="ic:baseline-timer" class="text-lg text-content-muted" />
+        <span class="min-w-0">
+          <span class="text-label font-bold block">Timer</span>
+          <span class="text-caption text-content-subtle block">No session needed</span>
+        </span>
+      </button>
+    </div>
 
     {#if isAddingBenchmark}
       <div bind:this={benchmarkForm} class="scroll-mt-4">

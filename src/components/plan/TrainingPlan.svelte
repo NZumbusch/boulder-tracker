@@ -1,9 +1,9 @@
 <script lang="ts">
   import { formatClockText } from '../../lib/timeFormat';
   import AppBar from '../nav/AppBar.svelte';
-  import { openPastSessionSheet } from '../../lib/session/pastSessionUi.svelte';
   import { fabActions } from '../../lib/navigation/fabActions.svelte';
   import InfoButton from '../common/InfoButton.svelte';
+  import { edgeFade } from '../../lib/ui/edgeFade';
   import { showInfo } from '../../lib/help/infoSheet.svelte';
   import { motionMs, motionReduced, scrollBehavior } from '../../lib/motion';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
@@ -462,14 +462,6 @@
         </button>
       {/if}
       <button
-        onclick={openPastSessionSheet}
-        class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
-        aria-label="Log a past session"
-        title="Log a past session"
-      >
-        <Icon icon="ic:baseline-edit-calendar" class="text-xl" />
-      </button>
-      <button
         onclick={() => openBlockManager()}
         class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
         aria-label="Phases and training blocks"
@@ -494,17 +486,17 @@
     {#if shownView === 'calendar'}
       <PlanCalendar bind:this={calendarRef} onAdd={handleAddWorkout} onEditPhase={openBlockManager} onShowWeeks={() => setView('blocks')} />
     {:else}
-    <div class="flex items-start justify-between gap-2 px-1">
+    <div class="flex items-center justify-between gap-2 px-1">
       <!-- The legend is also the filter: tap a phase to fade the weeks that have none of it; tap again to undo. -->
-      <div class="flex flex-wrap gap-x-1 gap-y-0 -ml-2" role="group" aria-label="Phases: tap to show only those weeks">
+      <div use:edgeFade class="edge-fade-x flex flex-nowrap gap-x-1 overflow-x-auto no-scrollbar -ml-2 min-w-0" role="group" aria-label="Phases: tap to show only those weeks">
         {#each selectablePhases as phase (phase.id)}
           {@const on = phaseFilter.has(phase.id)}
-          <button type="button" onclick={() => togglePhaseFilter(phase.id)} aria-pressed={on} class="tap inline-flex items-center gap-1.5 min-h-10 px-2 rounded-control text-caption transition-colors {on ? 'text-content font-semibold bg-surface-elevated' : 'text-content-subtle hover:text-content'}">
+          <button type="button" onclick={() => togglePhaseFilter(phase.id)} aria-pressed={on} class="tap shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 min-h-10 px-2 rounded-control text-caption transition-colors {on ? 'text-content font-semibold bg-surface-elevated' : 'text-content-subtle hover:text-content'}">
             <span class="w-3.5 h-3.5 rounded-full shrink-0 {phase.color || FALLBACK_PHASE_COLOR} {on ? 'ring-2 ring-content' : ''}" style={patternOf(phase.id)} aria-hidden="true"></span>{phase.name}
           </button>
         {/each}
         {#if phaseFilter.size > 0}
-          <button type="button" onclick={() => (phaseFilter = new Set())} class="btn-quiet px-2 min-h-10 text-caption text-primary">Show all</button>
+          <button type="button" onclick={() => (phaseFilter = new Set())} class="btn-quiet shrink-0 whitespace-nowrap px-2 min-h-10 text-caption text-primary">Show all</button>
         {/if}
       </div>
       <!-- Paging through the weeks. -->
@@ -553,8 +545,7 @@
             {#each selectedWeekPhases as part (part.block.id)}
               <button onclick={() => openBlockManager(part.days[0])} class="tap text-left group flex items-baseline gap-1.5" aria-label="Edit the {phaseName(part.block.phaseId)} phase">
                 {#if selectedWeekPhases.length > 1}<span class="w-2 h-2 rounded-full self-center shrink-0 {phaseColor(part.block.phaseId)}"></span>{/if}
-                <h3 class="text-title text-content group-hover:text-primary-hover transition-colors">{phaseName(part.block.phaseId) ?? part.block.name}</h3>
-                <Icon icon="ic:baseline-edit" class="text-sm text-content-subtle self-center shrink-0" />
+                <h3 class="text-title text-content group-hover:text-primary-hover transition-colors underline decoration-dotted decoration-content-subtle/50 underline-offset-4">{phaseName(part.block.phaseId) ?? part.block.name}</h3>
                 {#if selectedWeekPhases.length > 1}<span class="text-caption text-content-subtle whitespace-nowrap">{dayRangeText(weekDayIndex(part.days[0]), weekDayIndex(part.days[part.days.length - 1]))}</span>{/if}
               </button>
             {:else}
@@ -562,7 +553,6 @@
                 <h3 class="text-label text-content-subtle group-hover:text-primary-hover transition-colors">No phase - tap to add</h3>
               </button>
             {/each}
-            <InfoButton term="phases" />
           </div>
 
           {#if selectedWeekAlso.length > 0}
@@ -752,7 +742,7 @@
               </button>
             {/if}
             {#if !fabActions.showing}
-              <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="chip text-primary hover:bg-surface-elevated transition-colors" aria-label="Add a session to this week">Add session</button>
+              <button onclick={() => handleAddWorkout(trainingState.selectedWeekId!)} class="tap p-1.5 rounded-full bg-surface-elevated text-primary hover:bg-surface-elevated-hover transition-colors" aria-label="Add a session to this week" title="Add a session to this week"><Icon icon="ic:baseline-plus" class="text-lg" /></button>
             {/if}
           </div>
         </div>

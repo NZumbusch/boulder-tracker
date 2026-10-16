@@ -486,27 +486,6 @@
 <div class="page-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <AppBar title="Analytics" subtitle={windowDateRange}>
     {#snippet actions()}
-      <!-- Window paging: a step is one whole range, so the buttons say which. "Today" is only there when you are away
-           from the current window. -->
-        <button
-          onclick={() => navigate('prev')}
-          class="btn-icon"
-          aria-label="Previous {RANGE_WORDS[range]}"
-          title="Previous {RANGE_WORDS[range]}"
-        >
-          <Icon icon="ic:baseline-chevron-left" class="text-2xl" />
-        </button>
-        {#if viewOffset !== 0}
-          <button onclick={() => navigate('today')} class="btn-quiet px-3 text-label text-primary hover:bg-surface-elevated/60">Today</button>
-        {/if}
-        <button
-          onclick={() => navigate('next')}
-          class="btn-icon"
-          aria-label="Next {RANGE_WORDS[range]}"
-          title="Next {RANGE_WORDS[range]}"
-        >
-          <Icon icon="ic:baseline-chevron-right" class="text-2xl" />
-        </button>
         <OverflowMenu items={overflowItems} />
     {/snippet}
   </AppBar>
@@ -528,14 +507,26 @@
       {/each}
     </div>
 
-    <!-- Range preset; the dates it covers are the page title's second line. -->
-    <div data-tour="analytics-range">
+    <!-- Range preset; the dates it covers are the page title's second line. Window paging sits beside it: a step is one
+         whole range, so the buttons say which. "Today" is only there when you are away from the current window. -->
+    <div class="flex items-center justify-between gap-2" data-tour="analytics-range">
       <Segmented
         label="Range"
         options={ANALYTICS_RANGES.map((r) => ({ value: r, label: RANGE_LABELS[r] }))}
         value={range}
         onChange={setRange}
       />
+      <div class="flex items-center shrink-0 -mr-2">
+        <button onclick={() => navigate('prev')} class="btn-icon" aria-label="Previous {RANGE_WORDS[range]}" title="Previous {RANGE_WORDS[range]}">
+          <Icon icon="ic:baseline-chevron-left" class="text-2xl" />
+        </button>
+        {#if viewOffset !== 0}
+          <button onclick={() => navigate('today')} class="btn-quiet px-2 text-label text-primary hover:bg-surface-elevated/60">Today</button>
+        {/if}
+        <button onclick={() => navigate('next')} class="btn-icon" aria-label="Next {RANGE_WORDS[range]}" title="Next {RANGE_WORDS[range]}">
+          <Icon icon="ic:baseline-chevron-right" class="text-2xl" />
+        </button>
+      </div>
     </div>
   </div>
 

@@ -13,6 +13,8 @@
   import Sheet from '../ui/Sheet.svelte';
   import Segmented from '../ui/Segmented.svelte';
   import Toggle from '../ui/Toggle.svelte';
+  import OverflowMenu, { type OverflowItem } from '../ui/OverflowMenu.svelte';
+  import InfoButton from '../common/InfoButton.svelte';
   import PhaseTimeline from './PhaseTimeline.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
@@ -261,6 +263,21 @@
     if (b) viewDate = b.startDate;
   }
 
+  /** What the selected phase's menu holds: the less common operations. */
+  const moreItems = $derived.by((): OverflowItem[] => {
+    const b = selected;
+    if (!b) return [];
+    const items: OverflowItem[] = [];
+    if (blockLength(b) >= 2) items.push({ label: 'Split', icon: 'ic:baseline-call-split', onclick: openSplit });
+    items.push({ label: 'Repeat', icon: 'ic:baseline-repeat', onclick: openRepeat });
+    if (review) {
+      items.push({ label: 'Review', icon: 'ic:baseline-insights', onclick: () => openBlockReview(b.id) });
+      items.push({ label: 'Ask the AI', icon: 'ic:baseline-auto-awesome', onclick: () => askAboutBlock(b.id) });
+    }
+    items.push({ label: 'Delete', icon: 'ic:baseline-delete', onclick: () => void remove(b.id) });
+    return items;
+  });
+
   onMount(() => {
     if (!focusDate) return;
     const here = phaseOnDay(blocks, focusDate);
@@ -282,6 +299,7 @@
   <div class="mx-auto w-full px-4 pb-16 space-y-4 {layout.wide ? 'max-w-6xl' : 'max-w-3xl'}">
     <AppBar title="Phases" {subtitle} onBack={onClose}>
       {#snippet actions()}
+        <InfoButton term="phases" />
         <button onclick={() => startNew()} class="btn-icon" aria-label="Add a phase" title="Add a phase"><Icon icon="ic:baseline-plus" class="text-2xl" /></button>
       {/snippet}
     </AppBar>
@@ -308,7 +326,7 @@
     />
 
     <!-- One line under the timeline: a hint, or - while a bar is being dragged - what the drag would do. -->
-    <div class="min-h-10 text-caption space-y-0.5" aria-live="polite">
+    <div class="text-caption space-y-0.5 {selected && !draftNote ? '' : 'min-h-10'}" aria-live="polite">
       {#if draftNote}
         <p class="text-content">{draftNote.own}</p>
         {#each draftNote.lines as line}<p class="text-content-muted">{line}</p>{/each}
@@ -316,9 +334,7 @@
       {:else if blocks.length === 0}
         <p class="text-content-subtle">No phases yet. Tap + to add one, or tap the timeline on a day.</p>
       {:else if !selected}
-        <p class="text-content-subtle">Tap a phase to select it, then drag its ends to change the days. Tap an empty day to start one there.</p>
-      {:else}
-        <p class="text-content-subtle">Drag the ends to change the first or last day; drag the bar to move it.{scale === 'month' ? '' : ' Zoomed out, it snaps to whole weeks.'}</p>
+        <p class="text-content-subtle">Tap a phase, then drag its ends to change the days (zoomed out, they snap to whole weeks). Tap an empty day to start one there.</p>
       {/if}
     </div>
 
@@ -344,21 +360,12 @@
             {#if review.mix.length}<p class="text-caption text-content-subtle">Most time: {review.mix.slice(0, 3).map((m) => `${m.name} ${Math.round(m.share * 100)}%`).join(', ')}</p>{/if}
           </div>
         {/if}
-        <div class="grid grid-cols-3 gap-2">
+        <!-- The two things done most are buttons; the rest sit behind the menu. -->
+        <div class="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
           <button onclick={() => startEdit(selected)} class="btn btn-secondary"><Icon icon="ic:baseline-edit" /><span>Edit</span></button>
-          <button onclick={openSplit} disabled={blockLength(selected) < 2} class="btn btn-secondary"><Icon icon="ic:baseline-call-split" /><span>Split</span></button>
           <button onclick={openShift} class="btn btn-secondary"><Icon icon="ic:baseline-swap-horiz" /><span>Move</span></button>
-          <button onclick={openRepeat} class="btn btn-secondary"><Icon icon="ic:baseline-repeat" /><span>Repeat</span></button>
-          {#if blockFirstWeekId(selected) <= currentWeek}
-            <button onclick={() => openBlockReview(selected.id)} class="btn btn-secondary"><Icon icon="ic:baseline-insights" /><span>Review</span></button>
-          {:else}
-            <span></span>
-          {/if}
-          <button onclick={() => remove(selected.id)} class="btn btn-secondary hover:text-danger"><Icon icon="ic:baseline-delete" /><span>Delete</span></button>
+          <OverflowMenu label="More about this phase" items={moreItems} />
         </div>
-        {#if review}
-          <button onclick={() => askAboutBlock(selected.id)} class="btn btn-ghost w-full"><Icon icon="ic:baseline-auto-awesome" class="text-primary" /><span>Ask the AI about this phase</span></button>
-        {/if}
       </section>
     {/if}
 

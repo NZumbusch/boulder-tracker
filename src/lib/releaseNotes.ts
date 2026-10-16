@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-declutter",
+    title: "Fewer buttons on Plan, Analytics and Phases",
+    points: [
+      "Plan > Weeks: the phase legend is one sideways row, and Add session is a round +. Log a past session moved to the Log a workout screen (Past session), out of the Plan and History bars.",
+      "Analytics: the range switch and the back/forward arrows share one row. Phases: Edit and Move are buttons, everything else is in the menu; the help ? moved to its top bar.",
+    ],
+  },
+  {
     id: "2026-10-29-calmer-calendar",
     title: "A calmer Plan calendar",
     points: [
