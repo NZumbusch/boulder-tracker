@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sessionColor, exerciseSegments, calendarSessionColor, SESSION_CLASS } from "./sessionColors";
+import { sessionColor, exerciseSegments, calendarSessionColor, SESSION_CLASS, STATUS_CLASS, sessionStatus } from "./sessionColors";
 import type { AnalyticsCategory, ExerciseSlot, ExerciseTypeDef, Workout } from "../types";
 
 const categories: AnalyticsCategory[] = [
@@ -65,5 +65,21 @@ describe("calendarSessionColor", () => {
   it("is the main category's colour when asked, the shared one when it has none", () => {
     expect(calendarSessionColor(mixed, types, categories, true)).toBe("bg-amber-500");
     expect(calendarSessionColor(session([slot("a", "x", 10)]), types, categories, true)).toBe(SESSION_CLASS);
+  });
+});
+
+describe("session status colours", () => {
+  it("is done, still to do, or missed by the day", () => {
+    expect(sessionStatus({ done: true, day: 10 }, 12)).toBe("done");
+    expect(sessionStatus({ done: false, day: 12 }, 12)).toBe("planned");
+    expect(sessionStatus({ done: false, day: 13 }, 12)).toBe("planned");
+    expect(sessionStatus({ done: false, day: 11 }, 12)).toBe("missed");
+  });
+  it("blue to do, green done, red missed - and the category colour only when asked for", () => {
+    expect(STATUS_CLASS).toEqual({ done: SESSION_CLASS, planned: "bg-blue-500", missed: "bg-red-500" });
+    const w = { exercises: [], status: "planned" } as unknown as Workout;
+    expect(calendarSessionColor(w, [], [], false, "planned")).toBe("bg-blue-500");
+    expect(calendarSessionColor(w, [], [], false, "missed")).toBe("bg-red-500");
+    expect(calendarSessionColor(w, [], [], true, "missed")).toBe("bg-red-500");
   });
 });

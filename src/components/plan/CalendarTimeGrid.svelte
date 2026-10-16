@@ -16,7 +16,7 @@
   import { clampZoom, pinchZoom, wheelZoom, scrollAfterZoom, showsExercises } from '../../lib/planning/calendarZoom';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
   import { capBars, isBarEvent, type HeaderBar } from '../../lib/planning/headerBars';
-  import { calendarSessionColor } from '../../lib/planning/sessionColors';
+  import { calendarSessionColor, sessionStatus } from '../../lib/planning/sessionColors';
   import { swipeGuard } from '../../lib/analytics/swipe';
   import { portal } from '../../lib/ui/portal';
   import Icon from '@iconify/svelte';
@@ -291,7 +291,7 @@
   const dateOf = (day: number) => new Date(day * 86_400_000).getUTCDate();
 
   /** A session's colour: one shared green, or the category that takes most of it (strong on dark, pastel on light - see `.cal-fill`). */
-  const colorOf = (s: CalendarSession) => calendarSessionColor(s.workout, exerciseTypes, categories, byCategory);
+  const colorOf = (s: CalendarSession) => calendarSessionColor(s.workout, exerciseTypes, categories, byCategory, sessionStatus(s, today));
   const soft = (s: CalendarSession) => (s.workout.provisional ? 'cal-soft' : '');
   const tone = (s: CalendarSession) => `${isFaded(s) ? 'opacity-40' : ''} ${isRunning(s) ? 'ring-1 ring-success' : ''}`;
   function meta(s: CalendarSession): string {
@@ -416,7 +416,7 @@
               style={dragStyle(s)}
             >
               <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
-              <span lang={lang} class="relative block {sizeClass} {showMeta ? 'text-label font-medium truncate' : 'text-caption leading-tight font-medium truncate'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
+              <span lang={lang} class="relative block {sizeClass} {showMeta ? 'text-label font-medium truncate' : 'text-caption leading-tight font-medium truncate'}">{#if s.done && byCategory}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
               {#if showMeta && !compact}
                 <span class="relative block text-caption opacity-80">{meta(s)}</span>
               {/if}
@@ -497,7 +497,7 @@
                 <!-- The banner: the session in the colour of its main category. -->
                 <span class="relative block px-2 py-1.5 {detail ? 'shrink-0' : 'flex-1 min-h-0'}">
                   <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
-                  <span lang={lang} class="relative block font-medium {sizeClass} {showMeta ? 'text-label leading-snug' : 'text-caption leading-[14px] break-words'}" style={titleStyle(heightPx, showMeta ? 36 : 12, s.done ? 2 : 1)}>{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
+                  <span lang={lang} class="relative block font-medium {sizeClass} {showMeta ? 'text-label leading-snug' : 'text-caption leading-[14px] break-words'}" style={titleStyle(heightPx, showMeta ? 36 : 12, s.done && byCategory ? 2 : 1)}>{#if s.done && byCategory}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
                   {#if showMeta}<span class="relative block text-caption opacity-80">{meta(s)}</span>{/if}
                   {#if !detail && ex.names.length}
                     <span class="relative block mt-0.5 text-caption opacity-80">

@@ -8,7 +8,7 @@
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
   import type { AnalyticsCategory, ExerciseTypeDef, GoalEvent } from '../../lib/types';
-  import { calendarSessionColor } from '../../lib/planning/sessionColors';
+  import { calendarSessionColor, sessionStatus } from '../../lib/planning/sessionColors';
   import { formatDay } from '../../lib/dateUtils';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
 
@@ -71,7 +71,7 @@
   // On a wide screen a day is roomy enough for the sessions' names instead of dots.
   let gridW = $state(0);
   const wide = $derived(!mini && gridW / 7 >= 92);
-  const colorOf = (s: CalendarSession) => calendarSessionColor(s.workout, exerciseTypes, categories, byCategory);
+  const colorOf = (s: CalendarSession) => calendarSessionColor(s.workout, exerciseTypes, categories, byCategory, sessionStatus(s, today));
   /** The full date for a screen reader: weekday, day, month and year. */
   const dayLabel = (day: number) => formatDay(dayIndexToIso(day), { weekday: 'long', year: true });
   const monthName = $derived(new Date(Date.UTC(year, month, 1)).toLocaleDateString(undefined, { month: 'long', timeZone: 'UTC' }));

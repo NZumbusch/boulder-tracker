@@ -235,7 +235,7 @@
   const phaseNames = $derived(trainingState.tunableOn('plan.calendarPhaseNames') && viewportW >= 380);
   const phaseTint = $derived(phases.size > 0 && trainingState.tunableOn('plan.calendarPhaseTint'));
   const focused = $derived(focusSessions && mode !== 'year');
-  const byCategory = $derived(focused || trainingState.tunableOn('plan.calendarCategoryColors'));
+  const byCategory = $derived(trainingState.tunableOn('plan.calendarCategoryColors'));
   const eventColor = (e: DeviceEvent) => (focused ? NEUTRAL_HEX : deviceCalendar.colorOf(e));
   /** Trips, competitions and the phone's all-day / multi-day events as bars over the days shown. */
   const bars = $derived(headerBars(mode === 'year' ? [] : trainingState.goals, deviceCalendar.events.filter((e) => e.day >= range[0] && e.day <= range[1]), shownDays));

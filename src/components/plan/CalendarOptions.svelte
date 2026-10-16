@@ -43,7 +43,7 @@
       </div>
     {/if}
 
-    <Toggle checked={focusSessions} onChange={onFocus} label="Focus on sessions" hint="Phone-calendar events turn grey and each session takes the colour of its main exercise type" />
+    <Toggle checked={focusSessions} onChange={onFocus} label="Focus on sessions" hint="Phone-calendar events turn grey, so the sessions stand out: blue to do, green done, red missed" />
 
     {#if phoneCalendars.length > 0}
       <div class="space-y-0.5">

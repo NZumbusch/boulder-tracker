@@ -20,6 +20,13 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-status-colours",
+    title: "Sessions coloured by status",
+    points: [
+      "In the calendar a session is blue while it is still to do, green when done, and red when it was planned for a day that has passed and not done. The check mark is gone (more room for the title). Colour by exercise category in Settings still gives type colours, with the check mark. Focus on sessions now only greys the phone's events.",
+    ],
+  },
+  {
     id: "2026-10-29-grid-text",
     title: "Easier-to-read text in the hour grid (optional)",
     points: [

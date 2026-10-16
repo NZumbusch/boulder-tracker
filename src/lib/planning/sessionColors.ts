@@ -44,13 +44,24 @@ export function sessionColor(workout: Workout, types: ExerciseTypeDef[], categor
   return best;
 }
 
-/** The one colour sessions share on the calendar (Tailwind class); `SESSION_HEX` in `calendar/eventColor.ts` is the same colour. */
+/** The colour of a done session on the calendar (Tailwind class); `SESSION_HEX` in `calendar/eventColor.ts` is the same colour. */
 export const SESSION_CLASS = "bg-emerald-500";
 
+export type SessionStatus = "done" | "planned" | "missed";
+
+/** What the calendar colours a session by: done (green), still to do (blue) or planned for a day that has passed without being done (red). */
+export const STATUS_CLASS: Record<SessionStatus, string> = { done: SESSION_CLASS, planned: "bg-blue-500", missed: "bg-red-500" };
+
+/** `day` and `today` are day indexes (`calendarEvents.ts`). */
+export function sessionStatus(session: { done: boolean; day: number }, today: number): SessionStatus {
+  if (session.done) return "done";
+  return session.day < today ? "missed" : "planned";
+}
+
 /**
- * A session's fill on the calendar: the shared session colour, or - with `byCategory` - the category that takes
- * most of it (the shared colour still when it has none).
+ * A session's fill on the calendar: its status colour (done, to do, missed), or - with `byCategory` - the category
+ * that takes most of it (the status colour still when it has none).
  */
-export function calendarSessionColor(workout: Workout, types: ExerciseTypeDef[], categories: AnalyticsCategory[], byCategory: boolean): string {
-  return (byCategory ? sessionColor(workout, types, categories) : undefined) ?? SESSION_CLASS;
+export function calendarSessionColor(workout: Workout, types: ExerciseTypeDef[], categories: AnalyticsCategory[], byCategory: boolean, status: SessionStatus = "done"): string {
+  return (byCategory ? sessionColor(workout, types, categories) : undefined) ?? STATUS_CLASS[status];
 }
