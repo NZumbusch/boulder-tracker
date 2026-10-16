@@ -19,3 +19,7 @@ Branch `claude/ui-followup`. Decisions: `followup-decisions.md`. Logic and migra
 - Release note `2026-10-25-past-sessions-and-clock`, QA section 21.
 - `ui-round-2/README.md` leftovers for `state.svelte.ts` are now done; it was not edited.
 - Not looked at: the empty-session dialogs on screen, the date chip's native date picker on Android, the Restore previous flow end to end with a real file.
+
+## Audit screens and coverage (follow-up 5)
+
+Screen ids in `scripts/audit/screens/followup1.mjs`: `history-log-past-entry`, `plan-log-past-entry` (the entry button), `log-past-sheet` (**PastSessionSheet.svelte**, the day/time sheet in `components/workout/`), `log-past-editor`, `empty-session-warning` (the confirm shown when saving a session with nothing in it), `calendar-*-12h`, `settings-reminders`, `settings-ai-sharing`, `settings-backup-restore-previous`.

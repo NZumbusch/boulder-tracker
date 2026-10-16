@@ -23,3 +23,5 @@ Follow-up 2 removed the per-day + from the Plan week list. What is left: the flo
 
 - Release note `2026-10-27-fold-cards-and-findings` and QA section 23 are written; the new audit screens are in `scripts/audit/screens/followup3.mjs`.
 - Not looked at: dark theme beyond the screens listed above on tablets, the Android app, the fold chevron with a screen reader, a real colour-blind check of the patterns, long phase lists wrapping the legend (7 phases wrap to three rows on a phone).
+
+Coverage note: `HiddenFindingsSheet.svelte` (analytics, the "Hidden findings (n)" sheet) is the screen `analytics-hidden-sheet` in `followup3.mjs`.

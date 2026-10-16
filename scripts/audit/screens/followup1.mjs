@@ -16,6 +16,15 @@ export const screens = [
   { id: 'log-past-editor', area: 'followup1', setup: async (c) => {
       await c.nav('history'); await c.click('Log a past session'); await sleep(400); await c.click('Continue'); await sleep(700);
     }, teardown: async (c) => { await c.st(`${mod('workoutModal.svelte.ts')} workoutModal.closeWorkout()`); await c.close(); } },
+  // Saving the empty past session asks first (emptySessionWarning). The question is the platform's own confirm box, which
+  // freezes a headless page, so the box is replaced by a stub that records the text and answers "Keep editing": the shot
+  // shows the editor still open, and the recorded text is checked in setup (the screen fails when no question was asked).
+  { id: 'empty-session-warning', area: 'followup1', setup: async (c) => {
+      await c.nav('history'); await c.click('Log a past session'); await sleep(400); await c.click('Continue'); await sleep(700);
+      await c.ev(`window.confirm = (m) => { window.__emptyConfirm = m; return false; }`);
+      await c.click('Save', { exact: false }); await sleep(600);
+      if (!(await c.ev(`!!window.__emptyConfirm`))) throw new Error('no empty-session question was asked');
+    }, teardown: async (c) => { await c.ev(`location.reload()`); await sleep(2500); } },
   { id: 'plan-log-past-entry', area: 'followup1', setup: async (c) => { await plan(c, { view: 'blocks' }); } },
   { id: 'calendar-week-24h', area: 'followup1', setup: async (c) => { await clockOff(c); await plan(c, { mode: 'week' }); } },
   { id: 'calendar-week-12h', area: 'followup1', setup: async (c) => { await c.st(`t.setTunable('ui.clock12', true); t.setTunable('plan.weekAgenda', false); t.setTunable('plan.weekListOnPhone', false)`); await plan(c, { mode: 'week' }); }, teardown: async (c) => { await c.st(`t.setTunable('plan.weekAgenda', false); t.setTunable('plan.weekListOnPhone', true)`); await clockOff(c); await c.close(); } },
