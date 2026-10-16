@@ -89,7 +89,7 @@
     {@render children()}
 
     {#if footer}
-      <div class="sticky bottom-0 -mx-5 px-5 pt-3 pb-4 bg-surface flex gap-2 group-data-[typing]:static">{@render footer()}</div>
+      <div data-sheet-footer class="sticky bottom-0 -mx-5 px-5 pt-3 pb-4 bg-surface flex gap-2 group-data-[typing]:static">{@render footer()}</div>
     {:else}
       <div class="pb-2" aria-hidden="true"></div>
     {/if}
