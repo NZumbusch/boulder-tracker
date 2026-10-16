@@ -25,7 +25,7 @@
   </button>
   <button
     onclick={() => (open = !open)}
-    class="min-h-11 min-w-8 grid place-items-center transition-colors {open ? 'text-primary' : cueMute.muted ? 'text-warning' : 'text-content-subtle hover:text-content'}"
+    class="min-h-11 min-w-10 grid place-items-center transition-colors {open ? 'text-primary' : cueMute.muted ? 'text-warning' : 'text-content-subtle hover:text-content'}"
     aria-label="Cue volume, {percent} %"
     aria-expanded={open}
   >

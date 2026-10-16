@@ -253,7 +253,7 @@
       </p>
       <input
         bind:value={workout.notes}
-        class="w-full bg-transparent text-title text-content outline-none border-b border-dashed border-border-strong focus:border-primary/60 pb-0.5 transition-colors"
+        class="min-h-10 w-full bg-transparent text-title text-content outline-none border-b border-dashed border-border-strong focus:border-primary/60 pb-0.5 transition-colors"
         placeholder="Session name"
         aria-label="Session name"
       />

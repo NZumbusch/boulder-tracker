@@ -55,7 +55,7 @@
       {/if}
     </span>
     {#if onclick}
-      <button {onclick} class="min-w-0 flex-1 text-left flex items-center gap-1.5">
+      <button {onclick} class="min-w-0 flex-1 text-left flex items-center gap-1.5 py-2.5 -my-2.5">
         <span class="text-body font-bold text-content break-words min-w-0">{slotTypeName(slot, trainingState.exerciseTypes)}</span>
         <Icon icon="ic:baseline-chevron-right" class="text-lg text-content-subtle shrink-0" />
       </button>
