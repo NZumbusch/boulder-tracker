@@ -26,6 +26,6 @@
     {#if hint}<span class="block text-caption text-content-subtle mt-0.5">{hint}</span>{/if}
   </span>
   <span class="relative shrink-0 w-11 h-6 rounded-full border border-field transition-colors {checked ? 'bg-primary border-primary' : 'bg-surface-elevated/60'}" aria-hidden="true">
-    <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full shadow transition-transform {checked ? 'bg-on-primary translate-x-5' : 'bg-content-muted translate-x-0'}"></span>
+    <span class="absolute top-px left-px w-5 h-5 rounded-full shadow transition-transform {checked ? 'bg-on-primary translate-x-5' : 'bg-content-muted translate-x-0'}"></span>
   </span>
 </button>

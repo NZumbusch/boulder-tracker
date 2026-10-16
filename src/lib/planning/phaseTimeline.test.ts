@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TrainingBlock } from "../types";
-import { assignLanes, cycleBlocks, placeCycle, snapToWeek, canSplitAt, cycleSpan, dragDays, gapsBetween, gapsInPlan, overlaps, repeatCycle, repeatEnd, setBlockDays, shiftBlock, splitBlock } from "./phaseTimeline";
+import { openGaps, assignLanes, cycleBlocks, placeCycle, snapToWeek, canSplitAt, cycleSpan, dragDays, gapsBetween, gapsInPlan, overlaps, repeatCycle, repeatEnd, setBlockDays, shiftBlock, splitBlock } from "./phaseTimeline";
 
 const blk = (id: string, startDate: string, endDate: string, priority = 0): TrainingBlock => ({ id, name: id, phaseId: "p-" + id, startDate, endDate, priority });
 let n = 0;
@@ -135,4 +135,20 @@ describe("cycleBlocks", () => {
     expect(days(out.filter((b) => b.id === "old"))).toEqual(["old:2026-01-01..2026-01-04"]);
     expect(out).toHaveLength(5);
   });
+});
+
+describe("openGaps", () => {
+  const bs = [blk("a", "2026-01-05", "2026-01-11"), blk("b", "2026-01-15", "2026-01-18"), blk("c", "2026-01-24", "2026-01-25")];
+  it("flags every hole when all of it is still ahead", () => {
+    expect(openGaps(bs, "2026-01-01").map((g) => `${g.from}..${g.to}`)).toEqual(["2026-01-12..2026-01-14", "2026-01-19..2026-01-23"]);
+  });
+  it("never flags days before today, and cuts a gap that straddles it", () => {
+    expect(openGaps(bs, "2026-01-13").map((g) => `${g.from}..${g.to}`)).toEqual(["2026-01-13..2026-01-14", "2026-01-19..2026-01-23"]);
+    expect(openGaps(bs, "2026-01-20").map((g) => `${g.from}..${g.to}`)).toEqual(["2026-01-20..2026-01-23"]);
+    expect(openGaps(bs, "2026-02-01")).toEqual([]);
+  });
+  it("leaves out days you ignored, keeping the rest of the gap", () => {
+    expect(openGaps(bs, "2026-01-01", [{ from: "2026-01-12", to: "2026-01-14" }, { from: "2026-01-19", to: "2026-01-20" }]).map((g) => `${g.from}..${g.to}`)).toEqual(["2026-01-21..2026-01-23"]);
+  });
+  it("has nothing without blocks", () => { expect(openGaps([], "2026-01-01")).toEqual([]); });
 });

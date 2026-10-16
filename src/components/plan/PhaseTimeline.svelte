@@ -10,7 +10,7 @@
   import type { PhaseDef, TrainingBlock } from '../../lib/types';
   import { addDaysIso, toUtcDayIndex } from '../../lib/dateUtils';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
-  import { assignLanes, blockLength, dragDays, gapsInPlan, daysBetween, snapToWeek } from '../../lib/planning/phaseTimeline';
+  import { assignLanes, blockLength, dragDays, daysBetween, snapToWeek } from '../../lib/planning/phaseTimeline';
   import { swipeGuard } from '../../lib/analytics/swipe';
 
   let {
@@ -19,6 +19,7 @@
     today,
     pxPerDay,
     selectedId = null,
+    gaps = [],
     focusDate,
     onSelect,
     onDraft,
@@ -30,6 +31,8 @@
     today: string;
     pxPerDay: number;
     selectedId?: string | null;
+    /** Days still ahead that no phase covers (see `openGaps`), drawn as dashed bars. */
+    gaps?: { from: string; to: string; days: number }[];
     /** A day to bring into view (when it changes, the timeline scrolls there). */
     focusDate?: string;
     onSelect: (id: string | null) => void;
@@ -57,7 +60,6 @@
 
   const lanes = $derived(assignLanes(blocks));
   const laneCount = $derived(Math.max(1, ...[...lanes.values()].map((l) => l + 1)));
-  const gaps = $derived(gapsInPlan(blocks));
 
   // Month labels (and week ticks when zoomed in far enough to read them).
   const months = $derived.by(() => {

@@ -96,6 +96,23 @@ export function gapsInPlan(blocks: TrainingBlock[]): { from: string; to: string;
   return span ? gapsBetween(blocks, span.start, span.end) : [];
 }
 
+/**
+ * The gaps worth a look: days inside the planned stretch that have no phase, from `today` on (a past day can't be
+ * planned any more, so it is never flagged) and not in a range you chose to ignore.
+ */
+export function openGaps(blocks: TrainingBlock[], today: string, ignored: { from: string; to: string }[] = []): { from: string; to: string; days: number }[] {
+  const span = cycleSpan(blocks);
+  if (!span) return [];
+  const gaps: { from: string; to: string; days: number }[] = [];
+  let run: { from: string; to: string; days: number } | undefined;
+  for (let day = span.start < today ? today : span.start; day <= span.end; day = addDaysIso(day, 1)) {
+    if (phaseOnDay(blocks, day) || ignored.some((r) => r.from <= day && day <= r.to)) run = undefined;
+    else if (run) { run.to = day; run.days++; }
+    else gaps.push((run = { from: day, to: day, days: 1 }));
+  }
+  return gaps;
+}
+
 export interface Overlap { a: TrainingBlock; b: TrainingBlock; from: string; to: string }
 
 /** Pairs of blocks that cover some of the same days (concurrent emphases, or old data), with the days they share. */

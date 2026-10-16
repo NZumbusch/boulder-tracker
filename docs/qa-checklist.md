@@ -366,6 +366,8 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 25.12 | Delete with Undo | Delete a phase. | It goes without a question; Undo in the toast brings it back. | | |
 | 25.13 | Soft week grid | Plan > Weeks, light and dark theme. | Rounded tiles, solid colours, empty weeks a faint grey, a ring and number on the picked week, a dot on this week, a small pill where a year starts. Settings > Views > Clear week grid: a number on every tile and a firm outline. High contrast theme: numbers and white outline whatever the setting. | | |
 | 25.14 | Light look elsewhere | Home, Plan, Analytics in light and dark; Settings > General > Raised cards off, then Flat sections on. | Cards are white (light) with a soft shadow and round corners; off gives the flat tinted panel; flat sections wins over both. Secondary buttons (Edit, Split, Move...) are pale outlined pills. The bottom bar shows a dot under the current tab and no pill. High contrast theme: outlines, no shadows, white pill borders. | | |
+| 25.15 | Ignore gaps | Phases page with days between two blocks, some past, some ahead. | Only gaps from today on are listed (and dashed on the timeline); the x on a row ignores those days with an Undo; Fill still starts a phase there. Ignoring is per device. | | |
+| 25.16 | Switch and card polish | Settings > App & display > Look & feel, light and dark. | Switch knobs have the same gap on all four sides, on and off. Cards have a thin edge and a firmer shadow so they stand out from the page. | | |
 
 ## After the run
 

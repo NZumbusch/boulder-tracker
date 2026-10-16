@@ -16,13 +16,14 @@
   import PhaseTimeline from './PhaseTimeline.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
+  import { showUndo } from '../../lib/toast.svelte';
   import type { TrainingBlock } from '../../lib/types';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { sortBlocks, classifyBlock } from '../../lib/planning/blockPaging';
   import { phaseOnDay, blockFirstWeekId } from '../../lib/planning/trainingBlocks';
   import { placeBlock, describeBlockChanges, daysWithoutPhase, shortDate } from '../../lib/planning/blockEdit';
   import {
-    blockLength, canSplitAt, gapsInPlan, overlaps, repeatCycle, repeatEnd, setBlockDays, shiftBlock, splitBlock, daysBetween, cycleBlocks, placeCycle,
+    blockLength, canSplitAt, openGaps, overlaps, repeatCycle, repeatEnd, setBlockDays, shiftBlock, splitBlock, daysBetween, cycleBlocks, placeCycle,
   } from '../../lib/planning/phaseTimeline';
   import { addDaysIso, formatDay } from '../../lib/dateUtils';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
@@ -85,7 +86,19 @@
   }
 
   // --- What needs a look ---
-  const gaps = $derived(gapsInPlan(blocks));
+  // Gaps are only flagged from today on - a past day can't be planned any more - and a stretch can be ignored for good (this device).
+  const IGNORE_KEY = 'plan.ignoredGaps';
+  let ignored = $state<{ from: string; to: string }[]>((() => { try { const v = JSON.parse(localStorage.getItem(IGNORE_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((r) => typeof r?.from === 'string' && typeof r?.to === 'string') : []; } catch { return []; } })());
+  function setIgnored(next: { from: string; to: string }[]) {
+    ignored = next;
+    try { localStorage.setItem(IGNORE_KEY, JSON.stringify(next)); } catch { /* per-device convenience only */ }
+  }
+  const gaps = $derived(openGaps(blocks, today, $state.snapshot(ignored)));
+  function ignoreGap(g: { from: string; to: string; days: number }) {
+    const before = $state.snapshot(ignored);
+    setIgnored([...before, { from: g.from, to: g.to }]);
+    showUndo(`${plural(g.days, 'day')} without a phase ignored`, () => setIgnored(before));
+  }
   const shared = $derived(overlaps(blocks));
 
   // --- Sheets ---
@@ -286,6 +299,7 @@
       {today}
       pxPerDay={SCALES[scale]}
       selectedId={selectedId}
+      {gaps}
       focusDate={viewDate}
       onSelect={select}
       onDraft={(d) => (draft = d)}
@@ -352,12 +366,15 @@
       <section class="space-y-1" aria-label="Needs a look">
         <h2 class="text-label text-content-subtle px-1">Needs a look</h2>
         {#each gaps as g (g.from)}
-          <button onclick={() => startNew(g.from)} class="w-full flex items-center gap-2.5 text-left min-h-11 px-3 rounded-control hover:bg-surface-elevated/60 transition-colors">
-            <Icon icon="ic:baseline-warning-amber" class="text-lg text-warning shrink-0" />
-            <span class="flex-1 min-w-0 text-label text-content">{plural(g.days, 'day')} without a phase</span>
-            <span class="text-caption text-content-subtle shrink-0">{range({ startDate: g.from, endDate: g.to })}</span>
-            <span class="text-caption text-primary shrink-0">Fill</span>
-          </button>
+          <div class="flex items-center gap-1 rounded-control hover:bg-surface-elevated/60 transition-colors">
+            <button onclick={() => startNew(g.from)} class="flex-1 min-w-0 flex items-center gap-2.5 text-left min-h-11 pl-3">
+              <Icon icon="ic:baseline-warning-amber" class="text-lg text-warning shrink-0" />
+              <span class="flex-1 min-w-0 text-label text-content">{plural(g.days, 'day')} without a phase</span>
+              <span class="text-caption text-content-subtle shrink-0">{range({ startDate: g.from, endDate: g.to })}</span>
+              <span class="text-caption text-primary shrink-0">Fill</span>
+            </button>
+            <button onclick={() => ignoreGap(g)} class="btn-icon shrink-0" aria-label="Ignore these {plural(g.days, 'day')}" title="Ignore: these days are meant to have no phase"><Icon icon="ic:baseline-close" class="text-lg" /></button>
+          </div>
         {/each}
         {#each shared as o (o.a.id + o.b.id)}
           <button onclick={() => select(o.b.id)} class="w-full flex items-center gap-2.5 text-left min-h-11 px-3 rounded-control hover:bg-surface-elevated/60 transition-colors">

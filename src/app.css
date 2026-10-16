@@ -315,14 +315,16 @@
 :root[data-cards="raised"] .card {
   background: var(--color-surface);
   border-radius: 24px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -10px rgb(0 0 0 / 0.18);
+  border: 1px solid color-mix(in srgb, var(--theme-content) 11%, transparent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.10), 0 10px 26px -10px rgb(0 0 0 / 0.28);
 }
 :root[data-cards="raised"] .tile {
   background: var(--color-surface);
   border-radius: 18px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 6px 18px -10px rgb(0 0 0 / 0.16);
+  border: 1px solid color-mix(in srgb, var(--theme-content) 11%, transparent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.10), 0 8px 20px -10px rgb(0 0 0 / 0.26);
 }
-:root[data-cards="raised"][data-theme="contrast"] :is(.card, .tile) { box-shadow: none; }
+:root[data-cards="raised"][data-theme="contrast"] :is(.card, .tile) { box-shadow: none; border-color: var(--theme-border); }
 /* A smaller panel for one figure in a row of stat tiles (a summary strip, a metric grid). Same look as `card`, tighter, and
    flattened by the same setting: flat sections drop the fill and keep a hairline so the figures still read as separate. */
 @utility tile {
