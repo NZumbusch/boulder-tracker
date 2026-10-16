@@ -18,6 +18,7 @@
   import { capBars, isBarEvent, type HeaderBar } from '../../lib/planning/headerBars';
   import { calendarSessionColor } from '../../lib/planning/sessionColors';
   import { swipeGuard } from '../../lib/analytics/swipe';
+  import { portal } from '../../lib/ui/portal';
   import Icon from '@iconify/svelte';
   import { dropTarget, DRAG_HOLD_MS, DRAG_SLOP_PX } from '../../lib/planning/calendarDrag';
   import { onDestroy, tick } from 'svelte';
@@ -299,14 +300,56 @@
   }
   /** The hour labels' column: slimmer for seven days, so the days get the room. */
   const gutter = $derived(trainingState.clock12 ? 'w-11' : compact ? 'w-7' : 'w-9');
+
+  // --- Easier-to-read text (Settings -> Plan calendar; all off by default) ---
+  /** Whole-word wrapping (hyphenated only where a word is too long), no sliced lines, a little less side padding. */
+  const wholeWords = $derived(trainingState.tunableOn('plan.gridWholeWords'));
+  /** Pixels added to every event and session title (0 = the standard size); all of them stay the same size as each other. */
+  const textExtra = $derived(Math.round(trainingState.tunable('plan.gridTextSize')));
+  /** The Week grid wider than the screen, scrolling sideways, so each title has room. */
+  const wide = $derived(compact && trainingState.tunableOn('plan.gridWide'));
+  const peekOn = $derived(trainingState.tunableOn('plan.gridPeek'));
+  const lang = typeof navigator === 'undefined' ? 'en' : navigator.language;
+  const sizeClass = $derived(textExtra === 0 ? '' : showMeta ? 'cal-tx-label' : 'cal-tx-caption');
+  /** How a title wraps in a block `heightPx` tall: with whole words, at most as many lines as fit, the last ending in an ellipsis. */
+  function titleStyle(heightPx: number, chrome: number, minLines = 1): string {
+    if (!wholeWords) return '';
+    const line = (showMeta ? 19 : 14) + textExtra;
+    const lines = Math.max(minLines, Math.floor((heightPx - chrome) / line));
+    return `display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${lines};overflow:hidden;hyphens:auto;overflow-wrap:break-word;word-break:normal;`;
+  }
+
+  // Hold an event to see its whole title and time in a bubble (not on a session that a hold would start dragging).
+  let peek = $state<{ text: string; sub?: string; x: number; y: number } | null>(null);
+  let peekTimer: ReturnType<typeof setTimeout> | undefined;
+  function peekStart(e: PointerEvent, text: string, sub?: string) {
+    if (!peekOn || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const el = e.currentTarget as HTMLElement;
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      peek = { text, sub, x: Math.min(Math.max(r.left + r.width / 2, 110), window.innerWidth - 110), y: r.top };
+      suppressClickUntil = performance.now() + 60_000;
+      navigator.vibrate?.(10);
+    }, 380);
+  }
+  function peekEnd() {
+    clearTimeout(peekTimer);
+    if (!peek) return;
+    peek = null;
+    suppressClickUntil = performance.now() + 400; // the click that ends a hold must not open the sheet
+  }
+  onDestroy(() => clearTimeout(peekTimer));
   const padL = $derived(compact ? 'pl-7' : 'pl-9');
   const weekLabel = $derived(formatWeek(weekIdOfDayIndex(days[0]), 'short'));
 </script>
 
-<div class="space-y-1.5 short:space-y-1">
+<!-- Wider days: the whole grid (header, strips, bars, hours) is 1.5 times the screen and scrolls sideways together; the hour labels stay put. -->
+<div class={wide ? 'overflow-x-auto no-scrollbar -mx-4 px-4' : ''} data-no-swipe={wide ? true : undefined}>
+<div class="space-y-1.5 short:space-y-1" style="{wide ? 'min-width: 150%; ' : ''}--grid-tx: {textExtra}px">
   {#if compact}
     <div class="flex pb-1 short:pb-0">
-      <div class="{gutter} shrink-0 text-caption leading-tight text-content-subtle text-center pt-2" aria-label={formatWeek(weekIdOfDayIndex(days[0]), 'long')}>{weekLabel}</div>
+      <div class="{gutter} shrink-0 {wide ? 'sticky left-0 z-20 bg-surface' : ''} text-caption leading-tight text-content-subtle text-center pt-2" aria-label={formatWeek(weekIdOfDayIndex(days[0]), 'long')}>{weekLabel}</div>
       {#each columns as col (col.day)}
         <button
           onclick={() => onPickDay?.(col.day)}
@@ -373,7 +416,7 @@
               style={dragStyle(s)}
             >
               <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
-              <span class="relative block {showMeta ? 'text-label font-medium truncate' : 'text-caption leading-tight font-medium truncate'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
+              <span lang={lang} class="relative block {sizeClass} {showMeta ? 'text-label font-medium truncate' : 'text-caption leading-tight font-medium truncate'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
               {#if showMeta && !compact}
                 <span class="relative block text-caption opacity-80">{meta(s)}</span>
               {/if}
@@ -386,7 +429,7 @@
 
   {#if hasTimed}
   <div class="relative flex" style="height: {gridHeight}px" ondblclick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.gutter) resetZoom(); }} role="presentation">
-    <div class="{gutter} shrink-0 relative" data-gutter="1">
+    <div class="{gutter} shrink-0 relative {wide ? 'sticky left-0 z-20 bg-surface' : ''}" data-gutter="1">
       {#each hourList as h (h)}
         {#if h > hours.from}<span data-gutter="1" class="absolute right-1.5 -translate-y-1/2 whitespace-nowrap text-caption leading-none text-content-subtle tabular-nums" style="top: {(h - hours.from) * HOUR_PX}px">{formatHourLabel(h, trainingState.clock12)}</span>{/if}
       {/each}
@@ -424,10 +467,10 @@
             {#if it.kind === 'event' && (b.bottom <= hours.from * 60 || b.top >= hours.to * 60)}
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}
-              <button onclick={(ev) => { ev.stopPropagation(); onOpenEvent?.(it.e); }} class="absolute overflow-hidden rounded-control bg-surface {showMeta ? 'px-2' : 'px-1'} py-1 cal-ink cal-edge text-left" style="{place}; --cal-edge: {eventColor(it.e)}" aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
+              <button onclick={(ev) => { ev.stopPropagation(); if (performance.now() < suppressClickUntil) return; onOpenEvent?.(it.e); }} onpointerdown={(e) => peekStart(e, it.e.title, `${hhmm(it.startMin)} – ${hhmm(Math.min(1440, it.startMin + it.minutes))}`)} onpointerup={peekEnd} onpointercancel={peekEnd} onpointerleave={peekEnd} oncontextmenu={(e) => { if (peekOn) e.preventDefault(); }} class="absolute overflow-hidden rounded-control bg-surface {showMeta ? 'px-2' : wholeWords ? 'px-0.5' : 'px-1'} py-1 cal-ink cal-edge text-left {peekOn ? 'select-none' : ''}" style="{place}; --cal-edge: {eventColor(it.e)}" aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
                 <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(it.e)}"></span>
                 <span class="relative block">
-                  <span class="block {showMeta ? 'text-label truncate' : 'text-caption leading-[14px] break-words'}">{it.e.title}</span>
+                  <span lang={lang} class="block {sizeClass} {showMeta ? (wholeWords ? 'text-label' : 'text-label truncate') : 'text-caption leading-[14px] break-words'}" style={titleStyle(heightPx, 8)}>{it.e.title}</span>
                   {#if showMeta && heightPx >= 44}<span class="block text-caption opacity-80">{hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}</span>{/if}
                 </span>
               </button>
@@ -439,7 +482,11 @@
               <button
                 data-session-id={s.workout.id}
                 onclick={() => open(s, col.all)}
-                onpointerdown={(e) => beginPress(e, s, true)}
+                onpointerdown={(e) => { beginPress(e, s, true); if (!movable(s)) peekStart(e, s.workout.notes || 'Session', meta(s)); }}
+                onpointerup={peekEnd}
+                onpointercancel={peekEnd}
+                onpointerleave={peekEnd}
+                oncontextmenu={(e) => { if (peekOn) e.preventDefault(); }}
                 class="absolute flex flex-col items-stretch justify-start text-left rounded-control bg-surface select-none cal-ink {isDragged(s) ? 'shadow-card ring-1 ring-primary opacity-90' : 'overflow-hidden'} {tone(s)}"
                 style="{place}; {dragStyle(s)}"
                 aria-label="{s.workout.notes || 'Session'}, {meta(s)}"
@@ -450,7 +497,7 @@
                 <!-- The banner: the session in the colour of its main category. -->
                 <span class="relative block px-2 py-1.5 {detail ? 'shrink-0' : 'flex-1 min-h-0'}">
                   <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
-                  <span class="relative block font-medium {showMeta ? 'text-label leading-snug' : 'text-caption leading-[14px] break-words'}">{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
+                  <span lang={lang} class="relative block font-medium {sizeClass} {showMeta ? 'text-label leading-snug' : 'text-caption leading-[14px] break-words'}" style={titleStyle(heightPx, showMeta ? 36 : 12, s.done ? 2 : 1)}>{#if s.done}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
                   {#if showMeta}<span class="relative block text-caption opacity-80">{meta(s)}</span>{/if}
                   {#if !detail && ex.names.length}
                     <span class="relative block mt-0.5 text-caption opacity-80">
@@ -485,3 +532,12 @@
   </div>
 {/if}
 </div>
+</div>
+
+{#if peek}
+  <!-- The held event's whole title and time. -->
+  <div use:portal class="fixed z-[125] pointer-events-none max-w-[80vw] px-3 py-2 rounded-control bg-surface-elevated text-content shadow-card border border-border-strong/60" style="left: {peek.x}px; top: {peek.y}px; transform: translate(-50%, calc(-100% - 8px))" role="status">
+    <p class="text-label font-semibold break-words">{peek.text}</p>
+    {#if peek.sub}<p class="text-caption text-content-subtle tabular-nums">{peek.sub}</p>{/if}
+  </div>
+{/if}

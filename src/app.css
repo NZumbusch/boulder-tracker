@@ -555,3 +555,7 @@ body {
   100% { box-shadow: 0 0 0 3px transparent; }
 }
 .plan-flash { animation: plan-flash 1.6s ease-out 1; border-radius: var(--radius-control); }
+
+/* Settings -> Plan calendar -> "Event text size": the same extra pixels on every event and session title in the hour grid. */
+.cal-tx-label { font-size: calc(var(--text-label) + var(--grid-tx, 0px)); }
+.cal-tx-caption { font-size: calc(var(--text-caption) + var(--grid-tx, 0px)); line-height: calc(14px + var(--grid-tx, 0px)); }

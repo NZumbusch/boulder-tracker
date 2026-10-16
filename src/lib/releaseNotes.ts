@@ -20,6 +20,13 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-grid-text",
+    title: "Easier-to-read text in the hour grid (optional)",
+    points: [
+      "Settings > App & display > Plan calendar & day has four new switches, all off by default: whole words (no mid-word cuts, an ellipsis instead of sliced lines), event text size (the same extra size for every title), wider days (the week scrolls sideways so titles have room) and hold an event to read its whole title.",
+    ],
+  },
+  {
     id: "2026-10-29-tour-and-screens",
     title: "Tour, help and screenshots brought up to date",
     points: [
