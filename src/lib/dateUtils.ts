@@ -116,6 +116,12 @@ export function formatWeek(weekId: string, style: 'short' | 'long' = 'long'): st
   return style === 'short' ? `W${n}` : `Week ${n}`;
 }
 
+/** "Week 42 (Oct 12 - Oct 18)": a week for a sentence, with the dates that place it. */
+export function formatWeekWithDates(weekId: string): string {
+  const range = getWeekDateRange(weekId);
+  return range ? `${formatWeek(weekId)} (${range})` : formatWeek(weekId);
+}
+
 /**
  * The one way to write a day: "Oct 15", "Thu, Oct 15", with the year only when
  * it is not this year (or always, with `year: true`). `value` is a bare

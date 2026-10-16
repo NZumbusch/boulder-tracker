@@ -1,6 +1,6 @@
 import { fingerCategoryIds } from "./analytics/proMetrics";
 import type { InsightInputs } from "./analytics/insights";
-import { attachOrphanLogs, checkIn as checkInPainIssue } from './pain/issues';
+import { attachOrphanLogs, checkIn as checkInPainIssue, TREND_LABELS } from './pain/issues';
 import { openWorkout } from './workoutModal.svelte';
 import { toast, showUndo } from './toast.svelte';
 import { copySessionsToWeek } from './planning/copyWeek';
@@ -15,7 +15,7 @@ import { TEST_VIEWS_ADOPTED_KEY } from './releaseNotes';
 import { bodyweightFromBenchmark, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from './benchmarks/bodyweight';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate, BenchmarkView } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
-import { getWeekId, localIsoDate, trainingDayDate } from './dateUtils';
+import { getWeekId, localIsoDate, trainingDayDate, formatWeekWithDates } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
@@ -1208,6 +1208,37 @@ class TrainingState {
     }
   }
 
+  /** What the last restore replaced, if it was kept (for Settings > Backup). */
+  async restoreSnapshotInfo(): Promise<{ at: string; workouts: number } | null> {
+    return storage.getRestoreSnapshot();
+  }
+
+  /**
+   * "Restore previous": puts back what the last backup restore replaced. The
+   * data being replaced now is kept in turn, so it can be undone again.
+   */
+  async restorePrevious(): Promise<boolean> {
+    const snap = await storage.getRestoreSnapshot();
+    if (!snap) return false;
+    const when = new Date(snap.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    const ok = await showConfirm(
+      'Go back to the data from before the restore?',
+      `This puts back the ${snap.workouts} session${snap.workouts === 1 ? '' : 's'} (and everything else) that this device had on ${when}. What is here now is kept, so you can switch back.`,
+      { ok: 'Restore previous', cancel: 'Keep what is here' },
+    );
+    if (!ok) return false;
+    try {
+      if (!(await storage.restorePrevious())) return false;
+      await this.refresh();
+      toast.show('Previous data restored');
+      return true;
+    } catch (err) {
+      console.error('Restore previous failed:', err);
+      await showAlert('Error', 'The previous data could not be restored. Nothing was changed.');
+      return false;
+    }
+  }
+
   /**
    * What to check once a backup file has been read, before it replaces
    * anything: an empty file or one from a newer app is asked about, and a
@@ -1404,7 +1435,7 @@ class TrainingState {
    * Resets a week by removing its phase assignment and all workouts.
    */
   async clearWeek(weekId: string) {
-    const confirmed = await showConfirm('Clear Week', `Are you sure you want to clear all data for ${weekId}? This will delete all workouts and benchmarks for this week.`);
+    const confirmed = await showConfirm('Clear Week', `Are you sure you want to clear all data for ${formatWeekWithDates(weekId)}? This will delete all workouts and benchmarks for this week.`);
     if (!confirmed) return;
 
     try {
@@ -1710,7 +1741,8 @@ class TrainingState {
       this.metricsStore.painIssues.map((i) => (i.id === issueId ? r.issue : i)),
     );
     await this.refresh();
-    if (trend === 'gone') showUndo(`${issue.bodyPart} closed`, () => this.undoPainCheckIn(r.log.id, issue));
+    const note = trend === 'gone' ? 'closed' : `check-in: ${TREND_LABELS[trend].toLowerCase()}`;
+    showUndo(`${issue.bodyPart} ${note}`, () => this.undoPainCheckIn(r.log.id, issue));
   }
 
   /** Takes a check-in back and restores the issue as it was before it. */

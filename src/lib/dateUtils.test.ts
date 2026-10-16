@@ -211,3 +211,13 @@ describe('parseDay / formatWeek / formatDay', () => {
     expect(formatDay('garbage')).toBe('garbage');
   });
 });
+
+describe('formatWeekWithDates', () => {
+  it('writes the week and its dates, never the raw id', async () => {
+    const { formatWeekWithDates } = await import('./dateUtils');
+    const text = formatWeekWithDates('2026-W42');
+    expect(text.startsWith('Week 42 (')).toBe(true);
+    expect(text).not.toContain('2026-W42');
+    expect(formatWeekWithDates('not-a-week')).toBe('not-a-week');
+  });
+});
