@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatClockDate } from '../../lib/timeFormat';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { settingsPath } from '../../lib/settings/tree';
   /**
@@ -580,7 +581,7 @@
 
         {#if flows && lastAiChange?.source === 'ai'}
           <p class="text-caption text-content-subtle px-1 flex items-center gap-2 flex-wrap">
-            <span>Last AI change {formatDay(lastAiChange.appliedAt, { weekday: 'short' })}, {new Date(lastAiChange.appliedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}{lastAiChange.changedSince ? ' · edited since' : ''}</span>
+            <span>Last AI change {formatDay(lastAiChange.appliedAt, { weekday: 'short' })}, {formatClockDate(new Date(lastAiChange.appliedAt), trainingState.clock12)}{lastAiChange.changedSince ? ' · edited since' : ''}</span>
             <button onclick={() => (historyOpen = true)} class="btn-quiet px-2 text-primary">History</button>
             <button onclick={() => trainingState.undoPlanChange()} class="btn-quiet px-2 text-primary" title="Take back the last AI change">Undo last change</button>
           </p>

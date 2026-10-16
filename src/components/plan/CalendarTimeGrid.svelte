@@ -5,6 +5,8 @@
    * no time of day sit in a strip above the hours. Presentational - the data
    * comes in already resolved (see lib/planning/calendarEvents.ts).
    */
+  import { trainingState } from '../../lib/state.svelte';
+  import { formatClock, formatHourLabel } from '../../lib/timeFormat';
   import { layoutDay, visibleHours, exerciseLines, dayNameOf, weekIdOfDayIndex, DEFAULT_EVENT_COLOR, type CalendarSession } from '../../lib/planning/calendarEvents';
   import { GOAL_STYLE } from '../../lib/planning/goalStyle';
   import { formatWeek } from '../../lib/dateUtils';
@@ -284,7 +286,7 @@
     onAdd(day, Math.min(minute, 23 * 60 + 30));
   }
 
-  const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  const hhmm = (min: number) => formatClock(min, trainingState.clock12);
   const dateOf = (day: number) => new Date(day * 86_400_000).getUTCDate();
 
   /** A session's colour: one shared green, or the category that takes most of it (strong on dark, pastel on light - see `.cal-fill`). */
@@ -389,7 +391,7 @@
   <div class="relative flex" style="height: {gridHeight}px" ondblclick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.gutter) resetZoom(); }} role="presentation">
     <div class="{gutter} shrink-0 relative" data-gutter="1">
       {#each hourList as h (h)}
-        {#if h > hours.from}<span data-gutter="1" class="absolute right-1.5 -translate-y-1/2 text-caption leading-none text-content-subtle tabular-nums" style="top: {(h - hours.from) * HOUR_PX}px">{h}</span>{/if}
+        {#if h > hours.from}<span data-gutter="1" class="absolute right-1.5 -translate-y-1/2 text-caption leading-none text-content-subtle tabular-nums" style="top: {(h - hours.from) * HOUR_PX}px">{formatHourLabel(h, trainingState.clock12)}</span>{/if}
       {/each}
       {#if showNow}<span class="absolute right-1.5 -translate-y-1/2 text-caption leading-none font-semibold text-danger tabular-nums bg-surface px-0.5 z-10" style="top: {px(nowMin)}px">{hhmm(nowMin)}</span>{/if}
     </div>

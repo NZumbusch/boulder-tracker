@@ -14,6 +14,7 @@
    */
   import type { Workout, ExerciseSlot, ExerciseValues, ParameterBlock } from '../../lib/types';
   import { trainingState } from '../../lib/state.svelte';
+  import { formatClockText } from '../../lib/timeFormat';
   import { generateId, showConfirm } from '../../lib/utils';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { slotSummary } from '../../lib/session/slotDetails';
@@ -274,7 +275,7 @@
           </button>
         {/snippet}
         {@render chip('day', 'ic:baseline-calendar-today', workout.dayOfWeek ? workout.dayOfWeek.slice(0, 3) : 'Day', !!workout.dayOfWeek)}
-        {@render chip('time', 'ic:baseline-schedule', workout.startTime || 'Time', !!workout.startTime)}
+        {@render chip('time', 'ic:baseline-schedule', workout.startTime ? formatClockText(workout.startTime, trainingState.clock12) : 'Time', !!workout.startTime)}
         {@render chip('duration', 'ic:baseline-timer', workout.plannedDuration ? `${workout.plannedDuration} min` : 'Duration', !!workout.plannedDuration)}
         {@render chip('place', 'ic:baseline-place', workout.location || 'Where', !!workout.location)}
       </div>

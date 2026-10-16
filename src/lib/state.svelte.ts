@@ -449,6 +449,8 @@ class TrainingState {
       console.error('Failed to sync fatigue-reminder notifications:', err);
     }
   }
+  /** Times of day on screen: 12-hour when the setting is on (`lib/timeFormat.ts`). */
+  get clock12() { return flag(this.preferencesStore.tunables, 'ui.clock12'); }
   /** A switch tunable's current value. */
   tunableOn(id: string): boolean { return flag(this.preferencesStore.tunables, id); }
   get readinessConfig(): ReadinessConfig {

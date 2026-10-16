@@ -5,6 +5,7 @@
    * back" restores the plan as it was before that change (and so also takes
    * back the ones after it); sessions logged since always stay.
    */
+  import { formatClockDate } from '../../lib/timeFormat';
   import Sheet from '../ui/Sheet.svelte';
   import { formatDay } from '../../lib/dateUtils';
   import { trainingState } from '../../lib/state.svelte';
@@ -16,7 +17,7 @@
   async function load() { entries = await trainingState.getPlanHistory(); }
   $effect(() => { trainingState.planUndoVersion; void load(); });
 
-  const when = (iso: string) => `${formatDay(iso, { weekday: 'short' })}, ${new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+  const when = (iso: string) => `${formatDay(iso, { weekday: 'short' })}, ${formatClockDate(new Date(iso), trainingState.clock12)}`;
   async function goBack(entry: PlanHistoryEntry) {
     if (await trainingState.undoPlanTo(entry.index)) onClose();
   }

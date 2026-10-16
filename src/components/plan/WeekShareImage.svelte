@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatClockText } from '../../lib/timeFormat';
   import { workoutPlannedLoad } from '../../lib/analytics/load';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   /**
@@ -137,7 +138,7 @@
                   <p class="text-xs font-bold text-white truncate flex items-center gap-1.5">
                     {#if w.status === 'completed'}<span class="text-[#22c55e]">✓</span>{/if}
                     <span class="truncate">{w.notes || 'Session'}</span>
-                    {#if w.startTime}<span class="text-[10px] font-mono text-[rgba(255,255,255,0.45)] shrink-0">{w.startTime}</span>{/if}
+                    {#if w.startTime}<span class="text-[10px] font-mono text-[rgba(255,255,255,0.45)] shrink-0">{formatClockText(w.startTime, trainingState.clock12)}</span>{/if}
                   </p>
                   {#if w.exercises.length > 0}
                     <p class="text-[10px] text-[rgba(255,255,255,0.5)] truncate">{exercisesLine(w)}</p>

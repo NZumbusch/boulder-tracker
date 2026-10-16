@@ -4,6 +4,7 @@
    * with the event's colour, when, which calendar, where (with a button to open it in Maps) and the notes.
    * Nothing here leaves the phone.
    */
+  import { trainingState } from '../../lib/state.svelte';
   import Icon from '@iconify/svelte';
   import Sheet from '../ui/Sheet.svelte';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
@@ -24,7 +25,7 @@
   <div class="divide-y divide-border/60 [&>div]:py-3.5 [&>div:first-child]:pt-0 [&>div:last-child]:pb-0">
     <div class="flex gap-4">
       <Icon icon="ic:baseline-schedule" class="text-2xl text-content-subtle shrink-0" />
-      <p class="text-body text-content min-w-0">{formatEventWhen(event)}</p>
+      <p class="text-body text-content min-w-0">{formatEventWhen(event, undefined, trainingState.clock12)}</p>
     </div>
     {#if event.location}
       <div class="flex gap-4">

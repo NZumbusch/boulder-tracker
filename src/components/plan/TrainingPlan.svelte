@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatClockText } from '../../lib/timeFormat';
   import AppBar from '../nav/AppBar.svelte';
   import { fabActions } from '../../lib/navigation/fabActions.svelte';
   import InfoButton from '../common/InfoButton.svelte';
@@ -745,7 +746,7 @@
                   <ListRow
                     title={workout.notes || 'Session'}
                     meta={[
-                      summary.startTime,
+                      summary.startTime ? formatClockText(summary.startTime, trainingState.clock12) : undefined,
                       `${summary.estimated ? '~' : ''}${summary.minutes} min`,
                       summary.plannedLoad > 0 ? `load ${summary.plannedLoad} pts` : `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,
                       workout.provisional ? 'not saved yet' : undefined,

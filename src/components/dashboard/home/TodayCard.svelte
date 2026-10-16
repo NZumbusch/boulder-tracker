@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatClockText } from '../../../lib/timeFormat';
   import PainHeadsUp from '../../health/PainHeadsUp.svelte';
   import { openSessionActions } from '../../../lib/sessionActions.svelte';
   /** Today's planned sessions (tap to open, Start to go live), and this week's missed ones. */
@@ -63,7 +64,7 @@
       title={workout.notes || 'Session'}
       meta={joinParts(
         workout.planB && `Plan ${workout.planB.side}`,
-        showTime && summary.startTime,
+        showTime && summary.startTime && formatClockText(summary.startTime, trainingState.clock12),
         showTime && `${summary.estimated ? '~' : ''}${summary.minutes} min`,
         workout.location,
         `${workout.exercises.length} exercise${workout.exercises.length === 1 ? '' : 's'}`,

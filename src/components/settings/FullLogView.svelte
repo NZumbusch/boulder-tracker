@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { trainingState } from '../../lib/state.svelte';
+  import { formatClockDate } from '../../lib/timeFormat';
   import { portal } from '../../lib/ui/portal';
   /**
    * The full console log, full screen: every line the app's console got
@@ -55,7 +57,7 @@
     debug: 'text-content-subtle',
   };
   const TAG: Record<ConsoleLevel, string> = { error: 'ERR', warning: 'WRN', info: 'INF', log: 'LOG', debug: 'DBG' };
-  const time = (at: string) => new Date(at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const time = (at: string) => formatClockDate(new Date(at), trainingState.clock12, true);
 
   async function copy() {
     const text = [navigator.userAgent, ...shown.map((l) => `${l.at} ${TAG[l.level]} ${l.message}`)].join('\n');

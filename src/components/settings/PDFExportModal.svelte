@@ -4,6 +4,7 @@
    * document is laid out by `lib/export/planPdf.ts` (pdfmake - real text,
    * no screenshots) and saved or shared like every other export.
    */
+  import { formatClockText } from '../../lib/timeFormat';
   import { saveFile } from '../../lib/share/saveFile';
   import Sheet from '../ui/Sheet.svelte';
   import Toggle from '../ui/Toggle.svelte';
@@ -90,7 +91,7 @@
       return {
         day: dayLabel(w),
         name: w.notes || 'Session',
-        meta: [summary.startTime, `${summary.estimated ? '~' : ''}${summary.minutes} min`, summary.plannedLoad > 0 ? `load ${summary.plannedLoad}` : undefined].filter(Boolean).join(' · '),
+        meta: [summary.startTime ? formatClockText(summary.startTime, trainingState.clock12) : undefined, `${summary.estimated ? '~' : ''}${summary.minutes} min`, summary.plannedLoad > 0 ? `load ${summary.plannedLoad}` : undefined].filter(Boolean).join(' · '),
         ...(done ? { done: { load: w.loadFactor } } : {}),
         description: w.description,
         exercises: w.exercises.map((slot, i) => {

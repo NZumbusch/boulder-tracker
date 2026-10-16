@@ -21,3 +21,13 @@ describe("mapsUrl", () => {
     expect(mapsUrl("Raum 555, Kriens")).toBe("https://www.google.com/maps/search/?api=1&query=Raum%20555%2C%20Kriens");
   });
 });
+
+describe("formatEventWhen, 12-hour clock", () => {
+  it("writes the same event as 6:30 PM when asked", () => {
+    expect(formatEventWhen({ allDay: false, begin: local(14, 18, 30), end: local(14, 19, 30) }, "en-US", true)).toBe("Wed, Oct 14 · 6:30 PM – 7:30 PM");
+  });
+  it("leaves all-day events alone", () => {
+    const e = { allDay: true, begin: Date.UTC(2026, 9, 14), end: Date.UTC(2026, 9, 15) };
+    expect(formatEventWhen(e, "en-US", true)).toBe(formatEventWhen(e, "en-US"));
+  });
+});

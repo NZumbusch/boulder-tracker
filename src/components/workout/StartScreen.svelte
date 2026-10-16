@@ -5,6 +5,7 @@
    * (see `lib/workoutModal.svelte.ts`); this screen no longer edits
    * workouts itself.
    */
+  import { formatClockText } from '../../lib/timeFormat';
   import AppBar from '../nav/AppBar.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
@@ -183,7 +184,7 @@
                 {/if}
                 <span class="truncate">
                   {[
-                    p.startTime,
+                    p.startTime ? formatClockText(p.startTime, trainingState.clock12) : null,
                     p.plannedDuration ? `${p.plannedDuration} min` : null,
                     `${p.exercises.length} ${p.exercises.length === 1 ? 'exercise' : 'exercises'}`,
                   ].filter(Boolean).join(' · ')}

@@ -6,6 +6,8 @@
    * (`dayAgenda`), each with its start time in a column of its own. The
    * alternative to seven narrow columns, where names truncate. Presentational.
    */
+  import { trainingState } from '../../lib/state.svelte';
+  import { formatClock } from '../../lib/timeFormat';
   import Icon from '@iconify/svelte';
   import { dayNameOf, dayAgenda, DEFAULT_EVENT_COLOR, type CalendarSession } from '../../lib/planning/calendarEvents';
   import { groupChips } from '../../lib/planning/exerciseChips';
@@ -60,7 +62,7 @@
     byCategory?: boolean;
   } = $props();
 
-  const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  const hhmm = (min: number) => formatClock(min, trainingState.clock12);
   const dateOf = (day: number) => new Date(day * 86_400_000).getUTCDate();
 
   function meta(s: CalendarSession): string {

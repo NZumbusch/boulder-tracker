@@ -4,6 +4,7 @@
    * place's price and hours, and the forecast there when the weather knows the place), the note about what it is for,
    * and its exercises by name. Open takes you into the full session; Start begins it.
    */
+  import { formatClock } from '../../lib/timeFormat';
   import { untrack } from 'svelte';
   import Icon from '@iconify/svelte';
   import Sheet from '../ui/Sheet.svelte';
@@ -21,7 +22,7 @@
   let { session, onOpen, onClose }: { session: CalendarSession; onOpen: () => void; onClose: () => void } = $props();
 
   const w = $derived(session.workout);
-  const hhmm = (min: number) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  const hhmm = (min: number) => formatClock(min, trainingState.clock12);
   const dayText = $derived(formatDay(dayIndexToIso(session.day), { weekday: 'short' }));
   const whenText = $derived(
     session.startMin !== undefined

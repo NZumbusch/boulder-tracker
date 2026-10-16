@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatClockText } from '../../lib/timeFormat';
   import { askAboutSession } from '../../lib/ai/askAbout.svelte';
   import SessionReviewCard from './SessionReviewCard.svelte';
   import { RATING_AXES } from '../../lib/constants';
@@ -44,7 +45,7 @@
       if (workout.loadFactor) parts.push(`load ${Math.round(workout.loadFactor)} pts`);
     } else {
       if (workout.dayOfWeek) parts.push(workout.dayOfWeek);
-      if (workout.startTime) parts.push(workout.startTime);
+      if (workout.startTime) parts.push(formatClockText(workout.startTime, trainingState.clock12));
       if (workout.plannedDuration) parts.push(`~${formatMinutes(workout.plannedDuration)}`);
     }
     if (workout.location) parts.push(workout.location);
