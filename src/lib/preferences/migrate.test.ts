@@ -31,6 +31,7 @@ describe('defaultPreferences', () => {
       welcomeDone: false,
       simpleHome: true,
       homeCollapsed: [],
+      hiddenFindings: [],
       dailyMetricsReminderEnabled: true,
       dailyMetricsReminderTime: '20:00',
       planBReminderEnabled: true,
@@ -146,6 +147,7 @@ describe('migratePreferences', () => {
       welcomeDone: true,
       simpleHome: false,
       homeCollapsed: ['metrics', 'weather'] as const,
+      hiddenFindings: ['acwr', 'stale-Fingers'],
     };
     expect(migratePreferences(valid)).toEqual(valid);
   });
@@ -567,5 +569,13 @@ describe('homeCollapsed', () => {
   it('keeps known ids once each in order and drops the rest', () => {
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeCollapsed: ['weather', 'nope', 'metrics', 'weather', 3] }).homeCollapsed).toEqual(['weather', 'metrics']);
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, homeCollapsed: 'metrics' }).homeCollapsed).toEqual([]);
+  });
+});
+
+describe('hiddenFindings', () => {
+  it('defaults to none and keeps a repaired list', () => {
+    expect(defaultPreferences().hiddenFindings).toEqual([]);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, hiddenFindings: ['a', 'a', 7, 'b'] }).hiddenFindings).toEqual(['a', 'b']);
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, hiddenFindings: 'a' }).hiddenFindings).toEqual([]);
   });
 });

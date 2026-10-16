@@ -15,6 +15,7 @@
     askGroup,
     emptyText,
     footnote,
+    onHide,
   }: {
     title: string;
     items: Insight[];
@@ -25,6 +26,8 @@
     emptyText?: string;
     /** A small line under the list. */
     footnote?: string;
+    /** "Hide this finding": when given, each row gets a button for it. */
+    onHide?: (insight: Insight) => void;
   } = $props();
 
   // A shape as well as a colour, so a tone is not told by colour alone: warning, circled !, check, info.
@@ -83,15 +86,22 @@
               {#if insight.link}<span class="block text-caption text-primary mt-0.5">{target(insight.link)}</span>{/if}
             </span>
           {/snippet}
-          {#if insight.link}
-            {@const link = insight.link}
-            <button type="button" onclick={() => onOpen(link)} class="w-full flex items-start gap-3 py-3 min-h-11 text-left">
-              {@render body()}
-              <Icon icon="ic:baseline-chevron-right" class="text-xl text-content-subtle shrink-0 mt-[0.5px]" />
-            </button>
-          {:else}
-            <div class="flex items-start gap-3 py-3">{@render body()}<span class="w-5 shrink-0" aria-hidden="true"></span></div>
-          {/if}
+          <div class="flex items-start">
+            {#if insight.link}
+              {@const link = insight.link}
+              <button type="button" onclick={() => onOpen(link)} class="flex-1 min-w-0 flex items-start gap-3 py-3 min-h-11 text-left">
+                {@render body()}
+                <Icon icon="ic:baseline-chevron-right" class="text-xl text-content-subtle shrink-0 mt-[0.5px]" />
+              </button>
+            {:else}
+              <div class="flex-1 min-w-0 flex items-start gap-3 py-3">{@render body()}<span class="w-5 shrink-0" aria-hidden="true"></span></div>
+            {/if}
+            {#if onHide}
+              <button type="button" onclick={() => onHide(insight)} class="btn-icon shrink-0 text-content-subtle" aria-label="Hide this finding: {insight.title}" title="Hide this finding">
+                <Icon icon="ic:baseline-visibility-off" class="text-lg" />
+              </button>
+            {/if}
+          </div>
         {/each}
       </div>
       {#if footnote}<p class="px-1 pt-2 text-caption text-content-subtle leading-relaxed">{footnote}</p>{/if}

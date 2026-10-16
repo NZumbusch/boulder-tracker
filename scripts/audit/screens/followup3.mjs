@@ -22,4 +22,14 @@ export const screens = [
   { id: 'plan-calendar-goals-on', area: 'followup3', setup: async (c) => { await plan(c, { view: 'calendar', mode: 'month' }); await c.scrollTo(1, 'main'); } },
   { id: 'plan-calendar-goals-off', area: 'followup3', setup: async (c) => { await c.st(`t.setTunable('plan.goalsInCalendar', false)`); await plan(c, { view: 'calendar', mode: 'month' }); await c.scrollTo(1, 'main'); }, teardown: async (c) => { await c.st(`t.setTunable('plan.goalsInCalendar', true)`); await c.close(); } },
   { id: 'plan-goal-form', area: 'followup3', setup: async (c) => { await plan(c, { view: 'blocks' }); await c.click('Add competition'); await sleep(500); await c.scrollTo(1); } },
+  { id: 'analytics-menu', area: 'followup3', setup: async (c) => { await c.nav('analytics'); await c.click('More actions'); await sleep(400); }, teardown: async (c) => { await c.close(); await c.ev(`document.body.click()`); } },
+  { id: 'analytics-finding-hide', area: 'followup3', setup: async (c) => { await c.st(`t.setFindingHidden(null, false)`); await c.nav('analytics'); await sleep(500); } },
+  { id: 'analytics-hidden-menu', area: 'followup3', setup: async (c) => {
+      await c.nav('analytics'); await c.ev(`document.querySelector('button[aria-label^="Hide this finding"]')?.click()`); await sleep(600);
+      await c.click('More actions'); await sleep(400);
+    }, teardown: async (c) => { await c.st(`t.setFindingHidden(null, false)`); await c.close(); } },
+  { id: 'analytics-hidden-sheet', area: 'followup3', setup: async (c) => {
+      await c.nav('analytics'); await c.ev(`document.querySelector('button[aria-label^="Hide this finding"]')?.click()`); await sleep(600);
+      await c.click('More actions'); await sleep(300); await c.click('Hidden findings', { exact: false }); await sleep(600);
+    }, teardown: async (c) => { await c.st(`t.setFindingHidden(null, false)`); await c.close(); } },
 ];

@@ -2,6 +2,7 @@ import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { type TimerPreset, validateTimerPresets } from '../timer/presets';
 import type { Place } from '../places/places';
 import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, type NavMode, type NavAccent, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
+import { withHidden, withoutHidden } from '../analytics/hiddenFindings';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
@@ -64,6 +65,7 @@ export class PreferencesStore {
   welcomeDone = $state(true);
   simpleHome = $state(defaultPreferences().simpleHome);
   homeCollapsed = $state<HomeSectionPreference['id'][]>(defaultPreferences().homeCollapsed);
+  hiddenFindings = $state<string[]>(defaultPreferences().hiddenFindings);
 
   constructor() {
     if (typeof localStorage === 'undefined') return;
@@ -137,6 +139,7 @@ export class PreferencesStore {
     this.welcomeDone = prefs.welcomeDone;
     this.simpleHome = prefs.simpleHome;
     this.homeCollapsed = prefs.homeCollapsed;
+    this.hiddenFindings = prefs.hiddenFindings;
   }
 
   setTextScale(scale: TextScale) {
@@ -396,6 +399,12 @@ export class PreferencesStore {
     this.persist();
   }
 
+  /** Hides one Analytics finding (`hide`), brings it back (`!hide`), or with no id brings every one back. */
+  setFindingHidden(id: string | null, hide: boolean) {
+    this.hiddenFindings = id === null ? [] : hide ? withHidden(this.hiddenFindings, id) : withoutHidden(this.hiddenFindings, id);
+    this.persist();
+  }
+
   setSimpleHome(on: boolean) {
     this.simpleHome = on;
     this.persist();
@@ -464,6 +473,7 @@ export class PreferencesStore {
       welcomeDone: this.welcomeDone,
       simpleHome: this.simpleHome,
       homeCollapsed: this.homeCollapsed,
+      hiddenFindings: this.hiddenFindings,
       theme: parseTheme(legacyTheme),
       notificationsEnabled: legacyNotifications === null ? defaultPreferences().notificationsEnabled : legacyNotifications === 'true',
     };

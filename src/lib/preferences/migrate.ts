@@ -27,6 +27,7 @@ export type NavMode = 'auto' | NavStyle;
 import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { type TimerPreset, validateTimerPresets } from '../timer/presets';
 import { ANALYTICS_RANGES, DEFAULT_ANALYTICS_RANGE, type AnalyticsRange } from '../analytics/range';
+import { validateHiddenFindings } from '../analytics/hiddenFindings';
 import { defaultHomeDetails, validateHomeDetails, type HomeDetails } from './homeDetails';
 import { defaultTunables, validateTunables, type Tunables } from './tunables';
 import { validatePlaces, type Place } from '../places/places';
@@ -179,6 +180,8 @@ export interface Preferences {
   simpleHome: boolean;
   /** Home cards the user has folded to their header (tap the header). Empty = every card open, the default. */
   homeCollapsed: HomeSectionId[];
+  /** Analytics findings the user dismissed, by finding id (restored from Analytics' overflow menu). */
+  hiddenFindings: string[];
 }
 
 /** See `Preferences.addedExerciseTarget`. */
@@ -355,6 +358,7 @@ export function defaultPreferences(): Preferences {
     welcomeDone: false,
     simpleHome: true,
     homeCollapsed: [],
+    hiddenFindings: [],
     aiHistory: { ...DEFAULT_AI_HISTORY },
     autoBackup: true,
     aiSharing: {
@@ -608,6 +612,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     welcomeDone: typeof candidate.welcomeDone === 'boolean' ? candidate.welcomeDone : true,
     simpleHome: typeof candidate.simpleHome === 'boolean' ? candidate.simpleHome : defaults.simpleHome,
     homeCollapsed: validateHomeCollapsed(candidate.homeCollapsed),
+    hiddenFindings: validateHiddenFindings(candidate.hiddenFindings),
   };
 }
 

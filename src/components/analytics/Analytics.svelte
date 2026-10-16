@@ -10,8 +10,12 @@
   import AppBar from '../nav/AppBar.svelte';
   import { tick } from 'svelte';
   import FindingsPanel from './FindingsPanel.svelte';
+  import HiddenFindingsSheet from './HiddenFindingsSheet.svelte';
+  import OverflowMenu, { type OverflowItem } from '../ui/OverflowMenu.svelte';
+  import { splitFindings } from '../../lib/analytics/hiddenFindings';
+  import { showUndo } from '../../lib/toast.svelte';
   import ExerciseProgressPanel from './ExerciseProgressPanel.svelte';
-  import { buildInsights, findingTab, topFindings, type AnalyticsTab, type InsightGroup, type InsightLink } from '../../lib/analytics/insights';
+  import { buildInsights, findingTab, topFindings, type AnalyticsTab, type Insight, type InsightGroup, type InsightLink } from '../../lib/analytics/insights';
   import { showAcwr } from '../../lib/help/acwrSheet.svelte';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
   import { openTaperView } from '../../lib/goals/taperView.svelte';
@@ -156,7 +160,18 @@
 
   // --- Findings: the rules over the athlete's numbers (`lib/analytics/insights.ts`), each on the tab of the chart it
   // points at; the Overview shows the few that matter most right now, across all of them.
-  const findings = $derived(buildInsights(trainingState.insightInputs()));
+  const allFindings = $derived(buildInsights(trainingState.insightInputs()));
+  const findingSplit = $derived(splitFindings(allFindings, trainingState.hiddenFindings));
+  const findings = $derived(findingSplit.shown);
+  let showHiddenFindings = $state(false);
+  function hideFinding(insight: Insight) {
+    trainingState.setFindingHidden(insight.id, true);
+    showUndo('Finding hidden. Bring it back from the top menu.', () => trainingState.setFindingHidden(insight.id, false));
+  }
+  const overflowItems = $derived<OverflowItem[]>([
+    { label: 'Export all sessions as CSV', icon: 'ic:baseline-download', onclick: () => trainingState.exportToCSV() },
+    ...(findingSplit.hidden.length > 0 ? [{ label: `Hidden findings (${findingSplit.hidden.length})`, icon: 'ic:baseline-visibility-off', onclick: () => (showHiddenFindings = true) }] : []),
+  ]);
   const tabFindings = $derived(tab === 'overview' ? topFindings(findings) : findings.filter((f) => findingTab(f) === tab));
   const FINDINGS_TITLE: Record<Tab, string> = { overview: 'Findings', training: 'Training findings', recovery: 'Recovery findings', progress: 'Progress findings' };
   const ASK_GROUP: Record<Tab, InsightGroup> = { overview: 'push', training: 'plan', recovery: 'body', progress: 'strength' };
@@ -490,6 +505,7 @@
         >
           <Icon icon="ic:baseline-chevron-right" class="text-2xl" />
         </button>
+        <OverflowMenu items={overflowItems} />
     {/snippet}
   </AppBar>
   <div class="flex flex-col gap-2.5">
@@ -580,6 +596,7 @@
         title={FINDINGS_TITLE[tab]}
         items={tabFindings}
         onOpen={openInsight}
+        onHide={hideFinding}
         askGroup={ASK_GROUP[tab]}
         footnote={tab === 'overview' ? 'Each finding is a fixed rule over your own numbers; tap one for the chart behind it. Thresholds: Settings → Training model.' : undefined}
         emptyText={tab === 'overview' ? 'Nothing needs a look. Log a few sessions, ratings and a test result and findings about your load, progress and plan show up here.' : undefined}
@@ -627,11 +644,6 @@
         </div>
       {/if}
 
-      <!-- What the CSV holds is said on the button: every logged session with its exercises, not the charts. -->
-      <button onclick={() => trainingState.exportToCSV()} class="btn btn-ghost w-full">
-        <Icon icon="ic:baseline-download" class="text-lg" />Export all sessions as CSV
-      </button>
-
     </div>
   </div>
 </div>
@@ -641,3 +653,8 @@
 {#if selectedIndex !== null && buckets[selectedIndex]}
   <WeekDetailSheet bucket={buckets[selectedIndex]} acwr={acwrResults[selectedIndex]} onClose={() => (selectedIndex = null)} />
 {/if}
+
+{#if showHiddenFindings}
+  <HiddenFindingsSheet hidden={findingSplit.hidden} onClose={() => (showHiddenFindings = false)} />
+{/if}
+

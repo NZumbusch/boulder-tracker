@@ -28,7 +28,7 @@ export const SETTINGS_GROUPS: Record<SettingsGroupId, { label: string; descripti
   layout: {
     label: 'Home, Analytics & quick-log layout',
     description: 'Which cards show and in what order, per-card options, finger and test selections',
-    keys: ['homeSections', 'homeCollapsed', 'simpleHome', 'homeDetails', 'analyticsSections', 'quickLogActions', 'fingerCategoryIds', 'benchmarkTotalTypeIds'],
+    keys: ['homeSections', 'homeCollapsed', 'hiddenFindings', 'simpleHome', 'homeDetails', 'analyticsSections', 'quickLogActions', 'fingerCategoryIds', 'benchmarkTotalTypeIds'],
   },
   tunables: {
     label: 'Load, readiness & other tunables',
