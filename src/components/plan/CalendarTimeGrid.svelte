@@ -298,7 +298,7 @@
     return s.startMin !== undefined ? `${hhmm(s.startMin)} · ${length}` : length;
   }
   /** The hour labels' column: slimmer for seven days, so the days get the room. */
-  const gutter = $derived(compact ? 'w-7' : 'w-9');
+  const gutter = $derived(trainingState.clock12 ? 'w-11' : compact ? 'w-7' : 'w-9');
   const padL = $derived(compact ? 'pl-7' : 'pl-9');
   const weekLabel = $derived(formatWeek(weekIdOfDayIndex(days[0]), 'short'));
 </script>
@@ -391,7 +391,7 @@
   <div class="relative flex" style="height: {gridHeight}px" ondblclick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.gutter) resetZoom(); }} role="presentation">
     <div class="{gutter} shrink-0 relative" data-gutter="1">
       {#each hourList as h (h)}
-        {#if h > hours.from}<span data-gutter="1" class="absolute right-1.5 -translate-y-1/2 text-caption leading-none text-content-subtle tabular-nums" style="top: {(h - hours.from) * HOUR_PX}px">{formatHourLabel(h, trainingState.clock12)}</span>{/if}
+        {#if h > hours.from}<span data-gutter="1" class="absolute right-1.5 -translate-y-1/2 whitespace-nowrap text-caption leading-none text-content-subtle tabular-nums" style="top: {(h - hours.from) * HOUR_PX}px">{formatHourLabel(h, trainingState.clock12)}</span>{/if}
       {/each}
       {#if showNow}<span class="absolute right-1.5 -translate-y-1/2 text-caption leading-none font-semibold text-danger tabular-nums bg-surface px-0.5 z-10" style="top: {px(nowMin)}px">{hhmm(nowMin)}</span>{/if}
     </div>

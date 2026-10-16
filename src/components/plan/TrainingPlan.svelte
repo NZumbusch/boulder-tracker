@@ -1,6 +1,7 @@
 <script lang="ts">
   import { formatClockText } from '../../lib/timeFormat';
   import AppBar from '../nav/AppBar.svelte';
+  import { openPastSessionSheet } from '../../lib/session/pastSessionUi.svelte';
   import { fabActions } from '../../lib/navigation/fabActions.svelte';
   import InfoButton from '../common/InfoButton.svelte';
   import Segmented from '../ui/Segmented.svelte';
@@ -435,6 +436,14 @@
 <div class="w-full {shownView === 'calendar' ? 'max-w-5xl' : 'page-col'} space-y-4 animate-in fade-in duration-200 pb-12">
   <AppBar title="Plan">
     {#snippet actions()}
+      <button
+        onclick={openPastSessionSheet}
+        class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
+        aria-label="Log a past session"
+        title="Log a past session"
+      >
+        <Icon icon="ic:baseline-edit-calendar" class="text-xl" />
+      </button>
       <button
         onclick={() => openBlockManager()}
         class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"

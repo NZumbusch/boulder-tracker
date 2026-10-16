@@ -23,6 +23,7 @@
   import { tour } from './lib/tour/tour.svelte';
   import SessionBubble from './components/workout/SessionBubble.svelte';
   import SessionActionsSheet from './components/workout/SessionActionsSheet.svelte';
+  import PastSessionSheet from './components/workout/PastSessionSheet.svelte';
   import PainScreens from './components/health/PainScreens.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import { onMount } from 'svelte';
@@ -282,6 +283,7 @@
   <ActiveSessionModal />
   <QuickTimerHost />
   <SessionActionsSheet />
+  <PastSessionSheet />
   <PainScreens />
   <WorkoutModal />
   <Toast />

@@ -7,6 +7,7 @@
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import ListRow from '../common/ListRow.svelte';
+  import { openPastSessionSheet } from '../../lib/session/pastSessionUi.svelte';
   import SendsLog from '../sends/SendsLog.svelte';
   import { applySendFilters } from '../../lib/sends/filter';
   import { parseFontGrade } from '../../lib/analytics/grades';
@@ -214,6 +215,14 @@
 <div class="page-col space-y-4 animate-in fade-in duration-200 pb-12">
   <AppBar title="History" subtitle={onSends ? `${filteredSends.length} sends` : `${filteredWorkouts.length} sessions`}>
     {#snippet actions()}
+      <button
+        onclick={openPastSessionSheet}
+        class="w-11 h-11 flex items-center justify-center rounded-full transition-colors hover:bg-surface-elevated/70 text-content-subtle hover:text-content"
+        aria-label="Log a past session"
+        title="Log a past session"
+      >
+        <Icon icon="ic:baseline-edit-calendar" class="text-xl" />
+      </button>
       <button
         onclick={() => showFilters = !showFilters}
         class="relative w-11 h-11 flex items-center justify-center rounded-full transition-colors hover:bg-surface-elevated/70 {showFilters || activeFilterCount > 0 ? 'text-primary' : 'text-content-subtle hover:text-content'}"

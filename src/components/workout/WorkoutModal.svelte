@@ -13,6 +13,7 @@
   import WorkoutView from './WorkoutView.svelte';
   import WorkoutEditor from './WorkoutEditor.svelte';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
+  import { trainingState } from '../../lib/state.svelte';
 
   const workout = $derived(workoutModal.workout);
   // Back closes the viewer (the editor registers its own back, which runs first).
@@ -44,7 +45,12 @@
         <WorkoutEditor
           {workout}
           isNew={workoutModal.isNew}
-          onSaved={(saved) => { workoutModal.workout = saved; updateSibling(saved); workoutModal.mode = 'view'; workoutModal.isNew = false; }}
+          onSaved={(saved) => {
+            const rateNext = workoutModal.isNew && saved.status === 'completed';
+            workoutModal.workout = saved; updateSibling(saved); workoutModal.mode = 'view'; workoutModal.isNew = false;
+            // A session logged after the fact is rated straight away (how it felt feeds the load).
+            if (rateNext) trainingState.openFatigueModal(saved);
+          }}
           onCancel={() => { if (workoutModal.isNew) closeWorkout(); else workoutModal.mode = 'view'; }}
         />
       {/key}

@@ -32,6 +32,8 @@
   import { circuitFromGroup, insertCircuit } from '../../lib/exercise/circuits';
   import { toast } from '../../lib/toast.svelte';
   import { emptySessionWarning } from '../../lib/session/emptySession';
+  import { buildPastSession, pastSessionProblem } from '../../lib/session/pastSession';
+  import { formatDay, localIsoDate } from '../../lib/dateUtils';
   import type { ExerciseGroup, Circuit } from '../../lib/types';
   import ExerciseForm from './ExerciseForm.svelte';
   import TestSheet from './TestSheet.svelte';
@@ -61,6 +63,20 @@
   const bucket = $derived<'prescribed' | 'logged'>(workout.status === 'completed' ? 'logged' : 'prescribed');
 
   let openChip = $state<'day' | 'time' | 'duration' | 'place' | null>(null);
+
+  /** A session being logged after the fact: its day is a date (and moves its week), not just a weekday. */
+  const pastLog = $derived(isNew && workout.status === 'completed' && !!workout.date);
+  const pastDay = $derived(workout.date ? localIsoDate(new Date(workout.date)) : '');
+  let dateProblem = $state<string | null>(null);
+  function setPastDay(day: string) {
+    dateProblem = pastSessionProblem(day, workout.startTime);
+    if (dateProblem) return;
+    const moved = buildPastSession({ id: workout.id, day, time: workout.startTime });
+    if (!moved) return;
+    workout.date = moved.date;
+    workout.weekId = moved.weekId;
+    workout.dayOfWeek = moved.dayOfWeek;
+  }
   let isReordering = $state(false);
   /** Picking exercises to make a circuit of. */
   let isGrouping = $state(false);
@@ -280,13 +296,22 @@
             <Icon {icon} class="text-sm" /> {label}
           </button>
         {/snippet}
-        {@render chip('day', 'ic:baseline-calendar-today', workout.dayOfWeek ? workout.dayOfWeek.slice(0, 3) : 'Day', !!workout.dayOfWeek)}
+        {#if pastLog}
+          {@render chip('day', 'ic:baseline-calendar-today', formatDay(workout.date!, { weekday: 'short' }), true)}
+        {:else}
+          {@render chip('day', 'ic:baseline-calendar-today', workout.dayOfWeek ? workout.dayOfWeek.slice(0, 3) : 'Day', !!workout.dayOfWeek)}
+        {/if}
         {@render chip('time', 'ic:baseline-schedule', workout.startTime ? formatClockText(workout.startTime, trainingState.clock12) : 'Time', !!workout.startTime)}
         {@render chip('duration', 'ic:baseline-timer', workout.plannedDuration ? `${workout.plannedDuration} min` : 'Duration', !!workout.plannedDuration)}
         {@render chip('place', 'ic:baseline-place', workout.location || 'Where', !!workout.location)}
       </div>
 
-      {#if openChip === 'day'}
+      {#if openChip === 'day' && pastLog}
+        <div class="mt-2 space-y-1 animate-in fade-in duration-150">
+          <input type="date" value={pastDay} max={localIsoDate()} aria-label="Day it happened" onchange={(e) => setPastDay(e.currentTarget.value)} class="field w-full" />
+          {#if dateProblem}<p class="text-caption text-warning" role="alert">{dateProblem}</p>{/if}
+        </div>
+      {:else if openChip === 'day'}
         <div class="flex flex-wrap gap-1.5 mt-2 animate-in fade-in duration-150">
           {#each DAYS as day}
             <button
@@ -304,10 +329,11 @@
           <input
             type="time"
             bind:value={workout.startTime}
+            onchange={() => { if (pastLog) setPastDay(pastDay); }}
             aria-label="Start time"
             class="field flex-1"
           />
-          <button onclick={() => { workout.startTime = undefined; openChip = null; }} class="btn btn-ghost px-3">Clear</button>
+          <button onclick={() => { workout.startTime = undefined; if (pastLog) setPastDay(pastDay); openChip = null; }} class="btn btn-ghost px-3">Clear</button>
         </div>
       {:else if openChip === 'duration'}
         <div class="flex items-center gap-2 mt-2 animate-in fade-in duration-150">
