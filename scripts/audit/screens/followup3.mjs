@@ -14,4 +14,10 @@ export const screens = [
       await c.nav('home'); await c.st(`t.setHomeCollapsed('metrics', true); t.setHomeCollapsed('thisWeek', true); t.setHomeCollapsed('fatigue', true)`); await sleep(500);
     }, teardown: async (c) => { await c.st(`for (const id of ['metrics','thisWeek','fatigue']) t.setHomeCollapsed(id, false)`); await c.close(); } },
   { id: 'home-open', area: 'followup3', setup: async (c) => { await c.nav('home'); } },
+  { id: 'plan-weeks-patterns', area: 'followup3', setup: async (c) => { await c.st(`t.setTunable('plan.weekPatterns', true)`); await plan(c, { view: 'blocks' }); }, teardown: async (c) => { await c.st(`t.setTunable('plan.weekPatterns', false)`); await c.close(); } },
+  { id: 'plan-weeks-filter', area: 'followup3', setup: async (c) => {
+      await c.st(`t.setTunable('plan.weekPatterns', true)`); await plan(c, { view: 'blocks' });
+      await c.ev(`document.querySelector('[aria-label^="Phases: tap"] button')?.click()`); await sleep(500);
+    }, teardown: async (c) => { await c.st(`t.setTunable('plan.weekPatterns', false)`); await c.close(); } },
+  { id: 'plan-goal-form', area: 'followup3', setup: async (c) => { await plan(c, { view: 'blocks' }); await c.click('Add competition'); await sleep(500); await c.scrollTo(1); } },
 ];

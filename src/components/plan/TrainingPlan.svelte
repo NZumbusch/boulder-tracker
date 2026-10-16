@@ -28,6 +28,7 @@
   import WeekCalendar from './WeekCalendar.svelte';
   import BlockManager from './BlockManager.svelte';
   import GoalsCalendar from './GoalsCalendar.svelte';
+  import { patternForPhase, patternStyle, weekMatchesPhaseFilter } from '../../lib/planning/weekPatterns';
   import { formatGoalDates, goalEnd } from '../../lib/goals/goals';
   import { sessionsDuringTrip } from '../../lib/goals/tripConflicts';
   import NoteSheet from '../common/NoteSheet.svelte';
@@ -55,6 +56,18 @@
 
   const phaseDefById = $derived(new Map(trainingState.phaseDefs.map((p) => [p.id, p])));
   const phaseColor = (phaseId?: string) => (phaseId && phaseDefById.get(phaseId)?.color) || FALLBACK_PHASE_COLOR;
+  /** Every phase id in list order (archived ones too, so a pattern never moves when a phase is archived). */
+  const orderedPhaseIds = $derived([...trainingState.phaseDefs].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((p) => p.id));
+  const usePatterns = $derived(trainingState.tunableOn('plan.weekPatterns'));
+  const patternOf = (phaseId?: string) => (usePatterns ? patternStyle(patternForPhase(phaseId, orderedPhaseIds)) : '');
+  /** The legend doubles as a filter: weeks without a chosen phase fade. Empty = all weeks. */
+  let phaseFilter = $state<Set<string>>(new Set());
+  function togglePhaseFilter(id: string) {
+    const next = new Set(phaseFilter);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    phaseFilter = next;
+  }
   const phaseName = (phaseId?: string) => (phaseId && phaseDefById.get(phaseId)?.name) || undefined;
 
   // --- State ---
@@ -172,8 +185,10 @@
       color: w.phaseId ? phaseDefById.get(w.phaseId)?.color : undefined,
       tooltip: `${formatWeek(w.id)}${phaseName(w.phaseId) ? ` - ${w.runs.length > 1 ? describeRuns(w.runs.map((r) => ({ name: r.block ? phaseName(r.block.phaseId) : undefined, from: r.from, to: r.to }))) : phaseName(w.phaseId)}` : ''}${w.hasOverlap ? ' (overlapping blocks)' : ''}`,
       hasOverlap: w.hasOverlap,
+      pattern: patternOf(w.phaseId),
+      dimmed: !weekMatchesPhaseFilter(w.runs.length ? w.runs.map((r) => r.block?.phaseId) : [w.phaseId], phaseFilter),
       // A week with more than one run is split between phases (or has days no phase has): drawn in segments.
-      runs: w.runs.length > 1 ? w.runs.map((r) => ({ color: r.block ? phaseDefById.get(r.block.phaseId)?.color : undefined, from: r.from, to: r.to })) : undefined,
+      runs: w.runs.length > 1 ? w.runs.map((r) => ({ color: r.block ? phaseDefById.get(r.block.phaseId)?.color : undefined, from: r.from, to: r.to, pattern: patternOf(r.block?.phaseId) })) : undefined,
     })),
   );
 
@@ -480,13 +495,17 @@
       <PlanCalendar bind:this={calendarRef} onAdd={handleAddWorkout} onEditPhase={openBlockManager} onShowWeeks={() => setView('blocks')} />
     {:else}
     <div class="flex items-start justify-between gap-2 px-1">
-      <div class="flex flex-wrap gap-x-3 gap-y-1.5 pt-1.5">
-        {#each selectablePhases as phase}
-          <div class="flex items-center gap-1">
-            <div class="w-2 h-2 rounded-full {phase.color || FALLBACK_PHASE_COLOR}"></div>
-            <span class="text-caption text-content-subtle">{phase.name}</span>
-          </div>
+      <!-- The legend is also the filter: tap a phase to fade the weeks that have none of it; tap again to undo. -->
+      <div class="flex flex-wrap gap-x-1 gap-y-0 -ml-2" role="group" aria-label="Phases: tap to show only those weeks">
+        {#each selectablePhases as phase (phase.id)}
+          {@const on = phaseFilter.has(phase.id)}
+          <button type="button" onclick={() => togglePhaseFilter(phase.id)} aria-pressed={on} class="tap inline-flex items-center gap-1.5 min-h-10 px-2 rounded-control text-caption transition-colors {on ? 'text-content font-semibold bg-surface-elevated' : 'text-content-subtle hover:text-content'}">
+            <span class="w-3.5 h-3.5 rounded-full shrink-0 {phase.color || FALLBACK_PHASE_COLOR} {on ? 'ring-2 ring-content' : ''}" style={patternOf(phase.id)} aria-hidden="true"></span>{phase.name}
+          </button>
         {/each}
+        {#if phaseFilter.size > 0}
+          <button type="button" onclick={() => (phaseFilter = new Set())} class="btn-quiet px-2 min-h-10 text-caption text-primary">Show all</button>
+        {/if}
       </div>
       <!-- Paging through the weeks. -->
       <div class="flex items-center shrink-0 -mr-1.5">

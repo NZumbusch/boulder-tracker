@@ -336,7 +336,7 @@
     </div>
   {:else if page === 'planCalendar'}
     <div class="space-y-4">
-      <TunablesSettings topic="layout" title="Views" ids={['plan.weekAgenda', 'plan.weekListOnPhone', 'plan.exerciseList', 'plan.highContrast', 'plan.eventEdges', 'plan.calendarPhases', 'plan.calendarPhaseNames', 'plan.calendarPhaseTint', 'plan.calendarCategoryColors']} />
+      <TunablesSettings topic="layout" title="Views" ids={['plan.weekAgenda', 'plan.weekListOnPhone', 'plan.exerciseList', 'plan.highContrast', 'plan.eventEdges', 'plan.calendarPhases', 'plan.calendarPhaseNames', 'plan.calendarPhaseTint', 'plan.calendarCategoryColors', 'plan.weekPatterns']} />
       <TunablesSettings topic="layout" title="Day" ids={['day.startHour', 'ui.clock12']} />
     </div>
   {:else if page === 'history'}

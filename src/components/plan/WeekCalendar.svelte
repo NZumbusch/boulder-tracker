@@ -19,7 +19,11 @@
     tooltip: string;
     hasOverlap: boolean;
     /** Only for a week split between phases: one coloured segment per run of days (0 = Monday ... 6 = Sunday), drawn side by side. */
-    runs?: { color?: string; from: number; to: number }[];
+    runs?: { color?: string; from: number; to: number; pattern?: string }[];
+    /** Inline style of this phase's pattern (setting `plan.weekPatterns`); empty when plain or off. */
+    pattern?: string;
+    /** Left out by the legend's phase filter. */
+    dimmed?: boolean;
   }
 
   let {
@@ -76,14 +80,14 @@
         aria-pressed={selectedWeekId === week.id}
         class="tap week-cell aspect-square rounded-md transition-all duration-200 relative group hover:z-20
           {week.runs || week.color ? '' : FALLBACK_COLOR}
-          {selectedWeekId === week.id ? 'ring-2 ring-content z-10' : ''}"
+          {selectedWeekId === week.id ? 'ring-2 ring-content z-10' : ''} {week.dimmed ? 'opacity-40' : ''}"
       >
-        {#if week.color && !week.runs}<span class="absolute inset-0 rounded-md {week.color} opacity-80 group-hover:opacity-100 transition-opacity pointer-events-none" aria-hidden="true"></span>{/if}
+        {#if week.color && !week.runs}<span class="absolute inset-0 rounded-md {week.color} opacity-80 group-hover:opacity-100 transition-opacity pointer-events-none" style={week.pattern} aria-hidden="true"></span>{/if}
         {#if week.runs}
           <!-- A week split between phases: a segment as wide as its days, per phase. Phase colours are classes, so these are children, not a gradient. -->
           <span class="absolute inset-0 flex overflow-hidden rounded-md opacity-80 pointer-events-none" aria-hidden="true">
             {#each week.runs as run}
-              <span class="{run.color || FALLBACK_COLOR.split(' ')[0]} h-full" style="flex: {run.to - run.from + 1} 1 0"></span>
+              <span class="{run.color || FALLBACK_COLOR.split(' ')[0]} h-full" style="flex: {run.to - run.from + 1} 1 0; {run.pattern ?? ''}"></span>
             {/each}
           </span>
         {/if}
