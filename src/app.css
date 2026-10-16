@@ -19,6 +19,8 @@
 
 /* A landscape phone: little height, so screens go side by side and drop their extras (`short:`). */
 @custom-variant short (@media (max-height: 500px));
+/* A narrow phone (under 400 px wide): side-by-side selects get cut off, so they stack (`narrow:`). */
+@custom-variant narrow (@media (max-width: 399px));
 
 @theme {
   --color-app-bg: var(--theme-app-bg);

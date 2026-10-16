@@ -7,7 +7,7 @@
   const weeks = (n: number) => `${n} week${n === 1 ? '' : 's'}`;
 </script>
 
-<div class="grid grid-cols-2 gap-2">
+<div class="grid grid-cols-2 narrow:grid-cols-1 gap-2">
   <label class="space-y-1 min-w-0">
     <span class="text-caption text-content-subtle block">Sessions in full</span>
     <select

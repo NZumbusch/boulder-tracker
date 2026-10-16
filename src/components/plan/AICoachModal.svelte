@@ -513,11 +513,11 @@
 
           <section class="space-y-2.5">
             {@render heading(mode === 'generate' ? 'Weeks the AI may change' : 'Weeks to analyze', rangeValid ? `${selectedWeekIds.length} week${selectedWeekIds.length === 1 ? '' : 's'}` : '')}
-            <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <div class="grid grid-cols-[1fr_auto_1fr] narrow:grid-cols-1 items-center gap-2">
               <select value={startWeek} onchange={(e) => setStart(e.currentTarget.value)} aria-label="From" class="field min-w-0">
                 {#each weekOptions as opt}<option value={opt.id}>{opt.label}</option>{/each}
               </select>
-              <Icon icon="ic:baseline-arrow-forward" class="text-content-subtle" />
+              <Icon icon="ic:baseline-arrow-forward" class="text-content-subtle narrow:rotate-90 narrow:justify-self-center" />
               <select value={endWeek} onchange={(e) => setEnd(e.currentTarget.value)} aria-label="To" class="field min-w-0">
                 {#each weekOptions as opt}<option value={opt.id}>{opt.label}</option>{/each}
               </select>
