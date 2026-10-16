@@ -94,4 +94,4 @@
   />
 </div>
 
-<TunablesSettings topic="layout" title="Panels" ids={['ui.flatCards']} />
+<TunablesSettings topic="layout" title="Panels" ids={['ui.raisedCards', 'ui.flatCards']} />

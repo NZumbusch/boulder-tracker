@@ -21,8 +21,9 @@ export interface ReleaseNote {
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
     id: "2026-10-29-soft-week-grid",
-    title: "Lighter week grid",
+    title: "A lighter look: week grid, cards, buttons, bottom bar",
     points: [
+      "Cards are light raised cards with a soft shadow again (Settings > General > Raised cards turns it off; Flat sections still wins). Secondary buttons are soft outlined pills, and the bottom bar marks where you are with a small dot under the icon.",
       "The Weeks view is back to soft rounded tiles in solid phase colours: empty weeks are a faint grey, the week you picked has a soft ring and its number, this week has a dot. Settings > Views > Clear week grid brings back a number on every tile and the firm outline; the High contrast theme always uses that one.",
     ],
   },

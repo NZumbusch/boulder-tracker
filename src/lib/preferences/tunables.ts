@@ -78,6 +78,7 @@ export const TUNABLES: TunableDef[] = [
 
 
   // --- Layout ---
+  { id: "ui.raisedCards", topic: "layout", group: "Look", label: "Raised cards", hint: "On: grouped content sits on a light card with a soft shadow and rounder corners. Off: a flat tinted panel. The High contrast theme always uses outlines. Flat sections below wins over this", kind: "boolean", default: true },
   { id: "ui.flatCards", topic: "layout", group: "Look", label: "Flat sections instead of panels", hint: "Off: grouped content sits on a soft, borderless panel. On: no panel at all - sections are separated by whitespace and a hairline, like the calendar", kind: "boolean", default: false },
   { id: "plan.weekAgenda", topic: "layout", group: "Plan calendar", label: "Show the week as a list", hint: "On: the calendar's Week view is seven day rows with full session names and exercises. Off: seven narrow columns on an hour grid", kind: "boolean", default: false },
   { id: "plan.exerciseList", topic: "layout", group: "Plan calendar", label: "Exercises as a list", hint: "In the week list, each session's exercises are plain lines with a colour dot instead of coloured chips", kind: "boolean", default: false },

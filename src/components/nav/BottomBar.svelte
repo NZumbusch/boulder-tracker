@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
    * The bottom bar (the default on a phone held upright): four destinations and, in the middle, Log a workout - which
-   * becomes the way back into the session while one is running. The current destination is a soft pill behind its icon
-   * in the chosen accent (the same "you are here" the rail and the drawer use), with the label under it when labels are on.
+   * becomes the way back into the session while one is running. The current destination is its icon in the chosen accent
+   * with a small dot under it (the rail and the drawer keep their soft pill), the label between them when labels are on.
    */
   import Icon from '@iconify/svelte';
   import { trainingState } from '../../lib/state.svelte';
@@ -28,10 +28,11 @@
     aria-current={active ? 'page' : undefined}
     data-tour="nav-{it.view}"
   >
-    <span class="w-14 h-8 short:h-7 grid place-items-center rounded-full transition-colors duration-200 {active ? accent.tint : ''}">
+    <span class="w-14 h-8 short:h-7 grid place-items-center">
       <Icon icon={it.icon} class="text-[24px] short:text-[22px]" />
     </span>
     {#if trainingState.navLabels}<span class="text-caption font-semibold leading-none">{it.label}</span>{/if}
+    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200 {active ? accent.solid : 'bg-transparent'}" aria-hidden="true"></span>
   </button>
 {/snippet}
 

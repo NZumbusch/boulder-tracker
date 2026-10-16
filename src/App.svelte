@@ -50,7 +50,7 @@
   const drawerNav = $derived(trainingState.navStyle === 'drawer');
   $effect(() => { document.documentElement.dataset.nav = trainingState.navStyle; });
   // Soft panels (default) or fully flat sections - see `.card` in app.css.
-  $effect(() => { document.documentElement.dataset.cards = trainingState.tunableOn('ui.flatCards') ? 'flat' : 'soft'; });
+  $effect(() => { document.documentElement.dataset.cards = trainingState.tunableOn('ui.flatCards') ? 'flat' : trainingState.tunableOn('ui.raisedCards') ? 'raised' : 'soft'; });
 
   // Back navigation (see lib/navigation/backStack): the page loads as Home
   // in history's base entry, then opens the tab its address names, so back

@@ -365,6 +365,7 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 25.11 | Wide layout | Tablet or laptop width (or landscape phone). | Timeline on the left; the selected phase, Needs a look and the list in a column on the right. | | |
 | 25.12 | Delete with Undo | Delete a phase. | It goes without a question; Undo in the toast brings it back. | | |
 | 25.13 | Soft week grid | Plan > Weeks, light and dark theme. | Rounded tiles, solid colours, empty weeks a faint grey, a ring and number on the picked week, a dot on this week, a small pill where a year starts. Settings > Views > Clear week grid: a number on every tile and a firm outline. High contrast theme: numbers and white outline whatever the setting. | | |
+| 25.14 | Light look elsewhere | Home, Plan, Analytics in light and dark; Settings > General > Raised cards off, then Flat sections on. | Cards are white (light) with a soft shadow and round corners; off gives the flat tinted panel; flat sections wins over both. Secondary buttons (Edit, Split, Move...) are pale outlined pills. The bottom bar shows a dot under the current tab and no pill. High contrast theme: outlines, no shadows, white pill borders. | | |
 
 ## After the run
 

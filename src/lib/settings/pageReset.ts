@@ -16,7 +16,7 @@ type PrefKey = keyof Preferences;
 
 /** The tunables on each page (the cards in `Settings.svelte`, `GeneralSettings` and `RemindersSettings` render these). */
 export const PAGE_TUNABLES: Partial<Record<PageId, string[]>> = {
-  general: ["ui.flatCards"],
+  general: ["ui.raisedCards", "ui.flatCards"],
   home: ["home.recentActivityCount", "home.progressBenchmarks"],
   planCalendar: [
     "plan.weekAgenda", "plan.weekListOnPhone", "plan.exerciseList", "plan.highContrast", "plan.eventEdges", "plan.calendarPhases",
