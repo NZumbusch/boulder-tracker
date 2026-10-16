@@ -58,6 +58,7 @@
   import { showUndo, toast } from '../../lib/toast.svelte';
   import PainHeadsUp from '../health/PainHeadsUp.svelte';
   import Icon from '@iconify/svelte';
+  import OverflowMenu, { type OverflowItem } from '../ui/OverflowMenu.svelte';
   import Sheet from '../ui/Sheet.svelte';
   import Segmented from '../ui/Segmented.svelte';
 
@@ -359,6 +360,17 @@
 
   /** The session timer, so the exercise card's Timer button can open it. */
   let timer = $state<ReturnType<typeof TimerWidget> | undefined>(undefined);
+  /** The tucked timer (it keeps running out of sight) and whether it is. */
+  const tucked = $derived(timer && trainingState.timerPillHidden && !circuitRun ? timer.tucked() : undefined);
+  const tuckedTimerRunning = $derived(!!tucked?.running);
+  /** What the footer's menu holds: reorder/remove (nothing to do in an empty session), add an unplanned exercise, the tucked timer. */
+  const toolItems = $derived.by((): OverflowItem[] => {
+    const items: OverflowItem[] = [];
+    if (exercises.length > 0) items.push({ label: 'Edit exercises', icon: 'ic:baseline-tune', onclick: () => { isEditingPlan = true; isPickingCircuit = false; pickedSlotIds = []; } });
+    items.push({ label: 'Add an exercise', icon: 'ic:baseline-plus', onclick: () => (isAddingExercise = true) });
+    if (tucked) items.push({ label: tucked.text ? `Timer ${tucked.text}` : 'Timer', icon: tucked.icon, onclick: () => trainingState.setTimerPillHidden(false) });
+    return items;
+  });
 
   // Back (phone key or browser): the add/edit screen returns to the
   // session; the session itself minimises to the bubble - it keeps running.
@@ -1044,74 +1056,47 @@
       </div>
     </div>
 
-    <!-- Footer: the session-shape controls on top, and below them the three that need a thumb - Pause, End, Finish. On a short (landscape) screen it is one row. -->
+    <!-- Footer: one row. Pause and End (and Finish) are the buttons that need a thumb; Edit, Add and the tucked timer sit
+         behind the menu at the left, so the bar has one kind of button in one row. While editing, the menu is a Done button. -->
     <footer bind:offsetHeight={footerH} class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
-      <div class="max-w-lg short:max-w-none mx-auto w-full px-4 py-2 short:py-1 flex flex-col gap-2 short:flex-row short:items-center short:gap-3">
-        <!-- One even row of quiet tools, edge to edge like the pills below: each takes an equal share. -->
-        <div class="flex items-center gap-2 short:flex-1 short:min-w-0">
-          {#if exercises.length > 0}
-            <!-- Nothing to reorder in an empty session: the button is not there rather than greyed out for no visible reason. -->
-            <button
-              onclick={() => { isEditingPlan = !isEditingPlan; isPickingCircuit = false; pickedSlotIds = []; }}
-              class="btn-quiet flex-1 px-3 text-label font-bold gap-1.5 {isEditingPlan
-                ? 'bg-primary/15 text-primary'
-                : 'text-content-subtle hover:text-content'}"
-              title="Reorder or remove exercises"
-            >
-              <Icon icon={isEditingPlan ? 'ic:baseline-check' : 'ic:baseline-tune'} class="text-base" />
-              {isEditingPlan ? 'Done' : 'Edit'}
-            </button>
-          {/if}
+      <div class="max-w-lg short:max-w-none mx-auto w-full px-4 py-2 short:py-1 flex items-center gap-2 short:gap-3">
+        {#if isEditingPlan}
           <button
-            onclick={() => isAddingExercise = true}
-            class="btn-quiet flex-1 px-3 text-label font-bold text-content-subtle hover:text-content gap-1.5"
-            title="Add an exercise you did that wasn't planned"
+            onclick={() => { isEditingPlan = false; isPickingCircuit = false; pickedSlotIds = []; }}
+            class="btn btn-secondary shrink-0 px-4 gap-1.5 bg-primary/15 text-primary"
+            title="Done reordering"
           >
-            <Icon icon="ic:baseline-plus" class="text-base" />
-            Add
+            <Icon icon="ic:baseline-check" class="text-xl" />
+            Done
           </button>
-          {#if timer && trainingState.timerPillHidden && !circuitRun}
-            {@const t = timer.tucked()}
-            <!-- The timer, tucked away: it keeps running, shows its time
-                 here, and a tap brings the whole thing back. -->
-            <button
-              onclick={() => trainingState.setTimerPillHidden(false)}
-              class="h-11 min-w-11 flex-1 px-3 rounded-full flex items-center justify-center gap-1.5 border text-label font-bold tabular-nums transition-colors {t.running ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
-              aria-label="Show the timer"
-              title="Timer"
-            >
-              <Icon icon={t.icon} class="text-lg" />
-              {#if t.text}{t.text}{/if}
-            </button>
-          {/if}
-        </div>
-        <div class="flex items-center gap-2 short:shrink-0">
+        {:else}
+          <OverflowMenu up icon="ic:baseline-more-horiz" label="Edit, add an exercise, timer" items={toolItems} dot={tuckedTimerRunning} />
+        {/if}
+        <button
+          onclick={() => store.togglePause()}
+          class="btn flex-1 short:flex-none short:px-5 {store.isPaused ? 'bg-success hover:bg-success-hover text-on-primary' : 'btn-secondary'}"
+          aria-label={store.isPaused ? 'Resume session' : 'Pause session'}
+        >
+          <Icon icon={store.isPaused ? 'ic:baseline-play-arrow' : 'ic:baseline-pause'} class="text-xl" />
+          {store.isPaused ? 'Resume' : 'Pause'}
+        </button>
+        <button
+          onclick={() => isExiting = true}
+          class="btn flex-1 short:flex-none short:px-5 rounded-full border border-danger/50 bg-danger/5 text-danger hover:bg-danger/10 active:bg-danger/15"
+          aria-label="End the session"
+        >
+          <Icon icon="ic:baseline-stop-circle" class="text-xl" />
+          End
+        </button>
+        {#if store.isComplete}
           <button
-            onclick={() => store.togglePause()}
-            class="btn flex-1 short:flex-none short:px-5 {store.isPaused ? 'bg-success hover:bg-success-hover text-on-primary' : 'btn-secondary'}"
-            aria-label={store.isPaused ? 'Resume session' : 'Pause session'}
+            onclick={handleSaveAndFinish}
+            class="btn flex-[1.3] short:flex-none short:px-5 bg-success hover:bg-success-hover text-on-primary active:scale-[0.98]"
           >
-            <Icon icon={store.isPaused ? 'ic:baseline-play-arrow' : 'ic:baseline-pause'} class="text-xl" />
-            {store.isPaused ? 'Resume' : 'Pause'}
+            Finish
+            <Icon icon="ic:baseline-arrow-forward" class="text-base" />
           </button>
-          <button
-            onclick={() => isExiting = true}
-            class="btn flex-1 short:flex-none short:px-5 rounded-full border border-danger/50 bg-danger/5 text-danger hover:bg-danger/10 active:bg-danger/15"
-            aria-label="End the session"
-          >
-            <Icon icon="ic:baseline-stop-circle" class="text-xl" />
-            End
-          </button>
-          {#if store.isComplete}
-            <button
-              onclick={handleSaveAndFinish}
-              class="btn flex-[1.3] short:flex-none short:px-5 bg-success hover:bg-success-hover text-on-primary active:scale-[0.98]"
-            >
-              Finish
-              <Icon icon="ic:baseline-arrow-forward" class="text-base" />
-            </button>
-          {/if}
-        </div>
+        {/if}
       </div>
     </footer>
 
