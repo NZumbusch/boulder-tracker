@@ -427,6 +427,31 @@ export function validateOrderedToggles<Id extends string>(raw: unknown, ids: rea
 
 
 /**
+ * What each sharing switch means when it holds no value (the optional ones in
+ * an older saved preferences object). The one place that says which switches
+ * are on by default - the Settings page, its descriptions and the stored
+ * defaults (`defaultPreferences`) are all checked against it in a test.
+ */
+export const AI_SHARING_ON_BY_DEFAULT: Record<keyof AISharingPreferences, boolean> = {
+  trainingBlocks: true,
+  competitions: true,
+  readinessMetrics: false,
+  painLogs: false,
+  outdoorAscents: true,
+  notes: true,
+  coachNotes: true,
+  places: true,
+  phoneCalendar: false,
+  sessionNotes: true,
+  planNotesInHistory: false,
+};
+
+/** Whether a sharing switch is on, an absent value reading as its default. */
+export function aiSharingOn(sharing: AISharingPreferences, category: keyof AISharingPreferences): boolean {
+  return sharing[category] ?? AI_SHARING_ON_BY_DEFAULT[category];
+}
+
+/**
  * Repairs an unknown value into a valid `AISharingPreferences`: each of the
  * five fields defaults independently (this module's own established
  * discipline - see `defaultPreferences`'s own field-by-field fallback),

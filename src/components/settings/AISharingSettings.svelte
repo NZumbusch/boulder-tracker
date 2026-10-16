@@ -13,7 +13,8 @@
    * Notifications into Appearance & Behaviour instead of promoting it.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import type { AISharingPreferences } from '../../lib/preferences/migrate';
+  import { aiSharingOn } from '../../lib/preferences/migrate';
+  import { AI_SHARING_CATEGORIES as CATEGORIES, sharingHint } from '../../lib/ai/sharingCategories';
   import { buildCoachPromptFor, estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
   import { getWeekIdRange, incrementWeekId } from '../../lib/dateUtils';
   import AIPromptTuning from './AIPromptTuning.svelte';
@@ -23,19 +24,6 @@
   import InfoButton from '../common/InfoButton.svelte';
   import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
 
-  const CATEGORIES: { id: keyof AISharingPreferences; label: string; description: string }[] = [
-    { id: 'trainingBlocks', label: 'Training blocks', description: 'Active/upcoming phase blocks covering or near the prompt\'s target weeks.' },
-    { id: 'competitions', label: 'Goals', description: 'Upcoming competitions and outdoor trips (dates, place, projects), what you\'re peaking for.' },
-    { id: 'places', label: 'Places', description: 'Where you train - names, kind, price, opening hours and notes (never the coordinates), so the coach can place sessions. On by default.' },
-    { id: 'phoneCalendar', label: 'Phone calendar', description: 'The titles and times of your phone calendar\'s events in the weeks the coach plans (never where, notes or guests), so it plans around them. Android app with the phone calendar switched on. Off by default - titles can be private.' },
-    { id: 'readinessMetrics', label: 'Readiness and daily metrics', description: 'Current readiness score plus sleep/HRV/RHR/bodyweight trends. Health data - off by default.' },
-    { id: 'painLogs', label: 'Pain issues', description: 'Open pain issues and those resolved in the last 90 days, with their course; also lets open pain count in the readiness snapshot. Health data - off by default.' },
-    { id: 'outdoorAscents', label: 'Outdoor ascents', description: 'Recent outdoor grade history.' },
-    { id: 'notes', label: 'Block and week notes', description: 'Your notes on training blocks, and week notes within four weeks of the prompt\'s weeks.' },
-    { id: 'sessionNotes', label: 'Session notes (how it went)', description: 'The note you write when you finish a session, sent with your recent sessions.' },
-    { id: 'planNotesInHistory', label: 'Plan notes on past sessions', description: 'The session note written beforehand (goals, cues) for sessions you have already done. Off by default - it is usually stale once you have logged what happened.' },
-    { id: 'coachNotes', label: 'Coach notes and about me', description: 'Your About me, standing goal and the coach notes (Settings → Coach notes) - so you don\'t have to repeat them.' },
-  ];
 
   let compact = $state(loadCompact());
 
@@ -61,10 +49,10 @@
   <div class="divide-y divide-border">
     {#each CATEGORIES.filter((c) => c.id !== 'phoneCalendar' || deviceCalendar.supported) as category}
       <Toggle
-        checked={category.id === 'planNotesInHistory' || category.id === 'phoneCalendar' ? trainingState.aiSharing[category.id] === true : trainingState.aiSharing[category.id] !== false}
+        checked={aiSharingOn(trainingState.aiSharing, category.id)}
         onChange={(v) => trainingState.setAiSharing(category.id, v)}
         label={category.label}
-        hint={category.description}
+        hint={sharingHint(category.id)}
       />
     {/each}
   </div>
