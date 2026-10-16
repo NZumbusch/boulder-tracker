@@ -20,6 +20,13 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-focus-sessions",
+    title: "Plan calendar: focus on sessions",
+    points: [
+      "In Day and Week, the dumbbell button next to the layout toggle greys out every phone-calendar event at once and colours each session by its main exercise type. Tap again to go back; it is remembered.",
+    ],
+  },
+  {
     id: "2026-10-28-settings-pages",
     title: "Settings: a page per phase, reset a page, timer split",
     points: [
