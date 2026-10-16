@@ -42,3 +42,10 @@ One entry per decision: area, screen, options, recommendation.
 - **analytics / an-overview, an-recovery (all sizes)**: with little history the plots use the full width but the data sits in the last few columns, leaving the left half empty. Options: (a) keep, columns stay comparable when paging; (b) shrink the window to the data. Recommend (a).
 - **analytics / an-overview (laptop, tablet-l)**: Analytics is a 512 px column with empty sides like the other list pages. Options: (a) keep; (b) two chart columns from `lg`. Recommend (a) until decided app-wide.
 - **analytics / an-benchmark-adjust (phone)**: test chips scroll sideways with the last one cut off and no fade hint. Options: (a) keep; (b) add an edge fade. Recommend (b).
+
+## settings
+
+- **settings / all pages (laptop, tablet-l)**: every Settings page is one centred column of about 512 px with empty space on both sides, like the other list pages. Options: (a) keep; (b) widen to about 720 px, or two columns for the long pages (Timer, Look & feel). Recommend (a) until decided app-wide.
+- **settings / st-ai-tuning, st-page-aiSharing (phone)**: the "Weekly summaries" select shows "8 weeks before" cut off at the right edge of the field. Options: (a) keep; (b) shorten the option text; (c) stack the two selects on narrow phones. Recommend (c).
+- **settings / st-phase-templates (phone)**: the session name and note fields in a phase template are borderless lines; to be finger-sized they are now 40 px tall, which adds about 20 px per session card. Options: (a) keep; (b) make them real boxed fields like the rest of the app. Recommend (a).
+- **settings / st-health-*, st-calendar-*, st-page-widgets**: these pages only exist on Android; the audit faked their states in the browser (no real native data). Nothing to decide, but they need a look on a phone.
