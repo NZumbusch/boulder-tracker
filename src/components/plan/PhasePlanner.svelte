@@ -193,9 +193,12 @@
     sheet = null;
   }
 
+  /** Gone at once, with an Undo (like every other change here) instead of a question first. */
   async function remove(id: string) {
-    await trainingState.deleteTrainingBlock(id);
+    const gone = blocks.find((b) => b.id === id);
+    if (!gone) return;
     if (selectedId === id) selectedId = null;
+    await save(snapshot().filter((b) => b.id !== id), `"${gone.name}" deleted`);
   }
 
   /** A tap on empty timeline or a gap: the phase there, or a new one starting on that day. */

@@ -1710,16 +1710,6 @@ class TrainingState {
     await this.saveTrainingBlock(trimmed ? { ...rest, notes: trimmed } : rest);
   }
 
-  /**
-   * Deletes a training block after confirmation.
-   */
-  async deleteTrainingBlock(id: string) {
-    const confirmed = await showConfirm('Delete Training Block', 'Delete this training block? Any weeks only covered by it will show no phase.');
-    if (!confirmed) return;
-    await this.planningStore.deleteTrainingBlock(id);
-    await this.refresh();
-  }
-
   /** Creates or updates a goal - a competition or an outdoor trip. */
   async saveGoal(goal: GoalEvent) {
     await this.planningStore.saveGoal(goal);
