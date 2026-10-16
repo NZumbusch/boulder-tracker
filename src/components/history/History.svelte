@@ -8,6 +8,8 @@
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { sessionDuration } from '../../lib/planning/sessionDuration';
   import ListRow from '../common/ListRow.svelte';
+  import FatigueLetters from '../common/FatigueLetters.svelte';
+  import { RATING_AXES, FATIGUE_AXIS_COLORS } from '../../lib/constants';
   import { openPastSessionSheet } from '../../lib/session/pastSessionUi.svelte';
   import SendsLog from '../sends/SendsLog.svelte';
   import { applySendFilters } from '../../lib/sends/filter';
@@ -363,6 +365,15 @@
 
 
   <div class="space-y-4" data-tour="history-list">
+    <!-- What the letters on a session row mean; only while a visible row has ratings. -->
+    {#if displayedWorkouts.some((w) => RATING_AXES.some((a) => w[a.key] !== undefined))}
+      <p class="text-caption text-content-subtle px-1 flex flex-wrap items-center gap-x-3 gap-y-0.5" data-testid="fatigue-legend">
+        <span>Felt in, out of 10:</span>
+        {#each RATING_AXES as a (a.key)}
+          <span><span class="font-semibold" style="color: {FATIGUE_AXIS_COLORS[a.key]}">{a.label[0]}</span> {a.label.toLowerCase()}</span>
+        {/each}
+      </p>
+    {/if}
     {#each groupedWorkouts as group (group.key)}
       <!-- One card per month: its totals as the header, then a row per
            session (the same row as Home's Recent Activity). Tapping a row
@@ -374,6 +385,7 @@
             {@const block = blockForWorkout(workout)}
             {@const duration = workoutDuration(workout)}
             <div id="workout-{workout.id}" class="scroll-mt-20">
+              {#snippet fatigueLetters()}<FatigueLetters ratings={workout} />{/snippet}
               <ListRow
                 title={workout.notes || 'Session'}
                 meta={[
@@ -382,6 +394,7 @@
                   block?.name,
                 ].filter(Boolean).join(' · ')}
                 detail={[...new Set(workout.exercises.map((e) => slotTypeName(e, trainingState.exerciseTypes)))].join(', ') || undefined}
+                detailExtra={RATING_AXES.some((a) => workout[a.key] !== undefined) ? fatigueLetters : undefined}
                 value={Math.round(workout.loadFactor)}
                 valueHint="load"
                 onclick={() => openWorkout(workout, 'view', false, filteredWorkouts)}

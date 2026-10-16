@@ -12,7 +12,7 @@
   import type { Snippet } from 'svelte';
   import { longPress } from '../../lib/ui/longPress';
 
-  let { title, titleExtra, metaLead, meta, detail, value, valueHint, muted = false, onclick, onlongpress = null, leading, trailing }: {
+  let { title, titleExtra, metaLead, meta, detail, detailExtra, value, valueHint, muted = false, onclick, onlongpress = null, leading, trailing }: {
     title: string;
     /** Rendered right after the title, e.g. a grade. */
     titleExtra?: Snippet;
@@ -21,6 +21,8 @@
     meta?: string;
     /** A second, quieter meta line. */
     detail?: string;
+    /** Rich content on the quiet second line (after `detail`), e.g. fatigue letters. */
+    detailExtra?: Snippet;
     /** The headline number on the right (load). */
     value?: string | number;
     valueHint?: string;
@@ -44,6 +46,7 @@
       <p class="flex items-center gap-1.5 min-w-0 text-caption text-content-subtle tabular-nums"><span class="shrink-0 empty:hidden">{@render metaLead()}</span>{#if meta}<span class="truncate">{meta}</span>{/if}</p>
     {:else if meta}<p class="text-caption text-content-subtle truncate tabular-nums">{meta}</p>{/if}
     {#if detail}<p class="text-caption text-content-subtle truncate">{detail}</p>{/if}
+    {#if detailExtra}<p class="text-caption text-content-subtle truncate">{@render detailExtra()}</p>{/if}
   {/snippet}
   {#if onclick}
     <button type="button" {onclick} use:longPress={onlongpress} class="tap min-w-0 flex-1 text-left group select-none">{@render body()}</button>
