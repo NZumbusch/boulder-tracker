@@ -66,7 +66,7 @@
                       </label>
                       {#if picked}<button onclick={() => deviceCalendar.setColor(cal.id, null)} class="btn-quiet px-2 text-label text-primary">Use the calendar's own colour</button>{/if}
                     </div>
-                    <p class="pl-7 pt-2 text-caption text-content-subtle leading-relaxed">{picked ? 'Used exactly as picked.' : 'Greens and teals are turned slightly away from the sessions\' green so the two never look alike - a colour you pick yourself is used as chosen.'}</p>
+                    <p class="pl-7 pt-2 text-caption text-content-subtle leading-relaxed">{picked ? 'Used exactly as picked.' : 'Greens, teals, blues and reds are turned slightly away from the sessions\' green, blue and red so the two never look alike - a colour you pick yourself is used as chosen.'}</p>
                   {/if}
                 </div>
               {/each}

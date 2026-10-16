@@ -7,12 +7,14 @@ import type { DeviceEvent } from "./deviceEvents";
  * A colour you picked yourself in Settings is used exactly as chosen.
  */
 
-/** The colour of every session while sessions are not coloured by category (Tailwind emerald-500; `bg-emerald-500`). */
+/** The colour of a done session (Tailwind emerald-500; `bg-emerald-500`). */
 export const SESSION_HEX = "#10b981";
+/** The status colours of sessions (`planning/sessionColors.ts`: green done, blue to do, red missed - the lighter 400 shades for blue and red). */
+export const SESSION_HEXES: readonly string[] = [SESSION_HEX, "#60a5fa", "#f87171"];
 /** The colour of an event with none. */
 export const NEUTRAL_HEX = "#71717a";
-/** How many degrees of hue an automatic event colour keeps from the session colour at least. */
-export const MIN_HUE_GAP = 40;
+/** How many degrees of hue an automatic event colour keeps from each session colour at least. */
+export const MIN_HUE_GAP = 30;
 
 /** [r, g, b] of "#RRGGBB" (also "#RGB"), or undefined for anything else. */
 export function parseHex(hex: string | undefined): [number, number, number] | undefined {
@@ -50,21 +52,25 @@ export const hueGap = (a: number, b: number) => {
 };
 
 /**
- * `hex` with its hue moved to the nearest edge of the band around the session colour's hue, when it is inside it.
- * Greys (barely any saturation) have no hue to clash and are left alone.
+ * `hex` with its hue moved to the nearest hue outside every band of `gap` degrees around the session colours' hues,
+ * when it is inside one. Greys (barely any saturation) have no hue to clash and are left alone.
  */
-export function awayFromSessions(hex: string | undefined, sessionHex = SESSION_HEX, gap = MIN_HUE_GAP): string {
+export function awayFromSessions(hex: string | undefined, sessionHexes: readonly string[] = SESSION_HEXES, gap = MIN_HUE_GAP): string {
   const rgb = parseHex(hex);
   if (!rgb) return NEUTRAL_HEX;
   const [h, s, l] = toHsl(rgb);
-  const [sessionHue] = toHsl(parseHex(sessionHex)!);
-  if (s < 0.15 || hueGap(h, sessionHue) >= gap) return "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
-  const above = (((h - sessionHue) % 360) + 360) % 360 < 180; // on the warmer-to-bluer side of it, or the other
-  return fromHsl((sessionHue + (above ? gap : -gap) + 360) % 360, s, l);
+  const hues = sessionHexes.map((x) => toHsl(parseHex(x)!)[0]);
+  const clashes = (x: number) => hues.some((sh) => hueGap(x, sh) < gap);
+  if (s < 0.15 || !clashes(h)) return "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
+  // Walk outwards a degree at a time, both ways; the nearer free hue wins (the warmer-to-bluer side on a tie).
+  for (let d = 1; d <= 180; d++) {
+    for (const x of [(h + d) % 360, (h - d + 360) % 360]) if (!clashes(x)) return fromHsl(x, s, l);
+  }
+  return "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
 }
 
-/** What the picker offers: a spread of hues that are not the session green. */
-export const EVENT_PALETTE = ["#ef4444", "#f97316", "#eab308", "#84cc16", "#92400e", "#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#78716c"];
+/** What the picker offers: a spread of hues that are none of the session colours (green, blue, red). */
+export const EVENT_PALETTE = ["#eab308", "#a16207", "#84cc16", "#65a30d", "#8b5cf6", "#a855f7", "#d946ef", "#c026d3", "#78716c", "#57534e"];
 
 /**
  * The colour of an event: the one you picked for its calendar, else its own, else its calendar's - the last two

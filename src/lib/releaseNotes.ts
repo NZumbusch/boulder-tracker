@@ -23,7 +23,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     id: "2026-10-29-status-colours",
     title: "Sessions coloured by status",
     points: [
-      "In the calendar a session is blue while it is still to do, green when done, and red when it was planned for a day that has passed and not done. The check mark is gone (more room for the title). Colour by exercise category in Settings still gives type colours, with the check mark. Focus on sessions now only greys the phone's events.",
+      "In the calendar a session is blue while it is still to do, green when done, and red when it was planned for a day that has passed and not done. The check mark is gone (more room for the title). Colour by exercise category in Settings still gives type colours, with the check mark. Focus on sessions now only greys the phone's events. The blue and red are lighter shades, and phone-calendar events in blues, reds, greens or teals are turned to other hues so they never look like a session (a colour you pick yourself is used as chosen).",
     ],
   },
   {
