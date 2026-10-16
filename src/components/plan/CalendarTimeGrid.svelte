@@ -384,10 +384,6 @@
   {/if}
 
   {#if hasTimed}
-  {#if zoom !== 1}
-    <!-- Pinch zooms the hours; there was no sign of it, nor a way back short of a double tap on the gutter. -->
-    <button onclick={resetZoom} class="{padL} block min-h-8 text-caption text-primary hover:underline">Reset zoom</button>
-  {/if}
   <div class="relative flex" style="height: {gridHeight}px" ondblclick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.gutter) resetZoom(); }} role="presentation">
     <div class="{gutter} shrink-0 relative" data-gutter="1">
       {#each hourList as h (h)}
@@ -396,6 +392,10 @@
       {#if showNow}<span class="absolute right-1.5 -translate-y-1/2 text-caption leading-none font-semibold text-danger tabular-nums bg-surface px-0.5 z-10" style="top: {px(nowMin)}px">{hhmm(nowMin)}</span>{/if}
     </div>
     <div class="relative flex-1 flex" bind:this={gridEl} use:gestures style="touch-action: pan-x pan-y">
+      <!-- Pinch zoomed the hours: a small way back, only while zoomed (a double tap on the hour labels does the same). -->
+      {#if zoom !== 1}
+        <button onclick={resetZoom} class="tap absolute right-1 top-1 z-20 w-8 h-8 grid place-items-center rounded-full bg-surface shadow-card text-content-subtle hover:text-content" aria-label="Reset zoom" title="Reset zoom"><Icon icon="ic:baseline-restart-alt" class="text-lg" /></button>
+      {/if}
       <!-- Measures the width only: observing the grid itself would see its height change with the zoom and trip ResizeObserver's loop guard. -->
       <div class="absolute inset-x-0 top-0 h-0 pointer-events-none" bind:clientWidth={gridW}></div>
       {#each hourList as h (h)}

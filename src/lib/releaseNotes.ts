@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-calmer-calendar",
+    title: "A calmer Plan calendar",
+    points: [
+      "Weeks / Calendar is now one icon in the top bar. The calendar header is the title with arrows (and a round + when you use the bottom bar), then Day / Week / Month / Year and one View button.",
+      "View holds the week layout, Focus on sessions (now on by default: phone events grey, sessions coloured by type) and the list of phone calendars. Reset zoom is a small icon on the grid.",
+    ],
+  },
+  {
     id: "2026-10-29-soft-week-grid",
     title: "A lighter look: week grid, cards, buttons, bottom bar",
     points: [

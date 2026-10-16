@@ -30,7 +30,7 @@
   import { phaseMarks } from '../../lib/planning/phaseStrip';
   import { goalsByDay } from '../../lib/planning/goalBars';
   import { headerBars } from '../../lib/planning/headerBars';
-  import CalendarChips from './CalendarChips.svelte';
+  import CalendarOptions from './CalendarOptions.svelte';
   import { NEUTRAL_HEX } from '../../lib/calendar/eventColor';
   import type { DayOfWeek, Workout } from '../../lib/types';
 
@@ -52,11 +52,14 @@
   }
 
   /** Day, Week and Month: phone-calendar events all grey and sessions in their category's colour, so the sessions stand out. Per viewer, remembered. */
-  let focusSessions = $state((() => { try { return localStorage.getItem(FOCUS_KEY) === '1'; } catch { return false; } })());
-  function toggleFocus() {
-    focusSessions = !focusSessions;
-    try { localStorage.setItem(FOCUS_KEY, focusSessions ? '1' : '0'); } catch { /* per-viewer convenience only */ }
+  let focusSessions = $state((() => { try { return localStorage.getItem(FOCUS_KEY) !== '0'; } catch { return true; } })());
+  function setFocus(on: boolean) {
+    focusSessions = on;
+    try { localStorage.setItem(FOCUS_KEY, on ? '1' : '0'); } catch { /* per-viewer convenience only */ }
   }
+  let optionsOpen = $state(false);
+  /** Narrow phones: no phase names under the strip (the strip itself stays). */
+  let viewportW = $state(typeof window === 'undefined' ? 1024 : window.innerWidth);
 
   const today = $derived(localDayIndex(trainingState.today));
   let mode = $state<Mode>(storedMode());
@@ -201,7 +204,7 @@
   /** Trips and competitions among the days shown (not in the year overview). */
   const shownDays = $derived(Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i));
   const goalsOnDays = $derived(mode === 'year' ? new Map() : goalsByDay(trainingState.goals, shownDays));
-  const phaseNames = $derived(trainingState.tunableOn('plan.calendarPhaseNames'));
+  const phaseNames = $derived(trainingState.tunableOn('plan.calendarPhaseNames') && viewportW >= 380);
   const phaseTint = $derived(phases.size > 0 && trainingState.tunableOn('plan.calendarPhaseTint'));
   const focused = $derived(focusSessions && mode !== 'year');
   const byCategory = $derived(focused || trainingState.tunableOn('plan.calendarCategoryColors'));
@@ -210,6 +213,8 @@
   const bars = $derived(headerBars(mode === 'year' ? [] : trainingState.goals, deviceCalendar.events.filter((e) => e.day >= range[0] && e.day <= range[1]), shownDays));
   const isRunning = (s: CalendarSession) => trainingState.sessionStore.isRunning(s.workout.id);
 </script>
+
+<svelte:window bind:innerWidth={viewportW} />
 
 <!-- The header keeps its height in every view, so the box below never moves when you switch Day / Week / Month / Year. -->
 <div class="space-y-3 short:space-y-2 touch-pan-y {trainingState.tunableOn('plan.highContrast') ? 'cal-hc' : ''} {trainingState.tunableOn('plan.eventEdges') ? 'cal-edges' : ''}" use:swipePaging={step}>
@@ -228,6 +233,12 @@
       <button onclick={() => step('next')} class="tap p-1.5 text-content-subtle hover:text-content rounded-control hover:bg-surface-elevated transition-colors" aria-label="Next {mode}">
         <Icon icon="ic:baseline-chevron-right" class="text-lg" />
       </button>
+      <!-- With the drawer navigation the floating + adds a session (the app shell's); the bottom bar has no such button, so a round + stays here. -->
+      {#if trainingState.navStyle === 'bar'}
+        <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="tap ml-1 p-1.5 rounded-full bg-surface-elevated text-primary hover:bg-surface-elevated-hover transition-colors" aria-label="Add a session on {dayNameOf(focus)}" title="Add a session">
+          <Icon icon="ic:baseline-plus" class="text-lg" />
+        </button>
+      {/if}
     </div>
   </div>
 
@@ -242,30 +253,16 @@
         >{m.label}</button>
       {/each}
     </div>
-    <div class="flex items-center gap-1 short:order-3">
-      {#if mode !== 'year'}
-        <!-- Sessions in focus: the phone's events turn grey and each session takes its category's colour. -->
-        <button onclick={toggleFocus} aria-pressed={focusSessions} title="Focus on sessions" aria-label="Focus on sessions: grey out phone events, colour sessions by type" class="tap p-1.5 rounded-control transition-colors {focusSessions ? 'bg-surface-elevated text-content shadow-sm' : 'text-content-subtle hover:text-content hover:bg-surface-elevated/50'}"><Icon icon="ic:baseline-fitness-center" class="text-base" /></button>
-      {/if}
-      {#if mode === 'week'}
-        <!-- The week as hour columns or as a list: two quiet icons, remembered (it is the same setting as in Settings). -->
-        <div class="flex bg-surface-elevated/50 p-0.5 rounded-control" role="radiogroup" aria-label="Week layout">
-          <button role="radio" aria-checked={!agenda} onclick={() => setWeekLayout('grid')} title="Hour columns" aria-label="Week as hour columns" class="tap p-1.5 rounded-control transition-colors {!agenda ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"><Icon icon="ic:baseline-view-week" class="text-base" /></button>
-          <button role="radio" aria-checked={agenda} onclick={() => setWeekLayout('list')} title="List" aria-label="Week as a list" class="tap p-1.5 rounded-control transition-colors {agenda ? 'bg-surface text-content shadow-sm' : 'text-content-subtle hover:text-content'}"><Icon icon="ic:baseline-view-agenda" class="text-base" /></button>
-        </div>
-      {/if}
-    <!-- With the drawer navigation the floating + adds a session (the app shell's); the bottom bar has no such button, so the + stays here. -->
-    {#if trainingState.navStyle === 'bar'}
-      <button onclick={() => addAt(mode === 'week' && !(focus >= weekStart && focus <= weekStart + 6) ? weekStart : focus)} class="chip text-primary hover:bg-surface-elevated transition-colors short:order-4" aria-label="Add a session on {dayNameOf(focus)}">
-      Add session
-    </button>
+    {#if mode !== 'year'}
+      <!-- Everything that tunes the view - week layout, focus on sessions, which phone calendars - behind one button. -->
+      <button onclick={() => (optionsOpen = true)} class="tap relative p-1.5 rounded-control text-content-subtle hover:text-content hover:bg-surface-elevated transition-colors short:order-3" aria-label="View options" title="View options">
+        <Icon icon="ic:baseline-tune" class="text-xl" />
+        {#if focusSessions}<span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true"></span>{/if}
+      </button>
     {/if}
-    </div>
   </div>
 
   </div>
-
-  {#if mode !== 'year'}<CalendarChips />{/if}
 
   <!-- Flat, like a calendar app: the grid runs edge to edge on the page, no panel, no border. -->
   {#if mode === 'week' && agenda}
@@ -331,6 +328,9 @@
     </div>
   {/if}
 
+  {#if optionsOpen && mode !== 'year'}
+    <CalendarOptions {mode} {agenda} {focusSessions} onLayout={setWeekLayout} onFocus={setFocus} onClose={() => (optionsOpen = false)} />
+  {/if}
   {#if preview}
     <SessionPreviewSheet session={preview.session} onOpen={openFull} onClose={() => (preview = null)} />
   {/if}

@@ -4,7 +4,6 @@
   import { openPastSessionSheet } from '../../lib/session/pastSessionUi.svelte';
   import { fabActions } from '../../lib/navigation/fabActions.svelte';
   import InfoButton from '../common/InfoButton.svelte';
-  import Segmented from '../ui/Segmented.svelte';
   import { showInfo } from '../../lib/help/infoSheet.svelte';
   import { motionMs, motionReduced, scrollBehavior } from '../../lib/motion';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
@@ -451,6 +450,17 @@
 <div class="w-full {shownView === 'calendar' ? 'max-w-5xl' : 'page-col'} space-y-4 animate-in fade-in duration-200 pb-12">
   <AppBar title="Plan">
     {#snippet actions()}
+      {#if !inPlanBMode}
+        <!-- Weeks (phases and the selected week) or the calendar: one icon showing where it goes, in place of a row of its own. -->
+        <button
+          onclick={() => setView(view === 'calendar' ? 'blocks' : 'calendar')}
+          class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
+          aria-label={view === 'calendar' ? 'Show the weeks' : 'Show the calendar'}
+          title={view === 'calendar' ? 'Weeks: phases and the selected week' : 'Calendar: day, week, month and year'}
+        >
+          <Icon icon={view === 'calendar' ? 'ic:baseline-widgets' : 'ic:baseline-calendar-month'} class="text-xl" />
+        </button>
+      {/if}
       <button
         onclick={openPastSessionSheet}
         class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
@@ -481,16 +491,6 @@
   </AppBar>
 
   <div class="flex flex-col gap-4">
-    {#if !inPlanBMode}
-      <div class="px-1">
-        <Segmented
-          label="Plan view"
-          options={[{ value: 'blocks', label: 'Weeks', title: 'Phases and weeks, with the sessions of the selected week' }, { value: 'calendar', label: 'Calendar', title: 'Day, week, month and year calendar' }]}
-          value={view}
-          onChange={setView}
-        />
-      </div>
-    {/if}
     {#if shownView === 'calendar'}
       <PlanCalendar bind:this={calendarRef} onAdd={handleAddWorkout} onEditPhase={openBlockManager} onShowWeeks={() => setView('blocks')} />
     {:else}

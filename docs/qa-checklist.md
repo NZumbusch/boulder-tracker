@@ -368,6 +368,8 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 25.14 | Light look elsewhere | Home, Plan, Analytics in light and dark; Settings > General > Raised cards off, then Flat sections on. | Cards are white (light) with a soft shadow and round corners; off gives the flat tinted panel; flat sections wins over both. Secondary buttons (Edit, Split, Move...) are pale outlined pills. The bottom bar shows a dot under the current tab and no pill. High contrast theme: outlines, no shadows, white pill borders. | | |
 | 25.15 | Ignore gaps | Phases page with days between two blocks, some past, some ahead. | Only gaps from today on are listed (and dashed on the timeline); the x on a row ignores those days with an Undo; Fill still starts a phase there. Ignoring is per device. | | |
 | 25.16 | Switch and card polish | Settings > App & display > Look & feel, light and dark. | Switch knobs have the same gap on all four sides, on and off. Cards have a thin edge and a firmer shadow so they stand out from the page. | | |
+| 25.17 | Calmer calendar header | Plan > Calendar on a 360 px phone and a wide one. | One icon in the top bar switches Weeks / Calendar (no row of its own). Header: title + arrows (+ round + with the bottom bar), then Day/Week/Month/Year and one options icon (a dot while Focus on sessions is on). Options sheet: week layout, Focus on sessions (on by default, grey phone events), each phone calendar with its colour. No chips row. A phase name under the strip is hidden below 380 px. | | |
+| 25.18 | Reset zoom icon | Pinch-zoom the hour grid. | A small round icon appears at the grid's top right; tapping it restores the zoom; it is gone at normal zoom. | | |
 
 ## After the run
 

@@ -10,7 +10,8 @@
     label,
     hint,
     disabled = false,
-  }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string; disabled?: boolean } = $props();
+    dot,
+  }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string; disabled?: boolean; /** A colour (CSS) shown as a dot before the label. */ dot?: string } = $props();
 </script>
 
 <button
@@ -21,9 +22,12 @@
   onclick={() => onChange(!checked)}
   class="w-full flex items-center justify-between gap-4 min-h-11 py-2 text-left disabled:opacity-40"
 >
-  <span class="min-w-0">
+  <span class="min-w-0 flex items-center gap-2.5">
+    {#if dot}<span class="w-2.5 h-2.5 rounded-full shrink-0 {checked ? '' : 'opacity-40'}" style="background: {dot}" aria-hidden="true"></span>{/if}
+    <span class="min-w-0">
     <span class="block text-body text-content">{label}</span>
     {#if hint}<span class="block text-caption text-content-subtle mt-0.5">{hint}</span>{/if}
+    </span>
   </span>
   <span class="relative shrink-0 w-11 h-6 rounded-full border border-field transition-colors {checked ? 'bg-primary border-primary' : 'bg-surface-elevated/60'}" aria-hidden="true">
     <span class="absolute top-px left-px w-5 h-5 rounded-full shadow transition-transform {checked ? 'bg-on-primary translate-x-5' : 'bg-content-muted translate-x-0'}"></span>
