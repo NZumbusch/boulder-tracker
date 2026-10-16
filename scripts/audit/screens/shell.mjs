@@ -78,11 +78,10 @@ export const screens = [
   { id: 'welcome-intro', area: 'shell', setup: async (c) => welcome(c, 0), teardown: welcomeDown },
   { id: 'welcome-platforms', area: 'shell', setup: async (c) => welcome(c, 1), teardown: welcomeDown },
   { id: 'welcome-focus', area: 'shell', setup: async (c) => welcome(c, 2), teardown: welcomeDown },
-  { id: 'welcome-level', area: 'shell', setup: async (c) => welcome(c, 3), teardown: welcomeDown },
-  { id: 'welcome-plan', area: 'shell', setup: async (c) => welcome(c, 4), pages: 2, teardown: welcomeDown },
-  { id: 'welcome-units', area: 'shell', setup: async (c) => welcome(c, 5), teardown: welcomeDown },
-  { id: 'welcome-location', area: 'shell', setup: async (c) => welcome(c, 6), teardown: welcomeDown },
-  { id: 'welcome-done', area: 'shell', setup: async (c) => welcome(c, 7), teardown: welcomeDown },
+  { id: 'welcome-plan', area: 'shell', setup: async (c) => welcome(c, 3), pages: 2, teardown: welcomeDown },
+  { id: 'welcome-units', area: 'shell', setup: async (c) => welcome(c, 4), teardown: welcomeDown },
+  { id: 'welcome-location', area: 'shell', setup: async (c) => welcome(c, 5), teardown: welcomeDown },
+  { id: 'welcome-done', area: 'shell', setup: async (c) => welcome(c, 6), teardown: welcomeDown },
   { id: 'welcome-returning', area: 'shell', setup: async (c) => welcome(c, 0, { returning: true }), teardown: welcomeDown },
   { id: 'welcome-ios-safari', area: 'shell', pages: 2, setup: async (c) => {
       await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' });
