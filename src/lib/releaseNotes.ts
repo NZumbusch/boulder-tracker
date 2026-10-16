@@ -20,6 +20,13 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-tour-and-screens",
+    title: "Tour, help and screenshots brought up to date",
+    points: [
+      "The tour now covers the Phases page and the Weeks / Calendar button, and always shows the Weeks view. The help for phases, the settings search and the Welcome and website screenshots match the new look.",
+    ],
+  },
+  {
     id: "2026-10-29-plan-handoff",
     title: "Weeks and Calendar remember where you were",
     points: [

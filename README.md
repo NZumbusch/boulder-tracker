@@ -68,7 +68,7 @@ Found a bug, or want something? Open an [issue](https://github.com/NZumbusch/bou
 
 ## What it does
 
-- **Plan**: phases with a typical week each, training blocks that assign phases to weeks, and per-week edits on top. Goals (competitions and outdoor trips, with projects) sit on the same calendar.
+- **Plan**: phases with a typical week each, and per-week edits on top. Two views of the same plan, one icon apart and each opening on the day you were on: **Weeks** (the year as tiles coloured by phase, the selected week's sessions below) and a **Calendar** (day, week, month, year, with trips and competitions, your phone's events beside the sessions, drag to reschedule, and a *Focus on sessions* mode that greys the phone's events). The **Phases** page is a timeline of every phase: drag its ends, split, move, repeat a cycle such as three weeks plus a deload, and see days that have no phase. Goals (competitions and outdoor trips, with projects) sit on the same calendar.
 - **Train**: a live session with a timer, interval and set runs, logging each exercise against its target. Any session opens in one full-screen view: start it, edit it in place, or log it as planned.
 - **Home**: readiness (fatigue, load ratio, sleep, HRV), today's sessions, the week so far, the current block, the next goal, weather and rock conditions at home and your crags, alerts, and progress. Every card can be reordered or hidden.
 - **History and sends**: completed sessions and outdoor sends (8a.nu CSV import) with shared filters, and a grade chart.
@@ -138,9 +138,9 @@ What the web app can't do, on iOS in particular: scheduled reminders, timer beep
 
 ### Android app updates
 
-The same workflow builds a signed release APK and publishes it with `android/version.json` under https://bouldertracker.nathanzumbusch.de/android/. The app checks that file on start (Settings → About → App updates), offers newer builds on Home, downloads the APK, checks its SHA-256 and opens Android's installer (`plugins/app-updater`, `src/lib/update/`). The build number is the commit count on `main`, so CI builds and Android Studio builds of the same commit match.
+The same workflow builds a signed release APK and publishes it with `android/version.json` under https://bouldertracker.nathanzumbusch.de/android/. The app checks that file on start (Settings → About & Help → App updates), offers newer builds on Home, downloads the APK, checks its SHA-256 and opens Android's installer (`plugins/app-updater`, `src/lib/update/`). The build number is the commit count on `main`, so CI builds and Android Studio builds of the same commit match.
 
-Two channels, chosen in the app (Settings → About → App updates): **Testing** gets every push to `main` (`/android/`); **Stable** only promoted builds (`/android/stable/`). To promote: Actions → "Deploy web app and Android update to Pages" → Run workflow → mode `promote`. It takes the test build that's live - the exact APK, checked against its SHA-256 - and stores it as the assets of the `stable-channel` release, which every deploy copies back into the site. New installs default to Stable; a device switched to Stable while ahead of it waits for the next stable build newer than its own (Android can't downgrade).
+Two channels, chosen in the app (Settings → About & Help → App updates): **Testing** gets every push to `main` (`/android/`); **Stable** only promoted builds (`/android/stable/`). To promote: Actions → "Deploy web app and Android update to Pages" → Run workflow → mode `promote`. It takes the test build that's live - the exact APK, checked against its SHA-256 - and stores it as the assets of the `stable-channel` release, which every deploy copies back into the site. New installs default to Stable; a device switched to Stable while ahead of it waits for the next stable build newer than its own (Android can't downgrade).
 
 Signing needs four repository secrets (Settings → Secrets and variables → Actions); without them only the web app deploys:
 

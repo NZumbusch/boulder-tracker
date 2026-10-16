@@ -9,7 +9,7 @@ For whoever (a person, or another Claude session) picks this project up. Written
 ```
 src/lib/           logic (pure where possible, tested)   src/components/   Svelte screens and widgets
   planning/ phases, projection, calendar helpers          nav/    AppBar, NavDrawer, NavRail, Fab
-  storage/  persistence, migrations, import/export        plan/   Plan screen, calendar views, Block manager
+  storage/  persistence, migrations, import/export        plan/   Plan screen, calendar views, Phases page
   stores/   reactive stores (state.svelte.ts composes)    dashboard/ Home   history/   analytics/   settings/
   ai/       AI coach: prompts, change-set schema, planner workout/ live session, workout modal
   sync/     Google Drive sync (per-device docs, merge)
@@ -35,7 +35,7 @@ stuff/   Nathan's private files - GIT-IGNORED, never commit or publish anything 
 - `.github/workflows/deploy.yml`: every push to `main` builds the web app and a signed Android APK and deploys one Pages site: `/` web app, `/android/` **Testing** channel (every push), `/android/stable/` **Stable** (promote by hand: Actions → this workflow → mode "promote"; copies the live test APK byte-for-byte).
 - The APK is signed with Nathan's own key from repo secrets - **never switch keys** (a different key = Android sees a different app = uninstall = data loss; also the Drive OAuth client's SHA-1). `versionCode` = `git rev-list --count HEAD`; never change that. See `docs/signing.md`, `scripts/app-version.mjs`.
 - The in-app updater (`plugins/app-updater`, `src/lib/update/`) installs APKs after checking SHA-256 and writing a safety backup.
-- Data version `DATA_EXPORT_VERSION` is **3.36** (`src/lib/constants.ts`). A bump means every device must update before Drive sync resumes (devices on an older version refuse to merge with a newer one - `SyncVersionError`; older docs are upgraded forward through the same migrations).
+- Data version `DATA_EXPORT_VERSION` is **3.37** (`src/lib/constants.ts`). A bump means every device must update before Drive sync resumes (devices on an older version refuse to merge with a newer one - `SyncVersionError`; older docs are upgraded forward through the same migrations).
 
 ## Data model facts you will trip over
 
@@ -48,7 +48,7 @@ stuff/   Nathan's private files - GIT-IGNORED, never commit or publish anything 
 - **Settings architecture**: thresholds → `preferences/tunables.ts` registry; per-card Home options → `preferences/homeDetails.ts`; ordered/hideable lists → `validateOrderedToggles`; units are canonical in storage (°C, kg, km/h, Font grades) and converted at the edges. Preferences are in localStorage (`preferences/migrate.ts` validates); `preferences/portable.ts` lists the ones that sync - new settings are device-local unless added there (`navStyle` is deliberately device-local).
 - **Back navigation**: every sheet/modal/sub-page calls `backWhile(() => open, close)` (`navigation/backStack.svelte.ts`); the Android back key closes the top entry, and from any tab goes Home. `lib/ui/dialogLayer.ts` makes any `fixed inset-0 z-[100+]` overlay a dialog (page behind inert, Escape closes).
 - **AI coach** (`src/lib/ai`): copy-paste prompt → JSON change set (`changeSet.ts` validates, `changePlanner.ts` plans, a tickable review applies, plan undo restores). The contract is documented *to the model* in `changeSetPrompt.ts` - keep it in step with the validator (a test checks the field lists). Phases for exact days: `fromDate`/`toDate` week entries.
-- **Calendar** (Plan → calendar icon): `components/plan/PlanCalendar.svelte` and friends; pure logic in `planning/calendarEvents.ts`, `sessionColors.ts` (one session colour; category colours behind `plan.calendarCategoryColors`), `calendarZoom.ts` (pinch / ctrl+wheel), `calendarDrag.ts` (hold-and-drag reschedule), `headerBars.ts` (trips, competitions and all-day / multi-day / 12 h+ phone events as bars above the grid, `capBars` for the "+N" row), `goalBars.ts` (`goalsByDay`), `phaseStrip.ts`; `calendar/eventColor.ts` (event colours turned away from the session green, your own pick used as chosen). Android phone-calendar overlay: `plugins/device-calendar`, `lib/calendar/`.
+- **Calendar** (Plan → the calendar icon in the top bar): `components/plan/PlanCalendar.svelte` and friends; pure logic in `planning/calendarEvents.ts`, `sessionColors.ts` (one session colour; category colours behind `plan.calendarCategoryColors`), `calendarZoom.ts` (pinch / ctrl+wheel), `calendarDrag.ts` (hold-and-drag reschedule), `headerBars.ts` (trips, competitions and all-day / multi-day / 12 h+ phone events as bars above the grid, `capBars` for the "+N" row), `goalBars.ts` (`goalsByDay`), `phaseStrip.ts`; `calendar/eventColor.ts` (event colours turned away from the session green, your own pick used as chosen). Android phone-calendar overlay: `plugins/device-calendar`, `lib/calendar/`.
 - **Navigation** (new): `AppBar` at the top of every screen (must be the screen root's first child), side drawer on phones, rail on wide/landscape, floating + (`Fab.svelte`), bottom bar kept as a per-device setting (`navStyle`). Plan and decisions: `docs/navigation-plan.md`.
 
 ## Where things stand (end of 2026-10-14)
@@ -71,7 +71,7 @@ Everything below is on `main`, pushed to Testing, **not yet tried on a real devi
 2. ~~The floating + covers content~~ - done 2026-10-15: it hides while scrolling down and returns on scrolling up (`lib/navigation/scrollHide.ts`).
 3. Wide-screen layouts for Home, History and Analytics (two columns of cards, master-detail like Samsung Calendar's Day + event pane) - they are a centred ~640 px column on tablets/laptops. Listed under "Later" in `navigation-plan.md`.
 4. ~~Week view on a portrait phone~~ - done 2026-10-15: the list is the default on a portrait phone (setting `plan.weekListOnPhone`).
-5. The welcome slides and README screenshots (`public/img/intro-*.webp`, `og.jpg`) show the old bottom-bar UI - regenerate when the look settles.
+5. ~~The welcome slides and README screenshots show the old UI~~ - regenerated 2026-10-29 from the example data (`public/img/intro-*.webp` are 780x1560 crops, the example-data banner cut off; `og.jpg` is the three of them composed). Regenerate again when the look changes; the recipe is in the 2026-10-29 note below.
 6. Search in the top bar, long-press on the + for a speed dial (quick timer), a mark per week in the Year view for phases was replaced by lines (done) - nothing else open there.
 7. The Goals card under the calendar is still a bordered card.
 8. Older plan/QA/audit docs (`pre-release-evaluation.md`, `android-backup-audit.md`) are historical; `qa-checklist.md` is the living one.
@@ -90,6 +90,15 @@ Nathan's list from using the app, all built on branch `claude/ui-ux-issues-navig
 - Not verified on a device: the notification buttons (Java was written, **not compiled** - no Android SDK in the cloud session; the page side is tested headless and by unit tests), Android back with the new sheets, haptics.
 - The cloud sandbox blocks `api.iconify.design`, so `npm test` reports one unhandled error from `offlineIcons.test.ts` (the icon generator can't fetch); all tests pass. No new icons were added.
 - Still open from the audit: the year grid's week cells are 26 px; the Plan session section's own + duplicates the floating one; History/Analytics wide layouts.
+
+### Session of 2026-10-29 (Phases page, light look, calmer Plan; all on `main`, none tried on a phone)
+
+- **Phases page** (`PhasePlanner.svelte` + `PhaseTimeline.svelte`, pure ops in `planning/phaseTimeline.ts`) replaced the Block manager: timeline, drag/snap, split, move (+ everything after), repeat, cycle presets, gaps from today on (ignorable, `plan.ignoredGaps` in localStorage), "how it went", Ask the AI. Log in `phase-days-plan.md` (stage 5).
+- **Plan calendar**: one **View** button (`CalendarOptions.svelte`: week layout, Focus on sessions - now on by default, phone calendars), the Weeks/Calendar switch is a top-bar icon, `planFocus` (`lib/plan/planFocus.ts`) hands the day/session between the two views (scrolls and flashes it).
+- **Light look** (from Nathan's old screenshots): `ui.raisedCards` (default on), soft `btn-secondary` pill, dot under the active bottom-bar tab, soft week grid (`plan.weekGridClear` off). Card edge: a thin tint of the text colour plus a firmer shadow; `contrast` theme keeps outlines.
+- **Declutter**: the Weeks legend is one scrolling row; Analytics range + arrows share a row; Log a past session lives on the Log screen (Past session tile).
+- **Docs/screenshots** brought up to date this day: tour (`steps.ts`: Phases, a Weeks/Calendar step; the tour forces the Weeks view), glossary, README, `public/about.html`, `public/privacy.html` (paths renamed to "Data & connections", date bumped), settings hints and search, QA section 25.
+- **Regenerating the screenshots**: `npx vite --port 5199`, then a headless script (see `scripts/headless/`): start the example data (`tour.startExample()`), `welcomeDone = true`, 390x841 at scale 2, light theme, navigate Home / Plan (Weeks view) / Analytics, crop the top 122 px (the example banner) and keep 780x1560, save as webp (quality ~82). Traps found: **kill leftover `chrome` processes first** (`pkill -x chrome`) - a stale one still on port 9333 answers instead of the new one and every screenshot is the same old page; and after files were edited the page's modules are served as `...ts?t=<stamp>`, so take both `state.svelte.ts` and `tour.svelte.ts` URLs from `performance.getEntriesByType('resource')` (last match) rather than importing by plain path.
 
 ## Checking a change in a browser (no extra tooling)
 

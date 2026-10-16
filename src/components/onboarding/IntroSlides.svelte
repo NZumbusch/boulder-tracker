@@ -7,7 +7,7 @@
    */
   const SLIDES = [
     { src: './img/intro-home.webp', title: 'Home', text: "Today's session, readiness and what needs a look." },
-    { src: './img/intro-plan.webp', title: 'Plan', text: 'Phases and weeks, with a Plan B for uncertain days.' },
+    { src: './img/intro-plan.webp', title: 'Plan', text: 'Phases, weeks and a calendar, with a Plan B for uncertain days.' },
     { src: './img/intro-analytics.webp', title: 'Analytics', text: 'Load, fatigue and progress over time.' },
   ];
 

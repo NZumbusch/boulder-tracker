@@ -43,6 +43,7 @@
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import { onDestroy, untrack } from 'svelte';
   import { planFocus } from '../../lib/plan/planFocus';
+  import { tour } from '../../lib/tour/tour.svelte';
   import { flashSession } from '../../lib/plan/flash';
 
   // --- Theme ---
@@ -78,8 +79,8 @@
   let view = $state<'blocks' | 'calendar'>((() => {
     try { return localStorage.getItem(VIEW_KEY) === 'calendar' ? 'calendar' : 'blocks'; } catch { return 'blocks'; }
   })());
-  /** Editing a Plan B happens in the block view, whatever was picked. */
-  const shownView = $derived(trainingState.planBEditing ? 'blocks' : view);
+  /** Editing a Plan B happens in the block view, whatever was picked - and the tour's Plan stops are all about it. */
+  const shownView = $derived(trainingState.planBEditing || tour.active ? 'blocks' : view);
   function setView(next: 'blocks' | 'calendar') {
     view = next;
     try { localStorage.setItem(VIEW_KEY, next); } catch { /* per-viewer convenience only */ }
@@ -484,12 +485,13 @@
       {#if !inPlanBMode}
         <!-- Weeks (phases and the selected week) or the calendar: one icon showing where it goes, in place of a row of its own. -->
         <button
-          onclick={() => setView(view === 'calendar' ? 'blocks' : 'calendar')}
+          onclick={() => setView(shownView === 'calendar' ? 'blocks' : 'calendar')}
           class="w-10 h-10 flex items-center justify-center text-content-subtle hover:text-content rounded-full hover:bg-surface-elevated/70 transition-colors"
-          aria-label={view === 'calendar' ? 'Show the weeks' : 'Show the calendar'}
-          title={view === 'calendar' ? 'Weeks: phases and the selected week' : 'Calendar: day, week, month and year'}
+          aria-label={shownView === 'calendar' ? 'Show the weeks' : 'Show the calendar'}
+          data-tour="plan-view"
+          title={shownView === 'calendar' ? 'Weeks: phases and the selected week' : 'Calendar: day, week, month and year'}
         >
-          <Icon icon={view === 'calendar' ? 'ic:baseline-widgets' : 'ic:baseline-calendar-month'} class="text-xl" />
+          <Icon icon={shownView === 'calendar' ? 'ic:baseline-widgets' : 'ic:baseline-calendar-month'} class="text-xl" />
         </button>
       {/if}
       <button

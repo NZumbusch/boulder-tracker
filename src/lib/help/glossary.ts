@@ -93,7 +93,7 @@ export const GLOSSARY: Record<TermId, Term> = {
     where: "phases",
     paragraphs: [
       "A phase is a kind of training (Capacity, Strength, Power…) with a typical set of sessions, which appear on the days it covers.",
-      "A training block puts a phase on a run of days - it can start or end mid-week, so a week can hold two. Phases are edited in the Block manager (tap a phase name on the Plan). You can still change any single session; only that session is affected.",
+      "A training block puts a phase on a run of days - it can start or end mid-week, so a week can hold two. Phases are edited on the Phases page: a timeline where you drag a phase's ends, split it, move it or repeat a cycle (open it with the phases button in Plan, or by tapping a phase name on the week card). You can still change any single session; only that session is affected.",
       `The phases' sessions can be edited under ${settingsPath('phases')}, where you can also switch between the Getting started and Advanced sets.`,
     ],
   },

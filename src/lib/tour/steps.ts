@@ -66,13 +66,19 @@ export const TOUR_STEPS: TourStep[] = ([
     view: "plan",
     target: "plan-phase",
     title: "Phases",
-    body: "The phase the week follows, with its typical sessions - shown dashed until you change one, which saves just that session. Tap the phase to edit it: phases are ranges of days, so one can start mid-week.",
+    body: "The phase the week follows, with its typical sessions - shown dashed until you change one, which saves just that session. Tap the phase name to open the Phases page on that day: phases are ranges of days, so one can start mid-week.",
   },
   {
     view: "plan",
     target: "plan-sessions",
     title: "The week's sessions",
     body: "Tap a session to see it, start it or edit it. + adds one, and Arrange moves sessions between days.",
+  },
+  {
+    view: "plan",
+    target: "plan-view",
+    title: "Weeks or calendar",
+    body: "This button switches between the weeks (phases and the selected week's sessions) and a calendar with Day, Week, Month and Year views - your phone's events beside the sessions, drag a session to move it, and a View button for the layout and for greying the phone's events. Each opens on the day or session you were on.",
   },
   {
     view: "plan",
@@ -90,8 +96,8 @@ export const TOUR_STEPS: TourStep[] = ([
   {
     view: "plan",
     target: "plan-blocks",
-    title: "Training blocks",
-    body: "Plan several weeks at once: e.g. three weeks Strength, then a Deload week. The calendar above fills in from these.",
+    title: "Phases",
+    body: "A timeline of every phase. Tap one, then drag its ends to change the days, or split it, move it with everything after it, or repeat a cycle such as three weeks Strength then a Deload week. Days with no phase are listed so you can fill them.",
   },
   {
     view: "plan",
@@ -115,7 +121,7 @@ export const TOUR_STEPS: TourStep[] = ([
     view: "add",
     target: "add-plan",
     title: "Plan or test",
-    body: "Plan a session for another day, or record a test result like max pull-ups to track strength over time.",
+    body: "Plan a session for another day, log one you already did, record a test result like max pull-ups, or open the timer without a session."
   },
   {
     view: "history",
