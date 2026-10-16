@@ -4,7 +4,8 @@
   import { trainingState } from '../../lib/state.svelte';
   import { type Workout, type PainTrend } from '../../lib/types';
 import { calculateLoadFactor } from '../../lib/analytics/load';
-  import { generateId } from '../../lib/utils';
+  import { generateId, showConfirm } from '../../lib/utils';
+  import { emptySessionWarning } from '../../lib/session/emptySession';
   import { formatMinutes } from '../../lib/session/formatSession';
   import RangeSlider from './RangeSlider.svelte';
   import PainCheckInButtons from '../health/PainCheckInButtons.svelte';
@@ -86,6 +87,10 @@ import { calculateLoadFactor } from '../../lib/analytics/load';
   const loadFactor = $derived(calculateLoadFactor(durationMinutes, fingers, core, systemic));
 
   async function handleSave() {
+    // Nothing logged: ask first (a rating on its own is fine when the session was already saved that way).
+    const saved = initialData?.id ? trainingState.getWorkoutById(initialData.id) : undefined;
+    const warning = initialData?.exercises ? emptySessionWarning({ status: 'completed', exercises: initialData.exercises }, saved?.status === 'completed') : null;
+    if (warning && !(await showConfirm(warning.title, warning.text, { ok: warning.ok, cancel: 'Go back' }))) return;
     // On the session's own day - a session logged late checks in for then.
     const day = (initialData?.date || localIsoDate()).slice(0, 10);
     for (const [issueId, trend] of Object.entries(painAnswers)) {

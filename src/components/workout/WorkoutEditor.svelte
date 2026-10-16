@@ -31,6 +31,7 @@
   import { repsPerSet } from '../../lib/exercise/reps';
   import { circuitFromGroup, insertCircuit } from '../../lib/exercise/circuits';
   import { toast } from '../../lib/toast.svelte';
+  import { emptySessionWarning } from '../../lib/session/emptySession';
   import type { ExerciseGroup, Circuit } from '../../lib/types';
   import ExerciseForm from './ExerciseForm.svelte';
   import TestSheet from './TestSheet.svelte';
@@ -224,7 +225,12 @@
     onCancel();
   }
 
+  /** A session that was already empty when opened is not asked about again. */
+  const wasEmpty = untrack(() => !isNew && emptySessionWarning(initial) !== null);
+
   async function save() {
+    const warning = emptySessionWarning($state.snapshot(workout) as Workout, wasEmpty);
+    if (warning && !(await showConfirm(warning.title, warning.text, { ok: warning.ok, cancel: 'Keep editing' }))) return;
     isSaving = true;
     try {
       // A Plan B edit comes back as Plan B's own copy; null = refused (stay here).
