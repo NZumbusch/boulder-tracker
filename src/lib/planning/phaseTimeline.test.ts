@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TrainingBlock } from "../types";
-import { assignLanes, canSplitAt, cycleSpan, dragDays, gapsBetween, gapsInPlan, overlaps, repeatCycle, repeatEnd, setBlockDays, shiftBlock, splitBlock } from "./phaseTimeline";
+import { assignLanes, cycleBlocks, placeCycle, snapToWeek, canSplitAt, cycleSpan, dragDays, gapsBetween, gapsInPlan, overlaps, repeatCycle, repeatEnd, setBlockDays, shiftBlock, splitBlock } from "./phaseTimeline";
 
 const blk = (id: string, startDate: string, endDate: string, priority = 0): TrainingBlock => ({ id, name: id, phaseId: "p-" + id, startDate, endDate, priority });
 let n = 0;
@@ -105,5 +105,34 @@ describe("dragDays", () => {
     expect(dragDays(25, 10)).toBe(3);
     expect(dragDays(-14, 10)).toBe(-1);
     expect(dragDays(4, 10)).toBe(0);
+  });
+});
+
+describe("snapToWeek", () => {
+  it("pulls a first day to its Monday and a last day to its Sunday", () => {
+    expect(snapToWeek("2026-01-08", "start")).toBe("2026-01-05");
+    expect(snapToWeek("2026-01-08", "end")).toBe("2026-01-11");
+    expect(snapToWeek("2026-01-05", "start")).toBe("2026-01-05");
+    expect(snapToWeek("2026-01-11", "end")).toBe("2026-01-11");
+  });
+});
+
+describe("cycleBlocks", () => {
+  const spec = { start: "2026-01-05", phase: { id: "pw", name: "Power" }, loadWeeks: 3, rest: { id: "dl", name: "Deload", weeks: 1 }, cycles: 2 };
+  it("lays load and deload back to back", () => {
+    const out = cycleBlocks(spec, newId);
+    expect(out.map((b) => `${b.phaseId}:${b.startDate}..${b.endDate}`)).toEqual([
+      "pw:2026-01-05..2026-01-25", "dl:2026-01-26..2026-02-01", "pw:2026-02-02..2026-02-22", "dl:2026-02-23..2026-03-01",
+    ]);
+    expect(new Set(out.map((b) => b.id)).size).toBe(4);
+  });
+  it("works without a deload and with none", () => {
+    expect(cycleBlocks({ ...spec, rest: undefined, cycles: 2 }, newId).map((b) => b.startDate)).toEqual(["2026-01-05", "2026-01-26"]);
+    expect(cycleBlocks({ ...spec, cycles: 0 }, newId)).toEqual([]);
+  });
+  it("trims what it lands on when placed", () => {
+    const out = placeCycle([blk("old", "2026-01-01", "2026-02-10")], spec, newId);
+    expect(days(out.filter((b) => b.id === "old"))).toEqual(["old:2026-01-01..2026-01-04"]);
+    expect(out).toHaveLength(5);
   });
 });

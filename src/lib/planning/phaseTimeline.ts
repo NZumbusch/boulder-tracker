@@ -1,5 +1,5 @@
 import type { TrainingBlock } from "../types";
-import { addDaysIso, toUtcDayIndex } from "../dateUtils";
+import { addDaysIso, toUtcDayIndex, weekIdOfIso, weekMondayIso, weekSundayIso } from "../dateUtils";
 import { placeBlock } from "./blockEdit";
 import { phaseOnDay } from "./trainingBlocks";
 
@@ -127,3 +127,38 @@ export function assignLanes(blocks: TrainingBlock[]): Map<string, number> {
 
 /** Whole days a drag of `dx` pixels is worth at `pxPerDay`. */
 export const dragDays = (dx: number, pxPerDay: number): number => Math.round(dx / pxPerDay);
+
+/** `iso` pulled to the Monday of its week (a block's first day) or the Sunday (its last), for dragging at a zoomed-out scale. */
+export const snapToWeek = (iso: string, edge: "start" | "end"): string => (edge === "start" ? weekMondayIso(weekIdOfIso(iso)) : weekSundayIso(weekIdOfIso(iso)));
+
+export interface CycleSpec {
+  start: string;
+  phase: { id: string; name: string };
+  loadWeeks: number;
+  /** The phase that closes each cycle (a deload); none = the cycle is the load block alone. */
+  rest?: { id: string; name: string; weeks: number };
+  cycles: number;
+  priority?: number;
+}
+
+/** The blocks of a cycle repeated `cycles` times from `start`: `loadWeeks` of the phase, then the rest phase, back to back. */
+export function cycleBlocks(spec: CycleSpec, newId: () => string): TrainingBlock[] {
+  const out: TrainingBlock[] = [];
+  let day = spec.start;
+  const priority = spec.priority ? { priority: spec.priority } : {};
+  for (let c = 0; c < Math.max(0, spec.cycles); c++) {
+    const parts = [{ phase: spec.phase, weeks: spec.loadWeeks }, ...(spec.rest && spec.rest.weeks > 0 ? [{ phase: spec.rest, weeks: spec.rest.weeks }] : [])];
+    for (const { phase, weeks } of parts) {
+      if (weeks < 1) continue;
+      const endDate = addDaysIso(day, weeks * 7 - 1);
+      out.push({ id: newId(), name: phase.name, phaseId: phase.id, startDate: day, endDate, ...priority });
+      day = addDaysIso(endDate, 1);
+    }
+  }
+  return out;
+}
+
+/** The blocks of a cycle placed one after the other over the existing ones (each trims what it lands on, like any placed block). */
+export function placeCycle(blocks: TrainingBlock[], spec: CycleSpec, newId: () => string): TrainingBlock[] {
+  return cycleBlocks(spec, newId).reduce((acc, b) => placeBlock(acc, b, newId), blocks);
+}
