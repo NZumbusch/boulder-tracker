@@ -23,5 +23,8 @@ export const screens = [
   { id: 'settings-reminders', area: 'followup1', setup: async (c) => { await c.settings('reminders'); } },
   { id: 'settings-plan-calendar', area: 'followup1', setup: async (c) => { await c.settings('planCalendar'); } },
   { id: 'settings-ai-sharing', area: 'followup1', setup: async (c) => { await c.settings('aiSharing'); }, pages: 2 },
-  { id: 'settings-backup', area: 'followup1', setup: async (c) => { await c.settings('backup'); } },
+  { id: 'settings-backup-restore-previous', area: 'followup1', setup: async (c) => {
+      await c.st(`${mod('persistence.ts')} await persistence.writeRestoreSnapshot({ at: new Date().toISOString(), workouts: 42, data: { workouts: [] } })`);
+      await c.settings('sync'); await sleep(600);
+    } },
 ];

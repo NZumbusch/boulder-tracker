@@ -289,6 +289,22 @@ Only checked in headless Chrome at phone width (dark and light), not on a phone 
 | 20.3 | AI sees the calendar | Android, phone calendar on. Settings → What the AI sees: Phone calendar on. AI coach → Change plan over a week with events → look at the prompt. Switch it off and look again. | With it on, a "My Calendar" list of title and time (day, time range; all-day as dates) for those weeks only, no places or notes; with it off, no such section. The switch is absent in the browser. | | |
 | 20.4 | Privacy policy | Open the privacy policy (Settings → About). | Dated 15 October 2026; has Phone calendar, places in the data list, Weather wording for places, AI prompts including the direct connection and the calendar switch. | | |
 
+## 21. Follow-up round 1: logging, state, preferences (2026-10-25)
+
+Only checked in headless Chrome (phone portrait light, one laptop shot) and by unit tests; nothing on a phone.
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 21.1 | Pain check-in undo | Home or a pain issue: tap Better / Same / Worse / Gone on an open issue, then Undo in the toast. | The check-in is gone again and an issue closed with Gone is open again. | | |
+| 21.2 | Clear week text | Plan, week menu, Clear week. | The question names "Week 42 (Oct 12 - Oct 18)", not "2026-W42". | | |
+| 21.3 | Restore previous | Settings > Sync & backup: restore a backup file, then open the page again. Tap Restore previous. Tap it again. | Before any restore there is no such row. After one it says how many sessions it would bring back; tapping asks, puts the earlier data back; a second tap switches back. | | |
+| 21.4 | Log a past session | History (top bar) and Plan (top bar): Log a past session. Pick yesterday, Continue, add an exercise with sets, change the day chip, Save, rate. | The session shows in History on that day and in that Plan week (not in Log a workout's list); a future day or time is refused with a reason. | | |
+| 21.5 | Plan B in Log a workout | Make a Plan B with a swapped session, leave it undecided; open Log a workout. Decide Plan A. | Both sessions are listed, Plan B's tagged "Plan B"; after choosing a side the other drops out. Starting the Plan B one logs it as Plan B. | | |
+| 21.6 | Empty session warning | New session in the editor with no exercises: Save. Finish a live session with nothing logged. | A "nothing logged" question with Save anyway / Keep editing (or Go back); a session with sets saves without asking. | | |
+| 21.7 | AI sharing defaults | Settings > What the AI sees on a fresh install; then on a device where you turned Pain issues on. | Readiness and Pain issues are off and say "Off by default."; your own earlier choice is kept. | | |
+| 21.8 | Fatigue reminder switch | Android, notifications allowed: Settings > Reminders: Fatigue log reminder off, then on (with a planned session later today). | On by default. Off cancels the pending reminder; On schedules it again. | | |
+| 21.9 | 12-hour clock | Settings > Plan calendar & day > 12-hour clock on. Plan Day, Week (grid and list), an event sheet, a session preview, Home's Today card, the session viewer. | Times read 6:30 PM and the hour gutter 5 PM; off restores 18:30. The time pickers still follow the phone. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.

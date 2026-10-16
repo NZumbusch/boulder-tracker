@@ -20,6 +20,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-25-past-sessions-and-clock",
+    title: "Log a past session, 12-hour clock, undo for check-ins",
+    points: [
+      "Log a session you already did: the button at the top of History and Plan asks for the day, then opens the usual editor.",
+      "Plan B sessions are listed in Log a workout while the Plan B is undecided. Saving a session with nothing in it now asks first.",
+      "New switches: a 12-hour clock for the calendar and session times (Settings > Plan calendar & day) and the fatigue log reminder (Settings > Reminders).",
+      "Every pain check-in has an Undo, Clear week names the week in words, and after restoring a backup Settings > Sync & backup can put your previous data back.",
+    ],
+  },
+  {
     id: "2026-10-24-wider-screens",
     title: "Roomier on big screens",
     points: [
