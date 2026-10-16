@@ -26,6 +26,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       "Add a circuit now starts with a search of your saved circuits, or a new one.",
       "A circuit has one amount per exercise (reps or seconds), rounds, and rests in plain words; add exercises right inside.",
       "Change a saved circuit's values before adding it, and save new ones to your circuits.",
+      "Hangboard repeaters (reps × seconds on / off) and added weight can be set right in the circuit builder.",
       "Add exercise and Add circuit sit side by side.",
     ],
   },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Circuit, ExerciseSlot, ExerciseTypeDef } from "../types";
-import { amountOf, amountText, blankCircuit, circuitLine, draftFromSaved, searchCircuits, slotForType, slotWithAmount, withAmount } from "./circuitDraft";
+import { tracksWeight, weightOf, withWeight, amountOf, amountText, blankCircuit, circuitLine, draftFromSaved, searchCircuits, slotForType, slotWithAmount, withAmount } from "./circuitDraft";
 
 const type = (id: string, parameters: ExerciseTypeDef["parameters"]): ExerciseTypeDef => ({ id, name: id, category: "Strength" as never, parameters });
 const nameOf = (s: ExerciseSlot) => s.typeId;
@@ -58,5 +58,30 @@ describe("text and search", () => {
   });
   it("a blank circuit has the usual rounds and rests", () => {
     expect(blankCircuit("n")).toEqual({ id: "n", name: "", rounds: 3, transition: 15, roundRest: 60, exercises: [] });
+  });
+});
+
+describe("repeaters and weight", () => {
+  it("reps with a timeOn are a repeater; keeps on/off, clears sets", () => {
+    expect(amountOf({ reps: 6, timeOn: 7, timeOff: 3 })).toEqual({ kind: "hang", n: 6, on: 7, off: 3 });
+    expect(withAmount({ reps: 6, timeOn: 7, timeOff: 3, sets: 4 }, "hang", 8, 10, 5)).toEqual({ reps: 8, timeOn: 10, timeOff: 5 });
+  });
+  it("switching to a repeater starts at 7 on / 3 off; away from it drops on/off", () => {
+    expect(withAmount({ reps: 5 }, "hang", 6)).toEqual({ reps: 6, timeOn: 7, timeOff: 3 });
+    expect(withAmount({ reps: 6, timeOn: 7, timeOff: 3 }, "reps", 5)).toEqual({ reps: 5 });
+    expect(withAmount({ reps: 6, timeOn: 7, timeOff: 3 }, "time", 30)).toEqual({ timeOn: 30 });
+  });
+  it("a hangboard type starts as a repeater with its parameters tracked", () => {
+    const s = slotForType(type("hang", ["sets", "reps", "timeOn", "timeOff", "weight"]), "a");
+    expect(s.prescribed).toEqual({ reps: 6, timeOn: 7, timeOff: 3 });
+    expect(s.activeParameters).toEqual(["reps", "timeOn", "timeOff", "weight"]);
+  });
+  it("keeps weight through amount changes and shows it in the line", () => {
+    expect(withAmount({ reps: 3, weight: 10 }, "time", 20)).toEqual({ timeOn: 20, weight: 10 });
+    expect(amountText({ reps: 3, weight: 10 })).toBe("3 reps +10 kg");
+    expect(amountText({ reps: 6, timeOn: 7, timeOff: 3, weight: 5 })).toBe("6 × 7 s on, 3 s off +5 kg");
+    expect(withWeight({ reps: 3, weight: 10 }, undefined)).toEqual({ reps: 3 });
+    expect(weightOf({ weight: 0 })).toBeUndefined();
+    expect(tracksWeight({ id: "x", typeId: "t", activeParameters: ["reps", "weight"], prescribed: {} })).toBe(true);
   });
 });

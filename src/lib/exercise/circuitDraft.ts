@@ -7,67 +7,110 @@ import { toRepsArray } from "./reps";
  * sets of its own. Pure: the screens call these and save the result.
  */
 
-export type AmountKind = "reps" | "time";
+export type AmountKind = "reps" | "time" | "hang";
 
 export const DEFAULT_REPS = 8;
 export const DEFAULT_SECONDS = 30;
+/** A new repeater: 7 s on, 3 s off - the usual hangboard split. */
+export const DEFAULT_ON = 7;
+export const DEFAULT_OFF = 3;
 
 /** A new, empty circuit: three rounds, 15 s between exercises, a minute between rounds - the same defaults as everywhere. */
 export function blankCircuit(id: string): Circuit {
   return { id, name: "", rounds: 3, transition: 15, roundRest: 60, exercises: [] };
 }
 
-/** The one amount an exercise has in a circuit: seconds when it is timed (`timeOn`), else reps. */
-export function amountOf(values: ExerciseValues | undefined): { kind: AmountKind; n: number } {
-  const timeOn = Number(values?.timeOn);
-  if (Number.isFinite(timeOn) && timeOn > 0) return { kind: "time", n: Math.round(timeOn) };
+export interface Amount {
+  kind: AmountKind;
+  /** Reps (reps, hang) or seconds (time). */
+  n: number;
+  /** Hang only: seconds on / off per rep. */
+  on?: number;
+  off?: number;
+}
+
+const positiveInt = (v: unknown): number | undefined => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
+
+/** The one amount an exercise has in a circuit: reps, seconds (`timeOn` alone), or a repeater (reps of `timeOn` seconds on, `timeOff` off). */
+export function amountOf(values: ExerciseValues | undefined): Amount {
+  const timeOn = positiveInt(values?.timeOn);
   const perSet = toRepsArray(values?.reps);
-  if (perSet) return { kind: "reps", n: perSet[0] };
-  const reps = Number(values?.reps);
-  return { kind: "reps", n: Number.isFinite(reps) && reps > 0 ? Math.round(reps) : DEFAULT_REPS };
+  const reps = perSet ? perSet[0] : positiveInt(values?.reps);
+  if (timeOn !== undefined && reps !== undefined) return { kind: "hang", n: reps, on: timeOn, off: Math.max(0, Math.round(Number(values?.timeOff)) || 0) };
+  if (timeOn !== undefined) return { kind: "time", n: timeOn };
+  return { kind: "reps", n: reps ?? DEFAULT_REPS };
 }
 
-/** The values with the amount set: reps clears any timed set, seconds clears reps and sets (the circuit's rounds replace them). */
-export function withAmount(values: ExerciseValues | undefined, kind: AmountKind, n: number): ExerciseValues {
-  const { reps: _r, timeOn: _t, sets: _s, ...rest } = values ?? {};
+/**
+ * The values with the amount set. The other kinds' numbers are cleared, and so are `sets` (the circuit's rounds replace
+ * them). Switching to a repeater keeps a timeOn/timeOff already there, else 7 s on / 3 s off.
+ */
+export function withAmount(values: ExerciseValues | undefined, kind: AmountKind, n: number, on?: number, off?: number): ExerciseValues {
+  const { reps: _r, timeOn: oldOn, timeOff: oldOff, sets: _s, ...rest } = values ?? {};
   const amount = Math.max(1, Math.round(n) || 1);
-  return kind === "time" ? { ...rest, timeOn: amount } : { ...rest, reps: amount };
+  if (kind === "time") return { ...rest, timeOn: amount };
+  if (kind === "reps") return { ...rest, reps: amount };
+  return { ...rest, reps: amount, timeOn: Math.max(1, Math.round(on ?? oldOn ?? DEFAULT_ON) || 1), timeOff: Math.max(0, Math.round(off ?? oldOff ?? DEFAULT_OFF) || 0) };
 }
 
-/** What the slot tracks must include the amount's parameter, or the number is stored but the exercise doesn't show it. */
+/** What the slot tracks must include the amount's parameters, or the numbers are stored but the exercise doesn't show them. */
 function withParam(active: readonly ParameterBlock[] | undefined, kind: AmountKind): ParameterBlock[] {
-  const key: ParameterBlock = kind === "time" ? "timeOn" : "reps";
-  const drop: ParameterBlock = kind === "time" ? "reps" : "timeOn";
-  return [...(active ?? []).filter((p) => p !== drop && p !== "sets"), ...(active?.includes(key) ? [] : [key])];
+  const need: ParameterBlock[] = kind === "time" ? ["timeOn"] : kind === "reps" ? ["reps"] : ["reps", "timeOn", "timeOff"];
+  const drop: ParameterBlock[] = kind === "time" ? ["reps", "timeOff"] : kind === "reps" ? ["timeOn", "timeOff"] : [];
+  const kept = (active ?? []).filter((p) => !drop.includes(p) && p !== "sets");
+  return [...kept, ...need.filter((p) => !kept.includes(p))];
+}
+
+/** The added weight in kg, if the slot has one. */
+export function weightOf(values: ExerciseValues | undefined): number | undefined {
+  const w = Number(values?.weight);
+  return Number.isFinite(w) && w > 0 ? w : undefined;
+}
+
+/** The values with the added weight (kg) set; undefined or 0 removes it. */
+export function withWeight(values: ExerciseValues | undefined, kg: number | undefined): ExerciseValues {
+  const { weight: _w, ...rest } = values ?? {};
+  return kg !== undefined && kg > 0 ? { ...rest, weight: kg } : rest;
+}
+
+/** The slot tracks weight (so the field shows even while empty): the type offers it, or it already has one. */
+export function tracksWeight(slot: ExerciseSlot): boolean {
+  return !!slot.activeParameters?.includes("weight") || weightOf(slot.prescribed) !== undefined;
 }
 
 /** The slot for a chosen exercise: timed when the type is timed (a duration or hold, no reps), else counted. */
 export function slotForType(type: ExerciseTypeDef, id: string): ExerciseSlot {
   const tracked = type.parameters ?? [];
-  const timed = (tracked.includes("timeOn") || tracked.includes("duration")) && !tracked.includes("reps");
-  const kind: AmountKind = timed ? "time" : "reps";
+  const hang = tracked.includes("reps") && tracked.includes("timeOn");
+  const timed = !hang && (tracked.includes("timeOn") || tracked.includes("duration")) && !tracked.includes("reps");
+  const kind: AmountKind = hang ? "hang" : timed ? "time" : "reps";
   return {
     id,
     typeId: type.id,
     activeParameters: withParam(tracked, kind),
-    prescribed: withAmount(undefined, kind, timed ? DEFAULT_SECONDS : DEFAULT_REPS),
+    prescribed: withAmount(undefined, kind, timed ? DEFAULT_SECONDS : hang ? 6 : DEFAULT_REPS),
   };
 }
 
 /** The slot changed to another kind of amount (reps <-> seconds), keeping its number where that makes sense. */
-export function slotWithAmount(slot: ExerciseSlot, kind: AmountKind, n: number): ExerciseSlot {
-  return { ...slot, activeParameters: withParam(slot.activeParameters, kind), prescribed: withAmount(slot.prescribed, kind, n) };
+export function slotWithAmount(slot: ExerciseSlot, kind: AmountKind, n: number, on?: number, off?: number): ExerciseSlot {
+  return { ...slot, activeParameters: withParam(slot.activeParameters, kind), prescribed: withAmount(slot.prescribed, kind, n, on, off) };
 }
 
-/** "3 reps" / "39 s". */
-export function amountText(values: ExerciseValues | undefined): string {
+/** "3 reps" / "39 s" / "6 × 7 s on, 3 s off", with " +10 kg" when it has added weight (shown in kg unless `weight` says otherwise). */
+export function amountText(values: ExerciseValues | undefined, weight?: (kg: number) => string): string {
   const a = amountOf(values);
-  return a.kind === "time" ? `${a.n} s` : `${a.n} rep${a.n === 1 ? "" : "s"}`;
+  const base = a.kind === "time" ? `${a.n} s` : a.kind === "hang" ? `${a.n} × ${a.on} s on${a.off ? `, ${a.off} s off` : ""}` : `${a.n} rep${a.n === 1 ? "" : "s"}`;
+  const kg = weightOf(values);
+  return kg === undefined ? base : `${base} +${weight ? weight(kg) : `${kg} kg`}`;
 }
 
 /** "6 rounds: 3 reps Pull-ups, 39 s Face pulls". */
-export function circuitLine(circuit: Circuit, nameOf: (slot: ExerciseSlot) => string): string {
-  const parts = circuit.exercises.map((s) => `${amountText(s.prescribed)} ${nameOf(s)}`);
+export function circuitLine(circuit: Circuit, nameOf: (slot: ExerciseSlot) => string, weight?: (kg: number) => string): string {
+  const parts = circuit.exercises.map((s) => `${amountText(s.prescribed, weight)} ${nameOf(s)}`);
   return `${circuit.rounds} round${circuit.rounds === 1 ? "" : "s"}${parts.length ? `: ${parts.join(", ")}` : ""}`;
 }
 

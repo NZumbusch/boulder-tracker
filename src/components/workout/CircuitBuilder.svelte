@@ -14,7 +14,8 @@
   import { circuitAsWorkout } from '../../lib/exercise/circuits';
   import { groupMinutes } from '../../lib/exercise/groups';
   import { formatMinutes } from '../../lib/session/formatSession';
-  import { amountOf, blankCircuit, circuitLine, draftFromSaved, slotForType, slotWithAmount } from '../../lib/exercise/circuitDraft';
+  import { amountOf, blankCircuit, circuitLine, draftFromSaved, slotForType, slotWithAmount, tracksWeight, weightOf, withWeight } from '../../lib/exercise/circuitDraft';
+  import { displayWeight, formatWeight, toKg } from '../../lib/units';
   import type { Circuit, ExerciseSlot, ExerciseTypeDef, ExerciseValues, ParameterBlock } from '../../lib/types';
   import Toggle from '../ui/Toggle.svelte';
   import ExercisePicker from './ExercisePicker.svelte';
@@ -35,10 +36,14 @@
   let adding = $state(false);
   let picking = $state(false);
   let detail = $state<ExerciseSlot | null>(null);
+  /** Exercises whose weight field was opened by hand (the others show it when the exercise has one or tracks it). */
+  let weightOpen = $state<string[]>([]);
+  const unit = $derived(trainingState.units.weight);
+  const shownWeight = (kg: number) => formatWeight(kg, unit);
 
   const nameOf = (slot: ExerciseSlot) => slotTypeName(slot, trainingState.exerciseTypes);
   const minutes = $derived(groupMinutes(circuitAsWorkout($state.snapshot(draft) as Circuit), 'planned').get('circuit'));
-  const line = $derived(circuitLine(draft, nameOf));
+  const line = $derived(circuitLine(draft, nameOf, shownWeight));
   const seconds = (raw: string): number | undefined => {
     const n = Math.round(Number(raw));
     return raw.trim() === '' || !Number.isFinite(n) || n < 0 ? undefined : n;
@@ -56,6 +61,12 @@
     next.splice(index + by, 0, slot);
     draft.exercises = next;
   }
+  const setAmount = (slot: ExerciseSlot, a: ReturnType<typeof amountOf>, patch: { kind?: typeof a.kind; n?: number; on?: number; off?: number }) =>
+    setSlot(slot.id, (s) => slotWithAmount(s, patch.kind ?? a.kind, patch.n ?? a.n, patch.on ?? a.on, patch.off ?? a.off));
+  const setWeight = (slot: ExerciseSlot, raw: string) => {
+    const n = Number(raw);
+    setSlot(slot.id, (s) => ({ ...s, prescribed: withWeight(s.prescribed, raw.trim() === '' || !(n > 0) ? undefined : Math.round(toKg(n, unit) * 100) / 100) }));
+  };
   const remove = (id: string) => (draft.exercises = draft.exercises.filter((s) => s.id !== id));
 
   function saveDetail(data: { typeId: string; categoryId?: string; activeParameters: ParameterBlock[]; values: ExerciseValues }) {
@@ -124,18 +135,35 @@
               <button onclick={() => move(index, 1)} disabled={index === draft.exercises.length - 1} class="btn-icon disabled:opacity-30" aria-label="Move down"><Icon icon="ic:baseline-keyboard-arrow-down" class="text-xl" /></button>
               <button onclick={() => remove(slot.id)} class="btn-icon -mr-1 hover:text-danger" aria-label="Remove {nameOf(slot)}"><Icon icon="ic:baseline-close" class="text-xl" /></button>
             </div>
-            <div class="flex items-center gap-2">
-              <input
-                type="number" min="1" inputmode="numeric" value={a.n} aria-label="{a.kind === 'time' ? 'Seconds' : 'Reps'} of {nameOf(slot)}"
-                oninput={(e) => { const n = Number(e.currentTarget.value); if (n >= 1) setSlot(slot.id, (s) => slotWithAmount(s, a.kind, n)); }}
-                class="field w-24 px-2.5 text-center font-bold tabular-nums"
-              />
-              <div class="seg" role="group" aria-label="Unit">
-                <button type="button" aria-pressed={a.kind === 'reps'} onclick={() => setSlot(slot.id, (s) => slotWithAmount(s, 'reps', a.kind === 'reps' ? a.n : 8))} class="seg-item {a.kind === 'reps' ? 'seg-on' : 'hover:text-content'}">reps</button>
-                <button type="button" aria-pressed={a.kind === 'time'} onclick={() => setSlot(slot.id, (s) => slotWithAmount(s, 'time', a.kind === 'time' ? a.n : 30))} class="seg-item {a.kind === 'time' ? 'seg-on' : 'hover:text-content'}">seconds</button>
-              </div>
-              <button onclick={() => (detail = slot)} class="btn-quiet ml-auto px-2 text-caption font-bold text-content-subtle hover:text-content" title="Weight, notes, its own rest after it, a timer">More</button>
+            <div class="seg w-fit" role="group" aria-label="Unit">
+              <button type="button" aria-pressed={a.kind === 'reps'} onclick={() => setAmount(slot, a, { kind: 'reps', n: a.kind === 'time' ? 8 : a.n })} class="seg-item {a.kind === 'reps' ? 'seg-on' : 'hover:text-content'}">reps</button>
+              <button type="button" aria-pressed={a.kind === 'time'} onclick={() => setAmount(slot, a, { kind: 'time', n: a.kind === 'time' ? a.n : 30 })} class="seg-item {a.kind === 'time' ? 'seg-on' : 'hover:text-content'}">seconds</button>
+              <button type="button" aria-pressed={a.kind === 'hang'} onclick={() => setAmount(slot, a, { kind: 'hang', n: a.kind === 'time' ? 6 : a.n, on: a.kind === 'time' ? 7 : undefined })} class="seg-item {a.kind === 'hang' ? 'seg-on' : 'hover:text-content'}" title="Reps of a hold, each with its own on and off time - a hangboard repeater">repeats</button>
             </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              {#if a.kind === 'hang'}
+                <input type="number" min="1" inputmode="numeric" value={a.n} aria-label="Reps of {nameOf(slot)}" oninput={(e) => { const n = Number(e.currentTarget.value); if (n >= 1) setAmount(slot, a, { n }); }} class="field w-16 px-2 text-center font-bold tabular-nums" />
+                <span class="text-caption text-content-subtle">×</span>
+                <input type="number" min="1" inputmode="numeric" value={a.on} aria-label="Seconds on" oninput={(e) => { const n = Number(e.currentTarget.value); if (n >= 1) setAmount(slot, a, { on: n }); }} class="field w-16 px-2 text-center font-bold tabular-nums" />
+                <span class="text-caption text-content-subtle">s on</span>
+                <input type="number" min="0" inputmode="numeric" value={a.off} aria-label="Seconds off" oninput={(e) => { const n = Number(e.currentTarget.value); if (n >= 0) setAmount(slot, a, { off: n }); }} class="field w-16 px-2 text-center font-bold tabular-nums" />
+                <span class="text-caption text-content-subtle">s off</span>
+              {:else}
+                <input type="number" min="1" inputmode="numeric" value={a.n} aria-label="{a.kind === 'time' ? 'Seconds' : 'Reps'} of {nameOf(slot)}" oninput={(e) => { const n = Number(e.currentTarget.value); if (n >= 1) setAmount(slot, a, { n }); }} class="field w-24 px-2.5 text-center font-bold tabular-nums" />
+                <span class="text-caption text-content-subtle">{a.kind === 'time' ? 'seconds' : 'reps'}</span>
+              {/if}
+              <button onclick={() => (detail = slot)} class="btn-quiet ml-auto px-2 text-caption font-bold text-content-subtle hover:text-content" title="Notes, its own rest after it, a timer, hold type">More</button>
+            </div>
+            {#if tracksWeight(slot) || weightOpen.includes(slot.id)}
+              {@const kg = weightOf(slot.prescribed)}
+              <label class="flex items-center gap-2">
+                <span class="text-caption text-content-subtle">Added weight</span>
+                <input type="number" min="0" step="0.5" inputmode="decimal" placeholder="0" value={kg === undefined ? '' : Math.round(displayWeight(kg, unit) * 10) / 10} oninput={(e) => setWeight(slot, e.currentTarget.value)} aria-label="Added weight of {nameOf(slot)} in {unit}" class="field w-20 px-2 text-center font-bold tabular-nums" />
+                <span class="text-caption text-content-subtle">{unit} <span class="text-content-faint">(each round)</span></span>
+              </label>
+            {:else}
+              <button onclick={() => (weightOpen = [...weightOpen, slot.id])} class="text-caption font-bold text-content-subtle hover:text-primary">+ Added weight</button>
+            {/if}
           </div>
         {/each}
         <button onclick={() => (picking = true)} class="w-full min-h-11 py-2.5 border border-dashed border-border-strong rounded-card text-label font-bold text-content-muted hover:text-primary transition-colors flex items-center justify-center gap-1.5">

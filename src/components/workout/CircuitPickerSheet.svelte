@@ -10,6 +10,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { slotTypeName } from '../../lib/exerciseSlot';
   import { circuitLine, searchCircuits } from '../../lib/exercise/circuitDraft';
+  import { formatWeight } from '../../lib/units';
   import type { Circuit } from '../../lib/types';
 
   let { onPick, onNew, onClose, extra }: {
@@ -48,7 +49,7 @@
       {#each found as c (c.id)}
         <button onclick={() => onPick(c)} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
           <p class="text-body font-bold text-content truncate">{c.name}</p>
-          <p class="text-caption text-content-subtle line-clamp-2">{circuitLine(c, nameOf)}</p>
+          <p class="text-caption text-content-subtle line-clamp-2">{circuitLine(c, nameOf, (kg) => formatWeight(kg, trainingState.units.weight))}</p>
         </button>
       {:else}
         <p class="text-caption text-content-subtle px-1">No saved circuit matches. Make a new one above.</p>
