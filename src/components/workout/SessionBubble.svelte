@@ -8,8 +8,8 @@
    *  - `strip` - with the drawer or rail there is no bar, so it is a slim strip along the bottom of the content, part of
    *    the layout (the content ends above it) and in the safe area.
    *
-   * Only ever visible while a session is running *and* the session modal is closed (`dockVisible`), so it can never
-   * overlap the modal's own header or its timer. While it is up it tells the rest of the shell how much room it takes
+   * Only visible while a session is running. The strip also waits for the session modal to be closed, so it can never
+   * overlap the modal's own header or its timer; the bar's button stays put under the modal. While it is up it tells the rest of the shell how much room it takes
    * (`--chrome-b`), so toasts and timer pills sit above it.
    */
   import { trainingState } from '../../lib/state.svelte';
@@ -75,7 +75,8 @@
   </span>
 {/snippet}
 
-{#if store.isActive && !store.isModalOpen && !trainingState.showFatigue}
+<!-- The bar's button stays while the session view animates in (and out): it sits under the modal, and dropping it for those moments flashed the + back. The strip would overlap the modal, so it waits for it to close. -->
+{#if store.isActive && !trainingState.showFatigue && (variant === 'button' || !store.isModalOpen)}
   {#if variant === 'button'}
     <button
       onclick={open}

@@ -12,7 +12,8 @@
 
   const accent = $derived(accentClasses(trainingState.navAccent));
   const store = trainingState.sessionStore;
-  const sessionUp = $derived(store.isActive && !store.isModalOpen && !trainingState.showFatigue);
+  // Stays up while the session view is open (it is covered then): switching to the + for the length of the open animation looked like a glitch.
+  const sessionUp = $derived(store.isActive && !trainingState.showFatigue);
   const tabs = MAIN_ITEMS.filter((i) => i.view !== 'add');
   const left = tabs.slice(0, 2);
   const right = tabs.slice(2);
