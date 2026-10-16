@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { awayFromSessions, eventColor, hueGap, parseHex, toHsl, fromHsl, SESSION_HEXES, MIN_HUE_GAP, NEUTRAL_HEX, EVENT_PALETTE } from "./eventColor";
+import { awayFromSessions, eventColor, hueGap, parseHex, toHsl, fromHsl, SESSION_HEXES, paleEvent, MIN_HUE_GAP, NEUTRAL_HEX, EVENT_PALETTE } from "./eventColor";
 
 const hueOf = (hex: string) => toHsl(parseHex(hex)!)[0];
 const sessionHues = SESSION_HEXES.map(hueOf);
@@ -63,5 +63,11 @@ describe("eventColor", () => {
     expect(eventColor({ calendarId: "1" }, {}, "#eab308")).toBe("#eab308");
     expect(nearest(eventColor({ calendarId: "1", color: "#14b8a6" }, {}))).toBeGreaterThanOrEqual(MIN_HUE_GAP - 1);
     expect(nearest(eventColor({ calendarId: "1", color: "#ef4444" }, {}, "#3b82f6"))).toBeGreaterThanOrEqual(MIN_HUE_GAP - 1);
+  });
+});
+
+describe("paleEvent", () => {
+  it("mixes the colour far towards white, whatever it is", () => {
+    expect(paleEvent("#3b82f6")).toBe("color-mix(in srgb, #3b82f6 32%, white)");
   });
 });

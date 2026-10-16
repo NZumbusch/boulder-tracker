@@ -519,9 +519,20 @@ body {
 /* The calendar's session blocks: a category colour layer under the text - strong with white text on dark, pastel with dark text on light. */
 .cal-fill { opacity: 0.88; }
 .cal-fill.cal-soft { opacity: 0.5; }
+/* Sessions, brighter than the rest of the calendar's fills: more of the colour, a touch more saturated. */
+/* Phone events: all one light pastel (their colour mixed far towards white), with dark text in every theme. */
+.cal-fill.cal-pastel { opacity: 0.92; }
+:root[data-theme="light"] .cal-fill.cal-pastel { opacity: 0.85; }
+.cal-ink.cal-ink-dark { color: #27272a; }
+:root[data-theme="light"] .cal-ink.cal-ink-dark { color: #27272a; }
+.cal-fill.cal-vivid { opacity: 0.96; filter: saturate(1.12); }
+.cal-fill.cal-vivid.cal-soft { opacity: 0.62; }
 :root[data-theme="light"] .cal-fill { opacity: 0.42; }
 :root[data-theme="light"] .cal-fill.cal-soft { opacity: 0.3; }
-:root[data-theme="contrast"] .cal-fill { opacity: 1; }
+:root[data-theme="light"] .cal-fill.cal-vivid { opacity: 0.66; }
+:root[data-theme="light"] .cal-fill.cal-vivid.cal-soft { opacity: 0.42; }
+:root[data-theme="contrast"] .cal-fill, :root[data-theme="contrast"] .cal-fill.cal-vivid, :root[data-theme="contrast"] .cal-fill.cal-pastel { opacity: 1; }
+:root[data-theme="contrast"] .cal-ink.cal-ink-dark { color: #000; }
 :root[data-theme="contrast"] .cal-fill.cal-soft { opacity: 0.6; }
 /* A fine edge in the block's own colour (darkened), so a pale block - a phone-calendar event on the grey grid - doesn't dissolve into its ground. */
 .cal-edges .cal-edge { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cal-edge, #71717a) 65%, var(--theme-content) 20%); }

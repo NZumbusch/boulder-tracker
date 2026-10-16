@@ -9,8 +9,8 @@ import type { DeviceEvent } from "./deviceEvents";
 
 /** The colour of a done session (Tailwind emerald-500; `bg-emerald-500`). */
 export const SESSION_HEX = "#10b981";
-/** The status colours of sessions (`planning/sessionColors.ts`: green done, blue to do, red missed - the lighter 400 shades for blue and red). */
-export const SESSION_HEXES: readonly string[] = [SESSION_HEX, "#60a5fa", "#f87171"];
+/** The status colours of sessions (`planning/sessionColors.ts`: green done, blue to do, red missed). */
+export const SESSION_HEXES: readonly string[] = [SESSION_HEX, "#3b82f6", "#ef4444"];
 /** The colour of an event with none. */
 export const NEUTRAL_HEX = "#71717a";
 /** How many degrees of hue an automatic event colour keeps from each session colour at least. */
@@ -68,6 +68,9 @@ export function awayFromSessions(hex: string | undefined, sessionHexes: readonly
   }
   return "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
 }
+
+/** An event's fill: its colour mixed far towards white - a light pastel, so every phone event sits back from the sessions (the edge keeps the full colour). */
+export const paleEvent = (color: string): string => `color-mix(in srgb, ${color} 32%, white)`;
 
 /** What the picker offers: a spread of hues that are none of the session colours (green, blue, red). */
 export const EVENT_PALETTE = ["#eab308", "#a16207", "#84cc16", "#65a30d", "#8b5cf6", "#a855f7", "#d946ef", "#c026d3", "#78716c", "#57534e"];

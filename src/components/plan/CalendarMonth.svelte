@@ -9,6 +9,7 @@
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
   import type { AnalyticsCategory, ExerciseTypeDef, GoalEvent } from '../../lib/types';
   import { calendarSessionColor, sessionStatus } from '../../lib/planning/sessionColors';
+  import { paleEvent } from '../../lib/calendar/eventColor';
   import { formatDay } from '../../lib/dateUtils';
   import { dayIndexToIso } from '../../lib/analytics/recoverySeries';
 
@@ -113,22 +114,22 @@
             class="{wide ? 'min-h-24 items-stretch px-1 text-left' : 'h-14 items-center'} flex flex-col gap-1 pt-1.5 rounded-control hover:bg-surface/70 transition-colors relative"
           >
             {#if phaseLine(i)}{@const line = phaseLine(i)!}<span class="absolute bottom-0 left-0 h-0.5 {line.color} {line.joinsPrev ? '' : 'rounded-l-full'} {line.joinsNext ? '' : 'rounded-r-full'}" style="right: {line.joinsNext ? '-2px' : '0'}" aria-hidden="true"></span>{/if}
-            {#if goals.get(day)}<span class="absolute inset-x-0 top-0 h-1 rounded-t-full {goals.get(day)?.some((g) => g.kind === 'competition') ? 'bg-warning' : 'bg-primary'}" aria-hidden="true"></span>{/if}
+            {#if goals.get(day)}<span class="absolute inset-x-0 top-0 h-1 rounded-t-full bg-amber-400" aria-hidden="true"></span>{/if}
             <span class="text-label tabular-nums w-6 h-6 flex items-center justify-center rounded-full {wide ? 'self-start' : ''} {day === today ? 'bg-primary text-white font-bold' : 'text-content'}">{date}</span>
             {#if wide}
               <span class="flex flex-col gap-0.5 min-w-0">
                 {#each list.slice(0, 3) as s (s.workout.id)}
-                  <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span><span class="relative">{s.done ? '✓ ' : ''}{s.workout.notes || 'Session'}</span></span>
+                  <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink"><span class="absolute inset-0 cal-fill cal-vivid {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span><span class="relative">{s.done ? '✓ ' : ''}{s.workout.notes || 'Session'}</span></span>
                 {/each}
                 {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as e, k (k)}
-                  <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink cal-edge" style="--cal-edge: {eventColor(e)}"><span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(e)}"></span><span class="relative">{e.title}</span></span>
+                  <span class="relative block overflow-hidden truncate rounded-md px-1.5 py-0.5 text-[11px] leading-tight cal-ink cal-ink-dark cal-edge" style="--cal-edge: {eventColor(e)}"><span class="absolute inset-0 cal-fill cal-pastel" style="background: {paleEvent(eventColor(e))}"></span><span class="relative">{e.title}</span></span>
                 {/each}
                 {#if list.length + (events.get(day)?.length ?? 0) > 3}<span class="text-caption leading-none text-content-subtle px-1">+{list.length + (events.get(day)?.length ?? 0) - 3} more</span>{/if}
               </span>
             {:else}
               <span class="flex items-center gap-0.5 h-2">
                 {#each list.slice(0, 3) as s (s.workout.id)}
-                  <span class="relative w-2 h-2 rounded-full overflow-hidden bg-surface"><span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span></span>
+                  <span class="relative w-2 h-2 rounded-full overflow-hidden bg-surface"><span class="absolute inset-0 cal-fill cal-vivid {s.workout.provisional ? 'cal-soft' : ''} {colorOf(s)}"></span></span>
                 {/each}
                 {#each (events.get(day) ?? []).slice(0, Math.max(0, 3 - list.length)) as e, k (k)}
                   <span class="w-2 h-2 rounded-full opacity-60" style="background: {eventColor(e)}"></span>

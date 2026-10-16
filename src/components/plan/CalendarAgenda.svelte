@@ -16,6 +16,7 @@
   import type { ExerciseTypeDef } from '../../lib/types';
   import type { PhaseMark } from '../../lib/planning/phaseStrip';
   import type { AnalyticsCategory, GoalEvent } from '../../lib/types';
+  import { paleEvent } from '../../lib/calendar/eventColor';
   import { calendarSessionColor, exerciseSegments, sessionStatus } from '../../lib/planning/sessionColors';
 
   let {
@@ -87,7 +88,7 @@
       <div class="flex-1 min-w-0 space-y-2">
         {#if phaseNames && startsHere}<p class="text-caption text-content-subtle">{mark?.name}</p>{/if}
         {#each goals.get(day) ?? [] as g (g.id)}
-          <p class="relative overflow-hidden flex items-center gap-1.5 rounded-control px-3 py-1.5 text-label cal-ink"><span class="absolute inset-0 cal-fill {GOAL_STYLE[g.kind].fill}"></span>
+          <p class="relative overflow-hidden flex items-center gap-1.5 rounded-control px-3 py-1.5 text-label cal-ink cal-ink-dark"><span class="absolute inset-0 cal-fill cal-vivid {GOAL_STYLE[g.kind].fill}"></span>
             <Icon icon={GOAL_STYLE[g.kind].icon} class="relative text-base" /><span class="relative">{g.name}</span>
           </p>
         {/each}
@@ -102,7 +103,7 @@
                 onclick={() => onOpen(s, sessions)}
                 class="relative overflow-hidden block w-full text-left rounded-card px-3.5 py-3 cal-ink active:scale-[0.99] transition-transform {isFaded(s) ? 'opacity-40' : ''} {isRunning(s) ? 'ring-2 ring-success' : ''}"
               >
-                <span class="absolute inset-0 cal-fill {s.workout.provisional ? 'cal-soft' : ''} {calendarSessionColor(s.workout, exerciseTypes, categories, byCategory, sessionStatus(s, today))}"></span>
+                <span class="absolute inset-0 cal-fill cal-vivid {s.workout.provisional ? 'cal-soft' : ''} {calendarSessionColor(s.workout, exerciseTypes, categories, byCategory, sessionStatus(s, today))}"></span>
                 <span class="relative block text-body font-semibold leading-snug break-words">{#if s.done && byCategory}<Icon icon="ic:baseline-check" class="inline text-base -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
                 <span class="relative block text-caption opacity-80 mt-0.5">{meta(s)}</span>
                 {#if shown.length}
@@ -130,7 +131,7 @@
               </button>
           {:else}
             {@const e = item.event}
-            <button onclick={() => onOpenEvent?.(e)} class="tap ev-row relative overflow-hidden w-full text-left flex items-baseline gap-2 rounded-control px-3 py-1.5 text-label cal-ink cal-edge" style="--cal-edge: {eventColor(e)}"><span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(e)}"></span>
+            <button onclick={() => onOpenEvent?.(e)} class="tap ev-row relative overflow-hidden w-full text-left flex items-baseline gap-2 rounded-control px-3 py-1.5 text-label cal-ink cal-ink-dark cal-edge" style="--cal-edge: {eventColor(e)}"><span class="absolute inset-0 cal-fill cal-pastel" style="background: {paleEvent(eventColor(e))}"></span>
               <span class="relative min-w-0 flex-1 truncate">{e.title}</span>
               <span class="relative shrink-0 text-caption tabular-nums opacity-70">{e.allDay ? 'All day' : `${hhmm(e.startMin ?? 0)} – ${hhmm(Math.min(1440, (e.startMin ?? 0) + e.minutes))}`}</span>
             </button>

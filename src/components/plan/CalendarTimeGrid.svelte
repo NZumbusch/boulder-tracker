@@ -19,6 +19,7 @@
   import { calendarSessionColor, sessionStatus } from '../../lib/planning/sessionColors';
   import { swipeGuard } from '../../lib/analytics/swipe';
   import { portal } from '../../lib/ui/portal';
+  import { paleEvent } from '../../lib/calendar/eventColor';
   import Icon from '@iconify/svelte';
   import { dropTarget, DRAG_HOLD_MS, DRAG_SLOP_PX } from '../../lib/planning/calendarDrag';
   import { onDestroy, tick } from 'svelte';
@@ -379,14 +380,14 @@
         {@const edges = `${bar.startsBefore ? 'rounded-l-none' : 'rounded-l-control'} ${bar.endsAfter ? 'rounded-r-none' : 'rounded-r-control'}`}
         {@const place = `grid-column: ${bar.from + 1} / span ${bar.span}; grid-row: ${bar.lane + 1}`}
         {#if bar.kind === 'goal'}
-          <div class="relative overflow-hidden flex items-center gap-1 min-w-0 mx-px px-1.5 py-0.5 cal-ink {edges}" style={place} title={bar.goal.name}>
-            <span class="absolute inset-0 cal-fill {GOAL_STYLE[bar.goal.kind].fill}"></span>
+          <div class="relative overflow-hidden flex items-center gap-1 min-w-0 mx-px px-1.5 py-0.5 cal-ink cal-ink-dark {edges}" style={place} title={bar.goal.name}>
+            <span class="absolute inset-0 cal-fill cal-vivid {GOAL_STYLE[bar.goal.kind].fill}"></span>
             <Icon icon={GOAL_STYLE[bar.goal.kind].icon} class="relative text-xs shrink-0" />
             <span class="relative truncate {showMeta ? 'text-label' : 'text-caption leading-tight'}">{bar.goal.name}</span>
           </div>
         {:else}
-          <button onclick={() => onOpenEvent?.(bar.event)} class="relative overflow-hidden flex items-center min-w-0 mx-px px-1.5 py-0.5 text-left cal-ink cal-edge {edges}" style="{place}; --cal-edge: {eventColor(bar.event)}" title={bar.event.title}>
-            <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(bar.event)}"></span>
+          <button onclick={() => onOpenEvent?.(bar.event)} class="relative overflow-hidden flex items-center min-w-0 mx-px px-1.5 py-0.5 text-left cal-ink cal-ink-dark cal-edge {edges}" style="{place}; --cal-edge: {eventColor(bar.event)}" title={bar.event.title}>
+            <span class="absolute inset-0 cal-fill cal-pastel" style="background: {paleEvent(eventColor(bar.event))}"></span>
             <span class="relative truncate {showMeta ? 'text-label' : 'text-caption leading-tight'}">{bar.event.title}</span>
           </button>
         {/if}
@@ -415,7 +416,7 @@
               class="relative overflow-hidden w-full text-left rounded-control px-1.5 py-0.5 select-none cal-ink {tone(s)} {isDragged(s) ? 'shadow-card ring-1 ring-primary' : ''}"
               style={dragStyle(s)}
             >
-              <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
+              <span class="absolute inset-0 cal-fill cal-vivid {soft(s)} {colorOf(s)}"></span>
               <span lang={lang} class="relative block {sizeClass} {showMeta ? 'text-label font-medium truncate' : 'text-caption leading-tight font-medium truncate'}">{#if s.done && byCategory}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
               {#if showMeta && !compact}
                 <span class="relative block text-caption opacity-80">{meta(s)}</span>
@@ -467,8 +468,8 @@
             {#if it.kind === 'event' && (b.bottom <= hours.from * 60 || b.top >= hours.to * 60)}
               <!-- Entirely outside the hours shown. -->
             {:else if it.kind === 'event'}
-              <button onclick={(ev) => { ev.stopPropagation(); if (performance.now() < suppressClickUntil) return; onOpenEvent?.(it.e); }} onpointerdown={(e) => peekStart(e, it.e.title, `${hhmm(it.startMin)} – ${hhmm(Math.min(1440, it.startMin + it.minutes))}`)} onpointerup={peekEnd} onpointercancel={peekEnd} onpointerleave={peekEnd} oncontextmenu={(e) => { if (peekOn) e.preventDefault(); }} class="absolute overflow-hidden rounded-control bg-surface {showMeta ? 'px-2' : wholeWords ? 'px-0.5' : 'px-1'} py-1 cal-ink cal-edge text-left {peekOn ? 'select-none' : ''}" style="{place}; --cal-edge: {eventColor(it.e)}" aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
-                <span class="absolute inset-0 cal-fill cal-soft" style="background: {eventColor(it.e)}"></span>
+              <button onclick={(ev) => { ev.stopPropagation(); if (performance.now() < suppressClickUntil) return; onOpenEvent?.(it.e); }} onpointerdown={(e) => peekStart(e, it.e.title, `${hhmm(it.startMin)} – ${hhmm(Math.min(1440, it.startMin + it.minutes))}`)} onpointerup={peekEnd} onpointercancel={peekEnd} onpointerleave={peekEnd} oncontextmenu={(e) => { if (peekOn) e.preventDefault(); }} class="absolute overflow-hidden rounded-control bg-surface {showMeta ? 'px-2' : wholeWords ? 'px-0.5' : 'px-1'} py-1 cal-ink cal-ink-dark cal-edge text-left {peekOn ? 'select-none' : ''}" style="{place}; --cal-edge: {eventColor(it.e)}" aria-label="{it.e.title}, {hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}">
+                <span class="absolute inset-0 cal-fill cal-pastel" style="background: {paleEvent(eventColor(it.e))}"></span>
                 <span class="relative block">
                   <span lang={lang} class="block {sizeClass} {showMeta ? (wholeWords ? 'text-label' : 'text-label truncate') : 'text-caption leading-[14px] break-words'}" style={titleStyle(heightPx, 8)}>{it.e.title}</span>
                   {#if showMeta && heightPx >= 44}<span class="block text-caption opacity-80">{hhmm(it.startMin)} – {hhmm(Math.min(1440, it.startMin + it.minutes))}</span>{/if}
@@ -496,7 +497,7 @@
                 {#if detail}<span class="absolute inset-0 cal-wash {colorOf(s)}"></span>{/if}
                 <!-- The banner: the session in the colour of its main category. -->
                 <span class="relative block px-2 py-1.5 {detail ? 'shrink-0' : 'flex-1 min-h-0'}">
-                  <span class="absolute inset-0 cal-fill {soft(s)} {colorOf(s)}"></span>
+                  <span class="absolute inset-0 cal-fill cal-vivid {soft(s)} {colorOf(s)}"></span>
                   <span lang={lang} class="relative block font-medium {sizeClass} {showMeta ? 'text-label leading-snug' : 'text-caption leading-[14px] break-words'}" style={titleStyle(heightPx, showMeta ? 36 : 12, s.done && byCategory ? 2 : 1)}>{#if s.done && byCategory}<Icon icon="ic:baseline-check" class="inline text-xs -mt-0.5" /> {/if}{s.workout.notes || 'Session'}</span>
                   {#if showMeta}<span class="relative block text-caption opacity-80">{meta(s)}</span>{/if}
                   {#if !detail && ex.names.length}

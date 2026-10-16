@@ -50,7 +50,7 @@ export const SESSION_CLASS = "bg-emerald-500";
 export type SessionStatus = "done" | "planned" | "missed";
 
 /** What the calendar colours a session by: done (green), still to do (blue) or planned for a day that has passed without being done (red). */
-export const STATUS_CLASS: Record<SessionStatus, string> = { done: SESSION_CLASS, planned: "bg-blue-400", missed: "bg-red-400" };
+export const STATUS_CLASS: Record<SessionStatus, string> = { done: SESSION_CLASS, planned: "bg-blue-500", missed: "bg-red-500" };
 
 /** `day` and `today` are day indexes (`calendarEvents.ts`). */
 export function sessionStatus(session: { done: boolean; day: number }, today: number): SessionStatus {

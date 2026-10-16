@@ -76,10 +76,10 @@ describe("session status colours", () => {
     expect(sessionStatus({ done: false, day: 11 }, 12)).toBe("missed");
   });
   it("blue to do, green done, red missed - and the category colour only when asked for", () => {
-    expect(STATUS_CLASS).toEqual({ done: SESSION_CLASS, planned: "bg-blue-400", missed: "bg-red-400" });
+    expect(STATUS_CLASS).toEqual({ done: SESSION_CLASS, planned: "bg-blue-500", missed: "bg-red-500" });
     const w = { exercises: [], status: "planned" } as unknown as Workout;
-    expect(calendarSessionColor(w, [], [], false, "planned")).toBe("bg-blue-400");
-    expect(calendarSessionColor(w, [], [], false, "missed")).toBe("bg-red-400");
-    expect(calendarSessionColor(w, [], [], true, "missed")).toBe("bg-red-400");
+    expect(calendarSessionColor(w, [], [], false, "planned")).toBe("bg-blue-500");
+    expect(calendarSessionColor(w, [], [], false, "missed")).toBe("bg-red-500");
+    expect(calendarSessionColor(w, [], [], true, "missed")).toBe("bg-red-500");
   });
 });
