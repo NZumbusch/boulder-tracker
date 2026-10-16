@@ -366,6 +366,7 @@
         <div class="flex-1 min-w-0 space-y-px px-px">
           {#each col.untimed as s (s.workout.id)}
             <button
+              data-session-id={s.workout.id}
               onclick={() => open(s, col.all)}
               onpointerdown={(e) => beginPress(e, s, false)}
               class="relative overflow-hidden w-full text-left rounded-control px-1.5 py-0.5 select-none cal-ink {tone(s)} {isDragged(s) ? 'shadow-card ring-1 ring-primary' : ''}"
@@ -407,6 +408,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
         <div
           bind:this={colEls[days.indexOf(col.day)]}
+          data-calendar-day={col.day}
           class="relative flex-1 min-w-0 {compact ? 'border-l border-border/70' : ''}"
           onclick={(e) => addAt(e, col.day)}
         >
@@ -435,6 +437,7 @@
               {@const detail = showsExercises(heightPx, segs.length)}
               {@const ex = exerciseLines(s.workout, exerciseTypes, !compact ? 8 : showExercises ? 4 : 0)}
               <button
+                data-session-id={s.workout.id}
                 onclick={() => open(s, col.all)}
                 onpointerdown={(e) => beginPress(e, s, true)}
                 class="absolute flex flex-col items-stretch justify-start text-left rounded-control bg-surface select-none cal-ink {isDragged(s) ? 'shadow-card ring-1 ring-primary opacity-90' : 'overflow-hidden'} {tone(s)}"

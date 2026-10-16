@@ -548,3 +548,10 @@ body {
    margin around them. Static ones become the positioning context for it; absolute and fixed ones already are one. */
 .tap:not(.absolute):not(.fixed):not(.sticky) { position: relative; }
 .tap::after { content: ""; position: absolute; inset: -8px; }
+
+/* A session or day found again after switching between the Plan's Weeks and Calendar views: a ring that fades. */
+@keyframes plan-flash {
+  0% { box-shadow: 0 0 0 3px var(--theme-primary); }
+  100% { box-shadow: 0 0 0 3px transparent; }
+}
+.plan-flash { animation: plan-flash 1.6s ease-out 1; border-radius: var(--radius-control); }

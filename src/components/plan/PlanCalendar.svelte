@@ -9,7 +9,10 @@
    */
   import { layout } from '../../lib/navigation/layoutMode.svelte';
   import Icon from '@iconify/svelte';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
+  import { planFocus } from '../../lib/plan/planFocus';
+  import { flashSession } from '../../lib/plan/flash';
+  import { toUtcDayIndex, weekIdOfIso } from '../../lib/dateUtils';
   import { trainingState } from '../../lib/state.svelte';
   import { swipePaging, type SwipeDirection } from '../../lib/analytics/swipe';
   import { formatDay, formatWeek } from '../../lib/dateUtils';
@@ -63,15 +66,39 @@
 
   const today = $derived(localDayIndex(trainingState.today));
   let mode = $state<Mode>(storedMode());
-  // Opens on the week the block view had selected, else today.
+  // Opens on the day or session you touched in the Weeks view, else on the week it had selected, else today.
+  const arrival = planFocus.take('calendar');
   const selected = trainingState.selectedWeekId;
   let focus = $state(
-    selected && selected !== trainingState.currentWeekId ? (weekStartDay(selected) ?? localDayIndex(trainingState.today)) : localDayIndex(trainingState.today),
+    arrival
+      ? toUtcDayIndex(arrival.day)
+      : selected && selected !== trainingState.currentWeekId ? (weekStartDay(selected) ?? localDayIndex(trainingState.today)) : localDayIndex(trainingState.today),
   );
+  // Bring that session (or the first one of the day) into view and flash it once the grid has laid out.
+  onMount(() => {
+    if (!arrival) return;
+    const timer = setTimeout(() => {
+      const dayIdx = toUtcDayIndex(arrival.day);
+      const root = document.querySelector<HTMLElement>(`[data-calendar-day="${dayIdx}"]`);
+      const id = arrival.sessionId ?? root?.querySelector<HTMLElement>('[data-session-id]')?.dataset.sessionId;
+      if (id) flashSession(document.body, id);
+      else if (root) { root.scrollIntoView({ block: 'center' }); flashSession(root); }
+    }, 200);
+    return () => clearTimeout(timer);
+  });
 
   // Back in the block view, the week being looked at stays selected.
   // The block grid shows 50 weeks around "now" per page - move it to the page that holds the week.
   onDestroy(() => {
+    // The day to hand back: the session you opened here, else the day in Day view; in Week, Month and Year only the week counts.
+    const own = planFocus.peek();
+    // A session opened here counts only while you are still in its week (you may have paged on since).
+    const ownDay = own?.from === 'calendar' && weekIdOfIso(own.day) === weekIdOfDayIndex(focus) ? toUtcDayIndex(own.day) : undefined;
+    // Nothing touched here: hand back what you arrived on, while you are still in that week.
+    const kept = ownDay === undefined && arrival && weekIdOfIso(arrival.day) === weekIdOfDayIndex(focus) ? arrival : undefined;
+    const day = ownDay ?? (kept ? toUtcDayIndex(kept.day) : mode === 'day' ? focus : undefined);
+    if (ownDay === undefined && day !== undefined) planFocus.set('calendar', dayIndexToIso(day), kept?.sessionId);
+    if (day !== undefined) focus = day;
     const id = weekIdOfDayIndex(focus);
     trainingState.selectedWeekId = id;
     const here = weekStartDay(trainingState.currentWeekId);
@@ -164,6 +191,7 @@
   /** A tap on a session shows its preview first; Open there goes into the full session. */
   let preview = $state<{ session: CalendarSession; siblings: CalendarSession[] } | null>(null);
   function open(s: CalendarSession, siblings: CalendarSession[]) {
+    planFocus.set('calendar', dayIndexToIso(s.day), s.workout.id);
     preview = { session: s, siblings };
   }
   function openFull() {

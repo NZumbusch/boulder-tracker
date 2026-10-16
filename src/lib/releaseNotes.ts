@@ -20,6 +20,13 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-plan-handoff",
+    title: "Weeks and Calendar remember where you were",
+    points: [
+      "Switching between Weeks and Calendar lands on the day you tapped or the session you opened, scrolls to it and flashes it briefly - not just the same week.",
+    ],
+  },
+  {
     id: "2026-10-29-declutter",
     title: "Fewer buttons on Plan, Analytics and Phases",
     points: [

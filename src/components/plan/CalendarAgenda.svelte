@@ -77,7 +77,7 @@
     {@const mark = phases.get(day)}
     {@const startsHere = mark && phases.get(day - 1)?.key !== mark.key}
     {@const endsHere = !mark || phases.get(day + 1)?.key !== mark.key}
-    <div class="flex gap-3 py-3.5">
+    <div class="flex gap-3 py-3.5" data-calendar-day={day}>
       <!-- One bar down the edge for as long as the phase lasts (it rounds only where the phase starts or ends). -->
       {#if phases.size > 0}<span class="w-1 shrink-0 self-stretch -my-3.5 {startsHere ? 'rounded-t-full' : ''} {endsHere ? 'rounded-b-full' : ''} {mark?.color ?? 'bg-transparent'}" aria-hidden="true"></span>{/if}
       <div class="w-9 shrink-0 text-center pt-1">
@@ -98,6 +98,7 @@
             {@const shown = chips.slice(0, 8)}
             {@const more = chips.length - shown.length}
               <button
+                data-session-id={s.workout.id}
                 onclick={() => onOpen(s, sessions)}
                 class="relative overflow-hidden block w-full text-left rounded-card px-3.5 py-3 cal-ink active:scale-[0.99] transition-transform {isFaded(s) ? 'opacity-40' : ''} {isRunning(s) ? 'ring-2 ring-success' : ''}"
               >

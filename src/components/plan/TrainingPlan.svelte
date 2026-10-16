@@ -12,7 +12,7 @@
   import { WEEK_DAYS } from '../../lib/constants';
   import { openWorkout } from '../../lib/workoutModal.svelte';
   import { trainingState } from '../../lib/state.svelte';
-  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId, weekMondayIso, formatWeek } from '../../lib/dateUtils';
+  import { getWeekId, getWeekDateRange, getWeekDates, incrementWeekId, decrementWeekId, weekMondayIso, weekDayIsos, weekIdOfIso, formatWeek } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
   import { getBlocksForWeek, getDominantBlockForWeek, phasesInWeek, weekRuns, describeRuns, dayRangeText } from '../../lib/planning/trainingBlocks';
   import { sortWorkoutsBySchedule } from '../../lib/planning/sortWorkouts';
@@ -41,7 +41,9 @@
   import { occurrencesTouchingWeek, dayIndexOf, occurrenceDaysLabel } from '../../lib/planning/planB';
   import type { PlanAlternative } from '../../lib/types';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
+  import { planFocus } from '../../lib/plan/planFocus';
+  import { flashSession } from '../../lib/plan/flash';
 
   // --- Theme ---
   const FALLBACK_PHASE_COLOR = 'bg-status-neutral';
@@ -423,9 +425,38 @@
   const plannedLoadTotal = $derived(
     countedWorkouts.reduce((sum, w) => sum + summarizeSession(w, trainingState.exerciseTypes).plannedLoad, 0),
   );
+  /** The date of a weekday of the selected week. */
+  const dateOfDay = (day: DayOfWeek) => weekDayIsos(trainingState.selectedWeekId!)[WEEK_DAYS.indexOf(day)];
+  /** Remember the day (and session) you touched, for the calendar to open on when you switch to it. */
+  function noteFocus(day: DayOfWeek | undefined, sessionId?: string) {
+    if (day && trainingState.selectedWeekId) planFocus.set('weeks', dateOfDay(day), sessionId);
+  }
+  // Back from the calendar: the week is selected already (the calendar leaves it); bring the day you were on into view
+  // and flash the session you opened there.
+  $effect(() => {
+    if (shownView !== 'blocks') return;
+    const focus = untrack(() => planFocus.take('weeks'));
+    if (!focus || weekIdOfIso(focus.day) !== trainingState.selectedWeekId) return;
+    const day = WEEK_DAYS[(new Date(`${focus.day}T00:00:00Z`).getUTCDay() + 6) % 7];
+    const timer = setTimeout(() => {
+      const target = document.getElementById(`plan-day-${day}`);
+      target?.scrollIntoView({ behavior: 'auto', block: 'center' });
+      flashSession(target, focus.sessionId);
+    }, 160);
+    return () => clearTimeout(timer);
+  });
+  // A different week selected than the one the remembered day is in: it no longer applies.
+  $effect(() => {
+    const id = trainingState.selectedWeekId;
+    const focus = planFocus.peek();
+    if (id && focus && weekIdOfIso(focus.day) !== id) planFocus.clear();
+  });
   /** Tapping a day in the strip: jump to its sessions, or start a new one on an empty day. */
   function onStripDay(day: DayOfWeek, hasSessions: boolean) {
-    if (hasSessions) document.getElementById(`plan-day-${day}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
+    if (hasSessions) {
+      noteFocus(day);
+      document.getElementById(`plan-day-${day}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
+    }
     else handleAddWorkout(trainingState.selectedWeekId!, day);
   }
   /** Normally only days with sessions are listed; arranging shows them all, as drop targets. */
@@ -763,6 +794,7 @@
                   {@const summary = summarizeSession(workout, trainingState.exerciseTypes)}
                   {@const isThisRunning = trainingState.sessionStore.isRunning(workout.id)}
                   <ListRow
+                    sessionId={workout.id}
                     title={workout.notes || 'Session'}
                     meta={[
                       summary.startTime ? formatClockText(summary.startTime, trainingState.clock12) : undefined,
@@ -771,7 +803,7 @@
                       workout.provisional ? 'not saved yet' : undefined,
                     ].filter(Boolean).join(' · ')}
                     muted={workout.provisional || !counts(workout)}
-                    onclick={arranging ? undefined : () => openWorkout(workout, 'view', false, listedDays.flatMap((k) => dayGroups[k]))}
+                    onclick={arranging ? undefined : () => { noteFocus(workout.dayOfWeek, workout.id); openWorkout(workout, 'view', false, listedDays.flatMap((k) => dayGroups[k])); }}
                     onlongpress={arranging ? null : () => openSessionActions(workout, listedDays.flatMap((k) => dayGroups[k]))}
                   >
                     {#snippet titleExtra()}

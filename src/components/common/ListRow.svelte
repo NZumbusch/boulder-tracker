@@ -12,7 +12,7 @@
   import type { Snippet } from 'svelte';
   import { longPress } from '../../lib/ui/longPress';
 
-  let { title, titleExtra, metaLead, meta, detail, detailExtra, value, valueHint, muted = false, onclick, onlongpress = null, leading, trailing }: {
+  let { title, titleExtra, metaLead, meta, detail, detailExtra, value, valueHint, muted = false, onclick, onlongpress = null, leading, trailing, sessionId }: {
     title: string;
     /** Rendered right after the title, e.g. a grade. */
     titleExtra?: Snippet;
@@ -33,10 +33,12 @@
     onlongpress?: (() => void) | null;
     leading?: Snippet;
     trailing?: Snippet;
+    /** Marks the row as this session's (`data-session-id`), so a view can scroll to it and flash it. */
+    sessionId?: string;
   } = $props();
 </script>
 
-<div class="flex items-center gap-3 py-2.5">
+<div class="flex items-center gap-3 py-2.5" data-session-id={sessionId}>
   {@render leading?.()}
   {#snippet body()}
     <p class="text-body font-semibold truncate {muted ? 'text-content-muted' : 'text-content'} {onclick ? 'group-hover:text-primary transition-colors' : ''}">
