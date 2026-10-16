@@ -34,3 +34,11 @@ One entry per decision: area, screen, options, recommendation.
 - **history-sends / hs-sends-full, hs-sends (grade chart, all sizes)**: each grade's bar is a full-height button but only 26 to 34 px wide (`BAR_MIN_PX` 28; the chart scrolls sideways below that). The harness flags them as small targets. Options: (a) keep, a wide hit area would make the chart scroll on every phone; (b) raise the minimum to 40 px so every bar is thumb-sized and the chart scrolls sooner. Recommend (a).
 - **history-sends / hs-benchmark-form (all sizes)**: "Test result" in the quick-log sheet shows two headers and two close buttons: the sheet's own ("Test result", back, X) and the form's card ("Record a test result", X). Options: (a) keep (the form is shared with Plan and the Start screen); (b) hide the form's own header inside the sheet. Recommend (b).
 - **history-sends / hs-history-* (laptop, tablet-l)**: History is a narrow left-aligned column (about 480 px) with empty space on the right, like the other list pages. Options: (a) keep; (b) centre it or use two columns. Recommend (a) until decided app-wide.
+
+## analytics
+
+- **analytics / an-recovery, an-pain-tap (all sizes)**: pain dots sit close together on a day, so their (now 40 px) touch areas overlap and the later dot wins. Options: (a) keep; (b) pick the nearest dot to the tap. Recommend (a), rare.
+- **analytics / an-range-year, an-range-6m (phone)**: phase band segments get very thin (Deload 3 to 9 px) and carry no label; tapping one shows its name below the band. Options: (a) keep; (b) merge short blocks into a marker. Recommend (a).
+- **analytics / an-overview, an-recovery (all sizes)**: with little history the plots use the full width but the data sits in the last few columns, leaving the left half empty. Options: (a) keep, columns stay comparable when paging; (b) shrink the window to the data. Recommend (a).
+- **analytics / an-overview (laptop, tablet-l)**: Analytics is a 512 px column with empty sides like the other list pages. Options: (a) keep; (b) two chart columns from `lg`. Recommend (a) until decided app-wide.
+- **analytics / an-benchmark-adjust (phone)**: test chips scroll sideways with the last one cut off and no fade hint. Options: (a) keep; (b) add an edge fade. Recommend (b).
