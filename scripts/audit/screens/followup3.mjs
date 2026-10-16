@@ -34,4 +34,6 @@ export const screens = [
     }, teardown: async (c) => { await c.st(`t.setFindingHidden(null, false)`); await c.close(); } },
   { id: 'analytics-load-outlines', area: 'followup3', setup: async (c) => { await c.nav('analytics'); await c.ev(`document.getElementById('section-load')?.scrollIntoView()`); await sleep(500); } },
   { id: 'analytics-load-no-outlines', area: 'followup3', setup: async (c) => { await c.st(`t.setTunable('analytics.plannedOutline', false)`); await c.nav('analytics'); await c.ev(`document.getElementById('section-load')?.scrollIntoView()`); await sleep(500); }, teardown: async (c) => { await c.st(`t.setTunable('analytics.plannedOutline', true)`); await c.close(); } },
+  { id: 'settings-history-analytics', area: 'followup3', setup: async (c) => { await c.settings('history'); }, pages: 2 },
+  { id: 'settings-home-sections', area: 'followup3', setup: async (c) => { await c.settings('home'); } },
 ];

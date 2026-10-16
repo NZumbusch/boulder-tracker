@@ -93,7 +93,7 @@
   </div>
   {#if rangeProblem}<p class="text-caption text-danger px-1" role="alert">{rangeProblem}</p>{/if}
   {#if draft.fingerDays.trim()}
-    <p class="text-caption text-content-subtle px-1">Finger days count sessions with {fingerNames.length ? fingerNames.join(', ') : 'finger categories (none are set yet)'}. Change which under History &amp; Analytics → Filtered load.</p>
+    <p class="text-caption text-content-subtle px-1">Finger days count sessions with {fingerNames.length ? fingerNames.join(', ') : 'finger categories (none are set yet)'}. Change which under History &amp; Analytics → Finger Load.</p>
   {/if}
 
   <div class="space-y-2 pt-1">

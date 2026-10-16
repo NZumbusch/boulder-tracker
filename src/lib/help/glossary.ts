@@ -65,7 +65,7 @@ export const GLOSSARY: Record<TermId, Term> = {
     ],
   },
   fingerLoad: {
-    title: "Filtered load",
+    title: "Finger load",
     paragraphs: [
       "The load from just the categories you pick in the card's Categories picker, so you can see one kind of stress on its own.",
       "It starts with the finger-heavy categories (hangboard, limit bouldering, board…) for finger load - pick others to follow arms, core or anything else.",

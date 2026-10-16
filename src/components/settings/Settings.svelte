@@ -48,6 +48,8 @@
   import AboutPage from './AboutPage.svelte';
   import { backWhile } from '../../lib/navigation/backStack.svelte';
   import Icon from "@iconify/svelte";
+  import { ANALYTICS_SECTION_IDS } from '../../lib/preferences/migrate';
+  import { analyticsSectionLabel } from '../../lib/analytics/sectionNames';
 
   // --- Props ---
   let {
@@ -344,8 +346,8 @@
       <OrderedListSettings
         list="analyticsSections"
         title="Analytics cards"
-        hint="Drag to reorder, switch off to hide."
-        labels={{ load: 'Rolling load and ACWR', strain: 'Monotony and strain', fingerLoad: 'Filtered load', heatmap: 'Training calendar', mix: 'Training mix', fatigue: 'Fatigue', recoveryTrend: 'Recovery (HRV, sleep, resting heart rate, weight)', pain: 'Pain', outdoor: 'Outdoor ascents', benchmarks: 'Test progress', benchmarkOverview: 'All tests' }}
+        hint="Named as in Analytics, with the tab each one is on. Drag to reorder, switch off to hide."
+        labels={Object.fromEntries(ANALYTICS_SECTION_IDS.map((id) => [id, analyticsSectionLabel(id)]))}
       />
       <TunablesSettings topic="layout" title="Rolling Load" ids={['analytics.plannedOutline']} />
       <ChartSettings />
