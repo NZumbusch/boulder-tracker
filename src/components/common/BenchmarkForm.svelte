@@ -21,7 +21,8 @@
     initialData = null,
     weekId = '',
     onSave = () => {},
-    onCancel = () => {}
+    onCancel = () => {},
+    inSheet = false
   } = $props<{
     /** Pre-existing benchmark data if editing an existing entry */
     initialData?: Benchmark | null,
@@ -30,7 +31,9 @@
     /** Callback fired after a successful save */
     onSave?: () => void,
     /** Callback fired when the user cancels the form */
-    onCancel?: () => void
+    onCancel?: () => void,
+    /** Shown inside a sheet that already has its own title and close button: hide the form's own header */
+    inSheet?: boolean
   }>();
 
   // --- Local State ---
@@ -161,12 +164,14 @@
 
 <!-- UI Structure -->
 <div bind:this={root} class="space-y-4 p-5 bg-surface/80 rounded-card border border-border animate-in zoom-in-95 shadow-card">
-  <div class="flex items-center justify-between px-1">
-    <h3 class="text-title text-content">Record a test result</h3>
-    <button onclick={onCancel} class="btn-icon -mr-2" aria-label="Close">
-      <Icon icon="ic:baseline-close" class="text-xl" />
-    </button>
-  </div>
+  {#if !inSheet}
+    <div class="flex items-center justify-between px-1">
+      <h3 class="text-title text-content">Record a test result</h3>
+      <button onclick={onCancel} class="btn-icon -mr-2" aria-label="Close">
+        <Icon icon="ic:baseline-close" class="text-xl" />
+      </button>
+    </div>
+  {/if}
 
   <div class="space-y-3">
     <div class="space-y-1">

@@ -70,6 +70,6 @@
   {:else if kind === 'send'}
     <SendForm defaults={{ crag: ongoingTrip?.location?.name }} onDone={onClose} />
   {:else if kind === 'benchmark'}
-    <BenchmarkForm weekId={trainingState.currentWeekId} onSave={onClose} onCancel={() => kind = null} />
+    <BenchmarkForm inSheet weekId={trainingState.currentWeekId} onSave={onClose} onCancel={() => kind = null} />
   {/if}
 </Sheet>
