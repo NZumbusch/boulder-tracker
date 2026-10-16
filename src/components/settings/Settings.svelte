@@ -36,6 +36,7 @@
   import PainCheckInSettings from './PainCheckInSettings.svelte';
   import PlacesSettings from './PlacesSettings.svelte';
   import RemindersSettings from './RemindersSettings.svelte';
+  import PageReset from './PageReset.svelte';
   import { Capacitor } from '@capacitor/core';
   import { healthConnect } from '../../lib/health/healthConnect.svelte';
   import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
@@ -410,5 +411,9 @@
     <WidgetSettings />
   {:else if page === 'about'}
     <AboutPage />
+  {/if}
+
+  {#if section !== null && page !== null}
+    <PageReset {page} />
   {/if}
 </div>
