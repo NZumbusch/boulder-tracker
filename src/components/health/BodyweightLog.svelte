@@ -44,7 +44,8 @@
   function barHeightPercent(value: number): number {
     const { min, max } = chartRange;
     if (max === min) return 50;
-    return 10 + ((value - min) / (max - min)) * 80;
+    // Bars start from a baseline a bit below the lowest weight, so the lightest weigh-in is never a sliver.
+    return 28 + ((value - min) / (max - min)) * 62;
   }
 
   /** What the field can hold, in kg - anything else is a typo, and says so. */
