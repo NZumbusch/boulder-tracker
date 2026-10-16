@@ -117,7 +117,10 @@
         {@const a = row.ascent}
         <div class="rounded-control border p-2.5 {row.status === 'maybe' ? 'border-warning/40 bg-warning/5' : 'border-border-strong/50 bg-surface-elevated/40'}">
           <div class="flex items-center gap-2.5">
-            <input type="checkbox" bind:checked={row.include} class="w-4 h-4 accent-primary shrink-0" aria-label="Import {a.name ?? a.grade}" />
+            <!-- The label grows the tap area to 40 px; the negative margin keeps the row as it was. -->
+            <label class="grid place-items-center w-10 h-10 -m-3 shrink-0">
+              <input type="checkbox" bind:checked={row.include} class="w-4 h-4 accent-primary" aria-label="Import {a.name ?? a.grade}" />
+            </label>
             <div class="min-w-0 flex-1">
               <p class="text-label text-content truncate">{a.name || 'Unnamed'} <span class="text-primary tabular-nums">{G(a.grade)}</span>{a.style ? ` · ${a.style}` : ''}</p>
               <p class="text-caption text-content-subtle truncate">{formatDate(a.date)}{a.crag ? ` · ${a.crag}` : ''}</p>
@@ -149,7 +152,7 @@
 
     {#if discarded.length > 0}
       <div>
-        <button onclick={() => showDiscarded = !showDiscarded} class="flex items-center gap-1 text-label text-content-subtle hover:text-content" aria-expanded={showDiscarded}>
+        <button onclick={() => showDiscarded = !showDiscarded} class="tap flex items-center gap-1 py-1.5 -my-1.5 text-label text-content-subtle hover:text-content" aria-expanded={showDiscarded}>
           <Icon icon="ic:baseline-chevron-right" class="text-base transition-transform {showDiscarded ? 'rotate-90' : ''}" />
           {discarded.length} already logged (discarded)
         </button>

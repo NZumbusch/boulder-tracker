@@ -117,7 +117,7 @@
       {#each styles as style, i}
         <button
           onclick={() => styleIndex = i}
-          class="shrink-0 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all snap-center {styleIndex === i ? 'bg-primary text-white shadow-lg scale-105' : 'bg-surface-elevated text-content-subtle hover:text-content'}"
+          class="tap shrink-0 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all snap-center {styleIndex === i ? 'bg-primary text-white shadow-lg scale-105' : 'bg-surface-elevated text-content-subtle hover:text-content'}"
         >
           {style}
         </button>

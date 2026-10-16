@@ -28,3 +28,9 @@ One entry per decision: area, screen, options, recommendation.
 
 - **workout / wk-session-exit, wk-session-exit-empty (phone-l)**: in landscape the "End this session?" sheet is taller than the screen, so "Discard session" sits at the bottom edge and needs a scroll. Options: (a) keep; (b) put Discard beside the Close button as a quiet text link; (c) shorten the explanation text. Recommend (a), it is the destructive choice and is meant to be hard to hit.
 - **workout / wk-editor-* (tablet-l, laptop)**: the workout viewer and editor are full-screen modals with a narrow content column, so on a 1366 px screen they are a thin strip with empty sides. Options: (a) keep; (b) use two columns (details beside the list) from `lg`. Recommend (a) until Nathan uses it on a tablet.
+
+## history-sends
+
+- **history-sends / hs-sends-full, hs-sends (grade chart, all sizes)**: each grade's bar is a full-height button but only 26 to 34 px wide (`BAR_MIN_PX` 28; the chart scrolls sideways below that). The harness flags them as small targets. Options: (a) keep, a wide hit area would make the chart scroll on every phone; (b) raise the minimum to 40 px so every bar is thumb-sized and the chart scrolls sooner. Recommend (a).
+- **history-sends / hs-benchmark-form (all sizes)**: "Test result" in the quick-log sheet shows two headers and two close buttons: the sheet's own ("Test result", back, X) and the form's card ("Record a test result", X). Options: (a) keep (the form is shared with Plan and the Start screen); (b) hide the form's own header inside the sheet. Recommend (b).
+- **history-sends / hs-history-* (laptop, tablet-l)**: History is a narrow left-aligned column (about 480 px) with empty space on the right, like the other list pages. Options: (a) keep; (b) centre it or use two columns. Recommend (a) until decided app-wide.
