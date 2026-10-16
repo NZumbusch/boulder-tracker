@@ -26,6 +26,10 @@
   } from '../../lib/planning/phaseTimeline';
   import { addDaysIso, formatDay } from '../../lib/dateUtils';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
+  import { askAboutBlock } from '../../lib/ai/askAbout.svelte';
+  import { buildBlockReview } from '../../lib/analytics/blockReview';
+  import { blockInputsFrom } from '../../lib/analytics/insights';
+  import { layout } from '../../lib/navigation/layoutMode.svelte';
 
   let { onClose, focusDate }: { onClose: () => void; focusDate?: string } = $props();
   backWhile(() => true, () => onClose());
@@ -51,6 +55,9 @@
 
   let selectedId = $state<string | null>(null);
   const selected = $derived(blocks.find((b) => b.id === selectedId));
+  /** How the selected phase went (undefined for one that has not started). */
+  const review = $derived(selected ? buildBlockReview(blockInputsFrom(trainingState.insightInputs(), selected)) : undefined);
+  const signedPct = (v: number) => (Math.round(v) === 0 ? 'flat' : `${v > 0 ? '+' : '−'}${Math.abs(Math.round(v))}%`);
   let viewDate = $state<string | undefined>(untrack(() => focusDate));
 
   const now = $derived(phaseOnDay(blocks, today));
@@ -257,14 +264,17 @@
   const badgeOf = (b: TrainingBlock) => { const c = classifyBlock(b, currentWeek); return c === 'current' ? 'Now' : ''; };
 </script>
 
-<div class="fixed inset-0 z-[110] safe-y bg-app-bg overflow-y-auto" data-phase-planner>
-  <div class="max-w-3xl mx-auto w-full px-4 pb-16 space-y-4">
+<!-- Below the sheets (z-110) so its own sheets and the Ask sheet open over it. -->
+<div class="fixed inset-0 z-[105] safe-y bg-app-bg overflow-y-auto" data-phase-planner>
+  <div class="mx-auto w-full px-4 pb-16 space-y-4 {layout.wide ? 'max-w-6xl' : 'max-w-3xl'}">
     <AppBar title="Phases" {subtitle} onBack={onClose}>
       {#snippet actions()}
         <button onclick={() => startNew()} class="btn-icon" aria-label="Add a phase" title="Add a phase"><Icon icon="ic:baseline-plus" class="text-2xl" /></button>
       {/snippet}
     </AppBar>
 
+    <div class={layout.wide ? 'grid grid-cols-[minmax(0,1fr)_22rem] gap-6 items-start' : 'space-y-4'}>
+    <div class="space-y-4 min-w-0">
     <div class="flex items-center justify-between gap-2">
       <Segmented label="Timeline scale" options={[{ value: 'month', label: 'Month' }, { value: 'quarter', label: 'Quarter' }, { value: 'year', label: 'Year' }]} value={scale} onChange={setScale} />
       <button onclick={() => (viewDate = today)} class="btn-quiet px-2 text-caption rounded-control hover:bg-surface-elevated text-primary">Today</button>
@@ -298,6 +308,8 @@
       {/if}
     </div>
 
+    </div>
+    <div class="space-y-4 min-w-0">
     {#if selected}
       <section class="p-4 bg-surface-elevated/50 rounded-card space-y-3" aria-label="Selected phase">
         <div class="flex items-start gap-2.5">
@@ -309,6 +321,15 @@
           </div>
           <button onclick={() => select(null)} class="btn-icon -mt-1 -mr-2" aria-label="Deselect"><Icon icon="ic:baseline-close" class="text-xl" /></button>
         </div>
+        {#if review}
+          <div class="space-y-1.5" aria-label="How it went">
+            {#if review.sessions.planned > 0}
+              <p class="text-label text-content">{review.sessions.done} of {review.sessions.planned} sessions done{review.running ? ' so far' : ''}{review.loadChange !== undefined ? ` · load ${signedPct(review.loadChange)}` : ''}</p>
+              <div class="h-1 rounded-full bg-border overflow-hidden"><div class="h-full rounded-full bg-primary" style="width: {Math.min(100, Math.round((review.sessions.done / review.sessions.planned) * 100))}%"></div></div>
+            {/if}
+            {#if review.mix.length}<p class="text-caption text-content-subtle">Most time: {review.mix.slice(0, 3).map((m) => `${m.name} ${Math.round(m.share * 100)}%`).join(', ')}</p>{/if}
+          </div>
+        {/if}
         <div class="grid grid-cols-3 gap-2">
           <button onclick={() => startEdit(selected)} class="btn btn-secondary"><Icon icon="ic:baseline-edit" /><span>Edit</span></button>
           <button onclick={openSplit} disabled={blockLength(selected) < 2} class="btn btn-secondary"><Icon icon="ic:baseline-call-split" /><span>Split</span></button>
@@ -321,6 +342,9 @@
           {/if}
           <button onclick={() => remove(selected.id)} class="btn btn-secondary hover:text-danger"><Icon icon="ic:baseline-delete" /><span>Delete</span></button>
         </div>
+        {#if review}
+          <button onclick={() => askAboutBlock(selected.id)} class="btn btn-ghost w-full"><Icon icon="ic:baseline-auto-awesome" class="text-primary" /><span>Ask the AI about this phase</span></button>
+        {/if}
       </section>
     {/if}
 
@@ -366,6 +390,8 @@
         {/each}
       </section>
     {/if}
+    </div>
+    </div>
   </div>
 </div>
 

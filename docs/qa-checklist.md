@@ -361,6 +361,9 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 25.5 | Gaps and overlaps | Make a hole between two blocks; add a block with priority 1 over another. | "Needs a look" lists the gap (tap Fill) and the pair that runs together; the gap is a dashed bar on the timeline. | | |
 | 25.6 | Scales | Month / Quarter / Year. | The timeline zooms; the choice is remembered. At Quarter and Year scale a drag snaps to whole weeks (first day to Monday, last to Sunday); Month scale is exact to the day. | | |
 | 25.7 | Focus on sessions | Plan > Calendar > Day or Week: tap the dumbbell button. | Phone events turn grey, sessions take their main exercise category's colour; tap again to go back; it is remembered. Also in Month; not in Year. | | |
+| 25.10 | How it went, Ask the AI | Select a past phase. | Sessions done of planned with a bar, the load change and where the time went; "Ask the AI about this phase" opens the Ask sheet over the page. A phase that has not started shows neither. | | |
+| 25.11 | Wide layout | Tablet or laptop width (or landscape phone). | Timeline on the left; the selected phase, Needs a look and the list in a column on the right. | | |
+| 25.12 | Delete with Undo | Delete a phase. | It goes without a question; Undo in the toast brings it back. | | |
 
 ## After the run
 
