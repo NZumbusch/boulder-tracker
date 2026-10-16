@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-24-wider-screens",
+    title: "Roomier on big screens",
+    points: [
+      "On a tablet in landscape or a laptop, Home, History, Plan lists, Analytics and Settings use a wider column.",
+      "On narrow phones the two week pickers (AI coach, AI settings) stack so nothing is cut off.",
+      "Small tidy-ups: the test result form in Quick log has one title, bodyweight bars never shrink to a sliver, and the test chips in Analytics fade where they scroll.",
+    ],
+  },
+  {
     id: "2026-10-23-ui-round-two",
     title: "A tidier, more readable app",
     points: [
