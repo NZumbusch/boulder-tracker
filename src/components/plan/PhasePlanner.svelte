@@ -22,7 +22,7 @@
   import { phaseOnDay, blockFirstWeekId } from '../../lib/planning/trainingBlocks';
   import { placeBlock, describeBlockChanges, daysWithoutPhase, shortDate } from '../../lib/planning/blockEdit';
   import {
-    blockLength, canSplitAt, gapsInPlan, overlaps, repeatCycle, repeatEnd, setBlockDays, shiftBlock, splitBlock, daysBetween,
+    blockLength, canSplitAt, gapsInPlan, overlaps, repeatCycle, repeatEnd, setBlockDays, shiftBlock, splitBlock, daysBetween, cycleBlocks, placeCycle,
   } from '../../lib/planning/phaseTimeline';
   import { addDaysIso, formatDay } from '../../lib/dateUtils';
   import { openBlockReview } from '../../lib/analytics/blockReview.svelte';
@@ -92,7 +92,29 @@
     const next = blocks.map((b) => b.startDate).filter((d) => d > start).sort()[0];
     return next ? (daysBetween(start, next) > 28 ? addDaysIso(start, 6) : addDaysIso(next, -1)) : addDaysIso(start, 6);
   }
+  // A new phase can be a cycle instead: so many weeks of the phase, then a deload, repeated.
+  let cycleOn = $state(false);
+  let cycleLoad = $state(3);
+  let cycleRest = $state(1);
+  let cycleCount = $state(2);
+  const restPhase = $derived(phaseDefs.find((p) => /deload/i.test(p.name)));
+  const isNewForm = $derived(!!form && !blocks.some((b) => b.id === form?.id));
+  function cyclePreset(load: number, rest: number) { cycleLoad = load; cycleRest = rest; }
+  const cycleSpec = $derived.by(() => {
+    if (!form || !cycleOn || !ready) return undefined;
+    const phase = phaseDefs.find((p) => p.id === form!.phaseId);
+    if (!phase) return undefined;
+    return { start: ready.startDate, phase: { id: phase.id, name: form.name.trim() || phase.name }, loadWeeks: cycleLoad, rest: restPhase && restPhase.id !== phase.id && cycleRest > 0 ? { id: restPhase.id, name: restPhase.name, weeks: cycleRest } : undefined, cycles: cycleCount, priority: form.priority || undefined };
+  });
+  const cycleNote = $derived.by(() => {
+    if (!cycleSpec || cycleLoad < 1 || cycleCount < 1) return undefined;
+    const made = cycleBlocks(cycleSpec, () => 'preview');
+    const current = snapshot();
+    const after = placeCycle(current, cycleSpec, () => 'preview');
+    return { count: made.length, end: made[made.length - 1].endDate, lines: describeBlockChanges(current, after, '') };
+  });
   function startNew(date?: string) {
+    cycleOn = false;
     const lastEnd = blocks.map((b) => b.endDate).sort().reverse()[0];
     const start = date ?? (lastEnd && lastEnd >= today ? addDaysIso(lastEnd, 1) : today);
     const phase = phaseDefs[0];
@@ -129,12 +151,17 @@
   });
   async function saveForm() {
     if (!ready) return;
-    const isNew = !blocks.some((b) => b.id === ready!.id);
+    if (cycleOn && isNewForm) {
+      if (!cycleSpec || cycleLoad < 1 || cycleCount < 1) return;
+      await save(placeCycle(snapshot(), cycleSpec, generateId), `${cycleCount}× ${cycleLoad}${cycleSpec.rest ? ` + ${cycleRest}` : ''} weeks added`);
+      sheet = null;
+      viewDate = ready.startDate;
+      return;
+    }
     await save(placeBlock(snapshot(), ready, generateId), `"${ready.name}" saved`);
     sheet = null;
     selectedId = ready.id;
     viewDate = ready.startDate;
-    void isNew;
   }
 
   // Split
@@ -355,22 +382,55 @@
         <label for="ph-name" class="text-label text-content-subtle ml-1">Name</label>
         <input id="ph-name" bind:value={form.name} oninput={() => (nameTouched = true)} class="field" placeholder="e.g. Finger strength block" />
       </div>
+      {#if isNewForm}
+        <Toggle checked={cycleOn} onChange={(v) => (cycleOn = v)} label="Repeat as a cycle" hint={restPhase ? 'E.g. 3 weeks of this phase then a deload week, a few times over.' : 'A cycle with a deload needs a phase named Deload (Settings > Phases).'} />
+      {/if}
       <div class="flex gap-3">
         <div class="flex-1 space-y-1">
           <label for="ph-start" class="text-label text-content-subtle ml-1">First day</label>
           <input id="ph-start" type="date" bind:value={form.startDate} class="field" />
         </div>
+        {#if !(cycleOn && isNewForm)}
         <div class="flex-1 space-y-1">
           <label for="ph-end" class="text-label text-content-subtle ml-1">Last day</label>
           <input id="ph-end" type="date" bind:value={form.endDate} class="field" />
         </div>
+        {/if}
       </div>
+      {#if cycleOn && isNewForm}
+        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Cycle presets">
+          {#each [[2, 1], [3, 1], [4, 1], [3, 0]] as [l, r]}
+            <button onclick={() => cyclePreset(l, r)} class="chip hover:bg-surface-elevated transition-colors {cycleLoad === l && cycleRest === r ? 'bg-surface-elevated text-content' : ''}">{r ? `${l} + ${r}` : `${l} wk`}</button>
+          {/each}
+        </div>
+        <div class="flex gap-3">
+          <div class="flex-1 space-y-1">
+            <label for="ph-load" class="text-label text-content-subtle ml-1">Weeks of the phase</label>
+            <input id="ph-load" type="number" inputmode="numeric" min="1" max="12" bind:value={cycleLoad} class="field" />
+          </div>
+          <div class="flex-1 space-y-1">
+            <label for="ph-rest" class="text-label text-content-subtle ml-1">Deload weeks</label>
+            <input id="ph-rest" type="number" inputmode="numeric" min="0" max="4" bind:value={cycleRest} disabled={!restPhase} class="field disabled:opacity-40" />
+          </div>
+          <div class="flex-1 space-y-1">
+            <label for="ph-cycles" class="text-label text-content-subtle ml-1">Times</label>
+            <input id="ph-cycles" type="number" inputmode="numeric" min="1" max="12" bind:value={cycleCount} class="field" />
+          </div>
+        </div>
+        {#if cycleNote}
+          <div class="space-y-0.5 text-caption" aria-live="polite">
+            <p class="text-content-muted">Adds {plural(cycleNote.count, 'block')}, the last ending {formatDay(cycleNote.end)}.</p>
+            {#each cycleNote.lines as line}<p class="text-content-muted">{line}</p>{/each}
+          </div>
+        {/if}
+      {:else}
       <div class="flex flex-wrap gap-1.5" role="group" aria-label="Length">
         {#each [1, 2, 3, 4, 6, 8] as w}
           <button onclick={() => setLength(w)} class="chip hover:bg-surface-elevated transition-colors">{w} wk</button>
         {/each}
       </div>
-      {#if formNote && (formNote.changes.length || formNote.gaps.length)}
+      {/if}
+      {#if !(cycleOn && isNewForm) && formNote && (formNote.changes.length || formNote.gaps.length)}
         <div class="space-y-0.5 text-caption" aria-live="polite">
           {#each formNote.changes as line}<p class="text-content-muted">{line}</p>{/each}
           {#each formNote.gaps as gap}<p class="text-warning">Leaves {gap.from === gap.to ? formatDay(gap.from) : `${formatDay(gap.from)} – ${formatDay(gap.to)}`} without a phase</p>{/each}

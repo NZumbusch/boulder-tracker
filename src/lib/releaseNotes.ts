@@ -25,6 +25,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     points: [
       "The phases button in Plan now opens a page: every phase as a bar on a timeline (Month / Quarter / Year). Tap a bar, then drag its ends to change the days or drag the bar to move it.",
       "Split a phase, move it (and everything after it) by weeks, or repeat a cycle such as three weeks load plus a deload. Each shows what it will change before you save.",
+      "A new phase can be a cycle: tap 3 + 1 and it adds load and deload weeks, repeated as often as you like. Zoomed out, dragging snaps to whole weeks, and deleting a phase now offers Undo.",
       "Days with no phase and phases that run together are listed under \"Needs a look\".",
     ],
   },
