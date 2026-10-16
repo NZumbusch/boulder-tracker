@@ -305,6 +305,21 @@ Only checked in headless Chrome (phone portrait light, one laptop shot) and by u
 | 21.8 | Fatigue reminder switch | Android, notifications allowed: Settings > Reminders: Fatigue log reminder off, then on (with a planned session later today). | On by default. Off cancels the pending reminder; On schedules it again. | | |
 | 21.9 | 12-hour clock | Settings > Plan calendar & day > 12-hour clock on. Plan Day, Week (grid and list), an event sheet, a session preview, Home's Today card, the session viewer. | Times read 6:30 PM and the hour gutter 5 PM; off restores 18:30. The time pickers still follow the phone. | | |
 
+## 22. Follow-up round 2: live session bar, one +, Undo, welcome (2026-10-26)
+
+Only checked in headless Chrome (phone portrait, phone landscape, tablet landscape, light); nothing on a phone.
+
+| # | Test | Steps | Expected | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 22.1 | Bottom bar, one hand | Start a session on a small phone, then turn it sideways. | Pause (Resume when paused) and End are in the bottom bar, each at least 44 px; Edit, Add and the tucked timer are above them (one row in landscape). Nothing in the header but minimise, the title and notes. | | |
+| 22.2 | Finish appears | Finish every exercise. | A green Finish joins Pause and End; it goes to the rating. End still asks Save session / Keep going / Discard session. | | |
+| 22.3 | Timers still fit | In a session open a circuit run and the quick timer; tuck the timer. | The runner is full screen as before; the tucked timer sits in the bar and the docked timer above it. Ending a circuit early offers "Finish this round" and "End now". | | |
+| 22.4 | One + (drawer) | Wide screen or drawer navigation: Plan (Weeks and Calendar, week list), Home with no sessions, History empty, Analytics empty. | The floating + is the only add for a session; no "Add session", "Add a session", per-day + or "Log a session" button beside it. Empty states say "Tap + ...". | | |
+| 22.5 | One + (bottom bar) | Phone with the bottom bar: Plan, History > Sends. | Plan has one text button "Add session" (no + glyph); Sends has "Add send" and no + glyph; the bar's + logs a workout. | | |
+| 22.6 | Undo after saving | Edit a session, remove an exercise, Save (the editor closes), tap Undo in the toast. Same in Settings > Circuits. | The exercise is back in the saved session or circuit at its old place. Cancelling the editor instead dismisses the toast. | | |
+| 22.7 | Undo in Settings | Settings > Phases: delete a phase, go back to the Settings list, Undo. Leave Settings and try again on a delete. | Undo works after leaving the page that held it, also after leaving Settings (it then restores from the saved data). | | |
+| 22.8 | One setup step | Fresh install welcome. | What you climb, What are you after and How do you train are one step ("Step 2 of 6"); Continue always applies the level. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.

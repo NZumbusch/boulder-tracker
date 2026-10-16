@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-26-session-bar-and-one-plus",
+    title: "Pause and End at your thumb, one + per screen",
+    points: [
+      "In a running session Pause and End are in the bar at the bottom, with Finish beside them once everything is done. Ending a circuit early says End now.",
+      "One + per screen: where the floating + is, the other \"add\" buttons for the same thing are gone (the empty states point at the +).",
+      "An Undo after removing an exercise keeps working after you save and close the editor, and the setup asks what you climb, your goal and how you train on one screen.",
+    ],
+  },
+  {
     id: "2026-10-25-past-sessions-and-clock",
     title: "Log a past session, 12-hour clock, undo for check-ins",
     points: [
