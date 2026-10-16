@@ -10,7 +10,7 @@ Run: `node scripts/audit/run.mjs --area=settings --out=<dir> --port=9507 --app=h
 - AboutPage: `st-page-about`, `st-section-7`, `st-about-new`
 - ActionRow: `st-page-sync`, `st-page-exports`, `st-health-*`, `st-calendar-*`
 - AnalyticsCategorySettings: `st-page-exercises`, `st-exercises-full`, `st-category-new`
-- AudioLevelSettings: `st-page-timer`
+- AudioLevelSettings: `st-page-sounds`
 - BackupSettings: `st-page-sync`
 - BenchmarkTypeSettings: `st-page-benchmarks`, `st-benchmarks-empty`
 - ChartSettings: `st-page-history`
@@ -34,27 +34,28 @@ Run: `node scripts/audit/run.mjs --area=settings --out=<dir> --port=9507 --app=h
 - NotificationSettings: `st-page-reminders`
 - OrderedListSettings: `st-page-home`, `st-page-history`
 - PDFExportModal: `st-pdf-export`
+- PageReset: `st-reset-undo`, `st-reset-timer` (the foot of every page that has one)
 - PainCheckInSettings: `st-page-pain`
-- PhaseSettings: `st-page-phases`, `st-phases-empty`, `st-phase-new`, `st-phase-edit`, `st-phase-starter`
+- PhaseSettings: `st-page-phases`, `st-phases-empty`, `st-phase-new`, `st-phase-edit` (a phase's own page), `st-phase-edit-dirty`, `st-phase-starter`
 - PhaseTemplateEditor: `st-phase-templates`
 - PlacesSettings: `st-page-weather`, `st-places-empty`, `st-places-full`, `st-place-open`, `st-place-add`
 - RemindersSettings: `st-page-reminders`
 - SessionSettings: `st-page-live`
 - Settings: `st-index`, `st-search`, `st-search-none`, `st-section-0` to `st-section-7`, every `st-page-*`
 - SettingsTransfer: `st-page-sync`
-- SoundSettings: `st-page-timer`
+- SoundSettings: `st-page-sounds`
 - SyncSettings: `st-page-sync`
 - TargetsSettings: `st-page-targets`
 - TimerSettings: `st-page-timer`
 - TunablesSettings: `st-page-planCalendar`, `-home`, `-live`, `-timer`, `-model`, `-weather`
 - UnitsSettings: `st-page-units`
 - ValueDefSettings: `st-page-values`
-- VoiceSettings: `st-page-timer`
+- VoiceSettings: `st-page-sounds`
 - WhatsNew: `st-page-about`, `st-about-new`
 - WidgetSettings: `st-page-widgets` (page opens although the browser hides it from the list)
 - Not mine, same folder: `colorChoices.ts`, `rovingRadios.ts` (helpers, no screen).
 
-Pages (`st-page-<id>`): exercises, circuits, phases, benchmarks, targets, values, general, units, home, planCalendar, history, live, timer, model, pain, weather, reminders, coach, aiSharing, aiDirect, sync, healthConnect, deviceCalendar, exports, widgets, about.
+Pages (`st-page-<id>`): exercises, circuits, phases, benchmarks, targets, values, general, units, home, planCalendar, history, live, timer, sounds, model, pain, weather, reminders, coach, aiSharing, aiDirect, sync, healthConnect, deviceCalendar, exports, widgets, about.
 
 ## Findings
 
@@ -72,3 +73,6 @@ Shared files touched: none. Dead code: none found.
 ## Shots looked at
 
 Contact sheets or single shots (mostly phone portrait): Timer page (all sizes), Look & feel dark (all sizes), circuit editor (new, edit), exercise editor, phase new (colour picker), AI tuning, direct AI, benchmarks, places (open, tablet full), PDF export (portrait and landscape), full log, error log, about, sync, widgets, goal form with the location editor, Health Connect and phone calendar states (portrait and landscape). Not looked at one by one: most dark and tablet captures, the other section lists (only the automatic checks).
+
+
+Follow-up 4: Phases open one per page (`PhaseSettings` has a list view and a phase view), Timer is split into `timer` and `sounds` (Sound & voice), and `PageReset` ends each page that has preferences. See `followup-4.md`.

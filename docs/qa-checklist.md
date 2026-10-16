@@ -337,6 +337,18 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 23.9 | Planned load outlines | Analytics > Overview > Rolling Load, with planned sessions. Settings > History & Analytics > Rolling Load: switch off. | Outlined bars (planned) behind the filled bars (logged) with a legend that says the outline has its own scale; no percentage or comparison text beside them. Off removes them and the table column. | | |
 | 23.10 | Settings card names | Settings > History & Analytics. | The cards are named as Analytics prints them (Rolling Load, Training Days, Recovery Trends, Finger Load ...), each with its tab. | | |
 
+## 24. Follow-up round 4: Settings structure (2026-10-28)
+
+| # | What | How | Expect | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 24.1 | Phase subpage | Settings > Training setup > Phases & templates, tap a phase. Back arrow and the phone's back key. | The phase opens on a page titled with its name: name and colour (Save shows only after a change), its sessions with the template editor, Delete. Back returns to the list. | | |
+| 24.2 | Phase rename and delete | In a phase page: rename to an existing phase's name, then to a new one; Delete. | A duplicate or empty name shows an error; a new name saves; Delete returns to the list with an Undo. | | |
+| 24.3 | Reset a page | Units: change weight to lb. Scroll down: Reset this page to defaults, confirm; Undo. | The button is greyed while nothing differs; the confirm names what is reset; weight is back to kg; Undo restores lb. Other pages keep their changes. | | |
+| 24.4 | No reset on data pages | Open Exercises, Circuits, Phases, Tests, Places, Coach notes, Direct AI, Sync, About. | No reset button on any of them. | | |
+| 24.5 | Reminders reset (Android) | Switch the fatigue log reminder off, reset Reminders, then Undo. | The switch returns to on (reminders scheduled) and off again with Undo; the notification permission is not touched. | | |
+| 24.6 | Timer split | Settings > Sessions & timer. | Live sessions, Timer, Sound & voice. Timer: 3-2-1, 15 s warning, keep screen on, background, single-exercise timer. Sound & voice: how much it speaks up, sound and vibration, voice. Each links to the other. | | |
+| 24.7 | Search | Search "volume", "tts", "3-2-1", "rest between sets". | Volume and tts open Sound & voice; the others open Timer. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.

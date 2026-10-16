@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-28-settings-pages",
+    title: "Settings: a page per phase, reset a page, timer split",
+    points: [
+      "Settings > Phases & templates: tap a phase to open it on its own page (name, colour, the sessions it starts with, Delete).",
+      "Every page with settings ends with a quiet \"Reset this page to defaults\" that asks first and can be undone. Pages with your lists, places, notes, the AI key or sync have none.",
+      "The timer page is two: Timer (countdown warnings, screen, background alerts, rest times) and Sound & voice (how much it speaks up, beeps, volume, spoken exercises). Search finds each setting on its page.",
+    ],
+  },
+  {
     id: "2026-10-27-fold-cards-and-findings",
     title: "Fold Home cards, hide findings, fatigue letters back",
     points: [

@@ -68,6 +68,8 @@
   let section = $state<SectionId | null>(null);
   let page = $state<PageId | null>(null);
   let query = $state('');
+  /** On the Phases page: the phase opened on a page of its own (its template editor and details). */
+  let phaseId = $state<string | null>(null);
 
   const sections = $derived(visibleSections(ctx));
   const sectionPages = $derived(section ? visiblePages(findSection(section), ctx) : []);
@@ -76,10 +78,12 @@
 
   function openSection(id: SectionId) {
     const pages = visiblePages(findSection(id), ctx);
+    phaseId = null;
     section = id;
     page = pages.length === 1 ? pages[0].id : null;
   }
   function openPage(id: PageId) {
+    phaseId = null;
     section = findPage(id).section.id;
     page = id;
     query = '';
@@ -97,7 +101,7 @@
   // would land mid-page.
   let root: HTMLDivElement | undefined;
   $effect(() => {
-    void section; void page;
+    void section; void page; void phaseId;
     let el: HTMLElement | null = root?.parentElement ?? null;
     while (el) {
       const oy = getComputedStyle(el).overflowY;
@@ -106,22 +110,19 @@
     }
   });
   function goBack() {
-    if (page && !singlePage) page = null;
+    if (phaseId) phaseId = null;
+    else if (page && !singlePage) page = null;
     else { section = null; page = null; }
   }
   // Back (phone key or browser) walks the same way: page -> section ->
   // Settings -> Home (the last step is the tab-level back, in uiStore).
   const inSection = $derived(section !== null);
   const inPage = $derived(page !== null && !singlePage);
-  backWhile(() => inSection, () => { section = null; page = null; });
-  backWhile(() => inPage, () => { page = null; });
+  backWhile(() => inSection, () => { section = null; page = null; phaseId = null; });
+  backWhile(() => inPage, () => { page = null; phaseId = null; });
+  backWhile(() => phaseId !== null, () => { phaseId = null; });
 
   const hits = $derived(searchSettings(query, ctx));
-  const title = $derived(
-    page ? findPage(page).page.label
-    : section ? findSection(section).label
-    : 'Settings',
-  );
 
   // --- State: local editable copies of every catalog, saved as they are edited ---
   let templates = $state<Record<string, WorkoutTemplate[]>>({});
@@ -129,6 +130,13 @@
   let exerciseTypes = $state<ExerciseTypeDef[]>([]);
   let benchmarkTypes = $state<BenchmarkTypeDef[]>([]);
   let analyticsCategories = $state<AnalyticsCategory[]>([]);
+
+  const title = $derived(
+    page === 'phases' && phaseId ? (phaseDefs.find((p) => p.id === phaseId)?.name ?? 'Phase')
+    : page ? findPage(page).page.label
+    : section ? findSection(section).label
+    : 'Settings',
+  );
 
   /**
    * Autosave. Like every other setting, catalog edits save themselves -
@@ -311,7 +319,7 @@
     {/if}
     <div class="card py-1 divide-y divide-border">
       {#each sectionPages as p (p.id)}
-        <NavRow icon={p.icon} title={p.label} hint={p.hint} onclick={() => (page = p.id)} />
+        <NavRow icon={p.icon} title={p.label} hint={p.hint} onclick={() => { page = p.id; phaseId = null; }} />
       {/each}
     </div>
   {:else if page === 'exercises'}
@@ -319,7 +327,7 @@
   {:else if page === 'circuits'}
     <CircuitSettings />
   {:else if page === 'phases'}
-    <PhaseSettings bind:phaseDefs bind:templates onResetAllTemplates={resetTemplates} />
+    <PhaseSettings bind:phaseDefs bind:templates bind:phaseId onResetAllTemplates={resetTemplates} />
   {:else if page === 'benchmarks'}
     <BenchmarkTypeSettings bind:benchmarkTypes />
   {:else if page === 'values'}

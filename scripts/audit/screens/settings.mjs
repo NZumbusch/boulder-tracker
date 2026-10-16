@@ -74,8 +74,14 @@ export const screens = [
   S('st-exercise-new', 'settings', async (c) => { await open(c, 'exercises'); await must(c, 'New exercise', { exact: false }); await sleep(400); }, { pages: 3 }),
   S('st-category-new', 'settings', async (c) => { await open(c, 'exercises'); await must(c, 'Analytics categories'); await must(c, 'Add category', { exact: false }); await sleep(400); }, { pages: 2 }),
   S('st-phase-new', 'settings', async (c) => { await open(c, 'phases'); await must(c, 'Add phase', { exact: false }); await sleep(400); }, { pages: 2 }),
-  S('st-phase-edit', 'settings', async (c) => { await open(c, 'phases'); await c.ev(`(()=>{const b=[...document.querySelectorAll('button[aria-label^="Edit"]')].find(x=>x.getBoundingClientRect().width>0); b&&b.click()})()`); await sleep(500); }, { pages: 2 }),
-  S('st-phase-templates', 'settings', async (c) => { await open(c, 'phases'); await c.ev(`(()=>{const b=[...document.querySelectorAll('button[aria-expanded]')].find(x=>x.getBoundingClientRect().width>0); b&&b.click()})()`); await sleep(600); }, { pages: 4 }),
+  // A phase opens on a page of its own: name and colour, the sessions it starts with, Delete.
+  S('st-phase-edit', 'settings', async (c) => { await open(c, 'phases'); await must(c, 'Open ', { exact: false }); await sleep(500); }, { pages: 2 }),
+  S('st-phase-edit-dirty', 'settings', async (c) => { await open(c, 'phases'); await must(c, 'Open ', { exact: false }); await type(c, '#phase-detail-name', 'Renamed phase'); await sleep(400); }, { pages: 2 }),
+  S('st-phase-templates', 'settings', async (c) => { await open(c, 'phases'); await must(c, 'Open ', { exact: false }); await c.scrollTo(1); await sleep(600); }, { pages: 4 }),
+  // Per-page reset: the confirm, and the toast with Undo after it.
+  // The confirm is the browser's own (window.confirm blocks the capture), so it is answered yes beforehand; the shot is the toast with Undo.
+  S('st-reset-undo', 'settings', async (c) => { await c.st(`t.setUnit('weight', 'lb')`); await open(c, 'units'); await c.ev(`window.confirm = () => true`); await c.scrollTo(1); await must(c, 'Reset this page', { exact: false }); await sleep(800); }, { teardown: async (c) => { await c.st(`t.setUnit('weight', 'kg')`); await clean(c); } }),
+  S('st-reset-timer', 'settings', async (c) => { await c.st(`t.setTunable('timer.leadIn', 20)`); await open(c, 'timer'); await c.scrollTo(1); }, { pages: 2, teardown: async (c) => { await c.st(`t.setTunable('timer.leadIn', 10)`); await clean(c); } }),
   S('st-phase-starter', 'settings', async (c) => { await open(c, 'phases'); await c.scrollTo(1); await c.ev(`(()=>{const b=[...document.querySelectorAll('button[aria-expanded]')].filter(x=>x.getBoundingClientRect().width>0&&/starter|library/i.test(x.textContent)).pop(); b&&b.click()})()`); await sleep(500); await c.scrollTo(1); }, { pages: 2 }),
   S('st-place-open', 'settings', async (c) => { await open(c, 'weather'); await must(c, 'Steinbock', { exact: false }); await sleep(300); }, { pages: 2 }),
   S('st-place-add', 'settings', async (c) => { await open(c, 'weather'); await must(c, 'Add a place', { exact: false }); await sleep(300); }, { pages: 2 }),
