@@ -56,3 +56,13 @@ describe("resetTopic / num / flag", () => {
     expect(num({ "home.recentActivityCount": 5 }, "home.recentActivityCount")).toBe(5);
   });
 });
+
+describe("fatigue-log reminder switch", () => {
+  it("is on by default (the behaviour before the switch existed), and a stored off survives validation", async () => {
+    const { defaultTunables, validateTunables } = await import("./tunables");
+    expect(defaultTunables()["alerts.fatigueReminder"]).toBe(true);
+    expect(validateTunables({})["alerts.fatigueReminder"]).toBe(true);
+    expect(validateTunables({ "alerts.fatigueReminder": false })["alerts.fatigueReminder"]).toBe(false);
+    expect(validateTunables({ "alerts.fatigueReminder": "no" })["alerts.fatigueReminder"]).toBe(true);
+  });
+});

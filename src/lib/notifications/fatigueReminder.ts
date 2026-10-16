@@ -47,11 +47,19 @@ export function computeFatigueReminderTime(workout: Workout): Date | null {
  * every sync - acceptable for a purely local, infrequent (once per app
  * refresh) operation.
  *
+ * With `enabled` false (the Settings switch) it only cancels.
+ *
  * No-ops on web and when permission isn't granted, so it's always safe to
  * call from `refresh()` without checking the platform first.
  */
-export async function syncFatigueReminders(workouts: Workout[]): Promise<void> {
+export async function syncFatigueReminders(workouts: Workout[], enabled = true): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
+
+  // Switched off in Settings: nothing is scheduled, and what was is taken back.
+  if (!enabled) {
+    await cancelRemindersOfType('fatigue');
+    return;
+  }
 
   const permission = await checkNotificationPermission();
   if (permission !== 'granted') return;

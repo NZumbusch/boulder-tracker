@@ -178,3 +178,28 @@ describe("syncFatigueReminders", () => {
     expect(schedule).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("syncFatigueReminders with the Settings switch off", () => {
+  it("schedules nothing and cancels only its own pending reminders", async () => {
+    isNativePlatform.mockReturnValue(true);
+    checkPermissions.mockResolvedValue({ display: "granted" });
+    cancel.mockClear();
+    schedule.mockClear();
+    getPending.mockResolvedValue({ notifications: [{ id: workoutReminderId("a") }, { id: reminderId("dailyMetrics", "x") }] });
+    const farFuture = new Date();
+    farFuture.setFullYear(farFuture.getFullYear() + 5);
+    await syncFatigueReminders([makeWorkout({ id: "a", weekId: `${farFuture.getFullYear()}-W01`, dayOfWeek: "Monday", startTime: "08:00" })], false);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledWith({ notifications: [{ id: workoutReminderId("a") }] });
+  });
+
+  it("is on unless told otherwise", async () => {
+    checkPermissions.mockResolvedValue({ display: "granted" });
+    schedule.mockClear();
+    getPending.mockResolvedValue({ notifications: [] });
+    const farFuture = new Date();
+    farFuture.setFullYear(farFuture.getFullYear() + 5);
+    await syncFatigueReminders([makeWorkout({ id: "b", weekId: `${farFuture.getFullYear()}-W01`, dayOfWeek: "Monday", startTime: "08:00" })]);
+    expect(schedule).toHaveBeenCalledTimes(1);
+  });
+});

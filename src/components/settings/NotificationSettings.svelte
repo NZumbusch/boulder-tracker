@@ -43,9 +43,8 @@
 
     {#if trainingState.notificationsEnabled}
       <div class="divide-y divide-border border-t border-border animate-in fade-in">
-        <div class="py-3">
-          <p class="text-body text-content">Fatigue log reminder</p>
-          <p class="text-caption text-content-subtle mt-0.5">Always sent once a planned session's scheduled time has passed. There is no switch for this one.</p>
+        <div class="py-1">
+          <Toggle checked={trainingState.tunableOn('alerts.fatigueReminder')} onChange={(v) => trainingState.setFatigueReminderEnabled(v)} label="Fatigue log reminder" hint="Once a planned session's time has passed, asking whether it happened so you can rate it." />
         </div>
 
         <div class="py-1">

@@ -439,6 +439,16 @@ class TrainingState {
   resetTunables(topic: TunableTopic) { this.preferencesStore.resetTunables(topic); }
   /** A number tunable's current value. */
   tunable(id: string): number { return num(this.preferencesStore.tunables, id); }
+  /** The fatigue-log reminder switch (Settings > Reminders): saves it and reschedules or cancels at once. */
+  async setFatigueReminderEnabled(enabled: boolean) {
+    this.setTunable('alerts.fatigueReminder', enabled);
+    if (!this.uiStore.notificationsEnabled || isDemoMode()) return;
+    try {
+      await syncFatigueReminders(this.remindableWorkouts, enabled);
+    } catch (err) {
+      console.error('Failed to sync fatigue-reminder notifications:', err);
+    }
+  }
   /** A switch tunable's current value. */
   tunableOn(id: string): boolean { return flag(this.preferencesStore.tunables, id); }
   get readinessConfig(): ReadinessConfig {
@@ -644,7 +654,7 @@ class TrainingState {
       // Not from the tour's example data.
       if (this.uiStore.notificationsEnabled && !isDemoMode()) {
         try {
-          await syncFatigueReminders(this.remindableWorkouts);
+          await syncFatigueReminders(this.remindableWorkouts, this.tunableOn('alerts.fatigueReminder'));
         } catch (err) {
           console.error('Failed to sync fatigue-reminder notifications:', err);
         }
@@ -1325,7 +1335,7 @@ class TrainingState {
     await this.workoutStore.load();
     if (this.uiStore.notificationsEnabled) {
       try {
-        await syncFatigueReminders(this.remindableWorkouts);
+        await syncFatigueReminders(this.remindableWorkouts, this.tunableOn('alerts.fatigueReminder'));
       } catch (err) {
         console.error('Failed to sync fatigue-reminder notifications:', err);
       }

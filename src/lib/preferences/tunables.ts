@@ -66,6 +66,7 @@ export const TUNABLES: TunableDef[] = [
   { id: "insights.adherenceLow", topic: "model", group: "Insights", label: "Plan adherence called low under", hint: "Share of planned sessions done over the last 4 weeks", kind: "number", default: 0.6, min: 0.2, max: 0.95, step: 0.05, percent: true },
   { id: "alerts.insightNotify", topic: "layout", group: "Heads-ups", label: "Notify me when something needs attention", hint: "One notification in the morning when Insights finds a load spike, a long run of training days or an HRV dip. Android only; it is worked out whenever the app opens", kind: "boolean", default: false },
   { id: "alerts.insightHour", topic: "layout", group: "Heads-ups", label: "Heads-up at", kind: "number", default: 8, min: 5, max: 12, step: 1, unit: "h" },
+  { id: "alerts.fatigueReminder", topic: "layout", group: "Alerts", label: "Fatigue log reminder", hint: "A notification once a planned session's time has passed, asking whether it happened. Android only, and only while notifications are allowed", kind: "boolean", default: true },
   { id: "alerts.restDays", topic: "model", group: "Alerts", label: "Days without rest before warning", kind: "number", default: 6, min: 3, max: 14, step: 1, unit: "days" },
 
   // --- Outdoor ---
