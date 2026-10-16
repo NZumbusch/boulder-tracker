@@ -442,7 +442,7 @@
 </script>
 
 {#if !hasAnyData}
-<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
+<div class="page-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <AppBar title="Analytics" />
   <div class="card space-y-4" data-tour="analytics-empty">
     <div class="space-y-1">
@@ -465,7 +465,7 @@
   </div>
 </div>
 {:else}
-<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
+<div class="page-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <AppBar title="Analytics" subtitle={windowDateRange}>
     {#snippet actions()}
       <!-- Window paging: a step is one whole range, so the buttons say which. "Today" is only there when you are away

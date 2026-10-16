@@ -431,7 +431,7 @@
   }
 </script>
 
-<div class="w-full {shownView === 'calendar' ? 'max-w-5xl' : 'max-w-lg'} space-y-4 animate-in fade-in duration-200 pb-12">
+<div class="w-full {shownView === 'calendar' ? 'max-w-5xl' : 'page-col'} space-y-4 animate-in fade-in duration-200 pb-12">
   <AppBar title="Plan">
     {#snippet actions()}
       <button

@@ -65,7 +65,7 @@
   const someBlocked = $derived(trainingState.isSessionActive && plannedWorkouts.some((p) => !trainingState.sessionStore.isRunning(p.id)));
 </script>
 
-<div class="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-12">
+<div class="page-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-12">
   <AppBar title="Log a workout" />
   <div class="space-y-4">
 

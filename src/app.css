@@ -275,6 +275,14 @@
    cards and the live session set it): one flat card, quiet segmented
    controls and chips. Every screen uses these rather than restating the
    classes, so they can't drift apart again. */
+/* The page column of a list screen (Home, History, Plan lists, Analytics, Settings, Start): 512 px, 720 px from the `lg` breakpoint. */
+@utility page-col {
+  width: 100%;
+  max-width: 32rem;
+  @media (min-width: 64rem) {
+    max-width: 45rem;
+  }
+}
 @utility card {
   @apply bg-surface-elevated/35 rounded-card p-4;
 }

@@ -211,7 +211,7 @@
   }
 </script>
 
-<div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-12">
+<div class="page-col space-y-4 animate-in fade-in duration-200 pb-12">
   <AppBar title="History" subtitle={onSends ? `${filteredSends.length} sends` : `${filteredWorkouts.length} sessions`}>
     {#snippet actions()}
       <button

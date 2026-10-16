@@ -105,7 +105,7 @@
   });
 </script>
 
-<div class="w-full max-w-lg space-y-4 animate-in fade-in duration-200 pb-24">
+<div class="page-col space-y-4 animate-in fade-in duration-200 pb-24">
   <AppBar title={data.currentPhaseName ?? 'Home'} subtitle={`${data.todayLabel}${data.blockWeekPosition ? ` · Week ${data.blockWeekPosition.week} of ${data.blockWeekPosition.of}` : ''}`}>
     {#snippet actions()}
       <!-- Pulling down needs a finger: with a mouse (or a screen reader) this is the way to sync and refresh. -->

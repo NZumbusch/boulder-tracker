@@ -233,7 +233,7 @@
   }
 </script>
 
-<div bind:this={root} class="w-full max-w-lg space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
+<div bind:this={root} class="page-col space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
   <!-- A nested page gets a back arrow; the top of Settings the menu (or, with the bottom bar - which has no Settings tab - an arrow back Home). -->
   <AppBar title={title} onBack={section !== null ? goBack : trainingState.navStyle === 'bar' ? () => trainingState.navigate('home') : undefined}>
     {#snippet actions()}
