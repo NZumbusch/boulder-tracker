@@ -23,3 +23,8 @@ One entry per decision: area, screen, options, recommendation.
 - **plan / plan-weeks (phone)**: the 10-column week grid cells are 30 px with 6 px gaps; the touch area now reaches 36 px (it cannot grow further without touching the next cell). Options: (a) keep; (b) 8 columns (about 38 px cells, a different grid rhythm). Recommend (a).
 - **plan / plan-cal-week-grid, plan-cal-day (phone)**: the phase strip under the day headers is a 4 px stripe; its touch area is now 20 px tall. Options: (a) keep; (b) make the stripe 6 px. Recommend (a).
 - **plan / plan-week-share (all)**: the share image preview uses 10 px text (it is a picture exported at 2x and scaled down in the sheet, so only the preview is small). Options: (a) keep; (b) scale the preview up. Recommend (a).
+
+## workout
+
+- **workout / wk-session-exit, wk-session-exit-empty (phone-l)**: in landscape the "End this session?" sheet is taller than the screen, so "Discard session" sits at the bottom edge and needs a scroll. Options: (a) keep; (b) put Discard beside the Close button as a quiet text link; (c) shorten the explanation text. Recommend (a), it is the destructive choice and is meant to be hard to hit.
+- **workout / wk-editor-* (tablet-l, laptop)**: the workout viewer and editor are full-screen modals with a narrow content column, so on a 1366 px screen they are a thin strip with empty sides. Options: (a) keep; (b) use two columns (details beside the list) from `lg`. Recommend (a) until Nathan uses it on a tablet.
