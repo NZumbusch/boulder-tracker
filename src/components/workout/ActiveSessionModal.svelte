@@ -20,6 +20,8 @@
   import { trainingState } from '../../lib/state.svelte';
   import type { ExerciseSlot, ExerciseValues, ParameterBlock, ExerciseGroup, Circuit } from '../../lib/types';
   import { insertCircuit } from '../../lib/exercise/circuits';
+  import CircuitPickerSheet from './CircuitPickerSheet.svelte';
+  import CircuitBuilder from './CircuitBuilder.svelte';
   import { slotValues, slotTypeName } from '../../lib/exerciseSlot';
   import { slotStatus } from '../../lib/session/activeSession';
   import { formatClock, formatMinutes } from '../../lib/session/formatSession';
@@ -76,6 +78,8 @@
   let isAddingTest = $state(false);
   /** Edit mode: the circuit sheet (new / from exercises / saved) is open. */
   let isAddingSavedCircuit = $state(false);
+  /** The circuit builder: a saved circuit to adjust, or a new one (null), with what was typed as its name. */
+  let building = $state<{ from: Circuit | null; name: string } | null>(null);
   /** The add form is for the first exercise of a brand-new circuit. */
   let startingCircuit = $state(false);
   let isExiting = $state(false);
@@ -264,6 +268,7 @@
       isAddingTest = false;
       startingCircuit = false;
       isAddingSavedCircuit = false;
+      building = null;
       isEditingPlan = false;
       isPickingCircuit = false;
       pickedSlotIds = [];
@@ -566,17 +571,26 @@
   }
 
   /** Edit mode: a saved circuit goes in as a copy, after the focused exercise (or its circuit), still to do. */
-  function addSavedCircuit(circuit: Circuit) {
+  /** A circuit goes in after the exercise being done (or its circuit) - or, from the builder, at the end of the session. */
+  function addSavedCircuit(circuit: Circuit, atEnd = false) {
     const base = groupingBase();
     const focus = base.exercises[store.currentIndex];
     let at = base.exercises.length === 0 ? 0 : store.currentIndex + 1;
     if (focus?.groupId) while (at < base.exercises.length && base.exercises[at].groupId === focus.groupId) at++;
+    if (atEnd) at = base.exercises.length;
     const added = insertCircuit({ exercises: [], groups: base.groups }, circuit, generateId);
     const exercises = [...base.exercises.slice(0, at), ...added.exercises, ...base.exercises.slice(at)];
     store.regroupExercises(normaliseGroups({ exercises, groups: added.groups }));
     const made = added.groups?.[added.groups.length - 1];
     if (made) openGroupId = made.id;
     isAddingSavedCircuit = false;
+  }
+
+  /** The builder's Add: saved first when asked, then in at the end of the session. */
+  async function addBuilt(circuit: Circuit, save: 'none' | 'new' | 'update') {
+    if (save !== 'none') await trainingState.saveCircuit(circuit);
+    addSavedCircuit(circuit, true);
+    building = null;
   }
 
   function handleDnd(e: CustomEvent<DndEvent<ExerciseSlot>>) {
@@ -1052,6 +1066,15 @@
               {/if}
             </div>
           {/each}
+          <!-- Next to each other: an exercise, or a circuit. -->
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button onclick={() => (isAddingExercise = true)} class="min-h-11 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5">
+              <Icon icon="ic:baseline-plus" class="text-base" /> Exercise
+            </button>
+            <button onclick={() => (isAddingSavedCircuit = true)} class="min-h-11 py-2.5 rounded-control border border-dashed border-border-strong text-label font-bold text-content-subtle hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-1.5">
+              <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
+            </button>
+          </div>
         {/if}
       </div>
     </div>
@@ -1241,28 +1264,24 @@
 {/if}
 
 {#if isAddingSavedCircuit}
-  <Sheet title="Add a circuit" level="nested" onClose={() => (isAddingSavedCircuit = false)}>
-    <div class="space-y-2">
-      <button onclick={() => { isAddingSavedCircuit = false; startingCircuit = true; addToGroupId = null; isAddingExercise = true; }} class="w-full p-3 rounded-card border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 text-left">
-        <p class="text-body font-bold text-primary flex items-center gap-1.5"><Icon icon="ic:baseline-plus" class="text-base" /> New circuit</p>
-        <p class="text-caption text-content-subtle">Start with its first exercise; each one is a time or some reps, repeated in rounds.</p>
-      </button>
+  <CircuitPickerSheet
+    onClose={() => (isAddingSavedCircuit = false)}
+    onNew={(name) => { isAddingSavedCircuit = false; building = { from: null, name }; }}
+    onPick={(c) => { isAddingSavedCircuit = false; building = { from: c, name: '' }; }}
+  >
+    {#snippet extra()}
       {#if exercises.length > 0}
         <button onclick={() => { isAddingSavedCircuit = false; isPickingCircuit = true; }} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
           <p class="text-body font-bold text-content">From exercises already here</p>
           <p class="text-caption text-content-subtle">Pick some of this session's exercises to do in rounds.</p>
         </button>
       {/if}
-      {#if trainingState.circuits.length > 0}<p class="text-caption uppercase text-content-subtle px-1 pt-1">Your saved circuits</p>{/if}
-      {#each trainingState.circuits as c (c.id)}
-        <button onclick={() => addSavedCircuit(c)} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
-          <p class="text-body font-bold text-content truncate">{c.name}</p>
-          <p class="text-caption text-content-subtle truncate">{c.exercises.map((x) => slotTypeName(x, trainingState.exerciseTypes)).join(' · ')}</p>
-        </button>
-      {/each}
-      {#if trainingState.circuits.length > 0}<p class="text-caption text-content-subtle px-1">A saved one is added as a copy after the current exercise, to do; adjust its rounds and rests right after.</p>{/if}
-    </div>
-  </Sheet>
+    {/snippet}
+  </CircuitPickerSheet>
+{/if}
+
+{#if building}
+  <CircuitBuilder initial={building.from} startName={building.name} onAdd={addBuilt} onClose={() => (building = null)} />
 {/if}
 
 {#if showNotes && session}

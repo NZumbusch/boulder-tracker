@@ -31,6 +31,8 @@
   import { repsPerSet } from '../../lib/exercise/reps';
   import { reinsertSlot } from '../../lib/exercise/reinsert';
   import { circuitFromGroup, insertCircuit } from '../../lib/exercise/circuits';
+  import CircuitPickerSheet from './CircuitPickerSheet.svelte';
+  import CircuitBuilder from './CircuitBuilder.svelte';
   import { toast } from '../../lib/toast.svelte';
   import { emptySessionWarning } from '../../lib/session/emptySession';
   import { buildPastSession, pastSessionProblem } from '../../lib/session/pastSession';
@@ -111,9 +113,14 @@
     else saveGroupAsCircuit(group);
   }
 
-  function addCircuit(circuit: Circuit) {
+  /** The circuit builder: a saved circuit to adjust, or a new one (null), with what was typed as its name. */
+  let building = $state<{ from: Circuit | null; name: string } | null>(null);
+
+  /** The builder's Add: saved first when asked, then in at the end of the session. */
+  async function addBuilt(circuit: Circuit, save: 'none' | 'new' | 'update') {
+    if (save !== 'none') await trainingState.saveCircuit(circuit);
     regroup(insertCircuit(workout, circuit, generateId));
-    pickingCircuit = false;
+    building = null;
   }
 
   const items = $derived(workoutItems(workout));
@@ -526,13 +533,16 @@
       {/each}
 
       <div class="border-2 border-dashed border-border rounded-card overflow-hidden">
-        <button onclick={() => formSlot = 'new'} class="w-full py-3.5 text-label whitespace-nowrap font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5">
-          <Icon icon="ic:baseline-plus" class="text-base" /> Add exercise
-        </button>
-        <div class="grid grid-cols-3 border-t border-border divide-x divide-border">
-          <button onclick={() => pickingCircuit = true} class="py-3 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center justify-center gap-1.5" title="Add a circuit: new, or one you saved">
-            <Icon icon="ic:baseline-repeat" class="text-base" /> Circuit
+        <!-- An exercise or a circuit: the two ways to add something, side by side. -->
+        <div class="grid grid-cols-2 divide-x divide-border">
+          <button onclick={() => formSlot = 'new'} class="py-3.5 text-label whitespace-nowrap font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5">
+            <Icon icon="ic:baseline-plus" class="text-base" /> Add exercise
           </button>
+          <button onclick={() => pickingCircuit = true} class="py-3.5 text-label whitespace-nowrap font-bold text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-1.5" title="Add a circuit: one you saved, or a new one">
+            <Icon icon="ic:baseline-repeat" class="text-base" /> Add circuit
+          </button>
+        </div>
+        <div class="grid grid-cols-2 border-t border-border divide-x divide-border">
           <button onclick={() => testSheet = { mode: 'plan' }} class="py-3 text-label font-bold text-content-subtle hover:text-content hover:bg-surface/40 transition-colors flex items-center justify-center gap-1.5" title="Plan a test in this session">
             <Icon icon="ic:baseline-flag" class="text-base" /> Test
           </button>
@@ -617,27 +627,24 @@
 {/if}
 
 {#if pickingCircuit}
-  <Sheet title="Add a circuit" level="nested" onClose={() => pickingCircuit = false}>
-    <div class="space-y-2">
-      <button onclick={() => { pickingCircuit = false; startingCircuit = true; formSlot = 'new'; }} class="w-full p-3 rounded-card border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 text-left">
-        <p class="text-body font-bold text-primary flex items-center gap-1.5"><Icon icon="ic:baseline-plus" class="text-base" /> New circuit</p>
-        <p class="text-caption text-content-subtle">Start with its first exercise; each one is a time or some reps, and the circuit repeats them in rounds.</p>
-      </button>
+  <CircuitPickerSheet
+    onClose={() => pickingCircuit = false}
+    onNew={(name) => { pickingCircuit = false; building = { from: null, name }; }}
+    onPick={(c) => { pickingCircuit = false; building = { from: c, name: '' }; }}
+  >
+    {#snippet extra()}
       {#if workout.exercises.length > 1}
-        <button onclick={() => { pickingCircuit = false; isGrouping = true; picked = []; }} class="w-full p-3 rounded-card bg-surface-elevated/50 hover:bg-surface-elevated text-left">
+        <button onclick={() => { pickingCircuit = false; isGrouping = true; picked = []; }} class="w-full p-3 rounded-card border border-border bg-surface/60 hover:border-border-strong text-left">
           <p class="text-body font-bold text-content">From exercises already here</p>
           <p class="text-caption text-content-subtle">Pick some of this session's exercises to do in rounds.</p>
         </button>
       {/if}
-      {#if trainingState.circuits.length > 0}<p class="text-caption uppercase text-content-subtle px-1 pt-1">Your saved circuits</p>{/if}
-      {#each trainingState.circuits as c (c.id)}
-        <button onclick={() => addCircuit(c)} class="w-full p-3 rounded-card bg-surface-elevated/50 hover:bg-surface-elevated text-left">
-          <p class="text-body font-bold text-content truncate">{c.name}</p>
-          <p class="text-caption text-content-subtle truncate">{c.exercises.map((s) => slotTypeName(s, trainingState.exerciseTypes)).join(' · ')}</p>
-        </button>
-      {/each}
-    </div>
-  </Sheet>
+    {/snippet}
+  </CircuitPickerSheet>
+{/if}
+
+{#if building}
+  <CircuitBuilder initial={building.from} startName={building.name} confirmLabel="Add to this session" onAdd={addBuilt} onClose={() => (building = null)} />
 {/if}
 
 {#if savingGroup}

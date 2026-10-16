@@ -20,6 +20,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-30-circuit-builder",
+    title: "Easier circuits",
+    points: [
+      "Add a circuit now starts with a search of your saved circuits, or a new one.",
+      "A circuit has one amount per exercise (reps or seconds), rounds, and rests in plain words; add exercises right inside.",
+      "Change a saved circuit's values before adding it, and save new ones to your circuits.",
+      "Add exercise and Add circuit sit side by side.",
+    ],
+  },
+  {
     id: "2026-10-29-status-colours",
     title: "Sessions coloured by status",
     points: [
