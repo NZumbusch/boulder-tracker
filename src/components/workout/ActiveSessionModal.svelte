@@ -701,25 +701,10 @@
           >
             <Icon icon="ic:outline-sticky-note-2" class="text-xl" />
           </button>
-          <button
-            onclick={() => isExiting = true}
-            class="btn-quiet shrink-0 px-3 text-label font-bold text-content-muted hover:text-danger hover:bg-danger/10 gap-1.5"
-            aria-label="End the session"
-          >
-            <Icon icon="ic:baseline-stop-circle" class="text-base" />
-            End
-          </button>
         </div>
 
-        <!-- Clock, progress and pause -->
+        <!-- Clock and progress (Pause and End are in the bar at the bottom, in reach of a thumb) -->
         <div class="flex items-center gap-3 short:w-[42%] short:shrink-0">
-          <button
-            onclick={() => store.togglePause()}
-            class="shrink-0 w-11 h-11 rounded-full grid place-items-center transition-all active:scale-90 {store.isPaused ? 'bg-success text-on-primary' : 'bg-surface-elevated text-content border border-border-strong'}"
-            aria-label={store.isPaused ? 'Resume session' : 'Pause session'}
-          >
-            <Icon icon={store.isPaused ? 'ic:baseline-play-arrow' : 'ic:baseline-pause'} class="text-2xl" />
-          </button>
           <div class="min-w-0 flex-1 space-y-1.5">
             <div class="flex items-baseline justify-between gap-2">
               <span class="text-metric text-content tabular-nums {overrun ? 'text-warning' : ''}">
@@ -1059,54 +1044,74 @@
       </div>
     </div>
 
-    <!-- Footer: the quiet session-shape controls, and finishing -->
+    <!-- Footer: the session-shape controls on top, and below them the three that need a thumb - Pause, End, Finish. On a short (landscape) screen it is one row. -->
     <footer bind:offsetHeight={footerH} class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
-      <div class="max-w-lg mx-auto w-full px-4 py-3 short:py-1 flex items-center gap-2">
-        {#if exercises.length > 0}
-          <!-- Nothing to reorder in an empty session: the button is not there rather than greyed out for no visible reason. -->
+      <div class="max-w-lg short:max-w-none mx-auto w-full px-4 py-2 short:py-1 flex flex-col gap-2 short:flex-row short:items-center short:gap-3">
+        <div class="flex items-center gap-2 short:flex-1 short:min-w-0">
+          {#if exercises.length > 0}
+            <!-- Nothing to reorder in an empty session: the button is not there rather than greyed out for no visible reason. -->
+            <button
+              onclick={() => { isEditingPlan = !isEditingPlan; isPickingCircuit = false; pickedSlotIds = []; }}
+              class="btn-quiet px-3 text-label font-bold gap-1.5 {isEditingPlan
+                ? 'bg-primary/15 text-primary'
+                : 'text-content-subtle hover:text-content'}"
+              title="Reorder or remove exercises"
+            >
+              <Icon icon={isEditingPlan ? 'ic:baseline-check' : 'ic:baseline-tune'} class="text-base" />
+              {isEditingPlan ? 'Done' : 'Edit'}
+            </button>
+          {/if}
           <button
-            onclick={() => { isEditingPlan = !isEditingPlan; isPickingCircuit = false; pickedSlotIds = []; }}
-            class="btn-quiet px-3 text-label font-bold gap-1.5 {isEditingPlan
-              ? 'bg-primary/15 text-primary'
-              : 'text-content-subtle hover:text-content'}"
-            title="Reorder or remove exercises"
+            onclick={() => isAddingExercise = true}
+            class="btn-quiet px-3 text-label font-bold text-content-subtle hover:text-content gap-1.5"
+            title="Add an exercise you did that wasn't planned"
           >
-            <Icon icon={isEditingPlan ? 'ic:baseline-check' : 'ic:baseline-tune'} class="text-base" />
-            {isEditingPlan ? 'Done' : 'Edit'}
+            <Icon icon="ic:baseline-plus" class="text-base" />
+            Add
           </button>
-        {/if}
-        <button
-          onclick={() => isAddingExercise = true}
-          class="btn-quiet px-3 text-label font-bold text-content-subtle hover:text-content gap-1.5"
-          title="Add an exercise you did that wasn't planned"
-        >
-          <Icon icon="ic:baseline-plus" class="text-base" />
-          Add
-        </button>
-        <div class="flex-1"></div>
-        {#if timer && trainingState.timerPillHidden && !circuitRun}
-          {@const t = timer.tucked()}
-          <!-- The timer, tucked away: it keeps running, shows its time
-               here, and a tap brings the whole thing back. -->
+          <div class="flex-1"></div>
+          {#if timer && trainingState.timerPillHidden && !circuitRun}
+            {@const t = timer.tucked()}
+            <!-- The timer, tucked away: it keeps running, shows its time
+                 here, and a tap brings the whole thing back. -->
+            <button
+              onclick={() => trainingState.setTimerPillHidden(false)}
+              class="h-11 min-w-11 px-3 rounded-full flex items-center justify-center gap-1.5 border text-label font-bold tabular-nums transition-colors {t.running ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
+              aria-label="Show the timer"
+              title="Timer"
+            >
+              <Icon icon={t.icon} class="text-lg" />
+              {#if t.text}{t.text}{/if}
+            </button>
+          {/if}
+        </div>
+        <div class="flex items-center gap-2 short:shrink-0">
           <button
-            onclick={() => trainingState.setTimerPillHidden(false)}
-            class="h-11 min-w-11 px-3 rounded-full flex items-center justify-center gap-1.5 border text-label font-bold tabular-nums transition-colors {t.running ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-elevated/50 border-border-strong/50 text-content-subtle hover:text-content'}"
-            aria-label="Show the timer"
-            title="Timer"
+            onclick={() => store.togglePause()}
+            class="btn flex-1 short:flex-none short:px-5 {store.isPaused ? 'bg-success hover:bg-success-hover text-on-primary' : 'btn-secondary'}"
+            aria-label={store.isPaused ? 'Resume session' : 'Pause session'}
           >
-            <Icon icon={t.icon} class="text-lg" />
-            {#if t.text}{t.text}{/if}
+            <Icon icon={store.isPaused ? 'ic:baseline-play-arrow' : 'ic:baseline-pause'} class="text-xl" />
+            {store.isPaused ? 'Resume' : 'Pause'}
           </button>
-        {/if}
-        {#if store.isComplete}
           <button
-            onclick={handleSaveAndFinish}
-            class="btn px-5 bg-success hover:bg-success-hover text-on-primary active:scale-[0.98] gap-1.5"
+            onclick={() => isExiting = true}
+            class="btn btn-secondary flex-1 short:flex-none short:px-5 hover:text-danger"
+            aria-label="End the session"
           >
-            Finish &amp; rate
-            <Icon icon="ic:baseline-arrow-forward" class="text-base" />
+            <Icon icon="ic:baseline-stop-circle" class="text-xl" />
+            End
           </button>
-        {/if}
+          {#if store.isComplete}
+            <button
+              onclick={handleSaveAndFinish}
+              class="btn flex-[1.3] short:flex-none short:px-5 bg-success hover:bg-success-hover text-on-primary active:scale-[0.98]"
+            >
+              Finish
+              <Icon icon="ic:baseline-arrow-forward" class="text-base" />
+            </button>
+          {/if}
+        </div>
       </div>
     </footer>
 

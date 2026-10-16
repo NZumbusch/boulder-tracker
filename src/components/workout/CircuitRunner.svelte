@@ -725,7 +725,7 @@
         {#if canEndAfterRound}
           <button onclick={endAfterRound} class="btn btn-primary w-full">Finish this {unitWord}</button>
         {/if}
-        <button onclick={endNow} class="btn btn-danger w-full">Finish now</button>
+        <button onclick={endNow} class="btn btn-danger w-full">End now</button>
       </div>
       {#snippet footer()}
         <button onclick={() => (confirmEnd = false)} class="btn btn-ghost flex-1">Keep going</button>

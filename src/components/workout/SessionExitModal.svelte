@@ -1,11 +1,11 @@
 <script lang="ts">
   /**
-   * The "end the session" fork: finish and save what happened, or throw it away.
+   * The "end the session" fork: save what happened, or throw it away.
    *
    * A confirmation step rather than a plain confirm dialog because the two
    * outcomes are genuinely different actions, not yes/no on one - and
    * because discarding is unrecoverable, so it needs to state exactly what
-   * is being lost and must never be the easy default. Finishing is the
+   * is being lost and must never be the easy default. Saving is the
    * primary action; discarding is a quiet destructive one below it.
    */
   import Sheet from '../ui/Sheet.svelte';
@@ -48,7 +48,7 @@
     >
       <Icon icon="ic:baseline-check-circle" class="text-xl shrink-0 mt-0.5" />
       <span class="min-w-0">
-        <span class="text-label font-bold block">Finish and save</span>
+        <span class="text-label font-bold block">Save session</span>
         <span class="text-caption text-on-primary block">
           {#if circuit}
             {circuit.name} is still running: {circuit.sets === 0 ? 'it has no sets yet, so it stops and nothing of it is logged' : `its ${circuit.sets} ${circuit.sets === 1 ? 'set' : 'sets'} so far ${circuit.sets === 1 ? 'is' : 'are'} logged and it stops`}.
