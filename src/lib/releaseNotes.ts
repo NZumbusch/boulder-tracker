@@ -32,7 +32,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     id: "2026-10-29-focus-sessions",
     title: "Plan calendar: focus on sessions",
     points: [
-      "In Day and Week, the dumbbell button next to the layout toggle greys out every phone-calendar event at once and colours each session by its main exercise type. Tap again to go back; it is remembered.",
+      "In Day, Week and Month, the dumbbell button next to the layout toggle greys out every phone-calendar event at once and colours each session by its main exercise type. Tap again to go back; it is remembered.",
     ],
   },
   {

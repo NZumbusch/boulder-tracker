@@ -51,7 +51,7 @@
     return 'week';
   }
 
-  /** Day and Week: phone-calendar events all grey and sessions in their category's colour, so the sessions stand out. Per viewer, remembered. */
+  /** Day, Week and Month: phone-calendar events all grey and sessions in their category's colour, so the sessions stand out. Per viewer, remembered. */
   let focusSessions = $state((() => { try { return localStorage.getItem(FOCUS_KEY) === '1'; } catch { return false; } })());
   function toggleFocus() {
     focusSessions = !focusSessions;
@@ -203,7 +203,7 @@
   const goalsOnDays = $derived(mode === 'year' ? new Map() : goalsByDay(trainingState.goals, shownDays));
   const phaseNames = $derived(trainingState.tunableOn('plan.calendarPhaseNames'));
   const phaseTint = $derived(phases.size > 0 && trainingState.tunableOn('plan.calendarPhaseTint'));
-  const focused = $derived(focusSessions && (mode === 'day' || mode === 'week'));
+  const focused = $derived(focusSessions && mode !== 'year');
   const byCategory = $derived(focused || trainingState.tunableOn('plan.calendarCategoryColors'));
   const eventColor = (e: DeviceEvent) => (focused ? NEUTRAL_HEX : deviceCalendar.colorOf(e));
   /** Trips, competitions and the phone's all-day / multi-day events as bars over the days shown. */
@@ -243,7 +243,7 @@
       {/each}
     </div>
     <div class="flex items-center gap-1 short:order-3">
-      {#if mode === 'day' || mode === 'week'}
+      {#if mode !== 'year'}
         <!-- Sessions in focus: the phone's events turn grey and each session takes its category's colour. -->
         <button onclick={toggleFocus} aria-pressed={focusSessions} title="Focus on sessions" aria-label="Focus on sessions: grey out phone events, colour sessions by type" class="tap p-1.5 rounded-control transition-colors {focusSessions ? 'bg-surface-elevated text-content shadow-sm' : 'text-content-subtle hover:text-content hover:bg-surface-elevated/50'}"><Icon icon="ic:baseline-fitness-center" class="text-base" /></button>
       {/if}
