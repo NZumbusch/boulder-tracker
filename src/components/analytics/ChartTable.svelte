@@ -10,7 +10,10 @@
   } = $props();
 </script>
 
-<table class="sr-only">
+<!-- The hiding class goes on a wrapper: a table ignores width and overflow, so a wide one on the table itself still
+     widened the page (the finger load table, on a phone). -->
+<div class="sr-only">
+<table>
   <caption>{caption}</caption>
   <thead>
     <tr>{#each columns as c}<th scope="col">{c}</th>{/each}</tr>
@@ -25,3 +28,4 @@
     {/each}
   </tbody>
 </table>
+</div>

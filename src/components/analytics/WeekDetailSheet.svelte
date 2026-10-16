@@ -170,7 +170,7 @@
         <button
           onclick={() => open(w)}
           disabled={w.provisional}
-          class="w-full flex items-center gap-3 px-2.5 py-2 rounded-control text-left hover:bg-surface-elevated/50 transition-colors disabled:cursor-default"
+          class="w-full min-h-10 flex items-center gap-3 px-2.5 py-2 rounded-control text-left hover:bg-surface-elevated/50 transition-colors disabled:cursor-default"
         >
           <Icon
             icon={w.status === 'completed' ? 'ic:baseline-check-circle' : 'ic:outline-circle'}

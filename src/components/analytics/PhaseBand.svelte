@@ -86,7 +86,7 @@
           onpointerenter={(e) => { if (!isTapPointer(e)) active = s.key; }}
           onpointerleave={(e) => { if (!isTapPointer(e) && active === s.key) active = null; }}
           aria-label="{s.name}, {fmt(s.startDay)} to {fmt(s.endDay)}"
-          class="absolute top-1 h-5 rounded-[3px] {s.colorClass} overflow-hidden text-left transition-opacity {active && active !== s.key ? 'opacity-40' : ''}"
+          class="tap absolute top-1 h-5 rounded-[3px] {s.colorClass} overflow-hidden text-left transition-opacity {active && active !== s.key ? 'opacity-40' : ''}"
           style="left: calc({s.left}% + 1px); width: calc({s.width}% - 2px);"
         >
           {#if s.width >= 20}

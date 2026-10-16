@@ -460,8 +460,8 @@
         </li>
       {/each}
     </ul>
-    <button onclick={() => trainingState.navigate('add')} class="w-full py-2.5 bg-primary text-white text-label rounded-control">Log a session</button>
-    <button onclick={() => void tour.startExample()} class="w-full py-2.5 border border-border-strong text-label text-content rounded-control hover:bg-surface-elevated">See it with example data</button>
+    <button onclick={() => trainingState.navigate('add')} class="w-full min-h-10 py-2.5 bg-primary text-white text-label rounded-control">Log a session</button>
+    <button onclick={() => void tour.startExample()} class="w-full min-h-10 py-2.5 border border-border-strong text-label text-content rounded-control hover:bg-surface-elevated">See it with example data</button>
   </div>
 </div>
 {:else}

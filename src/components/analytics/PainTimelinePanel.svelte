@@ -66,7 +66,7 @@
       {/if}
       {#each rows as row (row.issueId)}
         <div class="flex items-center gap-2">
-          <button onclick={() => openPainIssue(row.issueId)} class="w-20 shrink-0 text-left text-caption text-content-muted hover:text-primary leading-tight line-clamp-2 break-words min-h-6">{row.bodyPart}</button>
+          <button onclick={() => openPainIssue(row.issueId)} class="tap w-20 shrink-0 text-left text-caption text-content-muted hover:text-primary leading-tight min-h-6 flex items-center"><span class="line-clamp-2 break-words">{row.bodyPart}</span></button>
           <div class="flex-1 min-w-0 h-6 relative">
             <div class="absolute inset-x-0 top-1/2 border-t border-border"></div>
             <!-- The issue's stretch: solid while it lasted, fading out while
@@ -84,7 +84,7 @@
                 onclick={(e) => { if (isKeyboardActivation(e)) selected = selected?.id === p.id ? null : { row: row.issueId, id: p.id }; }}
                 onpointerenter={(e) => { if (!isTapPointer(e)) selected = { row: row.issueId, id: p.id }; }}
                 aria-label="{row.bodyPart}, severity {p.severity}{spikeIds.has(p.id) ? ', load spike nearby' : ''}"
-                class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center"
+                class="tap absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center"
                 style="left: {xOf(p.day)}%;"
               >
                 <span

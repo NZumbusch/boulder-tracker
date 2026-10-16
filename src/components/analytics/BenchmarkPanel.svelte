@@ -226,7 +226,7 @@
   const hint = $derived(filtersText(draft.filters, fields, weight));
 
   const chip = (on: boolean, dim = false) =>
-    `shrink-0 min-h-9 px-3 py-1.5 rounded-control border text-caption transition-colors whitespace-nowrap ${on ? 'border-primary bg-primary/15 text-content' : 'border-border text-content-subtle hover:text-content'} ${dim && !on ? 'opacity-50' : ''}`;
+    `shrink-0 min-h-10 px-3 py-1.5 rounded-control border text-caption transition-colors whitespace-nowrap ${on ? 'border-primary bg-primary/15 text-content' : 'border-border text-content-subtle hover:text-content'} ${dim && !on ? 'opacity-50' : ''}`;
 </script>
 
 {#if types.length > 0}
