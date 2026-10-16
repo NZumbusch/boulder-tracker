@@ -58,7 +58,7 @@ Everything below is on `main`, pushed to Testing, **not yet tried on a real devi
 | --- | --- | --- |
 | Plan calendar (Day/Week/Month/Year), phone-calendar overlay, ICS export fix | built, flat Samsung-style look, category colours, pinch zoom, drag to reschedule, trip/competition bars, phase strip | QA §11, §12.16-12.17 |
 | Phases as date ranges, sessions saved one by one (data 3.35/3.36) | built; verified against Nathan's real 2026-10-11 backup (migrates, every week shows what it did) | `phase-days-plan.md`, QA §12 |
-| Block manager (the only place phases are edited) | built | `phase-days-plan.md` |
+| Phases page (the only place phases are edited; was the Block manager) | built | `phase-days-plan.md` |
 | AI coach on the new model (+ exact-day phases) | built | `changeSetPrompt.ts` |
 | Navigation drawer / rail / floating + | built; drawer is the default | `navigation-plan.md`, QA §13 |
 

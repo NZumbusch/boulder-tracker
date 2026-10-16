@@ -349,6 +349,18 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 24.6 | Timer split | Settings > Sessions & timer. | Live sessions, Timer, Sound & voice. Timer: 3-2-1, 15 s warning, keep screen on, background, single-exercise timer. Sound & voice: how much it speaks up, sound and vibration, voice. Each links to the other. | | |
 | 24.7 | Search | Search "volume", "tts", "3-2-1", "rest between sets". | Volume and tts open Sound & voice; the others open Timer. | | |
 
+## 25. Phases page and calendar focus (2026-10-29)
+
+| # | What | How | Expect | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 25.1 | Open the page | Plan > the phases icon in the top bar; also tap a phase chip on the week card. | A full page "Phases" with a back arrow (Android Back closes it); the timeline scrolls to today, or to the tapped day with that phase selected (a day with no phase offers a new one). | | |
+| 25.2 | Drag an end | Tap a bar, drag its right handle later by two weeks on the finger. | The line under the timeline says the new dates and what happens to the neighbour while the finger is down; on release it saves, with an Undo. The timeline does not scroll sideways during the drag. | | |
+| 25.3 | Move a bar | Select a bar, drag its body. | The block moves by whole days; the same-priority neighbour is trimmed. A bar that is not selected scrolls the timeline instead. | | |
+| 25.4 | Split, Move, Repeat | On a block: Split (pick a day), Move (+1 wk with "everything after it"), Repeat (include the next block, 2 copies). | Each sheet previews the result before saving; Undo restores. | | |
+| 25.5 | Gaps and overlaps | Make a hole between two blocks; add a block with priority 1 over another. | "Needs a look" lists the gap (tap Fill) and the pair that runs together; the gap is a dashed bar on the timeline. | | |
+| 25.6 | Scales | Month / Quarter / Year. | The timeline zooms; the choice is remembered. Dragging at Year scale is coarse (about 2 px a day) - zoom in to be exact. | | |
+| 25.7 | Focus on sessions | Plan > Calendar > Day or Week: tap the dumbbell button. | Phone events turn grey, sessions take their main exercise category's colour; tap again to go back; it is remembered. Not shown in Month / Year. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.

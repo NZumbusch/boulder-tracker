@@ -26,7 +26,7 @@
   import AICoachModal from './AICoachModal.svelte';
   import WeekShareImage from './WeekShareImage.svelte';
   import WeekCalendar from './WeekCalendar.svelte';
-  import BlockManager from './BlockManager.svelte';
+  import PhasePlanner from './PhasePlanner.svelte';
   import GoalsCalendar from './GoalsCalendar.svelte';
   import { patternForPhase, patternStyle, weekMatchesPhaseFilter } from '../../lib/planning/weekPatterns';
   import { formatGoalDates, goalEnd } from '../../lib/goals/goals';
@@ -886,7 +886,7 @@
 {/if}
 
 {#if showBlockManager}
-  <BlockManager onClose={() => showBlockManager = false} focusDate={blockManagerDate} />
+  <PhasePlanner onClose={() => showBlockManager = false} focusDate={blockManagerDate} />
 {/if}
 
 {#if showWeekNote && trainingState.selectedWeekId}

@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-phases-page",
+    title: "A Phases page with a timeline",
+    points: [
+      "The phases button in Plan now opens a page: every phase as a bar on a timeline (Month / Quarter / Year). Tap a bar, then drag its ends to change the days or drag the bar to move it.",
+      "Split a phase, move it (and everything after it) by weeks, or repeat a cycle such as three weeks load plus a deload. Each shows what it will change before you save.",
+      "Days with no phase and phases that run together are listed under \"Needs a look\".",
+    ],
+  },
+  {
     id: "2026-10-29-focus-sessions",
     title: "Plan calendar: focus on sessions",
     points: [

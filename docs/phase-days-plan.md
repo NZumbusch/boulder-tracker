@@ -101,6 +101,12 @@ Kept as a dual model for one commit, then merged: two copies of one fact (weeks 
 - **Year view phases (decided: lines, not per-day bars):** one continuous line per phase along each week row in Month and Year (breaks where the phase changes or the row ends), under the dates; follows "Show phases in the calendar".
 - **Bug found by testing with the real backup path:** backup import never loaded `dismissedSessions` (and kept the replaced data's) - fixed, with tests.
 - `src/lib/storage/realBackup.private.test.ts` (git-ignored, like `stuff/`) runs the migration, projection, AI planner, block reviews and calendar export over Nathan's own backup when it is present. On the 2026-10-11 backup: migrates with its invariants, and every week from W20 2026 to W20 2027 shows exactly what the old model showed.
+ 
+### Stage 5 - the Phases page (2026-10-29)
+Nathan chose (survey): timeline + year strip, own full page from the Plan, with drag to resize/move, split and extend, repeat a cycle, and gaps/overlaps. Built as `PhasePlanner.svelte` (page; an overlay at z-110 with `AppBar`, like the other full screens) + `PhaseTimeline.svelte` (presentational bars, lanes, handles) + `planning/phaseTimeline.ts` (pure, tested: `setBlockDays`, `shiftBlock`, `splitBlock`, `repeatCycle`, `gapsInPlan`, `overlaps`, `assignLanes`). `BlockManager` and `BlockBrowser` are gone; every drag/edit still goes through `placeBlock`, so the trimming rules are unchanged.
+- Judgment calls: only the *selected* bar can be dragged (an unselected one scrolls the timeline, so touch scroll and drag don't fight); a drag saves on release with the existing Undo rather than asking; "Move" defaults to *moving everything after it too* (that is what shifting a plan means); Repeat's cycle is the selected block plus the next N blocks in date order; the Year scale is coarse by design.
+- Not done: dragging across the Year scale snapping to weeks; a calendar-style month painter (the survey picked the timeline).
+- Headless-checked only (drag with real mouse events, sheets not walked through); not tried on a phone.
 
 ### Still open
 - Nothing here has been run on a real phone; run `docs/qa-checklist.md` section 12 (12.1 and 12.15 first) before pushing. All devices must update before sync resumes (data 3.36).
