@@ -20,7 +20,7 @@ export const PAGE_TUNABLES: Partial<Record<PageId, string[]>> = {
   home: ["home.recentActivityCount", "home.progressBenchmarks"],
   planCalendar: [
     "plan.weekAgenda", "plan.weekListOnPhone", "plan.exerciseList", "plan.highContrast", "plan.eventEdges", "plan.calendarPhases",
-    "plan.calendarPhaseNames", "plan.calendarPhaseTint", "plan.calendarCategoryColors", "plan.weekPatterns", "plan.goalsInCalendar",
+    "plan.calendarPhaseNames", "plan.calendarPhaseTint", "plan.calendarCategoryColors", "plan.weekPatterns", "plan.weekGridClear", "plan.goalsInCalendar",
     "day.startHour", "ui.clock12",
   ],
   history: ["analytics.plannedOutline"],

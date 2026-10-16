@@ -525,6 +525,7 @@
 
     <div data-tour="plan-calendar">
     <WeekCalendar
+      soft={!trainingState.tunableOn('plan.weekGridClear')}
       weeks={calendarWeeks}
       selectedWeekId={trainingState.selectedWeekId}
       onSelectWeek={(weekId) => { trainingState.selectedWeekId = weekId; }}

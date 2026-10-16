@@ -20,6 +20,13 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-29-soft-week-grid",
+    title: "Lighter week grid",
+    points: [
+      "The Weeks view is back to soft rounded tiles in solid phase colours: empty weeks are a faint grey, the week you picked has a soft ring and its number, this week has a dot. Settings > Views > Clear week grid brings back a number on every tile and the firm outline; the High contrast theme always uses that one.",
+    ],
+  },
+  {
     id: "2026-10-29-phases-page",
     title: "A Phases page with a timeline",
     points: [
