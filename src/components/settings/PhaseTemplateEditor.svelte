@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { storage } from '../../lib/storage';
+  import { reinsertById, reinsertSlot } from '../../lib/exercise/reinsert';
   import { motionMs } from '../../lib/motion';
   import { WEEK_DAYS } from '../../lib/constants';
   import { trainingState } from '../../lib/state.svelte';
@@ -40,10 +42,11 @@
     const removed = $state.snapshot(templates[phaseId][index]) as WorkoutTemplate;
     templates[phaseId] = templates[phaseId].filter((_, i: number) => i !== index);
     undoable(`${removed.name || 'Session'} removed`, () => {
-      if (templates[phaseId].some((w) => w.id === removed.id)) return;
-      const list = [...templates[phaseId]];
-      list.splice(Math.min(index, list.length), 0, removed);
-      templates[phaseId] = list;
+      templates[phaseId] = reinsertById(templates[phaseId], removed, index);
+    }, async () => {
+      const all = await storage.getTemplates();
+      await storage.saveTemplates({ ...all, [phaseId]: reinsertById(all[phaseId] ?? [], removed, index) });
+      await trainingState.refresh();
     });
   }
 
@@ -143,6 +146,16 @@
         if (!w) return;
         w.exercises = before.exercises;
         w.groups = before.groups;
+      }, async () => {
+        const all = await storage.getTemplates();
+        const list = all[phaseId] ?? [];
+        const stored = list.find((t) => t.id === sessionId);
+        if (!stored) throw new Error('session is gone');
+        const slot = before.exercises.find((e) => e.id === exerciseId)!;
+        const at = before.exercises.findIndex((e) => e.id === exerciseId);
+        const back = reinsertSlot(stored, slot, at, before.groups);
+        await storage.saveTemplates({ ...all, [phaseId]: list.map((t) => (t.id === sessionId ? back : t)) });
+        await trainingState.refresh();
       });
     }
   }

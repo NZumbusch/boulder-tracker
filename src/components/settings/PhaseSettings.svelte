@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { storage } from '../../lib/storage';
+  import { reinsertById } from '../../lib/exercise/reinsert';
+  import { trainingState } from '../../lib/state.svelte';
   import { scopedUndo } from '../../lib/toast.svelte';
   import { generateId, showConfirm } from '../../lib/utils';
   import { DEFAULT_TEMPLATE_LIBRARY } from '../../lib/constants';
@@ -82,7 +85,10 @@
     phaseDefs = phaseDefs.filter(p => p.id !== id);
     if (expandedPhaseId === id) expandedPhaseId = null;
     undoable(`${removed.name} deleted`, () => {
-      if (!phaseDefs.some(p => p.id === removed.id)) phaseDefs = [...phaseDefs.slice(0, index), removed, ...phaseDefs.slice(index)];
+      phaseDefs = reinsertById(phaseDefs, removed, index);
+    }, async () => {
+      await storage.savePhaseDefs(reinsertById(await storage.getPhaseDefs(), removed, index));
+      await trainingState.refresh();
     });
   }
 

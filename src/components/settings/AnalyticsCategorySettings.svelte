@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { storage } from '../../lib/storage';
+  import { reinsertById } from '../../lib/exercise/reinsert';
   import { trainingState } from '../../lib/state.svelte';
   import { generateId } from '../../lib/utils';
   import { scopedUndo } from '../../lib/toast.svelte';
@@ -131,7 +133,11 @@
     undoable(
       orphans > 0 ? `${removed.name} deleted - ${orphans} exercise${orphans === 1 ? '' : 's'} now have no category` : `${removed.name} deleted`,
       () => {
-        if (!analyticsCategories.some(c => c.id === removed.id)) analyticsCategories = [...analyticsCategories.slice(0, index), removed, ...analyticsCategories.slice(index)];
+        analyticsCategories = reinsertById(analyticsCategories, removed, index);
+      },
+      async () => {
+        await storage.saveAnalyticsCategories(reinsertById(await storage.getAnalyticsCategories(), removed, index));
+        await trainingState.refresh();
       },
     );
   }

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { storage } from '../../lib/storage';
+  import { reinsertById } from '../../lib/exercise/reinsert';
   import InfoButton from '../common/InfoButton.svelte';
   /**
    * Settings -> Training setup -> Benchmarks: the periodic tests (max hang,
@@ -221,7 +223,10 @@
     benchmarkTypes = benchmarkTypes.filter((t) => t.id !== id);
     editing = null;
     undoable(`${removed.name} deleted`, () => {
-      if (!benchmarkTypes.some((t) => t.id === removed.id)) benchmarkTypes = [...benchmarkTypes.slice(0, index), removed, ...benchmarkTypes.slice(index)];
+      benchmarkTypes = reinsertById(benchmarkTypes, removed, index);
+    }, async () => {
+      await storage.saveBenchmarkTypes(reinsertById(await storage.getBenchmarkTypes(), removed, index));
+      await trainingState.refresh();
     });
   }
 

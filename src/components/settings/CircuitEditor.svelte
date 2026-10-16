@@ -59,6 +59,14 @@
       const next = [...draft.exercises];
       next.splice(Math.min(index, next.length), 0, removed);
       draft.exercises = next;
+    }, async () => {
+      // The editor has saved and closed: put it back into the stored circuit.
+      const stored = trainingState.circuits.find((c) => c.id === draft.id);
+      if (!stored) throw new Error('circuit is gone');
+      if (stored.exercises.some((e) => e.id === removed.id)) return;
+      const list = [...stored.exercises];
+      list.splice(Math.min(index, list.length), 0, removed);
+      await trainingState.saveCircuit({ ...$state.snapshot(stored), exercises: list } as Circuit);
     });
   }
 
@@ -79,6 +87,7 @@
   async function save() {
     draft.name = draft.name.trim() || 'Circuit';
     await trainingState.saveCircuit($state.snapshot(draft) as Circuit);
+    undoable.commit();
     onClose();
   }
 

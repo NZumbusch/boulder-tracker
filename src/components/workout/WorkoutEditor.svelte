@@ -29,6 +29,7 @@
     settleAfterMove, restComparison, normaliseGroups, memberRounds,
   } from '../../lib/exercise/groups';
   import { repsPerSet } from '../../lib/exercise/reps';
+  import { reinsertSlot } from '../../lib/exercise/reinsert';
   import { circuitFromGroup, insertCircuit } from '../../lib/exercise/circuits';
   import { toast } from '../../lib/toast.svelte';
   import { emptySessionWarning } from '../../lib/session/emptySession';
@@ -210,10 +211,19 @@
   }
 
   const undoable = scopedUndo();
+  /** Set when Save went through: the stored session an Undo may still have to put an exercise back into. */
+  let saved: Workout | null = null;
+  async function putBackInSaved(slot: ExerciseSlot, index: number, groups?: ExerciseGroup[]) {
+    const stored = saved && trainingState.getWorkoutsForWeek(saved.weekId).find((w) => w.id === saved!.id);
+    if (!stored) throw new Error('session is gone');
+    await trainingState.saveWorkout(reinsertSlot($state.snapshot(stored) as Workout, slot, index, groups));
+  }
   function removeExercise(slot: ExerciseSlot) {
     const before = $state.snapshot({ exercises: workout.exercises, groups: workout.groups }) as { exercises: ExerciseSlot[]; groups?: ExerciseGroup[] };
+    const index = before.exercises.findIndex((e) => e.id === slot.id);
+    const removed = $state.snapshot(slot) as ExerciseSlot;
     regroup(normaliseGroups({ ...workout, exercises: workout.exercises.filter((e) => e.id !== slot.id) }));
-    undoable(`${slotTypeName(slot, trainingState.exerciseTypes)} removed`, () => regroup(before));
+    undoable(`${slotTypeName(slot, trainingState.exerciseTypes)} removed`, () => regroup(before), () => putBackInSaved(removed, index, before.groups));
   }
 
   function handleDnd(e: CustomEvent<DndEvent<ExerciseSlot>>) {
@@ -250,8 +260,12 @@
     isSaving = true;
     try {
       // A Plan B edit comes back as Plan B's own copy; null = refused (stay here).
-      const saved = await trainingState.saveWorkout($state.snapshot(workout) as Workout);
-      if (saved) onSaved(saved);
+      const result = await trainingState.saveWorkout($state.snapshot(workout) as Workout);
+      if (result) {
+        saved = result;
+        undoable.commit();
+        onSaved(result);
+      }
     } catch (err) {
       // A failed save keeps the editor open with everything still in it.
       reportError(err, 'Save session');

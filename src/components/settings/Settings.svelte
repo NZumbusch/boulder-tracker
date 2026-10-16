@@ -6,7 +6,7 @@
   import { onMount, onDestroy, untrack } from 'svelte';
   import { storage } from '../../lib/storage';
   import { showConfirm } from '../../lib/utils';
-  import { showUndo } from '../../lib/toast.svelte';
+  import { provideUndoScope } from '../../lib/toast.svelte';
   import type { ExerciseTypeDef, PhaseDef, WorkoutTemplate, BenchmarkTypeDef, AnalyticsCategory } from '../../lib/types';
   import ExerciseSettings from './ExerciseSettings.svelte';
   import PhaseSettings from './PhaseSettings.svelte';
@@ -220,6 +220,7 @@
     }
   }
 
+  const { undoable } = provideUndoScope();
   async function resetTemplates() {
     const confirmed = await showConfirm('Reset all session templates?', 'Every phase goes back to the sessions the app ships with. Your own edits to them are replaced; the phases themselves (names, colours) stay. You can undo this right after.', { ok: 'Reset templates', cancel: 'Keep mine' });
     if (!confirmed) return;
@@ -229,7 +230,10 @@
     // Already saved by the reset - don't write it again.
     if (lastSaved) lastSaved.templates = current().templates;
     // Putting the old ones back is an ordinary edit: the autosave writes it.
-    showUndo('Templates reset', () => { templates = before; });
+    undoable('Templates reset', () => { templates = before; }, async () => {
+      await storage.saveTemplates(before);
+      await trainingState.refresh();
+    });
   }
 </script>
 
