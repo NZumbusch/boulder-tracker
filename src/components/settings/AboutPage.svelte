@@ -60,7 +60,7 @@
       {#if updater.installedCode || commit}
         <p class="text-caption text-content-subtle mt-0.5 tabular-nums">
           {#if updater.installedCode}Build {updater.installedCode}{/if}{#if commit}{updater.installedCode ? ' · ' : ''}commit
-            <a href={commitUrl(APP_INFO.commit)} target="_blank" rel="noopener" class="inline-block py-2.5 -my-2.5 text-primary underline underline-offset-2">{commit}<span class="sr-only"> (opens in a new tab)</span></a>{/if}
+            <a href={commitUrl(APP_INFO.commit)} target="_blank" rel="noopener" class="inline-block py-3 -my-3 text-primary underline underline-offset-2">{commit}<span class="sr-only"> (opens in a new tab)</span></a>{/if}
         </p>
       {/if}
     </div>

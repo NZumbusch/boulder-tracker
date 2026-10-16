@@ -30,7 +30,8 @@
   let formSlot = $state<ExerciseSlot | 'new' | null>(null);
 
   const asWorkout = $derived(circuitAsWorkout(draft));
-  const group = $derived(asWorkout.groups[0]);
+  // normaliseGroups drops the groups when none has members, so a new circuit (no exercises yet) has none: fall back to the draft's own timing.
+  const group = $derived(asWorkout.groups?.[0] ?? { id: 'circuit', name: draft.name, rounds: draft.rounds, transition: draft.transition, roundRest: draft.roundRest });
   const minutes = $derived(groupMinutes(asWorkout, 'planned').get('circuit'));
   const members = $derived(asWorkout.exercises.map((slot) => ({ slot, values: slot.prescribed ?? {} })));
   const nameOf = (slotId: string) => {

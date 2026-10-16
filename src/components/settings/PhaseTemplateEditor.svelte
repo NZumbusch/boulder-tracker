@@ -153,13 +153,13 @@
     <div class="p-3 bg-surface-elevated/30 rounded-card space-y-4 relative">
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0 flex-1">
-          <input bind:value={workout.name} class="w-full bg-transparent text-body font-bold text-content border-b border-border focus:border-primary outline-none pb-1 truncate" placeholder="Session name" aria-label="Session name" />
+          <input bind:value={workout.name} class="w-full bg-transparent text-body font-bold text-content border-b border-border focus:border-primary outline-none min-h-10 pb-1 truncate" placeholder="Session name" aria-label="Session name" />
           <textarea
             value={workout.description ?? ''}
             oninput={(e) => { const v = e.currentTarget.value; if (v.trim()) workout.description = v; else delete workout.description; }}
             rows="1"
             placeholder="Session note (optional) - intent, pacing, what to focus on"
-            class="w-full mt-1 bg-transparent text-caption text-content-muted border-b border-border focus:border-primary outline-none resize-y"
+            class="w-full mt-1 min-h-10 bg-transparent text-caption text-content-muted border-b border-border focus:border-primary outline-none resize-y"
             aria-label="Session note"
           ></textarea>
         </div>
@@ -188,7 +188,7 @@
           <button
             onclick={() => workout.dayOfWeek = day}
             aria-pressed={workout.dayOfWeek === day}
-            class="px-2.5 py-2 min-h-10 rounded-control text-label transition-all border
+            class="px-2.5 py-2 min-h-10 min-w-10 rounded-control text-label transition-all border
               {workout.dayOfWeek === day
                 ? 'bg-primary border-primary text-white shadow-lg'
                 : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content-muted'}"
@@ -199,7 +199,7 @@
         <button
           onclick={() => workout.dayOfWeek = undefined}
           aria-pressed={!workout.dayOfWeek}
-          class="px-2.5 py-2 min-h-10 rounded-control text-label transition-all border
+          class="px-2.5 py-2 min-h-10 min-w-10 rounded-control text-label transition-all border
             {!workout.dayOfWeek
               ? 'bg-surface-elevated-hover border-border-strong text-content shadow-lg'
               : 'bg-surface-elevated/50 border-border-strong text-content-subtle hover:text-content-muted'}"
