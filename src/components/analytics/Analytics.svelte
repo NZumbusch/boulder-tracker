@@ -56,6 +56,7 @@
   import OutdoorAscentsPanel from './OutdoorAscentsPanel.svelte';
   import RecoveryTrendPanel from './RecoveryTrendPanel.svelte';
   import WellnessPanel from './WellnessPanel.svelte';
+  import BestSessionsPanel from './BestSessionsPanel.svelte';
   import SummaryStrip from './SummaryStrip.svelte';
   import WeekDetailSheet from './WeekDetailSheet.svelte';
   import StrainPanel from './StrainPanel.svelte';
@@ -145,6 +146,7 @@
     fingerLoad: 'training',
     recoveryTrend: 'recovery',
     wellness: 'recovery',
+    bestSessions: 'recovery',
     fatigue: 'recovery',
     pain: 'recovery',
     outdoor: 'progress',
@@ -573,6 +575,10 @@
       <WellnessPanel {firstDay} {lastDay} {today} />
       {/snippet}
 
+      {#snippet bestSessionsSection()}
+      <BestSessionsPanel />
+      {/snippet}
+
       {#snippet outdoorSection()}
       <div id="section-outdoor" class="scroll-mt-4">
         <OutdoorAscentsPanel weeks={outdoorAscentData.weeks} {weekLabels} unparsedCount={outdoorAscentData.unparsedCount} />
@@ -614,6 +620,7 @@
         {:else if id === 'fatigue'}{@render fatigueSection()}
         {:else if id === 'recoveryTrend'}{@render recoveryTrendSection()}
         {:else if id === 'wellness'}{@render wellnessSection()}
+        {:else if id === 'bestSessions'}{@render bestSessionsSection()}
         {:else if id === 'pain'}{@render painSection()}
         {:else if id === 'outdoor'}{@render outdoorSection()}
         {:else if id === 'benchmarks'}{@render benchmarksSection()}

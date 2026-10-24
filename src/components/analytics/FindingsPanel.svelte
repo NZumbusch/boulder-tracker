@@ -46,6 +46,7 @@
     'section-fingerLoad': 'Finger load',
     'section-recoveryTrend': 'Recovery trends',
     'section-wellness': 'Wellness',
+    'section-bestSessions': 'Best sessions',
     'section-fatigue': 'Fatigue',
     'section-pain': 'Pain',
     'section-outdoor': 'Outdoor ascents',

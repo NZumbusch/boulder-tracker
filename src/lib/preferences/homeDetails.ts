@@ -29,6 +29,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
   readiness: [
     { id: 'readiness.confidence', label: 'Inputs used', hint: 'Which of fatigue, load, sleep and HRV fed the score', defaultOn: true },
     { id: 'readiness.breakdown', label: 'Score breakdown', hint: 'Tap the ring to see what each input took off', defaultOn: true },
+    { id: 'readiness.signals', label: 'Today\'s signals', hint: 'HRV, sleep and Body Battery this morning in a sentence, and a note when today\'s session is much heavier or lighter than usual (needs two of them)', defaultOn: true },
   ],
   alerts: [
     { id: 'alerts.recovery', label: 'Recovery', hint: 'Days in a row without rest; a load spike while sleep/HRV dropped', defaultOn: true },

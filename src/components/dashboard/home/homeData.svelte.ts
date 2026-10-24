@@ -3,6 +3,7 @@ import { trainingState } from '../../../lib/state.svelte';
 import { formatDay, getWeekIdRange, getWeekId, getWeekDates, localIsoDate } from '../../../lib/dateUtils';
 import { computeFatigueDecay, computeHrvBaseline, computeReadiness } from '../../../lib/analytics/readiness';
 import { calculateRollingAcwr } from '../../../lib/analytics/loadAnalytics';
+import { daySignals, usualPlannedLoad } from '../../../lib/analytics/daySignals';
 import { isLoggedMetricValue } from '../../../lib/analytics/metricValues';
 import { upcomingGoals, isOngoing, daysUntilGoal, goalLength, formatGoalDates, coversDate } from '../../../lib/goals/goals';
 import { sessionsDuringTrip } from '../../../lib/goals/tripConflicts';
@@ -55,6 +56,24 @@ export class HomeData {
       pain: painLevelOn(trainingState.painIssues, trainingState.painLogs, this.todayIso),
     }, trainingState.readinessConfig),
   );
+
+  /** What this morning's HRV, sleep, Body Battery and readiness say about today - null with fewer than two of them. */
+  daySignals = $derived.by(() => {
+    const cfg = trainingState.readinessConfig;
+    const planned = this.weekWorkouts.filter((w) => w.status === 'planned' && w.dayOfWeek === this.todayName).reduce((s, w) => s + (w.plannedLoad ?? 0), 0);
+    const recent = trainingState.completedWorkouts.slice().sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+    return daySignals({
+      readinessScore: this.readiness.score,
+      hrv: this.todaysMetric('hrv')?.value,
+      hrvBaseline: this.hrvBaseline,
+      hrvDip: cfg.hrvDip,
+      sleepScore: this.todaysMetric('sleep-score')?.value,
+      sleepLow: cfg.sleepLow,
+      bodyBattery: this.todaysMetric('body-battery-high')?.value,
+      bodyBatteryLow: trainingState.tunable('readiness.bodyBatteryLow'),
+      planned: planned > 0 ? { load: planned, usual: usualPlannedLoad(recent) } : undefined,
+    });
+  });
 
   /** Today's stored entry for `metricId`, zero or not - what a save/clear acts on. */
   todaysEntry(metricId: string): DailyMetricEntry | undefined {

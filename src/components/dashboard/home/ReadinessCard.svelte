@@ -118,6 +118,14 @@
         {showBreakdown ? 'Hide why' : 'Why this score'}<Icon icon={showBreakdown ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-base" />
       </button>
     {/if}
+    {#if trainingState.homeDetails['readiness.signals'] && data.daySignals}
+      {@const s = data.daySignals}
+      <div class="text-label text-content-muted leading-snug space-y-0.5" data-testid="day-signals">
+        <p class="font-semibold text-content">{s.headline}</p>
+        {#if s.reasons.length}<p>{s.reasons.join(' · ')}.</p>{/if}
+        {#if s.plan}<p>{s.plan}</p>{/if}
+      </div>
+    {/if}
     {#if trainingState.homeDetails['readiness.confidence']}
       <p class="text-caption text-content-subtle flex items-start gap-1">
         <Icon icon="ic:baseline-insights" class="text-content-subtle text-sm mt-0.5 shrink-0" />
