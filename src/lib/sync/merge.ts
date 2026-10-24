@@ -398,6 +398,7 @@ const TABLE_NOUN: Record<string, string> = {
   painLogs: "Pain entry",
   painIssues: "Pain issue",
   outdoorAscents: "Send",
+  externalActivities: "Activity",
   settings: "Settings group",
   valueDefs: "Value type",
 };

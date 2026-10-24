@@ -111,6 +111,10 @@ Needs Android Studio.
 
 `android/` is tracked in git (manifest, `MainActivity`, launcher shortcuts in `res/xml/shortcuts.xml`, the widget); local Capacitor plugins live in `plugins/` (`timer-service`, `drive-sync`, `home-widget`, `health-connect`, `device-calendar`). The app needs Android 8 (API 26) or newer, for Health Connect's client library. The project builds with JDK 21 (Android Studio's own, `/opt/android-studio/jbr`).
 
+### Importing activities (Strava export)
+
+Settings → Data & connections → Import activities reads the `activities.csv` of a Strava archive (Strava on the web → Settings → My Account → Download or delete your account) into the `externalActivities` table (data 3.38): `strava-<activity id>` ids, so importing twice or on two synced devices never duplicates. Imported activities are history only - they are not `Workout`s and never count toward load. Logic and tests: `src/lib/importers/stravaCsvImport.ts`. The column layout comes from Strava's published format, not a real export, so check a first import against your own file.
+
 ### Health Connect
 
 Settings → Data & connections → Health Connect reads resting heart rate, weight and sleep (read-only) and stores one value per day: `rhr`, `bodyweight` and `sleep-duration` (hours). Values typed by hand win; imported entries carry `source: "health-connect"` and fixed ids, so a second importing device doesn't duplicate them through sync. Logic: `src/lib/health/` (tested); native side: `plugins/health-connect` (Kotlin). Health Connect requires a privacy policy to grant access - the plugin's rationale screen opens `privacy.html#health-connect`.

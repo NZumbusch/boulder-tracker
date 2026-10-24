@@ -35,7 +35,7 @@ stuff/   Nathan's private files - GIT-IGNORED, never commit or publish anything 
 - `.github/workflows/deploy.yml`: every push to `main` builds the web app and a signed Android APK and deploys one Pages site: `/` web app, `/android/` **Testing** channel (every push), `/android/stable/` **Stable** (promote by hand: Actions → this workflow → mode "promote"; copies the live test APK byte-for-byte).
 - The APK is signed with Nathan's own key from repo secrets - **never switch keys** (a different key = Android sees a different app = uninstall = data loss; also the Drive OAuth client's SHA-1). `versionCode` = `git rev-list --count HEAD`; never change that. See `docs/signing.md`, `scripts/app-version.mjs`.
 - The in-app updater (`plugins/app-updater`, `src/lib/update/`) installs APKs after checking SHA-256 and writing a safety backup.
-- Data version `DATA_EXPORT_VERSION` is **3.37** (`src/lib/constants.ts`). A bump means every device must update before Drive sync resumes (devices on an older version refuse to merge with a newer one - `SyncVersionError`; older docs are upgraded forward through the same migrations).
+- Data version `DATA_EXPORT_VERSION` is **3.38** (`src/lib/constants.ts`). A bump means every device must update before Drive sync resumes (devices on an older version refuse to merge with a newer one - `SyncVersionError`; older docs are upgraded forward through the same migrations).
 
 ## Data model facts you will trip over
 

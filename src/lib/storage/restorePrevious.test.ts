@@ -21,11 +21,11 @@ class FakeReader {
 vi.stubGlobal("FileReader", FakeReader);
 
 const w = (id: string) => ({ id, status: "planned", date: null, weekId: "2026-W41", loadFactor: 0, exercises: [] });
-const file = (ids: string[]) => new File([JSON.stringify({ exportVersion: "3.37", workouts: ids.map(w), trainingBlocks: [], dismissedSessions: [], phaseDefs: [], exerciseTypes: [], templates: {} })], "b.json");
+const file = (ids: string[]) => new File([JSON.stringify({ exportVersion: "3.38", workouts: ids.map(w), trainingBlocks: [], dismissedSessions: [], phaseDefs: [], exerciseTypes: [], templates: {} })], "b.json");
 
 beforeEach(() => {
   for (const k of Object.keys(db)) delete db[k];
-  setDbState({ workouts: [w("mine1"), w("mine2")], trainingBlocks: [], dismissedSessions: [], weekNotes: [], exerciseTypes: [], phaseDefs: [], templates: {}, exportVersion: "3.37" });
+  setDbState({ workouts: [w("mine1"), w("mine2")], trainingBlocks: [], dismissedSessions: [], weekNotes: [], exerciseTypes: [], phaseDefs: [], templates: {}, exportVersion: "3.38" });
 });
 
 describe("Restore previous", () => {

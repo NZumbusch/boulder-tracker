@@ -13,7 +13,7 @@ import { adoptTotalBasis } from './benchmarks/basis';
 import { adoptWayViews } from './benchmarks/ways';
 import { TEST_VIEWS_ADOPTED_KEY } from './releaseNotes';
 import { bodyweightFromBenchmark, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from './benchmarks/bodyweight';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate, BenchmarkView } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, ExternalActivity, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate, BenchmarkView } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate, trainingDayDate, formatWeekWithDates } from './dateUtils';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
@@ -63,6 +63,7 @@ import { CatalogStore } from './stores/catalogStore.svelte';
 import { BenchmarkStore } from './stores/benchmarkStore.svelte';
 import { MetricsStore } from './stores/metricsStore.svelte';
 import { OutdoorAscentStore } from './stores/outdoorAscentStore.svelte';
+import { ExternalActivityStore } from './stores/externalActivityStore.svelte';
 import { UiStore } from './stores/uiStore.svelte';
 import { SessionStore } from './stores/sessionStore.svelte';
 import { layout } from './navigation/layoutMode.svelte';
@@ -101,6 +102,7 @@ class TrainingState {
   benchmarkStore = new BenchmarkStore();
   metricsStore = new MetricsStore();
   outdoorAscentStore = new OutdoorAscentStore();
+  externalActivityStore = new ExternalActivityStore();
   uiStore = new UiStore();
   sessionStore = new SessionStore();
   backupStore = new BackupStore();
@@ -148,6 +150,7 @@ class TrainingState {
   get painLogs() { return this.metricsStore.painLogs; }
   get painIssues() { return this.metricsStore.painIssues; }
   get outdoorAscents() { return this.outdoorAscentStore.outdoorAscents; }
+  get externalActivities() { return this.externalActivityStore.externalActivities; }
 
   // --- Delegated UI state ---
 
@@ -636,6 +639,7 @@ class TrainingState {
         this.benchmarkStore.load(),
         this.metricsStore.load(),
         this.outdoorAscentStore.load(),
+        this.externalActivityStore.load(),
       ]);
 
       await this.reconcileSettings();
@@ -1857,6 +1861,18 @@ class TrainingState {
       await this.metricsStore.saveDailyMetric(copy);
       await this.refresh();
     });
+  }
+
+  /** Adds imported activities not stored yet and returns how many were new. */
+  async addExternalActivities(items: ExternalActivity[]): Promise<number> {
+    const added = await this.externalActivityStore.add(items);
+    await this.externalActivityStore.load();
+    return added;
+  }
+
+  async removeExternalActivities(ids: string[]) {
+    await this.externalActivityStore.remove(ids);
+    await this.externalActivityStore.load();
   }
 
   /**

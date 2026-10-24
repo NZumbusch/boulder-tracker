@@ -13,8 +13,8 @@ describe("the settings tree", () => {
 
   it("leaves out what the device cannot do", () => {
     const data = SETTINGS_SECTIONS.find((s) => s.id === "data")!;
-    expect(visiblePages(data, phone).map((p) => p.id)).toEqual(["sync", "healthConnect", "deviceCalendar", "exports", "widgets"]);
-    expect(visiblePages(data, browser).map((p) => p.id)).toEqual(["sync", "exports"]);
+    expect(visiblePages(data, phone).map((p) => p.id)).toEqual(["sync", "activityImport", "healthConnect", "deviceCalendar", "exports", "widgets"]);
+    expect(visiblePages(data, browser).map((p) => p.id)).toEqual(["sync", "activityImport", "exports"]);
     expect(visibleSections(browser)).toHaveLength(8);
   });
 

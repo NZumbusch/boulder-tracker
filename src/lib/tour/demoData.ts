@@ -297,6 +297,7 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     painLogs,
     painIssues,
     outdoorAscents,
+    externalActivities: [],
     exportVersion: DATA_EXPORT_VERSION,
   };
 }

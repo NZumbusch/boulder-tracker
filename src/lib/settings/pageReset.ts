@@ -51,7 +51,7 @@ export const PAGE_PREFS: Partial<Record<PageId, PrefKey[]>> = {
 
 /** Pages whose lists or connections are data, not preferences: no reset action. */
 export const PAGES_WITHOUT_RESET: PageId[] = [
-  "exercises", "circuits", "phases", "benchmarks", "values", "targets", "weather", "coach", "aiDirect", "sync", "healthConnect", "deviceCalendar", "exports", "about",
+  "exercises", "circuits", "phases", "benchmarks", "values", "targets", "weather", "coach", "aiDirect", "sync", "activityImport", "healthConnect", "deviceCalendar", "exports", "about",
 ];
 
 /** What the confirm says the reset covers. */

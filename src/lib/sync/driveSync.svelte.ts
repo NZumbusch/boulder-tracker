@@ -84,7 +84,7 @@ function emptyTables(): Record<string, unknown> {
 
 /** Whether this device holds anything beyond the built-in defaults worth merging rather than replacing. */
 function hasOwnData(): boolean {
-  return ["workouts", "dailyMetrics", "benchmarks", "painLogs", "painIssues", "outdoorAscents", "goals", "trainingBlocks"].some(
+  return ["workouts", "dailyMetrics", "benchmarks", "painLogs", "painIssues", "outdoorAscents", "externalActivities", "goals", "trainingBlocks"].some(
     (t) => (_dbState[t] as unknown[] | undefined)?.length,
   );
 }

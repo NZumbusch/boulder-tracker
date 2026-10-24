@@ -19,6 +19,7 @@ import type {
   PainLog,
   PainIssue,
   OutdoorAscent,
+  ExternalActivity,
   ValueDef,
 } from "../types";
 import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
@@ -143,6 +144,7 @@ async function replaceDatabase(data: any): Promise<void> {
   if (data.painLogs) _dbState.painLogs = data.painLogs;
   if (data.painIssues) _dbState.painIssues = data.painIssues;
   if (data.outdoorAscents) _dbState.outdoorAscents = data.outdoorAscents;
+  _dbState.externalActivities = data.externalActivities ?? [];
   if (data.settings) _dbState.settings = data.settings;
   if (data.valueDefs) _dbState.valueDefs = data.valueDefs;
   _dbState.exportVersion = data.exportVersion || "1.0";
@@ -175,6 +177,8 @@ export const storage = {
   async _getDailyMetrics(): Promise<DailyMetricEntry[]> { await initDB(); return _dbState.dailyMetrics; },
   async _getPainLogs(): Promise<PainLog[]> { await initDB(); return _dbState.painLogs; },
   async _getPainIssues(): Promise<PainIssue[]> { await initDB(); return _dbState.painIssues; },
+  async _getExternalActivities(): Promise<ExternalActivity[]> { await initDB(); return _dbState.externalActivities ?? []; },
+  async _saveExternalActivities(items: ExternalActivity[]): Promise<void> { await initDB(); _dbState.externalActivities = toPlain(items); await flushDB(["externalActivities"]); },
   async _getOutdoorAscents(): Promise<OutdoorAscent[]> { await initDB(); return _dbState.outdoorAscents; },
   async _getValueDefs(): Promise<ValueDef[]> { await initDB(); return _dbState.valueDefs ?? []; },
   async _getSettings(): Promise<SettingsRecord[]> { await initDB(); return _dbState.settings ?? []; },
@@ -776,6 +780,25 @@ export const storage = {
   async addOutdoorAscents(newAscents: OutdoorAscent[]): Promise<void> {
     const ascents = await this._getOutdoorAscents();
     await this._saveOutdoorAscents([...ascents, ...newAscents]);
+  },
+
+  async getExternalActivities(): Promise<ExternalActivity[]> {
+    return this._getExternalActivities();
+  },
+
+  /** Adds imported activities in one write; ids already stored are left as they are. */
+  async addExternalActivities(incoming: ExternalActivity[]): Promise<number> {
+    const have = await this._getExternalActivities();
+    const ids = new Set(have.map((a) => a.id));
+    const fresh = incoming.filter((a) => !ids.has(a.id));
+    if (fresh.length) await this._saveExternalActivities([...have, ...fresh]);
+    return fresh.length;
+  },
+
+  async deleteExternalActivities(ids: string[]): Promise<void> {
+    const drop = new Set(ids);
+    const have = await this._getExternalActivities();
+    await this._saveExternalActivities(have.filter((a) => !drop.has(a.id)));
   },
 
   async deleteOutdoorAscent(id: string): Promise<void> {

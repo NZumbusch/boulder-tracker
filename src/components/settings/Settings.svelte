@@ -1,6 +1,7 @@
 <script lang="ts">
   import AppBar from '../nav/AppBar.svelte';
   import HealthConnectSettings from './HealthConnectSettings.svelte';
+  import ActivityImportSettings from './ActivityImportSettings.svelte';
   import DeviceCalendarSettings from './DeviceCalendarSettings.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
@@ -409,6 +410,8 @@
       <BackupSettings {onExport} {onImport} />
       <SettingsTransfer />
     </div>
+  {:else if page === 'activityImport'}
+    <ActivityImportSettings />
   {:else if page === 'healthConnect'}
     <HealthConnectSettings />
   {:else if page === 'deviceCalendar'}

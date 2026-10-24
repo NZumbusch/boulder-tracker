@@ -1199,6 +1199,14 @@ const MIGRATIONS: MigrationStep[] = [
       data.places = Array.isArray(data.places) ? data.places : [];
     },
   },
+  {
+    from: "3.37",
+    to: "3.38",
+    describe: "Add externalActivities - runs, rides and other activities imported from other services (empty by default)",
+    migrate: (data: any) => {
+      data.externalActivities = Array.isArray(data.externalActivities) ? data.externalActivities : [];
+    },
+  },
 ];
 
 /**

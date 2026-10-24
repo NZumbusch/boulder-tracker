@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-10-31-strava-import",
+    title: "Import from Strava",
+    points: [
+      "Settings → Data & connections → Import activities: pick the activities.csv from your Strava export to keep your runs, rides and hikes as history.",
+      "They are not sessions and do not change your load. Importing the same file again adds nothing twice.",
+    ],
+  },
+  {
     id: "2026-10-30-circuit-builder",
     title: "Easier circuits",
     points: [
