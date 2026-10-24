@@ -11,6 +11,8 @@
   import { measuresWithData, summariseSeries, type WellnessMeasure } from '../../lib/analytics/wellnessSeries';
   import Segmented from '../ui/Segmented.svelte';
   import { formatDay } from '../../lib/dateUtils';
+  import { isTapPointer } from '../../lib/analytics/chartTips.svelte';
+  import { TapTracker } from '../../lib/analytics/columnPicker.svelte';
 
   let { firstDay, lastDay, today }: { firstDay: number; lastDay: number; today: number } = $props();
 
@@ -68,6 +70,46 @@
     return `M ${top.join(' L ')} L ${bottom.join(' L ')} Z`;
   }
 
+  // --- Readout: the hovered or tapped day, shown in a line above the chart (like Recovery Trends above) rather than a floating tip,
+  // so it never has to fit beside a finger.
+  let selected = $state<number | null>(null);
+  let plotEl = $state<HTMLElement | null>(null);
+  function dayAt(event: PointerEvent): number | null {
+    if (!plotEl) return null;
+    const rect = plotEl.getBoundingClientRect();
+    const day = firstDay + Math.floor(((event.clientX - rect.left) / rect.width) * dayCount);
+    return day < firstDay || day > drawnLast ? null : day;
+  }
+  function onMove(event: PointerEvent) {
+    if (!isTapPointer(event)) selected = dayAt(event);
+  }
+  const taps = new TapTracker();
+  function onTap(event: PointerEvent) {
+    // A swipe across the chart pages the window; it must not also pick a day.
+    if (!isTapPointer(event) || !taps.isTap(event)) return;
+    const day = dayAt(event);
+    selected = day === selected ? null : day;
+  }
+  /** Arrow keys walk the days from the latest, Home and End jump, Escape clears. */
+  function onKey(event: KeyboardEvent) {
+    if (event.key === 'Escape') { selected = null; return; }
+    const from = selected ?? drawnLast;
+    const next = event.key === 'ArrowLeft' ? from - 1 : event.key === 'ArrowRight' ? from + 1 : event.key === 'Home' ? firstDay : event.key === 'End' ? drawnLast : null;
+    if (next === null) return;
+    event.preventDefault();
+    selected = Math.max(firstDay, Math.min(drawnLast, next));
+  }
+  $effect(() => {
+    const onDown = (event: PointerEvent) => {
+      if (plotEl && !plotEl.contains(event.target as Node)) selected = null;
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  });
+  // A measure with other days (or none) in its window starts clean.
+  $effect(() => { void measure?.id; void firstDay; void lastDay; selected = null; });
+  const picked = $derived(selected === null ? null : lines.map((l) => ({ line: l, day: l.days[selected! - firstDay] })));
+
   const fmt = (v: number | undefined) => (v === undefined ? '–' : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : (Math.round(v * 10) / 10).toString());
   const POSITION_WORDS: Record<string, string> = { above: 'above your usual range', below: 'below your usual range', within: 'within your usual range' };
 </script>
@@ -101,13 +143,47 @@
       {/each}
     </div>
 
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-40 overflow-visible" role="img" aria-label="{measure.label} over the window">
-      {#each lines as l, i (l.id)}
-        {#if i === 0}<path d={bandPath(l.days)} fill="var(--color-series-{l.colorSlot})" opacity="0.12" />{/if}
-        <path d={dotPath(l.days)} fill="none" stroke="var(--color-series-{l.colorSlot})" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity="0.4" />
-        <path d={avgPath(l.days)} fill="none" stroke="var(--color-series-{l.colorSlot})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
-      {/each}
-    </svg>
+    <!-- The tapped or hovered day, in words: its date and, per line, the reading, its 7-day average and your usual range. -->
+    <div class="min-h-[1.25rem] flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-caption tabular-nums" aria-live="polite">
+      {#if picked && selected !== null}
+        <span class="text-content-muted">{formatDay(dayIndexToIso(selected), { weekday: 'short', year: true })}</span>
+        {#each picked as { line, day } (line.id)}
+          <span>
+            <span class="inline-block w-2 h-2 rounded-full align-middle mr-1" style="background: var(--color-series-{line.colorSlot})"></span>
+            <span class="text-content">{fmt(day?.value)}{day?.value !== undefined && measure.unit ? ` ${measure.unit}` : ''}</span>
+            {#if day?.avg !== undefined}<span class="text-content-subtle"> · 7-day {fmt(day.avg)}</span>{/if}
+            {#if day?.baseline !== undefined && day.sd !== undefined}<span class="text-content-subtle"> · usual {fmt(day.baseline - day.sd)}–{fmt(day.baseline + day.sd)}</span>{/if}
+          </span>
+        {/each}
+      {:else}
+        <span class="text-content-subtle">Hover or tap a day to see its values.</span>
+      {/if}
+    </div>
+
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+    <div
+      bind:this={plotEl}
+      class="relative cursor-crosshair select-none"
+      role="application"
+      tabindex="0"
+      aria-label="{measure.label} by day. Left and right arrow keys move between days; the line above gives the values."
+      onkeydown={onKey}
+      onpointerdown={taps.down}
+      onpointermove={onMove}
+      onpointerleave={(e) => { if (!isTapPointer(e)) selected = null; }}
+      onpointerup={onTap}
+    >
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-40 overflow-visible" role="img" aria-label="{measure.label} over the window">
+        {#each lines as l, i (l.id)}
+          {#if i === 0}<path d={bandPath(l.days)} fill="var(--color-series-{l.colorSlot})" opacity="0.12" />{/if}
+          <path d={dotPath(l.days)} fill="none" stroke="var(--color-series-{l.colorSlot})" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity="0.4" />
+          <path d={avgPath(l.days)} fill="none" stroke="var(--color-series-{l.colorSlot})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+        {/each}
+      </svg>
+      {#if selected !== null}
+        <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {x(selected)}%"></div>
+      {/if}
+    </div>
     <div class="flex justify-between text-caption text-content-subtle tabular-nums">
       <span>{fmt(bounds.min)} – {fmt(bounds.max)}{measure.unit ? ` ${measure.unit}` : ''}</span>
       <span>{formatDay(dayIndexToIso(firstDay), { year: true })} → {formatDay(dayIndexToIso(drawnLast), { year: true })}</span>
