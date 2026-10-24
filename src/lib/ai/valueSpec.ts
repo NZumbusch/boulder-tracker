@@ -209,11 +209,13 @@ export function renderValueFieldReference(): string {
     if (spec.unit) parts.push(spec.unit);
     let line = `- ${name} (${parts.join(", ")}): ${spec.description}`;
     if (spec.enum) {
-      line += `\n    Allowed values (use EXACTLY one of these strings): ${spec.enum.map((v) => `"${v}"`).join(", ")}`;
+      // Two fields on one list (min and max grade) name it once.
+      const same = EXERCISE_VALUE_FIELD_NAMES.slice(0, EXERCISE_VALUE_FIELD_NAMES.indexOf(name)).find((n) => EXERCISE_VALUE_SPEC[n].enum === spec.enum);
+      line += same ? `\n    Same list as ${same}.` : `\n    Exactly one of: ${spec.enum.map((v) => `"${v}"`).join(", ")}`;
     }
     return line;
   });
-  lines.push(`- perSet (array of objects, optional): ONLY when the sets differ - one object per set with just the numbers that differ or are set per set: "reps", "weight" (kg), "timeOn", "bodyweightPercent", "maxWeightPercent", "boardAngle", "holdSize", "distance". E.g. a pyramid: "perSet": [{"reps": 5, "weight": 60}, {"reps": 3, "weight": 70}, {"reps": 1, "weight": 80}]. When every set is the same use the plain fields ("sets", "reps", "weight") and no perSet.`);
+  lines.push(`- perSet (array of objects, optional): ONLY when the sets differ - one object per set with just the numbers that differ: "reps", "weight" (kg), "timeOn", "bodyweightPercent", "maxWeightPercent", "boardAngle", "holdSize", "distance". E.g. a pyramid: "perSet": [{"reps": 5, "weight": 60}, {"reps": 3, "weight": 70}, {"reps": 1, "weight": 80}]. Equal sets: the plain fields and no perSet.`);
   return lines.join("\n");
 }
 

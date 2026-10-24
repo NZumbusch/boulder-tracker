@@ -5,7 +5,7 @@ import { buildAIContextProfile, type AIContextProfile, type AIContextSource, typ
 import { buildPlanContext, type PlanContextInput } from "./planContext";
 import type { AISharingPreferences } from "../preferences/migrate";
 import type { AIHistoryWindow } from "../preferences/migrate";
-import { AI_CHANGESET_INSTRUCTIONS } from "./changeSetPrompt";
+import { buildChangeSetInstructions, type ChangeSetPromptOptions } from "./changeSetPrompt";
 import { renderCoachMemory, COACH_MEMORY_READ_ONLY } from "./coachNotes";
 import type { AthleteProfile, CoachNote } from "../types";
 import type { DayOfWeek } from "../types";
@@ -148,10 +148,31 @@ export interface CoachPromptInput {
   coachMemory?: string;
   /** What happened since the plan was last changed (`buildSinceLastPlan`) - empty when there's nothing yet. */
   sinceLast?: string;
+  /** Which optional parts of the reply contract to spell out ("generate" only); all of them when absent. */
+  contract?: ChangeSetPromptOptions;
+}
+
+const PLAN_B_ASKED = /plan\s*b|uncertain|either way|depending on (the )?weather|if it rains|rain|weather|dry\b/i;
+const PLACE_ASKED = /\b(places?|gyms?|crags?|venues?|locations?|boulderwelt)\b/i;
+
+/**
+ * The parts of the reply contract this request can use: Plan B only with
+ * uncertain days, a Plan B already in the plan or a request that mentions
+ * one; tests only with a Tests section; coach notes when sharing them is
+ * on; places when I have some or the request names one.
+ */
+export function contractFor(input: { profile: AIContextProfile; goal: string; planContext?: string; uncertainDays?: DayOfWeek[]; coachNotes: boolean }): ChangeSetPromptOptions {
+  const { profile, goal, planContext, uncertainDays, coachNotes } = input;
+  return {
+    planB: !!uncertainDays?.length || !!planContext?.includes("PLAN B -") || PLAN_B_ASKED.test(goal),
+    tests: !!profile.tests?.length,
+    coachNotes,
+    places: !!profile.places?.length || PLACE_ASKED.test(goal),
+  };
 }
 
 export function buildCoachPrompt(input: CoachPromptInput): string {
-  const { mode, profile, targetWeekIds, goal, planContext, history, coachMemory, sinceLast } = input;
+  const { mode, profile, targetWeekIds, goal, planContext, history, coachMemory, sinceLast, contract } = input;
   const profileText = renderProfileSections(profile, mode, history);
   // The coaching memory comes first: it's what every AI coach should know
   // before reading the data. Only a change set can update it.
@@ -179,7 +200,7 @@ ${sinceLast ? `\n${sinceLast}\n` : ""}
 My current plan:
 ${planContext ?? ""}
 
-${AI_CHANGESET_INSTRUCTIONS}`;
+${buildChangeSetInstructions(contract)}`;
   }
 
   return `You are an elite climbing coach. Please analyze my training data and performance from the specified timeframe and give me detailed feedback.
@@ -269,5 +290,6 @@ export function buildCoachPromptFor(
         share: { readinessMetrics: source.aiSharing.readinessMetrics, outdoorAscents: source.aiSharing.outdoorAscents },
       })
     : "";
-  return buildCoachPrompt({ mode, profile, targetWeekIds, goal, planContext, history, coachMemory, sinceLast });
+  const contract = mode === "generate" ? contractFor({ profile, goal, planContext, uncertainDays: opts.uncertainDays, coachNotes: source.aiSharing.coachNotes !== false }) : undefined;
+  return buildCoachPrompt({ mode, profile, targetWeekIds, goal, planContext, history, coachMemory, sinceLast, contract });
 }
