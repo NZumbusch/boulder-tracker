@@ -270,6 +270,8 @@ function capitalize(s: string): string {
 function buildAdvice(config: ReadinessConfig, args: {
   fatigueUsed: boolean;
   fatigueComposite: number | undefined;
+  /** Whether finger fatigue is rated at all; without it (only imported activities) the text says "whole-body". */
+  fatigueFingers?: boolean;
   acwrUsed: boolean;
   acwr: RollingAcwrResult;
   sleepUsed: boolean;
@@ -284,9 +286,9 @@ function buildAdvice(config: ReadinessConfig, args: {
   const clauses: string[] = [];
 
   if (args.fatigueUsed && args.fatigueComposite! >= 7) {
-    clauses.push("fingers and systemic fatigue are elevated");
+    clauses.push(args.fatigueFingers === false ? "whole-body fatigue is elevated" : "fingers and systemic fatigue are elevated");
   } else if (args.fatigueUsed && args.fatigueComposite! <= 3) {
-    clauses.push("fatigue is low - fingers and systemic feel fresh");
+    clauses.push(args.fatigueFingers === false ? "fatigue is low - you feel fresh" : "fatigue is low - fingers and systemic feel fresh");
   }
 
   if (args.acwrUsed && args.acwr.ratio! > config.acwrHighRisk) {
@@ -422,7 +424,7 @@ export function computeReadiness(inputs: ReadinessInputs, config: ReadinessConfi
   return {
     score,
     status: readinessStatus(score),
-    advice: buildAdvice({ ...config, sleepShortHours }, { fatigueUsed, fatigueComposite, acwrUsed, acwr, sleepUsed, sleep, sleepHours, napHours, hrvUsed, hrvDipPct, painUsed, pain: inputs.pain }),
+    advice: buildAdvice({ ...config, sleepShortHours }, { fatigueUsed, fatigueComposite, fatigueFingers: fatigue.fingers !== undefined, acwrUsed, acwr, sleepUsed, sleep, sleepHours, napHours, hrvUsed, hrvDipPct, painUsed, pain: inputs.pain }),
     inputsUsed,
     confidence: buildConfidence(inputsUsed, acwr, use),
     penalties,

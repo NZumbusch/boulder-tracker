@@ -350,7 +350,7 @@
   // correlation) - scoped to the same window as the charts.
   const allWeekIds = $derived(buckets.flatMap((b) => b.weekIds));
   const weekLabels = $derived(Object.fromEntries(buckets.map((b) => [b.id, b.label])));
-  const acwrResults = $derived(calculateAcwrForBuckets(trainingState.workouts, buckets));
+  const acwrResults = $derived(calculateAcwrForBuckets(trainingState.workoutsForLoad, buckets));
   // How much of the plan is done, per column and over the window so far -
   // logged vs planned work, both from the exercises (see `planProgress`),
   // the same measure as Home's This Week. Weeks still ahead are left out of
@@ -382,12 +382,12 @@
     // Nothing to sample in a column that hasn't started yet.
     if (b.startDay > today) return { weekId: b.id };
     // Only what had happened by the column's end: a later session would count as 'that day' and make every column before the first one read max fatigue.
-    const sofar = trainingState.completedWorkouts.filter((w) => w.date && toUtcDayIndex(w.date) <= b.endDay);
+    const sofar = trainingState.completedForLoad.filter((w) => w.date && toUtcDayIndex(w.date) <= b.endDay);
     const decay = computeFatigueDecay(sofar, new Date(b.endDay * 86400000), trainingState.fatigueModel);
     return { weekId: b.id, fingers: decay.fingers, arms: decay.arms, core: decay.core, systemic: decay.systemic };
   }));
   const fatigueCoverage = $derived.by(() => {
-    const inWindow = trainingState.completedWorkouts.filter((w) => w.weekId && allWeekIds.includes(w.weekId));
+    const inWindow = trainingState.completedForLoad.filter((w) => w.weekId && allWeekIds.includes(w.weekId));
     const c = { total: inWindow.length, fingers: 0, arms: 0, core: 0, systemic: 0 };
     inWindow.forEach((w) => {
       if (w.fingers !== undefined) c.fingers++;
@@ -424,7 +424,7 @@
 
   // --- Pro metrics: monotony & strain, finger load.
   const strainColumns = $derived.by(() => {
-    const byDay = dailyLoadByDay(trainingState.workouts);
+    const byDay = dailyLoadByDay(trainingState.workoutsForLoad);
     return buckets.map((b) => ({ id: b.id, label: b.label, isCurrent: b.isCurrent, ...bucketStrain(byDay, b.weekIds) }));
   });
   const fingerColumns = $derived.by(() => {
@@ -578,7 +578,7 @@
       {/snippet}
 
       {#snippet painSection()}
-      <PainTimelinePanel {firstDay} {lastDay} rows={painData.rows} spikeIds={painData.spikeIds} loadByDay={dailyLoadByDay(trainingState.workouts)} />
+      <PainTimelinePanel {firstDay} {lastDay} rows={painData.rows} spikeIds={painData.spikeIds} loadByDay={dailyLoadByDay(trainingState.workoutsForLoad)} />
       {/snippet}
 
       {#snippet benchmarkOverviewSection()}

@@ -12,6 +12,8 @@
  * display units are a separate preference.
  */
 
+import { EFFORT_KINDS } from "../activity/externalLoad";
+
 export type TunableTopic = "model" | "outdoor" | "layout";
 
 interface BaseDef {
@@ -46,6 +48,11 @@ export type TunableDef = NumberTunable | BooleanTunable;
 
 export const TUNABLES: TunableDef[] = [
   // --- Training model ---
+  // --- Other training: imported activities (lib/activity/externalLoad.ts) ---
+  { id: "load.otherEnabled", topic: "model", group: "Other training", label: "Count imported activities", hint: "Runs, rides, walks and workouts from Strava or Garmin add to the load ratio, fatigue and readiness. Off keeps them as history only", kind: "boolean", default: true },
+  { id: "load.otherWeight", topic: "model", group: "Other training", label: "How much they count", hint: "Their load next to climbing: 1 is the same minute for minute at the same effort, 0.5 half as much", kind: "number", default: 1, min: 0.1, max: 2, step: 0.1 },
+  { id: "load.otherUseHr", topic: "model", group: "Other training", label: "Use heart rate for effort", hint: "For walks, runs, rides, swims and cardio: the average heart rate as a share of your highest sets the effort. Off uses the efforts below", kind: "boolean", default: true },
+  ...EFFORT_KINDS.map((k): TunableDef => ({ id: `load.effort.${k.kind}`, topic: "model", group: "Other training", label: `Effort: ${k.label.toLowerCase()}`, hint: k.kind === "walk" ? "1-10 like the session ratings; 0 = don't count this kind. Used when there is no heart rate (and always for weights)" : undefined, kind: "number", default: k.default, min: 0, max: 10, step: 0.5 })),
   { id: "readiness.useFatigue", topic: "model", group: "Readiness score", label: "Count fatigue", kind: "boolean", default: true },
   { id: "readiness.useAcwr", topic: "model", group: "Readiness score", label: "Count load (ACWR)", kind: "boolean", default: true },
   { id: "readiness.useSleep", topic: "model", group: "Readiness score", label: "Count sleep", kind: "boolean", default: true },

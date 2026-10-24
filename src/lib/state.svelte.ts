@@ -17,6 +17,7 @@ import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, Goal
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate, trainingDayDate, formatWeekWithDates, weekIdOfIso } from './dateUtils';
 import { sessionIsoDay } from './activity/overlap';
+import { EFFORT_KINDS, externalAsWorkouts, type ExternalLoadConfig } from './activity/externalLoad';
 import { slotTypeName } from './exerciseSlot';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
@@ -507,6 +508,21 @@ class TrainingState {
   }
   /** A test is due this many weeks after its last result (Settings -> Home). */
   get retestWeeks() { return this.tunable('progress.retestWeeks'); }
+  /** How imported activities count as load (Settings -> Training model -> Other training). */
+  get externalLoadConfig(): ExternalLoadConfig {
+    const t = this.preferencesStore.tunables;
+    return {
+      enabled: flag(t, 'load.otherEnabled'),
+      weight: num(t, 'load.otherWeight'),
+      useHeartRate: flag(t, 'load.otherUseHr'),
+      effort: Object.fromEntries(EFFORT_KINDS.map((k) => [k.kind, num(t, `load.effort.${k.kind}`)])) as ExternalLoadConfig['effort'],
+    };
+  }
+  /** Imported activities as pseudo-sessions - for load, fatigue and readiness only, never for lists or counts. */
+  externalWorkouts = $derived(externalAsWorkouts(this.externalActivities, this.externalLoadConfig));
+  /** Every session plus the imported activities that count: what load, the load ratio, fatigue and readiness are computed from. */
+  workoutsForLoad = $derived([...this.workouts, ...this.externalWorkouts]);
+  completedForLoad = $derived([...this.completedWorkouts, ...this.externalWorkouts]);
   get fatigueHalfLife() { return num(this.preferencesStore.tunables, 'fatigue.halfLifeDays'); }
   /** Half-life and softening for accumulated fatigue - see `computeFatigueDecay`. */
   get fatigueModel(): FatigueModel {

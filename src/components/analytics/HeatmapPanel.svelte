@@ -17,7 +17,7 @@
   let { endDay, today }: { endDay: number; today: number } = $props();
 
   const lastDay = $derived(Math.min(endDay, today));
-  const grid = $derived(heatmap(dailyLoadByDay(trainingState.workouts), lastDay));
+  const grid = $derived(heatmap(dailyLoadByDay(trainingState.workoutsForLoad), lastDay));
   // Half a year by default: a year's 53 columns leave ~5 px cells on a phone, too small to read or tap.
   let wholeYear = $state(false);
   const shown = $derived(wholeYear ? grid : grid.slice(-26));

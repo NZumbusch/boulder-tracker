@@ -40,8 +40,8 @@ export class HomeData {
   });
 
   // --- Readiness and its inputs ---
-  fatigueDecay = $derived(computeFatigueDecay(trainingState.completedWorkouts, this.asOf, trainingState.fatigueModel));
-  acwr = $derived(calculateRollingAcwr(trainingState.workouts, this.asOf));
+  fatigueDecay = $derived(computeFatigueDecay(trainingState.completedForLoad, this.asOf, trainingState.fatigueModel));
+  acwr = $derived(calculateRollingAcwr(trainingState.workoutsForLoad, this.asOf));
   hrvBaseline = $derived(computeHrvBaseline(trainingState.dailyMetrics, this.asOf));
   readiness = $derived(
     computeReadiness({

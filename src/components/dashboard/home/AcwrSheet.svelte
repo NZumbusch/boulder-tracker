@@ -16,7 +16,7 @@
 
   const close = () => (acwrSheet.open = false);
 
-  const breakdown = $derived(acwrSheet.open ? calculateAcwrBreakdown(trainingState.workouts, trainingState.today) : undefined);
+  const breakdown = $derived(acwrSheet.open ? calculateAcwrBreakdown(trainingState.workoutsForLoad, trainingState.today) : undefined);
   const zones = $derived(trainingState.acwrZones);
   const maxLoad = $derived(Math.max(1, ...(breakdown?.blocks.map((b) => b.load) ?? [0])));
   const BLOCK_LABELS = ['Last 7 days', '8-14 days ago', '15-21 days ago', '22-28 days ago'];

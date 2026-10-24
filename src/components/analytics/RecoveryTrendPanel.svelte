@@ -95,11 +95,11 @@
   );
   const afterBreak = $derived(shown.some((m) => m.series.some((d) => d.baselineAfterBreak && d.value !== undefined)));
 
-  const loadByDay = $derived(dailyLoadByDay(trainingState.workouts));
+  const loadByDay = $derived(dailyLoadByDay(trainingState.workoutsForLoad));
   const maxLoad = $derived(Math.max(1, ...Array.from({ length: dayCount }, (_, i) => loadByDay.get(firstDay + i) ?? 0)));
   const readiness = $derived(
     drawnLast >= firstDay
-      ? readinessByDay(trainingState.workouts, trainingState.dailyMetrics, firstDay, drawnLast, {
+      ? readinessByDay(trainingState.workoutsForLoad, trainingState.dailyMetrics, firstDay, drawnLast, {
           config: trainingState.readinessConfig,
           halfLife: trainingState.fatigueModel,
           pain: { issues: trainingState.painIssues, logs: trainingState.painLogs },
@@ -110,7 +110,7 @@
     for (let d = drawnLast; d >= firstDay; d--) { const v = readiness.get(d); if (v !== undefined) return v; }
     return undefined;
   });
-  const insights = $derived(loadRecoveryInsights(trainingState.dailyMetrics, trainingState.workouts, today));
+  const insights = $derived(loadRecoveryInsights(trainingState.dailyMetrics, trainingState.workoutsForLoad, today));
 
   // --- Path building. Everything is drawn in a 0-100 viewBox stretched to
   // the plot; dots are zero-length round-capped strokes with
