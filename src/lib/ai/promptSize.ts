@@ -46,7 +46,7 @@ const PARTS: [RegExp, string][] = [
   [/^- Weekly History/, "Older weeks, one line each"],
   [/^- (My Test Results|Test Results Recorded)/, "Test results"],
   [/^- Tests /, "Tests"],
-  [/^- Recent Outdoor Ascents/, "Outdoor ascents"],
+  [/^- (Recent )?Outdoor Ascents/, "Outdoor ascents"],
   [/^- Readiness Snapshot/, "Readiness snapshot"],
   [/^- Recovery Data/, "Recovery"],
   [/^- Other Training/, "Other training"],

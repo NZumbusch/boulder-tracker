@@ -30,6 +30,7 @@ import { exerciseGroup } from "../exercise/library";
 import { customValuesReference } from "./valueSpec";
 import { painLevelOn, groupLogsIntoIssues, checkInsFor, issueState, daysBetween, STATUS_LABELS, KIND_LABELS, TIMING_LABELS } from "../pain/issues";
 import { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
+import { workoutDay } from "../planning/weekStatus";
 export { buildWeeklyHistory, type WeekHistorySummary } from "../analytics/weekSummary";
 import {
   computeFatigueDecay,
@@ -41,6 +42,8 @@ import {
 } from "../analytics/readiness";
 import { calculateRollingAcwr } from "../analytics/loadAnalytics";
 import { loggedMetrics } from "../analytics/metricValues";
+import { parseFontGrade } from "../analytics/grades";
+import { normalizeGrade } from "../sends/matching";
 import { DEFAULT_AI_DETAIL, DEFAULT_AI_HISTORY, type AIDetail, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
 import { buildOtherTrainingContext, buildRecoveryContext, type OtherTrainingContext, type RecoveryContext } from "./wellnessContext";
 import { describeFinding, predictBestSessions } from "../analytics/sessionPredictors";
@@ -81,9 +84,9 @@ import { getDominantBlockForWeek, blockFirstWeekId, blockLastWeekId } from "../p
 const BLOCK_WINDOW_MARGIN_WEEKS = 4;
 const COMPETITION_LOOKAHEAD_LIMIT = 5;
 const PAIN_LOG_LIMIT = 10;
-const OUTDOOR_ASCENT_LIMIT = 20;
-/** A compact prompt: only the latest few - the grade history, not the log. */
-const COMPACT_ASCENT_LIMIT = 8;
+const OUTDOOR_ASCENT_LIMIT = 6;
+/** A compact prompt: only the latest few - the summary carries the grade history. */
+const COMPACT_ASCENT_LIMIT = 4;
 const METRIC_TREND_DAYS = 14;
 /** Analyze: how many of the target weeks get a weekly review line block. */
 const MAX_ANALYZE_REVIEWS = 6;
@@ -158,8 +161,12 @@ export interface RecentWorkoutExerciseSummary {
 }
 
 export interface RecentWorkoutSummary {
+  /** The day, "YYYY-MM-DD". */
   date: string | null;
-  status: Workout["status"];
+  /** The weekday, "Tue". */
+  day?: string;
+  /** Left out for a completed session: a history list is all completed ones. */
+  status?: Workout["status"];
   weekId: string;
   /** The session name (`Workout.notes` - see its own doc comment: "Used as the session name"). */
   name?: string;
@@ -195,8 +202,9 @@ export function workoutNoteSharing(sharing: Pick<AISharingPreferences, "sessionN
 
 export function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], notes: WorkoutNoteSharing = { logNotes: true, planNotes: false }): RecentWorkoutSummary {
   return {
-    date: w.date,
-    status: w.status,
+    date: w.date ? w.date.slice(0, 10) : null,
+    ...(workoutDay(w) ? { day: workoutDay(w)!.slice(0, 3) } : {}),
+    ...(w.status === "completed" ? {} : { status: w.status }),
     weekId: w.weekId,
     name: w.notes || undefined,
     startTime: w.startTime,
@@ -603,6 +611,39 @@ export function buildOutdoorAscentContext(ascents: OutdoorAscent[], limit = OUTD
     .map((a) => ({ date: a.date, grade: a.grade, style: a.style, crag: a.crag }));
 }
 
+export interface OutdoorSummary {
+  total: number;
+  /** The earliest ascent on record, "YYYY-MM". */
+  since?: string;
+  /** Ascents in the last 12 months by grade, hardest first. */
+  last12Months: Record<string, number>;
+  /** The hardest grade sent in each style, all time. */
+  hardest: Record<string, { grade: string; date: string }>;
+}
+
+const STYLE_KEYS = ["onsight", "flash", "redpoint"] as const;
+const rank = (grade: string) => parseFontGrade(normalizeGrade(grade)) ?? -1;
+
+/** The grade picture of the outdoor log in one object: counts per grade lately, and the hardest per style. */
+export function buildOutdoorSummary(ascents: OutdoorAscent[], asOf: Date): OutdoorSummary | undefined {
+  if (ascents.length === 0) return undefined;
+  const cutoff = new Date(asOf.getTime() - 365 * 86_400_000).toISOString().slice(0, 10);
+  const recent = ascents.filter((a) => a.date.slice(0, 10) >= cutoff);
+  const counts = new Map<string, number>();
+  for (const a of recent) counts.set(normalizeGrade(a.grade) || a.grade, (counts.get(normalizeGrade(a.grade) || a.grade) ?? 0) + 1);
+  const hardest: OutdoorSummary["hardest"] = {};
+  for (const key of STYLE_KEYS) {
+    const best = ascents.filter((a) => a.style?.toLowerCase().includes(key)).reduce<OutdoorAscent | undefined>((x, y) => (!x || rank(y.grade) > rank(x.grade) ? y : x), undefined);
+    if (best && rank(best.grade) >= 0) hardest[key] = { grade: best.grade, date: best.date.slice(0, 10) };
+  }
+  return {
+    total: ascents.length,
+    since: [...ascents].map((a) => a.date).sort()[0].slice(0, 7),
+    last12Months: Object.fromEntries([...counts].sort((a, b) => rank(b[0]) - rank(a[0]))),
+    hardest,
+  };
+}
+
 // --- Orchestrator ----------------------------------------------------------
 
 export interface AIContextSource {
@@ -662,6 +703,59 @@ export function describeBenchmarks(results: Benchmark[], types: BenchmarkTypeDef
     const conditions = values ? otherValuesText({ ...b, values }, resolveFields(type, defs ?? [])) : "";
     return { ...b, ...(conditions ? { conditions } : {}), ...(type.direction === "lower" ? { better: "lower" as const } : {}) };
   });
+}
+
+/** How many of a test's latest results go into a prompt (the best of each set-up is added when it is older). */
+const BENCHMARK_LATEST = 4;
+
+/** A result for a prompt: what a reader needs, without ids. */
+export interface AIBenchmarkLine {
+  type: string;
+  value: number;
+  unit: string;
+  /** "YYYY-MM-DD". */
+  date: string;
+  conditions?: string;
+  notes?: string;
+  better?: "lower";
+  /** The best result of its set-up so far, when it isn't one of the latest. */
+  best?: true;
+}
+
+/**
+ * The results as the AI reads them: per test the latest few, plus the best
+ * of each set-up (same conditions) - a grade history, not the log, so the
+ * prompt stops growing with the years.
+ */
+export function condenseBenchmarks(results: Benchmark[], types: BenchmarkTypeDef[] | undefined, defs: ValueDef[] | undefined, latest = BENCHMARK_LATEST): AIBenchmarkLine[] {
+  const described = describeBenchmarks(results, types, defs);
+  const byType = new Map<string, AIBenchmark[]>();
+  for (const b of described) byType.set(b.typeId, [...(byType.get(b.typeId) ?? []), b]);
+  const picked = new Set<AIBenchmark>();
+  const bests = new Set<AIBenchmark>();
+  for (const list of byType.values()) {
+    const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
+    for (const b of sorted.slice(-latest)) picked.add(b);
+    const bySetup = new Map<string, AIBenchmark[]>();
+    for (const b of sorted) bySetup.set(b.conditions ?? "", [...(bySetup.get(b.conditions ?? "") ?? []), b]);
+    for (const group of bySetup.values()) {
+      const best = group.reduce((x, y) => (y.better === "lower" ? y.value < x.value : y.value > x.value) ? y : x);
+      if (!picked.has(best)) bests.add(best);
+    }
+  }
+  return described
+    .filter((b) => picked.has(b) || bests.has(b))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((b) => ({
+      type: b.type,
+      value: b.value,
+      unit: b.unit,
+      date: b.date.slice(0, 10),
+      ...(b.conditions ? { conditions: b.conditions } : {}),
+      ...(b.notes?.trim() ? { notes: b.notes.trim().slice(0, 120) } : {}),
+      ...(b.better ? { better: b.better } : {}),
+      ...(bests.has(b) ? { best: true as const } : {}),
+    }));
 }
 
 /**
@@ -731,7 +825,7 @@ export interface AIContextProfile {
   recentWorkouts: RecentWorkoutSummary[];
   /** One line per older week - not for analyze, which is scoped to its own weeks. */
   weeklyHistory?: WeekHistorySummary[];
-  benchmarks: AIBenchmark[];
+  benchmarks: AIBenchmarkLine[];
   /** The tests that can be scheduled, with when each was last done (not for analyze). */
   tests?: TestSummary[];
   trainingBlocks?: TrainingBlockSummary[];
@@ -751,6 +845,8 @@ export interface AIContextProfile {
   weeklyReviews?: { week: string; lines: string[]; remark?: string }[];
   painIssues?: PainIssueSummary[];
   outdoorAscents?: OutdoorAscentSummary[];
+  /** The grade picture of the whole outdoor log; the latest few are in `outdoorAscents`. */
+  outdoorSummary?: OutdoorSummary;
   weekNotes?: WeekNote[];
 }
 
@@ -793,7 +889,7 @@ export function buildAIContextProfile(
   // "Analyze Past" looks at what the body and the week were like then, not today.
   const lookAsOf = mode === "analyze" ? analysisAsOf(targetWeekIds, asOf) : asOf;
 
-  const profile: AIContextProfile = { recentWorkouts, benchmarks: describeBenchmarks(benchmarks, source.benchmarkTypes, source.valueDefs) };
+  const profile: AIContextProfile = { recentWorkouts, benchmarks: condenseBenchmarks(benchmarks, source.benchmarkTypes, source.valueDefs, mode === "analyze" ? Infinity : undefined) };
 
   if (mode !== "analyze") {
     const tests = buildTestSummaries(source, asOf, model.retestWeeks);
@@ -804,7 +900,7 @@ export function buildAIContextProfile(
     const phaseOf = sharing.trainingBlocks
       ? (weekId: string) => source.phaseDefs.find((p) => p.id === getDominantBlockForWeek(source.trainingBlocks, weekId)?.phaseId)?.name
       : undefined;
-    profile.weeklyHistory = buildWeeklyHistory(source.workouts, source.exerciseTypes, source.analyticsCategories, historyWeekIds(asOf, history).summary, phaseOf);
+    profile.weeklyHistory = buildWeeklyHistory(source.workouts, source.exerciseTypes, source.analyticsCategories, historyWeekIds(asOf, history).summary, phaseOf, { missed: true });
   }
 
   if (includeCatalog) {
@@ -874,6 +970,8 @@ export function buildAIContextProfile(
   }
   if (sharing.outdoorAscents) {
     profile.outdoorAscents = buildOutdoorAscentContext(source.outdoorAscents, model.compact ? COMPACT_ASCENT_LIMIT : undefined);
+    const outdoor = buildOutdoorSummary(source.outdoorAscents, lookAsOf);
+    if (outdoor) profile.outdoorSummary = outdoor;
   }
   if (sharing.notes) {
     profile.weekNotes = buildWeekNoteContext(source.weekNotes, windowWeekIds);
