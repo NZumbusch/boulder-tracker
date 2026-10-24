@@ -26,7 +26,7 @@ export interface OutdoorAscentImportResult {
  * dependency, matching this codebase's existing convention (see
  * `lib/ai/schema.ts`).
  */
-function parseCsvRows(text: string): string[][] {
+export function parseCsvRows(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";

@@ -911,6 +911,35 @@ export interface OutdoorAscent {
 }
 
 /**
+ * An activity imported from another service (a Strava export:
+ * `lib/importers/stravaCsvImport.ts`) - runs, rides, hikes, anything that
+ * is not one of your own sessions. Kept apart from `Workout`, so it never
+ * changes planned or rated load. The id is built from the source's own id
+ * (`strava-<id>`), so importing the same export twice, or on two synced
+ * devices, never duplicates it.
+ */
+export interface ExternalActivity {
+  id: string;
+  source: "strava";
+  /** The id the source gave it. */
+  sourceId: string;
+  /** Local YYYY-MM-DD the activity started on. */
+  date: string;
+  /** When it started (ISO instant). */
+  start: string;
+  name: string;
+  /** The source's own label: "Run", "Ride", "Rock Climbing"... */
+  type: string;
+  durationSec: number;
+  distanceM?: number;
+  elevationM?: number;
+  avgHr?: number;
+  maxHr?: number;
+  calories?: number;
+  notes?: string;
+}
+
+/**
  * The complete schema for all local user data.
  * Used for exporting and importing full database backups.
  */
@@ -937,6 +966,8 @@ export interface TrainingData {
   painLogs: PainLog[];
   painIssues: PainIssue[];
   outdoorAscents: OutdoorAscent[];
+  /** Activities imported from other services (`ExternalActivity`). */
+  externalActivities: ExternalActivity[];
   /**
    * The portable settings, one record per group (`lib/preferences/portable.ts`).
    * Preferences themselves live in localStorage; this table mirrors the ones
