@@ -1,11 +1,11 @@
-import type { DailyMetricEntry } from "../types";
 import { BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, STEPS_METRIC, STRESS_METRIC, VO2MAX_METRIC } from "../constants";
-import { buildRecoverySeries, readingsByDay, type RecoveryDay } from "./recoverySeries";
+import type { RecoveryDay } from "./recoverySeries";
+import type { ReadingsModel } from "./daily/readingsModel";
 
 /**
  * The wearable-only measures for Analytics' Wellness card: each as day-by-day
- * readings with a 7-day average and your own 28-day normal range, built by
- * the same `buildRecoverySeries` as HRV, sleep and resting heart rate.
+ * readings with a 7-day average and your own 28-day normal range, from the
+ * same `ReadingsModel` series as HRV, sleep and resting heart rate.
  */
 
 export interface WellnessMeasure {
@@ -27,11 +27,8 @@ export const WELLNESS_MEASURES: WellnessMeasure[] = [
 ];
 
 /** The measures that have at least one reading in the window - the card offers only those. */
-export function measuresWithData(entries: DailyMetricEntry[], firstDay: number, lastDay: number): WellnessMeasure[] {
-  return WELLNESS_MEASURES.filter((m) => m.series.some((s) => {
-    for (const day of readingsByDay(entries, s.id).keys()) if (day >= firstDay && day <= lastDay) return true;
-    return false;
-  }));
+export function measuresWithData(readings: ReadingsModel, firstDay: number, lastDay: number): WellnessMeasure[] {
+  return WELLNESS_MEASURES.filter((m) => m.series.some((s) => readings.hasReadings(s.id, firstDay, lastDay)));
 }
 
 export interface WellnessSummary {

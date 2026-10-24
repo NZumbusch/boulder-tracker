@@ -27,6 +27,7 @@
   import PainScreens from './components/health/PainScreens.svelte';
   import { sessionDuration } from './lib/planning/sessionDuration';
   import { onMount } from 'svelte';
+  import { startWarming } from './lib/analytics/daily';
   import { Capacitor } from '@capacitor/core';
   import { shouldAskForNotifications } from './lib/notifications/promptRule';
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
@@ -49,6 +50,12 @@
 
   const drawerNav = $derived(trainingState.navStyle === 'drawer');
   $effect(() => { document.documentElement.dataset.nav = trainingState.navStyle; });
+  // Fill the analytics models in the background once the app has loaded, and again (from the new models) whenever the data
+  // or a setting changes - the returned function stops the previous pass. See lib/analytics/daily.
+  $effect(() => {
+    if (trainingState.isLoading) return;
+    return startWarming([trainingState.readingsModel, trainingState.readinessModel]);
+  });
   // Soft panels (default) or fully flat sections - see `.card` in app.css.
   $effect(() => { document.documentElement.dataset.cards = trainingState.tunableOn('ui.flatCards') ? 'flat' : trainingState.tunableOn('ui.raisedCards') ? 'raised' : 'soft'; });
 

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { DailyMetricEntry } from "../types";
-import { buildRecoverySeries } from "./recoverySeries";
+import { ReadingsModel } from "./daily/readingsModel";
+import type { RecoveryMetricSpec } from "./recoverySeries";
+
+const buildRecoverySeries = (entries: DailyMetricEntry[], spec: RecoveryMetricSpec, first: number, last: number) => new ReadingsModel(entries).recoveryRange(spec, first, last);
 import { measuresWithData, summariseSeries, WELLNESS_MEASURES } from "./wellnessSeries";
 
 const DAY0 = Math.floor(Date.UTC(2026, 8, 1) / 86400000);
@@ -11,9 +14,9 @@ const entries = (metricId: string, values: (number | undefined)[]): DailyMetricE
 describe("measuresWithData", () => {
   it("offers only the measures with a reading in the window", () => {
     const e = [...entries("stress", [30, 32]), ...entries("body-battery-low", [10, 12])];
-    expect(measuresWithData(e, DAY0, DAY0 + 5).map((m) => m.id)).toEqual(["body-battery", "stress"]);
-    expect(measuresWithData(e, DAY0 + 100, DAY0 + 110)).toEqual([]);
-    expect(measuresWithData([], DAY0, DAY0 + 5)).toEqual([]);
+    expect(measuresWithData(new ReadingsModel(e), DAY0, DAY0 + 5).map((m) => m.id)).toEqual(["body-battery", "stress"]);
+    expect(measuresWithData(new ReadingsModel(e), DAY0 + 100, DAY0 + 110)).toEqual([]);
+    expect(measuresWithData(new ReadingsModel([]), DAY0, DAY0 + 5)).toEqual([]);
   });
   it("every measure draws known metric ids", () => {
     expect(WELLNESS_MEASURES.flatMap((m) => m.series.map((s) => s.id))).toEqual(["body-battery-high", "body-battery-low", "stress", "steps", "breathing-sleep", "vo2max"]);

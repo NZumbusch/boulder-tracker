@@ -1,17 +1,26 @@
 import { describe, it, expect } from "vitest";
 import type { Workout, DailyMetricEntry } from "../types";
 import {
-  buildRecoverySeries,
+  buildRecoverySeries as buildFromReadings,
   dayIndexToIso,
   localDayIndex,
-  readingsByDay,
-  readinessByDay,
   loadRecoveryInsights,
   dailyLoadByDay,
   MIN_BASELINE_READINGS,
   sleepMetricId,
+  type RecoveryMetricSpec,
 } from "./recoverySeries";
 import { toUtcDayIndex } from "../dateUtils";
+import { buildReadingsIndex } from "./metricValues";
+import { ReadingsModel } from "./daily/readingsModel";
+import { ReadinessModel } from "./daily/readinessModel";
+import { DEFAULT_READINESS_CONFIG } from "./readiness";
+
+/** A series built the way the app builds it: from a model of the entries. */
+const buildRecoverySeries = (entries: DailyMetricEntry[], spec: RecoveryMetricSpec, first: number, last: number) => new ReadingsModel(entries).recoveryRange(spec, first, last);
+/** Readiness by day for sessions and entries. */
+const readinessByDay = (workouts: Workout[], entries: DailyMetricEntry[], first: number, last: number) =>
+  new ReadinessModel(new ReadingsModel(entries), { workouts, config: DEFAULT_READINESS_CONFIG, halfLife: 3 }).range(first, last);
 
 const DAY0 = toUtcDayIndex("2026-03-01");
 
@@ -35,9 +44,9 @@ describe("day indices", () => {
   });
 });
 
-describe("readingsByDay", () => {
+describe("the readings index", () => {
   it("drops zero readings and averages two readings on one day", () => {
-    const byDay = readingsByDay([entry("hrv", DAY0, 60), { ...entry("hrv", DAY0, 70), id: "x" }, entry("hrv", DAY0 + 1, 0)], "hrv");
+    const byDay = buildReadingsIndex([entry("hrv", DAY0, 60), { ...entry("hrv", DAY0, 70), id: "x" }, entry("hrv", DAY0 + 1, 0)]).get("hrv")!;
     expect(byDay.get(DAY0)).toBe(65);
     expect(byDay.has(DAY0 + 1)).toBe(false);
   });
@@ -123,28 +132,28 @@ describe("loadRecoveryInsights", () => {
       if (i % 2 === 0) workouts.push(workout(day, 400, { id: `w${i}` }));
       entries.push(entry("hrv", day, i % 2 === 1 ? 50 : 66));
     }
-    const insights = loadRecoveryInsights(entries, workouts, DAY0 + 60);
+    const insights = loadRecoveryInsights(new ReadingsModel(entries), workouts, DAY0 + 60);
     const hrv = insights.find((x) => x.metricId === "hrv");
     expect(hrv).toBeDefined();
     expect(hrv!.afterHard).toBeLessThan(hrv!.afterRest);
   });
 
   it("says nothing without enough data", () => {
-    expect(loadRecoveryInsights([entry("hrv", DAY0, 60)], [workout(DAY0, 100)], DAY0 + 1)).toEqual([]);
+    expect(loadRecoveryInsights(new ReadingsModel([entry("hrv", DAY0, 60)]), [workout(DAY0, 100)], DAY0 + 1)).toEqual([]);
   });
 });
 
 describe("the Sleep slot: score where there are scores, else hours", () => {
   it("uses the sleep score when the window has any", () => {
-    expect(sleepMetricId([entry("sleep-score", DAY0, 80), entry("sleep-duration", DAY0 + 1, 7)], DAY0, DAY0 + 6)).toBe("sleep-score");
+    expect(sleepMetricId(new ReadingsModel([entry("sleep-score", DAY0, 80), entry("sleep-duration", DAY0 + 1, 7)]), DAY0, DAY0 + 6)).toBe("sleep-score");
   });
 
   it("falls back to hours asleep when there are no scores in the window", () => {
-    expect(sleepMetricId([entry("sleep-score", DAY0 - 30, 80), entry("sleep-duration", DAY0 + 1, 7)], DAY0, DAY0 + 6)).toBe("sleep-duration");
+    expect(sleepMetricId(new ReadingsModel([entry("sleep-score", DAY0 - 30, 80), entry("sleep-duration", DAY0 + 1, 7)]), DAY0, DAY0 + 6)).toBe("sleep-duration");
   });
 
   it("is the score when there's neither, so empty charts stay as they were", () => {
-    expect(sleepMetricId([], DAY0, DAY0 + 6)).toBe("sleep-score");
+    expect(sleepMetricId(new ReadingsModel([]), DAY0, DAY0 + 6)).toBe("sleep-score");
   });
 });
 

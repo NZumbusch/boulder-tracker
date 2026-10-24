@@ -104,6 +104,22 @@ Nathan's list from using the app, all built on branch `claude/ui-ux-issues-navig
 
 Strava/Garmin/FIT/GPX/TCX import into `externalActivities` (data 3.38), History → Activities, route drawing, overlap check: see README "Importing activities". **Private data rule**: the real Strava archive Nathan supplied lives only outside the repo; `src/lib/**/*.private.test.ts` (git-ignored) read it through `PRIVATE_ZIP` / `PRIVATE_FIT_DIR` and write aggregates only. Never commit, print or screenshot it into the repo. Garmin export (daily wellness + FIT recordings + summaries) is read too - see README. Open: imported activities and wellness extras (steps, stress, Body Battery, VO2max, breathing) are stored but not yet charted or used by load, readiness, insights or the AI coach; activities do not appear in Analytics or the Home recent list. Garmin account data here starts Dec 2024 (all the export holds).
 
+### Derived data: the daily models (`src/lib/analytics/daily/`, 2026-11-03)
+
+Anything that takes real work **per day** for a chart (readiness by day, each recovery metric's reading + 7-day average + 28-day normal range) comes from an immutable **model**, not from a function that recomputes on every render:
+
+```
+stores  ->  models (immutable snapshot, one per input set)  ->  panels (slice a window)
+             ^ rebuilt by $derived in state.svelte.ts            ^ never recompute to change period/range
+             ^ filled in idle slices by startWarming() in App.svelte
+```
+
+- `ReadingsModel(entries)`: the daily values indexed by metric and day, plus `recovery(spec)` series. `ReadinessModel(readings, {workouts, pain, config, halfLife})`: `score(day)` / `range(a, b)`. Both copy what they need when built (no reactive proxies, nothing can change under them) and fill a `DaySeries` one day at a time; a day never depends on the window.
+- **Invalidation is replacement**: `trainingState.readingsModel` / `.readinessModel` are `$derived`, so a changed input builds a new model and the old one is dropped. There is no cache to clear and no key to get wrong. This holds because the stores replace their arrays on every load (`dailyMetrics` is `$state.raw` and is copied on load for exactly that reason); keep it that way, or a model will not notice an in-place edit.
+- **Warming** (`warmer.ts`) is an accelerator only: idle slices of about 8 ms, newest days first, one model per turn, restarted from the new models after any change. A chart opened first computes what it needs itself. Not a worker (copying the data in and the results out costs about what it saves).
+- **Adding a series**: give a model a `DaySeries` (and a line in its `warm`). Never memoise inside a pure function. The pure maths stays pure and uncached (`recoveryDay`, `buildRecoverySeries`, `computeReadiness`...), so tests can call it directly.
+- Measured on the real data (4x CPU throttle, production build): readiness for a year went from ~190 ms per open to 0.1-0.8 ms once warm. What remains when opening Recovery (about 290 ms first open, 150-210 ms stepping a period) is Svelte building and tearing down the tab's cards, not computation. Ideas if it is still too slow: keep visited tabs mounted, or draw the charts as a single canvas/path instead of many reactive elements.
+
 ## Checking a change in a browser (no extra tooling)
 
 `scripts/headless/lib.mjs` drives headless Chrome over the DevTools protocol (needs `google-chrome`; Node 22). `scripts/headless/example.mjs` is a ready-made run: `npx vite --port 5199 &` then `node scripts/headless/example.mjs [backup.json]`; screenshots land in a temp folder it prints. `seedBackup()` writes a backup into the app's storage and reloads, so the **real startup migration runs** - the most faithful test of an update. Emulate touch with `Input.dispatchTouchEvent` (the pinch and drag were tested that way), sizes with `resize()` (phone 400×860, landscape 850×390, tablet 820×1180, laptop 1366×768), themes with `document.documentElement.dataset.theme = 'dark' | 'light'`.

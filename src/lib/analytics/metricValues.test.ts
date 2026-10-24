@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { DailyMetricEntry } from "../types";
-import { averageReading, isLoggedMetricValue, loggedMetrics, readingsIndex } from "./metricValues";
+import { averageReading, isLoggedMetricValue, loggedMetrics, buildReadingsIndex } from "./metricValues";
 import { toUtcDayIndex } from "../dateUtils";
 
 describe("isLoggedMetricValue", () => {
@@ -51,28 +51,23 @@ describe("averageReading", () => {
   });
 });
 
-describe("readingsIndex (the cached per-metric index)", () => {
+describe("buildReadingsIndex", () => {
   const e = (id: string, metricId: string, date: string, value: number) => ({ id, metricId, date, value });
 
   it("groups real readings by metric and day, averaging two on one day, ignoring zeros", () => {
-    const idx = readingsIndex([e("a", "hrv", "2026-10-01", 80), e("b", "hrv", "2026-10-01", 90), e("c", "hrv", "2026-10-02", 0), e("d", "rhr", "2026-10-01", 50)]);
+    const idx = buildReadingsIndex([e("a", "hrv", "2026-10-01", 80), e("b", "hrv", "2026-10-01", 90), e("c", "hrv", "2026-10-02", 0), e("d", "rhr", "2026-10-01", 50)]);
     const day = toUtcDayIndex("2026-10-01");
     expect(idx.get("hrv")!.get(day)).toBe(85);
     expect(idx.get("hrv")!.size).toBe(1);
     expect(idx.get("rhr")!.get(day)).toBe(50);
   });
 
-  it("is reused for the same entries, and rebuilt when an entry is added, edited or its date changes", () => {
-    const entries = [e("a", "hrv", "2026-10-01", 80), e("b", "hrv", "2026-10-02", 82)];
-    const first = readingsIndex(entries);
-    expect(readingsIndex(entries)).toBe(first);
-    entries[1].value = 70; // edited in place
-    const edited = readingsIndex(entries);
-    expect(edited).not.toBe(first);
-    expect(edited.get("hrv")!.get(toUtcDayIndex("2026-10-02"))).toBe(70);
-    entries.push(e("c", "hrv", "2026-10-03", 75)); // added in place
-    expect(readingsIndex(entries).get("hrv")!.size).toBe(3);
-    entries[0].date = "2026-10-09"; // moved to another day
-    expect(readingsIndex(entries).get("hrv")!.has(toUtcDayIndex("2026-10-09"))).toBe(true);
+  it("is a plain function of its entries: the same input, a new answer each time, nothing remembered", () => {
+    const entries = [e("a", "hrv", "2026-10-01", 80)];
+    const first = buildReadingsIndex(entries);
+    entries[0].value = 70;
+    expect(buildReadingsIndex(entries)).not.toBe(first);
+    expect(buildReadingsIndex(entries).get("hrv")!.get(toUtcDayIndex("2026-10-01"))).toBe(70);
+    expect(first.get("hrv")!.get(toUtcDayIndex("2026-10-01"))).toBe(80);
   });
 });

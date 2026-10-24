@@ -7,7 +7,7 @@
    * The maths is `lib/analytics/recoverySeries.ts` and `wellnessSeries.ts`.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import { buildRecoverySeries, dayIndexToIso, type RecoveryDay } from '../../lib/analytics/recoverySeries';
+  import { dayIndexToIso, type RecoveryDay } from '../../lib/analytics/recoverySeries';
   import { measuresWithData, summariseSeries, type WellnessMeasure } from '../../lib/analytics/wellnessSeries';
   import Segmented from '../ui/Segmented.svelte';
   import ChartEmpty from './ChartEmpty.svelte';
@@ -16,7 +16,7 @@
   let { firstDay, lastDay, today }: { firstDay: number; lastDay: number; today: number } = $props();
 
   const drawnLast = $derived(Math.min(lastDay, today));
-  const available = $derived(drawnLast >= firstDay ? measuresWithData(trainingState.dailyMetrics, firstDay, drawnLast) : []);
+  const available = $derived(drawnLast >= firstDay ? measuresWithData(trainingState.readingsModel, firstDay, drawnLast) : []);
   let pickedId = $state<string | null>(null);
   const measure = $derived<WellnessMeasure | undefined>(available.find((m) => m.id === pickedId) ?? available[0]);
 
@@ -27,7 +27,7 @@
     measure
       ? measure.series.map((s) => ({
           ...s,
-          days: buildRecoverySeries(trainingState.dailyMetrics, { id: s.id, higherIsBetter: measure.higherIsBetter ?? true }, firstDay, drawnLast),
+          days: trainingState.readingsModel.recoveryRange({ id: s.id, higherIsBetter: measure.higherIsBetter ?? true }, firstDay, drawnLast),
         }))
       : [],
   );

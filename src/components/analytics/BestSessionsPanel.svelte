@@ -9,7 +9,7 @@
   import { trainingState } from '../../lib/state.svelte';
   import { describeFinding, MIN_SESSIONS, predictBestSessions } from '../../lib/analytics/sessionPredictors';
 
-  const report = $derived(predictBestSessions(trainingState.workouts, trainingState.dailyMetrics, trainingState.workoutsForLoad, trainingState.today));
+  const report = $derived(predictBestSessions(trainingState.workouts, trainingState.readingsModel, trainingState.workoutsForLoad, trainingState.today));
   const shown = $derived(report.findings.slice(0, 4));
 </script>
 

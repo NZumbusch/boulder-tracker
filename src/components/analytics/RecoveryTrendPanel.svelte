@@ -20,10 +20,7 @@
   import { showsLabel, sparseLabelStep } from '../../lib/analytics/chartWindow';
   import {
     recoveryMetrics,
-    readingsByDay,
-    buildRecoverySeries,
     dailyLoadByDay,
-    readinessByDay,
     loadRecoveryInsights,
     dayIndexToIso,
     type RecoveryDay,
@@ -71,14 +68,14 @@
     return ((day - firstDay + 0.5) / dayCount) * 100;
   }
 
-  const metrics = $derived(recoveryMetrics(trainingState.dailyMetrics, firstDay, drawnLast).map((spec) => {
+  const metrics = $derived(recoveryMetrics(trainingState.readingsModel, firstDay, drawnLast).map((spec) => {
     const def = trainingState.metricDefs.find((d) => d.id === spec.id);
     return {
       ...spec,
       short: STYLE[spec.id].short,
       color: STYLE[spec.id].color,
       unit: def?.unit ?? (spec.id === SLEEP_DURATION_METRIC.id ? SLEEP_DURATION_METRIC.unit : ''),
-      series: drawnLast >= firstDay ? buildRecoverySeries(trainingState.dailyMetrics, spec, firstDay, drawnLast) : [],
+      series: drawnLast >= firstDay ? trainingState.readingsModel.recoveryRange(spec, firstDay, drawnLast) : [],
     };
   }));
   const shown = $derived(metrics.filter((m) => !hidden.has(m.id)));
@@ -97,20 +94,12 @@
 
   const loadByDay = $derived(dailyLoadByDay(trainingState.workoutsForLoad));
   const maxLoad = $derived(Math.max(1, ...Array.from({ length: dayCount }, (_, i) => loadByDay.get(firstDay + i) ?? 0)));
-  const readiness = $derived(
-    drawnLast >= firstDay
-      ? readinessByDay(trainingState.workoutsForLoad, trainingState.dailyMetrics, firstDay, drawnLast, {
-          config: trainingState.readinessConfig,
-          halfLife: trainingState.fatigueModel,
-          pain: { issues: trainingState.painIssues, logs: trainingState.painLogs },
-        })
-      : new Map<number, number>(),
-  );
+  const readiness = $derived(drawnLast >= firstDay ? trainingState.readinessModel.range(firstDay, drawnLast) : new Map<number, number>());
   const latestReadiness = $derived.by(() => {
     for (let d = drawnLast; d >= firstDay; d--) { const v = readiness.get(d); if (v !== undefined) return v; }
     return undefined;
   });
-  const insights = $derived(loadRecoveryInsights(trainingState.dailyMetrics, trainingState.workoutsForLoad, today));
+  const insights = $derived(loadRecoveryInsights(trainingState.readingsModel, trainingState.workoutsForLoad, today));
 
   // --- Path building. Everything is drawn in a 0-100 viewBox stretched to
   // the plot; dots are zero-length round-capped strokes with
@@ -202,7 +191,7 @@
   // no direction for weight), on a min/max-padded scale.
   const bodyweight = $derived.by(() => {
     if (drawnLast < firstDay) return null;
-    const series = buildRecoverySeries(trainingState.dailyMetrics, { id: BODYWEIGHT_METRIC_ID, higherIsBetter: true }, firstDay, drawnLast);
+    const series = trainingState.readingsModel.recoveryRange({ id: BODYWEIGHT_METRIC_ID, higherIsBetter: true }, firstDay, drawnLast);
     const values = series.flatMap((d) => (d.value !== undefined ? [d.value] : []));
     if (values.length === 0) return null;
     const lo = Math.min(...values);
@@ -285,7 +274,7 @@
     if (v === undefined) return '–';
     return unit === 'h' ? v.toFixed(1) : String(Math.round(v));
   }
-  const napsByDay = $derived(readingsByDay(trainingState.dailyMetrics, 'nap-duration'));
+  const napsByDay = $derived(trainingState.readingsModel.readings('nap-duration'));
   const readout = $derived.by(() => {
     if (readoutDay === null) return null;
     const i = readoutDay - firstDay;

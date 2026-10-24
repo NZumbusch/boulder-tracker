@@ -44,6 +44,7 @@ import { DEFAULT_AI_DETAIL, DEFAULT_AI_HISTORY, type AIDetail, type AIHistoryWin
 import { buildOtherTrainingContext, buildRecoveryContext, type OtherTrainingContext, type RecoveryContext } from "./wellnessContext";
 import { describeFinding, predictBestSessions } from "../analytics/sessionPredictors";
 import { recentReviews } from "../analytics/weeklyReview";
+import { ReadingsModel } from "../analytics/daily/readingsModel";
 import type { ExternalActivity } from "../types";
 import type { ExternalLoadConfig } from "../activity/externalLoad";
 import { getDominantBlockForWeek, blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
@@ -794,7 +795,7 @@ export function buildAIContextProfile(
       // Patterns and reviews are made from health data too, so they use it only when it is shared.
       const metrics = sharing.readinessMetrics ? source.dailyMetrics : [];
       if (sharing.readinessMetrics) {
-        const report = predictBestSessions(source.workouts, source.dailyMetrics, source.loadWorkouts ?? source.workouts, asOf);
+        const report = predictBestSessions(source.workouts, new ReadingsModel(source.dailyMetrics), source.loadWorkouts ?? source.workouts, asOf);
         if (report.findings.length) profile.patterns = [`${report.sessions} sessions compared with the day before; findings are patterns, not proof of cause`, ...report.findings.slice(0, 3).map(describeFinding)];
       }
       const reviews = recentReviews(asOf, model.compact ? 2 : 4, { workouts: source.workouts, activities: otherOn ? source.externalActivities! : [], dailyMetrics: metrics, loadConfig: source.externalLoadConfig, hrvDip: model.readiness?.hrvDip })

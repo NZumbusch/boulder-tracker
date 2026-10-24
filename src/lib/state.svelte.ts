@@ -18,6 +18,8 @@ import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coa
 import { getWeekId, localIsoDate, trainingDayDate, formatWeekWithDates, weekIdOfIso } from './dateUtils';
 import { sessionIsoDay } from './activity/overlap';
 import { EFFORT_KINDS, externalAsWorkouts, type ExternalLoadConfig } from './activity/externalLoad';
+import { ReadingsModel } from './analytics/daily/readingsModel';
+import { ReadinessModel } from './analytics/daily/readinessModel';
 import { slotTypeName } from './exerciseSlot';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
@@ -523,6 +525,19 @@ class TrainingState {
   /** Every session plus the imported activities that count: what load, the load ratio, fatigue and readiness are computed from. */
   workoutsForLoad = $derived([...this.workouts, ...this.externalWorkouts]);
   completedForLoad = $derived([...this.completedWorkouts, ...this.externalWorkouts]);
+
+  // --- The daily models (lib/analytics/daily) -------------------------------------------------------------------
+  // What the analytics screens read for anything that takes real work per day. Each is an immutable snapshot of its inputs,
+  // rebuilt here whenever they change (that is the whole invalidation story) and filled in the background by App.svelte.
+  /** Sleep, HRV, resting heart rate and the watch's daily values, with every metric's series. */
+  readingsModel = $derived(new ReadingsModel(this.dailyMetrics));
+  /** Readiness as it read on each day. Depends on the readings, the sessions that count as load, open pain and the readiness and fatigue settings. */
+  readinessModel = $derived(new ReadinessModel(this.readingsModel, {
+    workouts: this.workoutsForLoad,
+    pain: { issues: this.painIssues, logs: this.painLogs },
+    config: this.readinessConfig,
+    halfLife: this.fatigueModel,
+  }));
   get fatigueHalfLife() { return num(this.preferencesStore.tunables, 'fatigue.halfLifeDays'); }
   /** Half-life and softening for accumulated fatigue - see `computeFatigueDecay`. */
   get fatigueModel(): FatigueModel {

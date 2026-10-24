@@ -1,7 +1,8 @@
-import type { DailyMetricEntry, Workout } from "../types";
+import type { Workout } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
 import { exerciseHistory, metricsOf, valueOf, type ProgressMetric } from "./exerciseProgress";
-import { buildRecoverySeries, dailyLoadByDay, readingsByDay } from "./recoverySeries";
+import { dailyLoadByDay } from "./recoverySeries";
+import type { ReadingsModel } from "./daily/readingsModel";
 
 /**
  * What goes with your best sessions. Each logged session gets a performance
@@ -77,7 +78,7 @@ export interface PredictorDef {
 }
 
 export interface PredictorContext {
-  readings: (metricId: string) => Map<number, number>;
+  readings: (metricId: string) => ReadonlyMap<number, number>;
   /** Raw % away from the 28-day baseline, per metric and day. */
   deviation: (metricId: string, day: number) => number | undefined;
   loadByDay: Map<number, number>;
@@ -168,23 +169,14 @@ export interface PredictorReport {
   checked: number;
 }
 
-export function predictBestSessions(workouts: readonly Workout[], dailyMetrics: DailyMetricEntry[], loadWorkouts: readonly Workout[], asOf: Date): PredictorReport {
+export function predictBestSessions(workouts: readonly Workout[], readings: ReadingsModel, loadWorkouts: readonly Workout[], asOf: Date): PredictorReport {
   const perfs = sessionPerformances(workouts, asOf);
   if (perfs.length < MIN_SESSIONS) return { sessions: perfs.length, findings: [], checked: 0 };
 
-  const firstDay = Math.min(...perfs.map((p) => p.day)) - 40;
-  const lastDay = Math.max(...perfs.map((p) => p.day));
-  const readingsCache = new Map<string, Map<number, number>>();
-  const devCache = new Map<string, Map<number, number | undefined>>();
   const ctx: PredictorContext = {
-    readings: (id) => {
-      if (!readingsCache.has(id)) readingsCache.set(id, readingsByDay(dailyMetrics, id));
-      return readingsCache.get(id)!;
-    },
-    deviation: (id, day) => {
-      if (!devCache.has(id)) devCache.set(id, new Map(buildRecoverySeries(dailyMetrics, { id, higherIsBetter: true }, firstDay, lastDay + 1).map((d) => [d.day, d.deviation])));
-      return devCache.get(id)!.get(day);
-    },
+    readings: (id) => readings.readings(id),
+    // Raw % away from the 28-day baseline: the same series the charts draw, in the "higher is better" direction.
+    deviation: (id, day) => readings.recovery({ id, higherIsBetter: true }).get(day).deviation,
     loadByDay: dailyLoadByDay(loadWorkouts as Workout[]),
     sessionDays: [...new Set(workouts.filter((w) => w.status === "completed" && w.date).map((w) => toUtcDayIndex(w.date!)))].sort((a, b) => a - b),
   };

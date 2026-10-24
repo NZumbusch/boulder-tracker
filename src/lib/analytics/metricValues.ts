@@ -46,35 +46,11 @@ export function averageReading(
 }
 
 
-/**
- * Every metric's real readings by day (two on one day are averaged), built in one pass over the entries and kept for as
- * long as the entries are the same. The charts ask for a dozen metrics' series at once, and each used to read all the
- * entries again (thousands, with a watch's daily values); this reads them once.
- *
- * The saved answer is only reused if the entries still look the same: same array, same length and the same total of
- * values and dates (a change to any value or date shifts the total). A day-by-day check of the whole array would cost
- * what this saves, the total is one cheap pass. Maps are shared: read them, never change them.
- */
+/** Every metric's real readings by day: metric id -> (day index -> value; two readings on one day are averaged, zeros are not readings). */
 export type ReadingsIndex = Map<string, Map<number, number>>;
 
-interface Cached { length: number; fingerprint: number; index: ReadingsIndex }
-const indexCache = new WeakMap<object, Cached>();
-
-function fingerprintOf(entries: DailyMetricEntry[]): number {
-  let f = 0;
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i];
-    // Value and the last digits of the date, weighted by position so that moving a value between entries shows too.
-    f += (e.value + (e.date.charCodeAt(9) || 0) + (e.date.charCodeAt(8) || 0) * 10 + (e.date.charCodeAt(6) || 0) * 100) * ((i % 97) + 1);
-  }
-  return f;
-}
-
-export function readingsIndex(entries: DailyMetricEntry[]): ReadingsIndex {
-  const length = entries.length;
-  const fingerprint = fingerprintOf(entries);
-  const hit = indexCache.get(entries);
-  if (hit && hit.length === length && hit.fingerprint === fingerprint) return hit.index;
+/** One pass over the entries. The daily models (`analytics/daily`) build this once per snapshot of the data. */
+export function buildReadingsIndex(entries: readonly DailyMetricEntry[]): ReadingsIndex {
   const sums = new Map<string, Map<number, { sum: number; n: number }>>();
   for (const e of entries) {
     if (!isLoggedMetricValue(e.value)) continue;
@@ -85,7 +61,5 @@ export function readingsIndex(entries: DailyMetricEntry[]): ReadingsIndex {
     if (s) { s.sum += e.value; s.n += 1; }
     else byDay.set(day, { sum: e.value, n: 1 });
   }
-  const index: ReadingsIndex = new Map([...sums].map(([id, days]) => [id, new Map([...days].map(([day, s]) => [day, s.sum / s.n]))]));
-  indexCache.set(entries, { length, fingerprint, index });
-  return index;
+  return new Map([...sums].map(([id, days]) => [id, new Map([...days].map(([day, s]) => [day, s.sum / s.n]))]));
 }

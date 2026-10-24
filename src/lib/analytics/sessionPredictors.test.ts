@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DailyMetricEntry, ExerciseSlot, Workout } from "../types";
+import { ReadingsModel } from "./daily/readingsModel";
 import { correlationP, describeFinding, MIN_SESSIONS, predictBestSessions, sessionPerformances, spearman } from "./sessionPredictors";
 
 const DAY0 = Math.floor(Date.UTC(2026, 0, 5) / 86400000);
@@ -47,7 +48,7 @@ describe("predictBestSessions", () => {
     Array.from({ length: N }, (_, i) => ({ id: `${metricId}${i}`, metricId, date: iso(DAY0 + i * 2), value: valueAt(i) }));
 
   it("finds the sleep score that goes with the better sessions, and says how sure it is", () => {
-    const r = predictBestSessions(workouts, metrics(sleepAt), workouts, new Date(iso(DAY0 + 200)));
+    const r = predictBestSessions(workouts, new ReadingsModel(metrics(sleepAt)), workouts, new Date(iso(DAY0 + 200)));
     expect(r.sessions).toBeGreaterThanOrEqual(MIN_SESSIONS);
     const f = r.findings.find((x) => x.id === "sleep-score")!;
     expect(f).toBeTruthy();
@@ -58,9 +59,9 @@ describe("predictBestSessions", () => {
   });
 
   it("reports nothing for a predictor that does not vary with the sessions, and says nothing with too few sessions", () => {
-    const flat = predictBestSessions(workouts, metrics(() => 80), workouts, new Date(iso(DAY0 + 200)));
+    const flat = predictBestSessions(workouts, new ReadingsModel(metrics(() => 80)), workouts, new Date(iso(DAY0 + 200)));
     expect(flat.findings.find((x) => x.id === "sleep-score")).toBeUndefined();
-    const few = predictBestSessions(workouts.slice(0, 8), metrics(sleepAt), workouts, new Date(iso(DAY0 + 200)));
+    const few = predictBestSessions(workouts.slice(0, 8), new ReadingsModel(metrics(sleepAt)), workouts, new Date(iso(DAY0 + 200)));
     expect(few.findings).toEqual([]);
   });
 });
