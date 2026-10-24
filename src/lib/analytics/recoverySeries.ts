@@ -128,7 +128,44 @@ function percentAway(value: number, baseline: number, higherIsBetter: boolean): 
   return higherIsBetter ? pct : -pct;
 }
 
-/** One entry per day from `firstDay` to `lastDay` inclusive - days without a reading still get their avg/baseline. */
+/** One day of a series, from the readings alone - so it does not depend on which window is being drawn. */
+function seriesDay(byDay: Map<number, number>, metric: RecoveryMetricSpec, day: number): RecoveryDay {
+  const entry: RecoveryDay = { day, date: dayIndexToIso(day), value: byDay.get(day) };
+
+  const recent = valuesBetween(byDay, day - ROLLING_AVG_DAYS + 1, day);
+  if (recent.length >= MIN_AVG_READINGS) entry.avg = mean(recent);
+
+  let history = valuesBetween(byDay, day - BASELINE_DAYS, day - 1);
+  if (history.length < MIN_BASELINE_READINGS) {
+    const before = valuesBetween(byDay, day - BREAK_LOOKBACK_DAYS, day - 1).slice(-BASELINE_DAYS);
+    if (before.length >= MIN_BASELINE_READINGS) {
+      history = before;
+      entry.baselineAfterBreak = true;
+    }
+  }
+  if (history.length >= MIN_BASELINE_READINGS) {
+    const baseline = mean(history);
+    entry.baseline = baseline;
+    entry.sd = sampleSd(history, baseline);
+    if (baseline > 0) {
+      if (entry.value !== undefined) entry.deviation = percentAway(entry.value, baseline, metric.higherIsBetter);
+      if (entry.avg !== undefined) entry.avgDeviation = percentAway(entry.avg, baseline, metric.higherIsBetter);
+    }
+  }
+  return entry;
+}
+
+/**
+ * Days already worked out, per readings map (`readingsIndex` hands out the same map while the entries are unchanged, so
+ * this is dropped with them) and direction. A day's numbers don't depend on the window, so stepping to the next period
+ * or widening the range only works out the days not seen before.
+ */
+const seriesCache = new WeakMap<Map<number, number>, { up: Map<number, RecoveryDay>; down: Map<number, RecoveryDay> }>();
+
+/**
+ * One entry per day from `firstDay` to `lastDay` inclusive - days without a reading still get their avg/baseline. The
+ * entries are shared between calls: read them, don't change them.
+ */
 export function buildRecoverySeries(
   entries: DailyMetricEntry[],
   metric: RecoveryMetricSpec,
@@ -136,30 +173,13 @@ export function buildRecoverySeries(
   lastDay: number,
 ): RecoveryDay[] {
   const byDay = readingsByDay(entries, metric.id);
+  let caches = seriesCache.get(byDay);
+  if (!caches) seriesCache.set(byDay, (caches = { up: new Map(), down: new Map() }));
+  const cache = metric.higherIsBetter ? caches.up : caches.down;
   const days: RecoveryDay[] = [];
   for (let day = firstDay; day <= lastDay; day++) {
-    const entry: RecoveryDay = { day, date: dayIndexToIso(day), value: byDay.get(day) };
-
-    const recent = valuesBetween(byDay, day - ROLLING_AVG_DAYS + 1, day);
-    if (recent.length >= MIN_AVG_READINGS) entry.avg = mean(recent);
-
-    let history = valuesBetween(byDay, day - BASELINE_DAYS, day - 1);
-    if (history.length < MIN_BASELINE_READINGS) {
-      const before = valuesBetween(byDay, day - BREAK_LOOKBACK_DAYS, day - 1).slice(-BASELINE_DAYS);
-      if (before.length >= MIN_BASELINE_READINGS) {
-        history = before;
-        entry.baselineAfterBreak = true;
-      }
-    }
-    if (history.length >= MIN_BASELINE_READINGS) {
-      const baseline = mean(history);
-      entry.baseline = baseline;
-      entry.sd = sampleSd(history, baseline);
-      if (baseline > 0) {
-        if (entry.value !== undefined) entry.deviation = percentAway(entry.value, baseline, metric.higherIsBetter);
-        if (entry.avg !== undefined) entry.avgDeviation = percentAway(entry.avg, baseline, metric.higherIsBetter);
-      }
-    }
+    let entry = cache.get(day);
+    if (!entry) cache.set(day, (entry = seriesDay(byDay, metric, day)));
     days.push(entry);
   }
   return days;
@@ -192,39 +212,125 @@ export function readinessByDay(
   lastDay: number,
   { config = DEFAULT_READINESS_CONFIG, halfLife = 3, pain }: { config?: ReadinessConfig; halfLife?: number | Partial<FatigueModel>; pain?: { issues: PainIssue[]; logs: PainLog[] } } = {},
 ): Map<number, number> {
+  const memo = readinessMemoFor(workouts, entries, pain, config, halfLife);
+  const scores = new Map<number, number>();
+  let prepared: ReadinessPrep | undefined;
+  for (let day = firstDay; day <= lastDay; day++) {
+    let score = memo.scores.get(day);
+    if (score === undefined) {
+      prepared ??= prepareReadiness(workouts, entries, halfLife);
+      score = readinessOnDay(prepared, day, config, halfLife, pain);
+      memo.scores.set(day, score);
+    }
+    if (score !== null) scores.set(day, score);
+  }
+  return scores;
+}
+
+// --- Readiness by day, kept between calls ----------------------------------------
+
+/**
+ * Readiness on one day depends only on the sessions and readings up to it, never on which window is drawn, so each day is
+ * worked out once and kept for as long as its inputs are the same objects (the arrays are replaced whenever the data
+ * changes). Stepping to the next period, or from 4 weeks to a year, then only works out the days not seen yet.
+ */
+interface ReadinessMemo {
+  workouts: Workout[];
+  entries: DailyMetricEntry[];
+  issues?: PainIssue[];
+  logs?: PainLog[];
+  settings: string;
+  /** day -> score, or null when no input was usable that day. */
+  scores: Map<number, number | null>;
+}
+let lastReadinessMemo: ReadinessMemo | undefined;
+
+function readinessMemoFor(workouts: Workout[], entries: DailyMetricEntry[], pain: { issues: PainIssue[]; logs: PainLog[] } | undefined, config: ReadinessConfig, halfLife: number | Partial<FatigueModel>): ReadinessMemo {
+  const settings = JSON.stringify([config, halfLife]);
+  const m = lastReadinessMemo;
+  if (m && m.workouts === workouts && m.entries === entries && m.issues === pain?.issues && m.logs === pain?.logs && m.settings === settings) return m;
+  return (lastReadinessMemo = { workouts, entries, issues: pain?.issues, logs: pain?.logs, settings, scores: new Map() });
+}
+
+/** Fatigue fades by half every half-life; what is older than this many of them is under a thousandth of a point. */
+const FATIGUE_HALF_LIVES = 14;
+/** The rolling load ratio looks 28 days back. */
+const ACWR_DAYS = 28;
+const AXES = ["fingers", "arms", "core", "systemic"] as const;
+
+interface ReadinessPrep {
+  completed: { w: Workout; day: number }[];
+  sleep: Map<number, number>;
+  sleepHours: Map<number, number>;
+  napHours: Map<number, number>;
+  hrv: Map<number, number>;
+  hrvAll: { day: number; value: number }[];
+  /** How many days of sessions can still matter to fatigue. */
+  reachDays: number;
+}
+
+function prepareReadiness(workouts: Workout[], entries: DailyMetricEntry[], halfLife: number | Partial<FatigueModel>): ReadinessPrep {
   const completed = workouts
     .filter((w) => w.status === "completed" && w.date)
     .map((w) => ({ w, day: toUtcDayIndex(w.date!) }))
     .sort((a, b) => a.day - b.day);
-  const sleep = readingsByDay(entries, "sleep-score");
-  const sleepHours = readingsByDay(entries, "sleep-duration");
-  const napHours = readingsByDay(entries, "nap-duration");
-  const hrv = readingsByDay(entries, "hrv");
-  const hrvAll = hrvReadings(entries);
+  const halfLifeDays = typeof halfLife === "number" ? halfLife : halfLife.halfLifeDays ?? 3;
+  return {
+    completed,
+    sleep: readingsByDay(entries, "sleep-score"),
+    sleepHours: readingsByDay(entries, "sleep-duration"),
+    napHours: readingsByDay(entries, "nap-duration"),
+    hrv: readingsByDay(entries, "hrv"),
+    hrvAll: hrvReadings(entries),
+    reachDays: Math.max(ACWR_DAYS, Math.ceil(FATIGUE_HALF_LIVES * halfLifeDays)),
+  };
+}
 
-  const scores = new Map<number, number>();
-  let upTo = 0;
-  for (let day = firstDay; day <= lastDay; day++) {
-    while (upTo < completed.length && completed[upTo].day <= day) upTo++;
-    const seen = completed.slice(0, upTo).map((c) => c.w);
-    const asOf = dayIndexToAsOf(day);
-    const fatigue = computeFatigueDecay(seen, asOf, halfLife);
-    const result = computeReadiness(
-      {
-        fatigue: { fingers: fatigue.fingers, core: fatigue.core, systemic: fatigue.systemic },
-        acwr: calculateRollingAcwr(seen, asOf),
-        sleep: sleep.get(day),
-        sleepHours: sleepHours.get(day),
-        napHours: napHours.get(day),
-        hrv: hrv.get(day),
-        hrvBaseline: hrvBaselineAt(hrvAll, day),
-        pain: pain ? painLevelOn(pain.issues, pain.logs, dayIndexToIso(day)) : undefined,
-      },
-      config,
-    );
-    if (result.score !== undefined) scores.set(day, result.score);
+function readinessOnDay(p: ReadinessPrep, day: number, config: ReadinessConfig, halfLife: number | Partial<FatigueModel>, pain?: { issues: PainIssue[]; logs: PainLog[] }): number | null {
+  // Sessions up to and including the day; each day only sees its own past.
+  let upTo = upperBound(p.completed, day);
+  // The ones that can still matter: recent ones, plus the first session ever (the load ratio needs to know how long you have trained) and, per rating, the latest session that has it (an axis nobody rated lately is "not rated", not "fresh").
+  let start = upTo;
+  while (start > 0 && day - p.completed[start - 1].day < p.reachDays) start--;
+  const seen: Workout[] = [];
+  const extra = new Set<number>();
+  if (start > 0) extra.add(0);
+  for (const axis of AXES) {
+    for (let i = start - 1; i >= 0; i--) {
+      if (p.completed[i].w[axis] !== undefined) { extra.add(i); break; }
+    }
   }
-  return scores;
+  for (const i of [...extra].sort((a, b) => a - b)) seen.push(p.completed[i].w);
+  for (let i = start; i < upTo; i++) seen.push(p.completed[i].w);
+
+  const asOf = dayIndexToAsOf(day);
+  const fatigue = computeFatigueDecay(seen, asOf, halfLife);
+  const result = computeReadiness(
+    {
+      fatigue: { fingers: fatigue.fingers, core: fatigue.core, systemic: fatigue.systemic },
+      acwr: calculateRollingAcwr(seen, asOf),
+      sleep: p.sleep.get(day),
+      sleepHours: p.sleepHours.get(day),
+      napHours: p.napHours.get(day),
+      hrv: p.hrv.get(day),
+      hrvBaseline: hrvBaselineAt(p.hrvAll, day),
+      pain: pain ? painLevelOn(pain.issues, pain.logs, dayIndexToIso(day)) : undefined,
+    },
+    config,
+  );
+  return result.score ?? null;
+}
+
+/** The number of entries (sorted by day) whose day is at or before `day`. */
+function upperBound(sorted: { day: number }[], day: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid].day <= day) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
 }
 
 export interface RecoveryInsight {

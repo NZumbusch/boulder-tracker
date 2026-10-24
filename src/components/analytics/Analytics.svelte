@@ -181,6 +181,24 @@
   const FINDINGS_TITLE: Record<Tab, string> = { overview: 'Findings', training: 'Training findings', recovery: 'Recovery findings', progress: 'Progress findings' };
   const ASK_GROUP: Record<Tab, InsightGroup> = { overview: 'push', training: 'plan', recovery: 'body', progress: 'strength' };
 
+  // A tab's cards are built a few at a time: the first ones are on screen at once and the rest follow a frame apart, so
+  // switching to a tab with heavy charts (Recovery with a year of data) answers the tap straight away instead of
+  // freezing until every card is done.
+  const FIRST_CARDS = 2;
+  let mountedCards = $state(FIRST_CARDS);
+  $effect(() => {
+    tab;
+    mountedCards = FIRST_CARDS;
+    let frame = 0;
+    const more = () => {
+      if (mountedCards >= 99) return;
+      mountedCards += 1;
+      frame = requestAnimationFrame(more);
+    };
+    frame = requestAnimationFrame(more);
+    return () => cancelAnimationFrame(frame);
+  });
+
   /** An insight's link: the ACWR breakdown, or the chart behind it on its own tab. */
   async function openInsight(link: InsightLink) {
     if (link.kind === 'acwr') { showAcwr(); return; }
@@ -190,6 +208,8 @@
     if (link.kind === 'exercise') { openExerciseProgress(link.typeId); return; }
     tab = link.tab;
     if (MORE_OF[link.section.replace('section-', '')]) moreOpen = true;
+    // The card it points at may not be built yet.
+    mountedCards = 99;
     await tick();
     document.getElementById(link.section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -628,7 +648,7 @@
         {/if}
       {/snippet}
 
-      {#each mainSections as s (s.id)}{@render section(s.id)}{/each}
+      {#each mainSections.slice(0, mountedCards) as s (s.id)}{@render section(s.id)}{/each}
 
       {#if moreSections.length > 0}
         <button
