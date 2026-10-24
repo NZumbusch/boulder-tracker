@@ -45,6 +45,7 @@
     'section-strain': 'Monotony & strain',
     'section-fingerLoad': 'Finger load',
     'section-recoveryTrend': 'Recovery trends',
+    'section-wellness': 'Wellness',
     'section-fatigue': 'Fatigue',
     'section-pain': 'Pain',
     'section-outdoor': 'Outdoor ascents',

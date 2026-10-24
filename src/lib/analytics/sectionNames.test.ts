@@ -6,7 +6,7 @@ import { ANALYTICS_SECTION_IDS } from '../preferences/migrate';
 /** The panel file whose <h3> prints each card's name. */
 const PANEL_FILE: Record<string, string> = {
   load: 'LoadPanel', heatmap: 'HeatmapPanel', mix: 'MixPanel', strain: 'StrainPanel', fingerLoad: 'FingerLoadPanel',
-  recoveryTrend: 'RecoveryTrendPanel', fatigue: 'FatiguePanel', pain: 'PainTimelinePanel', outdoor: 'OutdoorAscentsPanel',
+  recoveryTrend: 'RecoveryTrendPanel', wellness: 'WellnessPanel', fatigue: 'FatiguePanel', pain: 'PainTimelinePanel', outdoor: 'OutdoorAscentsPanel',
   benchmarks: 'BenchmarkPanel', benchmarkOverview: 'BenchmarkOverviewPanel',
 };
 

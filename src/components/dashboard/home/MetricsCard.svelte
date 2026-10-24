@@ -37,6 +37,26 @@
     const dir = last > first ? 'trending up' : last < first ? 'trending down' : 'steady';
     return `${name}, last ${values.length} readings, ${dir}`;
   }
+  /** The latest Body Battery, stress and steps within the last few days (a Garmin import), read-only. */
+  const WATCH_ROWS = [
+    { id: 'body-battery-high', label: 'Body Battery', also: 'body-battery-low', unit: '' },
+    { id: 'stress', label: 'Stress', unit: '' },
+    { id: 'steps', label: 'Steps', unit: '' },
+  ];
+  const watchLine = $derived.by(() => {
+    if (!trainingState.homeDetails['metrics.watch']) return null;
+    const all = loggedMetrics(trainingState.dailyMetrics);
+    const parts: string[] = [];
+    let latestDate = '';
+    for (const row of WATCH_ROWS) {
+      const e = all.filter((m) => m.metricId === row.id && m.date <= data.todayIso).sort((a, b) => b.date.localeCompare(a.date))[0];
+      if (!e || (new Date(data.todayIso).getTime() - new Date(e.date).getTime()) / 86_400_000 > 3) continue;
+      const low = row.also ? all.find((m) => m.metricId === row.also && m.date === e.date)?.value : undefined;
+      parts.push(`${row.label} ${Math.round(e.value).toLocaleString()}${low !== undefined ? `/${Math.round(low)}` : ''}`);
+      if (e.date > latestDate) latestDate = e.date;
+    }
+    return parts.length ? { text: parts.join(' · '), date: latestDate } : null;
+  });
   let editingMetricId = $state<string | null>(null);
   let draftValue = $state('');
 
@@ -156,4 +176,9 @@
     </div>
   {/each}
   </div>
+  {#if watchLine}
+    <p class="text-caption text-content-subtle tabular-nums pt-2" data-testid="watch-line">
+      From your watch{watchLine.date === data.todayIso ? '' : `, ${watchLine.date}`}: {watchLine.text}
+    </p>
+  {/if}
 </div>

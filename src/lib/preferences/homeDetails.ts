@@ -47,6 +47,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'metrics.sparklines', label: '7-day sparklines', defaultOn: true },
     { id: 'metrics.hrvBaseline', label: 'HRV vs 14-day baseline', defaultOn: true },
     { id: 'metrics.bodyweight', label: 'Bodyweight', hint: 'With its 7-day average and trend', defaultOn: true },
+    { id: 'metrics.watch', label: 'From your watch', hint: 'Body Battery, stress and steps from a Garmin import, for the latest day it has', defaultOn: true },
   ],
   fatigue: [],
   thisWeek: [
