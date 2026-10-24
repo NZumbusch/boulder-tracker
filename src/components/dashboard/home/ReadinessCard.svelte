@@ -118,22 +118,27 @@
         {showBreakdown ? 'Hide why' : 'Why this score'}<Icon icon={showBreakdown ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-base" />
       </button>
     {/if}
-    {#if trainingState.homeDetails['readiness.signals'] && data.daySignals}
-      {@const s = data.daySignals}
-      <div class="text-label text-content-muted leading-snug space-y-0.5" data-testid="day-signals">
-        <p class="font-semibold text-content">{s.headline}</p>
-        {#if s.reasons.length}<p>{s.reasons.join(' · ')}.</p>{/if}
-        {#if s.plan}<p>{s.plan}</p>{/if}
-      </div>
-    {/if}
-    {#if trainingState.homeDetails['readiness.confidence']}
-      <p class="text-caption text-content-subtle flex items-start gap-1">
-        <Icon icon="ic:baseline-insights" class="text-content-subtle text-sm mt-0.5 shrink-0" />
-        <span>{readiness.confidence}</span>
-      </p>
-    {/if}
   </div>
  </div>
+  <!-- The detail lines get the card's full width: beside the ring they were squeezed into a narrow column of small text. -->
+  {#if (trainingState.homeDetails['readiness.signals'] && data.daySignals) || trainingState.homeDetails['readiness.confidence']}
+    <div class="mt-4 pt-3 border-t border-border/60 space-y-2">
+      {#if trainingState.homeDetails['readiness.signals'] && data.daySignals}
+        {@const sig = data.daySignals}
+        <div class="space-y-1" data-testid="day-signals">
+          <p class="text-body font-semibold text-content leading-snug">{sig.headline}</p>
+          {#if sig.reasons.length}<p class="text-body text-content-muted leading-snug">{sig.reasons.join(' · ')}.</p>{/if}
+          {#if sig.plan}<p class="text-body text-content-muted leading-snug">{sig.plan}</p>{/if}
+        </div>
+      {/if}
+      {#if trainingState.homeDetails['readiness.confidence']}
+        <p class="text-label text-content-subtle flex items-start gap-1.5">
+          <Icon icon="ic:baseline-insights" class="text-content-subtle text-base mt-px shrink-0" />
+          <span>{readiness.confidence}</span>
+        </p>
+      {/if}
+    </div>
+  {/if}
   {#if canBreakDown && showBreakdown}
     <div class="mt-4 pt-3 border-t border-border/60 space-y-2" transition:slide={{ duration: motionMs(260), easing: cubicOut }}>
       {#each BREAKDOWN_ROWS as row}

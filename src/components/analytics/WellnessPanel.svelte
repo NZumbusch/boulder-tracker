@@ -10,7 +10,6 @@
   import { dayIndexToIso, type RecoveryDay } from '../../lib/analytics/recoverySeries';
   import { measuresWithData, summariseSeries, type WellnessMeasure } from '../../lib/analytics/wellnessSeries';
   import Segmented from '../ui/Segmented.svelte';
-  import ChartEmpty from './ChartEmpty.svelte';
   import { formatDay } from '../../lib/dateUtils';
 
   let { firstDay, lastDay, today }: { firstDay: number; lastDay: number; today: number } = $props();
@@ -80,7 +79,7 @@
   </div>
 
   {#if !measure}
-    <ChartEmpty>No watch data in this window yet. Import a Garmin export under Settings → Data &amp; connections → Import activities.</ChartEmpty>
+    <p class="text-caption text-content-subtle italic">No watch data in this window yet. Import a Garmin export under Settings → Data &amp; connections → Import activities.</p>
   {:else}
     {#if available.length > 1}
       <Segmented label="Measure" options={available.map((m) => ({ value: m.id, label: m.label }))} value={measure.id} onChange={(v) => (pickedId = v)} />
