@@ -21,10 +21,11 @@ export interface ReleaseNote {
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
     id: "2026-10-31-strava-import",
-    title: "Import from Strava",
+    title: "Runs, rides and routes from Strava and Garmin",
     points: [
-      "Settings → Data & connections → Import activities: pick the activities.csv from your Strava export to keep your runs, rides and hikes as history.",
-      "They are not sessions and do not change your load. Importing the same file again adds nothing twice.",
+      "Settings → Data & connections → Import activities: pick your Strava archive or Garmin export (.zip), or single .fit, .gpx and .tcx files.",
+      "History has an Activities tab with each one's numbers and, where there was GPS, its route.",
+      "Activities that match a session you logged at the same time, or the same run from another source, are skipped - you see them first. They never change your load.",
     ],
   },
   {

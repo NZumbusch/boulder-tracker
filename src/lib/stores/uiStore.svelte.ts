@@ -23,7 +23,7 @@ export class UiStore {
   /** A completed workout History should open expanded and scroll to - set by Home's Recent Activity, consumed (cleared) by History. */
   historyFocusId = $state<string | null>(null);
   /** Which half of History is showing - kept across visits so a trip to Sends stays on Sends. */
-  historyTab = $state<'sessions' | 'sends'>('sessions');
+  historyTab = $state<'sessions' | 'sends' | 'activities'>('sessions');
   /** Something a shortcut or the widget asked Home to open (see `navigation/deepLink`); Home clears it once handled. */
   homeRequest = $state<'quickLog' | 'metrics' | null>(null);
   /** A Settings page to open on arrival ("what's new" sends you to Tests); Settings clears it once handled. */

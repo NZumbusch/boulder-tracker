@@ -920,8 +920,9 @@ export interface OutdoorAscent {
  */
 export interface ExternalActivity {
   id: string;
-  source: "strava";
-  /** The id the source gave it. */
+  /** Where it came from: a Strava archive, a Garmin export, or a loose file (FIT/GPX/TCX). */
+  source: "strava" | "garmin" | "file";
+  /** The id the source gave it (for files: the start time in epoch seconds). */
   sourceId: string;
   /** Local YYYY-MM-DD the activity started on. */
   date: string;
@@ -931,11 +932,15 @@ export interface ExternalActivity {
   /** The source's own label: "Run", "Ride", "Rock Climbing"... */
   type: string;
   durationSec: number;
+  /** Time actually moving, when the source says. */
+  movingSec?: number;
   distanceM?: number;
   elevationM?: number;
   avgHr?: number;
   maxHr?: number;
   calories?: number;
+  /** The GPS route, simplified, as an encoded polyline (`lib/activity/track.ts`). Absent indoors. */
+  track?: string;
   notes?: string;
 }
 

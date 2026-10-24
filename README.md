@@ -113,7 +113,11 @@ Needs Android Studio.
 
 ### Importing activities (Strava export)
 
-Settings → Data & connections → Import activities reads the `activities.csv` of a Strava archive (Strava on the web → Settings → My Account → Download or delete your account) into the `externalActivities` table (data 3.38): `strava-<activity id>` ids, so importing twice or on two synced devices never duplicates. Imported activities are history only - they are not `Workout`s and never count toward load. Logic and tests: `src/lib/importers/stravaCsvImport.ts`. The column layout comes from Strava's published format, not a real export, so check a first import against your own file.
+Settings → Data & connections → Import activities reads a Strava archive `.zip`, a Garmin data export `.zip` (nested zips included), or single `.fit`, `.gpx`, `.tcx` (gzipped or not) and `activities.csv` files into the `externalActivities` table (data 3.38). Ids are `strava-<activity id>` or `<source>-<start epoch seconds>`, so importing twice or on two synced devices never duplicates. Imported activities are history only - they are not `Workout`s and never count toward load - and show on History → Activities with a route drawn from a simplified encoded polyline (`track`; no map tiles, so it works offline and leaks no location).
+
+- `src/lib/activity/`: `fit.ts` (own FIT decoder: session summary + GPS/heart-rate records), `gpxTcx.ts`, `track.ts` (simplify, polyline, projection), `zip.ts` (reads by slices, ZIP64, inflate via `DecompressionStream`), `overlap.ts`, `format.ts`; importers in `src/lib/importers/` (`stravaCsvImport.ts`, `activityFiles.ts`).
+- Overlap (`overlap.ts`): before importing, an activity is compared with other imported sources (Strava and Garmin both hold the run), logged sessions and planned sessions. Time overlap of at least half of the shorter one counts. Duplicates and time-matched logged sessions are skipped by default (both switchable); a session with no start time only matches by day and kind ("Easy run"), which is shown but never skipped; a planned match is kept and tagged "Was planned".
+- Checked against a real 329-activity Strava archive: all decode, 206 have a route. Garmin exports are read as recordings only so far (HRV, sleep and the JSON summaries are not read).
 
 ### Health Connect
 

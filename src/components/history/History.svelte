@@ -11,6 +11,7 @@
   import FatigueLetters from '../common/FatigueLetters.svelte';
   import { RATING_AXES, FATIGUE_AXIS_COLORS } from '../../lib/constants';
   import SendsLog from '../sends/SendsLog.svelte';
+  import ActivitiesLog from './ActivitiesLog.svelte';
   import { applySendFilters } from '../../lib/sends/filter';
   import { parseFontGrade } from '../../lib/analytics/grades';
   import { displayGrade } from '../../lib/sends/gradeScale';
@@ -42,6 +43,16 @@
   let filterStyle = $state('');
   let filterCrag = $state('');
   const onSends = $derived(trainingState.uiStore.historyTab === 'sends');
+  const historyTabs = $derived<{ value: 'sessions' | 'sends' | 'activities'; label: string }[]>([
+    { value: 'sessions', label: 'Sessions' },
+    { value: 'sends', label: 'Sends' },
+    ...(trainingState.externalActivities.length ? [{ value: 'activities' as const, label: 'Activities' }] : []),
+  ]);
+  // Removing the last imported activity leaves its tab behind.
+  $effect(() => {
+    if (trainingState.uiStore.historyTab === 'activities' && trainingState.externalActivities.length === 0) trainingState.uiStore.historyTab = 'sessions';
+  });
+  const onActivities = $derived(trainingState.uiStore.historyTab === 'activities');
 
   // Arriving from Home's Recent Activity: open that session in the workout
   // modal and bring its card into view. One-shot - the focus is cleared so coming back later starts
@@ -118,6 +129,15 @@
 
   const displayedWorkouts = $derived(filteredWorkouts.slice(0, limit));
 
+  // Imported activities: newest first, narrowed by the shared search and date range.
+  const filteredActivities = $derived.by(() => {
+    const q = filterSearch.trim().toLowerCase();
+    return trainingState.externalActivities
+      .filter((a) => (!filterFromDate || a.date >= filterFromDate) && (!filterToDate || a.date <= filterToDate))
+      .filter((a) => !q || a.name.toLowerCase().includes(q) || a.type.toLowerCase().includes(q) || (a.notes ?? '').toLowerCase().includes(q))
+      .sort((a, b) => b.start.localeCompare(a.start));
+  });
+
   const filteredSends = $derived(applySendFilters(trainingState.outdoorAscents, {
     search: filterSearch,
     from: filterFromDate,
@@ -146,7 +166,9 @@
   /** How many filters apply to the tab being viewed - shown on the filter button. */
   const activeFilterCount = $derived(
     [filterSearch, filterFromDate, filterToDate].filter(Boolean).length +
-      (onSends
+      (onActivities
+        ? 0
+        : onSends
         ? [filterMinGrade, filterMaxGrade, filterStyle, filterCrag].filter(Boolean).length
         : [filterAnalyticsType, filterExerciseTypeId, filterBlockId].filter(Boolean).length +
           [filterMinDuration, filterMaxDuration].filter((v) => v !== '').length),
@@ -235,7 +257,7 @@
   <div data-tour="history-tabs">
     <Segmented
       label="History view"
-      options={[{ value: 'sessions', label: 'Sessions' }, { value: 'sends', label: 'Sends' }]}
+      options={historyTabs}
       value={trainingState.uiStore.historyTab}
       onChange={(v) => (trainingState.uiStore.historyTab = v)}
     />
@@ -260,7 +282,7 @@
       <div class="grid grid-cols-1 gap-4">
         <div class="space-y-1.5">
           <label for="filter-search" class="text-label text-content-subtle ml-1">Search</label>
-          <input id="filter-search" type="text" bind:value={filterSearch} placeholder={onSends ? 'Name, crag or notes' : 'Name or notes'} class="field" />
+          <input id="filter-search" type="text" bind:value={filterSearch} placeholder={onActivities ? 'Name or type' : onSends ? 'Name, crag or notes' : 'Name or notes'} class="field" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1.5">
@@ -272,7 +294,9 @@
             <input id="filter-date-to" type="date" bind:value={filterToDate} class="field" />
           </div>
         </div>
-        {#if onSends}
+        {#if onActivities}
+          <!-- Only the search and dates apply to activities. -->
+        {:else if onSends}
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <label for="filter-min-grade" class="text-label text-content-subtle ml-1">Min grade</label>
@@ -350,7 +374,9 @@
     </div>
   {/if}
 
-  {#if onSends}
+  {#if onActivities}
+    <ActivitiesLog activities={filteredActivities} filtered={activeFilterCount > 0} />
+  {:else if onSends}
     <SendsLog ascents={filteredSends} filtered={activeFilterCount > 0} />
   {:else}
 

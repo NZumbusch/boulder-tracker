@@ -15,7 +15,9 @@ import { TEST_VIEWS_ADOPTED_KEY } from './releaseNotes';
 import { bodyweightFromBenchmark, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from './benchmarks/bodyweight';
 import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, ExternalActivity, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate, BenchmarkView } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
-import { getWeekId, localIsoDate, trainingDayDate, formatWeekWithDates } from './dateUtils';
+import { getWeekId, localIsoDate, trainingDayDate, formatWeekWithDates, weekIdOfIso } from './dateUtils';
+import { sessionIsoDay } from './activity/overlap';
+import { slotTypeName } from './exerciseSlot';
 import { getDominantBlockForWeek } from './planning/trainingBlocks';
 import { sortWorkoutsBySchedule } from './planning/sortWorkouts';
 import { weekNoteText } from './planning/notes';
@@ -775,6 +777,20 @@ class TrainingState {
    */
   getWeekPlanView(weekId: string): PlanBWeek {
     return applyPlanBsToWeek(this.planBContext, weekId);
+  }
+
+  /** The sessions on these days (YYYY-MM-DD), done and planned, as their weeks show them. */
+  workoutsOnDays(days: string[]): Workout[] {
+    const weeks = [...new Set(days.map(weekIdOfIso))];
+    return weeks.flatMap((w) => this.getWorkoutsForWeek(w)).filter((w) => {
+      const day = sessionIsoDay(w);
+      return day !== null && days.includes(day);
+    });
+  }
+
+  /** What a session says it is, for matching it to an imported run or ride: its name, notes and exercises. */
+  sessionText(w: Workout): string {
+    return [w.notes, w.description, w.logNotes, ...w.exercises.map((e) => slotTypeName(e, this.exerciseTypes))].filter(Boolean).join(' ');
   }
 
   getPlannedWorkoutsForWeek(weekId: string) {
