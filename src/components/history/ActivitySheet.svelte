@@ -11,6 +11,8 @@
   import { overlapsFor, overlapSentence } from '../../lib/activity/overlapView';
   import { showConfirm } from '../../lib/utils';
   import { showUndo } from '../../lib/toast.svelte';
+  import { askAboutActivity } from '../../lib/ai/askAbout.svelte';
+  import Icon from '@iconify/svelte';
   import type { ExternalActivity } from '../../lib/types';
 
   let { activity, onClose }: { activity: ExternalActivity; onClose: () => void } = $props();
@@ -87,6 +89,7 @@
     {#if activity.notes}<p class="text-label text-content-subtle whitespace-pre-line">{activity.notes}</p>{/if}
 
     <p class="text-caption text-content-subtle">Imported history: it does not count toward your load or plan.</p>
+    <button onclick={() => askAboutActivity(activity.id)} class="btn btn-secondary w-full"><Icon icon="ic:baseline-auto-awesome" class="text-base" />Ask the AI about this</button>
     <button onclick={remove} class="btn btn-secondary w-full text-danger">Remove from the app</button>
   </div>
 </Sheet>

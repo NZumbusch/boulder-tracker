@@ -14,10 +14,14 @@
   import { loadChangeLog } from '../../lib/ai/changeLog';
   import { renderCoachMemory } from '../../lib/ai/coachNotes';
   import { workoutNoteSharing } from '../../lib/ai/context';
-  import { buildBlockAskPrompt, buildInsightAskPrompt, buildSessionAskPrompt, DEFAULT_BLOCK_QUESTION, DEFAULT_INSIGHT_QUESTION, DEFAULT_SESSION_QUESTION } from '../../lib/ai/askPrompt';
+  import { activitiesBefore, buildActivityAskPrompt, buildBlockAskPrompt, buildInsightAskPrompt, buildSessionAskPrompt, DEFAULT_ACTIVITY_QUESTION, DEFAULT_BLOCK_QUESTION, DEFAULT_INSIGHT_QUESTION, DEFAULT_SESSION_QUESTION } from '../../lib/ai/askPrompt';
   import { blockInputsFrom } from '../../lib/analytics/insights';
   import { blockReviewLines, buildBlockReview } from '../../lib/analytics/blockReview';
   import { estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
+  import { buildRecoveryContext } from '../../lib/ai/wellnessContext';
+  import { aiFields, aiSharingOn } from '../../lib/preferences/migrate';
+  import { estimateMaxHr } from '../../lib/activity/externalLoad';
+  import { localIsoDate } from '../../lib/dateUtils';
   import { loadConfig, loadKey } from '../../lib/ai/direct/store';
   import { modelInfo, providerInfo } from '../../lib/ai/direct/providers';
   import { estimateCost, formatUsd } from '../../lib/ai/direct/cost';
@@ -37,7 +41,7 @@
     const key = subject ? JSON.stringify(subject) : '';
     if (key === lastKey) return;
     lastKey = key;
-    question = subject ? (subject.kind === 'insights' ? DEFAULT_INSIGHT_QUESTION : subject.kind === 'block' ? DEFAULT_BLOCK_QUESTION : DEFAULT_SESSION_QUESTION) : '';
+    question = subject ? (subject.kind === 'insights' ? DEFAULT_INSIGHT_QUESTION : subject.kind === 'block' ? DEFAULT_BLOCK_QUESTION : subject.kind === 'activity' ? DEFAULT_ACTIVITY_QUESTION : DEFAULT_SESSION_QUESTION) : '';
     copied = false;
     reply = '';
     replyInfo = '';
@@ -47,6 +51,7 @@
     if (!subject) return '';
     if (subject.kind === 'insights') return INSIGHT_GROUPS.find((g) => g.id === subject.group)?.label ?? 'Insights';
     if (subject.kind === 'block') return trainingState.trainingBlocks.find((b) => b.id === subject.blockId)?.name ?? 'This block';
+    if (subject.kind === 'activity') return trainingState.externalActivities.find((a) => a.id === subject.activityId)?.name || 'This activity';
     return trainingState.getWorkoutById(subject.workoutId)?.notes || 'This session';
   });
 
@@ -68,6 +73,22 @@
       if (!review) return '';
       const sinceLast = buildSinceLastPlan({ inputs, changeLog: loadChangeLog(), share: { readinessMetrics: sharing.readinessMetrics, outdoorAscents: sharing.outdoorAscents } });
       return buildBlockAskPrompt({ reviewLines: blockReviewLines(review), sinceLast, coachMemory, question });
+    }
+    if (subject.kind === 'activity') {
+      const activity = trainingState.externalActivities.find((a) => a.id === subject.activityId);
+      if (!activity) return '';
+      // The night before, from the same recovery data the plan prompt uses - only when I share it.
+      const night = aiSharingOn(sharing, 'readinessMetrics')
+        ? buildRecoveryContext(trainingState.dailyMetrics, new Date(`${activity.date}T12:00:00`), 'brief', 1, aiFields(trainingState.aiDetail))?.lastNight
+        : undefined;
+      return buildActivityAskPrompt({
+        activity,
+        before: activitiesBefore(activity, trainingState.externalActivities),
+        maxHr: estimateMaxHr(trainingState.externalActivities),
+        recoveryLine: night ? JSON.stringify(night) : undefined,
+        coachMemory,
+        question,
+      });
     }
     const workout = trainingState.getWorkoutById(subject.workoutId);
     if (!workout) return '';
