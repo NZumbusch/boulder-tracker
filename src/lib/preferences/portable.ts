@@ -43,7 +43,7 @@ export const SETTINGS_GROUPS: Record<SettingsGroupId, { label: string; descripti
   ai: {
     label: 'AI sharing & history',
     description: 'What AI prompts include and how far back they look',
-    keys: ['aiSharing', 'aiHistory'],
+    keys: ['aiSharing', 'aiHistory', 'aiDetail'],
   },
 };
 

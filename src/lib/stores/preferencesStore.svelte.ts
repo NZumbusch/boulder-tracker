@@ -1,7 +1,7 @@
 import { type TimerCues, validateTimerCues } from '../timer/timerCues';
 import { type TimerPreset, validateTimerPresets } from '../timer/presets';
 import type { Place } from '../places/places';
-import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, type NavMode, type NavAccent, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
+import { migratePreferences, defaultPreferences, HOME_SECTION_IDS, ANALYTICS_SECTION_IDS, QUICK_LOG_ACTION_IDS, type AnalyticsSectionId, type QuickLogActionId, type OrderedToggle, type TextScale, type MotionPreference, type Preferences, type WeatherLocation, type FatigueChartStyle, type AnalyticsRange, type RecoveryChartMode, type HomeSectionPreference, type AISharingPreferences, type AIHistoryWindow, type AIDetail, type AddedExerciseTarget, type PainCheckInPrefs, type WidgetReadinessDetail, type NavMode, type NavAccent, DEFAULT_PAIN_CHECK_INS, validatePainCheckIns } from '../preferences/migrate';
 import { withHidden, withoutHidden } from '../analytics/hiddenFindings';
 import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails';
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
@@ -54,6 +54,7 @@ export class PreferencesStore {
   quickLogActions = $state<OrderedToggle<QuickLogActionId>[]>(QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })));
   aiSharing = $state<AISharingPreferences>(defaultPreferences().aiSharing);
   aiHistory = $state<AIHistoryWindow>(defaultPreferences().aiHistory);
+  aiDetail = $state<AIDetail>(defaultPreferences().aiDetail);
   autoBackup = $state(defaultPreferences().autoBackup);
   addedExerciseTarget = $state<AddedExerciseTarget>(defaultPreferences().addedExerciseTarget);
   navLabels = $state(false);
@@ -128,6 +129,7 @@ export class PreferencesStore {
     this.quickLogActions = prefs.quickLogActions;
     this.aiSharing = prefs.aiSharing;
     this.aiHistory = prefs.aiHistory;
+    this.aiDetail = prefs.aiDetail;
     this.autoBackup = prefs.autoBackup;
     this.addedExerciseTarget = prefs.addedExerciseTarget;
     this.navLabels = prefs.navLabels;
@@ -352,6 +354,11 @@ export class PreferencesStore {
     this.persist();
   }
 
+  setAiDetail(detail: AIDetail) {
+    this.aiDetail = { ...detail };
+    this.persist();
+  }
+
   setAiHistory(history: AIHistoryWindow) {
     this.aiHistory = { ...history };
     this.persist();
@@ -462,6 +469,7 @@ export class PreferencesStore {
       quickLogActions: this.quickLogActions,
       aiSharing: this.aiSharing,
       aiHistory: this.aiHistory,
+      aiDetail: this.aiDetail,
       autoBackup: this.autoBackup,
       addedExerciseTarget: this.addedExerciseTarget,
       navLabels: this.navLabels,

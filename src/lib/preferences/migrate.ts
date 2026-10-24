@@ -141,6 +141,7 @@ export interface Preferences {
   aiSharing: AISharingPreferences;
   /** How much training history AI prompts carry by default - see `AIHistoryWindow`. */
   aiHistory: AIHistoryWindow;
+  aiDetail: AIDetail;
   /** Android: write a backup to Documents/BoulderTracker once a week (`lib/storage/autoBackup.ts`). */
   autoBackup: boolean;
   /**
@@ -238,6 +239,13 @@ export interface AISharingPreferences {
    * once the session is logged. Optional - older saved preferences read as off.
    */
   planNotesInHistory?: boolean;
+  /**
+   * Training that isn't climbing - runs, rides, walks and workouts imported from Strava or Garmin - at the detail
+   * chosen in `AIDetail`. Default on (it is training data, and the coach plans better knowing it). Optional.
+   */
+  otherTraining?: boolean;
+  /** What your own data says about your best sessions and your weeks (`sessionPredictors`, `weeklyReview`): derived lines, no raw data. Default on. Optional. */
+  patterns?: boolean;
 }
 
 /**
@@ -252,6 +260,23 @@ export interface AIHistoryWindow {
   fullWeeks: number;
   summaryWeeks: number;
 }
+/**
+ * How much of two newer kinds of data an AI prompt carries, once its sharing
+ * switch is on (`lib/ai/wellnessContext.ts`): recovery data (brief: last night,
+ * averages and flags; standard: plus a line per week; full: plus the last two
+ * weeks daily) and training that isn't climbing (summary: a line per week; list:
+ * plus each recent activity).
+ */
+export type AIRecoveryDetail = 'brief' | 'standard' | 'full';
+export type AIOtherTrainingDetail = 'summary' | 'list';
+export interface AIDetail {
+  recovery: AIRecoveryDetail;
+  otherTraining: AIOtherTrainingDetail;
+}
+export const DEFAULT_AI_DETAIL: AIDetail = { recovery: 'standard', otherTraining: 'summary' };
+export const AI_RECOVERY_DETAIL_OPTIONS: readonly AIRecoveryDetail[] = ['brief', 'standard', 'full'];
+export const AI_OTHER_DETAIL_OPTIONS: readonly AIOtherTrainingDetail[] = ['summary', 'list'];
+
 export const AI_HISTORY_FULL_WEEK_OPTIONS = [1, 2, 3, 4, 6, 8] as const;
 export const AI_HISTORY_SUMMARY_WEEK_OPTIONS = [0, 4, 8, 12, 16, 26] as const;
 export const DEFAULT_AI_HISTORY: AIHistoryWindow = { fullWeeks: 2, summaryWeeks: 8 };
@@ -360,6 +385,7 @@ export function defaultPreferences(): Preferences {
     homeCollapsed: [],
     hiddenFindings: [],
     aiHistory: { ...DEFAULT_AI_HISTORY },
+    aiDetail: { ...DEFAULT_AI_DETAIL },
     autoBackup: true,
     aiSharing: {
       trainingBlocks: true,
@@ -461,6 +487,8 @@ export const AI_SHARING_ON_BY_DEFAULT: Record<keyof AISharingPreferences, boolea
   phoneCalendar: false,
   sessionNotes: true,
   planNotesInHistory: false,
+  otherTraining: true,
+  patterns: true,
 };
 
 /** Whether a sharing switch is on, an absent value reading as its default. */
@@ -491,6 +519,8 @@ function validateAISharing(raw: unknown): AISharingPreferences {
     ...(typeof c.planNotesInHistory === 'boolean' ? { planNotesInHistory: c.planNotesInHistory } : {}),
     ...(typeof c.places === 'boolean' ? { places: c.places } : {}),
     ...(typeof c.phoneCalendar === 'boolean' ? { phoneCalendar: c.phoneCalendar } : {}),
+    ...(typeof c.otherTraining === 'boolean' ? { otherTraining: c.otherTraining } : {}),
+    ...(typeof c.patterns === 'boolean' ? { patterns: c.patterns } : {}),
   };
 }
 
@@ -502,6 +532,15 @@ function validateAIHistory(raw: unknown): AIHistoryWindow {
   return {
     fullWeeks: pick(c.fullWeeks, AI_HISTORY_FULL_WEEK_OPTIONS, DEFAULT_AI_HISTORY.fullWeeks),
     summaryWeeks: pick(c.summaryWeeks, AI_HISTORY_SUMMARY_WEEK_OPTIONS, DEFAULT_AI_HISTORY.summaryWeeks),
+  };
+}
+
+/** Repairs an unknown value into a valid `AIDetail`; each field falls back on its own, and only to a listed option. */
+function validateAIDetail(raw: unknown): AIDetail {
+  const c = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  return {
+    recovery: AI_RECOVERY_DETAIL_OPTIONS.includes(c.recovery as AIRecoveryDetail) ? (c.recovery as AIRecoveryDetail) : DEFAULT_AI_DETAIL.recovery,
+    otherTraining: AI_OTHER_DETAIL_OPTIONS.includes(c.otherTraining as AIOtherTrainingDetail) ? (c.otherTraining as AIOtherTrainingDetail) : DEFAULT_AI_DETAIL.otherTraining,
   };
 }
 
@@ -598,6 +637,7 @@ export function migratePreferences(raw: unknown, legacy?: LegacyPreferenceValues
     units: validateUnits(candidate.units),
     aiSharing: candidate.aiSharing === undefined ? defaults.aiSharing : validateAISharing(candidate.aiSharing),
     aiHistory: validateAIHistory(candidate.aiHistory),
+    aiDetail: validateAIDetail(candidate.aiDetail),
     autoBackup: typeof candidate.autoBackup === 'boolean' ? candidate.autoBackup : defaults.autoBackup,
     addedExerciseTarget: candidate.addedExerciseTarget === 'mirror' || candidate.addedExerciseTarget === 'none'
       ? candidate.addedExerciseTarget

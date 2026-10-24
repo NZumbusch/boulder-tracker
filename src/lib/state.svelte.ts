@@ -77,7 +77,7 @@ import { PreferencesStore } from './stores/preferencesStore.svelte';
 import { applySettingsRecords, resetGroups, applyGroups, buildSettingsFile, parseSettingsFile, toSettingsRecords, type SettingsGroupId } from './preferences/portable';
 import { stableStringify } from './sync/merge';
 import { WeatherStore } from './stores/weatherStore.svelte';
-import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AddedExerciseTarget, PainCheckInPrefs, WidgetReadinessDetail, NavMode, NavAccent, NavStyle } from './preferences/migrate';
+import type { WeatherLocation, FatigueChartStyle, AnalyticsRange, RecoveryChartMode, HomeSectionPreference, AISharingPreferences, AIHistoryWindow, AIDetail, AddedExerciseTarget, PainCheckInPrefs, WidgetReadinessDetail, NavMode, NavAccent, NavStyle } from './preferences/migrate';
 import { geocodeCity } from './weather/api';
 import type { CragForecast } from './weather/suggestion';
 import type { TextScale, MotionPreference } from './preferences/migrate';
@@ -548,6 +548,8 @@ class TrainingState {
     this.preferencesStore.setAiSharing(category, enabled);
   }
   get aiHistory() { return this.preferencesStore.aiHistory; }
+  get aiDetail() { return this.preferencesStore.aiDetail; }
+  setAiDetail(detail: AIDetail) { this.preferencesStore.setAiDetail(detail); }
   setAiHistory(history: AIHistoryWindow) {
     this.preferencesStore.setAiHistory(history);
   }

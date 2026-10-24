@@ -84,3 +84,60 @@ describe("buildCoachPromptFor", () => {
     expect(p).toContain("TARGET WEEKS");
   });
 });
+
+describe("recovery data and other training in the prompt", () => {
+  const ASOF = new Date(2026, 9, 24, 12);
+  const iso = (d: number) => new Date(Date.UTC(2026, 9, 24) - d * 86400000).toISOString().slice(0, 10);
+  const metrics = Array.from({ length: 30 }, (_, i) => [
+    { id: `h${i}`, metricId: "hrv", date: iso(i), value: i < 3 ? 60 : 80 },
+    { id: `s${i}`, metricId: "sleep-score", date: iso(i), value: 80 },
+  ]).flat();
+  const activities = [
+    { id: "r1", source: "strava", sourceId: "1", date: "2026-10-22", start: "2026-10-22T06:00:00Z", name: "Morning Run", type: "Run", durationSec: 2400, avgHr: 150, distanceM: 7000 },
+    { id: "w1", source: "strava", sourceId: "2", date: "2026-10-21", start: "2026-10-21T06:00:00Z", name: "Walk", type: "Walk", durationSec: 3600 },
+  ];
+  const base = {
+    exerciseTypes: [], analyticsCategories: [], phaseDefs: [], templates: {}, trainingBlocks: [], dismissedSessions: [], weekNotes: [], benchmarks: [], goals: [], painLogs: [], outdoorAscents: [], workouts: [],
+    dailyMetrics: metrics, externalActivities: activities,
+  };
+  const history = { fullWeeks: 2, summaryWeeks: 4 };
+  const build = (sharing: Record<string, boolean>, detail?: { recovery: string; otherTraining: string }) =>
+    buildCoachPromptFor({ ...base, aiSharing: { trainingBlocks: true, competitions: true, readinessMetrics: false, painLogs: false, outdoorAscents: true, notes: true, ...sharing }, aiDetail: detail } as any, { mode: "context", targetWeekIds: [], goal: "", history, asOf: ASOF });
+
+  it("sends nothing about sleep or HRV unless readiness and daily metrics are shared", () => {
+    const p = build({});
+    expect(p).not.toContain("Recovery Data");
+    expect(p).not.toContain("hrvVsBaselinePct");
+    // Other training is on by default and is not health data.
+    expect(p).toContain("Other Training");
+    expect(p).toContain('"kinds":{"run":1,"walk":1}');
+  });
+
+  it("brief, standard and full recovery detail grow the prompt, and the pieces are named", () => {
+    const brief = build({ readinessMetrics: true }, { recovery: "brief", otherTraining: "summary" });
+    const standard = build({ readinessMetrics: true }, { recovery: "standard", otherTraining: "summary" });
+    const full = build({ readinessMetrics: true }, { recovery: "full", otherTraining: "summary" });
+    expect(brief).toContain("Recovery Data");
+    expect(brief).toContain('"lastNight"');
+    const recoveryWeekly = /"weekly":\[\{"week":"[^"]+","sleepScore"/;
+    expect(brief).not.toMatch(recoveryWeekly);
+    expect(standard).toMatch(recoveryWeekly);
+    expect(standard).not.toContain('"daily"');
+    expect(full).toContain('"daily"');
+    expect(brief.length).toBeLessThan(standard.length);
+    expect(standard.length).toBeLessThan(full.length);
+  });
+
+  it("other training: the list adds each activity, switching it off removes the section", () => {
+    const list = build({}, { recovery: "brief", otherTraining: "list" });
+    expect(list).toContain('"activities"');
+    expect(list).toContain('"minutes":40');
+    expect(build({ otherTraining: false })).not.toContain("Other Training");
+  });
+
+  it("patterns and weekly reviews can be switched off", () => {
+    const on = build({ readinessMetrics: true });
+    expect(on).toContain("My Last Weeks In Brief");
+    expect(build({ readinessMetrics: true, patterns: false })).not.toContain("My Last Weeks In Brief");
+  });
+});

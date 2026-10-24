@@ -64,6 +64,7 @@ describe('defaultPreferences', () => {
       quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
       aiSharing: DEFAULT_AI_SHARING,
       aiHistory: { fullWeeks: 2, summaryWeeks: 8 },
+      aiDetail: { recovery: 'standard', otherTraining: 'summary' },
       autoBackup: true,
     });
   });
@@ -136,6 +137,7 @@ describe('migratePreferences', () => {
       quickLogActions: [{ id: 'send' as const, visible: true }, { id: 'pain' as const, visible: true }, { id: 'bodyweight' as const, visible: false }, { id: 'benchmark' as const, visible: true }],
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
       aiHistory: { fullWeeks: 4, summaryWeeks: 16 },
+      aiDetail: { recovery: 'full', otherTraining: 'list' },
       autoBackup: false,
       addedExerciseTarget: 'mirror' as const,
       navLabels: true,
@@ -577,5 +579,16 @@ describe('hiddenFindings', () => {
     expect(defaultPreferences().hiddenFindings).toEqual([]);
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, hiddenFindings: ['a', 'a', 7, 'b'] }).hiddenFindings).toEqual(['a', 'b']);
     expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, hiddenFindings: 'a' }).hiddenFindings).toEqual([]);
+  });
+});
+
+describe('aiDetail', () => {
+  it('defaults to standard recovery and a weekly summary of other training', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).aiDetail).toEqual({ recovery: 'standard', otherTraining: 'summary' });
+  });
+
+  it('repairs each field on its own, and only to a listed option', () => {
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiDetail: { recovery: 'full', otherTraining: 'x' } }).aiDetail).toEqual({ recovery: 'full', otherTraining: 'summary' });
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiDetail: 'x' }).aiDetail).toEqual({ recovery: 'standard', otherTraining: 'summary' });
   });
 });

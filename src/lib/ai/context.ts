@@ -40,7 +40,12 @@ import {
 } from "../analytics/readiness";
 import { calculateRollingAcwr } from "../analytics/loadAnalytics";
 import { loggedMetrics } from "../analytics/metricValues";
-import { DEFAULT_AI_HISTORY, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
+import { DEFAULT_AI_DETAIL, DEFAULT_AI_HISTORY, type AIDetail, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
+import { buildOtherTrainingContext, buildRecoveryContext, type OtherTrainingContext, type RecoveryContext } from "./wellnessContext";
+import { describeFinding, predictBestSessions } from "../analytics/sessionPredictors";
+import { recentReviews } from "../analytics/weeklyReview";
+import type { ExternalActivity } from "../types";
+import type { ExternalLoadConfig } from "../activity/externalLoad";
 import { getDominantBlockForWeek, blockFirstWeekId, blockLastWeekId } from "../planning/trainingBlocks";
 
 /**
@@ -391,6 +396,8 @@ export interface ModelOptions {
   retestWeeks?: number;
   /** A shorter profile: fewer outdoor ascents. */
   compact?: boolean;
+  /** How much recovery data and other training the prompt carries (Settings -> What the AI sees). */
+  detail?: AIDetail;
 }
 
 // --- Readiness / daily metrics --------------------------------------------
@@ -568,6 +575,12 @@ export interface AIContextSource {
   benchmarkTypes?: BenchmarkTypeDef[];
   /** The places the athlete trains at (`lib/places`) - optional so callers from before them keep compiling. */
   places?: Place[];
+  /** Runs, rides, walks and workouts imported from Strava/Garmin - optional so older callers keep compiling. */
+  externalActivities?: ExternalActivity[];
+  /** How those count as load (Settings -> Training model -> Other training). */
+  externalLoadConfig?: ExternalLoadConfig;
+  /** `workouts` plus the imported activities that count as load - what fatigue and the load ratio are computed from. */
+  loadWorkouts?: Workout[];
 }
 
 /** A place for a prompt: what the coach can use - never the coordinates. */
@@ -678,6 +691,14 @@ export interface AIContextProfile {
   /** What else is on in the target weeks, from the phone calendar - only with the opt-in sharing switch (`buildCalendarContext`). */
   calendar?: { entries: CalendarEntry[]; more: number };
   readiness?: ReadinessSnapshot;
+  /** Sleep, HRV, resting heart rate, Body Battery... at the chosen detail - only with "Readiness and daily metrics" on. */
+  recovery?: RecoveryContext;
+  /** Training that isn't climbing, at the chosen detail. */
+  otherTraining?: OtherTrainingContext;
+  /** What your own data says about your best sessions (needs "Readiness and daily metrics" on). */
+  patterns?: string[];
+  /** The last few weeks in plain lines. */
+  weeklyReviews?: { week: string; lines: string[]; remark?: string }[];
   painIssues?: PainIssueSummary[];
   outdoorAscents?: OutdoorAscentSummary[];
   weekNotes?: WeekNote[];
@@ -754,8 +775,33 @@ export function buildAIContextProfile(
     profile.places = buildPlaceContext(source.places);
   }
   if (sharing.readinessMetrics) {
-    profile.readiness = buildReadinessSnapshot(source.workouts, source.dailyMetrics, asOf, model,
+    profile.readiness = buildReadinessSnapshot(source.loadWorkouts ?? source.workouts, source.dailyMetrics, asOf, model,
       sharing.painLogs ? painLevelOn(source.painIssues ?? [], source.painLogs, localIsoDate(asOf)) : undefined);
+  }
+  if (mode !== "analyze") {
+    const detail = model.detail ?? DEFAULT_AI_DETAIL;
+    const weeks = Math.min(12, Math.max(1, history.fullWeeks + history.summaryWeeks));
+    if (sharing.readinessMetrics) {
+      const recovery = buildRecoveryContext(source.dailyMetrics, asOf, detail.recovery, weeks);
+      if (recovery) profile.recovery = recovery;
+    }
+    const otherOn = sharing.otherTraining !== false && !!source.externalActivities?.length;
+    if (otherOn) {
+      const other = buildOtherTrainingContext(source.externalActivities!, asOf, detail.otherTraining, history, source.externalLoadConfig);
+      if (other) profile.otherTraining = other;
+    }
+    if (sharing.patterns !== false) {
+      // Patterns and reviews are made from health data too, so they use it only when it is shared.
+      const metrics = sharing.readinessMetrics ? source.dailyMetrics : [];
+      if (sharing.readinessMetrics) {
+        const report = predictBestSessions(source.workouts, source.dailyMetrics, source.loadWorkouts ?? source.workouts, asOf);
+        if (report.findings.length) profile.patterns = [`${report.sessions} sessions compared with the day before; findings are patterns, not proof of cause`, ...report.findings.slice(0, 3).map(describeFinding)];
+      }
+      const reviews = recentReviews(asOf, model.compact ? 2 : 4, { workouts: source.workouts, activities: otherOn ? source.externalActivities! : [], dailyMetrics: metrics, loadConfig: source.externalLoadConfig, hrvDip: model.readiness?.hrvDip })
+        .filter((r) => r.lines.length > 1 || r.lines[0] !== "No training logged this week.")
+        .map((r) => ({ week: r.weekId, lines: r.lines, ...(r.remark ? { remark: r.remark } : {}) }));
+      if (reviews.length) profile.weeklyReviews = reviews;
+    }
   }
   if (sharing.painLogs) {
     profile.painIssues = buildPainIssueContext(source.painLogs, source.painIssues, asOf);

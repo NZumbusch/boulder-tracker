@@ -17,6 +17,8 @@ export const AI_SHARING_CATEGORIES: { id: keyof AISharingPreferences; label: str
   { id: 'notes', label: 'Block and week notes', description: 'Your notes on training blocks, and week notes within four weeks of the prompt\'s weeks.' },
   { id: 'sessionNotes', label: 'Session notes (how it went)', description: 'The note you write when you finish a session, sent with your recent sessions.' },
   { id: 'planNotesInHistory', label: 'Plan notes on past sessions', description: 'The session note written beforehand (goals, cues) for sessions you have already done. It is usually stale once you have logged what happened.' },
+  { id: 'otherTraining', label: 'Other training', description: 'Runs, rides, walks and workouts from Strava or Garmin: a line per week, or each recent activity - you pick how much under Detail below.' },
+  { id: 'patterns', label: 'Patterns and weekly reviews', description: 'What your data says about your best sessions and how each recent week went (derived lines only, no raw data).' },
   { id: 'coachNotes', label: 'Coach notes and about me', description: 'Your About me, standing goal and the coach notes (Settings → Coach notes) - so you don\'t have to repeat them.' },
 ];
 

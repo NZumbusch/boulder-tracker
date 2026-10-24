@@ -21,11 +21,23 @@
   import { loadCompact } from '../../lib/ai/promptSize';
   import Icon from "@iconify/svelte";
   import Toggle from '../ui/Toggle.svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import { AI_OTHER_DETAILS, AI_RECOVERY_DETAILS, buildOtherTrainingContext, buildRecoveryContext } from '../../lib/ai/wellnessContext';
   import InfoButton from '../common/InfoButton.svelte';
   import { deviceCalendar } from '../../lib/calendar/deviceCalendar.svelte';
 
 
   let compact = $state(loadCompact());
+
+  // What each detail level costs on your own data, so the choice is informed.
+  const hist = $derived(trainingState.aiHistory);
+  const weeks = $derived(Math.min(12, Math.max(1, hist.fullWeeks + hist.summaryWeeks)));
+  const hasRecovery = $derived(trainingState.dailyMetrics.length > 0);
+  const hasOther = $derived(trainingState.externalActivities.length > 0);
+  const recoveryCost = $derived(Object.fromEntries(AI_RECOVERY_DETAILS.map((d) => [d.value, estimateTokens(JSON.stringify(buildRecoveryContext(trainingState.dailyMetrics, trainingState.today, d.value, weeks) ?? ''))])));
+  const otherCost = $derived(Object.fromEntries(AI_OTHER_DETAILS.map((d) => [d.value, estimateTokens(JSON.stringify(buildOtherTrainingContext(trainingState.externalActivities, trainingState.today, d.value, hist, trainingState.externalLoadConfig) ?? ''))])));
+  const recoveryOn = $derived(aiSharingOn(trainingState.aiSharing, 'readinessMetrics'));
+  const otherOn = $derived(aiSharingOn(trainingState.aiSharing, 'otherTraining'));
 
   // What the defaults cost: a "Change plan" prompt for the next four weeks,
   // and the context-only one - measured on the real prompts, not estimated.
@@ -55,6 +67,35 @@
         hint={sharingHint(category.id)}
       />
     {/each}
+  </div>
+
+  <div class="space-y-4 pt-3 border-t border-border">
+    <div class="space-y-1">
+      <h3 class="text-section uppercase text-content-muted px-1">Detail</h3>
+      <p class="text-caption text-content-subtle px-1 leading-relaxed">How much of the watch and activity data goes in, once its switch is on. More detail costs more tokens; the numbers are what each level adds on your own data.</p>
+    </div>
+
+    <div class="space-y-1.5">
+      <p class="text-label font-semibold px-1">Recovery data (sleep, HRV, resting heart rate, Body Battery...)</p>
+      {#if !recoveryOn}
+        <p class="text-caption text-content-subtle px-1">Off: switch on "Readiness and daily metrics" above to send it.</p>
+      {:else if !hasRecovery}
+        <p class="text-caption text-content-subtle px-1">No daily values yet - they come from what you log or a Garmin import.</p>
+      {/if}
+      <Segmented full label="Recovery detail" options={AI_RECOVERY_DETAILS.map((d) => ({ value: d.value, label: d.label }))} value={trainingState.aiDetail.recovery} onChange={(v) => trainingState.setAiDetail({ ...trainingState.aiDetail, recovery: v })} />
+      <p class="text-caption text-content-subtle px-1">{AI_RECOVERY_DETAILS.find((d) => d.value === trainingState.aiDetail.recovery)?.hint}{hasRecovery ? `. About ${formatTokens(recoveryCost[trainingState.aiDetail.recovery])}.` : ''}</p>
+    </div>
+
+    <div class="space-y-1.5">
+      <p class="text-label font-semibold px-1">Other training (runs, rides, walks, workouts)</p>
+      {#if !otherOn}
+        <p class="text-caption text-content-subtle px-1">Off: switch on "Other training" above to send it.</p>
+      {:else if !hasOther}
+        <p class="text-caption text-content-subtle px-1">No imported activities yet.</p>
+      {/if}
+      <Segmented full label="Other training detail" options={AI_OTHER_DETAILS.map((d) => ({ value: d.value, label: d.label }))} value={trainingState.aiDetail.otherTraining} onChange={(v) => trainingState.setAiDetail({ ...trainingState.aiDetail, otherTraining: v })} />
+      <p class="text-caption text-content-subtle px-1">{AI_OTHER_DETAILS.find((d) => d.value === trainingState.aiDetail.otherTraining)?.hint}{hasOther ? `. About ${formatTokens(otherCost[trainingState.aiDetail.otherTraining])}.` : ''}</p>
+    </div>
   </div>
 
   <div class="space-y-3 pt-3 border-t border-border">
