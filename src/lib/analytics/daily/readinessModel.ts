@@ -4,8 +4,8 @@ import { painLevelOn } from "../../pain/issues";
 import { calculateRollingAcwr } from "../loadAnalytics";
 import { computeFatigueDecay, computeReadiness, hrvBaselineAt, type FatigueModel, type ReadinessConfig } from "../readiness";
 import { dayIndexToAsOf, dayIndexToIso, localDayIndex } from "../recoverySeries";
-import { DaySeries } from "./daySeries";
-import type { ReadingsModel } from "./readingsModel";
+import { DayRanges, DaySeries } from "./daySeries";
+import { ReadingsModel } from "./readingsModel";
 import type { Warmable } from "./warmer";
 
 /**
@@ -13,7 +13,14 @@ import type { Warmable } from "./warmer";
  * point on the Recovery chart and Home's ring agree - for one snapshot of the sessions, the readings, the open pain and
  * the settings. Worked out a day at a time and kept (`DaySeries`).
  *
- * Immutable like `ReadingsModel`: the sessions and pain entries are copied into plain objects when the model is made.
+ * Immutable like `ReadingsModel`: the sessions and pain entries are copied into plain objects when the model is made, and
+ * when the data changes a new model is built from the new data *and the previous model*. It takes over every day the change
+ * cannot have reached and works the rest out again:
+ *  - a changed sleep or nap reading changes that day; a changed HRV reading also the baselines after it (a year at most);
+ *  - a changed session changes its day and everything after (what the load ratio and the "latest rated session" see);
+ *  - changed pain changes the days from when it starts;
+ *  - a changed setting changes everything, so nothing is taken over.
+ * The previous model is not touched.
  *
  * Each day only sees the sessions up to and including that day (the fatigue model treats anything "in the future" of its
  * as-of date as happening today, which would pull later hard sessions back into a rest day). Of those it uses the ones
@@ -45,9 +52,16 @@ export class ReadinessModel implements Warmable {
   readonly #halfLife: number | Partial<FatigueModel>;
   readonly #reach: number;
   readonly #scores: DaySeries<number | null>;
+  readonly #settings: string;
+  /** Per session id: what the calculation reads of it, and its day. */
+  readonly #sessionKeys = new Map<string, { key: string; day: number }>();
+  /** Per pain item: what it says, and the day it starts from. */
+  readonly #painKeys = new Map<string, { key: string; day: number }>();
   #warmed = false;
+  /** How many already-worked-out days were taken over from the previous model (for tests and diagnostics). */
+  readonly carriedDays: number = 0;
 
-  constructor(private readonly readings: ReadingsModel, inputs: ReadinessInputs) {
+  constructor(readonly readings: ReadingsModel, inputs: ReadinessInputs, previous?: ReadinessModel) {
     // Only what the calculation reads, copied: no reference to the live (reactive) objects is kept.
     this.#sessions = inputs.workouts
       .filter((w) => w.status === "completed" && w.date)
@@ -62,6 +76,33 @@ export class ReadinessModel implements Warmable {
     const halfLifeDays = typeof this.#halfLife === "number" ? this.#halfLife : this.#halfLife.halfLifeDays ?? 3;
     this.#reach = Math.max(ACWR_DAYS, Math.ceil(FATIGUE_HALF_LIVES * halfLifeDays));
     this.#scores = new DaySeries((day) => this.#compute(day));
+
+    this.#settings = JSON.stringify([this.#config, this.#halfLife]);
+    for (const { w, day } of this.#sessions) this.#sessionKeys.set(w.id, { day, key: [day, w.loadFactor, w.fingers, w.arms, w.core, w.systemic].join("|") });
+    for (const i of this.#pain?.issues ?? []) this.#painKeys.set(`i:${i.id}`, { key: JSON.stringify(i), day: toUtcDayIndex(i.startDate) });
+    for (const l of this.#pain?.logs ?? []) this.#painKeys.set(`l:${l.id}`, { key: JSON.stringify(l), day: toUtcDayIndex(l.date) });
+
+    if (previous && previous.#settings === this.#settings) this.carriedDays = this.#scores.adopt(previous.#scores, this.#affectedSince(previous));
+  }
+
+  /** The days whose score the change since `previous` can have reached. */
+  #affectedSince(previous: ReadinessModel): DayRanges {
+    const affected = new DayRanges();
+    const changes = ReadingsModel.changedDays(previous.readings, this.readings);
+    for (const id of ["sleep-score", "sleep-duration", "nap-duration"]) for (const day of changes.get(id) ?? []) affected.add(day, day);
+    // HRV: the day itself, and every baseline that looks back over it (14 days, or up to a year after a break).
+    for (const day of changes.get("hrv") ?? []) affected.add(day, day + 365);
+    const diff = (before: Map<string, { key: string; day: number }>, after: Map<string, { key: string; day: number }>) => {
+      for (const [id, b] of after) {
+        const a = before.get(id);
+        if (!a || a.key !== b.key) affected.add(Math.min(b.day, a?.day ?? b.day), Infinity);
+      }
+      for (const [id, a] of before) if (!after.has(id)) affected.add(a.day, Infinity);
+    };
+    // A session or a pain entry that changed (added, edited, moved, removed) reaches its day and everything after it.
+    diff(previous.#sessionKeys, this.#sessionKeys);
+    diff(previous.#painKeys, this.#painKeys);
+    return affected;
   }
 
   /** The score on `day`, or null when no input was usable that day. */

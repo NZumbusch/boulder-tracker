@@ -1,9 +1,9 @@
 import type { DailyMetricEntry } from "../../types";
 import { BODYWEIGHT_METRIC_ID } from "../../constants";
 import { buildReadingsIndex, type ReadingsIndex } from "../metricValues";
-import { localDayIndex, recoveryDay, RECOVERY_METRICS, type RecoveryDay, type RecoveryMetricSpec } from "../recoverySeries";
+import { BREAK_LOOKBACK_DAYS, localDayIndex, recoveryDay, RECOVERY_METRICS, type RecoveryDay, type RecoveryMetricSpec } from "../recoverySeries";
 import { WELLNESS_MEASURES } from "../wellnessSeries";
-import { DaySeries } from "./daySeries";
+import { DayRanges, DaySeries } from "./daySeries";
 import type { Warmable } from "./warmer";
 
 /**
@@ -13,7 +13,9 @@ import type { Warmable } from "./warmer";
  *
  * Immutable: built from the entries when the model is made and never looking at them again, so nothing that changes the
  * entries later (or a reactive proxy around them) can change what it says. When the data changes the app builds a new
- * model from the new entries; see `AnalyticsStore`.
+ * model from the new entries *and the previous model*: a changed reading can only affect the days after it (its own
+ * average, and the baselines that look back over it), so every series takes over the days before that point and the
+ * days beyond its reach as they are, and only the affected days are worked out again. The previous model is not touched.
  */
 
 /** The series worth having ready: what Recovery, Wellness and the insights draw, in the direction they draw it. */
@@ -31,12 +33,39 @@ const EMPTY: ReadonlyMap<number, number> = new Map();
 
 export class ReadingsModel implements Warmable {
   readonly #index: ReadingsIndex;
-  readonly #series = new Map<string, DaySeries<RecoveryDay>>();
+  readonly #series = new Map<string, { spec: RecoveryMetricSpec; series: DaySeries<RecoveryDay> }>();
   #hrv: { day: number; value: number }[] | undefined;
   #warmAt = 0;
+  /** How many already-worked-out days were taken over from the previous model (for tests and diagnostics). */
+  readonly carriedDays: number = 0;
 
-  constructor(entries: readonly DailyMetricEntry[]) {
+  constructor(entries: readonly DailyMetricEntry[], previous?: ReadingsModel) {
     this.#index = buildReadingsIndex(entries);
+    if (!previous) return;
+    // A changed reading on day D changes that day, the averages over the week after it and the baselines (28 days, or a year after a break) after it.
+    const changes = ReadingsModel.changedDays(previous, this);
+    let carried = 0;
+    for (const { spec, series } of previous.#series.values()) {
+      const affected = new DayRanges();
+      for (const day of changes.get(spec.id) ?? []) affected.add(day, day + BREAK_LOOKBACK_DAYS);
+      carried += this.recovery(spec).adopt(series, affected);
+    }
+    this.carriedDays = carried;
+  }
+
+  /** For each metric, the days whose reading is different in `after` than in `before`: added, removed or changed. */
+  static changedDays(before: ReadingsModel, after: ReadingsModel): Map<string, number[]> {
+    const out = new Map<string, number[]>();
+    const ids = new Set([...before.#index.keys(), ...after.#index.keys()]);
+    for (const id of ids) {
+      const a = before.#index.get(id) ?? EMPTY;
+      const b = after.#index.get(id) ?? EMPTY;
+      const days: number[] = [];
+      for (const [day, v] of a) if (b.get(day) !== v) days.push(day);
+      for (const day of b.keys()) if (!a.has(day)) days.push(day);
+      if (days.length) out.set(id, days);
+    }
+    return out;
   }
 
   /** A metric's real readings by day (two on one day averaged). Read-only. */
@@ -65,12 +94,12 @@ export class ReadingsModel implements Warmable {
   /** The metric's series, a day at a time. Same object for the same metric and direction. */
   recovery(spec: RecoveryMetricSpec): DaySeries<RecoveryDay> {
     const key = `${spec.id}|${spec.higherIsBetter}`;
-    let series = this.#series.get(key);
-    if (!series) {
+    let held = this.#series.get(key);
+    if (!held) {
       const byDay = this.#index.get(spec.id) ?? (EMPTY as Map<number, number>);
-      this.#series.set(key, (series = new DaySeries((day) => recoveryDay(byDay, spec, day))));
+      this.#series.set(key, (held = { spec: { id: spec.id, higherIsBetter: spec.higherIsBetter }, series: new DaySeries((day) => recoveryDay(byDay, spec, day)) }));
     }
-    return series;
+    return held.series;
   }
 
   /** The metric's days from `firstDay` to `lastDay`. The entries are shared between callers: read them, don't change them. */
