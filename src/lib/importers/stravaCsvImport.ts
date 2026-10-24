@@ -21,6 +21,8 @@ import { parseCsvRows } from "./outdoorAscentCsvImport";
 export interface StravaImportResult {
   activities: ExternalActivity[];
   skipped: { line: number; reason: string }[];
+  /** The archive file each activity was recorded in (`activities/123.fit.gz`), by activity id, when the row names one. */
+  filenames: Record<string, string>;
 }
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -50,7 +52,8 @@ export function parseStravaCsv(csvText: string): StravaImportResult {
   const rows = parseCsvRows(csvText.replace(/^﻿/, ""));
   const activities: ExternalActivity[] = [];
   const skipped: { line: number; reason: string }[] = [];
-  if (rows.length === 0) return { activities, skipped };
+  const filenames: Record<string, string> = {};
+  if (rows.length === 0) return { activities, skipped, filenames };
 
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const first = (name: string) => header.indexOf(name);
@@ -60,13 +63,14 @@ export function parseStravaCsv(csvText: string): StravaImportResult {
   const dateCol = first("activity date");
   if (idCol === -1 || dateCol === -1) {
     skipped.push({ line: 1, reason: "Missing 'Activity ID' and/or 'Activity Date' column - not a Strava activities.csv" });
-    return { activities, skipped };
+    return { activities, skipped, filenames };
   }
   const nameCol = first("activity name");
   const typeCol = first("activity type");
   const noteCol = first("activity description");
   const maxHrCol = first("max heart rate");
   const avgHrCol = first("average heart rate");
+  const fileCol = first("filename");
   const caloriesCol = first("calories");
   const elevationCol = first("elevation gain");
   const cell = (row: string[], col: number) => (col === -1 ? undefined : row[col]);
@@ -108,6 +112,8 @@ export function parseStravaCsv(csvText: string): StravaImportResult {
     const summaryKm = positive(num(cell(row, first("distance"))));
     const metres = detail ?? (summaryKm ? summaryKm * 1000 : undefined);
     if (metres) activity.distanceM = Math.round(metres);
+    const moving = positive(num(cell(row, first("moving time"))));
+    if (moving) activity.movingSec = Math.round(moving);
     const elevation = positive(num(cell(row, elevationCol)));
     if (elevation) activity.elevationM = Math.round(elevation);
     const avgHr = positive(num(cell(row, avgHrCol)));
@@ -118,14 +124,9 @@ export function parseStravaCsv(csvText: string): StravaImportResult {
     if (calories) activity.calories = Math.round(calories);
     const notes = (cell(row, noteCol) ?? "").trim();
     if (notes) activity.notes = notes;
+    const file = (cell(row, fileCol) ?? "").trim();
+    if (file) filenames[sourceId] = file;
     activities.push(activity);
   }
-  return { activities, skipped };
-}
-
-/** What an import would do against what is already stored: ids already there are not added again. */
-export function planStravaImport(existing: ExternalActivity[], incoming: ExternalActivity[]): { add: ExternalActivity[]; already: number } {
-  const have = new Set(existing.map((a) => a.id));
-  const add = incoming.filter((a) => !have.has(a.id));
-  return { add, already: incoming.length - add.length };
+  return { activities, skipped, filenames };
 }

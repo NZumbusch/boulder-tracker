@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseStravaCsv, parseStravaDate, planStravaImport } from "./stravaCsvImport";
+import { parseStravaCsv, parseStravaDate } from "./stravaCsvImport";
 
 const HEADER =
   "Activity ID,Activity Date,Activity Name,Activity Type,Activity Description,Elapsed Time,Distance,Max Heart Rate,Relative Effort,Commute,Activity Private Note,Activity Gear,Filename,Athlete Weight,Bike Weight,Elapsed Time,Moving Time,Distance,Max Speed,Average Speed,Elevation Gain,Average Heart Rate,Calories";
@@ -79,15 +79,6 @@ describe("parseStravaCsv", () => {
 
   it("copes with a BOM and an empty file", () => {
     expect(parseStravaCsv("﻿" + [HEADER, row({ 0: "9", 1: '\"Oct 5, 2024, 6:30:00 AM\"' })].join("\n")).activities).toHaveLength(1);
-    expect(parseStravaCsv("")).toEqual({ activities: [], skipped: [] });
-  });
-});
-
-describe("planStravaImport", () => {
-  it("adds only what is not stored yet", () => {
-    const mk = (id: string) => ({ id, source: "strava" as const, sourceId: id, date: "2024-10-05", start: "", name: "", type: "Run", durationSec: 1 });
-    const plan = planStravaImport([mk("strava-1")], [mk("strava-1"), mk("strava-2")]);
-    expect(plan.add.map((a) => a.id)).toEqual(["strava-2"]);
-    expect(plan.already).toBe(1);
+    expect(parseStravaCsv("")).toEqual({ activities: [], skipped: [], filenames: {} });
   });
 });
