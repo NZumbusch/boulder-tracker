@@ -18,6 +18,22 @@ export interface FitPoint {
   /** Metres. */
   alt?: number;
   hr?: number;
+  /** Metres from the start, as the device counted them. */
+  d?: number;
+  /** Metres per second. */
+  speed?: number;
+  /** Steps or revolutions per minute. */
+  cad?: number;
+  /** Watts. */
+  power?: number;
+  /** Degrees C. */
+  temp?: number;
+}
+
+export interface FitLap {
+  elapsedSec: number;
+  distanceM?: number;
+  avgHr?: number;
 }
 
 export interface FitActivity {
@@ -33,6 +49,17 @@ export interface FitActivity {
   avgHr?: number;
   maxHr?: number;
   calories?: number;
+  /** Metres per second. */
+  maxSpeed?: number;
+  /** Steps (or revolutions) per minute. */
+  avgCadence?: number;
+  avgPowerW?: number;
+  descentM?: number;
+  avgTempC?: number;
+  /** Garmin's aerobic and anaerobic training effect, 0-5. */
+  trainingEffect?: number;
+  anaerobicEffect?: number;
+  laps: FitLap[];
   points: FitPoint[];
 }
 
@@ -174,10 +201,13 @@ export function readFitActivity(buffer: ArrayBuffer | Uint8Array): FitActivity |
   const points: FitPoint[] = [];
   let manufacturer: number | undefined;
   const sessions: Msg[] = [];
+  const laps: FitLap[] = [];
   readFitMessages(buffer, (global, m) => {
     if (global === 0 && manufacturer === undefined) manufacturer = m[1];
     else if (global === 18) sessions.push(m);
-    else if (global === 20 && m[253] !== undefined) {
+    else if (global === 19 && m[7] !== undefined) {
+      laps.push({ elapsedSec: m[7]! / 1000, ...(m[9] !== undefined ? { distanceM: m[9]! / 100 } : {}), ...(m[15] !== undefined ? { avgHr: m[15] } : {}) });
+    } else if (global === 20 && m[253] !== undefined) {
       const alt = m[78] !== undefined ? m[78]! / 5 - 500 : m[2] !== undefined ? m[2]! / 5 - 500 : undefined;
       const lat = sc(m[0]);
       const lon = sc(m[1]);
@@ -186,6 +216,12 @@ export function readFitActivity(buffer: ArrayBuffer | Uint8Array): FitActivity |
         ...(lat !== undefined && lon !== undefined && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : {}),
         ...(alt !== undefined ? { alt } : {}),
         ...(m[3] !== undefined ? { hr: m[3] } : {}),
+        ...(m[5] !== undefined ? { d: m[5]! / 100 } : {}),
+        // Speed: the enhanced field (73) when the device writes it, else the plain one (6); both thousandths of m/s.
+        ...((m[73] ?? m[6]) !== undefined ? { speed: (m[73] ?? m[6])! / 1000 } : {}),
+        ...(m[4] !== undefined ? { cad: m[4] } : {}),
+        ...(m[7] !== undefined ? { power: m[7] } : {}),
+        ...(m[13] !== undefined && m[13]! < 100 && m[13]! > -60 ? { temp: m[13] } : {}),
       });
     }
   });
@@ -206,6 +242,7 @@ export function readFitActivity(buffer: ArrayBuffer | Uint8Array): FitActivity |
   const out: FitActivity = {
     startMs,
     elapsedSec: elapsed !== undefined ? elapsed / 1000 : Math.max(0, (lastT - startMs) / 1000),
+    laps,
     points,
   };
   if (first?.[5] !== undefined) out.sport = first[5];
@@ -221,6 +258,16 @@ export function readFitActivity(buffer: ArrayBuffer | Uint8Array): FitActivity |
   if (max !== undefined) out.maxHr = max;
   const cal = sum(11);
   if (cal !== undefined) out.calories = cal;
+  // Session extras (FIT profile numbers): 15/125 max speed, 18 avg cadence, 20 avg power, 23 descent, 24 / 137 training effect (tenths), 57 avg temperature.
+  const maxSpeed = first?.[125] ?? first?.[15];
+  if (maxSpeed !== undefined) out.maxSpeed = maxSpeed / 1000;
+  if (first?.[18] !== undefined) out.avgCadence = first[18];
+  if (first?.[20] !== undefined) out.avgPowerW = first[20];
+  const descent = sum(23);
+  if (descent !== undefined) out.descentM = descent;
+  if (first?.[24] !== undefined) out.trainingEffect = first[24]! / 10;
+  if (first?.[137] !== undefined) out.anaerobicEffect = first[137]! / 10;
+  if (first?.[57] !== undefined && first[57]! < 100 && first[57]! > -60) out.avgTempC = first[57];
   return out;
 }
 

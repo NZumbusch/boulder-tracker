@@ -3,6 +3,7 @@ import { localIsoDate } from "../dateUtils";
 import { fitFileType, fitSportName, readFitActivity, readFitHrv, type FitActivity, type FitPoint } from "../activity/fit";
 import { readGpx, readTcx } from "../activity/gpxTcx";
 import { routeOf, trackLength, type LatLon } from "../activity/track";
+import { computeStats, mergeStats } from "../activity/stats";
 import { inflate, isGzip, readZip, type ZipEntry } from "../activity/zip";
 import { parseStravaCsv } from "./stravaCsvImport";
 import type { DailyValue } from "../health/import";
@@ -68,7 +69,7 @@ export async function decodeRecording(fileName: string, raw: Uint8Array): Promis
 const TCX_SPORTS: Record<string, string> = { running: "Run", biking: "Ride", walking: "Walk", hiking: "Hike", swimming: "Swim" };
 
 /** The numbers a recording gives, for an activity that has none of its own. */
-function figures(rec: Recording) {
+function figures(rec: Recording, type: string) {
   const pts = rec.points;
   const line: LatLon[] = pts.filter((p) => p.lat !== undefined && p.lon !== undefined).map((p) => [p.lat!, p.lon!]);
   const startMs = rec.fit?.startMs ?? pts[0]?.t ?? NaN;
@@ -91,14 +92,15 @@ function figures(rec: Recording) {
     maxHr: rec.fit?.maxHr ?? (hrs.length ? Math.max(...hrs) : undefined),
     calories: rec.fit?.calories,
     track: routeOf(pts),
+    stats: computeStats(pts, type, rec.fit),
   };
 }
 
 /** An activity from a recording alone (no CSV): a loose file or a Garmin export. */
 export function activityFromRecording(rec: Recording, source: Source): ExternalActivity | null {
-  const f = figures(rec);
-  if (!Number.isFinite(f.startMs)) return null;
   const type = rec.fit ? fitSportName(rec.fit.sport, rec.fit.subSport) : TCX_SPORTS[(rec.sport ?? "").toLowerCase()] ?? "Activity";
+  const f = figures(rec, type);
+  if (!Number.isFinite(f.startMs)) return null;
   const epoch = Math.round(f.startMs / 1000);
   const out: ExternalActivity = {
     id: `${source}-${epoch}`,
@@ -124,6 +126,7 @@ function fill(a: ExternalActivity, f: ReturnType<typeof figures>) {
   if (a.calories === undefined && f.calories) a.calories = f.calories;
   if (!a.durationSec && f.durationSec) a.durationSec = f.durationSec;
   if (f.track) a.track = f.track;
+  if (f.stats) a.stats = mergeStats(a.stats, f.stats);
 }
 
 async function readStravaZip(entries: ZipEntry[], csv: ZipEntry, out: ActivityRead, progress?: Progress) {
@@ -138,7 +141,7 @@ async function readStravaZip(entries: ZipEntry[], csv: ZipEntry, out: ActivityRe
     if (entry) {
       try {
         const rec = await decodeRecording(entry.name, await entry.read());
-        if (rec) fill(a, figures(rec));
+        if (rec) fill(a, figures(rec, a.type));
       } catch (e) {
         out.skipped.push({ where: entry.name, reason: `Recording unreadable (${(e as Error).message}); kept without a route` });
       }
@@ -251,6 +254,8 @@ function applySummary(a: ExternalActivity, s: GarminActivitySummary) {
   if (!a.maxHr && s.maxHr) a.maxHr = s.maxHr;
   if (!a.calories && s.calories) a.calories = s.calories;
   if (s.place && !a.notes) a.notes = s.place;
+  const extra = { ...(s.trainingEffect ? { trainingEffect: s.trainingEffect } : {}), ...(s.anaerobicEffect ? { anaerobicEffect: s.anaerobicEffect } : {}), ...(s.trainingLoad ? { trainingLoad: s.trainingLoad } : {}) };
+  if (Object.keys(extra).length) a.stats = mergeStats(a.stats, extra);
 }
 
 function activityFromSummary(s: GarminActivitySummary): ExternalActivity {
