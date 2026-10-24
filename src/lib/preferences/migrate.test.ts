@@ -64,7 +64,7 @@ describe('defaultPreferences', () => {
       quickLogActions: QUICK_LOG_ACTION_IDS.map((id) => ({ id, visible: true })),
       aiSharing: DEFAULT_AI_SHARING,
       aiHistory: { fullWeeks: 2, summaryWeeks: 8 },
-      aiDetail: { recovery: 'standard', otherTraining: 'summary' },
+      aiDetail: { recovery: 'standard', otherTraining: 'summary', fields: { pace: true, zones: true, effect: true, terrain: false, vo2max: true, sleepStages: true, readiness: false } },
       autoBackup: true,
     });
   });
@@ -137,7 +137,7 @@ describe('migratePreferences', () => {
       quickLogActions: [{ id: 'send' as const, visible: true }, { id: 'pain' as const, visible: true }, { id: 'bodyweight' as const, visible: false }, { id: 'benchmark' as const, visible: true }],
       aiSharing: { trainingBlocks: false, competitions: true, readinessMetrics: true, painLogs: true, outdoorAscents: false, notes: false },
       aiHistory: { fullWeeks: 4, summaryWeeks: 16 },
-      aiDetail: { recovery: 'full', otherTraining: 'list' },
+      aiDetail: { recovery: 'full', otherTraining: 'list', fields: { pace: false, zones: true, effect: false, terrain: true, vo2max: true, sleepStages: false, readiness: true } },
       autoBackup: false,
       addedExerciseTarget: 'mirror' as const,
       navLabels: true,
@@ -584,11 +584,11 @@ describe('hiddenFindings', () => {
 
 describe('aiDetail', () => {
   it('defaults to standard recovery and a weekly summary of other training', () => {
-    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).aiDetail).toEqual({ recovery: 'standard', otherTraining: 'summary' });
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION }).aiDetail).toEqual({ recovery: 'standard', otherTraining: 'summary', fields: { pace: true, zones: true, effect: true, terrain: false, vo2max: true, sleepStages: true, readiness: false } });
   });
 
   it('repairs each field on its own, and only to a listed option', () => {
-    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiDetail: { recovery: 'full', otherTraining: 'x' } }).aiDetail).toEqual({ recovery: 'full', otherTraining: 'summary' });
-    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiDetail: 'x' }).aiDetail).toEqual({ recovery: 'standard', otherTraining: 'summary' });
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiDetail: { recovery: 'full', otherTraining: 'x', fields: { pace: false, terrain: 'yes' } } }).aiDetail).toEqual({ recovery: 'full', otherTraining: 'summary', fields: { pace: false, zones: true, effect: true, terrain: false, vo2max: true, sleepStages: true, readiness: false } });
+    expect(migratePreferences({ version: CURRENT_PREFERENCES_VERSION, aiDetail: 'x' }).aiDetail).toEqual({ recovery: 'standard', otherTraining: 'summary', fields: { pace: true, zones: true, effect: true, terrain: false, vo2max: true, sleepStages: true, readiness: false } });
   });
 });

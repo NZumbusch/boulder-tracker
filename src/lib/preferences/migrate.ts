@@ -272,8 +272,38 @@ export type AIOtherTrainingDetail = 'summary' | 'list';
 export interface AIDetail {
   recovery: AIRecoveryDetail;
   otherTraining: AIOtherTrainingDetail;
+  /** Which extra groups of Garmin data go in (each its own switch). Optional so older code and saved settings read as the defaults. */
+  fields?: AIFields;
 }
-export const DEFAULT_AI_DETAIL: AIDetail = { recovery: 'standard', otherTraining: 'summary' };
+/**
+ * The groups of watch data that can be switched on or off one by one, each
+ * with its own cost in the prompt (Settings -> What the AI sees). The first
+ * four add to each activity in the "Every activity" list (`lib/ai/activityDigest.ts`);
+ * the last three add to the recovery data (`lib/ai/wellnessContext.ts`).
+ */
+export interface AIFields {
+  /** Pace or speed, kilometre splits, a workout's laps, how the second half differed from the first. */
+  pace: boolean;
+  /** Minutes in each heart-rate zone. */
+  zones: boolean;
+  /** Garmin's training effect and training load for the activity. */
+  effect: boolean;
+  /** Climb and descent, cadence, power, temperature. */
+  terrain: boolean;
+  /** Running VO2max. */
+  vo2max: boolean;
+  /** Deep and REM sleep minutes. */
+  sleepStages: boolean;
+  /** Garmin's training readiness score. */
+  readiness: boolean;
+}
+export const AI_FIELD_KEYS: readonly (keyof AIFields)[] = ['pace', 'zones', 'effect', 'terrain', 'vo2max', 'sleepStages', 'readiness'];
+export const DEFAULT_AI_FIELDS: AIFields = { pace: true, zones: true, effect: true, terrain: false, vo2max: true, sleepStages: true, readiness: false };
+export const DEFAULT_AI_DETAIL: AIDetail = { recovery: 'standard', otherTraining: 'summary', fields: { ...DEFAULT_AI_FIELDS } };
+/** The switches of `detail`, each at its default where nothing was chosen. */
+export function aiFields(detail?: { fields?: Partial<AIFields> }): AIFields {
+  return { ...DEFAULT_AI_FIELDS, ...(detail?.fields ?? {}) };
+}
 export const AI_RECOVERY_DETAIL_OPTIONS: readonly AIRecoveryDetail[] = ['brief', 'standard', 'full'];
 export const AI_OTHER_DETAIL_OPTIONS: readonly AIOtherTrainingDetail[] = ['summary', 'list'];
 
@@ -541,6 +571,7 @@ function validateAIDetail(raw: unknown): AIDetail {
   return {
     recovery: AI_RECOVERY_DETAIL_OPTIONS.includes(c.recovery as AIRecoveryDetail) ? (c.recovery as AIRecoveryDetail) : DEFAULT_AI_DETAIL.recovery,
     otherTraining: AI_OTHER_DETAIL_OPTIONS.includes(c.otherTraining as AIOtherTrainingDetail) ? (c.otherTraining as AIOtherTrainingDetail) : DEFAULT_AI_DETAIL.otherTraining,
+    fields: Object.fromEntries(AI_FIELD_KEYS.map((k) => [k, typeof (c.fields as Record<string, unknown> | undefined)?.[k] === 'boolean' ? (c.fields as Record<string, boolean>)[k] : DEFAULT_AI_FIELDS[k]])) as unknown as AIFields,
   };
 }
 

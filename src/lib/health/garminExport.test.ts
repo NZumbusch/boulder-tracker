@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeValues, firstWins, garminDailyValues, garminTypeName, hrvFromFit, parseDailySummaries, parseHealthStatusHrv, parseMaxMet, parseSleep, parseSummarizedActivities, parseWeights } from "./garminExport";
+import { describeValues, firstWins, garminDailyValues, garminTypeName, hrvFromFit, parseDailySummaries, parseHealthStatusHrv, parseMaxMet, parseSleep, parseSummarizedActivities, parseTrainingReadiness, parseWeights } from "./garminExport";
 import { planImport } from "./import";
 
 describe("daily summaries", () => {
@@ -38,6 +38,8 @@ describe("sleep", () => {
       { metricId: "sleep-duration", date: "2026-10-01", value: 7 },
       { metricId: "nap-duration", date: "2026-10-01", value: 0.8 },
       { metricId: "breathing-sleep", date: "2026-10-01", value: 14.2 },
+      { metricId: "sleep-deep", date: "2026-10-01", value: 90 },
+      { metricId: "sleep-rem", date: "2026-10-01", value: 90 },
     ]);
   });
 
@@ -121,5 +123,13 @@ describe("activity summaries", () => {
     expect(garminTypeName("open_water_swimming")).toBe("Swim");
     expect(garminTypeName(undefined)).toBe("Activity");
     expect(parseSummarizedActivities([{}])).toEqual([]);
+  });
+});
+
+describe("training readiness", () => {
+  it("reads a score per day and skips rows without one", () => {
+    expect(parseTrainingReadiness([{ calendarDate: "2026-10-05", score: 71.4 }, { calendarDate: "2026-10-06" }, { score: 50 }, { calendarDate: "2026-10-07", score: 0 }])).toEqual([
+      { metricId: "training-readiness", date: "2026-10-05", value: 71 },
+    ]);
   });
 });

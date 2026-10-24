@@ -139,7 +139,7 @@ describe("a Garmin data export", () => {
     expect(byId["Badminton"].track).toBeUndefined();
     expect(r.activities).toHaveLength(2);
     const key = (v: { metricId: string }) => v.metricId;
-    expect(r.daily.map(key).sort()).toEqual(["hrv", "rhr", "sleep-duration", "sleep-score"].sort());
+    expect(r.daily.map(key).sort()).toEqual(["hrv", "rhr", "sleep-deep", "sleep-duration", "sleep-rem", "sleep-score"].sort());
     expect(r.daily.find((v) => v.metricId === "hrv")).toEqual({ metricId: "hrv", date: "2026-10-05", value: 85 });
     expect(r.daily.find((v) => v.metricId === "sleep-duration")?.value).toBe(7);
   });

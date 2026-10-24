@@ -2,8 +2,9 @@ import type { DailyMetricEntry, ExternalActivity } from "../types";
 import { weekIdOfIso, weekDayIsos, addDaysIso, localIsoDate, getWeekId, decrementWeekId } from "../dateUtils";
 import { loggedMetrics } from "../analytics/metricValues";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
-import type { AIDetail, AIRecoveryDetail, AIOtherTrainingDetail } from "../preferences/migrate";
-import { DEFAULT_AI_DETAIL } from "../preferences/migrate";
+import type { AIDetail, AIFields, AIRecoveryDetail, AIOtherTrainingDetail } from "../preferences/migrate";
+import { DEFAULT_AI_DETAIL, DEFAULT_AI_FIELDS } from "../preferences/migrate";
+import { activityDigest, digestLegend } from "./activityDigest";
 import { DEFAULT_EXTERNAL_LOAD, effortKindOf, estimateMaxHr, externalLoad, type ExternalLoadConfig } from "../activity/externalLoad";
 
 /**
@@ -41,7 +42,14 @@ const KEYS: Record<string, { key: string; digits: number }> = {
   steps: { key: "steps", digits: 0 },
   "breathing-sleep": { key: "breathingAsleep", digits: 1 },
   [BODYWEIGHT_METRIC_ID]: { key: "weightKg", digits: 1 },
+  vo2max: { key: "vo2max", digits: 1 },
+  "sleep-deep": { key: "deepSleepMin", digits: 0 },
+  "sleep-rem": { key: "remSleepMin", digits: 0 },
+  "training-readiness": { key: "trainingReadiness", digits: 0 },
 };
+
+/** The metrics that each switch adds; the others are always in. */
+const FIELD_OF_METRIC: Record<string, keyof AIFields> = { vo2max: "vo2max", "sleep-deep": "sleepStages", "sleep-rem": "sleepStages", "training-readiness": "readiness" };
 
 type Row = Record<string, number>;
 
@@ -49,11 +57,13 @@ const round = (v: number, digits: number) => Math.round(v * 10 ** digits) / 10 *
 const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
 
 /** Per-day values: date -> metric key -> value. */
-function byDate(entries: DailyMetricEntry[]): Map<string, Row> {
+function byDate(entries: DailyMetricEntry[], fields: AIFields = DEFAULT_AI_FIELDS): Map<string, Row> {
   const days = new Map<string, Row>();
   for (const e of loggedMetrics(entries)) {
     const k = KEYS[e.metricId];
     if (!k) continue;
+    const gate = FIELD_OF_METRIC[e.metricId];
+    if (gate && !fields[gate]) continue;
     const row = days.get(e.date) ?? {};
     row[k.key] = e.value;
     days.set(e.date, row);
@@ -101,10 +111,10 @@ export interface RecoveryContext {
   daily?: Out[];
 }
 
-const ABOUT = "Daily recovery data from my watch and my own entries (sleep score 0-100, hours asleep, overnight HRV in ms, resting heart rate, daily average stress 0-100, Body Battery highest/lowest of the day 0-100, steps, breathing rate asleep, weight). Missing values were not recorded.";
+const ABOUT = "Daily recovery data from my watch and my own entries (sleep score 0-100, hours asleep, deep and REM sleep minutes, overnight HRV in ms, resting heart rate, daily average stress 0-100, Body Battery highest/lowest of the day 0-100, steps, breathing rate asleep, running VO2max, Garmin training readiness 0-100, weight). Missing values were not recorded.";
 
-export function buildRecoveryContext(entries: DailyMetricEntry[], asOf: Date, detail: RecoveryDetail, weeks = 8): RecoveryContext | undefined {
-  const days = byDate(entries);
+export function buildRecoveryContext(entries: DailyMetricEntry[], asOf: Date, detail: RecoveryDetail, weeks = 8, fields: AIFields = DEFAULT_AI_FIELDS): RecoveryContext | undefined {
+  const days = byDate(entries, fields);
   if (days.size === 0) return undefined;
   const today = localIsoDate(asOf);
   const out: RecoveryContext = { about: ABOUT };
@@ -168,8 +178,11 @@ export interface OtherTrainingContext {
   /** One line per week, newest last. */
   weekly: { week: string; activities: number; hours: number; load: number; kinds: Record<string, number> }[];
   /** Each activity in the recent weeks (list detail). */
-  activities?: { date: string; type: string; minutes: number; km?: number; avgHr?: number; load: number }[];
+  activities?: ({ date: string; type: string; minutes: number; km?: number; avgHr?: number; load: number } & Record<string, string | number>)[];
 }
+
+/** The most activities one prompt lists in full; the weekly lines cover the rest. */
+const MAX_LISTED = 40;
 
 const OTHER_ABOUT = "Training that is not climbing, recorded on my watch or in Strava/Garmin (runs, rides, walks, workouts). 'load' is on the same scale as my climbing sessions' load (minutes x effort^1.2), so the two can be added.";
 
@@ -184,6 +197,7 @@ export function buildOtherTrainingContext(
   detail: OtherTrainingDetail,
   window: { fullWeeks: number; summaryWeeks: number },
   config: ExternalLoadConfig = DEFAULT_EXTERNAL_LOAD,
+  fields: AIFields = DEFAULT_AI_FIELDS,
 ): OtherTrainingContext | undefined {
   if (activities.length === 0) return undefined;
   const maxHr = estimateMaxHr(activities);
@@ -216,6 +230,7 @@ export function buildOtherTrainingContext(
     out.activities = counted
       .filter((x) => fullSet.has(weekIdOfIso(x.a.date)))
       .sort((a, b) => a.a.start.localeCompare(b.a.start))
+      .slice(-MAX_LISTED)
       .map(({ a, load }) => ({
         date: a.date,
         type: a.type,
@@ -223,7 +238,10 @@ export function buildOtherTrainingContext(
         ...(a.distanceM ? { km: round(a.distanceM / 1000, 1) } : {}),
         ...(a.avgHr ? { avgHr: a.avgHr } : {}),
         load,
+        ...activityDigest(a, fields, maxHr),
       }));
+    const present = new Set(out.activities.flatMap((x) => Object.keys(x)));
+    out.about += digestLegend(present);
   }
   return out;
 }
