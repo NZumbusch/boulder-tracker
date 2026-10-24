@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Workout } from "../types";
-import { buildInsightAskPrompt, buildSessionAskPrompt, ASK_PREAMBLE, DEFAULT_SESSION_QUESTION } from "./askPrompt";
+import { buildInsightAskPrompt, buildSessionAskPrompt, buildActivityAskPrompt, activitiesBefore, ASK_PREAMBLE, DEFAULT_SESSION_QUESTION, DEFAULT_ACTIVITY_QUESTION } from "./askPrompt";
+import type { ExternalActivity } from "../types";
 
 const w = (over: Partial<Workout>): Workout =>
   ({ id: "w", status: "completed", date: "2026-10-09T12:00:00Z", weekId: "2026-W41", notes: "Konstanz session", loadFactor: 1970, fingers: 6, systemic: 6, logNotes: "Tired by the end", exercises: [{ id: "e", typeId: "hb", logged: { sets: 4, reps: 6 } }], ...over }) as Workout;
@@ -35,5 +36,38 @@ describe("ask prompts", () => {
     expect(p).not.toContain("Tired by the end");
     expect(p).not.toContain("My previous sessions");
     expect(p).not.toContain("My coaching memory");
+  });
+});
+
+describe("activity ask prompt", () => {
+  const act = (id: string, start: string, over: Partial<ExternalActivity> = {}): ExternalActivity => ({ id, source: "garmin", sourceId: id, date: start.slice(0, 10), start, name: id, type: "Run", durationSec: 2400, distanceM: 8000, avgHr: 150, maxHr: 175, ...over });
+  const stats = { splitsSec: [300, 310], paceDriftPct: 5, hrBinsSec: [0, 0, 0, 0, 1800, 0, 0, 0, 300, 0, 0], trainingEffect: 3.1 };
+
+  it("is the preamble, the activity with everything its recording gave, the earlier ones of its kind, and the question", () => {
+    const a = act("today", "2026-10-20T06:30:00.000Z", { stats });
+    const p = buildActivityAskPrompt({ activity: a, before: [act("earlier", "2026-10-13T06:30:00.000Z")], maxHr: 190, recoveryLine: '{"sleepScore":71}', coachMemory: "Hates 4x4", question: "" });
+    expect(p.startsWith(ASK_PREAMBLE)).toBe(true);
+    expect(p).toContain("Hates 4x4");
+    expect(p).toContain('"kmSplits":"5:00 5:10"');
+    expect(p).toContain('"zonesMin":"Z3 30 · Z5 5"');
+    expect(p).toContain('"garminEffect":"aerobic 3.1"');
+    expect(p).toContain("My previous run activities, for comparison");
+    expect(p).toContain('"sleepScore":71');
+    expect(p).toContain(DEFAULT_ACTIVITY_QUESTION);
+    expect(p).toContain("kmSplits are minutes:seconds");
+  });
+
+  it("leaves out the comparison, the recovery and the legend when there is none", () => {
+    const p = buildActivityAskPrompt({ activity: act("x", "2026-10-20T06:30:00.000Z"), before: [], maxHr: 190, question: "Why so slow?" });
+    expect(p).not.toContain("previous");
+    expect(p).not.toContain("recovering");
+    expect(p).not.toContain("kmSplits are");
+    expect(p).toContain("Why so slow?");
+  });
+
+  it("picks the latest earlier activities of the same kind", () => {
+    const now = act("now", "2026-10-20T06:30:00.000Z");
+    const all = [act("r1", "2026-10-01T06:30:00.000Z"), act("r2", "2026-10-05T06:30:00.000Z"), act("r3", "2026-10-10T06:30:00.000Z"), act("r4", "2026-10-15T06:30:00.000Z"), act("ride", "2026-10-18T06:30:00.000Z", { type: "Ride" }), act("later", "2026-10-25T06:30:00.000Z"), now];
+    expect(activitiesBefore(now, all).map((a) => a.id)).toEqual(["r2", "r3", "r4"]);
   });
 });

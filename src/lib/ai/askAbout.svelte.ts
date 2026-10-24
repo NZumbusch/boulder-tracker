@@ -1,7 +1,7 @@
 import type { InsightGroup } from "../analytics/insights";
 
 /** What the "ask the AI about this" sheet is open for, if anything. */
-export type AskSubject = { kind: "insights"; group: InsightGroup } | { kind: "session"; workoutId: string } | { kind: "block"; blockId: string };
+export type AskSubject = { kind: "insights"; group: InsightGroup } | { kind: "session"; workoutId: string } | { kind: "block"; blockId: string } | { kind: "activity"; activityId: string };
 
 class AskAboutState {
   subject = $state<AskSubject | null>(null);
@@ -12,3 +12,4 @@ export const askAbout = new AskAboutState();
 export const askAboutInsights = (group: InsightGroup) => { askAbout.subject = { kind: "insights", group }; };
 export const askAboutSession = (workoutId: string) => { askAbout.subject = { kind: "session", workoutId }; };
 export const askAboutBlock = (blockId: string) => { askAbout.subject = { kind: "block", blockId }; };
+export const askAboutActivity = (activityId: string) => { askAbout.subject = { kind: "activity", activityId }; };
