@@ -1930,6 +1930,13 @@ class TrainingState {
     return added;
   }
 
+  /** Fills in how-it-went stats on already imported activities that lack them; returns how many. */
+  async refreshExternalActivities(items: ExternalActivity[]): Promise<number> {
+    const changed = await this.externalActivityStore.addStats(items);
+    await this.externalActivityStore.load();
+    return changed;
+  }
+
   async removeExternalActivities(ids: string[]) {
     await this.externalActivityStore.remove(ids);
     await this.externalActivityStore.load();

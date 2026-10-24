@@ -795,6 +795,21 @@ export const storage = {
     return fresh.length;
   },
 
+  /** Fills in `stats` on activities already stored (by id) that have none; everything else about them stays. Returns how many changed. */
+  async addExternalActivityStats(incoming: ExternalActivity[]): Promise<number> {
+    const have = await this._getExternalActivities();
+    const stats = new Map(incoming.filter((a) => a.stats).map((a) => [a.id, a.stats!]));
+    let changed = 0;
+    const next = have.map((a) => {
+      const s = stats.get(a.id);
+      if (!s || a.stats) return a;
+      changed++;
+      return { ...a, stats: s };
+    });
+    if (changed) await this._saveExternalActivities(next);
+    return changed;
+  },
+
   async deleteExternalActivities(ids: string[]): Promise<void> {
     const drop = new Set(ids);
     const have = await this._getExternalActivities();

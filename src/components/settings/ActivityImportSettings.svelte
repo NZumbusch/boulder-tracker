@@ -27,6 +27,7 @@
   let importing = $state(false);
   let options = $state<ImportOptions>({ ...DEFAULT_IMPORT_OPTIONS });
   let includeDaily = $state(true);
+  let includeRefresh = $state(true);
   let dailyPlan = $state<ReturnType<typeof planDaily> | null>(null);
 
   const KNOWN_METRICS = [...DEFAULT_METRIC_DEFS, SLEEP_DURATION_METRIC, NAP_DURATION_METRIC, ...WEARABLE_METRIC_DEFS];
@@ -46,6 +47,8 @@
     };
     return planImport(stored, read.activities, around, (w) => w.notes || 'Session', options, (w) => trainingState.sessionText(w));
   });
+  const refreshCount = $derived(plan?.refresh.length ?? 0);
+  const somethingToDo = $derived(!!plan && (plan.add.length > 0 || (includeDaily && !!dailyPlan?.upserts.length) || (includeRefresh && refreshCount > 0)));
   const withRoute = $derived((plan?.add ?? []).filter((a) => a.track).length);
   const byType = $derived.by(() => {
     const counts = new Map<string, number>();
@@ -80,10 +83,11 @@
   }
 
   async function runImport() {
-    if (!plan || (plan.add.length === 0 && !(includeDaily && dailyPlan?.upserts.length))) return;
+    if (!plan || !somethingToDo) return;
     importing = true;
     try {
       const added = plan.add.length ? await trainingState.addExternalActivities($state.snapshot(plan.add) as ExternalActivity[]) : 0;
+      const refreshed = includeRefresh && plan.refresh.length ? await trainingState.refreshExternalActivities($state.snapshot(plan.refresh) as ExternalActivity[]) : 0;
       let days = 0;
       if (includeDaily && dailyPlan && dailyPlan.upserts.length) {
         const entries = $state.snapshot(dailyPlan.upserts) as typeof dailyPlan.upserts;
@@ -91,7 +95,7 @@
         await trainingState.importDailyMetrics(entries, defs);
         days = entries.length;
       }
-      toast.show([added ? `${added} activit${added === 1 ? 'y' : 'ies'}` : '', days ? `${days} daily values` : ''].filter(Boolean).join(' and ') + ' imported');
+      toast.show([added ? `${added} activit${added === 1 ? 'y' : 'ies'} imported` : '', refreshed ? `${refreshed} updated with pace and heart-rate detail` : '', days ? `${days} daily values imported` : ''].filter(Boolean).join(', '));
       read = null;
       dailyPlan = null;
     } finally {
@@ -132,6 +136,16 @@
         <p class="text-caption text-content-subtle">{byType.map(([t, n]) => `${n} ${t}`).join(' · ')}</p>
       {/if}
     </div>
+
+    {#if refreshCount}
+      <div class="space-y-2 px-1">
+        <h3 class="text-section uppercase text-content-muted">Already imported</h3>
+        <label class="flex items-start gap-3 py-1 min-h-11">
+          <input type="checkbox" bind:checked={includeRefresh} class="mt-1" />
+          <span class="text-label"><span class="font-semibold">Add pace, splits and heart-rate detail to {refreshCount} activit{refreshCount === 1 ? 'y' : 'ies'}</span><br /><span class="text-caption text-content-subtle">Imported before these existed. Only the new detail is added; nothing else about them changes.</span></span>
+        </label>
+      </div>
+    {/if}
 
     {#if dailySummary.length}
       <div class="space-y-2 px-1">
@@ -187,7 +201,7 @@
 
     <div class="flex gap-2">
       <button onclick={() => (read = null)} class="btn btn-secondary flex-1">Cancel</button>
-      <button onclick={runImport} disabled={importing || (plan.add.length === 0 && !(includeDaily && dailyPlan?.upserts.length))} class="btn btn-primary flex-1">{importing ? 'Importing…' : 'Import'}</button>
+      <button onclick={runImport} disabled={importing || !somethingToDo} class="btn btn-primary flex-1">{importing ? 'Importing…' : 'Import'}</button>
     </div>
   {/if}
 </div>
