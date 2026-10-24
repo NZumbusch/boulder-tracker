@@ -447,10 +447,10 @@ describe("computeReadiness - open pain", () => {
 
 describe("the advice names only the fatigue that is rated", () => {
   it("says whole-body, not fingers, when only systemic fatigue exists (imported activities)", () => {
-    const high = computeReadiness({ fatigue: { fingers: undefined, arms: undefined, core: undefined, systemic: 8, coverage: { total: 3, fingers: 0, arms: 0, core: 0, systemic: 3 } }, acwr: { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false, activeWeeks: 0 } });
+    const high = computeReadiness({ fatigue: { systemic: 8 }, acwr: { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false, activeWeeks: 0 } });
     expect(high.advice).toMatch(/whole-body fatigue is elevated/i);
     expect(high.advice).not.toContain("fingers");
-    const full = computeReadiness({ fatigue: { fingers: 8, arms: 8, core: 8, systemic: 8, coverage: { total: 3, fingers: 3, arms: 3, core: 3, systemic: 3 } }, acwr: { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false, activeWeeks: 0 } });
+    const full = computeReadiness({ fatigue: { fingers: 8, core: 8, systemic: 8 }, acwr: { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false, activeWeeks: 0 } });
     expect(full.advice).toMatch(/fingers and systemic fatigue are elevated/i);
   });
 });
