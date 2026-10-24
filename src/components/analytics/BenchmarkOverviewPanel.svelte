@@ -11,6 +11,8 @@
   import type { BenchmarkChangeSeries } from '../../lib/analytics/progress';
   import ChartEmpty from './ChartEmpty.svelte';
   import { formatDay } from '../../lib/dateUtils';
+  import { isTapPointer } from '../../lib/analytics/chartTips.svelte';
+  import { TapTracker } from '../../lib/analytics/columnPicker.svelte';
 
   let { series, firstDay, lastDay }: { series: BenchmarkChangeSeries[]; firstDay: number; lastDay: number } = $props();
 
@@ -37,6 +39,50 @@
   /** One point sitting on the baseline is the first test itself - nothing to compare yet. */
   const firstOnly = (s: { points: { pct: number }[] }) => s.points.length === 1 && s.points[0].pct === 0;
   const allFirst = $derived(colored.length > 0 && colored.every(firstOnly));
+  // --- Readout: the result nearest to the pointer (hover on a mouse, a tap on touch), printed above the chart.
+  let plotEl = $state<HTMLElement | null>(null);
+  let hit = $state<{ typeKey: string; i: number } | null>(null);
+  const taps = new TapTracker();
+  /** Nearest result to the pointer, by distance on the plot (both axes as a share of their length). Only the highlighted test's, when one is. */
+  function nearest(event: PointerEvent) {
+    if (!plotEl) return null;
+    const rect = plotEl.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) / rect.width) * 100;
+    const py = ((event.clientY - rect.top) / rect.height) * 100;
+    let best: { typeKey: string; i: number } | null = null;
+    let bestD = Infinity;
+    for (const s of colored) {
+      if (selected && selected !== s.typeKey) continue;
+      for (let i = 0; i < s.points.length; i++) {
+        const d = Math.hypot(xOf(s.points[i].day) - px, (yOf(s.points[i].pct) - py) * 0.6);
+        if (d < bestD) { bestD = d; best = { typeKey: s.typeKey, i }; }
+      }
+    }
+    return best;
+  }
+  const readout = $derived.by(() => {
+    if (!hit) return null;
+    const s = colored.find((c) => c.typeKey === hit!.typeKey);
+    const p = s?.points[hit.i];
+    return s && p ? { s, p } : null;
+  });
+  $effect(() => {
+    const onDown = (event: PointerEvent) => {
+      if (plotEl && !plotEl.contains(event.target as Node)) hit = null;
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  });
+  $effect(() => { void series; void firstDay; void lastDay; hit = null; });
+  function onKey(event: KeyboardEvent) {
+    if (event.key === 'Escape') { hit = null; return; }
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const s = colored.find((c) => c.typeKey === (hit?.typeKey ?? selected)) ?? colored.find((c) => c.points.length > 0);
+    if (!s || s.points.length === 0) return;
+    event.preventDefault();
+    const from = hit && hit.typeKey === s.typeKey ? hit.i : s.points.length - 1;
+    hit = { typeKey: s.typeKey, i: Math.max(0, Math.min(s.points.length - 1, from + (event.key === 'ArrowRight' ? 1 : -1))) };
+  }
   const signed = (pct: number) => `${pct >= 0 ? '+' : '−'}${Math.abs(Math.round(pct))}%`;
 </script>
 
@@ -60,6 +106,18 @@
       {/each}
     </div>
 
+    <div class="min-h-[1.25rem] text-caption tabular-nums text-content-muted" aria-live="polite">
+      {#if readout}
+        <span class="inline-block w-2 h-2 rounded-full align-middle mr-1" style="background: {readout.s.color}"></span>
+        <span class="text-content">{readout.s.name}</span>
+        · <span class="text-content-subtle">{fmtDay(readout.p.day)}</span>
+        · <span class="text-content">{firstOnly(readout.s) ? 'first test' : signed(readout.p.pct)}</span>
+        <span class="text-content-subtle"> (result {Math.round(readout.p.value * 100) / 100})</span>
+      {:else if colored.length > 0}
+        <span class="text-content-subtle">Hover or tap a result to see it.</span>
+      {/if}
+    </div>
+
     <div class="flex gap-2">
       <!-- The scale is labelled at the top, at 0 (the dashed line: no change since the first result) and at the bottom. -->
       <div class="w-10 shrink-0 h-36 relative text-caption leading-none text-content-subtle tabular-nums">
@@ -70,7 +128,19 @@
         {/if}
       </div>
       <div class="flex-1 min-w-0">
-        <div class="h-36 relative">
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+        <div
+          bind:this={plotEl}
+          class="h-36 relative cursor-crosshair select-none"
+          role="application"
+          tabindex="0"
+          aria-label="All tests, change since the first result. Left and right arrow keys move between results; the line above gives the values."
+          onkeydown={onKey}
+          onpointerdown={taps.down}
+          onpointermove={(e) => { if (!isTapPointer(e)) hit = nearest(e); }}
+          onpointerleave={(e) => { if (!isTapPointer(e)) hit = null; }}
+          onpointerup={(e) => { if (isTapPointer(e) && taps.isTap(e)) hit = nearest(e); }}
+        >
           <div class="absolute inset-x-0 border-t border-dashed border-content-subtle/30" style="top: {yOf(0)}%"></div>
           <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
             {#each colored as s (s.typeKey)}
@@ -80,7 +150,13 @@
               {/if}
               <path d={s.points.map((p) => `M ${xOf(p.day)},${yOf(p.pct)} h 0`).join(' ')} stroke={s.color} stroke-opacity={faded ? 0.2 : 1} stroke-width="6" stroke-linecap="round" vector-effect="non-scaling-stroke" fill="none" />
             {/each}
+            {#if readout}
+              <path d="M {xOf(readout.p.day)},{yOf(readout.p.pct)} h 0" stroke={readout.s.color} stroke-width="11" stroke-linecap="round" stroke-opacity="0.3" vector-effect="non-scaling-stroke" fill="none" />
+            {/if}
           </svg>
+          {#if readout}
+            <div class="absolute inset-y-0 border-l border-content-subtle/40 pointer-events-none" style="left: {xOf(readout.p.day)}%"></div>
+          {/if}
           {#if colored.length === 0}<ChartEmpty>No test results in this window</ChartEmpty>{/if}
         </div>
         <div class="border-t border-border-strong/60"></div>
