@@ -282,13 +282,14 @@ function activityFromSummary(s: GarminActivitySummary): ExternalActivity {
  * summaries alone.
  */
 async function readGarminExport(entries: ZipEntry[], out: ActivityRead, progress?: Progress) {
-  const [summaries, sleep, healthStatus, maxMet, bio, summarizedFiles] = await Promise.all([
+  const [summaries, sleep, healthStatus, maxMet, bio, summarizedFiles, readiness] = await Promise.all([
     jsonFiles(entries, /^UDSFile_.*\.json$/i, out),
     jsonFiles(entries, /_sleepData\.json$/i, out),
     jsonFiles(entries, /_healthStatusData\.json$/i, out),
     jsonFiles(entries, /^MetricsMaxMetData_.*\.json$/i, out),
     jsonFiles(entries, /_userBioMetrics\.json$/i, out),
     jsonFiles(entries, /_summarizedActivities\.json$/i, out),
+    jsonFiles(entries, /TrainingReadiness.*\.json$/i, out),
   ]);
 
   const summaryList = parseSummarizedActivities(summarizedFiles);
@@ -346,5 +347,5 @@ async function readGarminExport(entries: ZipEntry[], out: ActivityRead, progress
   }
   for (const s of summaryList) if (!taken.has(s)) out.activities.push(activityFromSummary(s));
 
-  out.daily = garminDailyValues({ summaries, sleep, healthStatus, maxMet, bio, fitHrv });
+  out.daily = garminDailyValues({ summaries, sleep, healthStatus, maxMet, bio, readiness, fitHrv });
 }

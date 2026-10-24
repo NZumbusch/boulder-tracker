@@ -44,7 +44,7 @@ import { calculateRollingAcwr } from "../analytics/loadAnalytics";
 import { loggedMetrics } from "../analytics/metricValues";
 import { parseFontGrade } from "../analytics/grades";
 import { normalizeGrade } from "../sends/matching";
-import { DEFAULT_AI_DETAIL, DEFAULT_AI_HISTORY, type AIDetail, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
+import { aiFields, DEFAULT_AI_DETAIL, DEFAULT_AI_HISTORY, type AIDetail, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
 import { buildOtherTrainingContext, buildRecoveryContext, type OtherTrainingContext, type RecoveryContext } from "./wellnessContext";
 import { describeFinding, predictBestSessions } from "../analytics/sessionPredictors";
 import { recentReviews, weeklyReview } from "../analytics/weeklyReview";
@@ -932,12 +932,12 @@ export function buildAIContextProfile(
     // Analyze: the target weeks only; the rest: the history window.
     const weeks = analyze ? Math.min(12, Math.max(1, targetWeekIds.length)) : Math.min(12, Math.max(1, history.fullWeeks + history.summaryWeeks));
     if (sharing.readinessMetrics) {
-      const recovery = buildRecoveryContext(source.dailyMetrics, lookAsOf, detail.recovery, weeks);
+      const recovery = buildRecoveryContext(source.dailyMetrics, lookAsOf, detail.recovery, weeks, aiFields(detail));
       if (recovery) profile.recovery = recovery;
     }
     const otherOn = sharing.otherTraining !== false && !!source.externalActivities?.length;
     if (otherOn) {
-      const other = buildOtherTrainingContext(source.externalActivities!, lookAsOf, detail.otherTraining, analyze ? { fullWeeks: weeks, summaryWeeks: 0 } : history, source.externalLoadConfig);
+      const other = buildOtherTrainingContext(source.externalActivities!, lookAsOf, detail.otherTraining, analyze ? { fullWeeks: weeks, summaryWeeks: 0 } : history, source.externalLoadConfig, aiFields(detail));
       if (other) profile.otherTraining = other;
     }
     if (sharing.patterns !== false) {

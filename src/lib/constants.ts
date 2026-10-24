@@ -62,7 +62,10 @@ export const BODY_BATTERY_HIGH_METRIC: MetricDef = { id: "body-battery-high", na
 export const BODY_BATTERY_LOW_METRIC: MetricDef = { id: "body-battery-low", name: "Body Battery (lowest)", unit: "pts" };
 export const BREATHING_METRIC: MetricDef = { id: "breathing-sleep", name: "Breathing rate asleep", unit: "br/min" };
 export const VO2MAX_METRIC: MetricDef = { id: "vo2max", name: "VO2max (running)", unit: "ml/kg/min" };
-export const WEARABLE_METRIC_DEFS: MetricDef[] = [STEPS_METRIC, STRESS_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, VO2MAX_METRIC];
+export const SLEEP_DEEP_METRIC: MetricDef = { id: "sleep-deep", name: "Deep sleep", unit: "min" };
+export const SLEEP_REM_METRIC: MetricDef = { id: "sleep-rem", name: "REM sleep", unit: "min" };
+export const TRAINING_READINESS_METRIC: MetricDef = { id: "training-readiness", name: "Training readiness (Garmin)", unit: "pts" };
+export const WEARABLE_METRIC_DEFS: MetricDef[] = [STEPS_METRIC, STRESS_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, VO2MAX_METRIC, SLEEP_DEEP_METRIC, SLEEP_REM_METRIC, TRAINING_READINESS_METRIC];
 
 /**
  * The value types that ship with the app. Seeded once (`persistence.ts` for

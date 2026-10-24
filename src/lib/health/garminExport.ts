@@ -1,4 +1,4 @@
-import { BODYWEIGHT_METRIC_ID, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, STEPS_METRIC, STRESS_METRIC, VO2MAX_METRIC } from "../constants";
+import { BODYWEIGHT_METRIC_ID, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, STEPS_METRIC, STRESS_METRIC, VO2MAX_METRIC, SLEEP_DEEP_METRIC, SLEEP_REM_METRIC, TRAINING_READINESS_METRIC } from "../constants";
 import { RHR_METRIC_ID, type DailyValue } from "./import";
 
 /**
@@ -61,6 +61,8 @@ export function parseSleep(nights: Json[]): DailyValue[] {
     const naps = ((n.napList as Json[] | undefined) ?? []).reduce((s, x) => s + (num(x.napTimeSec) ?? 0), 0);
     push(out, NAP_DURATION_METRIC.id, date, naps / 3600, 1);
     push(out, BREATHING_METRIC.id, date, num(n.averageRespiration), 1);
+    push(out, SLEEP_DEEP_METRIC.id, date, (num(n.deepSleepSeconds) ?? 0) / 60);
+    push(out, SLEEP_REM_METRIC.id, date, (num(n.remSleepSeconds) ?? 0) / 60);
   }
   return out;
 }
@@ -86,6 +88,17 @@ export function hrvFromFit(nights: { t: number; lastNight: number }[]): DailyVal
 export function parseMaxMet(rows: Json[]): DailyValue[] {
   const out: DailyValue[] = [];
   for (const r of rows) if (r.sport === "RUNNING") push(out, VO2MAX_METRIC.id, day(r.calendarDate), num(r.vo2MaxValue), 1);
+  return out;
+}
+
+/**
+ * Training readiness: one object per day with a `calendarDate` and a `score` (0-100).
+ * A best guess at the layout, not seen in a real export (a file named `*TrainingReadiness*.json`
+ * with these two fields); a file that doesn't look like this adds nothing.
+ */
+export function parseTrainingReadiness(rows: Json[]): DailyValue[] {
+  const out: DailyValue[] = [];
+  for (const r of rows) push(out, TRAINING_READINESS_METRIC.id, day(r.calendarDate), num(r.score));
   return out;
 }
 
@@ -126,12 +139,14 @@ export interface GarminDailySources {
   healthStatus: Json[];
   maxMet: Json[];
   bio: Json[];
+  /** `*TrainingReadiness*.json` rows, where the export has them. */
+  readiness?: Json[];
   /** HRV from the HRV-status FIT files. */
   fitHrv: { t: number; lastNight: number }[];
 }
 
 export function garminDailyValues(s: GarminDailySources): DailyValue[] {
-  return firstWins(hrvFromFit(s.fitHrv), parseHealthStatusHrv(s.healthStatus), parseDailySummaries(s.summaries), parseSleep(s.sleep), parseMaxMet(s.maxMet), parseWeights(s.bio));
+  return firstWins(hrvFromFit(s.fitHrv), parseHealthStatusHrv(s.healthStatus), parseDailySummaries(s.summaries), parseSleep(s.sleep), parseMaxMet(s.maxMet), parseWeights(s.bio), parseTrainingReadiness(s.readiness ?? []));
 }
 
 /** Per metric: how many days and from when to when - for the preview. */
