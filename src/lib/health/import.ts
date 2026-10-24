@@ -80,8 +80,12 @@ function distinctSleeps(sessions: HealthReadings["sleep"]): HealthReadings["slee
   return out.map((c) => c.best);
 }
 
-export function importedEntryId(metricId: string, date: string): string {
-  return `hc-${metricId}-${date}`;
+export type ImportSource = NonNullable<DailyMetricEntry["source"]>;
+
+const ID_PREFIX: Record<ImportSource, string> = { "health-connect": "hc", garmin: "garmin" };
+
+export function importedEntryId(metricId: string, date: string, source: ImportSource = "health-connect"): string {
+  return `${ID_PREFIX[source]}-${metricId}-${date}`;
 }
 
 export interface ImportPlan {
@@ -91,7 +95,13 @@ export interface ImportPlan {
   keptManual: number;
 }
 
-export function planImport(existing: DailyMetricEntry[], values: DailyValue[]): ImportPlan {
+/**
+ * What importing `values` from `source` would write. A day that already has
+ * an entry not marked as this source's (typed by hand, or imported from
+ * another source first) is left alone and counted in `keptManual`; the
+ * source's own entries are updated when the value changed.
+ */
+export function planImport(existing: DailyMetricEntry[], values: DailyValue[], source: ImportSource = "health-connect"): ImportPlan {
   const byKey = new Map<string, DailyMetricEntry[]>();
   for (const e of existing) {
     const key = `${e.metricId}|${e.date}`;
@@ -101,18 +111,18 @@ export function planImport(existing: DailyMetricEntry[], values: DailyValue[]): 
   let keptManual = 0;
   for (const v of values) {
     const there = byKey.get(`${v.metricId}|${v.date}`) ?? [];
-    if (there.some((e) => e.source !== "health-connect")) {
+    if (there.some((e) => e.source !== source)) {
       keptManual++;
       continue;
     }
-    const mine = there.find((e) => e.source === "health-connect");
+    const mine = there.find((e) => e.source === source);
     if (mine && mine.value === v.value) continue;
     upserts.push({
-      id: mine?.id ?? importedEntryId(v.metricId, v.date),
+      id: mine?.id ?? importedEntryId(v.metricId, v.date, source),
       metricId: v.metricId,
       date: v.date,
       value: v.value,
-      source: "health-connect",
+      source,
     });
   }
   return { upserts, keptManual };

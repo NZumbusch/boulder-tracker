@@ -172,8 +172,8 @@ export function planImport(
       continue;
     }
     const found = findOverlaps(a, {
-      // Only other sources count as duplicates; the same source is told apart by id.
-      activities: existing.filter((e) => e.source !== a.source),
+      // Only other sources count as duplicates (the same source is told apart by id) - ones already stored and ones this import is adding.
+      activities: [...existing, ...plan.add].filter((e) => e.source !== a.source),
       workouts: workoutsAround(daysAround(a)),
       label,
       text,

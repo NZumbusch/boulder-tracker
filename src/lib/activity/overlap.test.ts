@@ -118,6 +118,12 @@ describe("planImport", () => {
     expect(p.add.map((a) => a.id)).toEqual(["d"]);
   });
 
+  it("also finds the same activity twice within one import from two sources", () => {
+    const p = planImport([], [act("s1", "strava", 7, 0, 30), act("g1", "garmin", 7, 1, 30), act("g2", "garmin", 9, 0, 30)], () => [], label);
+    expect(p.add.map((a) => a.id)).toEqual(["s1", "g2"]);
+    expect(p.duplicates.map((d) => [d.activity.id, d.with.id])).toEqual([["g1", "s1"]]);
+  });
+
   it("does not call two activities of the same source duplicates", () => {
     const p = planImport([act("s0", "strava", 7, 0, 30)], [act("s1", "strava", 7, 2, 30)], () => [], label);
     expect(p.duplicates).toEqual([]);

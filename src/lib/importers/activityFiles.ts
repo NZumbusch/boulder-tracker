@@ -1,10 +1,12 @@
 import type { ExternalActivity } from "../types";
 import { localIsoDate } from "../dateUtils";
-import { fitSportName, readFitActivity, type FitActivity, type FitPoint } from "../activity/fit";
+import { fitFileType, fitSportName, readFitActivity, readFitHrv, type FitActivity, type FitPoint } from "../activity/fit";
 import { readGpx, readTcx } from "../activity/gpxTcx";
 import { routeOf, trackLength, type LatLon } from "../activity/track";
 import { inflate, isGzip, readZip, type ZipEntry } from "../activity/zip";
 import { parseStravaCsv } from "./stravaCsvImport";
+import type { DailyValue } from "../health/import";
+import { garminDailyValues, parseSummarizedActivities, type GarminActivitySummary } from "../health/garminExport";
 
 /**
  * Turns what a person has on disk into `ExternalActivity[]`:
@@ -20,6 +22,8 @@ import { parseStravaCsv } from "./stravaCsvImport";
 export interface ActivityRead {
   activities: ExternalActivity[];
   skipped: { where: string; reason: string }[];
+  /** Daily values (sleep, HRV, resting heart rate...) from a Garmin export. */
+  daily: DailyValue[];
 }
 
 export type Progress = (done: number, total: number) => void;
@@ -174,14 +178,15 @@ async function readRecordings(entries: ZipEntry[], source: Source, out: Activity
 
 /** One picked file. */
 export async function readActivityFile(file: Blob & { name: string }, progress?: Progress): Promise<ActivityRead> {
-  const out: ActivityRead = { activities: [], skipped: [] };
+  const out: ActivityRead = { activities: [], skipped: [], daily: [] };
   const name = file.name;
   try {
     if (/\.zip$/i.test(name)) {
       const entries = await readZip(file);
       const csv = entries.find((e) => /(^|\/)activities\.csv$/i.test(e.name));
       if (csv) await readStravaZip(entries, csv, out, progress);
-      else await readRecordings(entries, entries.some((e) => /DI_CONNECT/i.test(e.name)) ? "garmin" : "file", out, 0, progress);
+      else if (entries.some((e) => /(^|\/)DI_CONNECT\//i.test(e.name))) await readGarminExport(entries, out, progress);
+      else await readRecordings(entries, "file", out, 0, progress);
     } else if (/\.csv$/i.test(name)) {
       const parsed = parseStravaCsv(await file.text());
       out.activities.push(...parsed.activities);
@@ -202,7 +207,7 @@ export async function readActivityFile(file: Blob & { name: string }, progress?:
 
 /** Several picked files; an activity found twice (same id) is kept once. */
 export async function readActivityFiles(files: (Blob & { name: string })[], progress?: Progress): Promise<ActivityRead> {
-  const all: ActivityRead = { activities: [], skipped: [] };
+  const all: ActivityRead = { activities: [], skipped: [], daily: [] };
   const seen = new Set<string>();
   for (const f of files) {
     const r = await readActivityFile(f, progress);
@@ -212,6 +217,129 @@ export async function readActivityFiles(files: (Blob & { name: string })[], prog
       all.activities.push(a);
     }
     all.skipped.push(...r.skipped);
+    all.daily.push(...r.daily);
   }
   return all;
+}
+
+// --- Garmin data export ------------------------------------------------------
+
+const dec = new TextDecoder();
+
+async function jsonFiles(entries: ZipEntry[], pattern: RegExp, out: ActivityRead): Promise<any[]> {
+  const rows: any[] = [];
+  for (const e of entries.filter((x) => pattern.test(nameOf(x.name)))) {
+    try {
+      const data = JSON.parse(dec.decode(await e.read()));
+      if (Array.isArray(data)) rows.push(...data);
+    } catch (err) {
+      out.skipped.push({ where: nameOf(e.name), reason: `Unreadable (${(err as Error).message})` });
+    }
+  }
+  return rows;
+}
+
+/** Applies Garmin's own name, type and numbers where the recording has none. */
+function applySummary(a: ExternalActivity, s: GarminActivitySummary) {
+  if (s.name) a.name = s.name;
+  a.type = s.type;
+  if (!a.durationSec && s.durationSec) a.durationSec = s.durationSec;
+  if (s.movingSec) a.movingSec = s.movingSec;
+  if (!a.distanceM && s.distanceM) a.distanceM = s.distanceM;
+  if (!a.elevationM && s.elevationM) a.elevationM = s.elevationM;
+  if (!a.avgHr && s.avgHr) a.avgHr = s.avgHr;
+  if (!a.maxHr && s.maxHr) a.maxHr = s.maxHr;
+  if (!a.calories && s.calories) a.calories = s.calories;
+  if (s.place && !a.notes) a.notes = s.place;
+}
+
+function activityFromSummary(s: GarminActivitySummary): ExternalActivity {
+  const epoch = Math.round(s.startMs / 1000);
+  const a: ExternalActivity = {
+    id: `garmin-${epoch}`,
+    source: "garmin",
+    sourceId: String(epoch),
+    date: localIsoDate(new Date(s.startMs)),
+    start: new Date(s.startMs).toISOString(),
+    name: s.name || s.type,
+    type: s.type,
+    durationSec: s.durationSec ?? 0,
+  };
+  applySummary(a, s);
+  return a;
+}
+
+/**
+ * A whole Garmin export: the daily wellness JSON (sleep, summaries, VO2max,
+ * weight), the FIT files in the uploaded-files zips (activities with routes,
+ * and the HRV-status nights) and the activity summaries (names, types).
+ * Activities come from the recordings where there are any, else from the
+ * summaries alone.
+ */
+async function readGarminExport(entries: ZipEntry[], out: ActivityRead, progress?: Progress) {
+  const [summaries, sleep, healthStatus, maxMet, bio, summarizedFiles] = await Promise.all([
+    jsonFiles(entries, /^UDSFile_.*\.json$/i, out),
+    jsonFiles(entries, /_sleepData\.json$/i, out),
+    jsonFiles(entries, /_healthStatusData\.json$/i, out),
+    jsonFiles(entries, /^MetricsMaxMetData_.*\.json$/i, out),
+    jsonFiles(entries, /_userBioMetrics\.json$/i, out),
+    jsonFiles(entries, /_summarizedActivities\.json$/i, out),
+  ]);
+
+  const summaryList = parseSummarizedActivities(summarizedFiles);
+  const fitHrv: { t: number; lastNight: number }[] = [];
+  const recordings: ExternalActivity[] = [];
+  const startOf = new Map<ExternalActivity, number>();
+
+  // Recordings: every FIT in the (nested) uploaded-files zips; only activities and HRV status are read in full.
+  const fitEntries: ZipEntry[] = [];
+  const collect = async (list: ZipEntry[], depth: number) => {
+    for (const e of list) {
+      if (/\.fit(\.gz)?$/i.test(e.name)) fitEntries.push(e);
+      else if (/\.zip$/i.test(e.name) && depth < 3) {
+        try {
+          await collect(await readZip(new Blob([(await e.read()) as BlobPart])), depth + 1);
+        } catch (err) {
+          out.skipped.push({ where: nameOf(e.name), reason: (err as Error).message });
+        }
+      }
+    }
+  };
+  await collect(entries, 0);
+
+  let n = 0;
+  for (const e of fitEntries) {
+    progress?.(n++, fitEntries.length);
+    try {
+      const bytes = await bytesOf(await e.read());
+      const kind = fitFileType(bytes);
+      if (kind === 68) fitHrv.push(...readFitHrv(bytes));
+      else if (kind === 4 || kind === undefined) {
+        const rec = await decodeRecording("a.fit", bytes);
+        const act = rec && activityFromRecording(rec, "garmin");
+        if (act) {
+          recordings.push(act);
+          startOf.set(act, Date.parse(act.start));
+        }
+      }
+    } catch {
+      // A damaged recording is not worth stopping for; the summaries still cover the activity.
+    }
+    if (n % 50 === 0) await tick();
+  }
+  progress?.(fitEntries.length, fitEntries.length);
+
+  // Garmin's summaries name and type each recording; a summary with no recording is an activity without a route.
+  const taken = new Set<GarminActivitySummary>();
+  for (const a of recordings) {
+    const s = summaryList.find((x) => !taken.has(x) && Math.abs(x.startMs - startOf.get(a)!) < 120_000);
+    if (s) {
+      taken.add(s);
+      applySummary(a, s);
+    }
+    out.activities.push(a);
+  }
+  for (const s of summaryList) if (!taken.has(s)) out.activities.push(activityFromSummary(s));
+
+  out.daily = garminDailyValues({ summaries, sleep, healthStatus, maxMet, bio, fitHrv });
 }

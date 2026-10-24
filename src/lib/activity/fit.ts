@@ -92,8 +92,12 @@ function readValue(view: DataView, at: number, size: number, baseType: number, l
 
 type Msg = Record<number, number | undefined>;
 
-/** Calls `onMessage(globalNum, fields)` for every data message in every FIT file in the buffer. */
-export function readFitMessages(buffer: ArrayBuffer | Uint8Array, onMessage: (global: number, fields: Msg) => void): void {
+/**
+ * Calls `onMessage(globalNum, fields)` for every data message in every FIT
+ * file in the buffer. Returning `false` from it stops reading (a caller that
+ * only wants the file's kind stops after the first message).
+ */
+export function readFitMessages(buffer: ArrayBuffer | Uint8Array, onMessage: (global: number, fields: Msg) => void | boolean): void {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let offset = 0;
@@ -155,7 +159,7 @@ export function readFitMessages(buffer: ArrayBuffer | Uint8Array, onMessage: (gl
         p += def.length + def.devBytes;
         if (msg[253] !== undefined) lastTs = msg[253]!;
         else if (compressed) msg[253] = lastTs;
-        onMessage(def.global, msg);
+        if (onMessage(def.global, msg) === false) return;
       }
     } catch {
       // Truncated: keep what was read.
@@ -237,4 +241,38 @@ export function fitSportName(sport: number | undefined, subSport?: number): stri
     case 31: return "Rock Climbing";
     default: return "Activity";
   }
+}
+
+/** What a FIT file is (the `type` of its first message: 4 activity, 32 monitoring, 49 sleep, 68 HRV status ...), or undefined. Reads only the start of the file. */
+export function fitFileType(buffer: ArrayBuffer | Uint8Array): number | undefined {
+  let type: number | undefined;
+  readFitMessages(buffer, (global, m) => {
+    if (global === 0) type = m[0];
+    return false;
+  });
+  return type;
+}
+
+export interface FitHrvNight {
+  /** Epoch ms of the status message (the morning the night ended). */
+  t: number;
+  /** Last night's average HRV, ms. */
+  lastNight: number;
+  /** The 7-day average, ms. */
+  weekly?: number;
+}
+
+/**
+ * The overnight HRV of an HRV-status file (Garmin FIT type 68): its
+ * `hrv_status_summary` message (370), whose values are scaled by 128. Checked
+ * against Garmin's own JSON export: the same numbers to within 0.5 ms.
+ */
+export function readFitHrv(buffer: ArrayBuffer | Uint8Array): FitHrvNight[] {
+  const out: FitHrvNight[] = [];
+  readFitMessages(buffer, (global, m) => {
+    if (global === 370 && m[253] !== undefined && m[1] !== undefined) {
+      out.push({ t: FIT_EPOCH_MS + m[253]! * 1000, lastNight: m[1]! / 128, ...(m[0] !== undefined ? { weekly: m[0]! / 128 } : {}) });
+    }
+  });
+  return out;
 }

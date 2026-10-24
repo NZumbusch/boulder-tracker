@@ -90,3 +90,57 @@ describe("a Garmin-style export", () => {
     expect(r.activities).toHaveLength(1);
   });
 });
+
+describe("a Garmin data export", () => {
+  const FILE_ID: FieldDef[] = [{ num: 0, size: 1, base: 0x00 }, { num: 4, size: 4, base: 0x86 }];
+  const HRV: FieldDef[] = [{ num: 253, size: 4, base: 0x86 }, { num: 0, size: 2, base: 0x84 }, { num: 1, size: 2, base: 0x84 }];
+
+  /** An activity file: file_id type 4 first, then the usual records. */
+  function activityFit(offset = 0): Uint8Array {
+    const w = new FitWriter();
+    w.define(2, 0, FILE_ID);
+    w.data(2, FILE_ID, [4, fitTime(T0) + offset]);
+    w.define(0, 20, REC);
+    for (let i = 0; i < 5; i++) w.data(0, REC, [fitTime(T0) + offset + i * 25, semicircles(46.5 + i * 0.0005), semicircles(7.5), 130 + i]);
+    w.define(1, 18, SESSION);
+    w.data(1, SESSION, [fitTime(T0) + offset, 1, 100_000, 20_000, 160]);
+    return w.build();
+  }
+  function hrvFit(): Uint8Array {
+    const w = new FitWriter();
+    w.define(2, 0, FILE_ID);
+    w.data(2, FILE_ID, [68, fitTime(T0)]);
+    w.define(1, 370, HRV);
+    w.data(1, HRV, [fitTime(T0) + 3600, 80 * 128, 85 * 128]);
+    return w.build();
+  }
+  const sleepNight = { calendarDate: "2026-10-05", deepSleepSeconds: 3600, lightSleepSeconds: 18000, remSleepSeconds: 3600, sleepScores: { overallScore: 80 } };
+
+  const inner = makeZip({ "u_1.fit": activityFit(), "u_2.fit": hrvFit(), "u_3.fit": new Uint8Array([1, 2, 3]) });
+  const summaries = [{ summarizedActivitiesExport: [
+    { activityType: "running", startTimeGmt: T0 + 30_000, name: "Bern Running", duration: 100_000, distance: 20000 },
+    { activityType: "badminton", startTimeGmt: T0 + 86_400_000, name: "Badminton", duration: 3_600_000 },
+  ] }];
+  const zip = makeZip({
+    "DI_CONNECT/DI-Connect-Uploaded-Files/UploadedFiles_0-_Part1.zip": inner,
+    "DI_CONNECT/DI-Connect-Wellness/2025-09-21_2026-10-26_1_sleepData.json": JSON.stringify([sleepNight, { retro: true }]),
+    "DI_CONNECT/DI-Connect-Aggregator/UDSFile_2026-07-17_2026-10-25.json": JSON.stringify([{ calendarDate: "2026-10-05", restingHeartRate: 50 }]),
+    "DI_CONNECT/DI-Connect-Fitness/x_1_summarizedActivities.json": JSON.stringify(summaries),
+  });
+
+  it("reads activities, daily values and HRV from every part of the export", async () => {
+    const r = await readActivityFile(file("export.zip", zip));
+    expect(r.skipped).toEqual([]);
+    const byId = Object.fromEntries(r.activities.map((a) => [a.type, a]));
+    // The recording is named by its summary and keeps its route; the summary with no recording is an activity without one.
+    expect(byId["Run"]).toMatchObject({ source: "garmin", name: "Bern Running", id: `garmin-${T0 / 1000}` });
+    expect(byId["Run"].track).toBeTruthy();
+    expect(byId["Badminton"]).toMatchObject({ source: "garmin", durationSec: 3600 });
+    expect(byId["Badminton"].track).toBeUndefined();
+    expect(r.activities).toHaveLength(2);
+    const key = (v: { metricId: string }) => v.metricId;
+    expect(r.daily.map(key).sort()).toEqual(["hrv", "rhr", "sleep-duration", "sleep-score"].sort());
+    expect(r.daily.find((v) => v.metricId === "hrv")).toEqual({ metricId: "hrv", date: "2026-10-05", value: 85 });
+    expect(r.daily.find((v) => v.metricId === "sleep-duration")?.value).toBe(7);
+  });
+});

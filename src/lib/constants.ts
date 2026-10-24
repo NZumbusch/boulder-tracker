@@ -53,6 +53,18 @@ export const SLEEP_DURATION_METRIC: MetricDef = { id: "sleep-duration", name: "S
 export const NAP_DURATION_METRIC: MetricDef = { id: "nap-duration", name: "Naps", unit: "h" };
 
 /**
+ * Daily values only a wearable gives. Created by the first Garmin import that
+ * has them (like sleep duration above) and not part of the daily check-in.
+ */
+export const STEPS_METRIC: MetricDef = { id: "steps", name: "Steps", unit: "steps" };
+export const STRESS_METRIC: MetricDef = { id: "stress", name: "Stress (daily average)", unit: "pts" };
+export const BODY_BATTERY_HIGH_METRIC: MetricDef = { id: "body-battery-high", name: "Body Battery (highest)", unit: "pts" };
+export const BODY_BATTERY_LOW_METRIC: MetricDef = { id: "body-battery-low", name: "Body Battery (lowest)", unit: "pts" };
+export const BREATHING_METRIC: MetricDef = { id: "breathing-sleep", name: "Breathing rate asleep", unit: "br/min" };
+export const VO2MAX_METRIC: MetricDef = { id: "vo2max", name: "VO2max (running)", unit: "ml/kg/min" };
+export const WEARABLE_METRIC_DEFS: MetricDef[] = [STEPS_METRIC, STRESS_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, VO2MAX_METRIC];
+
+/**
  * The value types that ship with the app. Seeded once (`persistence.ts` for
  * installs that have no table yet); after that they are ordinary defs - edit,
  * archive or delete them like their own.

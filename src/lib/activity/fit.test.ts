@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitSportName, readFitActivity } from "./fit";
+import { fitFileType, fitSportName, readFitActivity, readFitHrv } from "./fit";
 import { FitWriter, fitTime, semicircles, type FieldDef } from "./fitBuilder.testutil";
 
 const T0 = Date.UTC(2026, 9, 5, 6, 30, 0);
@@ -94,5 +94,32 @@ describe("readFitActivity", () => {
     expect(readFitActivity(one.slice(0, one.length - 20))).not.toBeNull();
     expect(readFitActivity(new Uint8Array([1, 2, 3, 4]))).toBeNull();
     expect(readFitActivity(new Uint8Array(0))).toBeNull();
+  });
+});
+
+describe("file kind and HRV status", () => {
+  const HRV: FieldDef[] = [{ num: 253, size: 4, base: 0x86 }, { num: 0, size: 2, base: 0x84 }, { num: 1, size: 2, base: 0x84 }];
+  const FILE_ID: FieldDef[] = [{ num: 0, size: 1, base: 0x00 }, { num: 4, size: 4, base: 0x86 }];
+
+  function hrvFile() {
+    const w = new FitWriter();
+    w.define(0, 0, FILE_ID);
+    w.data(0, FILE_ID, [68, fitTime(T0)]);
+    w.define(1, 370, HRV);
+    w.data(1, HRV, [fitTime(T0), 83 * 128, Math.round(87.4 * 128)]);
+    return w.build();
+  }
+
+  it("tells what a file is from its first message", () => {
+    expect(fitFileType(hrvFile())).toBe(68);
+    expect(fitFileType(run())).toBeUndefined();
+    expect(fitFileType(new Uint8Array(0))).toBeUndefined();
+  });
+
+  it("reads the overnight HRV scaled by 128", () => {
+    const [n] = readFitHrv(hrvFile());
+    expect(n.t).toBe(T0);
+    expect(n.lastNight).toBeCloseTo(87.4, 1);
+    expect(n.weekly).toBe(83);
   });
 });

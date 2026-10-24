@@ -821,11 +821,11 @@ export interface DailyMetricEntry {
   value: number;
   note?: string;
   /**
-   * Set on values imported from Health Connect (`lib/health/`). Editing
+   * Set on values imported from Health Connect or a Garmin export (`lib/health/`). Editing
    * one by hand saves it without this, which makes it the user's: the import
    * never overwrites a value that isn't marked as its own.
    */
-  source?: "health-connect";
+  source?: "health-connect" | "garmin";
 }
 
 /**
