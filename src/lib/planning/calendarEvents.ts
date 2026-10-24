@@ -1,5 +1,5 @@
 import type { DeviceEvent } from "../calendar/deviceEvents";
-import type { DayOfWeek, ExerciseTypeDef, Workout } from "../types";
+import type { DayOfWeek, ExerciseTypeDef, ExternalActivity, Workout } from "../types";
 import { getWeekId, toUtcDayIndex } from "../dateUtils";
 import { weekStartDay } from "../analytics/range";
 import { estimateSessionDuration, sessionDuration } from "./sessionDuration";
@@ -25,6 +25,8 @@ export interface CalendarSession {
   /** Planned length, only when the session ran and took a different time - "95 min (60 planned)". */
   plannedMinutes?: number;
   done: boolean;
+  /** Set when this is an imported activity drawn like a session (`calendarActivities.ts`); `workout` is then a stand-in. */
+  activity?: ExternalActivity;
 }
 
 /** The day name of a day index. */

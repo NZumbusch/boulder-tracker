@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-05-calendar-activities",
+    title: "Your runs and rides in the Plan calendar",
+    points: [
+      "Imported activities now show in the Plan calendar like done sessions, and take the place of the planned session they were (same time, or the same kind of activity on the same day). Tap one for its route and numbers.",
+      "Settings → Plan calendar & day → \"Imported activities in the calendar\" turns it off.",
+    ],
+  },
+  {
     id: "2026-11-04-ai-sees-more",
     title: "The AI coach sees more, in fewer words",
     points: [

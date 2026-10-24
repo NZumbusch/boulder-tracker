@@ -29,13 +29,15 @@
   import CalendarAgenda from './CalendarAgenda.svelte';
   import EventSheet from './EventSheet.svelte';
   import SessionPreviewSheet from './SessionPreviewSheet.svelte';
+  import ActivitySheet from '../history/ActivitySheet.svelte';
+  import { importedOnCalendar } from '../../lib/planning/calendarActivities';
   import type { DeviceEvent } from '../../lib/calendar/deviceEvents';
   import { phaseMarks } from '../../lib/planning/phaseStrip';
   import { goalsByDay } from '../../lib/planning/goalBars';
   import { headerBars } from '../../lib/planning/headerBars';
   import CalendarOptions from './CalendarOptions.svelte';
   import { NEUTRAL_HEX } from '../../lib/calendar/eventColor';
-  import type { DayOfWeek, Workout } from '../../lib/types';
+  import type { DayOfWeek, ExternalActivity, Workout } from '../../lib/types';
 
   type Mode = 'day' | 'week' | 'month' | 'year';
   const MODES: { id: Mode; label: string }[] = [
@@ -128,6 +130,19 @@
 
   // A session is fetched by its week but drawn on the day it happened, which
   // can be another week - so look a week either side of what is shown.
+  /** Imported activities in the days shown, and the planned sessions they took the place of. */
+  const imported = $derived(
+    trainingState.tunableOn('plan.calendarActivities') && trainingState.externalActivities.length > 0
+      ? importedOnCalendar({
+          activities: trainingState.externalActivities,
+          from: range[0],
+          to: range[1],
+          workoutsOnDays: (days) => trainingState.workoutsOnDays(days),
+          label: (w) => w.notes || 'Session',
+          text: (w) => trainingState.sessionText(w),
+        })
+      : { sessions: [], replaced: new Set<string>() },
+  );
   const sessions = $derived.by(() => {
     const [from, to] = range;
     const seen = new Map<string, CalendarSession>();
@@ -135,10 +150,10 @@
     for (let d = from - 7; d <= to + 7; d += 7) {
       for (const w of trainingState.getWeekPlanView(weekIdOfDayIndex(d)).shown) {
         const s = toCalendarSession(w, running.isRunning(w.id) ? running.elapsedMinutes : undefined);
-        if (s && s.day >= from && s.day <= to) seen.set(w.id, s);
+        if (s && s.day >= from && s.day <= to && !(w.status === 'planned' && imported.replaced.has(w.id))) seen.set(w.id, s);
       }
     }
-    return [...seen.values()];
+    return [...seen.values(), ...imported.sessions];
   });
   const faded = (s: CalendarSession) => !!s.workout.planB && !s.workout.planB.active;
   const byDay = $derived(sessionsByDay(sessions));
@@ -190,7 +205,10 @@
   function openMonth(m: number) { focus = firstOfMonth(year, m); setMode('month'); }
   /** A tap on a session shows its preview first; Open there goes into the full session. */
   let preview = $state<{ session: CalendarSession; siblings: CalendarSession[] } | null>(null);
+  /** The imported activity whose details are open. */
+  let activityOpen = $state<ExternalActivity | null>(null);
   function open(s: CalendarSession, siblings: CalendarSession[]) {
+    if (s.activity) { activityOpen = s.activity; return; }
     planFocus.set('calendar', dayIndexToIso(s.day), s.workout.id);
     preview = { session: s, siblings };
   }
@@ -361,6 +379,9 @@
   {/if}
   {#if preview}
     <SessionPreviewSheet session={preview.session} onOpen={openFull} onClose={() => (preview = null)} />
+  {/if}
+  {#if activityOpen}
+    <ActivitySheet activity={activityOpen} onClose={() => (activityOpen = null)} />
   {/if}
   {#if eventOpen}
     <EventSheet event={eventOpen} calendar={deviceCalendar.calendars.find((c) => c.id === eventOpen?.calendarId)} onClose={() => (eventOpen = null)} />

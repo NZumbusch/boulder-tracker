@@ -413,6 +413,15 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 28.11 | Garmin archive | Import the export: tick "Keep the full Garmin data"; then import the same file again. | The first import says N new; the second says all already kept and nothing to do; Settings > Import activities shows records, size and kinds; "Remove the kept Garmin data" empties it and leaves activities and daily values. | | |
 | 28.12 | Archive and sync | With sync on across two devices, import on one; sync both. | The other device shows the same record count (no duplicates); importing there too changes nothing. | | |
 
+## 29. Imported activities in the Plan calendar (2026-11-05)
+
+| # | Item | Steps | Expect | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 29.1 | Activities show | With imported runs/rides/walks: Plan > Calendar, Day, Week and Month. | Each activity is drawn like a done session (green, name, start time, length); Month counts them as done; tapping one opens its details (route, numbers) as in History. | | |
+| 29.2 | Replaces the plan | Plan a session at the time of an imported run, and another called "Easy run" without a time on a day with a run. | Both planned sessions are gone from the calendar for that day (the plan in the Weeks view is untouched). A planned session at another time or of another kind stays. | | |
+| 29.3 | No double drawing | An activity at the same time as a session you logged; a run in both Strava and Garmin. | One block each: the logged session, and the copy with more detail. | | |
+| 29.4 | Switch | Settings > Plan calendar & day > "Imported activities in the calendar" off. | Back to sessions only. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
