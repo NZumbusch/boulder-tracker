@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-04-ai-sees-more",
+    title: "The AI coach sees more, in fewer words",
+    points: [
+      "Your sessions now reach it with their details: hang times, edges, grades, board and style, not just sets and reps. Analyze Past looks at recovery and other training of the weeks you pick.",
+      "Runs and rides: import your Garmin or Strava export again to add pace, kilometre splits, heart-rate zones and Garmin's training effect. Settings → AI & coach → What the AI sees has a switch for each, with what it costs in the prompt. History → Activities → an activity → Ask the AI about this.",
+      "The prompt is about a quarter shorter: tighter rules, test results and outdoor ascents as a summary, and Plan B, tests, places and coach notes explained only when they apply.",
+    ],
+  },
+  {
     id: "2026-11-02-wearable-insights",
     title: "Your other training and recovery, put to use",
     points: [
