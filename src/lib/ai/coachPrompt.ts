@@ -12,6 +12,7 @@ import type { DayOfWeek } from "../types";
 import { weekDatesText, weekLabel } from "../dateUtils";
 import { buildCalendarContext } from "../calendar/aiCalendar";
 import type { DeviceEvent } from "../calendar/deviceEvents";
+import type { ExerciseModalitySummary } from "./context";
 
 /**
  * The plan-level AI prompts, as text: "generate" (change the plan - the
@@ -24,8 +25,25 @@ import type { DeviceEvent } from "../calendar/deviceEvents";
  * One JSON object per line, no indentation. The same data as pretty-printed
  * JSON at roughly 60% of the size, and just as readable to a model.
  */
-function lines(items: unknown[]): string {
-  return items.length ? items.map((i) => JSON.stringify(withDates(i))).join("\n") : "(none)";
+function lines(items: unknown[], dates = true): string {
+  return items.length ? items.map((i) => JSON.stringify(dates ? withDates(i) : i)).join("\n") : "(none)";
+}
+
+/**
+ * The exercise list with its repeated parts said once: a field list shared by
+ * two or more exercises is named ("P1") and defined on the first line, and a
+ * library group equal to the category is left out.
+ */
+export function exerciseModalityLines(items: ExerciseModalitySummary[]): string {
+  if (items.length === 0) return "(none)";
+  const key = (params: unknown) => JSON.stringify(params);
+  const uses = new Map<string, number>();
+  for (const m of items) uses.set(key(m.params), (uses.get(key(m.params)) ?? 0) + 1);
+  const names = new Map<string, string>();
+  for (const m of items) if (uses.get(key(m.params))! > 1 && !names.has(key(m.params))) names.set(key(m.params), `P${names.size + 1}`);
+  const sets = Object.fromEntries([...names].map(([k, id]) => [id, JSON.parse(k)]));
+  const rows = items.map((m) => JSON.stringify({ name: m.name, category: m.category, ...(m.group !== m.category ? { group: m.group } : {}), params: names.get(key(m.params)) ?? m.params, ...(m.noHowTo ? { noHowTo: true } : {}) }));
+  return `${names.size ? `${JSON.stringify({ fieldLists: sets })}\n` : ""}${rows.join("\n")}`;
 }
 
 /** An item that names a week or a run of weeks also gets the calendar dates, so the model needn't work them out from "2026-W40". */
@@ -50,7 +68,7 @@ const SESSION_LEGEND = "; load = score from my after-session ratings, fingers/ar
 export function renderProfileSections(profile: AIContextProfile, mode: AIPromptMode, history?: AIHistoryWindow): string {
   const sections: string[] = [];
   if (profile.exerciseModalities) {
-    sections.push(`- Custom Exercise Modalities (name, analytics category, library group, tracked fields; "noHowTo" = it has no how-to text yet):\n${lines(profile.exerciseModalities)}`);
+    sections.push(`- Custom Exercise Modalities (name, analytics category, library group - same as the category when not given, tracked fields - "params" is a list or the name of one of the "fieldLists"; "noHowTo" = it has no how-to text yet):\n${exerciseModalityLines(profile.exerciseModalities)}`);
   }
   if (profile.customValues) {
     sections.push(`- ${profile.customValues}`);
@@ -66,18 +84,18 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
     sections.push(`- Available Phases: ${profile.phases.join(", ")}.`);
   }
   if (mode === "analyze") {
-    sections.push(`- Completed Workouts (Target Timeframe${SESSION_LEGEND}):\n${lines(profile.recentWorkouts)}`);
+    sections.push(`- Completed Workouts (Target Timeframe${SESSION_LEGEND}):\n${lines(profile.recentWorkouts, false)}`);
   } else {
     const weeks = history?.fullWeeks;
-    sections.push(`- Completed Sessions${weeks ? ` (last ${weeks} week${weeks === 1 ? "" : "s"}, in full${SESSION_LEGEND})` : ` (${SESSION_LEGEND.slice(2)})`}:\n${lines(profile.recentWorkouts)}`);
+    sections.push(`- Completed Sessions${weeks ? ` (last ${weeks} week${weeks === 1 ? "" : "s"}, in full${SESSION_LEGEND})` : ` (${SESSION_LEGEND.slice(2)})`}:\n${lines(profile.recentWorkouts, false)}`);
   }
   if (profile.weeklyHistory?.length) {
-    sections.push(`- Weekly History before that (one line per week, oldest first: sessions, total minutes, summed load, logged minutes per category, average post-session ratings 1-10):\n${lines(profile.weeklyHistory)}`);
+    sections.push(`- Weekly History before that (one line per week, oldest first: sessions, total minutes, summed load, logged minutes per category, average post-session ratings 1-10, "missed" = planned sessions left undone):\n${lines(profile.weeklyHistory)}`);
   }
   sections.push(
     mode === "analyze"
-      ? `- Test Results Recorded (Target Timeframe):\n${lines(profile.benchmarks)}`
-      : `- My Test Results (every result so far, with the conditions it was done under):\n${lines(profile.benchmarks)}`,
+      ? `- Test Results Recorded (Target Timeframe):\n${lines(profile.benchmarks, false)}`
+      : `- My Test Results (the latest few of each test and the best of each set-up, "best" = older than those; the conditions it was done under):\n${lines(profile.benchmarks, false)}`,
   );
   if (profile.tests?.length) {
     sections.push(`- Tests (benchmark tests I repeat - what each records, when it was last done, and whether it is due ("neverDone" = no result yet, optional). "plannedIn" = already scheduled, don't add it again. In a "Change plan" you may schedule one inside a session; see TEST in the rules below):\n${lines(profile.tests)}`);
@@ -112,8 +130,8 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
   if (profile.painIssues?.length) {
     sections.push(`- Pain Issues (open ones, and any resolved in the last 90 days; severity 0-10; "course" is the check-ins in order; plan around open ones - especially what they're "aggravatedBy"):\n${lines(profile.painIssues)}`);
   }
-  if (profile.outdoorAscents?.length) {
-    sections.push(`- Recent Outdoor Ascents:\n${lines(profile.outdoorAscents)}`);
+  if (profile.outdoorAscents?.length || profile.outdoorSummary) {
+    sections.push(`- Outdoor Ascents (${profile.outdoorSummary ? "the grade picture of my whole log, then " : ""}the latest):\n${profile.outdoorSummary ? `${JSON.stringify(profile.outdoorSummary)}\n` : ""}${lines(profile.outdoorAscents ?? [], false)}`);
   }
   if (profile.weekNotes && profile.weekNotes.length > 0) {
     sections.push(`- My Week Notes (circumstances and ideas I wrote down for specific weeks - take them into account):\n${lines(profile.weekNotes)}`);

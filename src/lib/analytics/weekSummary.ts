@@ -1,6 +1,7 @@
 import type { AnalyticsCategory, ExerciseTypeDef, Workout } from "../types";
 import { estimateSlotDuration, sessionDuration } from "../planning/sessionDuration";
 import { RATING_AXES } from "../constants";
+import { isSkippedWorkout } from "../planning/weekStatus";
 
 /**
  * What a week of training added up to - shared by the AI prompt's weekly
@@ -20,6 +21,20 @@ export interface WeekHistorySummary {
   minutesByCategory?: Record<string, number>;
   /** Average of the post-session ratings (1-10) that were given, per axis. */
   avgRatings?: Partial<Record<"fingers" | "arms" | "core" | "systemic", number>>;
+  /** Planned sessions that were neither done nor skipped, by name - only when asked for (`missed`). */
+  missed?: string[];
+}
+
+export interface WeeklyHistoryOptions {
+  /** Add the planned sessions that were left undone, by name. */
+  missed?: boolean;
+}
+
+/** The names of the planned sessions in `week` that were left undone: planned, not skipped on purpose. */
+function missedSessions(workouts: Workout[], week: string): string[] {
+  return workouts
+    .filter((w) => w.status === "planned" && w.weekId === week && !isSkippedWorkout(w))
+    .map((w) => w.notes?.trim() || "Session");
 }
 
 /**
@@ -33,6 +48,7 @@ export function buildWeeklyHistory(
   analyticsCategories: AnalyticsCategory[],
   weekIds: string[],
   phaseOf?: (weekId: string) => string | undefined,
+  options: WeeklyHistoryOptions = {},
 ): WeekHistorySummary[] {
   const categoryName = (idOrName: string | undefined) =>
     analyticsCategories.find((c) => c.id === idOrName)?.name ?? idOrName ?? "Other";
@@ -54,8 +70,9 @@ export function buildWeeklyHistory(
       if (given.length) avgRatings[axis] = Math.round((given.reduce((a, b) => a + b, 0) / given.length) * 10) / 10;
     }
     const phase = phaseOf?.(week);
+    const missed = options.missed ? missedSessions(workouts, week) : [];
     // An empty week is one short line - its zeros say nothing the count doesn't.
-    if (done.length === 0) return phase ? { week, phase, sessions: 0 } : { week, sessions: 0 };
+    if (done.length === 0) return { week, ...(phase ? { phase } : {}), sessions: 0, ...(missed.length ? { missed } : {}) };
     const summary: WeekHistorySummary = {
       week,
       sessions: done.length,
@@ -65,6 +82,7 @@ export function buildWeeklyHistory(
     };
     if (phase) summary.phase = phase;
     if (Object.keys(avgRatings).length) summary.avgRatings = avgRatings;
+    if (missed.length) summary.missed = missed;
     return summary;
   });
 }
