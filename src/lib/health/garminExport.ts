@@ -172,6 +172,10 @@ export interface GarminActivitySummary {
   /** Where Garmin says it happened ("Bern"), for the note. */
   place?: string;
   activityId?: number;
+  /** Garmin's own scores for the activity: aerobic and anaerobic training effect (0-5) and its training load. */
+  trainingEffect?: number;
+  anaerobicEffect?: number;
+  trainingLoad?: number;
 }
 
 /**
@@ -201,6 +205,10 @@ export function parseSummarizedActivities(files: Json[]): GarminActivitySummary[
       if (num(a.calories) && num(a.calories)! > 0) s.calories = Math.round(num(a.calories)! / 4.184);
       if (typeof a.locationName === "string" && a.locationName.trim()) s.place = a.locationName.trim();
       if (num(a.activityId) !== undefined) s.activityId = num(a.activityId);
+      const effect = (v: unknown) => (num(v) !== undefined && num(v)! > 0 && num(v)! <= 5 ? round(num(v)!, 1) : undefined);
+      if (effect(a.aerobicTrainingEffect)) s.trainingEffect = effect(a.aerobicTrainingEffect);
+      if (effect(a.anaerobicTrainingEffect)) s.anaerobicEffect = effect(a.anaerobicTrainingEffect);
+      if (num(a.activityTrainingLoad) && num(a.activityTrainingLoad)! > 0) s.trainingLoad = Math.round(num(a.activityTrainingLoad)!);
       out.push(s);
     }
   }

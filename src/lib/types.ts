@@ -942,6 +942,35 @@ export interface ExternalActivity {
   /** The GPS route, simplified, as an encoded polyline (`lib/activity/track.ts`). Absent indoors. */
   track?: string;
   notes?: string;
+  /** What the recording says about how it went (`lib/activity/stats.ts`); absent for an activity imported before it, or without a recording. */
+  stats?: ActivityStats;
+}
+
+/**
+ * The shape of an imported activity, worked out when it was imported (the
+ * recording itself isn't kept): small numbers, never a series longer than a
+ * run's kilometres.
+ */
+export interface ActivityStats {
+  /** Seconds per kilometre, for each full kilometre of a run, walk or hike. */
+  splitsSec?: number[];
+  /** A workout's own laps (intervals): seconds, metres and average heart rate each. Not the automatic per-km laps. */
+  laps?: { sec: number; m?: number; hr?: number }[];
+  /** The second half of the distance against the first: +4 = 4 % slower, -3 = 3 % faster. */
+  paceDriftPct?: number;
+  /** Average heart rate in the second half of the time minus the first, bpm. */
+  hrDriftBpm?: number;
+  /** Seconds at each heart rate: [below 100, 100-109, 110-119, ... 180-189, 190 and above]. Zones are made from it with your highest heart rate. */
+  hrBinsSec?: number[];
+  maxSpeedMs?: number;
+  descentM?: number;
+  avgCadence?: number;
+  avgPowerW?: number;
+  avgTempC?: number;
+  /** Garmin's aerobic and anaerobic training effect (0-5) and its load for the activity. */
+  trainingEffect?: number;
+  anaerobicEffect?: number;
+  trainingLoad?: number;
 }
 
 /**
