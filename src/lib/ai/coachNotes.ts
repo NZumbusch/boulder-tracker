@@ -73,20 +73,17 @@ export const COACH_MEMORY_READ_ONLY =
  * kept, so each AI keeps the list useful rather than
  * growing it.
  */
-export const COACH_NOTES_INSTRUCTIONS = `5) "coachNotes" - the coaching memory (optional; leave it out when there's nothing worth keeping).
-  What they are: short notes that EVERY future AI coach reads at the start of every conversation, in any AI app, next to "About me" and my standing goal (see "Coach notes" above for the current ones, each with its id). They are how what you learned about me survives this chat.
-  How they are used: each future prompt lists all of them, so keep each one self-contained, specific and durable - true next month, not just this week.
-  What belongs: lasting insights the data doesn't show - how I respond to training ("recovers slowly from max hangs, keep 72 h between"), limitations and injuries to respect, preferences ("hates 4x4s, likes pyramids"), what worked or didn't in past blocks, the long-term direction we agreed. Not: the plan itself or this week's details (use block/week/session notes), my goals and trips, benchmarks, sessions or pain logs (the app already sends those), or anything already in About me.
-  One exception: your TEST PLAN. When you schedule a test or decide one should wait ("retest max hang 20 mm / 7 s after the W44 deload, then every 8 weeks"), keep it as one short note, so the next request knows what you intended; edit it as it happens and remove it once done.
-  How to change them:
+export const COACH_NOTES_INSTRUCTIONS = `5) "coachNotes" - the coaching memory (optional; leave it out when there is nothing worth keeping).
+  Short notes that EVERY future AI coach reads at the start of every conversation, in any AI app, next to "About me" and my standing goal ("Coach notes" above lists the current ones with their ids). They are how what you learned about me survives this chat. Each future prompt lists all of them, so keep each self-contained, specific and durable - true next month, not just this week.
+  Belongs: lasting insights the data doesn't show - how I respond to training ("recovers slowly from max hangs, keep 72 h between"), limitations and injuries to respect, preferences ("hates 4x4s, likes pyramids"), what worked or didn't in past blocks, the long-term direction we agreed. Not: the plan or this week's details (use block/week/session notes), goals, trips, benchmarks, sessions or pain logs (the app sends those), or anything already in About me.
+  One exception - your TEST PLAN: when you schedule a test or decide one should wait ("retest max hang 20 mm / 7 s after the W44 deload, then every 8 weeks"), keep it as one short note so the next request knows; edit it as it happens and remove it once done.
     { "action": "add", "text": "One short note, at most ${MAX_COACH_NOTE_LENGTH} characters." }
     { "action": "edit", "id": "k3x9", "text": "The updated note." }
     { "action": "remove", "id": "k3x9" }
-  Rules:
-  - At most ${MAX_COACH_NOTES} notes in total, and fewer is better - only add a note when you learned something worth keeping; zero changes is a fine answer. If the list would pass ${MAX_COACH_NOTES}, merge or remove notes first (edit one into a combined note, remove the other).
-  - Keep the list current: edit a note that changed, remove one that is wrong or out of date, merge two that overlap. Prefer editing an existing note over adding a near-duplicate.
-  - Notes marked "me" are mine: don't edit or remove them unless I asked you to.
-  - I review every change before it is saved and can edit any note myself, so say why in your "summary" when you change the notes.`;
+  - At most ${MAX_COACH_NOTES} notes in total, fewer is better: add one only for something worth keeping; zero changes is a fine answer. If the list would pass ${MAX_COACH_NOTES}, merge or remove notes first (edit one into a combined note, remove the other).
+  - Keep it current: edit a note that changed, remove one that is wrong or out of date, merge overlaps; prefer editing over adding a near-duplicate.
+  - Notes marked "me" are mine: don't edit or remove them unless I asked.
+  - I review every change before it is saved and can edit any note myself; say in your "summary" why you changed the notes.`;
 
 export type CoachNoteChange =
   | { action: "add"; text: string }

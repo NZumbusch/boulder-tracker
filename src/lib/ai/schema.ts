@@ -846,26 +846,22 @@ export const AI_EXERCISE_VALUE_FIELD_NAMES: string[] = [...EXERCISE_VALUE_FIELD_
  * `EXERCISE_VALUE_SPEC` so the prompt can never describe a field the
  * validator doesn't implement, or omit an allowed value it does.
  */
-export const AI_VALUES_CONTRACT = `EXERCISE "values" REFERENCE - these are the ONLY keys allowed inside "values". Any other key is discarded silently, so do not invent one:
+export const AI_VALUES_CONTRACT = `EXERCISE "values" REFERENCE - the ONLY keys allowed in "values"; any other key is silently discarded:
 
 ${renderValueFieldReference()}
 
-HARD RULES for "values" - each of these was a real failure, not a hypothetical:
-- Every numeric field must be a bare JSON number: 180, not "180", not "180s", not "3-4 min".
-- NEVER put prose in a numeric field. "cadence": "Continuous, 1 problem every 3-4 min" is wrong; write "cadence": 4 and put the sentence in "notes".
-- Fields marked "array of strings" must be JSON arrays, even for one value: "mobilityType": ["Shoulders"], never "mobilityType": "Shoulders". Split compound answers: "Shoulders and Wrists" is ["Shoulders", "Wrists"].
-- Fields with an allowed-value list accept ONLY those exact strings. "Kilter" is wrong, "Kilterboard" is right. If what you mean is not in the list (e.g. a "Mixed" or "Steep and powerful" session), omit the field and describe it in "notes" instead.
-- "routeDifficulty" is Easy/Moderate/Hard, NOT a climbing grade. Grades belong in "minGrade"/"maxGrade".
-- There is no "restTime" field. Rest between sets is "timeBetweenSets".
-- "notes" is the only field that takes free text. Put all coaching detail, pacing, intent and conditions there.
-- Omit any field you have no value for. Never write null.
+HARD RULES for "values" (each was a real failure):
+- Numeric fields are bare JSON numbers: 180, not "180", "180s" or "3-4 min". NEVER put prose in a numeric field: "cadence": "1 problem every 3-4 min" is wrong - write "cadence": 4 and the sentence in "notes".
+- "array of strings" fields are arrays even for one value: "mobilityType": ["Shoulders"]. Split compound answers: "Shoulders and Wrists" is ["Shoulders", "Wrists"].
+- A field with an allowed list takes ONLY those exact strings ("Kilterboard", not "Kilter"). If what you mean isn't in the list ("Mixed", "Steep and powerful"), omit the field and describe it in "notes".
+- "routeDifficulty" is Easy/Moderate/Hard, NOT a grade: grades go in "minGrade"/"maxGrade". There is no "restTime": rest between sets is "timeBetweenSets".
+- "notes" is the only free-text field: coaching detail, pacing, intent, conditions. Omit any field you have no value for; never write null.
 
-TIMER-READY VALUES - the app runs a timed exercise straight from its "values" (the athlete taps Start - it never starts by itself), so write them to describe exactly what the timer should do, not just the total:
-- A timed hold or repeater: "sets", "reps" (holds per set), "timeOn" (seconds per hold), "timeOff" (seconds between holds in a set), "timeBetweenSets" (seconds between sets). The timer does sets x reps x (timeOn, timeOff), then timeBetweenSets. Give every one of these that matters: 0 means no rest, and a rest you leave out is filled with the athlete's default (2 min between sets).
-- One long hold or stretch: "sets": 1, "reps": 1, "timeOn" = its seconds. Do not use "duration" for something the timer should count down.
-- A hold done per side: "reps": 2, "repLabel": "Side", "timeOn" = seconds per side, "timeOff" = seconds to switch. The note "per side" alone changes nothing.
-- Sets that differ (a ramp of hangs 10 s, 8 s, 6 s, or rests that change): give "perSet" with "timeOn" (and "reps"/"weight") per set; the timer runs each set as given.
-- Counted sets (pull-ups, push-ups): "sets", "reps" and "timeBetweenSets" only; no "timeOn". The athlete finishes each set with a tap, and the rest runs on the clock.
-- Free climbing at a set pace (free bouldering, "a problem every 4 minutes"): "cadence" = minutes per problem and "duration" = the session's minutes, with no "reps" or "timeOn". The timer becomes a pacer - a cue every cadence minutes - that the athlete starts, pauses and changes while climbing. What is actually done (problems, time, pace) is logged against the planned load, so give a realistic "duration".
-- "leadIn" (seconds of get-ready before the timer starts, default 10) only when an exercise needs more or less, e.g. 20 for a hard hang or 0 for a stretch.
-- Never describe the timing only in "notes" - whatever the timer must do has to be in the numbers.`;
+TIMER-READY VALUES - the app runs a timed exercise straight from "values" (I tap Start; it never starts by itself), so write what the timer should do, not just a total. Never describe timing only in "notes".
+- Hold or repeater: "sets", "reps" (holds per set), "timeOn" (seconds per hold), "timeOff" (between holds), "timeBetweenSets" (between sets). The timer does sets x reps x (timeOn, timeOff), then timeBetweenSets. Give every one that matters: 0 means no rest, and one you leave out gets my default (2 min between sets).
+- One long hold or stretch: "sets": 1, "reps": 1, "timeOn" = its seconds - not "duration", which isn't counted down.
+- Per side: "reps": 2, "repLabel": "Side", "timeOn" per side, "timeOff" to switch. "per side" in notes alone changes nothing.
+- Sets that differ (hangs of 10 s, 8 s, 6 s; changing rests): "perSet" with "timeOn" (and "reps"/"weight") per set.
+- Counted sets (pull-ups, push-ups): "sets", "reps", "timeBetweenSets" only, no "timeOn"; I tap to finish each set and the rest runs on the clock.
+- Free climbing at a pace ("a problem every 4 minutes"): "cadence" = minutes per problem and "duration" = the session's minutes, no "reps" or "timeOn". The timer becomes a pacer with a cue every cadence minutes; what I actually do is logged against the planned load, so give a realistic "duration".
+- "leadIn" (get-ready seconds, default 10) only when an exercise needs more or less: 20 for a hard hang, 0 for a stretch.`;
