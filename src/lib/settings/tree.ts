@@ -250,7 +250,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Retest nudge", page: "reminders", words: "benchmark test weeks" },
   { label: "Backup reminder", page: "reminders", words: "days" },
   { label: "About me and standing goal", page: "coach", words: "memory ai height injuries" },
-  { label: "What the AI sees", page: "aiSharing", words: "sharing privacy prompt history weeks" },
+  { label: "What the AI sees", page: "aiSharing", words: "sharing privacy prompt history weeks watch detail pace splits heart rate zones vo2max sleep stages training readiness tokens" },
   { label: "Direct AI connection", page: "aiDirect", words: "api key claude openai chatgpt gemini gpt cost price tokens billing" },
   { label: "Google Drive sync", page: "sync", words: "devices conflict" },
   { label: "Backup and restore", page: "sync", words: "export import file json" },

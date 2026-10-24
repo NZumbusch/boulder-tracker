@@ -13,7 +13,8 @@
    * Notifications into Appearance & Behaviour instead of promoting it.
    */
   import { trainingState } from '../../lib/state.svelte';
-  import { aiSharingOn } from '../../lib/preferences/migrate';
+  import { aiFields, aiSharingOn, type AIFields } from '../../lib/preferences/migrate';
+  import { AI_FIELD_INFO, fieldCosts } from '../../lib/ai/fieldSwitches';
   import { AI_SHARING_CATEGORIES as CATEGORIES, sharingHint } from '../../lib/ai/sharingCategories';
   import { buildCoachPromptFor, estimateTokens, formatTokens } from '../../lib/ai/coachPrompt';
   import { getWeekIdRange, incrementWeekId } from '../../lib/dateUtils';
@@ -36,6 +37,13 @@
   const hasOther = $derived(trainingState.externalActivities.length > 0);
   const recoveryCost = $derived(Object.fromEntries(AI_RECOVERY_DETAILS.map((d) => [d.value, estimateTokens(JSON.stringify(buildRecoveryContext(trainingState.dailyMetrics, trainingState.today, d.value, weeks) ?? ''))])));
   const otherCost = $derived(Object.fromEntries(AI_OTHER_DETAILS.map((d) => [d.value, estimateTokens(JSON.stringify(buildOtherTrainingContext(trainingState.externalActivities, trainingState.today, d.value, hist, trainingState.externalLoadConfig) ?? ''))])));
+  const fields = $derived(aiFields(trainingState.aiDetail));
+  const costs = $derived(fieldCosts({ activities: trainingState.externalActivities, dailyMetrics: trainingState.dailyMetrics, today: trainingState.today, history: hist, loadConfig: trainingState.externalLoadConfig, recoveryDetail: trainingState.aiDetail.recovery }));
+  const setField = (key: keyof AIFields, on: boolean) => trainingState.setAiDetail({ ...trainingState.aiDetail, fields: { ...fields, [key]: on } });
+  const costText = (key: keyof AIFields) => {
+    const c = costs[key];
+    return c.hasData ? `About +${formatTokens(c.tokens)} on your data` : 'Nothing to send yet: no such data in your imports';
+  };
   const recoveryOn = $derived(aiSharingOn(trainingState.aiSharing, 'readinessMetrics'));
   const otherOn = $derived(aiSharingOn(trainingState.aiSharing, 'otherTraining'));
 
@@ -95,6 +103,18 @@
       {/if}
       <Segmented full label="Other training detail" options={AI_OTHER_DETAILS.map((d) => ({ value: d.value, label: d.label }))} value={trainingState.aiDetail.otherTraining} onChange={(v) => trainingState.setAiDetail({ ...trainingState.aiDetail, otherTraining: v })} />
       <p class="text-caption text-content-subtle px-1">{AI_OTHER_DETAILS.find((d) => d.value === trainingState.aiDetail.otherTraining)?.hint}{hasOther ? `. About ${formatTokens(otherCost[trainingState.aiDetail.otherTraining])}.` : ''}</p>
+    </div>
+  </div>
+
+  <div class="space-y-2 pt-3 border-t border-border">
+    <div class="space-y-1">
+      <h3 class="text-section uppercase text-content-muted px-1">Watch detail</h3>
+      <p class="text-caption text-content-subtle px-1 leading-relaxed">Switch single kinds of detail on or off. The first four go in with each activity when "Other training detail" is "Every activity"; the last three go in with the recovery data. The cost is measured on your own data, and the prompt size below follows as you switch.</p>
+    </div>
+    <div class="divide-y divide-border">
+      {#each AI_FIELD_INFO as info (info.key)}
+        <Toggle checked={fields[info.key]} onChange={(v) => setField(info.key, v)} label={info.label} hint={`${info.hint} ${costText(info.key)}${info.section === 'activity' && trainingState.aiDetail.otherTraining !== 'list' ? ' (only when activities are listed one by one)' : ''}.`} />
+      {/each}
     </div>
   </div>
 
