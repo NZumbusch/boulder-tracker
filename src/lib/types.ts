@@ -952,6 +952,8 @@ export interface ExternalActivity {
  * run's kilometres.
  */
 export interface ActivityStats {
+  /** Which version of `computeStats` made these; an import with a higher one refreshes the stored activity. */
+  v?: number;
   /** Seconds per kilometre, for each full kilometre of a run, walk or hike. */
   splitsSec?: number[];
   /** A workout's own laps (intervals): seconds, metres and average heart rate each. Not the automatic per-km laps. */
@@ -960,17 +962,41 @@ export interface ActivityStats {
   paceDriftPct?: number;
   /** Average heart rate in the second half of the time minus the first, bpm. */
   hrDriftBpm?: number;
-  /** Seconds at each heart rate: [below 100, 100-109, 110-119, ... 180-189, 190 and above]. Zones are made from it with your highest heart rate. */
+  /** Seconds in heart-rate zones 1-5 as Garmin counted them (your own zones, from the Garmin summary or the recording with Garmin's zone limits). */
+  zonesSec?: number[];
+  /** Seconds at each heart rate: [below 100, 100-109, 110-119, ... 180-189, 190 and above]. Zones are made from it with your highest heart rate when `zonesSec` is missing. */
   hrBinsSec?: number[];
   maxSpeedMs?: number;
   descentM?: number;
+  /** Steps per minute for foot activities (both feet), revolutions for rides. */
   avgCadence?: number;
+  /** Running stride length, cm. */
+  strideCm?: number;
   avgPowerW?: number;
   avgTempC?: number;
-  /** Garmin's aerobic and anaerobic training effect (0-5) and its load for the activity. */
+  /** Garmin's own label for what the activity trained ("tempo", "aerobic base", "recovery"...). */
+  effectLabel?: string;
+  /** Garmin's numeric training effect (0-5), where the recording has it. */
   trainingEffect?: number;
   anaerobicEffect?: number;
-  trainingLoad?: number;
+  /** What you rated the workout on the watch, 1-10, and how you felt (0 very weak .. 100 very strong). */
+  rpe?: number;
+  feel?: number;
+  /** Body Battery change over the activity (negative = drained). */
+  bodyBatteryDelta?: number;
+}
+
+/**
+ * One row of a Garmin data export, kept unstructured (`lib/health/garminArchive.ts`).
+ * `id` is `<kind>:<key>` - the activity id, the calendar day... - so importing the same
+ * export again, or syncing it from another device, never duplicates.
+ */
+export interface GarminRecord {
+  id: string;
+  kind: string;
+  key: string;
+  /** The row exactly as Garmin wrote it. */
+  data: unknown;
 }
 
 /**
@@ -1002,6 +1028,8 @@ export interface TrainingData {
   outdoorAscents: OutdoorAscent[];
   /** Activities imported from other services (`ExternalActivity`). */
   externalActivities: ExternalActivity[];
+  /** Everything the Garmin exports held about your training and health, unstructured, for later (`GarminRecord`). */
+  garminArchive: GarminRecord[];
   /**
    * The portable settings, one record per group (`lib/preferences/portable.ts`).
    * Preferences themselves live in localStorage; this table mirrors the ones

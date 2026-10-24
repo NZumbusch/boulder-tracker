@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeValues, firstWins, garminDailyValues, garminTypeName, hrvFromFit, parseDailySummaries, parseHealthStatusHrv, parseMaxMet, parseSleep, parseSummarizedActivities, parseTrainingReadiness, parseWeights } from "./garminExport";
+import { describeValues, firstWins, garminDailyValues, garminTypeName, hrvFromFit, parseDailySummaries, parseHealthStatusHrv, parseMaxMet, parseSleep, parseSummarizedActivities, parseWeights, statsOfSummary } from "./garminExport";
 import { planImport } from "./import";
 
 describe("daily summaries", () => {
@@ -126,10 +126,24 @@ describe("activity summaries", () => {
   });
 });
 
-describe("training readiness", () => {
-  it("reads a score per day and skips rows without one", () => {
-    expect(parseTrainingReadiness([{ calendarDate: "2026-10-05", score: 71.4 }, { calendarDate: "2026-10-06" }, { score: 50 }, { calendarDate: "2026-10-07", score: 0 }])).toEqual([
-      { metricId: "training-readiness", date: "2026-10-05", value: 71 },
-    ]);
+describe("what a summary says about how it went", () => {
+  const summary = {
+    hrTimeInZone_0: 0, hrTimeInZone_1: 60_000, hrTimeInZone_2: 180_000, hrTimeInZone_3: 540_000, hrTimeInZone_4: 300_000, hrTimeInZone_5: 6_000,
+    trainingEffectLabel: "TEMPO", workoutRpe: 40, workoutFeel: 50, differenceBodyBattery: -5, avgDoubleCadence: 150.2, avgStrideLength: 110.4, elevationLoss: 20_000,
+  };
+
+  it("reads zone times (milliseconds), the label, rating, feel, Body Battery, cadence, stride and descent", () => {
+    expect(statsOfSummary(summary)).toEqual({ zonesSec: [60, 180, 540, 300, 6], effectLabel: "tempo", rpe: 4, feel: 50, bodyBatteryDelta: -5, avgCadence: 150, strideCm: 110, descentM: 200 });
+  });
+
+  it("skips an unknown label, empty zones and nothing-to-say", () => {
+    expect(statsOfSummary({ trainingEffectLabel: "UNKNOWN", hrTimeInZone_1: 0, hrTimeInZone_2: 0, hrTimeInZone_3: 0, hrTimeInZone_4: 0, hrTimeInZone_5: 0 })).toBeUndefined();
+    expect(statsOfSummary({ hrTimeInZone_1: 1000 })?.zonesSec).toBeUndefined();
+    expect(statsOfSummary({ trainingEffectLabel: "AEROBIC_BASE" })).toEqual({ effectLabel: "aerobic base" });
+  });
+
+  it("puts them on the parsed summary", () => {
+    const [s] = parseSummarizedActivities([{ summarizedActivitiesExport: [{ startTimeGmt: 1_700_000_000_000, activityType: "running", workoutRpe: 30 }] }]);
+    expect(s.stats).toEqual({ rpe: 3 });
   });
 });

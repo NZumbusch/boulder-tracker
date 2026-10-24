@@ -11,7 +11,7 @@ bins[8] = 300; // 170-179
 const run: ExternalActivity = {
   id: "garmin-1", source: "garmin", sourceId: "1", date: "2026-10-20", start: "2026-10-20T06:30:00.000Z", name: "Run", type: "Run",
   durationSec: 2400, movingSec: 2400, distanceM: 8000, elevationM: 85, avgHr: 150, maxHr: 178,
-  stats: { splitsSec: [300, 302, 296, 310, 305, 298, 301, 299], paceDriftPct: 4, hrDriftBpm: 6, hrBinsSec: bins, descentM: 83, avgCadence: 172, avgPowerW: 210, avgTempC: 14, trainingEffect: 3.2, anaerobicEffect: 1.4, trainingLoad: 87 },
+  stats: { splitsSec: [300, 302, 296, 310, 305, 298, 301, 299], paceDriftPct: 4, hrDriftBpm: 6, hrBinsSec: bins, descentM: 83, avgCadence: 172, avgPowerW: 210, avgTempC: 14, effectLabel: "tempo", rpe: 4, feel: 50, bodyBatteryDelta: -5, strideCm: 110 },
 };
 const all: AIFields = { ...DEFAULT_AI_FIELDS, terrain: true };
 const none = { pace: false, zones: false, effect: false, terrain: false };
@@ -29,8 +29,8 @@ describe("activityDigest", () => {
       kmSplits: "5:00 5:02 4:56 5:10 5:05 4:58 5:01 4:59",
       drift: "second half 4 % slower, heart rate +6 bpm",
       zonesMin: "Z3 30 · Z5 5",
-      garminEffect: "aerobic 3.2, anaerobic 1.4, load 87",
-      terrain: "ascent 85 m, descent 83 m, cadence 172, power 210 W, 14 °C",
+      garminEffect: "trained: tempo, my rating 4/10, felt normal, Body Battery -5",
+      terrain: "ascent 85 m, descent 83 m, cadence 172, stride 110 cm, power 210 W, 14 °C",
     });
   });
 
@@ -84,18 +84,15 @@ describe("the activity list carries the digest at list detail only", () => {
 describe("recovery data with the daily switches", () => {
   const asOf = new Date("2026-10-24T12:00:00Z");
   const entry = (metricId: string, value: number): DailyMetricEntry => ({ id: `${metricId}`, metricId, date: "2026-10-24", value }) as DailyMetricEntry;
-  const entries = [entry("sleep-score", 80), entry("vo2max", 55.2), entry("sleep-deep", 70), entry("sleep-rem", 95), entry("training-readiness", 64)];
+  const entries = [entry("sleep-score", 80), entry("vo2max", 55.2), entry("sleep-deep", 70), entry("sleep-rem", 95)];
 
-  it("sends VO2max and sleep stages by default, and not training readiness", () => {
+  it("sends VO2max and sleep stages by default", () => {
     const r = buildRecoveryContext(entries, asOf, "brief", 4, aiFields())!;
     expect(r.lastNight).toMatchObject({ sleepScore: 80, vo2max: 55.2, deepSleepMin: 70, remSleepMin: 95 });
-    expect(r.lastNight).not.toHaveProperty("trainingReadiness");
   });
 
-  it("leaves a group out when its switch is off, and puts readiness in when it is on", () => {
+  it("leaves a group out when its switch is off", () => {
     const off = buildRecoveryContext(entries, asOf, "brief", 4, { ...DEFAULT_AI_FIELDS, vo2max: false, sleepStages: false })!;
     expect(Object.keys(off.lastNight!).sort()).toEqual(["date", "sleepScore"]);
-    const on = buildRecoveryContext(entries, asOf, "brief", 4, { ...DEFAULT_AI_FIELDS, readiness: true })!;
-    expect(on.lastNight).toMatchObject({ trainingReadiness: 64 });
   });
 });

@@ -31,11 +31,13 @@ Order: fixes first, then Garmin. Rules: shorten for everyone, optional parts onl
 - Session `date` is the UTC day of the stored timestamp, as `workoutDay` does everywhere else in the app; a session finished just after local midnight can show the previous day. Not changed.
 - Zones are made at read time from stored 10-bpm bins and `estimateMaxHr`, so one setting for the highest heart rate applies to all activities. Garmin's own zone times were not used (unit unclear).
 - `ExternalActivity.stats` is an optional field: no migration and no data-version bump. Sync carries it as part of the record; two-device behaviour was not tried.
-- Training readiness is parsed from a guessed file name/layout; it only matters if the export has such a file.
+- The rating on the watch (`stats.rpe`) now sets that activity's effort for load, ahead of heart rate; on the real export the 44 rated activities carry about 38 % less load than the heart-rate guess gave them (strength sessions rated 3-4).
+- **Garmin archive** (data 3.39, table `garminArchive`): all data rows of the export, unstructured, deduplicated by `<kind>:<key>`, synced; ~6.8 MB. Heavier: the Android JSON file is rewritten whole on every save, the sync doc carries it, backups carry it. Dropping the per-activity `splits` (coordinates, 2 MB) would cut 27 %; kept because "all the data" was asked for.
 
 ## Not done / open
 
-- Real-data check of everything above (FIT field numbers 15/18/20/23/24/57/125/137 and laps; Garmin summary field names `aerobicTrainingEffect`, `anaerobicTrainingEffect`, `activityTrainingLoad`). QA 28.10.
+- Checked against Nathan's real export on 2026-11-04 (aggregates only, nothing kept in the repo): the numeric training effect/load fields do not exist there (label only), no power/temperature in the recordings, no training-readiness file - those were dropped; Garmin's own zone times (`hrTimeInZone_*`, ms), the label, the watch rating (`workoutRpe`, x10) and feel, Body Battery change, double cadence and stride were added; running cadence from the file is one foot and is doubled. QA 28.10 is the on-phone version of this check.
 - Rules are still ~6.3k tokens; more would need cutting examples the contract tests expect.
 - The tune sheet inside the AI coach still shows only the two detail levels, not the new switches.
+- Not used yet but in the archive: skin temperature and SpO2 (health status), sleep sub-scores and stress, intensity minutes, Body Battery charge during sleep, stress durations, fitness age, hydration/sweat loss, strength sets from the watch.
 - Phone checks: none.

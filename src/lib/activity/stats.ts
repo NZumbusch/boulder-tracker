@@ -9,6 +9,9 @@ import type { FitActivity, FitPoint } from "./fit";
  * words for the AI by `lib/ai/activityDigest.ts`. Pure.
  */
 
+/** Bump when `computeStats` or the Garmin summary reading learns something: importing again then refreshes older activities. */
+export const STATS_VERSION = 2;
+
 const EARTH_M = 6_371_000;
 /** Foot activities get kilometre splits; a ride's splits say little next to its average speed. */
 const FOOT = /run|walk|hike|trek/i;
@@ -135,8 +138,33 @@ export function workoutLaps(laps: FitActivity["laps"]): ActivityStats["laps"] {
   return laps.map((l) => ({ sec: Math.round(l.elapsedSec), ...(l.distanceM ? { m: Math.round(l.distanceM) } : {}), ...(l.avgHr ? { hr: l.avgHr } : {}) }));
 }
 
+/** Seconds in zones 1-5 from the records and the zone floors (bpm, ascending, five of them): a reading counts until the next one. */
+export function zonesFromPoints(points: FitPoint[], floors: number[]): number[] | undefined {
+  if (floors.length !== 5) return undefined;
+  const zones = [0, 0, 0, 0, 0];
+  let any = false;
+  for (let i = 0; i < points.length; i++) {
+    const hr = points[i].hr;
+    if (hr === undefined || hr < floors[0]) continue;
+    any = true;
+    const next = points[i + 1];
+    const gap = next ? (next.t - points[i].t) / 1000 : 1;
+    let zone = 0;
+    floors.forEach((f, z) => {
+      if (hr >= f) zone = z;
+    });
+    zones[zone] += gap > 0 && gap <= 30 ? gap : 1;
+  }
+  return any ? zones.map((v) => Math.round(v)) : undefined;
+}
+
+export interface StatsOptions {
+  /** Your heart-rate zone floors from Garmin (zone 1 to 5, bpm), where the export has them. */
+  zoneFloors?: number[];
+}
+
 /** Everything the recording and its summary give, or undefined when there is nothing to say. */
-export function computeStats(points: FitPoint[], type: string, fit?: FitActivity): ActivityStats | undefined {
+export function computeStats(points: FitPoint[], type: string, fit?: FitActivity, options: StatsOptions = {}): ActivityStats | undefined {
   const out: ActivityStats = {};
   const run = timeAndDistance(points);
   if (run && run.d[run.d.length - 1] >= MIN_SPLIT_M && FOOT.test(type)) {
@@ -151,25 +179,33 @@ export function computeStats(points: FitPoint[], type: string, fit?: FitActivity
   if (hr !== undefined) out.hrDriftBpm = hr;
   const bins = hrBins(points);
   if (bins) out.hrBinsSec = bins;
+  const zones = options.zoneFloors ? zonesFromPoints(points, options.zoneFloors) : undefined;
+  if (zones) out.zonesSec = zones;
   if (fit) {
     const laps = workoutLaps(fit.laps ?? []);
     if (laps) out.laps = laps;
     if (fit.maxSpeed) out.maxSpeedMs = round(fit.maxSpeed, 1);
     if (fit.descentM) out.descentM = Math.round(fit.descentM);
-    if (fit.avgCadence) out.avgCadence = Math.round(fit.avgCadence);
+    // A watch counts one foot's steps while running, so a runner's cadence is double what the file says.
+    if (fit.avgCadence) out.avgCadence = Math.round(fit.avgCadence * (FOOT.test(type) ? 2 : 1));
     if (fit.avgPowerW) out.avgPowerW = Math.round(fit.avgPowerW);
     if (fit.avgTempC !== undefined) out.avgTempC = Math.round(fit.avgTempC);
     if (fit.trainingEffect) out.trainingEffect = round(fit.trainingEffect, 1);
     if (fit.anaerobicEffect) out.anaerobicEffect = round(fit.anaerobicEffect, 1);
   }
-  return Object.keys(out).length ? out : undefined;
+  return Object.keys(out).length ? { v: STATS_VERSION, ...out } : undefined;
 }
 
-/** Stats merged: what `extra` has wins only where `base` has nothing. */
+/** Stats merged: what `extra` has wins only where `base` has nothing; Garmin's own zones (`extra` from a summary) beat ones made here. */
 export function mergeStats(base: ActivityStats | undefined, extra: ActivityStats | undefined): ActivityStats | undefined {
   if (!extra) return base;
-  if (!base) return extra;
-  return { ...extra, ...base };
+  if (!base) return { v: STATS_VERSION, ...extra };
+  return { ...extra, ...base, v: STATS_VERSION };
+}
+
+/** Whether `incoming` knows more than `stored`: stored has none, or was made by an older version. */
+export function statsNewer(stored: ActivityStats | undefined, incoming: ActivityStats | undefined): boolean {
+  return !!incoming && (!stored || (stored.v ?? 1) < (incoming.v ?? 1));
 }
 
 // --- Zones --------------------------------------------------------------------
@@ -177,8 +213,10 @@ export function mergeStats(base: ActivityStats | undefined, extra: ActivityStats
 /** Zone edges as shares of the highest heart rate: Z1 from 50 %, Z2 60 %, Z3 70 %, Z4 80 %, Z5 90 %. */
 const ZONE_FROM = [0.5, 0.6, 0.7, 0.8, 0.9];
 
-/** Minutes in zones 1-5 from the bins and the highest heart rate; a bin counts for the zone its middle falls in. Undefined without bins. */
-export function zoneMinutes(bins: number[] | undefined, maxHr: number): number[] | undefined {
+/** Minutes in zones 1-5: Garmin's own seconds when there are, else made from the bins and the highest heart rate (a bin counts for the zone its middle falls in). Undefined without either. */
+export function zoneMinutes(stats: Pick<ActivityStats, "zonesSec" | "hrBinsSec"> | undefined, maxHr: number): number[] | undefined {
+  if (stats?.zonesSec?.length === 5) return stats.zonesSec.map((s) => Math.round(s / 60));
+  const bins = stats?.hrBinsSec;
   if (!bins?.length) return undefined;
   const zones = [0, 0, 0, 0, 0];
   bins.forEach((sec, i) => {

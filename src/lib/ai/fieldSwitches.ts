@@ -22,11 +22,10 @@ export interface FieldInfo {
 export const AI_FIELD_INFO: FieldInfo[] = [
   { key: "pace", section: "activity", label: "Pace and splits", hint: "Pace or speed, each kilometre of a run, a workout's laps, and how the second half differed from the first." },
   { key: "zones", section: "activity", label: "Heart-rate zones", hint: "Minutes in each zone, from your highest heart rate." },
-  { key: "effect", section: "activity", label: "Garmin training effect and load", hint: "Garmin's own score for how hard the activity was (Garmin imports only)." },
-  { key: "terrain", section: "activity", label: "Climb, cadence, power, temperature", hint: "Ascent and descent, cadence, power and temperature." },
+  { key: "effect", section: "activity", label: "What it trained, rating and feel", hint: "What Garmin says the activity trained, the rating and feel you gave on the watch, and the Body Battery it cost (Garmin imports only)." },
+  { key: "terrain", section: "activity", label: "Climb, cadence, stride", hint: "Ascent and descent, cadence, stride length (and power and temperature where the recording has them)." },
   { key: "vo2max", section: "recovery", label: "VO2max", hint: "Your running VO2max, in the recovery data." },
   { key: "sleepStages", section: "recovery", label: "Deep and REM sleep", hint: "Minutes of deep and REM sleep, in the recovery data." },
-  { key: "readiness", section: "recovery", label: "Garmin training readiness", hint: "Garmin's readiness score (Garmin imports only)." },
 ];
 
 const ALL_OFF = Object.fromEntries(AI_FIELD_KEYS.map((k) => [k, false])) as unknown as AIFields;

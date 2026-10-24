@@ -9,7 +9,7 @@ import { calculateLoadFactor } from "../analytics/load";
  * (`calculateLoadFactor`). That makes it comparable to climbing load and lets
  * the load ratio, fatigue and readiness count it.
  *
- * Effort comes from, in order: the heart rate (for the endurance types, where
+ * Effort comes from, in order: the rating you gave on the watch (`stats.rpe`), the heart rate (for the endurance types, where
  * it says something: average heart rate as a share of your highest seen), else
  * the effort you set for that kind of activity (Settings -> Training model ->
  * Other training). 0 for a kind means "don't count it".
@@ -99,6 +99,8 @@ export function externalEffort(a: ExternalActivity, config: ExternalLoadConfig, 
   const kind = effortKindOf(a.type);
   const byKind = config.effort[kind] ?? 0;
   if (byKind <= 0) return 0;
+  // A rating you gave the workout on the watch beats any guess from heart rate or kind.
+  if (a.stats?.rpe) return Math.max(0.5, Math.min(10, a.stats.rpe));
   if (config.useHeartRate && a.avgHr && HEART_RATE_KINDS.has(kind)) return Math.max(0.5, Math.min(10, effortFromHeartRate(a.avgHr, maxHr)));
   return byKind;
 }

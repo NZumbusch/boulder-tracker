@@ -45,11 +45,10 @@ const KEYS: Record<string, { key: string; digits: number }> = {
   vo2max: { key: "vo2max", digits: 1 },
   "sleep-deep": { key: "deepSleepMin", digits: 0 },
   "sleep-rem": { key: "remSleepMin", digits: 0 },
-  "training-readiness": { key: "trainingReadiness", digits: 0 },
 };
 
 /** The metrics that each switch adds; the others are always in. */
-const FIELD_OF_METRIC: Record<string, keyof AIFields> = { vo2max: "vo2max", "sleep-deep": "sleepStages", "sleep-rem": "sleepStages", "training-readiness": "readiness" };
+const FIELD_OF_METRIC: Record<string, keyof AIFields> = { vo2max: "vo2max", "sleep-deep": "sleepStages", "sleep-rem": "sleepStages" };
 
 type Row = Record<string, number>;
 
@@ -111,7 +110,7 @@ export interface RecoveryContext {
   daily?: Out[];
 }
 
-const ABOUT = "Daily recovery data from my watch and my own entries (sleep score 0-100, hours asleep, deep and REM sleep minutes, overnight HRV in ms, resting heart rate, daily average stress 0-100, Body Battery highest/lowest of the day 0-100, steps, breathing rate asleep, running VO2max, Garmin training readiness 0-100, weight). Missing values were not recorded.";
+const ABOUT = "Daily recovery data from my watch and my own entries (sleep score 0-100, hours asleep, deep and REM sleep minutes, overnight HRV in ms, resting heart rate, daily average stress 0-100, Body Battery highest/lowest of the day 0-100, steps, breathing rate asleep, running VO2max, weight). Missing values were not recorded.";
 
 export function buildRecoveryContext(entries: DailyMetricEntry[], asOf: Date, detail: RecoveryDetail, weeks = 8, fields: AIFields = DEFAULT_AI_FIELDS): RecoveryContext | undefined {
   const days = byDate(entries, fields);

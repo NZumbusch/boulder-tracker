@@ -1207,6 +1207,14 @@ const MIGRATIONS: MigrationStep[] = [
       data.externalActivities = Array.isArray(data.externalActivities) ? data.externalActivities : [];
     },
   },
+  {
+    from: "3.38",
+    to: "3.39",
+    describe: "Add garminArchive - the Garmin export's rows kept unstructured for later (empty by default)",
+    migrate: (data: any) => {
+      data.garminArchive = Array.isArray(data.garminArchive) ? data.garminArchive : [];
+    },
+  },
 ];
 
 /**

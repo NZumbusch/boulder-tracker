@@ -298,6 +298,7 @@ export function buildDemoData(today: Date = new Date()): TrainingData & { export
     painIssues,
     outdoorAscents,
     externalActivities: [],
+    garminArchive: [],
     exportVersion: DATA_EXPORT_VERSION,
   };
 }

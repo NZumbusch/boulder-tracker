@@ -2,6 +2,7 @@ import type { ExternalActivity, Workout } from "../types";
 import { addDaysIso, localIsoDate, weekMondayIso } from "../dateUtils";
 import { WEEK_DAYS } from "../constants";
 import { isSkippedWorkout } from "../planning/weekStatus";
+import { statsNewer } from "./stats";
 
 /**
  * "Is this the same thing I already have?" for an imported activity.
@@ -136,7 +137,7 @@ export interface ImportPlan {
   add: ExternalActivity[];
   /** Same id already stored. */
   already: ExternalActivity[];
-  /** Already stored without stats (imported before they existed) and this import has them: the stored copy can be filled in. */
+  /** Already stored without stats, or with older ones, and this import has newer: the stored copy can be filled in. */
   refresh: ExternalActivity[];
   /** The same activity as one already stored from another source. */
   duplicates: { activity: ExternalActivity; with: Overlap }[];
@@ -171,7 +172,7 @@ export function planImport(
   for (const a of incoming) {
     if (have.has(a.id)) {
       plan.already.push(a);
-      if (a.stats && !have.get(a.id)!.stats) plan.refresh.push(a);
+      if (statsNewer(have.get(a.id)!.stats, a.stats)) plan.refresh.push(a);
       continue;
     }
     const found = findOverlaps(a, {

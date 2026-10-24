@@ -1,5 +1,6 @@
 import { storage } from '../storage';
-import type { ExternalActivity } from '../types';
+import type { ExternalActivity, GarminRecord } from '../types';
+import type { ArchiveInfo, ArchivePlan } from '../health/garminArchive';
 
 /**
  * Activities imported from other services (`ExternalActivity`; the Strava
@@ -21,6 +22,24 @@ export class ExternalActivityStore {
   /** Adds stats to stored activities that lack them; returns how many were filled in. */
   async addStats(items: ExternalActivity[]): Promise<number> {
     return storage.addExternalActivityStats(items);
+  }
+
+  /** What storing these Garmin rows would add and change (nothing is written). */
+  async planArchive(records: GarminRecord[]): Promise<ArchivePlan> {
+    return storage.planGarminArchive(records);
+  }
+
+  /** Keeps the Garmin rows: new ones added, changed ones replaced, nothing duplicated. */
+  async mergeArchive(records: GarminRecord[]): Promise<ArchivePlan> {
+    return storage.mergeGarminArchive(records);
+  }
+
+  async archiveInfo(): Promise<ArchiveInfo> {
+    return storage.getGarminArchiveInfo();
+  }
+
+  async clearArchive() {
+    await storage.clearGarminArchive();
   }
 
   async remove(ids: string[]) {

@@ -13,7 +13,7 @@ import { adoptTotalBasis } from './benchmarks/basis';
 import { adoptWayViews } from './benchmarks/ways';
 import { TEST_VIEWS_ADOPTED_KEY } from './releaseNotes';
 import { bodyweightFromBenchmark, withoutWeighInSlotsInAlternatives, withoutWeighInSlotsInTemplates } from './benchmarks/bodyweight';
-import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, ExternalActivity, PlanAlternative, PlanSide, DayOfWeek, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate, BenchmarkView } from './types';
+import type { Workout, Benchmark, ExerciseTypeDef, ViewType, TrainingBlock, GoalEvent, PainLog, PainIssue, PainTrend, DailyMetricEntry, MetricDef, OutdoorAscent, ExternalActivity, PlanAlternative, PlanSide, DayOfWeek, GarminRecord, AthleteProfile, CoachNote, Circuit, ValueDef, WorkoutTemplate, BenchmarkView } from './types';
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH, newCoachNoteId } from './ai/coachNotes';
 import { getWeekId, localIsoDate, trainingDayDate, formatWeekWithDates, weekIdOfIso } from './dateUtils';
 import { sessionIsoDay } from './activity/overlap';
@@ -1936,6 +1936,11 @@ class TrainingState {
     await this.externalActivityStore.load();
     return changed;
   }
+
+  planGarminArchive = (records: GarminRecord[]) => this.externalActivityStore.planArchive(records);
+  mergeGarminArchive = (records: GarminRecord[]) => this.externalActivityStore.mergeArchive(records);
+  garminArchiveInfo = () => this.externalActivityStore.archiveInfo();
+  clearGarminArchive = () => this.externalActivityStore.clearArchive();
 
   async removeExternalActivities(ids: string[]) {
     await this.externalActivityStore.remove(ids);

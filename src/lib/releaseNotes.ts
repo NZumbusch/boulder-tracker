@@ -24,7 +24,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: "The AI coach sees more, in fewer words",
     points: [
       "Your sessions now reach it with their details: hang times, edges, grades, board and style, not just sets and reps. Analyze Past looks at recovery and other training of the weeks you pick.",
-      "Runs and rides: import your Garmin or Strava export again to add pace, kilometre splits, heart-rate zones and Garmin's training effect. Settings → AI & coach → What the AI sees has a switch for each, with what it costs in the prompt. History → Activities → an activity → Ask the AI about this.",
+      "Runs and rides: import your Garmin or Strava export again to add pace, kilometre splits, your Garmin heart-rate zones, what Garmin says it trained and the rating you gave on the watch (which now also sets the effort of that activity in your load). Settings → AI & coach → What the AI sees has a switch for each, with what it costs in the prompt. History → Activities → an activity → Ask the AI about this.",
+      "A Garmin import now also keeps every row of the export unchanged in the app (and in sync), without duplicates when you import again - Settings → Import activities shows what is kept and can remove it.",
       "The prompt is about a quarter shorter: tighter rules, test results and outdoor ascents as a summary, and Plan B, tests, places and coach notes explained only when they apply.",
     ],
   },
