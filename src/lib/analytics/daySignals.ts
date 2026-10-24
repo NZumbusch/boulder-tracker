@@ -74,7 +74,9 @@ export function daySignals(i: DaySignalsInput): DaySignals | null {
   // Fewer than two signals is not enough for a verdict.
   if (signals < 2) return null;
 
-  const lean: DayLean = score >= 2 ? "good" : score <= -2 ? "easy" : "steady";
+  // A readiness score that is not itself good keeps the day from reading "good": the signals can't outvote the fatigue and load behind it.
+  const readinessHolds = i.readinessScore === undefined || i.readinessScore >= READINESS_GOOD_THRESHOLD;
+  const lean: DayLean = score >= 2 && readinessHolds ? "good" : score <= -2 ? "easy" : "steady";
   let plan: string | undefined;
   if (i.planned && i.planned.usual > 0 && i.planned.load > 0) {
     const ratio = i.planned.load / i.planned.usual;

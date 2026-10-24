@@ -115,6 +115,7 @@ export const TUNABLES: TunableDef[] = [
   { id: "home.recentActivityCount", topic: "layout", group: "Home lists", label: "Recent activity items", kind: "number", default: 3, min: 1, max: 10, step: 1 },
   { id: "home.progressBenchmarks", topic: "layout", group: "Home lists", label: "Tests in Progress", kind: "number", default: 3, min: 1, max: 10, step: 1 },
   { id: "progress.retestWeeks", topic: "layout", group: "Progress", label: "Retest nudge after", kind: "number", default: 6, min: 2, max: 26, step: 1, unit: "weeks" },
+  { id: "alerts.wearableDays", topic: "layout", group: "Alerts", label: "Remind to import Garmin data after", hint: "When the newest Garmin value in the app is older than this. 0 turns the reminder off", kind: "number", default: 60, min: 0, max: 365, step: 5, unit: "days", zeroMeansOff: true },
   { id: "alerts.backupDays", topic: "layout", group: "Alerts", label: "Remind to back up after", hint: "0 turns the reminder off", kind: "number", default: 14, min: 0, max: 90, step: 1, unit: "days", zeroMeansOff: true },
 ];
 

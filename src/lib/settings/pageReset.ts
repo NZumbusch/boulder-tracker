@@ -31,7 +31,7 @@ export const PAGE_TUNABLES: Partial<Record<PageId, string[]>> = {
   model: TUNABLES.filter((t) => t.topic === "model").map((t) => t.id),
   // The places page has a data list, so it has no page reset; its own card still resets these.
   weather: TUNABLES.filter((t) => t.topic === "outdoor").map((t) => t.id),
-  reminders: ["alerts.fatigueReminder", "progress.retestWeeks", "alerts.backupDays", "alerts.insightNotify", "alerts.insightHour"],
+  reminders: ["alerts.fatigueReminder", "progress.retestWeeks", "alerts.backupDays", "alerts.wearableDays", "alerts.insightNotify", "alerts.insightHour"],
 };
 
 /** The preferences on each page that has a reset. The theme is applied by the caller (it lives with the UI store). */

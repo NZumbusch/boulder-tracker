@@ -17,6 +17,8 @@ export interface HomeAlert {
   painIssueId?: string;
   /** Tapping saves a backup file (the web build, which has no automatic backup). */
   exportBackup?: boolean;
+  /** Tapping opens the import page (Settings -> Data & connections -> Import activities). */
+  openImport?: boolean;
 }
 
 export interface AlertInputs {
@@ -30,11 +32,13 @@ export interface AlertInputs {
   lastBackupAt?: string;
   /** This device never backs up by itself (web, iPhone): remind sooner, and make the reminder do the export. */
   noAutoBackup?: boolean;
+  /** The latest day a Garmin import brought values for (`source: "garmin"`), when there are any. */
+  wearableDataEndsOn?: string;
   /** Upcoming or current trips with sessions still planned on their days (see `sessionsDuringTrip`). */
   tripConflicts?: { tripName: string; dates: string; count: number }[];
-  enabled: { recovery: boolean; pain: boolean; missingData: boolean; backup: boolean; tripConflict?: boolean };
+  enabled: { recovery: boolean; pain: boolean; missingData: boolean; backup: boolean; tripConflict?: boolean; wearableImport?: boolean };
   /** Settings -> Training model / Layout; each falls back to this module's default. */
-  config?: { restDays?: number; backupDays?: number; acwrHighRisk?: number };
+  config?: { restDays?: number; backupDays?: number; acwrHighRisk?: number; wearableDays?: number };
 }
 
 /** A metric normally logged is flagged once it has gone this many days without a reading. */
@@ -43,6 +47,8 @@ export const METRIC_GAP_DAYS = 5;
 const METRIC_TRACKED_WINDOW_DAYS = 30;
 /** Completed sessions this recent without fatigue ratings get a nudge. */
 const UNRATED_SESSION_DAYS = 3;
+/** A Garmin import whose newest value is older than this is flagged (0 = never). */
+export const WEARABLE_STALE_DAYS = 60;
 /** A backup older than this is flagged. */
 export const BACKUP_STALE_DAYS = 14;
 /** With no backup at all, stay quiet until there's this much to lose. */
@@ -135,6 +141,13 @@ export function buildAlerts(input: AlertInputs): HomeAlert[] {
         text: `${c.count} session${c.count === 1 ? "" : "s"} still planned during ${c.tripName} (${c.dates})`,
       });
     }
+  }
+
+  // Garmin has no live connection, so the data stops where the last export did: say so now and then.
+  const wearableDays = input.config?.wearableDays ?? WEARABLE_STALE_DAYS;
+  if (enabled.wearableImport && wearableDays > 0 && input.wearableDataEndsOn) {
+    const age = daysAgo(input.wearableDataEndsOn, asOf);
+    if (age > wearableDays) alerts.push({ id: "wearable-import", severity: "info", text: `Your Garmin data in the app ends ${age} days ago: import a fresh export to bring it up to date`, openImport: true });
   }
 
   const backupDays = input.config?.backupDays ?? BACKUP_STALE_DAYS;

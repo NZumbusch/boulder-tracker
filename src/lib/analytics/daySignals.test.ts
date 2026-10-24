@@ -30,6 +30,12 @@ describe("daySignals", () => {
     expect(daySignals({ ...base, hrv: 90, hrvBaseline: 80, sleepScore: 40 })!.lean).toBe("steady");
   });
 
+  it("does not call a day good while readiness itself is below good", () => {
+    const s = daySignals({ ...base, readinessScore: 66, hrv: 90, hrvBaseline: 80, sleepScore: 88, bodyBattery: 95 })!;
+    expect(s.lean).toBe("steady");
+    expect(s.reasons.join(" ")).toMatch(/readiness is 66/);
+  });
+
   it("counts a low readiness score heavily", () => {
     expect(daySignals({ ...base, readinessScore: 30, sleepScore: 75 })!.lean).toBe("easy");
     expect(daySignals({ ...base, readinessScore: 95, sleepScore: 85 })!.lean).toBe("good");

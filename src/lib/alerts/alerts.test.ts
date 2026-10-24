@@ -112,3 +112,20 @@ describe("buildAlerts", () => {
     expect(buildAlerts(input({ enabled: off, lastBackupAt: "2026-01-01T00:00:00Z" }))).toEqual([]);
   });
 });
+
+describe("Garmin import reminder", () => {
+  const asOf = new Date(2026, 9, 24, 12);
+  const base = { asOf, workouts: [], dailyMetrics: [], painLogs: [], enabled: { recovery: false, pain: false, missingData: false, backup: false, wearableImport: true } };
+
+  it("says when the newest Garmin value is older than the limit, and offers the import", () => {
+    const a = buildAlerts({ ...base, wearableDataEndsOn: "2026-08-01" }).find((x) => x.id === "wearable-import");
+    expect(a?.text).toMatch(/ends 84 days ago/);
+    expect(a?.openImport).toBe(true);
+  });
+  it("stays quiet when recent, without Garmin data, switched off, or with 0 days", () => {
+    expect(buildAlerts({ ...base, wearableDataEndsOn: "2026-10-20" })).toEqual([]);
+    expect(buildAlerts({ ...base })).toEqual([]);
+    expect(buildAlerts({ ...base, wearableDataEndsOn: "2026-01-01", enabled: { ...base.enabled, wearableImport: false } })).toEqual([]);
+    expect(buildAlerts({ ...base, wearableDataEndsOn: "2026-01-01", config: { wearableDays: 0 } })).toEqual([]);
+  });
+});

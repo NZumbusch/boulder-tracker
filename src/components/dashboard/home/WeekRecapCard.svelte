@@ -13,6 +13,7 @@
   import { joinParts, G } from './format';
   import SectionHeader from './SectionHeader.svelte';
   import Icon from '@iconify/svelte';
+  import { weeklyReview } from '../../../lib/analytics/weeklyReview';
 
   let { data }: { data: HomeData } = $props();
 
@@ -28,6 +29,15 @@
     asOf: data.asOf,
   }));
   const loadChange = $derived(recap.prevLoad > 0 ? (recap.load - recap.prevLoad) / recap.prevLoad : undefined);
+  // Beyond climbing: other training and recovery for the same week (the lines about climbing are above already).
+  const review = $derived(weeklyReview(weekId, {
+    workouts: trainingState.getWorkoutsForWeek(weekId),
+    activities: trainingState.externalActivities,
+    dailyMetrics: trainingState.dailyMetrics,
+    loadConfig: trainingState.externalLoadConfig,
+    hrvDip: trainingState.readinessConfig.hrvDip,
+  }));
+  const beyondClimbing = $derived(review.lines.filter((l) => !l.startsWith('Climbing:') && !l.startsWith('Total load') && l !== 'No training logged this week.'));
   const mixTotal = $derived(recap.mix.reduce((sum, m) => sum + m.minutes, 0));
   const categoryColor = (name: string) => trainingState.analyticsCategories.find((c) => c.name === name)?.color ?? 'bg-content-subtle';
 </script>
@@ -95,5 +105,12 @@
         {/if}
       </div>
     {/if}
+  {/if}
+
+  {#if trainingState.homeDetails['weekRecap.review'] && (beyondClimbing.length > 0 || review.remark)}
+    <div class="pt-2 border-t border-border/60 space-y-1" data-testid="week-review">
+      {#each beyondClimbing as line}<p class="text-caption text-content-muted">{line}</p>{/each}
+      {#if review.remark}<p class="text-caption text-content font-semibold">{review.remark}</p>{/if}
+    </div>
   {/if}
 </div>

@@ -18,6 +18,7 @@
       painLogs: trainingState.painLogs,
       painIssues: trainingState.painIssues,
       lastBackupAt: trainingState.lastBackupAt,
+      wearableDataEndsOn: trainingState.dailyMetrics.filter((m) => m.source === 'garmin').reduce<string | undefined>((latest, m) => (!latest || m.date > latest ? m.date : latest), undefined),
       noAutoBackup: !Capacitor.isNativePlatform(),
       enabled: {
         recovery: trainingState.homeDetails['alerts.recovery'],
@@ -26,11 +27,13 @@
         // Example data must never be exported as a backup.
         backup: trainingState.homeDetails['alerts.backup'] && !trainingState.demoActive,
         tripConflict: trainingState.homeDetails['alerts.tripConflict'],
+        wearableImport: trainingState.homeDetails['alerts.wearableImport'] && !trainingState.demoActive,
       },
       tripConflicts: data.tripConflicts,
       config: {
         restDays: trainingState.tunable('alerts.restDays'),
         backupDays: trainingState.tunable('alerts.backupDays'),
+        wearableDays: trainingState.tunable('alerts.wearableDays'),
         acwrHighRisk: trainingState.acwrZones.highRisk,
       },
     }),
@@ -42,7 +45,7 @@
     info: { icon: 'ic:baseline-info', color: 'text-status-neutral', word: 'Note' },
   };
   /** Housekeeping (backups, gaps in the data, unrated sessions) is kept apart from signals about training and health. */
-  const isHousekeeping = (a: { id: string }) => a.id === 'backup' || a.id.startsWith('gap-') || a.id.startsWith('unrated-');
+  const isHousekeeping = (a: { id: string }) => a.id === 'backup' || a.id === 'wearable-import' || a.id.startsWith('gap-') || a.id.startsWith('unrated-');
   const signals = $derived(alerts.filter((a) => !isHousekeeping(a)));
   const housekeeping = $derived(alerts.filter(isHousekeeping));
   function rateSession(workoutId: string) {
@@ -51,6 +54,7 @@
   }
   function run(alert: (typeof alerts)[number]) {
     if (alert.exportBackup) void trainingState.exportData();
+    else if (alert.openImport) trainingState.uiStore.openSettingsPage('activityImport');
     else if (alert.painIssueId) openPainIssue(alert.painIssueId);
     else if (alert.rateWorkoutId) rateSession(alert.rateWorkoutId);
   }

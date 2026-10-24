@@ -23,7 +23,7 @@
     <p class="text-caption text-content-subtle px-1 leading-relaxed">Reminders on the phone need the Android app. The nudges inside the app work everywhere.</p>
   {/if}
   <NotificationSettings />
-  <TunablesSettings topic="layout" title="Nudges in the app" ids={['progress.retestWeeks', 'alerts.backupDays', 'alerts.insightNotify', 'alerts.insightHour']} />
+  <TunablesSettings topic="layout" title="Nudges in the app" ids={['progress.retestWeeks', 'alerts.backupDays', 'alerts.wearableDays', 'alerts.insightNotify', 'alerts.insightHour']} />
   <h2 class="text-section uppercase text-content-muted px-1 -mb-2">Reminders that live with their feature</h2>
   <div class="card py-1 divide-y divide-border animate-in fade-in">
     {#each elsewhere as e (e.page)}

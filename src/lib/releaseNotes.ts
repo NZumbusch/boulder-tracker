@@ -20,6 +20,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-02-wearable-insights",
+    title: "Your other training and recovery, put to use",
+    points: [
+      "Imported runs, rides and walks now count toward load, fatigue and readiness (Settings → Training model → Other training: set how much each kind counts).",
+      "Analytics → Recovery has a Wellness chart (Body Battery, stress, steps, breathing, VO2max) and Best Sessions, which looks for what goes with your better sessions.",
+      "Home: a short read of this morning's signals on the readiness card, other training and recovery in Week Recap, and a note when your Garmin data is getting old.",
+      "The AI coach can see your sleep, HRV and other training - you choose how much under Settings → AI & coach → What the AI sees.",
+    ],
+  },
+  {
     id: "2026-11-01-garmin-export",
     title: "Your Garmin history",
     points: [

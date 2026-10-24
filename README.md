@@ -111,6 +111,13 @@ Needs Android Studio.
 
 `android/` is tracked in git (manifest, `MainActivity`, launcher shortcuts in `res/xml/shortcuts.xml`, the widget); local Capacitor plugins live in `plugins/` (`timer-service`, `drive-sync`, `home-widget`, `health-connect`, `device-calendar`). The app needs Android 8 (API 26) or newer, for Health Connect's client library. The project builds with JDK 21 (Android Studio's own, `/opt/android-studio/jbr`).
 
+### What the imported data does
+
+- **Other training** (`activity/externalLoad.ts`): imported activities count toward the load ratio, systemic fatigue and readiness as pseudo-sessions (`workoutsForLoad`, `completedForLoad` in `state.svelte.ts`; never in session lists or counts). Effort comes from average heart rate against your highest (walks, runs, rides, swims, cardio) or a per-kind setting (Settings → Training model → Other training; 0 = not counted), load = minutes × effort^1.2 like a rated session, times a weight.
+- **Wellness** card and Home watch line (Body Battery, stress, steps, breathing, VO2max); **Best Sessions** (`analytics/sessionPredictors.ts`: each session's exercises against your own usual vs the day before, rank correlation, says how sure it is); **today's signals** on the readiness card (`analytics/daySignals.ts`, described not instructed); **weekly review** in Week Recap (`analytics/weeklyReview.ts`).
+- **AI coach** (`ai/wellnessContext.ts`, `ai/context.ts`): recovery data (brief / standard / full), other training (summary / every activity), derived patterns and weekly reviews, each switchable under What the AI sees with its token cost; health-derived parts only with "Readiness and daily metrics" on.
+- **Reminder**: Home note when the newest Garmin value in the app is older than `alerts.wearableDays` (default 60).
+
 ### Importing activities (Strava export)
 
 Settings → Data & connections → Import activities reads a Strava archive `.zip`, a Garmin data export `.zip` (nested zips included), or single `.fit`, `.gpx`, `.tcx` (gzipped or not) and `activities.csv` files into the `externalActivities` table (data 3.38). Ids are `strava-<activity id>` or `<source>-<start epoch seconds>`, so importing twice or on two synced devices never duplicates. Imported activities are history only - they are not `Workout`s and never count toward load - and show on History → Activities with a route drawn from a simplified encoded polyline (`track`; no map tiles, so it works offline and leaks no location).

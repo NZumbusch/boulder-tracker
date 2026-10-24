@@ -37,6 +37,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'alerts.missingData', label: 'Missing data', hint: 'Metrics you usually log going quiet; sessions without fatigue ratings', defaultOn: true },
     { id: 'alerts.tripConflict', label: 'Sessions during a trip', hint: 'Sessions still planned on the days of an upcoming trip', defaultOn: true },
     { id: 'alerts.backup', label: 'Backup age', defaultOn: true },
+    { id: 'alerts.wearableImport', label: 'Garmin data age', hint: 'When the newest Garmin value in the app is old: time to import a fresh export', defaultOn: true },
   ],
   today: [
     { id: 'today.time', label: 'Start time & length', defaultOn: true },
@@ -67,6 +68,7 @@ export const HOME_SECTION_DETAILS: Record<HomeSectionId, HomeDetailDef[]> = {
     { id: 'weekRecap.compare', label: 'Compared with the week before', hint: 'Load up or down against the previous week', defaultOn: true },
     { id: 'weekRecap.mix', label: 'Training mix', hint: 'Minutes per category', defaultOn: true },
     { id: 'weekRecap.sends', label: 'Sends & pain', hint: 'Outdoor sends that week, and pain entries', defaultOn: true },
+    { id: 'weekRecap.review', label: 'Other training and recovery', hint: 'Runs, rides and walks, sleep, HRV, resting heart rate and weight for that week, against the week before', defaultOn: true },
   ],
   competition: [
     { id: 'competition.note', label: 'Note button', hint: 'Opens the goal\'s note', defaultOn: true },
