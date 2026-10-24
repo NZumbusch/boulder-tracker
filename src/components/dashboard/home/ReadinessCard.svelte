@@ -79,16 +79,25 @@
   });
   const ringOffset = $derived(RING_CIRCUMFERENCE * (1 - displayed / 100));
   const canBreakDown = $derived(trainingState.homeDetails['readiness.breakdown'] && readiness.score !== undefined);
+
+  // Short summary (default): the ring, the status word and one sentence. Everything else waits behind "Why this score".
+  const signals = $derived(trainingState.homeDetails['readiness.signals'] ? data.daySignals : undefined);
+  const showConfidence = $derived(trainingState.homeDetails['readiness.confidence']);
+  const compact = $derived(trainingState.homeDetails['readiness.compact']);
+  const summary = $derived(compact && signals ? signals.headline : readiness.advice);
+  /** What the summary left out, shown under "Why this score" (compact) or always below the ring (full). */
+  const hasMore = $derived(!!signals || showConfidence || (compact && summary !== readiness.advice));
+  const canExpand = $derived(canBreakDown || (compact && hasMore));
 </script>
 
 <div class="card relative overflow-hidden">
  <div class="flex items-center gap-5">
   <button
-    class="relative w-28 h-28 shrink-0 rounded-full {canBreakDown ? 'cursor-pointer' : 'cursor-default'}"
-    onclick={() => { if (canBreakDown) showBreakdown = !showBreakdown; }}
-    disabled={!canBreakDown}
-    aria-expanded={canBreakDown ? showBreakdown : undefined}
-    aria-label={canBreakDown ? (showBreakdown ? 'Hide score breakdown' : 'Show score breakdown') : `Readiness ${readiness.score !== undefined ? Math.round(readiness.score) : 'unavailable'}`}
+    class="relative w-28 h-28 shrink-0 rounded-full {canExpand ? 'cursor-pointer' : 'cursor-default'}"
+    onclick={() => { if (canExpand) showBreakdown = !showBreakdown; }}
+    disabled={!canExpand}
+    aria-expanded={canExpand ? showBreakdown : undefined}
+    aria-label={canExpand ? (showBreakdown ? 'Hide score breakdown' : 'Show score breakdown') : `Readiness ${readiness.score !== undefined ? Math.round(readiness.score) : 'unavailable'}`}
   >
     <svg viewBox="0 0 100 100" class="w-28 h-28 -rotate-90">
       <circle cx="50" cy="50" r={RING_RADIUS} fill="none" stroke="var(--theme-border)" stroke-width="7" />
@@ -111,36 +120,39 @@
   </button>
   <div class="min-w-0 space-y-1.5">
     <span class="text-section uppercase {STATUS_COLOR[readiness.status]}">{READINESS_WORD[readiness.status]}</span>
-    <p class="text-body text-content leading-snug">{readiness.advice}</p>
+    <p class="text-body text-content leading-snug">{summary}</p>
     <!-- Stays put when the breakdown opens: hiding it made the card jump. -->
-    {#if canBreakDown}
+    {#if canExpand}
       <button onclick={() => (showBreakdown = !showBreakdown)} class="btn-quiet -ml-1 px-1 text-label text-primary gap-0.5" aria-expanded={showBreakdown}>
         {showBreakdown ? 'Hide why' : 'Why this score'}<Icon icon={showBreakdown ? 'ic:baseline-expand-less' : 'ic:baseline-expand-more'} class="text-base" />
       </button>
     {/if}
   </div>
  </div>
-  <!-- The detail lines get the card's full width: beside the ring they were squeezed into a narrow column of small text. -->
-  {#if (trainingState.homeDetails['readiness.signals'] && data.daySignals) || trainingState.homeDetails['readiness.confidence']}
-    <div class="mt-4 pt-3 border-t border-border/60 space-y-2">
-      {#if trainingState.homeDetails['readiness.signals'] && data.daySignals}
-        {@const sig = data.daySignals}
-        <div class="space-y-1" data-testid="day-signals">
-          <p class="text-body font-semibold text-content leading-snug">{sig.headline}</p>
-          {#if sig.reasons.length}<p class="text-body text-content-muted leading-snug">{sig.reasons.join(' · ')}.</p>{/if}
-          {#if sig.plan}<p class="text-body text-content-muted leading-snug">{sig.plan}</p>{/if}
-        </div>
-      {/if}
-      {#if trainingState.homeDetails['readiness.confidence']}
-        <p class="text-label text-content-subtle flex items-start gap-1.5">
-          <Icon icon="ic:baseline-insights" class="text-content-subtle text-base mt-px shrink-0" />
-          <span>{readiness.confidence}</span>
-        </p>
-      {/if}
-    </div>
+  {#snippet detail()}
+    {#if compact && signals}<p class="text-body text-content leading-snug">{readiness.advice}</p>{/if}
+    {#if signals}
+      <div class="space-y-1" data-testid="day-signals">
+        {#if !compact}<p class="text-body font-semibold text-content leading-snug">{signals.headline}</p>{/if}
+        {#if signals.reasons.length}<p class="text-body text-content-muted leading-snug">{signals.reasons.join(' · ')}.</p>{/if}
+        {#if signals.plan}<p class="text-body text-content-muted leading-snug">{signals.plan}</p>{/if}
+      </div>
+    {/if}
+    {#if showConfidence}
+      <p class="text-label text-content-subtle flex items-start gap-1.5">
+        <Icon icon="ic:baseline-insights" class="text-content-subtle text-base mt-px shrink-0" />
+        <span>{readiness.confidence}</span>
+      </p>
+    {/if}
+  {/snippet}
+  <!-- Full detail gets the card's full width, under the ring; the short summary keeps it behind "Why this score". -->
+  {#if !compact && hasMore}
+    <div class="mt-4 pt-3 border-t border-border/60 space-y-2">{@render detail()}</div>
   {/if}
-  {#if canBreakDown && showBreakdown}
+  {#if canExpand && showBreakdown}
     <div class="mt-4 pt-3 border-t border-border/60 space-y-2" transition:slide={{ duration: motionMs(260), easing: cubicOut }}>
+      {#if compact && hasMore}{@render detail()}{/if}
+      {#if canBreakDown}
       {#each BREAKDOWN_ROWS as row}
         {#snippet rowBody(row: (typeof BREAKDOWN_ROWS)[number])}
           <span class="min-w-14 whitespace-nowrap text-label text-content-subtle shrink-0">{row.label}</span>
@@ -158,6 +170,7 @@
         {/if}
       {/each}
       <p class="text-caption text-content-subtle">Points taken off 100. Each bar is coloured by how much of its maximum it costs. Tap Load ratio to see what it is made of.</p>
+      {/if}
     </div>
   {/if}
 </div>
