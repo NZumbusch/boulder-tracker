@@ -130,3 +130,18 @@ describe("planImport", () => {
     expect(p.add).toHaveLength(1);
   });
 });
+
+describe("refreshing what is already stored", () => {
+  const base = (id: string, stats?: ExternalActivity["stats"]): ExternalActivity => ({ id, source: "garmin", sourceId: id, date: "2026-10-05", start: "2026-10-05T06:30:00.000Z", name: "Run", type: "Run", durationSec: 1800, ...(stats ? { stats } : {}) });
+
+  it("lists a stored activity that has no stats while this import has them, and leaves ones that have them", () => {
+    const p = planImport([base("a"), base("b", { splitsSec: [300] })], [base("a", { splitsSec: [310] }), base("b", { splitsSec: [310] }), base("c", { splitsSec: [310] })], () => [], (w) => w.notes ?? "");
+    expect(p.refresh.map((a) => a.id)).toEqual(["a"]);
+    expect(p.already.map((a) => a.id)).toEqual(["a", "b"]);
+    expect(p.add.map((a) => a.id)).toEqual(["c"]);
+  });
+
+  it("has nothing to refresh when the import carries no stats", () => {
+    expect(planImport([base("a")], [base("a")], () => [], () => "").refresh).toEqual([]);
+  });
+});

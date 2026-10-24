@@ -18,6 +18,11 @@ export class ExternalActivityStore {
     return storage.addExternalActivities(items);
   }
 
+  /** Adds stats to stored activities that lack them; returns how many were filled in. */
+  async addStats(items: ExternalActivity[]): Promise<number> {
+    return storage.addExternalActivityStats(items);
+  }
+
   async remove(ids: string[]) {
     await storage.deleteExternalActivities(ids);
   }

@@ -136,6 +136,8 @@ export interface ImportPlan {
   add: ExternalActivity[];
   /** Same id already stored. */
   already: ExternalActivity[];
+  /** Already stored without stats (imported before they existed) and this import has them: the stored copy can be filled in. */
+  refresh: ExternalActivity[];
   /** The same activity as one already stored from another source. */
   duplicates: { activity: ExternalActivity; with: Overlap }[];
   /** Overlaps a session you logged, by time or (marked) by day. Only a match by time is skipped. */
@@ -164,11 +166,12 @@ export function planImport(
   options: ImportOptions = DEFAULT_IMPORT_OPTIONS,
   text?: (w: Workout) => string,
 ): ImportPlan {
-  const have = new Set(existing.map((a) => a.id));
-  const plan: ImportPlan = { add: [], already: [], duplicates: [], logged: [], planned: [] };
+  const have = new Map(existing.map((a) => [a.id, a]));
+  const plan: ImportPlan = { add: [], already: [], refresh: [], duplicates: [], logged: [], planned: [] };
   for (const a of incoming) {
     if (have.has(a.id)) {
       plan.already.push(a);
+      if (a.stats && !have.get(a.id)!.stats) plan.refresh.push(a);
       continue;
     }
     const found = findOverlaps(a, {
