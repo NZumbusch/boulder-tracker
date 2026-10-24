@@ -2,6 +2,9 @@
   /** One imported activity: its route, the numbers, what it overlaps, and Remove. */
   import Sheet from '../ui/Sheet.svelte';
   import ActivityRoute from './ActivityRoute.svelte';
+  import ActivityMap from './ActivityMap.svelte';
+  import Segmented from '../ui/Segmented.svelte';
+  import { lastMapStyle, MAP_PROVIDERS, providerOf, rememberMapStyle, type MapStyle } from '../../lib/activity/mapTiles';
   import { trainingState } from '../../lib/state.svelte';
   import { formatDay } from '../../lib/dateUtils';
   import { formatDistance, formatDuration, formatPaceOrSpeed, SOURCE_LABELS, startClock } from '../../lib/activity/format';
@@ -11,6 +14,13 @@
   import type { ExternalActivity } from '../../lib/types';
 
   let { activity, onClose }: { activity: ExternalActivity; onClose: () => void } = $props();
+
+  // The map is opt-in: off shows the plain route and fetches nothing. The setting makes the last-used map the default; the chips switch it here.
+  let view = $state<'route' | MapStyle>(trainingState.tunableOn('activities.mapDefault') ? lastMapStyle() : 'route');
+  function pick(next: 'route' | MapStyle) {
+    view = next;
+    if (next !== 'route') rememberMapStyle(next);
+  }
 
   const miles = $derived(trainingState.units.wind === 'mph');
   const overlaps = $derived(overlapsFor(activity));
@@ -39,9 +49,17 @@
 <Sheet title={activity.name} subtitle="{formatDay(activity.date, { weekday: 'short' })} · {startClock(activity)} · {SOURCE_LABELS[activity.source]}" {onClose}>
   <div class="space-y-4">
     {#if activity.track}
-      <div class="rounded-card bg-surface-sunken grid place-items-center py-2">
-        <ActivityRoute track={activity.track} width={320} height={200} detail label="Route of {activity.name}" />
-      </div>
+      {#if view === 'route'}
+        <div class="rounded-card bg-surface-sunken grid place-items-center py-2">
+          <ActivityRoute track={activity.track} width={320} height={200} detail label="Route of {activity.name}" />
+        </div>
+      {:else}
+        <ActivityMap track={activity.track} style={view} label="Map of {activity.name}" />
+      {/if}
+      <Segmented full label="Route background" options={[{ value: 'route', label: 'Route' }, ...MAP_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))]} value={view} onChange={(v) => pick(v)} />
+      {#if view !== 'route'}
+        <p class="text-caption text-content-subtle" data-testid="map-notice">The map pictures come from {providerOf(view).host}, which can see the area you are looking at. Choose Route for no internet use.</p>
+      {/if}
     {/if}
 
     <dl class="grid grid-cols-2 gap-x-4 gap-y-3">

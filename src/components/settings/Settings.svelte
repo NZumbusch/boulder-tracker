@@ -411,7 +411,10 @@
       <SettingsTransfer />
     </div>
   {:else if page === 'activityImport'}
-    <ActivityImportSettings />
+    <div class="space-y-4">
+      <ActivityImportSettings />
+      <TunablesSettings topic="layout" title="Maps" ids={['activities.mapDefault']} />
+    </div>
   {:else if page === 'healthConnect'}
     <HealthConnectSettings />
   {:else if page === 'deviceCalendar'}

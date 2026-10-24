@@ -24,6 +24,8 @@ export const PAGE_TUNABLES: Partial<Record<PageId, string[]>> = {
     "day.startHour", "ui.clock12",
   ],
   history: ["analytics.plannedOutline"],
+  // The import page has imported data, so it has no page reset; the Maps card's own reset covers this.
+  activityImport: ["activities.mapDefault"],
   live: ["circuit.askSkip"],
   timer: ["timer.leadIn", "timer.setRest", "timer.openNext"],
   model: TUNABLES.filter((t) => t.topic === "model").map((t) => t.id),

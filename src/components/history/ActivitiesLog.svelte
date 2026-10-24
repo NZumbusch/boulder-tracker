@@ -19,6 +19,7 @@
   /** The activities to show - History's search and date filters already applied. */
   let { activities, filtered = false }: { activities: ExternalActivity[]; filtered?: boolean } = $props();
 
+  const ACTIVE = 'text-primary border-primary/40 bg-primary/10';
   let type = $state('');
   let limit = $state(40);
   let openId = $state<string | null>(null);
@@ -52,9 +53,9 @@
   <div class="space-y-4">
     {#if types.length > 1}
       <div class="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1" role="group" aria-label="Activity type">
-        <button type="button" class="chip shrink-0" aria-pressed={type === ''} onclick={() => (type = '')}>All</button>
+        <button type="button" class="chip shrink-0 {type === '' ? ACTIVE : ''}" aria-pressed={type === ''} onclick={() => (type = '')}>All</button>
         {#each types as t (t)}
-          <button type="button" class="chip shrink-0" aria-pressed={type === t} onclick={() => (type = type === t ? '' : t)}>{t}</button>
+          <button type="button" class="chip shrink-0 {type === t ? ACTIVE : ''}" aria-pressed={type === t} onclick={() => (type = type === t ? '' : t)}>{t}</button>
         {/each}
       </div>
     {/if}

@@ -384,6 +384,7 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 26.2 | Overlaps | Log a session at the time of an imported run (or plan one), then import again after removing that run. | The preview offers to skip activities that match a logged session by time, and says how many overlap a planned one; a session matched only by day is never skipped. History marks "Was planned" / "Also logged". | | |
 | 26.3 | Route | History > Activities, tap an activity with GPS. | The sheet draws the route (start green, finish red, north up) with time, distance, pace or speed, climb and heart rate. Indoor activities show no route. | | |
 | 26.4 | Single files | Import a .fit, a .gpx and a .tcx (also gzipped), and a Garmin export .zip. | Each becomes an activity with its route; a file with no activity is listed as skipped, never fatal. | | |
+| 26.6 | Maps | On an activity with GPS, tap Street, then Terrain, then Satellite. Settings > Import activities > Maps: switch on, reopen an activity. | Real map pictures appear under the route, lined up with it; the credit shows bottom right; the sentence names the service. Off: plain route and no network use. Offline: "The map could not load", route still there. If Street stays blank on the phone (OSM can refuse requests with no referrer), note it. | | |
 | 26.5 | Remove | An activity's sheet > Remove; Settings > Remove all imported activities. | Asks first (Undo for one); your own sessions are untouched. | | |
 
 ## After the run

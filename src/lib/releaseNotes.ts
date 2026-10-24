@@ -25,6 +25,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     points: [
       "Settings → Data & connections → Import activities: pick your Strava archive or Garmin export (.zip), or single .fit, .gpx and .tcx files.",
       "History has an Activities tab with each one's numbers and, where there was GPS, its route.",
+      "Optional real maps behind a route (street, terrain or satellite, free public map services) - off until you pick one on an activity or turn it on in Settings.",
       "Activities that match a session you logged at the same time, or the same run from another source, are skipped - you see them first. They never change your load.",
     ],
   },
