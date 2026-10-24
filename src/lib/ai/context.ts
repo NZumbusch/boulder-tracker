@@ -5,6 +5,7 @@ import type {
   GoalEvent,
   DailyMetricEntry,
   ExerciseTypeDef,
+  ExerciseValues,
   OutdoorAscent,
   PainLog,
   PainIssue,
@@ -22,7 +23,7 @@ import { otherValuesText, resolveFields } from "../benchmarks/model";
 import { isWeighInType } from "../benchmarks/bodyweight";
 import { DEFAULT_RETEST_WEEKS, plannedTestsByType, testStatuses } from "../benchmarks/testSlot";
 import { repsRepresentative } from "../exercise/reps";
-import { hasPerSet, setRows } from "../exercise/setRows";
+import { hasPerSet, PER_SET_KEYS, setRows } from "../exercise/setRows";
 import { getWeekId, decrementWeekId, incrementWeekId, toUtcDayIndex, localIsoDate, weekMondayIso, weekSundayIso } from "../dateUtils";
 import { BODYWEIGHT_METRIC_ID } from "../constants";
 import { exerciseGroup } from "../exercise/library";
@@ -43,7 +44,7 @@ import { loggedMetrics } from "../analytics/metricValues";
 import { DEFAULT_AI_DETAIL, DEFAULT_AI_HISTORY, type AIDetail, type AIHistoryWindow, type AISharingPreferences } from "../preferences/migrate";
 import { buildOtherTrainingContext, buildRecoveryContext, type OtherTrainingContext, type RecoveryContext } from "./wellnessContext";
 import { describeFinding, predictBestSessions } from "../analytics/sessionPredictors";
-import { recentReviews } from "../analytics/weeklyReview";
+import { recentReviews, weeklyReview } from "../analytics/weeklyReview";
 import { ReadingsModel } from "../analytics/daily/readingsModel";
 import type { ExternalActivity } from "../types";
 import type { ExternalLoadConfig } from "../activity/externalLoad";
@@ -84,6 +85,19 @@ const OUTDOOR_ASCENT_LIMIT = 20;
 /** A compact prompt: only the latest few - the grade history, not the log. */
 const COMPACT_ASCENT_LIMIT = 8;
 const METRIC_TREND_DAYS = 14;
+/** Analyze: how many of the target weeks get a weekly review line block. */
+const MAX_ANALYZE_REVIEWS = 6;
+/** Lines of a weekly review that Recovery's weekly rows repeat. */
+const REVIEW_LINES_IN_RECOVERY = /^(Sleep score|Sleep:|Resting heart rate|Weight)/;
+
+/** The moment "Analyze Past" looks from: the end of the last target week, or now when that week is not over. */
+export function analysisAsOf(targetWeekIds: string[], now: Date): Date {
+  if (targetWeekIds.length === 0) return now;
+  const last = [...targetWeekIds].sort().at(-1)!;
+  const [y, m, d] = weekSundayIso(last).split("-").map(Number);
+  const end = new Date(y, m - 1, d, 12);
+  return end < now ? end : now;
+}
 
 export type AIPromptMode = "generate" | "analyze" | "context";
 
@@ -134,6 +148,10 @@ export interface RecentWorkoutExerciseSummary {
   duration?: number;
   sets?: number;
   reps?: number;
+  /** Added weight in kg, when there was one. */
+  weightKg?: number;
+  /** Per-set numbers, when the sets differed (`exerciseDetails` adds the rest: hang time, hold, grades, board...). */
+  perSet?: Record<string, number>[];
   plannedLoad?: number;
   /** The athlete's own value types, by id - see `customValuesReference`. */
   custom?: Record<string, number | string>;
@@ -206,12 +224,37 @@ export function summarizeWorkout(w: Workout, exerciseTypes: ExerciseTypeDef[], n
         // What was lifted: the weight, and the sets one by one when they differed.
         ...(typeof v.weight === "number" ? { weightKg: v.weight } : {}),
         ...(hasPerSet(v) ? { perSet: setRows(v) } : {}),
+        ...exerciseDetails(v),
         plannedLoad: v.plannedLoad,
         ...(v.custom && Object.keys(v.custom).length ? { custom: v.custom } : {}),
         ...(notes.logNotes && logNote(e) ? { howItWent: logNote(e) } : {}),
       };
     }),
   };
+}
+
+/**
+ * The values of an exercise beyond duration, sets, reps and weight - hang time,
+ * rest, hold, edge, grades, board, style... - as they were set, with empty ones
+ * left out. A field that differs per set is in `perSet` already, so it isn't
+ * repeated here.
+ */
+const DETAIL_KEYS = [
+  "timeOn", "timeOff", "timeBetweenSets", "holdType", "holdSize", "bodyweightPercent", "maxWeightPercent",
+  "minGrade", "maxGrade", "cadence", "movesPerRoute", "climbingStyle", "boardType", "boardAngle", "leadStyle", "campusType",
+  "routeDifficulty", "difficulty", "mobilityType", "distance",
+] as const satisfies readonly (keyof ExerciseValues)[];
+
+export function exerciseDetails(v: ExerciseValues): Record<string, number | string | (number | string)[]> {
+  const perSet = hasPerSet(v);
+  const out: Record<string, number | string | (number | string)[]> = {};
+  for (const key of DETAIL_KEYS) {
+    if (perSet && (PER_SET_KEYS as string[]).includes(key)) continue;
+    const value = v[key];
+    if (value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) continue;
+    out[key] = value as number | string | (number | string)[];
+  }
+  return out;
 }
 
 /** The `count` week ids ending with `lastWeekId`, oldest first. */
@@ -413,12 +456,18 @@ export interface ReadinessSnapshot {
   status: ReadinessStatus;
   confidence: string;
   advice: string;
-  sleepTrend: MetricTrendPoint[];
+  /** The 14-day trends are left out when the Recovery section carries the same readings. */
+  sleepTrend?: MetricTrendPoint[];
   /** Hours asleep per night (Health Connect), next to the score - a different unit, so its own series. */
-  sleepHoursTrend: MetricTrendPoint[];
-  hrvTrend: MetricTrendPoint[];
-  rhrTrend: MetricTrendPoint[];
-  bodyweightTrend: MetricTrendPoint[];
+  sleepHoursTrend?: MetricTrendPoint[];
+  hrvTrend?: MetricTrendPoint[];
+  rhrTrend?: MetricTrendPoint[];
+  bodyweightTrend?: MetricTrendPoint[];
+}
+
+/** The snapshot without its trends - for a prompt whose Recovery section already has them. */
+export function withoutTrends({ score, status, confidence, advice }: ReadinessSnapshot): ReadinessSnapshot {
+  return { score, status, confidence, advice };
 }
 
 function trendFor(
@@ -470,7 +519,7 @@ export function buildReadinessSnapshot(
     pain,
   }, model.readiness);
   return {
-    score: readiness.score,
+    score: readiness.score === undefined ? undefined : Math.round(readiness.score),
     status: readiness.status,
     confidence: readiness.confidence,
     advice: readiness.advice,
@@ -741,6 +790,8 @@ export function buildAIContextProfile(
     mode === "analyze" ? buildBenchmarksInWeeks(source.benchmarks, targetWeekIds) : source.benchmarks;
 
   const windowWeekIds = mode === "context" ? [getWeekId(asOf)] : targetWeekIds;
+  // "Analyze Past" looks at what the body and the week were like then, not today.
+  const lookAsOf = mode === "analyze" ? analysisAsOf(targetWeekIds, asOf) : asOf;
 
   const profile: AIContextProfile = { recentWorkouts, benchmarks: describeBenchmarks(benchmarks, source.benchmarkTypes, source.valueDefs) };
 
@@ -776,32 +827,46 @@ export function buildAIContextProfile(
     profile.places = buildPlaceContext(source.places);
   }
   if (sharing.readinessMetrics) {
-    profile.readiness = buildReadinessSnapshot(source.loadWorkouts ?? source.workouts, source.dailyMetrics, asOf, model,
-      sharing.painLogs ? painLevelOn(source.painIssues ?? [], source.painLogs, localIsoDate(asOf)) : undefined);
+    profile.readiness = buildReadinessSnapshot(source.loadWorkouts ?? source.workouts, source.dailyMetrics, lookAsOf, model,
+      sharing.painLogs ? painLevelOn(source.painIssues ?? [], source.painLogs, localIsoDate(lookAsOf)) : undefined);
   }
-  if (mode !== "analyze") {
+  {
     const detail = model.detail ?? DEFAULT_AI_DETAIL;
-    const weeks = Math.min(12, Math.max(1, history.fullWeeks + history.summaryWeeks));
+    const analyze = mode === "analyze";
+    // Analyze: the target weeks only; the rest: the history window.
+    const weeks = analyze ? Math.min(12, Math.max(1, targetWeekIds.length)) : Math.min(12, Math.max(1, history.fullWeeks + history.summaryWeeks));
     if (sharing.readinessMetrics) {
-      const recovery = buildRecoveryContext(source.dailyMetrics, asOf, detail.recovery, weeks);
+      const recovery = buildRecoveryContext(source.dailyMetrics, lookAsOf, detail.recovery, weeks);
       if (recovery) profile.recovery = recovery;
     }
     const otherOn = sharing.otherTraining !== false && !!source.externalActivities?.length;
     if (otherOn) {
-      const other = buildOtherTrainingContext(source.externalActivities!, asOf, detail.otherTraining, history, source.externalLoadConfig);
+      const other = buildOtherTrainingContext(source.externalActivities!, lookAsOf, detail.otherTraining, analyze ? { fullWeeks: weeks, summaryWeeks: 0 } : history, source.externalLoadConfig);
       if (other) profile.otherTraining = other;
     }
     if (sharing.patterns !== false) {
       // Patterns and reviews are made from health data too, so they use it only when it is shared.
       const metrics = sharing.readinessMetrics ? source.dailyMetrics : [];
-      if (sharing.readinessMetrics) {
+      if (sharing.readinessMetrics && !analyze) {
         const report = predictBestSessions(source.workouts, new ReadingsModel(source.dailyMetrics), source.loadWorkouts ?? source.workouts, asOf);
         if (report.findings.length) profile.patterns = [`${report.sessions} sessions compared with the day before; findings are patterns, not proof of cause`, ...report.findings.slice(0, 3).map(describeFinding)];
       }
-      const reviews = recentReviews(asOf, model.compact ? 2 : 4, { workouts: source.workouts, activities: otherOn ? source.externalActivities! : [], dailyMetrics: metrics, loadConfig: source.externalLoadConfig, hrvDip: model.readiness?.hrvDip })
+      const reviewInput = { workouts: source.workouts, activities: otherOn ? source.externalActivities! : [], dailyMetrics: metrics, loadConfig: source.externalLoadConfig, hrvDip: model.readiness?.hrvDip };
+      const reviewed = analyze
+        ? [...targetWeekIds].sort().slice(-MAX_ANALYZE_REVIEWS).map((id) => weeklyReview(id, reviewInput))
+        : recentReviews(asOf, model.compact ? 2 : 4, reviewInput);
+      const reviews = reviewed
         .filter((r) => r.lines.length > 1 || r.lines[0] !== "No training logged this week.")
         .map((r) => ({ week: r.weekId, lines: r.lines, ...(r.remark ? { remark: r.remark } : {}) }));
       if (reviews.length) profile.weeklyReviews = reviews;
+    }
+  }
+  // One home for each reading: with the Recovery section there, the snapshot keeps the score only, and the weekly lines drop the
+  // averages Recovery's weekly rows already give (HRV stays: its line also compares with your usual).
+  if (profile.recovery) {
+    if (profile.readiness) profile.readiness = withoutTrends(profile.readiness);
+    if (profile.recovery.weekly && profile.weeklyReviews) {
+      profile.weeklyReviews = profile.weeklyReviews.map((r) => ({ ...r, lines: r.lines.filter((l) => !REVIEW_LINES_IN_RECOVERY.test(l)) }));
     }
   }
   if (sharing.painLogs) {
