@@ -396,6 +396,21 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 27.7 | Garmin reminder | Import a Garmin export, then wait (or set Settings > Reminders > Remind to import Garmin data after to 5 days). | A Home note says how old the newest Garmin value is; tapping it opens the import page; 0 turns it off. | | |
 | 26.5 | Remove | An activity's sheet > Remove; Settings > Remove all imported activities. | Asks first (Undo for one); your own sessions are untouched. | | |
 
+## 28. AI context (2026-11-04)
+
+| # | Item | Steps | Expect | Result | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 28.1 | Session detail | Log a hangboard session (edge, hang time, rest) and a board session (grades, angle); AI coach > Change plan > copy the prompt. | The completed sessions carry timeOn, timeBetweenSets, holdSize, boardType, boardAngle, min/maxGrade; per-set rows replace a field that differed. | | |
+| 28.2 | Analyze Past | AI coach > Analyze, pick weeks a month back, copy. | Readiness, Recovery and Other training are as of the end of those weeks (last night's date inside them), a review block per picked week. | | |
+| 28.3 | Shorter prompt | Settings > What the AI sees: note "Prompt size now"; ask Change plan for "a lighter week", then one with "Plan B if it rains". | The second prompt has the Plan B rules, the first none; tests, places and coach notes rules appear only when you have them. About a quarter shorter than before. | | |
+| 28.4 | Missed sessions | Leave a planned session undone in a past week; copy a prompt with weekly history. | That week's line has "missed": [name]; a skipped session is not listed. | | |
+| 28.5 | Tests and ascents | A test done 8 times; many outdoor ascents. | Latest 4 plus the best of each set-up (marked best); ascents as a grade summary plus the latest few. | | |
+| 28.6 | Import again | Import the same Garmin/Strava export again. | "Add pace, splits and heart-rate detail to N activities" is offered (on); after it, nothing more is offered. | | |
+| 28.7 | Watch detail switches | Settings > What the AI sees > Watch detail: switch groups on and off with Other training detail on "Every activity". | Each shows its cost on your data; "Prompt size now" follows; a group nothing feeds says so. Pace/splits, zones, training effect, VO2max, sleep stages on by default; climb etc. and training readiness off. | | |
+| 28.8 | Activity digest | Copy a Change plan prompt with detail "Every activity". | Each recent activity has pace, kmSplits, drift, zonesMin, garminEffect as chosen; a ride has speed and no splits. | | |
+| 28.9 | Ask about an activity | History > Activities > an activity > Ask the AI about this. | Prompt with that activity in full, up to three earlier ones of its kind, last night's recovery when shared, your question. | | |
+| 28.10 | Real Garmin file | Import a real Garmin export and compare an activity with Garmin Connect. | Splits, avg pace, zones, training effect match Garmin Connect; if not, the FIT field numbers in README need correcting. Training readiness only appears if the export has such a file. | | |
+
 ## After the run
 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
