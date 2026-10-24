@@ -10,6 +10,10 @@
   import { trainingState } from '../../lib/state.svelte';
   import { readActivityFiles, type ActivityRead } from '../../lib/importers/activityFiles';
   import { DEFAULT_IMPORT_OPTIONS, planImport, type ImportOptions } from '../../lib/activity/overlap';
+  import { planImport as planDaily } from '../../lib/health/import';
+  import { describeValues } from '../../lib/health/garminExport';
+  import { storage } from '../../lib/storage';
+  import { DEFAULT_METRIC_DEFS, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC, WEARABLE_METRIC_DEFS } from '../../lib/constants';
   import { SOURCE_LABELS, summaryLine } from '../../lib/activity/format';
   import { formatDay } from '../../lib/dateUtils';
   import { showAlert, showConfirm } from '../../lib/utils';
@@ -22,6 +26,13 @@
   let reading = $state<{ done: number; total: number } | null>(null);
   let importing = $state(false);
   let options = $state<ImportOptions>({ ...DEFAULT_IMPORT_OPTIONS });
+  let includeDaily = $state(true);
+  let dailyPlan = $state<ReturnType<typeof planDaily> | null>(null);
+
+  const KNOWN_METRICS = [...DEFAULT_METRIC_DEFS, SLEEP_DURATION_METRIC, NAP_DURATION_METRIC, ...WEARABLE_METRIC_DEFS];
+  const metricName = (id: string) => KNOWN_METRICS.find((m) => m.id === id)?.name ?? id;
+  const dailySummary = $derived(read ? describeValues(read.daily) : []);
+  const monthYear = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 
   const stored = $derived(trainingState.externalActivities);
 
@@ -55,11 +66,12 @@
     reading = { done: 0, total: 0 };
     try {
       const result = await readActivityFiles(files, (done, total) => (reading = { done, total }));
-      if (result.activities.length === 0) {
+      if (result.activities.length === 0 && result.daily.length === 0) {
         await showAlert('Nothing to import', result.skipped[0] ? `${result.skipped[0].where}: ${result.skipped[0].reason}` : 'No activities found in these files.');
         return;
       }
       read = result;
+      dailyPlan = result.daily.length ? planDaily(await storage.getDailyMetrics(), result.daily, 'garmin') : null;
     } catch (err) {
       await showAlert('Could not read the files', (err as Error).message);
     } finally {
@@ -68,12 +80,20 @@
   }
 
   async function runImport() {
-    if (!plan || plan.add.length === 0) return;
+    if (!plan || (plan.add.length === 0 && !(includeDaily && dailyPlan?.upserts.length))) return;
     importing = true;
     try {
-      const added = await trainingState.addExternalActivities($state.snapshot(plan.add) as ExternalActivity[]);
-      toast.show(`Imported ${added} activit${added === 1 ? 'y' : 'ies'}`);
+      const added = plan.add.length ? await trainingState.addExternalActivities($state.snapshot(plan.add) as ExternalActivity[]) : 0;
+      let days = 0;
+      if (includeDaily && dailyPlan && dailyPlan.upserts.length) {
+        const entries = $state.snapshot(dailyPlan.upserts) as typeof dailyPlan.upserts;
+        const defs = KNOWN_METRICS.filter((d) => entries.some((e) => e.metricId === d.id));
+        await trainingState.importDailyMetrics(entries, defs);
+        days = entries.length;
+      }
+      toast.show([added ? `${added} activit${added === 1 ? 'y' : 'ies'}` : '', days ? `${days} daily values` : ''].filter(Boolean).join(' and ') + ' imported');
       read = null;
+      dailyPlan = null;
     } finally {
       importing = false;
     }
@@ -93,7 +113,7 @@
   <div class="space-y-1 px-1">
     <h2 class="text-section uppercase text-content-muted">Strava, Garmin and files</h2>
     <p class="text-caption text-content-subtle leading-relaxed">
-      Pick a Strava archive (the .zip from Settings → My Account → Download or delete your account), a Garmin data export (.zip), or single .fit, .gpx, .tcx or activities.csv files. Runs, rides, walks and workouts are kept as history, with a route where there was GPS. They are not sessions and do not count toward your load. Everything is read on this device.
+      Pick a Strava archive (the .zip from Settings → My Account → Download or delete your account), a Garmin data export (.zip: garmin.com → Account → Data management → Export your data), or single .fit, .gpx, .tcx or activities.csv files. Runs, rides, walks and workouts are kept as history, with a route where there was GPS; they are not sessions and do not count toward your load. A Garmin export also fills in your sleep, HRV, resting heart rate, steps, stress, Body Battery, VO2max and weight, for as far back as the export goes. Everything is read on this device.
     </p>
   </div>
 
@@ -104,7 +124,7 @@
     <button onclick={() => fileInput?.click()} class="btn btn-primary w-full">Choose files</button>
   {:else if plan}
     <div class="space-y-2 px-1">
-      <p class="text-body font-semibold">{plan.add.length} to import</p>
+      <p class="text-body font-semibold">{plan.add.length} activit{plan.add.length === 1 ? 'y' : 'ies'} to import</p>
       <p class="text-label text-content-subtle">
         {read.activities.length} found{plan.already.length ? `, ${plan.already.length} already imported` : ''}{read.skipped.length ? `, ${read.skipped.length} skipped` : ''}{withRoute ? `, ${withRoute} with a route` : ''}
       </p>
@@ -112,6 +132,19 @@
         <p class="text-caption text-content-subtle">{byType.map(([t, n]) => `${n} ${t}`).join(' · ')}</p>
       {/if}
     </div>
+
+    {#if dailySummary.length}
+      <div class="space-y-2 px-1">
+        <h3 class="text-section uppercase text-content-muted">Daily health data</h3>
+        <label class="flex items-start gap-3 py-1 min-h-11">
+          <input type="checkbox" bind:checked={includeDaily} class="mt-1" />
+          <span class="text-label"><span class="font-semibold">Import {dailyPlan?.upserts.length ?? 0} daily values</span><br /><span class="text-caption text-content-subtle">They feed readiness, the recovery chart and insights. A day you typed yourself, or Health Connect already filled, is never replaced{dailyPlan?.keptManual ? ` (${dailyPlan.keptManual} kept)` : ''}.</span></span>
+        </label>
+        <ul class="text-caption text-content-subtle space-y-0.5">
+          {#each dailySummary as m (m.metricId)}<li>{metricName(m.metricId)}: {m.days} days, {monthYear(m.from)} – {monthYear(m.to)}</li>{/each}
+        </ul>
+      </div>
+    {/if}
 
     {#if plan.duplicates.length || plan.logged.length || plan.planned.length}
       <div class="space-y-2 px-1">
@@ -154,7 +187,7 @@
 
     <div class="flex gap-2">
       <button onclick={() => (read = null)} class="btn btn-secondary flex-1">Cancel</button>
-      <button onclick={runImport} disabled={importing || plan.add.length === 0} class="btn btn-primary flex-1">{importing ? 'Importing…' : `Import ${plan.add.length}`}</button>
+      <button onclick={runImport} disabled={importing || (plan.add.length === 0 && !(includeDaily && dailyPlan?.upserts.length))} class="btn btn-primary flex-1">{importing ? 'Importing…' : 'Import'}</button>
     </div>
   {/if}
 </div>

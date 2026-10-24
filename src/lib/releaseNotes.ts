@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-01-garmin-export",
+    title: "Your Garmin history",
+    points: [
+      "Import your Garmin data export (Settings → Data & connections → Import activities): sleep, HRV, resting heart rate, steps, stress, Body Battery, VO2max and weight fill in for as far back as the export goes.",
+      "Readiness, the recovery chart and the insights use them straight away. Days you typed yourself are never replaced.",
+      "Garmin activities that you already imported from Strava are recognised and skipped.",
+    ],
+  },
+  {
     id: "2026-10-31-strava-import",
     title: "Runs, rides and routes from Strava and Garmin",
     points: [

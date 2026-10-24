@@ -102,7 +102,7 @@ Nathan's list from using the app, all built on branch `claude/ui-ux-issues-navig
 
 ### Imported activities (2026-10-31)
 
-Strava/Garmin/FIT/GPX/TCX import into `externalActivities` (data 3.38), History → Activities, route drawing, overlap check: see README "Importing activities". **Private data rule**: the real Strava archive Nathan supplied lives only outside the repo; `src/lib/**/*.private.test.ts` (git-ignored) read it through `PRIVATE_ZIP` / `PRIVATE_FIT_DIR` and write aggregates only. Never commit, print or screenshot it into the repo. Open: Garmin's own JSON summaries and wellness files (HRV, sleep, resting heart rate) are not read yet; activities do not appear in Analytics or the Home recent list; no map tiles by design.
+Strava/Garmin/FIT/GPX/TCX import into `externalActivities` (data 3.38), History → Activities, route drawing, overlap check: see README "Importing activities". **Private data rule**: the real Strava archive Nathan supplied lives only outside the repo; `src/lib/**/*.private.test.ts` (git-ignored) read it through `PRIVATE_ZIP` / `PRIVATE_FIT_DIR` and write aggregates only. Never commit, print or screenshot it into the repo. Garmin export (daily wellness + FIT recordings + summaries) is read too - see README. Open: imported activities and wellness extras (steps, stress, Body Battery, VO2max, breathing) are stored but not yet charted or used by load, readiness, insights or the AI coach; activities do not appear in Analytics or the Home recent list. Garmin account data here starts Dec 2024 (all the export holds).
 
 ## Checking a change in a browser (no extra tooling)
 
