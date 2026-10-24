@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FitPoint } from "./fit";
 import { readFitActivity } from "./fit";
 import { FitWriter, fitTime, type FieldDef } from "./fitBuilder.testutil";
-import { computeStats, hrBins, hrDrift, kmSplits, paceDrift, timeAndDistance, workoutLaps, zoneMinutes, mergeStats } from "./stats";
+import { computeStats, STATS_VERSION, statsNewer, zonesFromPoints, hrBins, hrDrift, kmSplits, paceDrift, timeAndDistance, workoutLaps, zoneMinutes, mergeStats } from "./stats";
 
 const T0 = Date.UTC(2026, 9, 5, 6, 30, 0);
 
@@ -60,8 +60,10 @@ describe("splits, drift and heart-rate bins", () => {
     const bins = new Array(11).fill(0);
     bins[4] = 600;
     bins[8] = 300;
-    expect(zoneMinutes(bins, 190)).toEqual([0, 0, 10, 0, 5]);
+    expect(zoneMinutes({ hrBinsSec: bins }, 190)).toEqual([0, 0, 10, 0, 5]);
     expect(zoneMinutes(undefined, 190)).toBeUndefined();
+    // Garmin's own zone seconds win over the bins.
+    expect(zoneMinutes({ hrBinsSec: bins, zonesSec: [600, 1200, 0, 0, 60] }, 190)).toEqual([10, 20, 0, 0, 1]);
   });
 });
 
@@ -94,8 +96,8 @@ describe("computeStats", () => {
   });
 
   it("merges: the recording wins, the summary fills what it lacks", () => {
-    expect(mergeStats({ trainingEffect: 3.1 }, { trainingEffect: 2.5, trainingLoad: 80 })).toEqual({ trainingEffect: 3.1, trainingLoad: 80 });
-    expect(mergeStats(undefined, { trainingLoad: 80 })).toEqual({ trainingLoad: 80 });
+    expect(mergeStats({ trainingEffect: 3.1 }, { trainingEffect: 2.5, rpe: 4 })).toEqual({ v: STATS_VERSION, trainingEffect: 3.1, rpe: 4 });
+    expect(mergeStats(undefined, { rpe: 4 })).toEqual({ v: STATS_VERSION, rpe: 4 });
   });
 });
 
@@ -146,8 +148,7 @@ describe("a FIT file's extras", () => {
 describe("an imported activity", () => {
   it("carries its stats, and a Garmin summary adds training effect and load where the recording has none", async () => {
     const { activityFromRecording, decodeRecording } = await import("../importers/activityFiles");
-    const { parseSummarizedActivities } = await import("../health/garminExport");
-    const REC2: FieldDef[] = [{ num: 253, size: 4, base: 0x86 }, { num: 3, size: 1, base: 0x02 }, { num: 5, size: 4, base: 0x86 }];
+        const REC2: FieldDef[] = [{ num: 253, size: 4, base: 0x86 }, { num: 3, size: 1, base: 0x02 }, { num: 5, size: 4, base: 0x86 }];
     const SESSION2: FieldDef[] = [{ num: 253, size: 4, base: 0x86 }, { num: 2, size: 4, base: 0x86 }, { num: 5, size: 1, base: 0x00 }, { num: 7, size: 4, base: 0x86 }];
     const w = new FitWriter();
     w.define(0, 20, REC2);
@@ -160,8 +161,34 @@ describe("an imported activity", () => {
     expect(activity.stats?.splitsSec).toHaveLength(4);
     expect(activity.stats?.hrBinsSec).toBeDefined();
 
-    const [summary] = parseSummarizedActivities([{ summarizedActivitiesExport: [{ startTimeGmt: T0, activityType: "running", aerobicTrainingEffect: 3.24, anaerobicTrainingEffect: 0, activityTrainingLoad: 87.4 }] }]);
-    expect(summary).toMatchObject({ trainingEffect: 3.2, trainingLoad: 87 });
-    expect(summary.anaerobicEffect).toBeUndefined();
+    expect(activity.stats?.v).toBe(STATS_VERSION);
+  });
+});
+
+describe("zones from Garmin's limits", () => {
+  it("counts the seconds from each reading to the next in the zone its heart rate falls in, below zone 1 not at all", () => {
+    const floors = [105, 126, 147, 168, 189];
+    const p = run(600, () => 3, (s) => (s < 100 ? 90 : s < 300 ? 130 : s < 500 ? 170 : 195));
+    const z = zonesFromPoints(p, floors)!;
+    expect(z[1]).toBeGreaterThanOrEqual(199);
+    expect(z[3]).toBeGreaterThanOrEqual(199);
+    expect(z[4]).toBeGreaterThanOrEqual(99);
+    expect(z[0] + z[2]).toBe(0);
+    expect(zonesFromPoints(p, [1, 2, 3])).toBeUndefined();
+    expect(computeStats(p, "Run", undefined, { zoneFloors: floors })?.zonesSec).toEqual(z);
+  });
+
+  it("makes a stored activity refreshable by a newer version of the stats only", () => {
+    expect(statsNewer(undefined, { rpe: 3 })).toBe(true);
+    expect(statsNewer({ v: 1 }, { v: STATS_VERSION })).toBe(true);
+    expect(statsNewer({ v: STATS_VERSION }, { v: STATS_VERSION })).toBe(false);
+    expect(statsNewer({ v: STATS_VERSION }, undefined)).toBe(false);
+  });
+
+  it("doubles a runner's cadence from the file (one foot) and leaves a ride's alone", () => {
+    const p = run(1200, () => 3);
+    const fit = { startMs: T0, elapsedSec: 1200, laps: [], points: p, avgCadence: 80 } as never;
+    expect(computeStats(p, "Run", fit)?.avgCadence).toBe(160);
+    expect(computeStats(p, "Ride", fit)?.avgCadence).toBe(80);
   });
 });

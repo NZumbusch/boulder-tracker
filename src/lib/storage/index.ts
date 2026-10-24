@@ -20,9 +20,12 @@ import type {
   PainIssue,
   OutdoorAscent,
   ExternalActivity,
+  GarminRecord,
   ValueDef,
 } from "../types";
 import { DEFAULT_TEMPLATES, DATA_EXPORT_VERSION } from "../constants";
+import { statsNewer } from "../activity/stats";
+import { applyArchive, archiveInfo, planArchive, type ArchiveInfo, type ArchivePlan } from "../health/garminArchive";
 import { localIsoDate, weekMondayIso, weekSundayIso } from "../dateUtils";
 import { generateId, showAlert } from "../utils";
 import { generateWorkoutsFromTemplate } from "../planning/generateWorkoutsFromTemplate";
@@ -145,6 +148,7 @@ async function replaceDatabase(data: any): Promise<void> {
   if (data.painIssues) _dbState.painIssues = data.painIssues;
   if (data.outdoorAscents) _dbState.outdoorAscents = data.outdoorAscents;
   _dbState.externalActivities = data.externalActivities ?? [];
+  _dbState.garminArchive = data.garminArchive ?? [];
   if (data.settings) _dbState.settings = data.settings;
   if (data.valueDefs) _dbState.valueDefs = data.valueDefs;
   _dbState.exportVersion = data.exportVersion || "1.0";
@@ -178,6 +182,8 @@ export const storage = {
   async _getPainLogs(): Promise<PainLog[]> { await initDB(); return _dbState.painLogs; },
   async _getPainIssues(): Promise<PainIssue[]> { await initDB(); return _dbState.painIssues; },
   async _getExternalActivities(): Promise<ExternalActivity[]> { await initDB(); return _dbState.externalActivities ?? []; },
+  async _getGarminArchive(): Promise<GarminRecord[]> { await initDB(); return _dbState.garminArchive ?? []; },
+  async _saveGarminArchive(items: GarminRecord[]): Promise<void> { await initDB(); _dbState.garminArchive = toPlain(items); await flushDB(["garminArchive"]); },
   async _saveExternalActivities(items: ExternalActivity[]): Promise<void> { await initDB(); _dbState.externalActivities = toPlain(items); await flushDB(["externalActivities"]); },
   async _getOutdoorAscents(): Promise<OutdoorAscent[]> { await initDB(); return _dbState.outdoorAscents; },
   async _getValueDefs(): Promise<ValueDef[]> { await initDB(); return _dbState.valueDefs ?? []; },
@@ -795,19 +801,41 @@ export const storage = {
     return fresh.length;
   },
 
-  /** Fills in `stats` on activities already stored (by id) that have none; everything else about them stays. Returns how many changed. */
+  /** Puts newer `stats` on activities already stored (by id) that have none or older ones; everything else about them stays. Returns how many changed. */
   async addExternalActivityStats(incoming: ExternalActivity[]): Promise<number> {
     const have = await this._getExternalActivities();
     const stats = new Map(incoming.filter((a) => a.stats).map((a) => [a.id, a.stats!]));
     let changed = 0;
     const next = have.map((a) => {
       const s = stats.get(a.id);
-      if (!s || a.stats) return a;
+      if (!s || !statsNewer(a.stats, s)) return a;
       changed++;
       return { ...a, stats: s };
     });
     if (changed) await this._saveExternalActivities(next);
     return changed;
+  },
+
+  /** What is kept of Garmin exports: counts per kind and the stored size. Reads the whole archive, so ask for it when it is shown, not on every start. */
+  async getGarminArchiveInfo(): Promise<ArchiveInfo> {
+    return archiveInfo(await this._getGarminArchive());
+  },
+
+  /** What storing these records would add and replace (nothing is written). */
+  async planGarminArchive(incoming: GarminRecord[]): Promise<ArchivePlan> {
+    return planArchive(await this._getGarminArchive(), incoming);
+  },
+
+  /** Stores the records: new ones are added, ones with changed values replace the old, the same ones are left alone. Nothing is ever duplicated. */
+  async mergeGarminArchive(incoming: GarminRecord[]): Promise<ArchivePlan> {
+    const have = await this._getGarminArchive();
+    const plan = planArchive(have, incoming);
+    if (plan.add.length || plan.change.length) await this._saveGarminArchive(applyArchive(have, plan));
+    return plan;
+  },
+
+  async clearGarminArchive(): Promise<void> {
+    await this._saveGarminArchive([]);
   },
 
   async deleteExternalActivities(ids: string[]): Promise<void> {

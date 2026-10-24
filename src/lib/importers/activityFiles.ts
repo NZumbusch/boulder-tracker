@@ -7,6 +7,8 @@ import { computeStats, mergeStats } from "../activity/stats";
 import { inflate, isGzip, readZip, type ZipEntry } from "../activity/zip";
 import { parseStravaCsv } from "./stravaCsvImport";
 import type { DailyValue } from "../health/import";
+import type { GarminRecord } from "../types";
+import { archiveRecords, archiveSourceFor, collapseRecords } from "../health/garminArchive";
 import { garminDailyValues, parseSummarizedActivities, type GarminActivitySummary } from "../health/garminExport";
 
 /**
@@ -25,6 +27,8 @@ export interface ActivityRead {
   skipped: { where: string; reason: string }[];
   /** Daily values (sleep, HRV, resting heart rate...) from a Garmin export. */
   daily: DailyValue[];
+  /** The Garmin export's rows, unstructured, to keep for later (`health/garminArchive.ts`). */
+  archive: GarminRecord[];
 }
 
 export type Progress = (done: number, total: number) => void;
@@ -69,7 +73,7 @@ export async function decodeRecording(fileName: string, raw: Uint8Array): Promis
 const TCX_SPORTS: Record<string, string> = { running: "Run", biking: "Ride", walking: "Walk", hiking: "Hike", swimming: "Swim" };
 
 /** The numbers a recording gives, for an activity that has none of its own. */
-function figures(rec: Recording, type: string) {
+function figures(rec: Recording, type: string, zoneFloors?: number[]) {
   const pts = rec.points;
   const line: LatLon[] = pts.filter((p) => p.lat !== undefined && p.lon !== undefined).map((p) => [p.lat!, p.lon!]);
   const startMs = rec.fit?.startMs ?? pts[0]?.t ?? NaN;
@@ -92,14 +96,14 @@ function figures(rec: Recording, type: string) {
     maxHr: rec.fit?.maxHr ?? (hrs.length ? Math.max(...hrs) : undefined),
     calories: rec.fit?.calories,
     track: routeOf(pts),
-    stats: computeStats(pts, type, rec.fit),
+    stats: computeStats(pts, type, rec.fit, { zoneFloors }),
   };
 }
 
 /** An activity from a recording alone (no CSV): a loose file or a Garmin export. */
-export function activityFromRecording(rec: Recording, source: Source): ExternalActivity | null {
+export function activityFromRecording(rec: Recording, source: Source, zoneFloors?: number[]): ExternalActivity | null {
   const type = rec.fit ? fitSportName(rec.fit.sport, rec.fit.subSport) : TCX_SPORTS[(rec.sport ?? "").toLowerCase()] ?? "Activity";
-  const f = figures(rec, type);
+  const f = figures(rec, type, zoneFloors);
   if (!Number.isFinite(f.startMs)) return null;
   const epoch = Math.round(f.startMs / 1000);
   const out: ExternalActivity = {
@@ -181,7 +185,7 @@ async function readRecordings(entries: ZipEntry[], source: Source, out: Activity
 
 /** One picked file. */
 export async function readActivityFile(file: Blob & { name: string }, progress?: Progress): Promise<ActivityRead> {
-  const out: ActivityRead = { activities: [], skipped: [], daily: [] };
+  const out: ActivityRead = { activities: [], skipped: [], daily: [], archive: [] };
   const name = file.name;
   try {
     if (/\.zip$/i.test(name)) {
@@ -210,7 +214,7 @@ export async function readActivityFile(file: Blob & { name: string }, progress?:
 
 /** Several picked files; an activity found twice (same id) is kept once. */
 export async function readActivityFiles(files: (Blob & { name: string })[], progress?: Progress): Promise<ActivityRead> {
-  const all: ActivityRead = { activities: [], skipped: [], daily: [] };
+  const all: ActivityRead = { activities: [], skipped: [], daily: [], archive: [] };
   const seen = new Set<string>();
   for (const f of files) {
     const r = await readActivityFile(f, progress);
@@ -221,7 +225,9 @@ export async function readActivityFiles(files: (Blob & { name: string })[], prog
     }
     all.skipped.push(...r.skipped);
     all.daily.push(...r.daily);
+    all.archive.push(...r.archive);
   }
+  all.archive = collapseRecords(all.archive);
   return all;
 }
 
@@ -242,6 +248,35 @@ async function jsonFiles(entries: ZipEntry[], pattern: RegExp, out: ActivityRead
   return rows;
 }
 
+/** Every row of the export's data files, unstructured - for the Garmin archive. A file that does not read is left out, not fatal. */
+async function archiveOf(entries: ZipEntry[], out: ActivityRead): Promise<GarminRecord[]> {
+  const records: GarminRecord[] = [];
+  for (const e of entries) {
+    if (!/\.json$/i.test(e.name) || !archiveSourceFor(nameOf(e.name))) continue;
+    try {
+      records.push(...archiveRecords(nameOf(e.name), JSON.parse(dec.decode(await e.read()))));
+    } catch (err) {
+      out.skipped.push({ where: nameOf(e.name), reason: `Not kept in the archive (${(err as Error).message})` });
+    }
+  }
+  return records;
+}
+
+/** Your heart-rate zone limits (zone 1 to 5, bpm) from `*_heartRateZones.json`, so the zones made from a recording are Garmin's, not a guess from your highest heart rate. */
+async function garminZoneFloors(entries: ZipEntry[]): Promise<number[] | undefined> {
+  const entry = entries.find((x) => /_heartRateZones\.json$/i.test(nameOf(x.name)));
+  if (!entry) return undefined;
+  try {
+    const parsed = JSON.parse(dec.decode(await entry.read()));
+    const rows: any[] = Array.isArray(parsed) ? parsed : [parsed];
+    const row = rows.find((r) => r?.sport === "DEFAULT") ?? rows[0];
+    const floors = [1, 2, 3, 4, 5].map((z) => row?.[`zone${z}Floor`]);
+    return floors.every((f) => typeof f === "number" && f > 0) && floors.every((f, i) => i === 0 || f > floors[i - 1]) ? floors : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Applies Garmin's own name, type and numbers where the recording has none. */
 function applySummary(a: ExternalActivity, s: GarminActivitySummary) {
   if (s.name) a.name = s.name;
@@ -254,8 +289,8 @@ function applySummary(a: ExternalActivity, s: GarminActivitySummary) {
   if (!a.maxHr && s.maxHr) a.maxHr = s.maxHr;
   if (!a.calories && s.calories) a.calories = s.calories;
   if (s.place && !a.notes) a.notes = s.place;
-  const extra = { ...(s.trainingEffect ? { trainingEffect: s.trainingEffect } : {}), ...(s.anaerobicEffect ? { anaerobicEffect: s.anaerobicEffect } : {}), ...(s.trainingLoad ? { trainingLoad: s.trainingLoad } : {}) };
-  if (Object.keys(extra).length) a.stats = mergeStats(a.stats, extra);
+  // Garmin's own zone times, label, rating and Body Battery come from the summary; the recording's own numbers win where both have one.
+  if (s.stats) a.stats = mergeStats(a.stats, s.stats);
 }
 
 function activityFromSummary(s: GarminActivitySummary): ExternalActivity {
@@ -282,17 +317,17 @@ function activityFromSummary(s: GarminActivitySummary): ExternalActivity {
  * summaries alone.
  */
 async function readGarminExport(entries: ZipEntry[], out: ActivityRead, progress?: Progress) {
-  const [summaries, sleep, healthStatus, maxMet, bio, summarizedFiles, readiness] = await Promise.all([
+  const [summaries, sleep, healthStatus, maxMet, bio, summarizedFiles] = await Promise.all([
     jsonFiles(entries, /^UDSFile_.*\.json$/i, out),
     jsonFiles(entries, /_sleepData\.json$/i, out),
     jsonFiles(entries, /_healthStatusData\.json$/i, out),
     jsonFiles(entries, /^MetricsMaxMetData_.*\.json$/i, out),
     jsonFiles(entries, /_userBioMetrics\.json$/i, out),
     jsonFiles(entries, /_summarizedActivities\.json$/i, out),
-    jsonFiles(entries, /TrainingReadiness.*\.json$/i, out),
   ]);
 
   const summaryList = parseSummarizedActivities(summarizedFiles);
+  const zoneFloors = await garminZoneFloors(entries);
   const fitHrv: { t: number; lastNight: number }[] = [];
   const recordings: ExternalActivity[] = [];
   const startOf = new Map<ExternalActivity, number>();
@@ -322,7 +357,7 @@ async function readGarminExport(entries: ZipEntry[], out: ActivityRead, progress
       if (kind === 68) fitHrv.push(...readFitHrv(bytes));
       else if (kind === 4 || kind === undefined) {
         const rec = await decodeRecording("a.fit", bytes);
-        const act = rec && activityFromRecording(rec, "garmin");
+        const act = rec && activityFromRecording(rec, "garmin", zoneFloors);
         if (act) {
           recordings.push(act);
           startOf.set(act, Date.parse(act.start));
@@ -347,5 +382,6 @@ async function readGarminExport(entries: ZipEntry[], out: ActivityRead, progress
   }
   for (const s of summaryList) if (!taken.has(s)) out.activities.push(activityFromSummary(s));
 
-  out.daily = garminDailyValues({ summaries, sleep, healthStatus, maxMet, bio, readiness, fitHrv });
+  out.archive = collapseRecords(await archiveOf(entries, out));
+  out.daily = garminDailyValues({ summaries, sleep, healthStatus, maxMet, bio, fitHrv });
 }

@@ -28,7 +28,7 @@ export const FATIGUE_AXIS_COLORS: Record<(typeof RATING_AXES)[number]["key"], st
 /**
  * Current data model version for exports and migrations.
  */
-export const DATA_EXPORT_VERSION = "3.38";
+export const DATA_EXPORT_VERSION = "3.39";
 
 /**
  * Well-known `MetricDef.id` for bodyweight - fixed/stable, same
@@ -64,8 +64,7 @@ export const BREATHING_METRIC: MetricDef = { id: "breathing-sleep", name: "Breat
 export const VO2MAX_METRIC: MetricDef = { id: "vo2max", name: "VO2max (running)", unit: "ml/kg/min" };
 export const SLEEP_DEEP_METRIC: MetricDef = { id: "sleep-deep", name: "Deep sleep", unit: "min" };
 export const SLEEP_REM_METRIC: MetricDef = { id: "sleep-rem", name: "REM sleep", unit: "min" };
-export const TRAINING_READINESS_METRIC: MetricDef = { id: "training-readiness", name: "Training readiness (Garmin)", unit: "pts" };
-export const WEARABLE_METRIC_DEFS: MetricDef[] = [STEPS_METRIC, STRESS_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, VO2MAX_METRIC, SLEEP_DEEP_METRIC, SLEEP_REM_METRIC, TRAINING_READINESS_METRIC];
+export const WEARABLE_METRIC_DEFS: MetricDef[] = [STEPS_METRIC, STRESS_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, VO2MAX_METRIC, SLEEP_DEEP_METRIC, SLEEP_REM_METRIC];
 
 /**
  * The value types that ship with the app. Seeded once (`persistence.ts` for

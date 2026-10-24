@@ -286,7 +286,7 @@ export interface AIFields {
   pace: boolean;
   /** Minutes in each heart-rate zone. */
   zones: boolean;
-  /** Garmin's training effect and training load for the activity. */
+  /** What Garmin says the activity trained, your rating and how you felt, the Body Battery it cost. */
   effect: boolean;
   /** Climb and descent, cadence, power, temperature. */
   terrain: boolean;
@@ -294,11 +294,9 @@ export interface AIFields {
   vo2max: boolean;
   /** Deep and REM sleep minutes. */
   sleepStages: boolean;
-  /** Garmin's training readiness score. */
-  readiness: boolean;
 }
-export const AI_FIELD_KEYS: readonly (keyof AIFields)[] = ['pace', 'zones', 'effect', 'terrain', 'vo2max', 'sleepStages', 'readiness'];
-export const DEFAULT_AI_FIELDS: AIFields = { pace: true, zones: true, effect: true, terrain: false, vo2max: true, sleepStages: true, readiness: false };
+export const AI_FIELD_KEYS: readonly (keyof AIFields)[] = ['pace', 'zones', 'effect', 'terrain', 'vo2max', 'sleepStages'];
+export const DEFAULT_AI_FIELDS: AIFields = { pace: true, zones: true, effect: true, terrain: false, vo2max: true, sleepStages: true };
 export const DEFAULT_AI_DETAIL: AIDetail = { recovery: 'standard', otherTraining: 'summary', fields: { ...DEFAULT_AI_FIELDS } };
 /** The switches of `detail`, each at its default where nothing was chosen. */
 export function aiFields(detail?: { fields?: Partial<AIFields> }): AIFields {

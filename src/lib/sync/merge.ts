@@ -399,6 +399,7 @@ const TABLE_NOUN: Record<string, string> = {
   painIssues: "Pain issue",
   outdoorAscents: "Send",
   externalActivities: "Activity",
+  garminArchive: "Garmin data",
   settings: "Settings group",
   valueDefs: "Value type",
 };

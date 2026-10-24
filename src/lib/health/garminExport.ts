@@ -1,5 +1,6 @@
-import { BODYWEIGHT_METRIC_ID, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, STEPS_METRIC, STRESS_METRIC, VO2MAX_METRIC, SLEEP_DEEP_METRIC, SLEEP_REM_METRIC, TRAINING_READINESS_METRIC } from "../constants";
+import { BODYWEIGHT_METRIC_ID, NAP_DURATION_METRIC, SLEEP_DURATION_METRIC, BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, STEPS_METRIC, STRESS_METRIC, VO2MAX_METRIC, SLEEP_DEEP_METRIC, SLEEP_REM_METRIC } from "../constants";
 import { RHR_METRIC_ID, type DailyValue } from "./import";
+import type { ActivityStats } from "../types";
 
 /**
  * A Garmin data export (garmin.com → Account → Data management → Export your
@@ -91,17 +92,6 @@ export function parseMaxMet(rows: Json[]): DailyValue[] {
   return out;
 }
 
-/**
- * Training readiness: one object per day with a `calendarDate` and a `score` (0-100).
- * A best guess at the layout, not seen in a real export (a file named `*TrainingReadiness*.json`
- * with these two fields); a file that doesn't look like this adds nothing.
- */
-export function parseTrainingReadiness(rows: Json[]): DailyValue[] {
-  const out: DailyValue[] = [];
-  for (const r of rows) push(out, TRAINING_READINESS_METRIC.id, day(r.calendarDate), num(r.score));
-  return out;
-}
-
 /** `*_userBioMetrics.json`: entries with a weight in grams and a time; the last of a day stands. */
 export function parseWeights(entries: Json[]): DailyValue[] {
   const byDay = new Map<string, { t: string; kg: number }>();
@@ -139,14 +129,12 @@ export interface GarminDailySources {
   healthStatus: Json[];
   maxMet: Json[];
   bio: Json[];
-  /** `*TrainingReadiness*.json` rows, where the export has them. */
-  readiness?: Json[];
   /** HRV from the HRV-status FIT files. */
   fitHrv: { t: number; lastNight: number }[];
 }
 
 export function garminDailyValues(s: GarminDailySources): DailyValue[] {
-  return firstWins(hrvFromFit(s.fitHrv), parseHealthStatusHrv(s.healthStatus), parseDailySummaries(s.summaries), parseSleep(s.sleep), parseMaxMet(s.maxMet), parseWeights(s.bio), parseTrainingReadiness(s.readiness ?? []));
+  return firstWins(hrvFromFit(s.fitHrv), parseHealthStatusHrv(s.healthStatus), parseDailySummaries(s.summaries), parseSleep(s.sleep), parseMaxMet(s.maxMet), parseWeights(s.bio));
 }
 
 /** Per metric: how many days and from when to when - for the preview. */
@@ -187,10 +175,36 @@ export interface GarminActivitySummary {
   /** Where Garmin says it happened ("Bern"), for the note. */
   place?: string;
   activityId?: number;
-  /** Garmin's own scores for the activity: aerobic and anaerobic training effect (0-5) and its training load. */
-  trainingEffect?: number;
-  anaerobicEffect?: number;
-  trainingLoad?: number;
+  /** What Garmin made of it, as the export has it: a label, zone times, how it felt, Body Battery, cadence. See `statsOfSummary`. */
+  stats?: ActivityStats;
+}
+
+const EFFECT_LABELS: Record<string, string> = { AEROBIC_BASE: "aerobic base", ANAEROBIC_CAPACITY: "anaerobic capacity", TEMPO: "tempo", SPEED: "speed", RECOVERY: "recovery", THRESHOLD: "threshold", VO2MAX: "VO2max", LACTATE_THRESHOLD: "threshold", AEROBIC_HIGH_SHORTAGE: "aerobic high", ANAEROBIC_CAPACITY_SHORTAGE: "anaerobic capacity" };
+
+/**
+ * The parts of a summary that say how the activity went, from a real export:
+ *  - `hrTimeInZone_1..5` are milliseconds in your own heart-rate zones (0 = below zone 1);
+ *  - `trainingEffectLabel` is a word ("TEMPO"), "UNKNOWN" when Garmin made none - the export has no numeric effect or load;
+ *  - `workoutRpe` is 10-100 in steps of 10 (a 1-10 rating times ten), `workoutFeel` 0-100;
+ *  - `differenceBodyBattery` is the Body Battery change; `avgDoubleCadence` steps per minute, `avgStrideLength` centimetres.
+ */
+export function statsOfSummary(a: Json): ActivityStats | undefined {
+  const out: ActivityStats = {};
+  const zones = [1, 2, 3, 4, 5].map((z) => num(a[`hrTimeInZone_${z}`]));
+  if (zones.every((z) => z !== undefined) && zones.some((z) => z! > 0)) out.zonesSec = zones.map((z) => Math.round(z! / 1000));
+  const label = typeof a.trainingEffectLabel === "string" ? a.trainingEffectLabel : undefined;
+  if (label && label !== "UNKNOWN") out.effectLabel = EFFECT_LABELS[label] ?? label.toLowerCase().replace(/_/g, " ");
+  const rpe = num(a.workoutRpe);
+  if (rpe && rpe >= 10 && rpe <= 100) out.rpe = Math.round(rpe / 10);
+  const feel = num(a.workoutFeel);
+  if (feel !== undefined && feel >= 0 && feel <= 100) out.feel = Math.round(feel);
+  const battery = num(a.differenceBodyBattery);
+  if (battery !== undefined && battery !== 0) out.bodyBatteryDelta = Math.round(battery);
+  if (num(a.avgDoubleCadence) && num(a.avgDoubleCadence)! > 0) out.avgCadence = Math.round(num(a.avgDoubleCadence)!);
+  if (num(a.avgStrideLength) && num(a.avgStrideLength)! > 0) out.strideCm = Math.round(num(a.avgStrideLength)!);
+  const loss = num(a.elevationLoss);
+  if (loss && loss > 0) out.descentM = Math.round(loss / 100);
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**
@@ -220,10 +234,8 @@ export function parseSummarizedActivities(files: Json[]): GarminActivitySummary[
       if (num(a.calories) && num(a.calories)! > 0) s.calories = Math.round(num(a.calories)! / 4.184);
       if (typeof a.locationName === "string" && a.locationName.trim()) s.place = a.locationName.trim();
       if (num(a.activityId) !== undefined) s.activityId = num(a.activityId);
-      const effect = (v: unknown) => (num(v) !== undefined && num(v)! > 0 && num(v)! <= 5 ? round(num(v)!, 1) : undefined);
-      if (effect(a.aerobicTrainingEffect)) s.trainingEffect = effect(a.aerobicTrainingEffect);
-      if (effect(a.anaerobicTrainingEffect)) s.anaerobicEffect = effect(a.anaerobicTrainingEffect);
-      if (num(a.activityTrainingLoad) && num(a.activityTrainingLoad)! > 0) s.trainingLoad = Math.round(num(a.activityTrainingLoad)!);
+      const stats = statsOfSummary(a);
+      if (stats) s.stats = stats;
       out.push(s);
     }
   }

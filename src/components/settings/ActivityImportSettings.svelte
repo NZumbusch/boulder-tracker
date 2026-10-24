@@ -20,6 +20,7 @@
   import { toast } from '../../lib/toast.svelte';
   import ActionRow from './ActionRow.svelte';
   import type { ExternalActivity } from '../../lib/types';
+  import type { ArchiveInfo, ArchivePlan } from '../../lib/health/garminArchive';
 
   let fileInput = $state<HTMLInputElement>();
   let read = $state<ActivityRead | null>(null);
@@ -28,6 +29,12 @@
   let options = $state<ImportOptions>({ ...DEFAULT_IMPORT_OPTIONS });
   let includeDaily = $state(true);
   let includeRefresh = $state(true);
+  let keepArchive = $state(true);
+  let archivePlan = $state<ArchivePlan | null>(null);
+  let archive = $state<ArchiveInfo | null>(null);
+  const loadArchive = () => trainingState.garminArchiveInfo().then((info) => (archive = info));
+  $effect(() => { void loadArchive(); });
+  const megabytes = (bytes: number) => `${Math.max(0.1, bytes / 1e6).toFixed(1)} MB`;
   let dailyPlan = $state<ReturnType<typeof planDaily> | null>(null);
 
   const KNOWN_METRICS = [...DEFAULT_METRIC_DEFS, SLEEP_DURATION_METRIC, NAP_DURATION_METRIC, ...WEARABLE_METRIC_DEFS];
@@ -48,7 +55,8 @@
     return planImport(stored, read.activities, around, (w) => w.notes || 'Session', options, (w) => trainingState.sessionText(w));
   });
   const refreshCount = $derived(plan?.refresh.length ?? 0);
-  const somethingToDo = $derived(!!plan && (plan.add.length > 0 || (includeDaily && !!dailyPlan?.upserts.length) || (includeRefresh && refreshCount > 0)));
+  const archiveChanges = $derived(archivePlan ? archivePlan.add.length + archivePlan.change.length : 0);
+  const somethingToDo = $derived(!!plan && (plan.add.length > 0 || (includeDaily && !!dailyPlan?.upserts.length) || (includeRefresh && refreshCount > 0) || (keepArchive && archiveChanges > 0)));
   const withRoute = $derived((plan?.add ?? []).filter((a) => a.track).length);
   const byType = $derived.by(() => {
     const counts = new Map<string, number>();
@@ -75,6 +83,7 @@
       }
       read = result;
       dailyPlan = result.daily.length ? planDaily(await storage.getDailyMetrics(), result.daily, 'garmin') : null;
+      archivePlan = result.archive.length ? await trainingState.planGarminArchive($state.snapshot(result.archive) as typeof result.archive) : null;
     } catch (err) {
       await showAlert('Could not read the files', (err as Error).message);
     } finally {
@@ -88,6 +97,7 @@
     try {
       const added = plan.add.length ? await trainingState.addExternalActivities($state.snapshot(plan.add) as ExternalActivity[]) : 0;
       const refreshed = includeRefresh && plan.refresh.length ? await trainingState.refreshExternalActivities($state.snapshot(plan.refresh) as ExternalActivity[]) : 0;
+      const kept = keepArchive && read ? await trainingState.mergeGarminArchive($state.snapshot(read.archive) as typeof read.archive) : null;
       let days = 0;
       if (includeDaily && dailyPlan && dailyPlan.upserts.length) {
         const entries = $state.snapshot(dailyPlan.upserts) as typeof dailyPlan.upserts;
@@ -95,9 +105,11 @@
         await trainingState.importDailyMetrics(entries, defs);
         days = entries.length;
       }
-      toast.show([added ? `${added} activit${added === 1 ? 'y' : 'ies'} imported` : '', refreshed ? `${refreshed} updated with pace and heart-rate detail` : '', days ? `${days} daily values imported` : ''].filter(Boolean).join(', '));
+      toast.show([added ? `${added} activit${added === 1 ? 'y' : 'ies'} imported` : '', refreshed ? `${refreshed} updated with pace and heart-rate detail` : '', days ? `${days} daily values imported` : '', kept && kept.add.length + kept.change.length ? `${kept.add.length + kept.change.length} Garmin records kept` : ''].filter(Boolean).join(', '));
+      void loadArchive();
       read = null;
       dailyPlan = null;
+      archivePlan = null;
     } finally {
       importing = false;
     }
@@ -106,6 +118,13 @@
   async function removeAll() {
     if (await showConfirm('Remove imported activities?', `All ${stored.length} imported activities are deleted from this app (and from synced devices). Your own sessions are not touched, and you can import the files again.`, { ok: 'Remove', cancel: 'Keep' })) {
       await trainingState.removeExternalActivities(stored.map((a) => a.id));
+    }
+  }
+
+  async function removeArchive() {
+    if (await showConfirm('Remove the kept Garmin data?', `All ${archive?.records ?? 0} records (${megabytes(archive?.bytes ?? 0)}) are deleted from this app and from synced devices. Your imported activities and daily values are not touched, and importing the export again brings the data back.`, { ok: 'Remove', cancel: 'Keep' })) {
+      await trainingState.clearGarminArchive();
+      await loadArchive();
     }
   }
 
@@ -143,6 +162,16 @@
         <label class="flex items-start gap-3 py-1 min-h-11">
           <input type="checkbox" bind:checked={includeRefresh} class="mt-1" />
           <span class="text-label"><span class="font-semibold">Add pace, splits and heart-rate detail to {refreshCount} activit{refreshCount === 1 ? 'y' : 'ies'}</span><br /><span class="text-caption text-content-subtle">Imported before these existed. Only the new detail is added; nothing else about them changes.</span></span>
+        </label>
+      </div>
+    {/if}
+
+    {#if archivePlan && read.archive.length}
+      <div class="space-y-2 px-1">
+        <h3 class="text-section uppercase text-content-muted">Garmin data for later</h3>
+        <label class="flex items-start gap-3 py-1 min-h-11">
+          <input type="checkbox" bind:checked={keepArchive} class="mt-1" />
+          <span class="text-label"><span class="font-semibold">Keep the full Garmin data in the app ({archivePlan.add.length} new{archivePlan.change.length ? `, ${archivePlan.change.length} changed` : ''}{archivePlan.same ? `, ${archivePlan.same} already kept` : ''})</span><br /><span class="text-caption text-content-subtle">Every row of the export's activity, sleep, stress, Body Battery, skin temperature, heart-rate and similar files, unchanged, so detail the app does not show yet is not lost. It is stored with your other data (backups, and sync if it is on), adds several MB, and is never duplicated by importing again. Your profile, contacts, devices and the recordings themselves are not kept.</span></span>
         </label>
       </div>
     {/if}
@@ -212,5 +241,13 @@
     <p class="text-caption text-content-subtle px-1">{bySource}</p>
     <ActionRow icon="ic:baseline-directions-run" title="See them in History" hint="History → Activities" onclick={() => { trainingState.uiStore.historyTab = 'activities'; trainingState.navigate('history'); }} />
     <ActionRow icon="ic:baseline-delete-sweep" title="Remove all imported activities" tone="danger" onclick={removeAll} />
+  </div>
+{/if}
+
+{#if archive && archive.records > 0}
+  <div class="card space-y-2 mt-4">
+    <h2 class="text-section uppercase text-content-muted px-1">Garmin data kept ({archive.records} records, {megabytes(archive.bytes)})</h2>
+    <p class="text-caption text-content-subtle px-1">{archive.kinds.map((k) => `${k.records} ${k.kind}`).join(' · ')}</p>
+    <ActionRow icon="ic:baseline-delete-sweep" title="Remove the kept Garmin data" hint="Your activities and daily values stay; importing the export again brings it back" tone="danger" onclick={removeArchive} />
   </div>
 {/if}

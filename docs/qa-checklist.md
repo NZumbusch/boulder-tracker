@@ -406,10 +406,12 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 | 28.4 | Missed sessions | Leave a planned session undone in a past week; copy a prompt with weekly history. | That week's line has "missed": [name]; a skipped session is not listed. | | |
 | 28.5 | Tests and ascents | A test done 8 times; many outdoor ascents. | Latest 4 plus the best of each set-up (marked best); ascents as a grade summary plus the latest few. | | |
 | 28.6 | Import again | Import the same Garmin/Strava export again. | "Add pace, splits and heart-rate detail to N activities" is offered (on); after it, nothing more is offered. | | |
-| 28.7 | Watch detail switches | Settings > What the AI sees > Watch detail: switch groups on and off with Other training detail on "Every activity". | Each shows its cost on your data; "Prompt size now" follows; a group nothing feeds says so. Pace/splits, zones, training effect, VO2max, sleep stages on by default; climb etc. and training readiness off. | | |
-| 28.8 | Activity digest | Copy a Change plan prompt with detail "Every activity". | Each recent activity has pace, kmSplits, drift, zonesMin, garminEffect as chosen; a ride has speed and no splits. | | |
+| 28.7 | Watch detail switches | Settings > What the AI sees > Watch detail: switch groups on and off with Other training detail on "Every activity". | Each shows its cost on your data; "Prompt size now" follows; a group nothing feeds says so. Pace/splits, zones, what it trained, VO2max and sleep stages are on by default; climb/cadence/stride is off. | | |
+| 28.8 | Activity digest | Copy a Change plan prompt with detail "Every activity". | Each recent activity has pace, kmSplits, drift, zonesMin (your Garmin zones), garminEffect (trained, my rating, felt, Body Battery) as chosen; a ride has speed and no splits. | | |
 | 28.9 | Ask about an activity | History > Activities > an activity > Ask the AI about this. | Prompt with that activity in full, up to three earlier ones of its kind, last night's recovery when shared, your question. | | |
-| 28.10 | Real Garmin file | Import a real Garmin export and compare an activity with Garmin Connect. | Splits, avg pace, zones, training effect match Garmin Connect; if not, the FIT field numbers in README need correcting. Training readiness only appears if the export has such a file. | | |
+| 28.10 | Real Garmin export | Import your Garmin export and compare an activity with Garmin Connect. | Splits, average pace and zone minutes match Garmin Connect; activities you rated on the watch carry that rating and their load changes accordingly. | | |
+| 28.11 | Garmin archive | Import the export: tick "Keep the full Garmin data"; then import the same file again. | The first import says N new; the second says all already kept and nothing to do; Settings > Import activities shows records, size and kinds; "Remove the kept Garmin data" empties it and leaves activities and daily values. | | |
+| 28.12 | Archive and sync | With sync on across two devices, import on one; sync both. | The other device shows the same record count (no duplicates); importing there too changes nothing. | | |
 
 ## After the run
 

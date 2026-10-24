@@ -27,13 +27,13 @@ describe("3.35 -> 3.36: dismissed sessions", () => {
   });
 
   it("is the current data version", () => {
-    expect(DATA_EXPORT_VERSION).toBe("3.38");
+    expect(DATA_EXPORT_VERSION).toBe("3.39");
   });
 
   it("dismisses the whole of every week that has anything stored, or was marked customized", () => {
     const d = data();
     runDataMigrations(d);
-    expect(d.exportVersion).toBe("3.38");
+    expect(d.exportVersion).toBe("3.39");
     expect(d.dismissedSessions.map((x: any) => x.id).sort()).toEqual(["prov:2026-W40:*", "prov:2026-W41:*", "prov:2026-W42:*"]);
     expect(d.dismissedSessions.every((x: any) => x.id === weekDismissalId(x.weekId))).toBe(true);
   });

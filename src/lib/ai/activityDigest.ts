@@ -22,6 +22,11 @@ export function mmss(sec: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Garmin's feel scale, 0 very weak .. 100 very strong, as a word. */
+function feelWord(feel: number): string {
+  return feel < 13 ? "very weak" : feel < 38 ? "weak" : feel < 63 ? "normal" : feel < 88 ? "strong" : "very strong";
+}
+
 const signed = (v: number) => `${v > 0 ? "+" : v < 0 ? "-" : ""}${Math.abs(v)}`;
 
 /** What to add to an activity's line, per switched-on group; an empty object when there is nothing. */
@@ -45,13 +50,20 @@ export function activityDigest(a: ExternalActivity, fields: DigestFields, maxHr:
   }
 
   if (fields.zones) {
-    const zones = zoneMinutes(st?.hrBinsSec, maxHr);
+    const zones = zoneMinutes(st, maxHr);
     const text = zones?.map((m, i) => (m > 0 ? `Z${i + 1} ${m}` : "")).filter(Boolean).join(" · ");
     if (text) out.zonesMin = text;
   }
 
   if (fields.effect && st) {
-    const effect = [st.trainingEffect ? `aerobic ${st.trainingEffect}` : "", st.anaerobicEffect ? `anaerobic ${st.anaerobicEffect}` : "", st.trainingLoad ? `load ${st.trainingLoad}` : ""].filter(Boolean);
+    const effect = [
+      st.effectLabel ? `trained: ${st.effectLabel}` : "",
+      st.trainingEffect ? `effect ${st.trainingEffect}` : "",
+      st.anaerobicEffect ? `anaerobic ${st.anaerobicEffect}` : "",
+      st.rpe ? `my rating ${st.rpe}/10` : "",
+      st.feel !== undefined ? `felt ${feelWord(st.feel)}` : "",
+      st.bodyBatteryDelta ? `Body Battery ${signed(st.bodyBatteryDelta)}` : "",
+    ].filter(Boolean);
     if (effect.length) out.garminEffect = effect.join(", ");
   }
 
@@ -60,6 +72,7 @@ export function activityDigest(a: ExternalActivity, fields: DigestFields, maxHr:
       a.elevationM ? `ascent ${Math.round(a.elevationM)} m` : "",
       st?.descentM ? `descent ${st.descentM} m` : "",
       st?.avgCadence ? `cadence ${st.avgCadence}` : "",
+      st?.strideCm ? `stride ${st.strideCm} cm` : "",
       st?.avgPowerW ? `power ${st.avgPowerW} W` : "",
       st?.avgTempC !== undefined ? `${st.avgTempC} °C` : "",
     ].filter(Boolean);
@@ -76,6 +89,6 @@ export function digestLegend(present: Set<string>): string {
   if (present.has("laps")) parts.push("laps are a workout's own intervals (time, distance, heart rate)");
   if (present.has("drift")) parts.push("drift compares the second half with the first");
   if (present.has("zonesMin")) parts.push("zonesMin are minutes in heart-rate zones Z1-Z5 (% of my highest heart rate)");
-  if (present.has("garminEffect")) parts.push("garminEffect is Garmin's training effect (0-5) and load for the activity");
+  if (present.has("garminEffect")) parts.push("garminEffect is what Garmin says the activity trained, how I rated and felt it, and the Body Battery it cost");
   return parts.length ? ` ${parts.join("; ")}.` : "";
 }

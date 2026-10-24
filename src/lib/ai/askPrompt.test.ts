@@ -41,7 +41,7 @@ describe("ask prompts", () => {
 
 describe("activity ask prompt", () => {
   const act = (id: string, start: string, over: Partial<ExternalActivity> = {}): ExternalActivity => ({ id, source: "garmin", sourceId: id, date: start.slice(0, 10), start, name: id, type: "Run", durationSec: 2400, distanceM: 8000, avgHr: 150, maxHr: 175, ...over });
-  const stats = { splitsSec: [300, 310], paceDriftPct: 5, hrBinsSec: [0, 0, 0, 0, 1800, 0, 0, 0, 300, 0, 0], trainingEffect: 3.1 };
+  const stats = { splitsSec: [300, 310], paceDriftPct: 5, hrBinsSec: [0, 0, 0, 0, 1800, 0, 0, 0, 300, 0, 0], effectLabel: "tempo" };
 
   it("is the preamble, the activity with everything its recording gave, the earlier ones of its kind, and the question", () => {
     const a = act("today", "2026-10-20T06:30:00.000Z", { stats });
@@ -50,7 +50,7 @@ describe("activity ask prompt", () => {
     expect(p).toContain("Hates 4x4");
     expect(p).toContain('"kmSplits":"5:00 5:10"');
     expect(p).toContain('"zonesMin":"Z3 30 · Z5 5"');
-    expect(p).toContain('"garminEffect":"aerobic 3.1"');
+    expect(p).toContain('"garminEffect":"trained: tempo"');
     expect(p).toContain("My previous run activities, for comparison");
     expect(p).toContain('"sleepScore":71');
     expect(p).toContain(DEFAULT_ACTIVITY_QUESTION);
