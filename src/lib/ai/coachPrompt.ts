@@ -43,6 +43,9 @@ function withDates(item: unknown): unknown {
   return item;
 }
 
+/** What a session line's numbers mean - without it "load" and the four ratings are guesswork. */
+const SESSION_LEGEND = "; load = score from my after-session ratings, fingers/arms/core/systemic = those ratings 1-10, exercise values as logged";
+
 /** Renders every present field of `profile` as a "- Label:" section, joined with blank lines. */
 export function renderProfileSections(profile: AIContextProfile, mode: AIPromptMode, history?: AIHistoryWindow): string {
   const sections: string[] = [];
@@ -63,10 +66,10 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
     sections.push(`- Available Phases: ${profile.phases.join(", ")}.`);
   }
   if (mode === "analyze") {
-    sections.push(`- Completed Workouts (Target Timeframe):\n${lines(profile.recentWorkouts)}`);
+    sections.push(`- Completed Workouts (Target Timeframe${SESSION_LEGEND}):\n${lines(profile.recentWorkouts)}`);
   } else {
     const weeks = history?.fullWeeks;
-    sections.push(`- Completed Sessions${weeks ? ` (last ${weeks} week${weeks === 1 ? "" : "s"}, in full)` : ""}:\n${lines(profile.recentWorkouts)}`);
+    sections.push(`- Completed Sessions${weeks ? ` (last ${weeks} week${weeks === 1 ? "" : "s"}, in full${SESSION_LEGEND})` : ` (${SESSION_LEGEND.slice(2)})`}:\n${lines(profile.recentWorkouts)}`);
   }
   if (profile.weeklyHistory?.length) {
     sections.push(`- Weekly History before that (one line per week, oldest first: sessions, total minutes, summed load, logged minutes per category, average post-session ratings 1-10):\n${lines(profile.weeklyHistory)}`);
