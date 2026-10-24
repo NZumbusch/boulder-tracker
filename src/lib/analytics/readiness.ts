@@ -134,14 +134,34 @@ export function computeFatigueDecay(workouts: Workout[], asOf: Date, model: numb
  */
 export const HRV_BREAK_MIN_READINGS = 3;
 export function computeHrvBaseline(dailyMetrics: DailyMetricEntry[], asOf: Date, days = 14): number | undefined {
-  const asOfDay = toUtcDayIndex(asOf.toISOString());
-  const readings = loggedMetrics(dailyMetrics)
+  return hrvBaselineAt(hrvReadings(dailyMetrics), toUtcDayIndex(asOf.toISOString()), days);
+}
+
+/** The real HRV readings as (day, value), oldest first - built once by a caller that asks for many days' baselines (the recovery chart). */
+export function hrvReadings(dailyMetrics: DailyMetricEntry[]): { day: number; value: number }[] {
+  return loggedMetrics(dailyMetrics)
     .filter((m) => m.metricId === "hrv")
     .map((m) => ({ day: toUtcDayIndex(m.date), value: m.value }))
-    .filter((r) => r.day <= asOfDay && asOfDay - r.day < 365)
     .sort((a, b) => a.day - b.day);
-  let values = readings.filter((r) => asOfDay - r.day < days).map((r) => r.value);
-  if (values.length < HRV_BREAK_MIN_READINGS) values = readings.slice(-days).map((r) => r.value);
+}
+
+/** `computeHrvBaseline` for one day, from `hrvReadings`' output: a binary search instead of reading every entry again. */
+export function hrvBaselineAt(readings: { day: number; value: number }[], asOfDay: number, days = 14): number | undefined {
+  // The readings up to and including the day (the sort is by day, so they are a prefix).
+  let lo = 0;
+  let hi = readings.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (readings[mid].day <= asOfDay) lo = mid + 1;
+    else hi = mid;
+  }
+  const upTo = lo;
+  // ...and within a year of it.
+  let from = upTo;
+  while (from > 0 && asOfDay - readings[from - 1].day < 365) from--;
+  const inYear = readings.slice(from, upTo);
+  let values = inYear.filter((r) => asOfDay - r.day < days).map((r) => r.value);
+  if (values.length < HRV_BREAK_MIN_READINGS) values = inYear.slice(-days).map((r) => r.value);
   if (values.length === 0) return undefined;
   return values.reduce((a, b) => a + b, 0) / values.length;
 }

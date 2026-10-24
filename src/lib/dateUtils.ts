@@ -245,12 +245,23 @@ export function localIsoDate(date: Date = new Date()): string {
  *    while History (local) showed the right one.
  */
 export function toUtcDayIndex(isoDate: string): number {
-  const d = new Date(isoDate);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
-    return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+  const cached = dayIndexMemo.get(isoDate);
+  if (cached !== undefined) return cached;
+  let index: number;
+  const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (bare) {
+    index = Math.floor(Date.UTC(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3])) / 86400000);
+  } else {
+    const d = new Date(isoDate);
+    index = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
   }
-  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  // The charts ask for the same few thousand dates over and over (every day of a chart, for every session), and parsing a
+  // string into a date is the slow part. The answer depends only on the string, so it is remembered; the cap keeps it small.
+  if (dayIndexMemo.size >= 20000) dayIndexMemo.clear();
+  dayIndexMemo.set(isoDate, index);
+  return index;
 }
+const dayIndexMemo = new Map<string, number>();
 
 
 // --- Days as "YYYY-MM-DD" -----------------------------------------------

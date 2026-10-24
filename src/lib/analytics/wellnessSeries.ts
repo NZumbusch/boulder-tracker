@@ -1,6 +1,6 @@
 import type { DailyMetricEntry } from "../types";
 import { BODY_BATTERY_HIGH_METRIC, BODY_BATTERY_LOW_METRIC, BREATHING_METRIC, STEPS_METRIC, STRESS_METRIC, VO2MAX_METRIC } from "../constants";
-import { buildRecoverySeries, type RecoveryDay } from "./recoverySeries";
+import { buildRecoverySeries, readingsByDay, type RecoveryDay } from "./recoverySeries";
 
 /**
  * The wearable-only measures for Analytics' Wellness card: each as day-by-day
@@ -28,7 +28,10 @@ export const WELLNESS_MEASURES: WellnessMeasure[] = [
 
 /** The measures that have at least one reading in the window - the card offers only those. */
 export function measuresWithData(entries: DailyMetricEntry[], firstDay: number, lastDay: number): WellnessMeasure[] {
-  return WELLNESS_MEASURES.filter((m) => m.series.some((s) => buildRecoverySeries(entries, { id: s.id, higherIsBetter: true }, firstDay, lastDay).some((d) => d.value !== undefined)));
+  return WELLNESS_MEASURES.filter((m) => m.series.some((s) => {
+    for (const day of readingsByDay(entries, s.id).keys()) if (day >= firstDay && day <= lastDay) return true;
+    return false;
+  }));
 }
 
 export interface WellnessSummary {

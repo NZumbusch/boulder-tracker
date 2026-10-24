@@ -2,8 +2,8 @@ import { painLevelOn } from "../pain/issues";
 import type { PainIssue, PainLog } from "../types";
 import type { DailyMetricEntry, Workout } from "../types";
 import { toUtcDayIndex } from "../dateUtils";
-import { loggedMetrics } from "./metricValues";
-import { computeFatigueDecay, computeHrvBaseline, computeReadiness, DEFAULT_READINESS_CONFIG, type ReadinessConfig, type FatigueModel } from "./readiness";
+import { loggedMetrics, readingsIndex } from "./metricValues";
+import { computeFatigueDecay, hrvBaselineAt, hrvReadings, computeReadiness, DEFAULT_READINESS_CONFIG, type ReadinessConfig, type FatigueModel } from "./readiness";
 import { calculateRollingAcwr } from "./loadAnalytics";
 
 /**
@@ -102,16 +102,7 @@ function dayIndexToAsOf(day: number): Date {
 
 /** A metric's real readings by day; two readings on one day are averaged. */
 export function readingsByDay(entries: DailyMetricEntry[], metricId: string): Map<number, number> {
-  const sums = new Map<number, { sum: number; n: number }>();
-  for (const e of loggedMetrics(entries)) {
-    if (e.metricId !== metricId) continue;
-    const day = toUtcDayIndex(e.date);
-    const s = sums.get(day) ?? { sum: 0, n: 0 };
-    s.sum += e.value;
-    s.n += 1;
-    sums.set(day, s);
-  }
-  return new Map([...sums].map(([day, s]) => [day, s.sum / s.n]));
+  return readingsIndex(entries).get(metricId) ?? new Map();
 }
 
 function valuesBetween(byDay: Map<number, number>, from: number, to: number): number[] {
@@ -209,6 +200,7 @@ export function readinessByDay(
   const sleepHours = readingsByDay(entries, "sleep-duration");
   const napHours = readingsByDay(entries, "nap-duration");
   const hrv = readingsByDay(entries, "hrv");
+  const hrvAll = hrvReadings(entries);
 
   const scores = new Map<number, number>();
   let upTo = 0;
@@ -225,7 +217,7 @@ export function readinessByDay(
         sleepHours: sleepHours.get(day),
         napHours: napHours.get(day),
         hrv: hrv.get(day),
-        hrvBaseline: computeHrvBaseline(entries, asOf),
+        hrvBaseline: hrvBaselineAt(hrvAll, day),
         pain: pain ? painLevelOn(pain.issues, pain.logs, dayIndexToIso(day)) : undefined,
       },
       config,

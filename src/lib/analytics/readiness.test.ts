@@ -5,6 +5,8 @@ import {
   computeFatigueDecay,
   fatigueReading,
   computeHrvBaseline,
+  hrvBaselineAt,
+  hrvReadings,
   computeReadiness,
   READINESS_GOOD_THRESHOLD,
   READINESS_CAUTION_THRESHOLD,
@@ -452,5 +454,25 @@ describe("the advice names only the fatigue that is rated", () => {
     expect(high.advice).not.toContain("fingers");
     const full = computeReadiness({ fatigue: { fingers: 8, core: 8, systemic: 8 }, acwr: { acuteLoad: 0, chronicLoad: 0, ratio: undefined, daysCovered: 0, sufficient: false, activeWeeks: 0 } });
     expect(full.advice).toMatch(/fingers and systemic fatigue are elevated/i);
+  });
+});
+
+describe("hrvBaselineAt (the indexed baseline the recovery chart uses)", () => {
+  it("gives exactly what computeHrvBaseline gives, for every day, with gaps and a break", () => {
+    const base = Date.UTC(2026, 0, 1);
+    const iso = (d: number) => new Date(base + d * 86400000).toISOString().slice(0, 10);
+    const entries: DailyMetricEntry[] = [];
+    for (let d = 0; d < 200; d++) {
+      // A gap from day 60 to 120 (a break), scattered missing days elsewhere, and a zero that is not a reading.
+      if (d >= 60 && d < 120) continue;
+      if (d % 7 === 3) continue;
+      entries.push({ id: `h${d}`, metricId: "hrv", date: iso(d), value: d === 10 ? 0 : 60 + ((d * 7) % 25) });
+      entries.push({ id: `r${d}`, metricId: "rhr", date: iso(d), value: 50 });
+    }
+    const readings = hrvReadings(entries);
+    for (let d = 0; d < 220; d++) {
+      const asOf = new Date(base + d * 86400000 + 12 * 3600000);
+      expect(hrvBaselineAt(readings, Math.floor((base + d * 86400000) / 86400000)), `day ${d}`).toBe(computeHrvBaseline(entries, asOf));
+    }
   });
 });

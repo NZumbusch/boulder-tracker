@@ -8,7 +8,12 @@ import { attachOrphanLogs } from '../pain/issues';
  */
 export class MetricsStore {
   metricDefs = $state<MetricDef[]>([]);
-  dailyMetrics = $state<DailyMetricEntry[]>([]);
+  /**
+   * Raw, not a deep reactive proxy: a watch's daily values run to thousands of entries, the charts read them all many times
+   * over, and every read through a proxy costs a trap. Nothing edits this array in place - it is replaced by `load()` after
+   * every change - so reassigning it is all the reactivity it needs.
+   */
+  dailyMetrics = $state.raw<DailyMetricEntry[]>([]);
   painLogs = $state<PainLog[]>([]);
   /** Pain issues - what the entries above are check-ins on. */
   painIssues = $state<PainIssue[]>([]);
@@ -21,7 +26,8 @@ export class MetricsStore {
       storage.getPainIssues(),
     ]);
     this.metricDefs = metricDefs;
-    this.dailyMetrics = dailyMetrics;
+    // A copy, so it is a new array (and so a change) on every load, whatever the storage hands back.
+    this.dailyMetrics = dailyMetrics.slice();
     // An entry saved without an issue (an older app version on another
     // device, via sync) is attached here, and the repair written back.
     const repaired = attachOrphanLogs(painLogs, painIssues);
