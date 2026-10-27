@@ -137,7 +137,7 @@ export interface ImportPlan {
   add: ExternalActivity[];
   /** Same id already stored. */
   already: ExternalActivity[];
-  /** Already stored without stats, or with older ones, and this import has newer: the stored copy can be filled in. */
+  /** Already stored without stats, or with older ones, and this import has newer (same id, or the same activity from another source, e.g. a Garmin recording of a synced Strava run; `id` is then the stored one's): the stored copy can be filled in. */
   refresh: ExternalActivity[];
   /** The same activity as one already stored from another source. */
   duplicates: { activity: ExternalActivity; with: Overlap }[];
@@ -185,7 +185,12 @@ export function planImport(
     const dup = found.find((o) => o.kind === "activity");
     const logged = found.find((o) => o.kind === "logged");
     const planned = found.find((o) => o.kind === "planned");
-    if (dup) plan.duplicates.push({ activity: a, with: dup });
+    if (dup) {
+      plan.duplicates.push({ activity: a, with: dup });
+      // The copy is skipped, but its recording may know what the stored one (a Strava summary, say) does not: hand that detail over.
+      const kept = have.get(dup.id);
+      if (kept && options.skipDuplicates && statsNewer(kept.stats, a.stats)) plan.refresh.push({ ...a, id: kept.id });
+    }
     else if (logged) plan.logged.push({ activity: a, with: logged });
     else if (planned) plan.planned.push({ activity: a, with: planned });
     // Only a match by time is skipped; one by day and keyword ("Easy run") is a hint, shown but kept.

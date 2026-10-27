@@ -161,7 +161,7 @@
         <h3 class="text-section uppercase text-content-muted">Already imported</h3>
         <label class="flex items-start gap-3 py-1 min-h-11">
           <input type="checkbox" bind:checked={includeRefresh} class="mt-1" />
-          <span class="text-label"><span class="font-semibold">Add pace, splits and heart-rate detail to {refreshCount} activit{refreshCount === 1 ? 'y' : 'ies'}</span><br /><span class="text-caption text-content-subtle">Imported before these existed. Only the new detail is added; nothing else about them changes.</span></span>
+          <span class="text-label"><span class="font-semibold">Add pace, splits and heart-rate detail to {refreshCount} activit{refreshCount === 1 ? 'y' : 'ies'}</span><br /><span class="text-caption text-content-subtle">Imported before these existed, or from Strava, which only sends a summary. Only the new detail is added; their name, source and numbers stay.</span></span>
         </label>
       </div>
     {/if}

@@ -80,6 +80,32 @@ describe("findOverlaps", () => {
   });
 });
 
+describe("planImport: detail for a copy from another source", () => {
+  const withStats = (a: ExternalActivity): ExternalActivity => ({ ...a, stats: { v: 2, splitsSec: [300, 305] } });
+  const strava = act("strava-1", "strava", 7, 0, 30);
+  const garmin = withStats(act("garmin-1", "garmin", 7, 1, 30));
+  const plan = (existing: ExternalActivity[], incoming: ExternalActivity[], skipDuplicates = true) =>
+    planImport(existing, incoming, () => [], label, { skipDuplicates, skipLogged: true });
+
+  it("hands a skipped Garmin copy's detail to the stored Strava one, under the stored id", () => {
+    const p = plan([strava], [garmin]);
+    expect(p.add).toEqual([]);
+    expect(p.refresh.map((a) => [a.id, a.stats?.splitsSec])).toEqual([["strava-1", [300, 305]]]);
+  });
+  it("does nothing when the stored one already has the detail, or the incoming has none", () => {
+    expect(plan([withStats(strava)], [garmin]).refresh).toEqual([]);
+    expect(plan([garmin], [strava]).refresh).toEqual([]);
+  });
+  it("leaves the stored one alone when the copy is added anyway", () => {
+    const p = plan([strava], [garmin], false);
+    expect(p.add.map((a) => a.id)).toEqual(["garmin-1"]);
+    expect(p.refresh).toEqual([]);
+  });
+  it("does not enrich from a copy found only within the same import", () => {
+    expect(plan([], [strava, garmin]).refresh).toEqual([]);
+  });
+});
+
 describe("planImport", () => {
   const stored = [act("g", "garmin", 7, 0, 30)];
   const incoming = [
