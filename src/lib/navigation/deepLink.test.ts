@@ -15,6 +15,11 @@ describe("parseDeepLink", () => {
     expect(parseDeepLink("bouldertracker://quicklog/nonsense")).toEqual({ kind: "quickLog" });
   });
 
+  it("reads Strava's login answer", () => {
+    expect(parseDeepLink("bouldertracker://strava?code=abc&state=n&scope=read,activity:read_all")).toEqual({ kind: "strava", callback: { code: "abc", state: "n", scope: "read,activity:read_all" } });
+    expect(parseDeepLink("bouldertracker://strava")).toBeNull();
+  });
+
   it("opens a tab by name", () => {
     expect(parseDeepLink("bouldertracker://view/plan")).toEqual({ kind: "view", view: "plan" });
     expect(parseDeepLink("bouldertracker://view/nowhere")).toBeNull();

@@ -32,6 +32,7 @@
   import { shouldAskForNotifications } from './lib/notifications/promptRule';
   import { installAndroidBack } from './lib/navigation/backStack.svelte';
   import { installDialogLayer } from './lib/ui/dialogLayer';
+  import { stravaSync } from './lib/strava/stravaSync.svelte';
   import { installDeepLinks } from './lib/native/deepLinks';
   import { driveSync } from './lib/sync/driveSync.svelte';
   import { healthConnect } from './lib/health/healthConnect.svelte';
@@ -72,6 +73,7 @@
     void installDeepLinks();
     void driveSync.init();
     void healthConnect.init();
+    void stravaSync.init();
     void deviceCalendar.init();
     void updater.init();
     startWidgetSync();

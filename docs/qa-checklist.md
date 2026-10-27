@@ -427,3 +427,17 @@ Only checked in headless Chrome (phone portrait, phone landscape, laptop, light 
 - Anything marked fail: note the build (Settings → About & Help) and the platform, and open an issue.
 - If 2.6 or the site's verify values are wrong, don't post until fixed: the whole "check the build" claim depends on them.
 - Re-run sections 1 to 3 on a clean device after the final deploy, from the public link (not a dev build).
+
+## 30. Strava sync (2026-11-06, real phone only)
+
+Not tried against the live Strava API yet; needs a Strava API app (strava.com/settings/api) with Authorization Callback Domain `bouldertracker.nathanzumbusch.de`, and the site deployed with `strava-callback.html`.
+
+- 30.1 Settings → Data & connections → Import activities shows "Strava sync" first (Android only; the browser version does not show it).
+- 30.2 Connect with a wrong secret: a clear "check the Client ID and Client Secret" message, nothing stored as connected.
+- 30.3 Connect with the right ones: Strava's screen opens (Strava app or browser); allow; the browser/Strava hands back to Boulder Tracker (does the app come back to Settings? Android may ask which app opens `bouldertracker://`), the first sync runs and History → Activities shows the last 90 days.
+- 30.4 Untick "View data about your private activities" on Strava's screen: the message asks to connect again.
+- 30.5 Activities already imported from the archive are not doubled (same `strava-<id>`); a run that is also a Garmin file import is left out as a duplicate by time.
+- 30.6 Record a new activity (Garmin → Strava), open the app: it appears without any action; "Last sync" updates. Pull to refresh on Home syncs too.
+- 30.7 Disconnect: sync stops, imported activities stay, Client ID/secret stay for a quick reconnect; "Forget" clears them. Airplane mode on open: no error shown for a background sync.
+- 30.8 Leave the app untouched 6+ hours and open it: the token is renewed (rotation) and the sync still works.
+- 30.9 Backup export and the settings file contain no Client ID, secret or token.

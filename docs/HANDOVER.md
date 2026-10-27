@@ -104,6 +104,10 @@ Nathan's list from using the app, all built on branch `claude/ui-ux-issues-navig
 
 Strava/Garmin/FIT/GPX/TCX import into `externalActivities` (data 3.38), History → Activities, route drawing, overlap check: see README "Importing activities". **Private data rule**: the real Strava archive Nathan supplied lives only outside the repo; `src/lib/**/*.private.test.ts` (git-ignored) read it through `PRIVATE_ZIP` / `PRIVATE_FIT_DIR` and write aggregates only. Never commit, print or screenshot it into the repo. Garmin export (daily wellness + FIT recordings + summaries) is read too - see README. Imported activities count toward load since 2026-11-02 and the AI reads them (see "AI context" below); activities still do not appear in Analytics charts or the Home recent list. Garmin account data here starts Dec 2024 (all the export holds).
 
+### Strava sync (2026-11-06)
+
+Bring-your-own Strava API app (no shipped secret; chosen by Nathan over a token-exchange proxy), https callback page -> `bouldertracker://strava`, native HTTP, summaries only. Design, limits and the unverified points: README "Strava sync (Android)", QA section 30. Open: a token-exchange function would make login one-tap for other users if the app is published; Health Connect would not help (Garmin's sync needs a newer Android than Nathan's phone).
+
 ### Derived data: the daily models (`src/lib/analytics/daily/`, 2026-11-03)
 
 Anything that takes real work **per day** for a chart (readiness by day, each recovery metric's reading + 7-day average + 28-day normal range) comes from an immutable **model**, not from a function that recomputes on every render:

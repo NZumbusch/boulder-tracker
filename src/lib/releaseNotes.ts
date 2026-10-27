@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-06-strava-sync",
+    title: "Strava activities arrive by themselves",
+    points: [
+      "Settings → Data & connections → Import activities → Strava sync: connect once with your own free Strava API app (the steps are on that screen) and new activities, with their route, are added whenever you open the app. No more export files for those.",
+      "Your Client ID and secret stay on this phone only. Garmin daily values such as HRV still come from a Garmin export.",
+    ],
+  },
+  {
     id: "2026-11-05-calendar-activities",
     title: "Your runs and rides in the Plan calendar",
     points: [

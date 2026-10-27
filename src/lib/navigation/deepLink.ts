@@ -7,10 +7,12 @@
  * - `bouldertracker://quicklog/pain` (or bodyweight, send, benchmark) - the sheet already on that form
  * - `bouldertracker://metrics`  - Home, editing today's first missing metric
  * - `bouldertracker://view/plan` (any tab) - that tab
+ * - `bouldertracker://strava?code=...&state=...` - Strava's login answer, handed over by the site's `strava-callback.html`
  *
  * Parsing is pure; `lib/native/deepLinks.ts` feeds it Android's intents.
  */
 import type { ViewType } from "../types";
+import { parseStravaCallback, type StravaCallback } from "../strava/stravaApi";
 
 export const DEEP_LINK_SCHEME = "bouldertracker";
 
@@ -21,7 +23,8 @@ export type DeepLink =
   | { kind: "session" }
   | { kind: "quickLog"; action?: QuickLogKind }
   | { kind: "metrics" }
-  | { kind: "view"; view: ViewType };
+  | { kind: "view"; view: ViewType }
+  | { kind: "strava"; callback: StravaCallback };
 
 const VIEWS: ViewType[] = ["home", "plan", "add", "history", "settings", "analytics"];
 
@@ -42,6 +45,10 @@ export function parseDeepLink(url: string | null | undefined): DeepLink | null {
     case "view": {
       const view = rest[0] as ViewType | undefined;
       return view && VIEWS.includes(view) ? { kind: "view", view } : null;
+    }
+    case "strava": {
+      const callback = parseStravaCallback(url);
+      return callback ? { kind: "strava", callback } : null;
     }
     default:
       return null;

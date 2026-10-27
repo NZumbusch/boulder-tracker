@@ -2,6 +2,7 @@
   import AppBar from '../nav/AppBar.svelte';
   import HealthConnectSettings from './HealthConnectSettings.svelte';
   import ActivityImportSettings from './ActivityImportSettings.svelte';
+  import StravaSyncSettings from './StravaSyncSettings.svelte';
   import DeviceCalendarSettings from './DeviceCalendarSettings.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
@@ -412,6 +413,7 @@
     </div>
   {:else if page === 'activityImport'}
     <div class="space-y-4">
+      <StravaSyncSettings />
       <ActivityImportSettings />
       <TunablesSettings topic="layout" title="Maps" ids={['activities.mapDefault']} />
     </div>

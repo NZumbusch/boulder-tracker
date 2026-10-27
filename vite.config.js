@@ -88,7 +88,7 @@ export default defineConfig({
         // the Android downloads under /android/ (the APK, its version file):
         // with the fallback they'd open index.html instead of downloading
         // for anyone who has the web app installed.
-        navigateFallbackDenylist: [/about\.html$/, /privacy\.html$/, /\/android\//],
+        navigateFallbackDenylist: [/about\.html$/, /privacy\.html$/, /strava-callback\.html$/, /\/android\//],
       },
     }),
   ],

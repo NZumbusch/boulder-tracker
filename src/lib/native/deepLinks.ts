@@ -25,6 +25,10 @@ export function openDeepLink(link: DeepLink): void {
     case "view":
       trainingState.navigate(link.view);
       break;
+    case "strava":
+      trainingState.navigate("settings");
+      void import("../strava/stravaSync.svelte").then(({ stravaSync }) => stravaSync.handleCallback(link.callback));
+      break;
   }
 }
 

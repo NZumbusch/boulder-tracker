@@ -36,6 +36,7 @@
   import PullToRefresh from '../common/PullToRefresh.svelte';
   import { driveSync } from '../../lib/sync/driveSync.svelte';
   import { healthConnect } from '../../lib/health/healthConnect.svelte';
+  import { stravaSync } from '../../lib/strava/stravaSync.svelte';
   import { toast } from '../../lib/toast.svelte';
 
   const data = new HomeData();
@@ -71,6 +72,10 @@
     if (healthConnect.supported && healthConnect.enabled) {
       ran.push('Health Connect imported');
       tasks.push(healthConnect.importNow({ quiet: true }));
+    }
+    if (stravaSync.connected) {
+      ran.push('Strava synced');
+      tasks.push(stravaSync.syncNow({ quiet: true }));
     }
     if (updater.supported && updater.auto) tasks.push(updater.check());
     await Promise.allSettled(tasks);
