@@ -20,6 +20,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-15-big-prompts",
+    title: "Big AI prompts arrive whole",
+    points: [
+      "AI Coach: the share button next to Copy prompt sends the prompt as a .txt file - pick Claude (or another AI app) in the share menu. Safer than the clipboard for a big prompt.",
+      "Every prompt now ends with an \"END OF PROMPT\" line, and the AI is asked to say so if it doesn't see it - a paste cut short no longer gets a half-informed answer.",
+      "For a long answer the AI may attach its JSON as a file (boulder-tracker-reply.json): save it from the chat and tap \"Open a reply file\" on the paste step.",
+    ],
+  },
+  {
     id: "2026-11-15-sessions-in-calendar",
     title: "Your sessions in your own calendar",
     points: [

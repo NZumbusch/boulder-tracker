@@ -119,6 +119,10 @@ Nathan wanted his sessions in their own calendar under one of his Google account
 - Settings card `CalendarWriteSettings.svelte` on the Phone calendar page. QA section 31, privacy policy section, release note.
 - **Not verified**: the Java was not compiled (only parse-checked with plain javac), nothing ran on a phone, the settings card was not seen (it only shows on Android). Unconfirmed: whether Google adds default reminders to events created on the phone; whether Google's sync rewrites descriptions (it would cost an update per sync, not break anything - the marker is read from the end).
 
+### Big prompts (2026-11-15)
+
+Nathan's planning prompt was ~55k tokens and something got cut off on the way to Claude (unclear whether the paste or Claude's reply). `lib/ai/promptDelivery.ts`: `withPromptEnd` (a note at the top naming the end line, `END OF PROMPT` at the bottom; applied to every AI Coach prompt in `AICoachModal`, so the size shown includes it), `JSON_REPLY_RULE` (replaces the "Respond with ONLY one JSON object" line in the change-set and organise rules: plain JSON, or for a long answer an attached `boulder-tracker-reply.json`, never split), share as .txt through `saveFile` (share icon beside Copy prompt), "Open a reply file" on the paste step. Not done yet, proposed: a per-request "What goes in" list with sizes and two presets (lean replan / full new plan) - waiting on Nathan's "What takes the space" numbers from his real data (the example data is ~11k tokens, 6.3k of it the fixed reply rules). QA 32. Share sheet and file picker not tried on a phone.
+
 ### Derived data: the daily models (`src/lib/analytics/daily/`, 2026-11-03)
 
 Anything that takes real work **per day** for a chart (readiness by day, each recovery metric's reading + 7-day average + 28-day normal range) comes from an immutable **model**, not from a function that recomputes on every render:

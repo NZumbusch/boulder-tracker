@@ -457,3 +457,11 @@ The Java was never compiled or run (no Android SDK in the cloud session); the re
 - 31.9 Turn off → "Remove them": every app event leaves "Training", your own stay. "Keep them": they stay, nothing more is written.
 - 31.10 Delete "Training" on the web, let the phone sync, open the app: the card says it is gone and offers another calendar.
 - 31.11 With Drive sync on two devices and writing on both into the same calendar: no duplicates stay after both have synced (dedupe keeps the first). Tour / example data: nothing is written.
+
+## 32. Big prompts: share as file, end line, reply file (2026-11-15)
+
+- 32.1 AI Coach → Change plan: the share icon next to Copy prompt opens Android's share menu with a .txt file; pick Claude: the file arrives as an attachment; send it. The step moves on to Paste ("Prompt shared as a file").
+- 32.2 The prompt (copied or shared) starts with the "(This prompt ends with the line END OF PROMPT...)" note and ends with END OF PROMPT. Paste only half of it into Claude: Claude says it was cut off instead of answering.
+- 32.3 A big change (several weeks): does Claude attach boulder-tracker-reply.json? Save it (download in the Claude app), then "Open a reply file (.json)" on the paste step: the reply loads and goes to review.
+- 32.4 A reply cut off mid-JSON (pasted): "The reply looks cut off" message (existing).
+- 32.5 Organise, Analyze and Context: the share button works there too; Context and Analyze answers are read in the chat (no file expected).

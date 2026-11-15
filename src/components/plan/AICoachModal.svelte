@@ -43,6 +43,8 @@
   import PlanHistorySheet from './PlanHistorySheet.svelte';
   import { looksLikeReply } from '../../lib/ai/clipboardReply';
   import { loadCompact } from '../../lib/ai/promptSize';
+  import { withPromptEnd, promptFileName, MAX_REPLY_FILE_BYTES, REPLY_FILE_NAME } from '../../lib/ai/promptDelivery';
+  import { saveFile } from '../../lib/share/saveFile';
   import { loadConfig as loadDirectConfig, loadKey as loadDirectKey } from '../../lib/ai/direct/store';
   import { providerInfo, modelInfo } from '../../lib/ai/direct/providers';
   import { estimateCost, formatUsd } from '../../lib/ai/direct/cost';
@@ -105,6 +107,8 @@
   let copiedAgain = $state(false);
   /** Whether the prompt was copied this time - "I have a reply" skips straight to pasting. */
   let promptCopied = $state(false);
+  /** How the prompt last went out: copied, or shared as a file. */
+  let sentAs = $state<'copy' | 'share'>('copy');
 
   const MODES: { id: CoachMode; label: string; title: string }[] = [
     { id: 'generate', label: 'Change plan', title: 'Change your plan' },
@@ -201,12 +205,15 @@
     const to = Math.floor((getWeekDates(last)?.end.getTime() ?? 0) / 86_400_000);
     void deviceCalendar.eventsBetween(from, to).then((events) => { if (token === calendarRead) calendarEvents = events; });
   });
-  /** The prompt exactly as it will be copied - also what the size shown is measured on. */
-  const prompt = $derived(
+  /**
+   * The prompt exactly as it will be copied or shared - also what the size shown is measured on. It ends with an end
+   * line the AI is asked to check (`withPromptEnd`), so a paste cut short on the way is caught, not answered.
+   */
+  const prompt = $derived(withPromptEnd(
     mode === 'organise'
       ? buildOrganisePrompt(organiseSource, goal, effectiveAreas)
       : buildCoachPromptFor(trainingState, { mode, targetWeekIds: selectedWeekIds, goal, history, uncertainDays: mode === 'generate' ? uncertainDays : undefined, changeLog, compact, calendar: calendarEvents }),
-  );
+  ));
   const tokens = $derived(estimateTokens(prompt));
 
   // --- Ask directly (optional, with the athlete's own key) ---
@@ -237,22 +244,46 @@
     setTimeout(() => { step = canReview ? 'review' : 'paste'; }, 0);
   }
 
+  const canSend = $derived((mode === 'context' || mode === 'organise' || rangeValid) && !(mode === 'organise' && effectiveAreas.length === 0));
+
+  /**
+   * The prompt as a .txt file through the share sheet (pick the AI app there): the safer way for a big prompt - a
+   * clipboard or a chat box can cut a long paste short, an attached file arrives whole.
+   */
+  async function sharePrompt() {
+    if (!canSend) return;
+    const outcome = await saveFile({ content: prompt, fileName: promptFileName(), mimeType: 'text/plain', title: 'Prompt for your AI chat' });
+    if (outcome === 'failed') {
+      await showAlert('Sharing failed', 'The prompt could not be shared as a file. Copy it instead.');
+      return;
+    }
+    if (outcome === 'dismissed') return;
+    afterSent('share');
+  }
+
   async function copyPrompt() {
-    if (mode !== 'context' && mode !== 'organise' && !rangeValid) return;
-    if (mode === 'organise' && effectiveAreas.length === 0) return;
+    if (!canSend) return;
     try {
       await navigator.clipboard.writeText(prompt);
     } catch (err: any) {
       await showAlert('Copy failed', 'Your browser blocked the clipboard: ' + (err?.message ?? 'unknown error'));
       return;
     }
+    afterSent('copy');
+  }
+
+  /** The prompt is on its way (copied or shared): remember the request, and move on to waiting for the reply. */
+  function afterSent(how: 'copy' | 'share') {
+    sentAs = how;
     if (mode === 'generate') saveLastRequest({ goal, start: startWeek, end: endWeek });
     if (usedCheckin) markCheckinDone(trainingState.currentWeekId);
     if (flows) {
       promptCopied = true;
       step = 'paste';
-      copiedAgain = true;
-      setTimeout(() => (copiedAgain = false), 2000);
+      if (how === 'copy') {
+        copiedAgain = true;
+        setTimeout(() => (copiedAgain = false), 2000);
+      }
     } else {
       copiedFor = mode;
     }
@@ -327,6 +358,25 @@
   // A clean paste goes straight to review.
   function handlePaste() {
     setTimeout(() => { if (canReview) step = 'review'; }, 0);
+  }
+
+  /** The AI's reply as a file (it may attach "boulder-tracker-reply.json" for a long answer, see `JSON_REPLY_RULE`). */
+  let replyFileInput: HTMLInputElement | undefined = $state();
+  async function openReplyFile(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    clipboardNote = '';
+    if (file.size > MAX_REPLY_FILE_BYTES) { clipboardNote = 'That file is too big to be an AI reply - pick the .json file the AI made.'; return; }
+    try {
+      const text = await file.text();
+      if (!text.trim()) { clipboardNote = 'That file is empty.'; return; }
+      pasteText = text;
+      handlePaste();
+    } catch {
+      clipboardNote = 'The file could not be read.';
+    }
   }
 
   /** Reads the clipboard into the box: the button's job (a tap is what lets a browser or web view allow it). */
@@ -548,7 +598,7 @@
         {#if copiedFor === mode}
           <div class="p-3.5 bg-success/10 rounded-card flex items-start gap-3 animate-in fade-in duration-200">
             <Icon icon="ic:baseline-check-circle" class="text-xl text-success shrink-0" />
-            <p class="text-body text-content">Copied. Paste it into any AI chat{mode === 'context' ? ', then ask your question' : ''}.</p>
+            <p class="text-body text-content">{sentAs === 'share' ? 'Shared as a file. Send it in your AI chat' : 'Copied. Paste it into any AI chat'}{mode === 'context' ? ', then ask your question' : ''}.</p>
           </div>
         {/if}
 
@@ -600,7 +650,7 @@
         {/if}
 
 
-        <p class="text-caption text-content-subtle leading-relaxed px-1">{mode === 'generate' ? 'You review every change before anything is applied. ' : mode === 'analyze' ? 'The reply is for reading in the chat. ' : ''}The AI runs in your own chat app, not here: copy the prompt, paste it there, then bring its reply back. An AI's suggestions are ideas to check, not medical advice - for pain or injury, ask a doctor or physiotherapist.</p>
+        <p class="text-caption text-content-subtle leading-relaxed px-1">{mode === 'generate' ? 'You review every change before anything is applied. ' : mode === 'analyze' ? 'The reply is for reading in the chat. ' : ''}The AI runs in your own chat app, not here: copy the prompt, paste it there, then bring its reply back. For a big prompt the share button next to Copy is safer: it sends the prompt as a file, which arrives whole. An AI's suggestions are ideas to check, not medical advice - for pain or injury, ask a doctor or physiotherapist.</p>
 
       {:else if step === 'paste'}
         <div class="p-3.5 bg-surface-elevated/50 rounded-card flex items-start gap-3">
@@ -610,8 +660,8 @@
               <p class="text-body text-content">Reply received from {directService}.</p>
               <p class="text-caption text-content-subtle">{directInfo.model}{directInfo.cost !== undefined ? ` · cost about ${formatUsd(directInfo.cost)}` : ''}{directInfo.inputTokens !== undefined ? ` (${formatTokens(directInfo.inputTokens)} in, ${formatTokens(directInfo.outputTokens ?? 0)} out)` : ''}</p>
             {:else}
-              <p class="text-body text-content">{promptCopied ? 'Prompt copied. Paste it into your AI chat and send it.' : 'Paste the reply from your AI chat.'}</p>
-              <p class="text-caption text-content-subtle">Then copy the AI's whole reply and paste it below.</p>
+              <p class="text-body text-content">{promptCopied ? (sentAs === 'share' ? 'Prompt shared as a file. Send it in your AI chat.' : 'Prompt copied. Paste it into your AI chat and send it.') : 'Paste the reply from your AI chat.'}</p>
+              <p class="text-caption text-content-subtle">Then copy the AI's whole reply and paste it below. For a long answer the AI may attach a file ({REPLY_FILE_NAME}) instead: save it from the chat and open it here.</p>
             {/if}
           </div>
         </div>
@@ -620,6 +670,10 @@
           <button onclick={pasteFromClipboard} class="w-full py-3 rounded-control border border-border-strong text-label font-bold text-content flex items-center justify-center gap-1.5 hover:bg-surface-elevated/50 transition-colors">
             <Icon icon="ic:baseline-content-paste-go" class="text-base" />Paste the reply from the clipboard
           </button>
+          <button onclick={() => replyFileInput?.click()} class="w-full py-3 rounded-control border border-border-strong text-label font-bold text-content flex items-center justify-center gap-1.5 hover:bg-surface-elevated/50 transition-colors">
+            <Icon icon="ic:baseline-upload-file" class="text-base" />Open a reply file (.json)
+          </button>
+          <input bind:this={replyFileInput} type="file" accept=".json,.txt,application/json,text/plain" class="hidden" onchange={openReplyFile} />
           {#if clipboardNote}<p class="text-caption text-content-subtle px-1">{clipboardNote}</p>{/if}
         {/if}
 
@@ -751,8 +805,15 @@
         {/if}
         <div class="flex-1"></div>
         <button
+          onclick={sharePrompt}
+          disabled={!canSend}
+          class="btn-icon shrink-0 text-content-subtle hover:text-content disabled:opacity-40"
+          aria-label="Share the prompt as a file"
+          title="Share as a file - safer for a big prompt"
+        ><Icon icon="ic:baseline-share" class="text-xl" /></button>
+        <button
           onclick={copyPrompt}
-          disabled={(mode !== 'context' && mode !== 'organise' && !rangeValid) || (mode === 'organise' && effectiveAreas.length === 0)}
+          disabled={!canSend}
           class="px-5 py-2.5 min-h-10 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white text-label font-bold rounded-control transition-all active:scale-[0.98] flex items-center gap-1.5"
         >
           <Icon icon={copiedFor === mode ? 'ic:baseline-check' : 'ic:baseline-content-copy'} class="text-base" />
