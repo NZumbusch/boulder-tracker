@@ -25,7 +25,7 @@
     onClose: () => void;
   } = $props();
 
-  const phoneCalendars = $derived(deviceCalendar.supported && deviceCalendar.enabled && deviceCalendar.granted ? deviceCalendar.calendars : []);
+  const phoneCalendars = $derived(deviceCalendar.supported && deviceCalendar.enabled && deviceCalendar.granted ? deviceCalendar.overlayCalendars : []);
 </script>
 
 <Sheet title="View" subtitle="What the calendar shows" {onClose}>

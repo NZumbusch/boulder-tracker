@@ -37,6 +37,7 @@
   import { driveSync } from './lib/sync/driveSync.svelte';
   import { healthConnect } from './lib/health/healthConnect.svelte';
   import { deviceCalendar } from './lib/calendar/deviceCalendar.svelte';
+  import { calendarSync } from './lib/calendarSync/calendarSync.svelte';
   import { startWidgetSync } from './lib/widget/widgetSync.svelte';
   import { updater } from './lib/update/updater.svelte';
   import type { ViewType } from './lib/types';
@@ -75,6 +76,7 @@
     void healthConnect.init();
     void stravaSync.init();
     void deviceCalendar.init();
+    calendarSync.init();
     void updater.init();
     startWidgetSync();
     return stopDialogLayer;

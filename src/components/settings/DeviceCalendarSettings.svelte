@@ -16,7 +16,7 @@
   /** Calendars grouped by the account they sync with. */
   const byAccount = $derived.by(() => {
     const groups = new Map<string, typeof deviceCalendar.calendars>();
-    for (const c of deviceCalendar.calendars) groups.set(c.account, [...(groups.get(c.account) ?? []), c]);
+    for (const c of deviceCalendar.overlayCalendars) groups.set(c.account, [...(groups.get(c.account) ?? []), c]);
     return [...groups];
   });
   /** The calendar whose colours are open. */

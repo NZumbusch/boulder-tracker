@@ -2,7 +2,9 @@
  * The phone's own calendars (Android), read-only, shown beside the plan on
  * the Plan screen's calendar view - so a session can be planned around a
  * dentist appointment. Any account the calendar app syncs works (Google,
- * Samsung, Exchange); nothing is written back.
+ * Samsung, Exchange); nothing is written back here. The calendar the
+ * sessions are written into (`lib/calendarSync`) is left out, so a
+ * session never shows twice.
  *
  * What is read stays on this device: it is held in memory only, never
  * stored with the training data, backed up, synced or put in an AI prompt.
@@ -14,6 +16,7 @@ import { DeviceCalendar, deviceCalendarSupported, type NativeCalendar } from "..
 import { DAY_MS } from "../planning/calendarEvents";
 import { toDeviceEvents, type DeviceEvent } from "./deviceEvents";
 import { eventColor, parseHex } from "./eventColor";
+import { writtenCalendarId } from "../calendarSync/calendarSync.svelte";
 
 const SETTINGS_KEY = "boulder_tracker_device_calendar";
 
@@ -61,6 +64,18 @@ class DeviceCalendarStore {
 
   #started = false;
   #token = 0;
+
+  /** The calendars that can be shown beside the plan: all but the one the sessions are written into. */
+  get overlayCalendars(): NativeCalendar[] {
+    const written = writtenCalendarId();
+    return written ? this.calendars.filter((c) => c.id !== written) : this.calendars;
+  }
+
+  /** The chosen calendars that are on the phone and shown beside the plan. */
+  #shownIds(): string[] {
+    const overlay = this.overlayCalendars;
+    return this.selected.filter((id) => overlay.some((c) => c.id === id));
+  }
 
   async init(): Promise<void> {
     if (!this.supported || this.#started) return;
@@ -139,7 +154,7 @@ class DeviceCalendarStore {
   async eventsBetween(fromDay: number, toDay: number): Promise<DeviceEvent[]> {
     if (!this.enabled || !this.granted || trainingState.demoActive) return [];
     try {
-      const ids = this.selected.filter((id) => this.calendars.some((c) => c.id === id));
+      const ids = this.#shownIds();
       const { events } = await DeviceCalendar.listEvents({ from: localMidnight(fromDay), to: localMidnight(toDay + 1), calendarIds: ids });
       return toDeviceEvents(events);
     } catch {
@@ -155,7 +170,7 @@ class DeviceCalendarStore {
       return;
     }
     try {
-      const ids = this.selected.filter((id) => this.calendars.some((c) => c.id === id));
+      const ids = this.#shownIds();
       const { events } = await DeviceCalendar.listEvents({
         from: localMidnight(fromDay - 1),
         to: localMidnight(toDay + 2),
