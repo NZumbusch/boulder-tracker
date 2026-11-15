@@ -3,6 +3,7 @@ import { exerciseGroup } from "../exercise/library";
 import { buildAnalyticsCategorySummaries } from "./context";
 import { MAX_COACH_NOTES, MAX_COACH_NOTE_LENGTH } from "./coachNotes";
 import { PLACE_KINDS, samePlaceName, type Place } from "../places/places";
+import { JSON_REPLY_RULE } from "./promptDelivery";
 
 /**
  * "Organise": the AI tidies the saved data that gets untidy over time - the
@@ -243,7 +244,7 @@ ${parts.map((p) => p.intro).join("\n") || "(nothing selected)"}
 
 What I want: ${what}
 
-Respond with ONLY one JSON object - no markdown fences, no text before or after it - a CHANGE SET with these sections (all optional, give only what changes):
+${JSON_REPLY_RULE} The JSON is a CHANGE SET with these sections (all optional, give only what changes):
 {
   "summary": "One short paragraph: what you tidied and why, and anything you noticed but left alone (e.g. suspected duplicates).",
 ${parts.map((p) => p.shape).join("\n")}

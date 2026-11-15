@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildOrganisePrompt, sessionsPerType } from "./organisePrompt";
 import { validateChangeSet } from "./changeSet";
+import { JSON_REPLY_RULE } from "./promptDelivery";
 import type { Workout } from "../types";
 
 const done = (typeIds: string[]): Workout => ({ id: Math.random().toString(), status: "completed", date: "2026-09-01", weekId: "2026-W36", loadFactor: 0, exercises: typeIds.map((t, i) => ({ id: `s${i}`, typeId: t })) }) as Workout;
@@ -28,6 +29,8 @@ describe("buildOrganisePrompt", () => {
   });
   it("uses the request when there is one", () => {
     expect(buildOrganisePrompt(source, "separate legs from core")).toContain("separate legs from core");
+    // A long answer may come back as a JSON file (promptDelivery).
+    expect(buildOrganisePrompt(source, "")).toContain(JSON_REPLY_RULE);
   });
   it("lists only the chosen areas", () => {
     const more = { ...source, circuits: [{ id: "c1", name: "Core A", rounds: 3, exercises: [{ id: "x", typeId: "a" }] }], phaseDefs: [{ id: "p1", name: "Base" }], trainingBlocks: [], templates: { p1: [] }, coachNotes: [{ id: "k3x9", text: "Recovers slowly", source: "ai", addedOn: "2026-09-01" }] } as never;

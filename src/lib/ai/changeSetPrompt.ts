@@ -1,6 +1,7 @@
 import { AI_VALUES_CONTRACT } from "./schema";
 import { PARAMETER_BLOCKS } from "./changeSet";
 import { COACH_NOTES_INSTRUCTIONS } from "./coachNotes";
+import { JSON_REPLY_RULE } from "./promptDelivery";
 import { PLACE_KINDS } from "../places/places";
 
 /**
@@ -80,7 +81,7 @@ export function buildChangeSetInstructions(opts: ChangeSetPromptOptions = {}): s
   ].join(",\n");
 
   return `HOW TO ANSWER
-Respond with ONLY one JSON object - no markdown fences, no text before or after it. It is a CHANGE SET: it lists only what should change. Anything you leave out stays as it is, so never repeat unchanged things.
+${JSON_REPLY_RULE} It is a CHANGE SET: it lists only what should change. Anything you leave out stays as it is, so never repeat unchanged things.
 
 THE SHAPE (every section is optional):
 {
