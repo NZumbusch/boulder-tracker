@@ -4,6 +4,7 @@
   import ActivityImportSettings from './ActivityImportSettings.svelte';
   import StravaSyncSettings from './StravaSyncSettings.svelte';
   import DeviceCalendarSettings from './DeviceCalendarSettings.svelte';
+  import CalendarWriteSettings from './CalendarWriteSettings.svelte';
   import { trainingState } from '../../lib/state.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
   import { storage } from '../../lib/storage';
@@ -420,7 +421,10 @@
   {:else if page === 'healthConnect'}
     <HealthConnectSettings />
   {:else if page === 'deviceCalendar'}
-    <DeviceCalendarSettings />
+    <div class="space-y-4">
+      <CalendarWriteSettings />
+      <DeviceCalendarSettings />
+    </div>
   {:else if page === 'exports'}
     <ExportSettings />
   {:else if page === 'widgets'}

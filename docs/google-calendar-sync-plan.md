@@ -1,5 +1,7 @@
 # Google Calendar sync - plan (shelved 2026-11-12)
 
+> 2026-11-15: superseded by "Sessions in your calendar", which writes through Android's calendar provider instead of the Calendar API (no OAuth). See HANDOVER.md. The API route below stays the option for a web version.
+
 A one-way sync from the app to a "Boulder Training" calendar in Google Calendar, for an agentic workflow that reads the calendar to plan practice sessions. Researched and designed, then shelved by Nathan before anything was built. Nothing of it is in the code.
 
 ## Decisions Nathan made

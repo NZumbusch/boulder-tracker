@@ -441,3 +441,19 @@ Not tried against the live Strava API yet; needs a Strava API app (strava.com/se
 - 30.7 Disconnect: sync stops, imported activities stay, Client ID/secret stay for a quick reconnect; "Forget" clears them. Airplane mode on open: no error shown for a background sync.
 - 30.8 Leave the app untouched 6+ hours and open it: the token is renewed (rotation) and the sync still works.
 - 30.9 Backup export and the settings file contain no Client ID, secret or token.
+
+## 31. Sessions in your calendar (2026-11-15, real phone only)
+
+The Java was never compiled or run (no Android SDK in the cloud session); the reconcile logic is unit-tested (`src/lib/calendarSync/events.test.ts`). Set-up: make an empty calendar "Training" under one Google account in Google Calendar on the web, then let the phone sync (Samsung Calendar → settings → manage calendars shows it).
+
+- 31.1 Settings → Data & connections → Phone calendar shows "Sessions in your calendar" first (Android only). "Write sessions into a calendar" asks for calendar access (read + write; if read was already allowed, Android may grant write without asking).
+- 31.2 The list shows only calendars that take events, by account; "Training" is there. Holidays/birthdays calendars are not.
+- 31.3 Pick it: within seconds the last 4 weeks and next week of sessions appear in Samsung Calendar, timed ones at their time, ones without a time as all-day events, done ones as "✓ name" at the time they happened. Later they show on calendar.google.com too (does Google add its default reminders? It should not - check).
+- 31.4 Move a session in the app (drag in the Plan calendar): ~10 s later it moves in Samsung Calendar. Delete one: it goes. Mark one done: it gets the ✓.
+- 31.5 Move one of these events in Samsung Calendar: reopen the app, it goes back.
+- 31.6 Add your own event to "Training": the app never changes or removes it.
+- 31.7 The Plan calendar's phone events and the AI's calendar context do not show "Training" (no double sessions); it is missing from the View button's calendar list.
+- 31.8 Weeks ahead 4 / back 0: more events ahead; older ones stay as they were. Back to 1: events beyond the next week go.
+- 31.9 Turn off → "Remove them": every app event leaves "Training", your own stay. "Keep them": they stay, nothing more is written.
+- 31.10 Delete "Training" on the web, let the phone sync, open the app: the card says it is gone and offers another calendar.
+- 31.11 With Drive sync on two devices and writing on both into the same calendar: no duplicates stay after both have synced (dedupe keeps the first). Tour / example data: nothing is written.

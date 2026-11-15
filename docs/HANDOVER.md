@@ -108,6 +108,17 @@ Strava/Garmin/FIT/GPX/TCX import into `externalActivities` (data 3.38), History 
 
 Bring-your-own Strava API app (no shipped secret; chosen by Nathan over a token-exchange proxy), https callback page -> `bouldertracker://strava`, native HTTP, summaries only. Design, limits and the unverified points: README "Strava sync (Android)", QA section 30. Open: a token-exchange function would make login one-tap for other users if the app is published; Health Connect would not help (Garmin's sync needs a newer Android than Nathan's phone).
 
+### Sessions in your calendar (2026-11-15)
+
+Nathan wanted his sessions in their own calendar under one of his Google accounts, shown in Samsung Calendar, free. Built the on-phone way rather than the shelved Google Calendar API plan (`docs/google-calendar-sync-plan.md`): the app writes through Android's calendar provider into a calendar the user picks (make "Training" in Google Calendar on the web first; the provider does not let an app create a Google calendar), and Google's own sync on the phone carries it to the cloud. No OAuth, no Cloud project change, Android only. Kept from the shelved plan (Nathan's answers there): done sessions stay at the time they happened, marked ✓; 1 week ahead / 4 back by default; no reminders.
+
+- `lib/calendarSync/events.ts` (pure, tested): `desiredEvents` (from `getWorkoutsForWeek` over the window's weeks, times via `toCalendarSession`; no time = all-day on UTC midnights), `reconcile` (insert / update / delete / dedupe). Each event's description ends with `Boulder Tracker session <id> · <hash>`: the key (apps cannot write the provider's sync columns or extended properties) and the guard - the Java only updates or deletes events of the chosen calendar whose description has that line.
+- `lib/calendarSync/calendarSync.svelte.ts`: settings in localStorage (`boulder_tracker_calendar_write`, device-local, not portable), an `$effect.root` that schedules a write 10 s after the desired events change (so Drive-merged changes flow on too), on resume, "Sync now", option change. Never while loading/importing or in example data (an empty plan would delete everything in the window).
+- Plugin: `WRITE_CALENDAR`, `requestWritePermission`, `listCalendars` gives `writable`, `listAppEvents`, `applyEventChanges` (one `applyBatch`).
+- The written calendar is left out of the Plan calendar overlay, the View button list and the AI calendar context (`deviceCalendar.overlayCalendars`).
+- Settings card `CalendarWriteSettings.svelte` on the Phone calendar page. QA section 31, privacy policy section, release note.
+- **Not verified**: the Java was not compiled (only parse-checked with plain javac), nothing ran on a phone, the settings card was not seen (it only shows on Android). Unconfirmed: whether Google adds default reminders to events created on the phone; whether Google's sync rewrites descriptions (it would cost an update per sync, not break anything - the marker is read from the end).
+
 ### Derived data: the daily models (`src/lib/analytics/daily/`, 2026-11-03)
 
 Anything that takes real work **per day** for a chart (readiness by day, each recovery metric's reading + 7-day average + 28-day normal range) comes from an immutable **model**, not from a function that recomputes on every render:

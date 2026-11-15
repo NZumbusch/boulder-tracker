@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-15-sessions-in-calendar",
+    title: "Your sessions in your own calendar",
+    points: [
+      "Settings → Data & connections → Phone calendar → Sessions in your calendar: pick a calendar (best an empty one, e.g. \"Training\", made under a Google account in Google Calendar on the web) and the app writes your sessions into it and keeps them up to date. Google's sync on the phone takes them to Samsung Calendar and the cloud. Free, no extra sign-in.",
+      "By default 4 weeks back to 1 week ahead, done sessions marked ✓, no reminders. Only events the app wrote are ever changed.",
+    ],
+  },
+  {
     id: "2026-11-06-strava-sync",
     title: "Strava activities arrive by themselves",
     points: [
