@@ -1,5 +1,6 @@
 import type { ActiveSession } from "./activeSession";
 import type { ExerciseSlot, Workout } from "../types";
+import { repairSlots } from "./slotList";
 
 /**
  * Reading a running session back after the app was closed.
@@ -104,7 +105,9 @@ function validateWorkout(raw: unknown): Workout | null {
   if (typeof w.id !== "string" || typeof w.weekId !== "string") return null;
   if (!Array.isArray(w.exercises)) return null;
 
-  const exercises = w.exercises.filter(isSlotLike) as ExerciseSlot[];
+  // Repaired, not refused: a list with a repeated id (a drag cut short used
+  // to leave one) would throw on every render and lock the app up for good.
+  const exercises = repairSlots(w.exercises.filter(isSlotLike) as ExerciseSlot[]);
 
   return {
     ...(w as unknown as Workout),

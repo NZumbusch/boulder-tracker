@@ -1,6 +1,7 @@
 import type { ExerciseGroup, ExerciseSlot, ExerciseValues, ParameterBlock, Workout } from "../types";
 import type { AddedExerciseTarget } from "../preferences/migrate";
 import { estimateSessionDuration } from "../planning/sessionDuration";
+import { repairSlots } from "./slotList";
 
 /**
  * A training session that is happening *right now*.
@@ -379,7 +380,7 @@ export function reorderSlots(session: ActiveSession, exercises: ExerciseSlot[]):
   const focused = currentSlot(session);
   const next = withExercises(session, exercises);
   if (!focused) return next;
-  const index = exercises.findIndex((s) => s.id === focused.id);
+  const index = next.workout.exercises.findIndex((s) => s.id === focused.id);
   return index === -1 ? next : { ...next, currentIndex: index };
 }
 
@@ -392,7 +393,7 @@ export function regroupSlots(session: ActiveSession, next: { exercises: Exercise
   const moved = withExercises(session, next.exercises);
   const grouped = { ...moved, workout: { ...moved.workout, groups: next.groups } };
   if (!focused) return grouped;
-  const index = next.exercises.findIndex((s) => s.id === focused.id);
+  const index = moved.workout.exercises.findIndex((s) => s.id === focused.id);
   return index === -1 ? grouped : { ...grouped, currentIndex: index };
 }
 
@@ -420,7 +421,9 @@ function mapSlot(
 }
 
 /** Replaces the exercise list and re-clamps focus, so `currentIndex` can never point past the end. */
-function withExercises(session: ActiveSession, exercises: ExerciseSlot[]): ActiveSession {
+/** Every list change lands here, so a repeated id or a drag stand-in can't get into the session (see `slotList.ts`). */
+function withExercises(session: ActiveSession, list: ExerciseSlot[]): ActiveSession {
+  const exercises = repairSlots(list);
   const currentIndex = exercises.length === 0 ? 0 : Math.min(session.currentIndex, exercises.length - 1);
   return { ...session, workout: { ...session.workout, exercises }, currentIndex };
 }

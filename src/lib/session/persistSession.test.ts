@@ -141,4 +141,16 @@ describe("parseStoredSession", () => {
     const raw = JSON.stringify({ workout: workout([slot("a")]), startedAt: new Date(T0).toISOString() });
     expect(parseStoredSession(raw)!.sourceWorkoutId).toBeNull();
   });
+
+  it("repairs a stored list with a repeated id or a drag stand-in instead of locking the app up", () => {
+    const standIn = { ...slot("c"), id: "id:dnd-shadow-placeholder-0000", isDndShadowItem: true };
+    const raw = JSON.stringify({ workout: workout([slot("a"), slot("b"), slot("a"), standIn]), startedAt: new Date(T0).toISOString(), currentIndex: 3 });
+    const parsed = parseStoredSession(raw)!;
+    const ids = parsed.workout.exercises.map((e) => e.id);
+    expect(ids.slice(0, 2)).toEqual(["a", "b"]);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    expect(parsed.workout.exercises[2].typeId).toBe("type-c");
+    expect(parsed.currentIndex).toBe(2);
+  });
 });

@@ -388,6 +388,19 @@ describe("editing the session's exercise list", () => {
     expect(s.workout.exercises[0].prescribed).toEqual({ duration: 30 });
   });
 
+  it("never takes in a list with a repeated id or a drag stand-in (it would lock the app up)", () => {
+    const s0 = focusSlot(threeSlotSession(), 2);
+    const [a, b, c] = s0.workout.exercises;
+    const standIn = { ...b, id: "id:dnd-shadow-placeholder-0000", isDndShadowItem: true } as ExerciseSlot;
+    const s = reorderSlots(s0, [c, a, standIn, a]);
+    expect(s.workout.exercises.map((e) => e.id)).toEqual(["c", "a", expect.any(String)]);
+    expect(new Set(s.workout.exercises.map((e) => e.id)).size).toBe(3);
+    expect(s.workout.exercises[2].typeId).toBe(b.typeId);
+    expect(currentSlot(s)?.id).toBe("c");
+    const g = regroupSlots(s0, { exercises: [a, a, b, c] });
+    expect(g.workout.exercises.map((e) => e.id)).toEqual(["a", "b", "c"]);
+  });
+
   it("removes a slot", () => {
     const s = removeSlot(threeSlotSession(), "b");
     expect(s.workout.exercises.map((e) => e.id)).toEqual(["a", "c"]);
