@@ -3,7 +3,7 @@ import type { TrainingBlock, Workout } from "../types";
 import { DAY_MS } from "../planning/calendarEvents";
 import { toUtcDayIndex } from "../dateUtils";
 import {
-  ALL_WEEKS, DEFAULT_SYNC_OPTIONS, desiredEvents, localMidnight, planSpan, readMarker, reconcile, syncWindow,
+  ALL_WEEKS, DEFAULT_SYNC_OPTIONS, desiredEvents, localMidnight, moveTarget, planSpan, readMarker, reconcile, syncWindow,
   type CalendarSyncOptions, type DesiredEvent, type ExistingEvent,
 } from "./events";
 
@@ -12,7 +12,7 @@ const workout = (over: Partial<Workout>): Workout =>
 
 const TUE = toUtcDayIndex("2026-11-10");
 const desired = (workouts: Workout[], options: Partial<CalendarSyncOptions> = {}, blocks: TrainingBlock[] = []) =>
-  desiredEvents({ workouts, blocks, exerciseTypes: [], options: { ...DEFAULT_SYNC_OPTIONS, ...options }, fromDay: TUE - 28, toDay: TUE + 7 });
+  desiredEvents({ workouts, blocks, exerciseTypes: [], options: { ...DEFAULT_SYNC_OPTIONS, ...options }, fromDay: TUE - 28, toDay: TUE + 7, today: TUE - 3 });
 
 /** The events in the calendar after the app wrote `list`. */
 const written = (list: DesiredEvent[]): ExistingEvent[] =>
@@ -66,7 +66,9 @@ describe("desiredEvents", () => {
     const [a] = desired([workout({ id: "prov:2026-W46:t1", startTime: "18:00" })]);
     const [b] = desired([workout({ id: "prov:2026-W46:t1", startTime: "19:00" })]);
     expect(readMarker(a.description)?.sessionId).toBe("prov:2026-W46:t1");
-    expect(readMarker(a.description)?.hash).not.toBe(readMarker(b.description)?.hash);
+    expect(readMarker(a.description)?.written).not.toEqual(readMarker(b.description)?.written);
+    const [c] = desired([workout({ id: "prov:2026-W46:t1", startTime: "18:00", location: "Gym" })]);
+    expect(readMarker(a.description)?.hash).not.toBe(readMarker(c.description)?.hash);
   });
 });
 
@@ -104,7 +106,7 @@ describe("reconcile", () => {
   it("inserts what is missing and leaves an up-to-date calendar alone", () => {
     const want = desired([workout({ startTime: "18:00" }), workout({ id: "w2", dayOfWeek: "Thursday" })]);
     expect(reconcile(want, [], start).inserts).toHaveLength(2);
-    expect(reconcile(want, written(want), start)).toEqual({ inserts: [], updates: [], deletes: [] });
+    expect(reconcile(want, written(want), start)).toEqual({ inserts: [], updates: [], deletes: [], moves: [], conflicts: [] });
   });
 
   it("updates a changed session and puts back an event moved in the calendar app", () => {
@@ -130,6 +132,72 @@ describe("reconcile", () => {
   it("keeps one event when two were written for the same session", () => {
     const want = desired([workout({ startTime: "18:00" })]);
     const twice = [...written(want), { ...written(want)[0], eventId: "205" }];
-    expect(reconcile(want, twice, start)).toEqual({ inserts: [], updates: [], deletes: ["205"] });
+    expect(reconcile(want, twice, start)).toEqual({ inserts: [], updates: [], deletes: ["205"], moves: [], conflicts: [] });
+  });
+});
+
+describe("missed sessions", () => {
+  const at = (today: number, options: Partial<CalendarSyncOptions> = {}) =>
+    desiredEvents({ workouts: [workout({ startTime: "18:00" })], blocks: [], exerciseTypes: [], options: { ...DEFAULT_SYNC_OPTIONS, ...options }, fromDay: TUE - 28, toDay: TUE + 7, today });
+
+  it("go once their day is over, unless kept", () => {
+    expect(at(TUE)).toHaveLength(1);
+    expect(at(TUE + 1)).toEqual([]);
+    expect(at(TUE + 1, { keepMissed: true })).toHaveLength(1);
+  });
+});
+
+describe("moves in the calendar", () => {
+  const start = localMidnight(TUE - 28);
+  const HOUR = 3_600_000;
+  const [planned] = desired([workout({ startTime: "18:00" })]);
+  const movedEvent = { ...written([planned])[0], begin: planned.begin + HOUR, end: planned.end + 2 * HOUR };
+
+  it("records the written times in the marker", () => {
+    expect(readMarker(planned.description)?.written).toEqual({ begin: planned.begin, end: planned.end, allDay: false });
+  });
+
+  it("are taken into the app when the session hasn't moved there", () => {
+    const c = reconcile([planned], [movedEvent], start, true);
+    expect(c.moves).toEqual([{ sessionId: "w1", begin: movedEvent.begin, end: movedEvent.end, allDay: false }]);
+    expect(c.updates).toEqual([]);
+    // Off: the event is put back.
+    expect(reconcile([planned], [movedEvent], start, false).updates).toHaveLength(1);
+  });
+
+  it("lose to a move made in the app too", () => {
+    const [movedInApp] = desired([workout({ startTime: "08:00" })]);
+    const c = reconcile([movedInApp], [movedEvent], start, true);
+    expect(c.moves).toEqual([]);
+    expect(c.conflicts).toEqual(["w1"]);
+    expect(c.updates[0].begin).toBe(movedInApp.begin);
+  });
+
+  it("refresh the marker once the app has the new time", () => {
+    const [after] = desired([workout({ startTime: "19:00", plannedDuration: 120 })]);
+    const c = reconcile([after], [movedEvent], start, true);
+    expect(c.moves).toEqual([]);
+    expect(c.updates).toHaveLength(1);
+    expect(reconcile([after], written([after]), start, true)).toMatchObject({ updates: [], moves: [], inserts: [] });
+  });
+
+  it("put back a done session, and treat an event from before the times were recorded as unmoved", () => {
+    const [done] = desired([workout({ status: "completed", date: "2026-11-10T18:00:00.000Z", startTime: "18:00" })]);
+    expect(reconcile([done], [{ ...written([done])[0], begin: done.begin + HOUR }], start, true).updates).toHaveLength(1);
+    const old = { ...movedEvent, description: "x\nBoulder Tracker session w1 · abc" };
+    expect(reconcile([planned], [old], start, true)).toMatchObject({ moves: [], conflicts: [] });
+  });
+
+  it("work for an all-day event moved to another day", () => {
+    const [allDay] = desired([workout({})]);
+    const ev = { ...written([allDay])[0], begin: allDay.begin + DAY_MS, end: allDay.end + DAY_MS };
+    expect(reconcile([allDay], [ev], start, true).moves).toEqual([{ sessionId: "w1", begin: ev.begin, end: ev.end, allDay: true }]);
+    expect(reconcile([allDay], written([allDay]), start, true)).toMatchObject({ updates: [], moves: [] });
+  });
+
+  it("give the session's new day, time and length", () => {
+    expect(moveTarget({ sessionId: "w1", begin: new Date(2026, 10, 12, 7, 30).getTime(), end: new Date(2026, 10, 12, 9, 0).getTime(), allDay: false }))
+      .toEqual({ day: toUtcDayIndex("2026-11-12"), startMin: 450, minutes: 90 });
+    expect(moveTarget({ sessionId: "w1", begin: Date.UTC(2026, 10, 13), end: Date.UTC(2026, 10, 14), allDay: true })).toEqual({ day: toUtcDayIndex("2026-11-13") });
   });
 });

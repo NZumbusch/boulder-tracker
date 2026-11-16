@@ -55,7 +55,7 @@
     <div class="space-y-1 px-1">
       <h2 class="text-section uppercase text-content-muted">Sessions in your calendar</h2>
       <p class="text-caption text-content-subtle leading-relaxed">
-        Writes your sessions into a calendar of your choice and keeps it up to date - moved, changed or deleted sessions follow. Best in an empty calendar of its own: make one (e.g. "Training") under a Google account in Google Calendar on the web, wait until it shows on the phone, then pick it here. The phone's Google sync takes the events to the cloud and to Samsung Calendar - free, no extra sign-in. One-way: edits made to these events in the calendar app are put back. Only events the app wrote are ever changed. Not shown again among the phone-calendar events on the Plan calendar.
+        Writes your sessions into a calendar of your choice and keeps it up to date - moved, changed or deleted sessions follow. Best in an empty calendar of its own: make one (e.g. "Training") under a Google account in Google Calendar on the web, wait until it shows on the phone, then pick it here. The phone's Google sync takes the events to the cloud and to Samsung Calendar - free, no extra sign-in. Moving a planned session in the calendar (by you or an agent) moves it in the app too, the next time the app is open; other edits there are put back. Only events the app wrote are ever changed. Not shown again among the phone-calendar events on the Plan calendar.
       </p>
     </div>
 
@@ -63,7 +63,7 @@
       <div class="space-y-1 px-1">
         <p class="text-body text-content">Writing into <span class="font-semibold">{calendarSync.calendarName ?? 'a calendar'}</span></p>
         <p class="text-caption text-content-subtle">
-          {#if calendarSync.syncing}Writing…{:else if calendarSync.lastSyncAt}Last written {when(calendarSync.lastSyncAt)}{#if calendarSync.lastResult} · {calendarSync.lastResult.inserted} added, {calendarSync.lastResult.updated} changed, {calendarSync.lastResult.deleted} removed{/if}{:else}Not written yet{/if}.
+          {#if calendarSync.syncing}Writing…{:else if calendarSync.lastSyncAt}Last written {when(calendarSync.lastSyncAt)}{#if calendarSync.lastResult} · {calendarSync.lastResult.inserted} added, {calendarSync.lastResult.updated} changed, {calendarSync.lastResult.deleted} removed{#if calendarSync.lastResult.moved}, {calendarSync.lastResult.moved} moved here from the calendar{/if}{#if calendarSync.lastResult.conflicts}, {calendarSync.lastResult.conflicts} moved in both places (the app's time kept){/if}{/if}{:else}Not written yet{/if}.
         </p>
       </div>
       {#if calendarSync.missing}
@@ -86,9 +86,11 @@
         <div class="px-1"><Toggle checked={calendarSync.options.includeDone} onChange={(v) => calendarSync.setOption('includeDone', v)} label="Done sessions" hint="Kept, at the time they happened, marked ✓" /></div>
         <div class="px-1"><Toggle checked={calendarSync.options.exercises} onChange={(v) => calendarSync.setOption('exercises', v)} label="Exercises in the description" /></div>
         <div class="px-1"><Toggle checked={calendarSync.options.planNotes} onChange={(v) => calendarSync.setOption('planNotes', v)} label="Plan notes in the description" /></div>
+        <div class="px-1"><Toggle checked={calendarSync.options.takeMoves} onChange={(v) => calendarSync.setOption('takeMoves', v)} label="Take moves made in the calendar" hint="A planned session moved there (day, time, length) moves in the app" /></div>
+        <div class="px-1"><Toggle checked={calendarSync.options.keepMissed} onChange={(v) => calendarSync.setOption('keepMissed', v)} label="Keep missed sessions" hint="Off: a planned session that wasn't done is removed once its day is over" /></div>
         <div class="px-1"><Toggle checked={calendarSync.options.howItWent} onChange={(v) => calendarSync.setOption('howItWent', v)} label={'"How it went" in the description'} hint="Your note after a done session" /></div>
       </div>
-      <p class="text-caption text-content-subtle px-1">Older events stay as they were. No reminders are added.</p>
+      <p class="text-caption text-content-subtle px-1">Events before the chosen weeks stay as they were. No reminders are added. After a change only a week back onwards is compared; everything once a day and on Sync now.</p>
 
       <div class="flex flex-wrap gap-2">
         <button onclick={() => calendarSync.syncNow()} disabled={calendarSync.syncing} class="btn btn-primary">Sync now</button>

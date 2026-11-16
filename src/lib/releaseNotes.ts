@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-16-calendar-two-way",
+    title: "Move sessions in your calendar",
+    points: [
+      "Sessions in your calendar: move a planned session in Samsung or Google Calendar (day, time or length) and the app moves it too, the next time it is open. If you moved it in the app as well, the app's time wins. Switch: \"Take moves made in the calendar\".",
+      "A planned session you didn't do is now taken out of the calendar once its day is over (\"Keep missed sessions\" keeps them). The first sync after this update rewrites every event once.",
+    ],
+  },
+  {
     id: "2026-11-15-big-prompts",
     title: "Big AI prompts arrive whole",
     points: [

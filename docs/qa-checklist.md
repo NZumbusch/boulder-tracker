@@ -466,3 +466,14 @@ The Java was never compiled or run (no Android SDK in the cloud session); the re
 - 32.3 A big change (several weeks): does Claude attach boulder-tracker-reply.json? Save it (download in the Claude app), then "Open a reply file (.json)" on the paste step: the reply loads and goes to review.
 - 32.4 A reply cut off mid-JSON (pasted): "The reply looks cut off" message (existing).
 - 32.5 Organise, Analyze and Context: the share button works there too; Context and Analyze answers are read in the chat (no file expected).
+
+## 33. Calendar sync: moves back, missed sessions, near/full (2026-11-16, real phone only)
+
+- 33.1 First sync after the update: every event is rewritten once (new marker line with the times, new footer); the count shows it. Later syncs change nothing when nothing changed.
+- 33.2 Move a planned session's event in Samsung Calendar (another time, another day, longer): open the app - the session moved there (Plan calendar), its length is the new planned duration, the card says "1 moved here from the calendar". The event stays where you put it.
+- 33.3 Move it in Google Calendar on the web (as an agent would): after the phone's Google sync, open the app - same as 33.2.
+- 33.4 Move the same session in both the calendar and the app before syncing: the app's time wins, the card says "moved in both places".
+- 33.5 Move a done session's event: it goes back. Change an event's title: it goes back.
+- 33.6 "Take moves made in the calendar" off: moved events go back.
+- 33.7 A planned session not done yesterday: gone from the calendar today. "Keep missed sessions" on: it comes back.
+- 33.8 Edit a session in the app: within ~10 s only a week back onwards is compared (fast); Sync now compares everything. Time a Sync now with "all / whole plan".
