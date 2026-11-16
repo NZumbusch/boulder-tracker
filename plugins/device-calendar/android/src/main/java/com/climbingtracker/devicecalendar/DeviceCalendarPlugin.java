@@ -24,7 +24,9 @@ import com.getcapacitor.annotation.PermissionCallback;
 import com.getcapacitor.PluginMethod;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,8 +49,9 @@ import java.util.concurrent.Executors;
  *   after `from`, not repeated: `{ events: [{ eventId, begin, end, allDay, title, location, description }] }`.
  * - `applyEventChanges({ calendarId, inserts, updates, deletes })`: writes
  *   them in one batch. Updates and deletes only ever touch events of that
- *   calendar that carry the marker, so nothing the app did not write can
- *   be changed. `{ inserted, updated, deleted }`.
+ *   calendar that carry the marker (looked up first - the provider refuses a
+ *   selection on a single event), so nothing the app did not write can be
+ *   changed. `{ inserted, updated, deleted }`.
  *
  * Writing goes through the provider like the phone's calendar app does: the
  * account's own sync (Google) then takes the events to the cloud.
@@ -290,32 +293,47 @@ public class DeviceCalendarPlugin extends Plugin {
         io.execute(() -> {
             try {
                 ArrayList<ContentProviderOperation> ops = new ArrayList<>();
-                // Only events of this calendar that the app wrote.
-                String guard = CalendarContract.Events.CALENDAR_ID + " = ? AND " + CalendarContract.Events.DESCRIPTION + " LIKE ?";
-                String[] guardArgs = { calendarId, MARKER_LIKE };
+                // What each operation is, to count the results: 'i'nsert, 'u'pdate, 'd'elete.
+                StringBuilder kinds = new StringBuilder();
                 String zone = TimeZone.getDefault().getID();
                 for (int i = 0; i < inserts.length(); i++) {
                     ContentValues v = values(inserts.getJSONObject(i), zone);
                     v.put(CalendarContract.Events.CALENDAR_ID, Long.parseLong(calendarId));
                     v.put(CalendarContract.Events.HAS_ALARM, 0);
                     ops.add(ContentProviderOperation.newInsert(CalendarContract.Events.CONTENT_URI).withValues(v).build());
+                    kinds.append('i');
                 }
+                // The provider refuses a selection on a single event's URI ("Selection not permitted"), so the guard
+                // is a lookup first: only events of this calendar that carry the app's marker are changed.
+                List<String> ids = new ArrayList<>();
+                for (int i = 0; i < updates.length(); i++) ids.add(updates.getJSONObject(i).getString("eventId"));
+                for (int i = 0; i < deletes.length(); i++) ids.add(deletes.getString(i));
+                Set<String> own = ownEventIds(calendarId, ids);
                 for (int i = 0; i < updates.length(); i++) {
                     org.json.JSONObject u = updates.getJSONObject(i);
-                    Uri uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, Long.parseLong(u.getString("eventId")));
-                    ops.add(ContentProviderOperation.newUpdate(uri).withValues(values(u, zone)).withSelection(guard, guardArgs).build());
+                    String id = u.getString("eventId");
+                    if (!own.contains(id)) continue;
+                    Uri uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, Long.parseLong(id));
+                    ops.add(ContentProviderOperation.newUpdate(uri).withValues(values(u, zone)).build());
+                    kinds.append('u');
                 }
                 for (int i = 0; i < deletes.length(); i++) {
-                    Uri uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, Long.parseLong(deletes.getString(i)));
-                    ops.add(ContentProviderOperation.newDelete(uri).withSelection(guard, guardArgs).build());
+                    String id = deletes.getString(i);
+                    if (!own.contains(id)) continue;
+                    Uri uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, Long.parseLong(id));
+                    ops.add(ContentProviderOperation.newDelete(uri).build());
+                    kinds.append('d');
                 }
                 int inserted = 0, updated = 0, deleted = 0;
                 if (!ops.isEmpty()) {
                     ContentProviderResult[] results = getContext().getContentResolver().applyBatch(CalendarContract.AUTHORITY, ops);
                     for (int i = 0; i < results.length; i++) {
-                        if (i < inserts.length()) { if (results[i].uri != null) inserted++; }
-                        else if (i < inserts.length() + updates.length()) { if (results[i].count != null) updated += results[i].count; }
-                        else if (results[i].count != null) deleted += results[i].count;
+                        char kind = kinds.charAt(i);
+                        if (kind == 'i') { if (results[i].uri != null) inserted++; }
+                        else if (results[i].count != null) {
+                            if (kind == 'u') updated += results[i].count;
+                            else deleted += results[i].count;
+                        }
                     }
                 }
                 call.resolve(new JSObject().put("inserted", inserted).put("updated", updated).put("deleted", deleted));
@@ -323,6 +341,30 @@ public class DeviceCalendarPlugin extends Plugin {
                 call.reject(e.getMessage() != null ? e.getMessage() : "Could not write the events", e);
             }
         });
+    }
+
+    /** Of these event ids, the ones in this calendar whose description carries the app's marker. */
+    private Set<String> ownEventIds(String calendarId, List<String> ids) {
+        Set<String> own = new HashSet<>();
+        // In chunks: older SQLite allows at most 999 arguments in one query.
+        for (int from = 0; from < ids.size(); from += 500) {
+            List<String> chunk = ids.subList(from, Math.min(ids.size(), from + 500));
+            StringBuilder in = new StringBuilder();
+            List<String> args = new ArrayList<>();
+            args.add(calendarId);
+            args.add(MARKER_LIKE);
+            for (int i = 0; i < chunk.size(); i++) {
+                in.append(i == 0 ? "?" : ",?");
+                args.add(chunk.get(i));
+            }
+            String selection = CalendarContract.Events.CALENDAR_ID + " = ? AND " + CalendarContract.Events.DESCRIPTION + " LIKE ? AND "
+                + CalendarContract.Events._ID + " IN (" + in + ")";
+            try (Cursor c = getContext().getContentResolver().query(CalendarContract.Events.CONTENT_URI,
+                new String[] { CalendarContract.Events._ID }, selection, args.toArray(new String[0]), null)) {
+                while (c != null && c.moveToNext()) own.add(String.valueOf(c.getLong(0)));
+            }
+        }
+        return own;
     }
 
     /** An event's columns from the page's `{ begin, end, allDay, title, location, description }`. */

@@ -117,6 +117,7 @@ Nathan wanted his sessions in their own calendar under one of his Google account
 - Plugin: `WRITE_CALENDAR`, `requestWritePermission`, `listCalendars` gives `writable`, `listAppEvents`, `applyEventChanges` (one `applyBatch`).
 - The written calendar is left out of the Plan calendar overlay, the View button list and the AI calendar context (`deviceCalendar.overlayCalendars`).
 - Settings card `CalendarWriteSettings.svelte` on the Phone calendar page. QA section 31, privacy policy section, release note.
+- 2026-11-16, first real-phone run: "Selection not permitted for content://com.android.calendar/events/<id>" on Sync now - the provider refuses a selection on a single event's URI for an app that is not a sync adapter, and the batch failed whole. The marker guard is now a lookup first (`ownEventIds`, chunks of 500 ids), then plain id updates/deletes.
 - **Not verified**: the Java was not compiled (only parse-checked with plain javac), nothing ran on a phone, the settings card was not seen (it only shows on Android). Unconfirmed: whether Google adds default reminders to events created on the phone; whether Google's sync rewrites descriptions (it would cost an update per sync, not break anything - the marker is read from the end).
 
 ### Big prompts (2026-11-15)
