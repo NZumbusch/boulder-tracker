@@ -6,6 +6,7 @@ import type { AnalyticsSectionId } from '../preferences/migrate';
 
 export const ANALYTICS_SECTION_NAMES: Record<AnalyticsSectionId, string> = {
   load: 'Rolling Load',
+  adherence: 'Done vs Missed',
   heatmap: 'Training Days',
   mix: 'Training Mix',
   strain: 'Monotony & Strain',
@@ -23,6 +24,7 @@ export const ANALYTICS_SECTION_NAMES: Record<AnalyticsSectionId, string> = {
 /** The tab each card sits on (Analytics.svelte shows them by this) - for the hint in Settings. */
 export const ANALYTICS_SECTION_TABS: Record<AnalyticsSectionId, 'Overview' | 'Training' | 'Recovery' | 'Progress'> = {
   load: 'Overview',
+  adherence: 'Overview',
   heatmap: 'Overview',
   mix: 'Training',
   strain: 'Training',

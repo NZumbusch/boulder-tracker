@@ -43,6 +43,7 @@ const PARTS: [RegExp, string][] = [
   [/^My training profile:/, "Profile"],
   [/^- Custom Exercise Modalities/, "Your exercises"],
   [/^- Completed (Sessions|Workouts)/, "Completed sessions"],
+  [/^- Missed Sessions/, "Missed sessions"],
   [/^- Weekly History/, "Older weeks, one line each"],
   [/^- (My Test Results|Test Results Recorded)/, "Test results"],
   [/^- Tests /, "Tests"],

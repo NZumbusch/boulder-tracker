@@ -36,6 +36,8 @@
   import { computeFatigueDecay } from '../../lib/analytics/readiness';
   import { labelStep } from '../../lib/analytics/chartWindow';
   import { parseFontGrade } from '../../lib/analytics/grades';
+  import AdherencePanel from './AdherencePanel.svelte';
+  import { adherenceBreakdown, countOutcomes } from '../../lib/analytics/adherence';
   import { planProgress } from '../../lib/planning/weekRecap';
   import { toUtcDayIndex } from '../../lib/dateUtils';
   import { buildBuckets, bucketOfDay, dayToX, ANALYTICS_RANGES, RANGE_LABELS } from '../../lib/analytics/range';
@@ -140,6 +142,7 @@
   ];
   const TAB_OF: Record<string, Tab> = {
     load: 'overview',
+    adherence: 'overview',
     heatmap: 'overview',
     mix: 'training',
     strain: 'training',
@@ -386,6 +389,13 @@
     return { perColumn, window: planProgress(soFar.flatMap((id) => trainingState.getWorkoutsForWeek(id))) };
   });
 
+  // --- Done vs Missed: what became of the planned sessions, per column and over the window (`lib/analytics/adherence`).
+  const adherence = $derived.by(() => {
+    const perColumn = buckets.map((b) => b.weekIds.flatMap((id) => trainingState.getWorkoutsForWeek(id)));
+    const all = perColumn.flat();
+    return { counts: perColumn.map((ws) => countOutcomes(ws, today)), totals: countOutcomes(all, today), ...adherenceBreakdown(all, today) };
+  });
+
   // --- Pain timeline: a row per issue (start to end), ringed where a load spike was
   // near (judged week by week, whatever the column size).
   const painData = $derived.by(() => {
@@ -573,6 +583,10 @@
       <FingerLoadPanel columns={fingerColumns} {axisStep} {tips} />
       {/snippet}
 
+      {#snippet adherenceSection()}
+      <AdherencePanel {chartData} {axisStep} counts={adherence.counts} totals={adherence.totals} byWeekday={adherence.byWeekday} byKind={adherence.byKind} />
+      {/snippet}
+
       {#snippet heatmapSection()}
       <HeatmapPanel endDay={lastDay} {today} />
       {/snippet}
@@ -633,6 +647,7 @@
 
       {#snippet section(id: string)}
         {#if id === 'load'}{@render loadSection()}
+        {:else if id === 'adherence'}{@render adherenceSection()}
         {:else if id === 'strain'}{@render strainSection()}
         {:else if id === 'fingerLoad'}{@render fingerLoadSection()}
         {:else if id === 'heatmap'}{@render heatmapSection()}

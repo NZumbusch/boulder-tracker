@@ -89,6 +89,9 @@ export function renderProfileSections(profile: AIContextProfile, mode: AIPromptM
     const weeks = history?.fullWeeks;
     sections.push(`- Completed Sessions${weeks ? ` (last ${weeks} week${weeks === 1 ? "" : "s"}, in full${SESSION_LEGEND})` : ` (${SESSION_LEGEND.slice(2)})`}:\n${lines(profile.recentWorkouts, false)}`);
   }
+  if (profile.missedSessions?.length) {
+    sections.push(`- Missed Sessions (planned in the same weeks but not done; sessions I marked skipped are left out): ${profile.missedSessions.join("; ")}`);
+  }
   if (profile.weeklyHistory?.length) {
     sections.push(`- Weekly History before that (one line per week, oldest first: sessions, total minutes, summed load, logged minutes per category, average post-session ratings 1-10, "missed" = planned sessions left undone):\n${lines(profile.weeklyHistory)}`);
   }

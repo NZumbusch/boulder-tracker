@@ -372,7 +372,7 @@ function adherenceInsights(i: InsightInputs): Insight[] {
       tone: share >= 0.8 ? "good" : share < i.config.adherenceLow ? "caution" : "info",
       title: `${Math.round(share * 100)}% of planned sessions done, last 4 weeks`,
       detail: `${done} of ${done + missed} (skipped sessions don't count against you).`,
-      link: { kind: "panel", tab: "overview", section: "section-load" },
+      link: { kind: "panel", tab: "overview", section: "section-adherence" },
     });
   }
   const todayIndex = isoDayIndex(WEEK_DAYS[(i.asOf.getDay() + 6) % 7]);

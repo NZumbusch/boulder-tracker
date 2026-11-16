@@ -477,3 +477,12 @@ The Java was never compiled or run (no Android SDK in the cloud session); the re
 - 33.6 "Take moves made in the calendar" off: moved events go back.
 - 33.7 A planned session not done yesterday: gone from the calendar today. "Keep missed sessions" on: it comes back.
 - 33.8 Edit a session in the app: within ~10 s only a week back onwards is compared (fast); Sync now compares everything. Time a Sync now with "all / whole plan".
+
+## 34. Done vs Missed (2026-11-16)
+
+- 34.1 Analytics → Overview: "Done vs Missed" after Rolling Load (existing installs get it too, visible). Bars: green done, grey skipped, red missed; weeks still ahead have no bar.
+- 34.2 Tap a column: its done/missed/skipped and % of the plan. The line pane below: % of the planned work, capped at 100%.
+- 34.3 By weekday and "Missed most" match what you remember; a session with every exercise skipped counts as skipped, not missed.
+- 34.4 The "X% of planned sessions done" finding opens this card.
+- 34.5 AI Coach prompt: "- Missed Sessions (...)" lists the recent full weeks' missed sessions; "What takes the space" names it.
+- 34.6 Calendar cleanup on (Keep missed off): the missed session is gone from the phone calendar but still counted here and in the Plan.

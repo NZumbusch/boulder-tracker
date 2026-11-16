@@ -16,6 +16,8 @@ import type {
   WeekNote,
   Workout,
 } from "../types";
+import { sessionOutcome } from "../analytics/adherence";
+import { sessionDay } from "../planning/calendarEvents";
 import type { Place } from "../places/places";
 import type { CalendarEntry } from "../calendar/aiCalendar";
 import { slotTypeName, slotValues, logNote } from "../exerciseSlot";
@@ -304,6 +306,20 @@ export function buildRecentWorkouts(
     .filter((w) => w.status === "completed" && weeks.has(w.weekId))
     .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
     .map((w) => summarizeWorkout(w, exerciseTypes, notes));
+}
+
+/**
+ * The planned sessions of `weekIds` that weren't done and whose day is over (skipped ones left out - see
+ * `lib/analytics/adherence`), one short line each, oldest first: "2026-W45 Tue: Board session".
+ */
+export function buildMissedSessions(workouts: Workout[], weekIds: string[], asOf: Date): string[] {
+  const weeks = new Set(weekIds);
+  const today = toUtcDayIndex(localIsoDate(asOf));
+  return workouts
+    .filter((w) => w.status === "planned" && weeks.has(w.weekId) && sessionOutcome(w, today) === "missed")
+    .map((w) => ({ w, day: sessionDay(w) ?? Infinity }))
+    .sort((a, b) => a.day - b.day || a.w.weekId.localeCompare(b.w.weekId))
+    .map(({ w }) => `${w.weekId}${w.dayOfWeek ? ` ${w.dayOfWeek.slice(0, 3)}` : ""}: ${w.notes?.trim() || "Session"}`);
 }
 
 /** Completed workouts whose `weekId` falls in `weekIds` - "Analyze Past"'s own scoped window, full detail (not just names). */
@@ -823,6 +839,8 @@ export interface AIContextProfile {
   phases?: string[];
   /** Completed sessions in full: the history window's recent weeks, or (analyze) the chosen weeks. */
   recentWorkouts: RecentWorkoutSummary[];
+  /** Planned sessions left undone in the same weeks as `recentWorkouts` (`buildMissedSessions`). */
+  missedSessions?: string[];
   /** One line per older week - not for analyze, which is scoped to its own weeks. */
   weeklyHistory?: WeekHistorySummary[];
   benchmarks: AIBenchmarkLine[];
@@ -890,6 +908,8 @@ export function buildAIContextProfile(
   const lookAsOf = mode === "analyze" ? analysisAsOf(targetWeekIds, asOf) : asOf;
 
   const profile: AIContextProfile = { recentWorkouts, benchmarks: condenseBenchmarks(benchmarks, source.benchmarkTypes, source.valueDefs, mode === "analyze" ? Infinity : undefined) };
+  const missed = buildMissedSessions(source.workouts, mode === "analyze" ? targetWeekIds : historyWeekIds(asOf, history).full, asOf);
+  if (missed.length) profile.missedSessions = missed;
 
   if (mode !== "analyze") {
     const tests = buildTestSummaries(source, asOf, model.retestWeeks);

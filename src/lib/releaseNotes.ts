@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-16-done-vs-missed",
+    title: "Done vs missed",
+    points: [
+      "Analytics → Overview has a new card, Done vs Missed: per week the planned sessions you did, skipped and missed, how much of the planned work you did, which weekdays you miss most and which sessions.",
+      "The AI coach now sees the sessions you missed in the recent weeks it reads in full, not only the ones you did. Missed sessions always stay in the app - the calendar cleanup only touches the phone calendar.",
+    ],
+  },
+  {
     id: "2026-11-16-calendar-two-way",
     title: "Move sessions in your calendar",
     points: [
