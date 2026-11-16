@@ -1,7 +1,7 @@
 /**
  * Your sessions in a calendar of your own (Android): the app writes every
- * session of a window around today (by default 4 weeks back to 1 week
- * ahead) into one calendar you pick - typically an empty "Training"
+ * session of a window around today (by default all of it: from the first
+ * session to the end of the plan) into one calendar you pick - typically an empty "Training"
  * calendar under a Google account - and keeps it up to date. The phone's
  * calendar provider is the only thing the app talks to; the account's own
  * sync (Google) takes the events to the cloud and every other device, so
@@ -26,7 +26,7 @@ import { DAY_MS, weekIdOfDayIndex } from "../planning/calendarEvents";
 import { DeviceCalendar, deviceCalendarSupported, type NativeCalendar } from "../native/deviceCalendar";
 import { hashOf } from "../sync/merge";
 import {
-  DEFAULT_SYNC_OPTIONS, desiredEvents, hasChanges, localMidnight, reconcile, syncWindow,
+  DEFAULT_SYNC_OPTIONS, desiredEvents, hasChanges, localMidnight, planSpan, reconcile, syncWindow,
   type CalendarSyncOptions, type DesiredEvent,
 } from "./events";
 
@@ -118,7 +118,7 @@ class CalendarSyncStore {
   /** The window around today and the events that should be in it. Reactive: reads the plan. */
   #desired(): { events: DesiredEvent[]; windowStart: number } {
     const today = toUtcDayIndex(localIsoDate());
-    const { fromDay, toDay } = syncWindow(today, this.options);
+    const { fromDay, toDay } = syncWindow(today, this.options, planSpan(trainingState.workouts, trainingState.trainingBlocks));
     const weeks = getWeekIdRange(weekIdOfDayIndex(fromDay), weekIdOfDayIndex(toDay));
     const events = desiredEvents({
       workouts: weeks.flatMap((w) => trainingState.getWorkoutsForWeek(w)),
@@ -229,10 +229,16 @@ class CalendarSyncStore {
             deletes: changes.deletes,
           })
         : { inserted: 0, updated: 0, deleted: 0 };
-      this.#lastWritten = hashOf(desired);
       this.lastResult = result;
       this.lastSyncAt = Date.now();
-      this.error = null;
+      if (result.failed) {
+        // The rest was written; the next sync tries these again.
+        this.#lastWritten = null;
+        this.error = `${result.failed} change${result.failed === 1 ? "" : "s"} could not be written${result.error ? `: ${result.error}` : ""}. The next sync tries again.`;
+      } else {
+        this.#lastWritten = hashOf(desired);
+        this.error = null;
+      }
     } catch (err) {
       this.error = errorText(err);
     } finally {

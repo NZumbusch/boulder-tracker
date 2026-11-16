@@ -27,7 +27,7 @@ export interface NativeEventInput {
   description: string;
 }
 
-/** An event the app wrote earlier, as the calendar holds it now. */
+/** An event the app wrote earlier, as the calendar holds it now - `description` is only its last line (the marker). */
 export interface NativeAppEvent {
   eventId: string;
   begin: number;
@@ -70,7 +70,7 @@ interface DeviceCalendarPlugin {
     inserts: NativeEventInput[];
     updates: (NativeEventInput & { eventId: string })[];
     deletes: string[];
-  }): Promise<{ inserted: number; updated: number; deleted: number }>;
+  }): Promise<{ inserted: number; updated: number; deleted: number; failed?: number; error?: string }>;
 }
 
 export const DeviceCalendar = registerPlugin<DeviceCalendarPlugin>("DeviceCalendar");

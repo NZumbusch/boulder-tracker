@@ -453,7 +453,8 @@ The Java was never compiled or run (no Android SDK in the cloud session); the re
 - 31.5 Move one of these events in Samsung Calendar: reopen the app, it goes back.
 - 31.6 Add your own event to "Training": the app never changes or removes it.
 - 31.7 The Plan calendar's phone events and the AI's calendar context do not show "Training" (no double sessions); it is missing from the View button's calendar list.
-- 31.8 Weeks ahead 4 / back 0: more events ahead; older ones stay as they were. Back to 1: events beyond the next week go.
+- 31.8 Default "whole plan" / "all": every session from the first one to the plan's end is in the calendar (time a first sync with a long history). Weeks ahead 4 / back 0: events beyond 4 weeks go; older ones stay as they were.
+- 31.12 A change the calendar refuses (hard to provoke): the rest is still written and the card says "N changes could not be written"; the next sync retries.
 - 31.9 Turn off → "Remove them": every app event leaves "Training", your own stay. "Keep them": they stay, nothing more is written.
 - 31.10 Delete "Training" on the web, let the phone sync, open the app: the card says it is gone and offers another calendar.
 - 31.11 With Drive sync on two devices and writing on both into the same calendar: no duplicates stay after both have synced (dedupe keeps the first). Tour / example data: nothing is written.

@@ -3,7 +3,7 @@ import type { TrainingBlock, Workout } from "../types";
 import { DAY_MS } from "../planning/calendarEvents";
 import { toUtcDayIndex } from "../dateUtils";
 import {
-  DEFAULT_SYNC_OPTIONS, desiredEvents, localMidnight, readMarker, reconcile, syncWindow,
+  ALL_WEEKS, DEFAULT_SYNC_OPTIONS, desiredEvents, localMidnight, planSpan, readMarker, reconcile, syncWindow,
   type CalendarSyncOptions, type DesiredEvent, type ExistingEvent,
 } from "./events";
 
@@ -80,6 +80,21 @@ describe("readMarker", () => {
 describe("syncWindow", () => {
   it("runs from weeks back to weeks ahead of today", () => {
     expect(syncWindow(100, { weeksBack: 4, weeksAhead: 1 })).toEqual({ fromDay: 72, toDay: 107 });
+  });
+
+  it("reaches the whole plan for All, never closer than today", () => {
+    expect(syncWindow(100, { weeksBack: ALL_WEEKS, weeksAhead: ALL_WEEKS }, { firstDay: 10, lastDay: 300 })).toEqual({ fromDay: 10, toDay: 300 });
+    expect(syncWindow(100, { weeksBack: ALL_WEEKS, weeksAhead: ALL_WEEKS }, { firstDay: 120, lastDay: 90 })).toEqual({ fromDay: 100, toDay: 100 });
+    expect(syncWindow(100, { weeksBack: ALL_WEEKS, weeksAhead: 1 }, null)).toEqual({ fromDay: 100, toDay: 107 });
+  });
+});
+
+describe("planSpan", () => {
+  it("covers stored sessions and phases", () => {
+    const block = { startDate: "2026-12-01", endDate: "2027-02-28" };
+    const done = workout({ status: "completed", date: "2025-03-04T18:00:00.000Z" });
+    expect(planSpan([done], [block])).toEqual({ firstDay: toUtcDayIndex("2025-03-04"), lastDay: toUtcDayIndex("2027-02-28") });
+    expect(planSpan([], [])).toBeNull();
   });
 });
 

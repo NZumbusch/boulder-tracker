@@ -51,7 +51,8 @@ import java.util.concurrent.Executors;
  *   them in one batch. Updates and deletes only ever touch events of that
  *   calendar that carry the marker (looked up first - the provider refuses a
  *   selection on a single event), so nothing the app did not write can be
- *   changed. `{ inserted, updated, deleted }`.
+ *   changed. One batch; if it fails, one change at a time, so a bad one
+ *   costs only itself. `{ inserted, updated, deleted, failed, error? }`.
  *
  * Writing goes through the provider like the phone's calendar app does: the
  * account's own sync (Google) then takes the events to the cloud.
@@ -69,6 +70,8 @@ import java.util.concurrent.Executors;
 public class DeviceCalendarPlugin extends Plugin {
     /** A calendar can hold years of events; a few weeks of a person's own never come near this. */
     private static final int MAX_EVENTS = 3000;
+    /** The app's own events read back for a sync: years of sessions, so far more - each is small (only its marker line goes back). */
+    private static final int MAX_APP_EVENTS = 50000;
     /** Longest location or description handed to the page, in characters. */
     private static final int MAX_TEXT = 2000;
     private static final int STATUS_DECLINED = 2; // CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED
@@ -258,7 +261,7 @@ public class DeviceCalendarPlugin extends Plugin {
             String[] args = { calendarId, String.valueOf(from), MARKER_LIKE };
             JSArray events = new JSArray();
             try (Cursor c = getContext().getContentResolver().query(CalendarContract.Events.CONTENT_URI, projection, selection, args, CalendarContract.Events.DTSTART + " ASC")) {
-                while (c != null && c.moveToNext() && events.length() < MAX_EVENTS) {
+                while (c != null && c.moveToNext() && events.length() < MAX_APP_EVENTS) {
                     JSObject o = new JSObject();
                     o.put("eventId", String.valueOf(c.getLong(0)));
                     o.put("begin", c.getLong(1));
@@ -266,7 +269,8 @@ public class DeviceCalendarPlugin extends Plugin {
                     o.put("allDay", c.getInt(3) == 1);
                     o.put("title", c.getString(4));
                     o.put("location", c.getString(5));
-                    o.put("description", c.getString(6));
+                    // Only the last line (the marker): it is all the sync compares, and keeps thousands of events light.
+                    o.put("description", lastLine(c.getString(6)));
                     events.put(o);
                 }
                 call.resolve(new JSObject().put("events", events));
@@ -324,10 +328,29 @@ public class DeviceCalendarPlugin extends Plugin {
                     ops.add(ContentProviderOperation.newDelete(uri).build());
                     kinds.append('d');
                 }
-                int inserted = 0, updated = 0, deleted = 0;
+                int inserted = 0, updated = 0, deleted = 0, failed = 0;
+                String firstError = null;
                 if (!ops.isEmpty()) {
-                    ContentProviderResult[] results = getContext().getContentResolver().applyBatch(CalendarContract.AUTHORITY, ops);
+                    ContentResolver resolver = getContext().getContentResolver();
+                    ContentProviderResult[] results;
+                    try {
+                        results = resolver.applyBatch(CalendarContract.AUTHORITY, ops);
+                    } catch (Exception batchError) {
+                        // One bad change must not hold back the rest: one at a time, the failures counted.
+                        results = new ContentProviderResult[ops.size()];
+                        for (int i = 0; i < ops.size(); i++) {
+                            ArrayList<ContentProviderOperation> one = new ArrayList<>();
+                            one.add(ops.get(i));
+                            try {
+                                results[i] = resolver.applyBatch(CalendarContract.AUTHORITY, one)[0];
+                            } catch (Exception e) {
+                                failed++;
+                                if (firstError == null) firstError = e.getMessage() != null ? e.getMessage() : e.toString();
+                            }
+                        }
+                    }
                     for (int i = 0; i < results.length; i++) {
+                        if (results[i] == null) continue;
                         char kind = kinds.charAt(i);
                         if (kind == 'i') { if (results[i].uri != null) inserted++; }
                         else if (results[i].count != null) {
@@ -336,7 +359,9 @@ public class DeviceCalendarPlugin extends Plugin {
                         }
                     }
                 }
-                call.resolve(new JSObject().put("inserted", inserted).put("updated", updated).put("deleted", deleted));
+                JSObject res = new JSObject().put("inserted", inserted).put("updated", updated).put("deleted", deleted).put("failed", failed);
+                if (firstError != null) res.put("error", firstError);
+                call.resolve(res);
             } catch (Exception e) {
                 call.reject(e.getMessage() != null ? e.getMessage() : "Could not write the events", e);
             }
@@ -380,6 +405,13 @@ public class DeviceCalendarPlugin extends Plugin {
         v.put(CalendarContract.Events.EVENT_LOCATION, o.optString("location"));
         v.put(CalendarContract.Events.DESCRIPTION, o.optString("description"));
         return v;
+    }
+
+    private static String lastLine(String text) {
+        if (text == null) return null;
+        String t = text.trim();
+        int nl = t.lastIndexOf('\n');
+        return nl < 0 ? t : t.substring(nl + 1);
     }
 
     private static String cap(String text, int max) {

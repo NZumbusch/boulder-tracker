@@ -4,7 +4,7 @@
    * `lib/calendarSync/calendarSync.svelte.ts`.
    */
   import { calendarSync } from '../../lib/calendarSync/calendarSync.svelte';
-  import { WEEKS_AHEAD_CHOICES, WEEKS_BACK_CHOICES } from '../../lib/calendarSync/events';
+  import { ALL_WEEKS, WEEKS_AHEAD_CHOICES, WEEKS_BACK_CHOICES } from '../../lib/calendarSync/events';
   import { showConfirm } from '../../lib/utils';
   import ActionRow from './ActionRow.svelte';
   import Toggle from '../ui/Toggle.svelte';
@@ -46,7 +46,7 @@
   }
 
   const when = (t: number) => new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const weeks = (n: number) => (n === 0 ? 'none' : n === 52 ? 'a year' : n === 1 ? '1 week' : `${n} weeks`);
+  const weeks = (n: number, all: string) => (n === ALL_WEEKS ? all : n === 0 ? 'none' : n === 52 ? 'a year' : n === 1 ? '1 week' : `${n} weeks`);
   const selectClass = 'field !w-auto max-w-[60%]';
 </script>
 
@@ -74,13 +74,13 @@
         <label class="flex items-center justify-between gap-3 min-h-11 py-2 px-1">
           <span class="text-body text-content">Weeks ahead</span>
           <select class={selectClass} value={calendarSync.options.weeksAhead} onchange={(e) => calendarSync.setOption('weeksAhead', Number(e.currentTarget.value))}>
-            {#each WEEKS_AHEAD_CHOICES as n}<option value={n}>{weeks(n)}</option>{/each}
+            {#each WEEKS_AHEAD_CHOICES as n}<option value={n}>{weeks(n, 'whole plan')}</option>{/each}
           </select>
         </label>
         <label class="flex items-center justify-between gap-3 min-h-11 py-2 px-1">
           <span class="text-body text-content">Weeks back kept up to date</span>
           <select class={selectClass} value={calendarSync.options.weeksBack} onchange={(e) => calendarSync.setOption('weeksBack', Number(e.currentTarget.value))}>
-            {#each WEEKS_BACK_CHOICES as n}<option value={n}>{weeks(n)}</option>{/each}
+            {#each WEEKS_BACK_CHOICES as n}<option value={n}>{weeks(n, 'all')}</option>{/each}
           </select>
         </label>
         <div class="px-1"><Toggle checked={calendarSync.options.includeDone} onChange={(v) => calendarSync.setOption('includeDone', v)} label="Done sessions" hint="Kept, at the time they happened, marked ✓" /></div>

@@ -14,15 +14,18 @@
  * as the app has it on the next sync.
  */
 import type { ExerciseTypeDef, TrainingBlock, Workout } from "../types";
-import { DAY_MS, toCalendarSession } from "../planning/calendarEvents";
+import { DAY_MS, sessionDay, toCalendarSession } from "../planning/calendarEvents";
 import { summarizeSession } from "../planning/sessionSummary";
 import { phaseOnDay } from "../planning/trainingBlocks";
 import { hashOf } from "../sync/merge";
 
+/** "All": the whole plan ahead, or everything back to the first session. */
+export const ALL_WEEKS = -1;
+
 export interface CalendarSyncOptions {
-  /** Whole weeks after today written to the calendar. */
+  /** Whole weeks after today written to the calendar, or `ALL_WEEKS` (to the end of the plan). */
   weeksAhead: number;
-  /** Whole weeks before today kept up to date (older events are left as they are). */
+  /** Whole weeks before today kept up to date (older events are left as they are), or `ALL_WEEKS` (from the first session). */
   weeksBack: number;
   /** Finished sessions stay, at the time they happened, marked ✓. */
   includeDone: boolean;
@@ -35,16 +38,16 @@ export interface CalendarSyncOptions {
 }
 
 export const DEFAULT_SYNC_OPTIONS: CalendarSyncOptions = {
-  weeksAhead: 1,
-  weeksBack: 4,
+  weeksAhead: ALL_WEEKS,
+  weeksBack: ALL_WEEKS,
   includeDone: true,
   exercises: true,
   planNotes: true,
   howItWent: false,
 };
 
-export const WEEKS_AHEAD_CHOICES = [1, 2, 4, 8, 12, 52] as const;
-export const WEEKS_BACK_CHOICES = [0, 1, 4, 12, 52] as const;
+export const WEEKS_AHEAD_CHOICES = [ALL_WEEKS, 1, 2, 4, 8, 12, 52] as const;
+export const WEEKS_BACK_CHOICES = [ALL_WEEKS, 0, 1, 4, 12, 52] as const;
 
 /** An event as the app wants it in the calendar. */
 export interface DesiredEvent {
@@ -85,9 +88,36 @@ export function readMarker(description: string | null | undefined): { sessionId:
   return m ? { sessionId: m[1], hash: m[2] } : null;
 }
 
-/** The days (as day indexes, inclusive) the sync looks after: `weeksBack` weeks before today to `weeksAhead` after. */
-export function syncWindow(today: number, options: Pick<CalendarSyncOptions, "weeksAhead" | "weeksBack">): { fromDay: number; toDay: number } {
-  return { fromDay: today - 7 * options.weeksBack, toDay: today + 7 * options.weeksAhead };
+/**
+ * The days (as day indexes, inclusive) the sync looks after: `weeksBack` weeks before today to `weeksAhead` after.
+ * "All" reaches to the plan's first / last day (`span`), never closer than today.
+ */
+export function syncWindow(
+  today: number,
+  options: Pick<CalendarSyncOptions, "weeksAhead" | "weeksBack">,
+  span: { firstDay: number; lastDay: number } | null = null,
+): { fromDay: number; toDay: number } {
+  return {
+    fromDay: options.weeksBack === ALL_WEEKS ? Math.min(today, span?.firstDay ?? today) : today - 7 * options.weeksBack,
+    toDay: options.weeksAhead === ALL_WEEKS ? Math.max(today, span?.lastDay ?? today) : today + 7 * options.weeksAhead,
+  };
+}
+
+/** The first and last day the plan has anything on: stored sessions and phases. Null when there is nothing. */
+export function planSpan(workouts: Workout[], blocks: Pick<TrainingBlock, "startDate" | "endDate">[]): { firstDay: number; lastDay: number } | null {
+  let firstDay = Infinity;
+  let lastDay = -Infinity;
+  const see = (day: number | null) => {
+    if (day === null || !Number.isFinite(day)) return;
+    firstDay = Math.min(firstDay, day);
+    lastDay = Math.max(lastDay, day);
+  };
+  for (const w of workouts) see(sessionDay(w));
+  for (const b of blocks) {
+    see(Date.parse(`${b.startDate}T00:00:00Z`) / DAY_MS);
+    see(Date.parse(`${b.endDate}T00:00:00Z`) / DAY_MS);
+  }
+  return Number.isFinite(firstDay) ? { firstDay, lastDay } : null;
 }
 
 /** Local midnight at the start of a day index. */
