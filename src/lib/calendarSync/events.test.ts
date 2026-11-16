@@ -201,3 +201,24 @@ describe("moves in the calendar", () => {
     expect(moveTarget({ sessionId: "w1", begin: Date.UTC(2026, 10, 13), end: Date.UTC(2026, 10, 14), allDay: true })).toEqual({ day: toUtcDayIndex("2026-11-13") });
   });
 });
+
+describe("updating from the first version (old markers, missed sessions in the calendar)", () => {
+  it("removes past missed sessions, rewrites the rest once, and moves nothing", () => {
+    const today = TUE + 2; // Thursday
+    const missed = workout({ id: "m", startTime: "18:00" }); // Tuesday, not done
+    const done = workout({ id: "d", status: "completed", date: "2026-11-09T18:00:00.000Z", startTime: "18:00", dayOfWeek: "Monday" });
+    const ahead = workout({ id: "a", startTime: "18:00", dayOfWeek: "Saturday" });
+    const args = { blocks: [], exerciseTypes: [], options: DEFAULT_SYNC_OPTIONS, fromDay: TUE - 28, toDay: TUE + 7 };
+    // What the first version wrote: every session, markers without times.
+    const before = desiredEvents({ ...args, workouts: [missed, done, ahead], today: TUE - 3, options: { ...DEFAULT_SYNC_OPTIONS, keepMissed: true } });
+    const oldEvents = written(before).map((e) => ({ ...e, description: e.description.replace(/ · [0-9a-z]+-[0-9a-z]+(\/a)?$/, "") }));
+    const now = desiredEvents({ ...args, workouts: [missed, done, ahead], today });
+    expect(now.map((e) => e.sessionId).sort()).toEqual(["a", "d"]);
+    const c = reconcile(now, oldEvents, localMidnight(TUE - 28), true);
+    const idOf = (sessionId: string) => oldEvents.find((e) => readMarker(e.description)?.sessionId === sessionId)!.eventId;
+    expect(c.deletes).toEqual([idOf("m")]);
+    expect(c.updates.map((u) => u.sessionId).sort()).toEqual(["a", "d"]);
+    expect(c.moves).toEqual([]);
+    expect(c.inserts).toEqual([]);
+  });
+});
