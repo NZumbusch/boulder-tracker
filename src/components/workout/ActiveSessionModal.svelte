@@ -27,7 +27,7 @@
   import { formatClock, formatMinutes } from '../../lib/session/formatSession';
   import { slotSummary } from '../../lib/session/slotDetails';
   import { generateId } from '../../lib/utils';
-  import { dndzone, type DndEvent } from 'svelte-dnd-action';
+  import { dragHandleZone, dragHandle, type DndEvent } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
   import ExerciseForm from './ExerciseForm.svelte';
   import ExerciseDetails from './ExerciseDetails.svelte';
@@ -43,6 +43,7 @@
   import PresetNameSheet from './PresetNameSheet.svelte';
   import { CIRCUIT_LEAD_IN_SECONDS } from '../../lib/timer/circuitRun';
   import { workoutItems, groupMinutes, groupSummary, groupSlots, ungroup, takeOutOfGroup, addToGroup, updateGroup, settleAfterMove, normaliseGroups } from '../../lib/exercise/groups';
+  import { settleDrop } from '../../lib/session/slotList';
   import { repsPerSet } from '../../lib/exercise/reps';
   import GroupSettings from './GroupSettings.svelte';
   import CircuitPill from './CircuitPill.svelte';
@@ -593,13 +594,24 @@
     building = null;
   }
 
+  /**
+   * The list while a card is being dragged. The steps of a drag stay here, not in the session: the drag library puts a
+   * stand-in card into the list as it moves, and storing those steps once left a stand-in in the saved session - two
+   * cards with one id, an error on every start until the app's data was wiped. Only the drop is written.
+   */
+  let dragItems = $state<ExerciseSlot[] | null>(null);
+  const editItems = $derived(dragItems ?? exercises);
+  $effect(() => { if (!isEditingPlan) dragItems = null; });
+
   function handleDnd(e: CustomEvent<DndEvent<ExerciseSlot>>) {
-    store.reorderExercises(e.detail.items);
+    dragItems = e.detail.items;
   }
 
   /** On drop, an exercise landing inside a circuit joins it; a member dragged out leaves (as in the plan editor). */
   function handleDndFinalize(e: CustomEvent<DndEvent<ExerciseSlot>>) {
-    store.regroupExercises(normaliseGroups({ exercises: settleAfterMove(e.detail.items), groups: store.workout?.groups }));
+    dragItems = null;
+    const base = groupingBase();
+    store.regroupExercises(normaliseGroups({ exercises: settleAfterMove(settleDrop(base.exercises, e.detail.items)), groups: base.groups }));
   }
 
   const circuitOf = (slot: ExerciseSlot) => (slot.groupId ? store.workout?.groups?.find((g) => g.id === slot.groupId) : undefined);
@@ -819,11 +831,11 @@
           </div>
           <section
             class="space-y-2.5 outline-none"
-            use:dndzone={{ items: exercises, dropTargetStyle: {}, delayTouchStart: true }}
+            use:dragHandleZone={{ items: editItems, flipDurationMs: motionMs(200), dropTargetStyle: {} }}
             onconsider={handleDnd}
             onfinalize={handleDndFinalize}
           >
-            {#each exercises as slot (slot.id)}
+            {#each editItems as slot (slot.id)}
               {@const group = circuitOf(slot)}
               {@const first = !!group && groupStarts.get(slot.id)?.id === group.id}
               <div animate:flip={{ duration: motionMs(200) }} class="p-3 bg-surface/60 border border-border rounded-card space-y-2 {group ? 'border-l-4 border-l-primary/60' : ''}">
@@ -856,7 +868,10 @@
                   {/if}
                 {/if}
                 <div class="flex items-center gap-2.5">
-                  <Icon icon="ic:baseline-drag-indicator" class="text-xl text-content-subtle shrink-0 cursor-grab active:cursor-grabbing" aria-label="Drag to reorder" />
+                  <!-- Only the handle drags: a finger anywhere else on the card scrolls the list. -->
+                  <div use:dragHandle class="shrink-0 -ml-1 min-w-11 min-h-11 grid place-items-center touch-none cursor-grab active:cursor-grabbing text-content-subtle" aria-label="Drag {slotTypeName(slot, trainingState.exerciseTypes)} to reorder">
+                    <Icon icon="ic:baseline-drag-indicator" class="text-xl" />
+                  </div>
                   <button onclick={() => { if (!lockedByRun(slot)) editingSlotId = slot.id; }} class="min-w-0 flex-1 min-h-11 flex flex-col justify-center text-left" title="Edit what you did">
                     <p class="text-body font-bold text-content truncate">{slotTypeName(slot, trainingState.exerciseTypes)}</p>
                     <p class="text-caption text-content-subtle truncate">{slotSummary(slot) || '—'}</p>
@@ -864,7 +879,7 @@
                   {#if group}
                     <button
                       onclick={() => { addToGroupId = group.id; isAddingExercise = true; }}
-                      class="btn-icon shrink-0 hover:text-primary {group.id !== slot.groupId || exercises[exercises.indexOf(slot) + 1]?.groupId === group.id ? 'hidden' : ''}"
+                      class="btn-icon shrink-0 hover:text-primary {group.id !== slot.groupId || editItems[editItems.indexOf(slot) + 1]?.groupId === group.id ? 'hidden' : ''}"
                       aria-label="Add an exercise to this circuit"
                       title="Add to {group.name || 'the circuit'}"
                     >
@@ -1081,7 +1096,7 @@
 
     <!-- Footer: one row. Pause and End (and Finish) are the buttons that need a thumb; Edit, Add and the tucked timer sit
          behind the menu at the left, so the bar has one kind of button in one row. While editing, the menu is a Done button. -->
-    <footer bind:offsetHeight={footerH} class="shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
+    <footer bind:offsetHeight={footerH} class="relative z-20 shrink-0 border-t border-border bg-surface/90 backdrop-blur-md">
       <div class="max-w-lg short:max-w-none mx-auto w-full px-4 py-2 short:py-1 flex items-center gap-2 short:gap-3">
         {#if isEditingPlan}
           <button
