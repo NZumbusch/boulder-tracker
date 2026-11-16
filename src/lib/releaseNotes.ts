@@ -25,6 +25,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     points: [
       "Analytics → Overview has a new card, Done vs Missed: per week the planned sessions you did, skipped and missed, how much of the planned work you did, which weekdays you miss most and which sessions.",
       "The AI coach now sees the sessions you missed in the recent weeks it reads in full, not only the ones you did. Missed sessions always stay in the app - the calendar cleanup only touches the phone calendar.",
+      "Settings → Plan calendar → Hide missed sessions takes them out of the Weeks list and the calendar - only hidden: the week's \"x of y done\", Analytics and the AI still count them.",
     ],
   },
   {

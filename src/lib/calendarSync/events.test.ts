@@ -211,7 +211,7 @@ describe("updating from the first version (old markers, missed sessions in the c
     const args = { blocks: [], exerciseTypes: [], options: DEFAULT_SYNC_OPTIONS, fromDay: TUE - 28, toDay: TUE + 7 };
     // What the first version wrote: every session, markers without times.
     const before = desiredEvents({ ...args, workouts: [missed, done, ahead], today: TUE - 3, options: { ...DEFAULT_SYNC_OPTIONS, keepMissed: true } });
-    const oldEvents = written(before).map((e) => ({ ...e, description: e.description.replace(/ · [0-9a-z]+-[0-9a-z]+(\/a)?$/, "") }));
+    const oldEvents = written(before).map((e) => ({ ...e, description: e.description!.replace(/ · [0-9a-z]+-[0-9a-z]+(\/a)?$/, "") }));
     const now = desiredEvents({ ...args, workouts: [missed, done, ahead], today });
     expect(now.map((e) => e.sessionId).sort()).toEqual(["a", "d"]);
     const c = reconcile(now, oldEvents, localMidnight(TUE - 28), true);

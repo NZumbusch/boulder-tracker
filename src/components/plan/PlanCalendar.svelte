@@ -7,6 +7,7 @@
    * (`getWeekPlanView`), so a finished live session shows up here with the
    * time it actually took.
    */
+  import { sessionOutcome } from '../../lib/analytics/adherence';
   import { layout } from '../../lib/navigation/layoutMode.svelte';
   import Icon from '@iconify/svelte';
   import { onDestroy, onMount } from 'svelte';
@@ -143,6 +144,9 @@
         })
       : { sessions: [], replaced: new Set<string>() },
   );
+  /** Settings -> Plan calendar -> Hide missed sessions: only hidden here, still in the data and every count. */
+  const hideMissed = $derived(trainingState.tunableOn('plan.hideMissed'));
+  const todayDay = $derived(toUtcDayIndex(trainingState.todayIso));
   const sessions = $derived.by(() => {
     const [from, to] = range;
     const seen = new Map<string, CalendarSession>();
@@ -150,7 +154,7 @@
     for (let d = from - 7; d <= to + 7; d += 7) {
       for (const w of trainingState.getWeekPlanView(weekIdOfDayIndex(d)).shown) {
         const s = toCalendarSession(w, running.isRunning(w.id) ? running.elapsedMinutes : undefined);
-        if (s && s.day >= from && s.day <= to && !(w.status === 'planned' && imported.replaced.has(w.id))) seen.set(w.id, s);
+        if (s && s.day >= from && s.day <= to && !(w.status === 'planned' && imported.replaced.has(w.id)) && !(hideMissed && sessionOutcome(w, todayDay) === 'missed')) seen.set(w.id, s);
       }
     }
     return [...seen.values(), ...imported.sessions];

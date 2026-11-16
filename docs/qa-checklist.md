@@ -486,3 +486,4 @@ The Java was never compiled or run (no Android SDK in the cloud session); the re
 - 34.4 The "X% of planned sessions done" finding opens this card.
 - 34.5 AI Coach prompt: "- Missed Sessions (...)" lists the recent full weeks' missed sessions; "What takes the space" names it.
 - 34.6 Calendar cleanup on (Keep missed off): the missed session is gone from the phone calendar but still counted here and in the Plan.
+- 34.7 Settings → Plan calendar → Views → "Hide missed sessions": a past week's missed session leaves the Weeks list ("1 missed hidden" beside "x of y done", which keeps its count) and the Plan calendar; Done vs Missed still counts it.

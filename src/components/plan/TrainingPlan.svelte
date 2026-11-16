@@ -237,6 +237,10 @@
     return isEditedPlanB(w) ? w.planB.side === 'B' : w.planB.active;
   }
   const countedWorkouts = $derived(weekWorkouts.filter(counts));
+  /** The sessions the list shows: all, or without the missed ones (Settings -> Plan calendar -> Hide missed sessions - only hidden, still counted). */
+  const hideMissed = $derived(trainingState.tunableOn('plan.hideMissed'));
+  const listedWorkouts = $derived(hideMissed ? weekWorkouts.filter((w) => !isMissed(w)) : weekWorkouts);
+  const hiddenMissed = $derived(weekWorkouts.length - listedWorkouts.length);
   /** "Plan B", "Plan A · not chosen", "only in Plan A" - what a tagged row says about itself. */
   function planBMeta(w: Workout): string | undefined {
     if (!w.planB) return undefined;
@@ -313,7 +317,7 @@
   // `handleDayReassign` (see below), never a direct mutation of this array.
   let dayGroups = $state<Record<DayKey, Workout[]>>(groupByDay([]));
   $effect(() => {
-    dayGroups = groupByDay(weekWorkouts);
+    dayGroups = groupByDay(listedWorkouts);
   });
 
   // The floating + adds a session: on the calendar's day, or - in the block view - today if the selected week is this one, else its Monday.
@@ -761,7 +765,7 @@
           <div class="min-w-0">
             <h4 class="text-section uppercase text-content-muted">Sessions</h4>
             {#if weekWorkouts.length > 0}
-              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {countedWorkouts.length} done{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal} pts` : ''}{#if plannedLoadTotal > 0}{' '}<InfoButton term="load" />{/if}</p>
+              <p class="text-caption text-content-subtle tabular-nums">{doneCount} of {countedWorkouts.length} done{hiddenMissed > 0 ? ` · ${hiddenMissed} missed hidden` : ''}{plannedLoadTotal > 0 ? ` · planned load ${plannedLoadTotal} pts` : ''}{#if plannedLoadTotal > 0}{' '}<InfoButton term="load" />{/if}</p>
             {/if}
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
