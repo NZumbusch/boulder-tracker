@@ -20,6 +20,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-24-quick-log",
+    title: "Quick log",
+    points: [
+      "A session you did without the live screen: open it and tap Quick log. Every exercise is one line, filled in from the plan - change the numbers that were different, set each RPE, write skip for one you didn't do, then rate the session as usual.",
+      "Numbers that differ per set go like 10/8/8 reps or 20/22.5 kg; a - is a set or circuit round you didn't do (8/-/6). Each line ends with an empty note: for a comment on that exercise; the comment on the whole session comes on the rating screen.",
+      "Type @ and part of a name to add an exercise right there. A circuit has its own line (rounds, switch time, round rest) with its exercises indented under it; an exercise added there joins the circuit.",
+    ],
+  },
+  {
+    id: "2026-11-24-data-safety",
+    title: "Your logged sessions are protected",
+    points: [
+      "A logged session can no longer be turned back into a planned one by anything in the app - a sync, a calendar move, an old copy written back. If something tries, the logged version is kept and you get a message.",
+      "Settings → About & Help → Data log: a record of everything that reads or changes your data - each save and what it changed, sync, live sessions. If something ever goes missing, share it as a file.",
+      "Before big changes (an AI plan change, undo, a restore, a sync that rewrites logged sessions) a safety backup is saved to Documents/BoulderTracker/safety; restore one from Sync & backup.",
+    ],
+  },
+  {
     id: "2026-11-16-done-vs-missed",
     title: "Done vs missed",
     points: [

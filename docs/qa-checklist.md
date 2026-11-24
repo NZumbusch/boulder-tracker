@@ -487,3 +487,31 @@ The Java was never compiled or run (no Android SDK in the cloud session); the re
 - 34.5 AI Coach prompt: "- Missed Sessions (...)" lists the recent full weeks' missed sessions; "What takes the space" names it.
 - 34.6 Calendar cleanup on (Keep missed off): the missed session is gone from the phone calendar but still counted here and in the Plan.
 - 34.7 Settings → Plan calendar → Views → "Hide missed sessions": a past week's missed session leaves the Weeks list ("1 missed hidden" beside "x of y done", which keeps its count) and the Plan calendar; Done vs Missed still counts it.
+
+## 35. Data log, guard, safety backups (2026-11-24)
+
+- 35.1 Settings → About & Help → Data log: entries since the app started (a load line with your session count, reads, saves). Log a session: a "Sessions" line for start, each logged set, finished, "Session saved as logged", and a Saves line "workouts: ... status <id> planned→completed".
+- 35.2 Close the app (swipe away), reopen: the log still has everything from before, in order ("Database file written" lines with KB and ms after each save).
+- 35.3 Share as a file: a .txt with every entry opens in the share sheet. Copy: the newest 500 of the current filter.
+- 35.4 Drive sync with the tablet: "Drive sync done: read <device> (uploaded ...)" lines on both devices.
+- 35.5 Calendar sync on: move a planned session in the calendar - a "Calendar: session ... moved" line.
+- 35.6 Apply an AI plan change: Documents/BoulderTracker/safety has a new `safety-...-before-an-ai-plan-change.json`; the Safety filter shows "Safety backup ...". A second change within 10 min: "skipped". After 11 changes only 10 files remain.
+- 35.7 Restore one of those files (Sync & backup → Restore from a backup file): the data is as before the change and the Garmin data (Settings → Imported activities, kept Garmin data) is still there.
+- 35.8 Nothing should ever show the "Kept your logged session ..." toast in normal use. If it does: share the data log - its Safety filter has the refused version and what made it.
+- 35.9 Activity filter: "App started: version …" at every start, "App in the background" / "back in front", "Screen: …", "Session viewer opened: …", "Rating screen opened/closed", "Live session opened/minimised".
+- 35.10 Drive sync after editing a session on the tablet: on the phone a line "Drive sync: workouts/<id> (…): took <tablet>'s version - theirs … is newer than ours …".
+- 35.11 Install an update from Settings: "Update: installing version …", "Automatic backup written: …", "Update: Android's installer opened"; after it, "App started" shows the new version.
+
+## 36. Quick log (2026-11-24)
+
+- 36.1 Open a planned (or missed) session: the footer has Edit, Log as planned, Quick log, and Start on the right. The session's ⋯/long-press sheet has "Quick log (as text)".
+- 36.2 Quick log: one line per exercise with its planned numbers, "RPE ?" and an empty "note:" at the end. The keyboard doesn't autocorrect or capitalise.
+- 36.3 Change numbers, set RPEs, write "3. skip", use "10/8/8 reps" and "20/22.5 kg", add "note: ..." - Rate and save opens the usual rating; after it, the session shows the logged numbers, the skipped exercise as skipped, per-set values and the note.
+- 36.4 Write something it can't read ("banana", "RPE 12", "8/7 reps" with 5 sets, delete a line): a red "Line n: ..." each, Rate and save disabled until fixed.
+- 36.5 Close with changes: "Discard changes?". Back closes the same way.
+- 36.6 A missed session from last week: logged on its planned day, not today.
+- 36.7 Weight unit lb: lines show lb and save as the right kg.
+- 36.8 Type @ on an empty line: a list of exercises; typing filters it ("pu": Pull-ups before Campus Board); Enter or a tap puts "N. Name · - sets · - reps ... · RPE ? · note:" there. Esc closes the list.
+- 36.9 A session with a circuit: the circuit's own line (rounds, switch, round rest) with its exercises indented. Change rounds there: saved. Add an exercise with @ on an indented line between two members, and after the last member: both join the circuit; one added after it without indenting stays outside.
+- 36.10 "8/-/6 reps · +20/-/25 kg": saved as 2 sets (8 and 6 reps, 20 and 25 kg).
+- 36.11 On the phone keyboard: Enter on the @ list picks (Gboard and Samsung keyboard); indenting with spaces works where there is no Tab key.
