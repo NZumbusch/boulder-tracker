@@ -43,10 +43,15 @@ env:
   STABLE_RELEASE: stable-channel
 
 jobs:
-  deploy:
+  # Building and publishing are two jobs: when the publish step ran in the same job right after the upload, GitHub
+  # sometimes didn't list the just-uploaded site yet ("No artifacts named github-pages", actions/deploy-pages#451),
+  # and a re-run then found two. The publish job starts only once the upload is complete.
+  build:
+    # Kept on this environment: the signing secrets may belong to it.
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      apk: ${{ steps.apk.outcome }}
     runs-on: ubuntu-latest
     env:
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
@@ -184,19 +189,26 @@ jobs:
           fi
 
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v6
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: './dist'
 
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       - name: Fail if the APK didn't build
-        if: steps.apk.outcome == 'failure'
+        if: needs.build.outputs.apk == 'failure'
         run: |
           echo "::error::The web app deployed, but the Android APK didn't build - see the 'Build signed APK' step."
           exit 1
