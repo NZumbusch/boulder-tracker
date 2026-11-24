@@ -11,6 +11,8 @@ import {
   DEFAULT_VALUE_DEFS,
   DATA_EXPORT_VERSION,
 } from "../constants";
+import { recordData, flushDataLog, setDataLogDisabled } from "./dataLogStore";
+import { watchLoaded, beforeFlush } from "./dataWatch";
 
 /**
  * Decides what `exportVersion` a freshly-loaded `_dbState` should carry.
@@ -133,6 +135,10 @@ export function isDemoMode(): boolean {
 }
 export function setDemoMode(on: boolean): void {
   demoMode = on;
+  // The example data is for looking at: what is done to it isn't your data's story.
+  if (on) recordData("load", "Example data on: nothing is saved or logged until it is closed");
+  setDataLogDisabled(on);
+  if (!on) recordData("load", "Example data closed");
 }
 
 /**
@@ -172,6 +178,8 @@ export async function initDB() {
   let usingNative = Capacitor.isNativePlatform();
   /** What was loaded isn't what's on disk as the database - write it out once loaded. */
   let rewrite = false;
+  /** Where the data came from, for the data log. */
+  let source = usingNative ? "Loaded the database file" : "Loaded from browser storage";
 
   if (usingNative) {
     const main = await readNativeJson(NATIVE_DB_FILE);
@@ -183,6 +191,7 @@ export async function initDB() {
       if (tmp.status === "ok") {
         rawData = tmp.data;
         rewrite = true;
+        source = "Loaded an unfinished save (the database file was missing)";
       } else if (main.status === "damaged" || tmp.status === "damaged") {
         // A database exists but can't be read. Never start empty over it:
         // that used to happen, and the next save then overwrote the damaged
@@ -196,14 +205,17 @@ export async function initDB() {
           console.error("Could not keep a copy of the damaged database", err);
         }
         const backup = await readNewestBackup();
+        recordData("error", `The database file is damaged (${main.status === "damaged" ? "main file" : "unfinished save"}); a copy was kept as ${kept}`);
         if (backup) {
           rawData = backup.data;
+          source = `Restored from ${backup.label} (the database file was damaged)`;
           recoveryNotice = `Your training data file was damaged (most likely the app was closed in the middle of saving), so it was restored from ${backup.label}. Anything logged after that backup is missing. A copy of the damaged file was kept in the app's storage (${kept}).`;
         } else {
           // Current version: the defaults are current-shape, and a missing
           // version would run the whole migration chain over them (see
           // `resolveInitialExportVersion`).
           rawData = { workouts: [], exportVersion: DATA_EXPORT_VERSION };
+          source = "Started empty (the database file was damaged and no backup was found)";
           recoveryNotice = `Your training data file was damaged (most likely the app was closed in the middle of saving) and no automatic backup was found to restore. A copy of the damaged file was kept in the app's storage (${kept}). If you have an exported backup, import it in Settings → Data.`;
         }
         rewrite = true;
@@ -280,7 +292,14 @@ export async function initDB() {
     valueDefs: rawData.valueDefs || structuredClone(DEFAULT_VALUE_DEFS),
     exportVersion: resolveInitialExportVersion(rawData),
   };
+  if (usingNative && source === "Loaded the database file" && rawData && !("workouts" in rawData)) source = "Loaded the database file (no sessions in it)";
+  if (!demoMode) watchLoaded(_dbState, TABLES, source);
   if (rewrite && !demoMode) await writeNativeFile();
+}
+
+/** An error in a few words, for the data log. */
+function describeError(err: unknown): string {
+  return (err instanceof Error ? err.message : String(err)).slice(0, 200);
 }
 
 export function setDbState(next: any) {
@@ -315,6 +334,8 @@ async function startNativeWrite(): Promise<void> {
     // Write the whole file aside, then swap it in: at every moment either
     // the old or the new database is complete on disk (and `initDB` knows
     // to look at the temporary one if the swap didn't finish).
+    const started = Date.now();
+    const sessions = (_dbState.workouts ?? []).length;
     const data = JSON.stringify(_dbState);
     await Filesystem.writeFile({ path: NATIVE_DB_TMP, data, directory: Directory.Data, encoding: Encoding.UTF8 });
     try {
@@ -329,9 +350,12 @@ async function startNativeWrite(): Promise<void> {
       // save only in the temporary one.
       console.error("Swapping in the saved database failed - writing it directly", err);
       await Filesystem.writeFile({ path: NATIVE_DB_FILE, data, directory: Directory.Data, encoding: Encoding.UTF8 });
+      recordData("disk", `Swapping in the saved file failed (${describeError(err)}); wrote it directly`);
     }
+    recordData("disk", `Database file written: ${Math.round(data.length / 1024)} KB, ${sessions} sessions, ${Date.now() - started} ms`);
   } catch (err) {
     console.error("Failed to write to native Filesystem", err);
+    recordData("error", `Writing the database file FAILED: ${describeError(err)}`);
     saveErrorListener?.(err);
   } finally {
     nativeWriting = null;
@@ -376,7 +400,13 @@ export function setFlushListener(listener: ((tables: readonly TableName[]) => vo
 }
 
 export async function flushDB(tables?: TableName[]) {
-  if (!_dbState || demoMode) return;
+  if (!_dbState || demoMode) {
+    // Nothing is written: harmless for the example data's own changes, a lost change if it was your data's.
+    recordData(demoMode ? "disk" : "error", `Save NOT written (${demoMode ? "the example data is open" : "the data isn't loaded yet"}): ${(tables ?? ["everything"]).join(", ")}`, undefined, { force: true });
+    return;
+  }
+  // First: the guard may repair the sessions, and sync must track what is actually written.
+  beforeFlush(_dbState, tables ?? TABLES);
   flushListener?.(tables ?? TABLES);
 
   if (Capacitor.isNativePlatform()) {
@@ -390,6 +420,7 @@ export async function flushDB(tables?: TableName[]) {
     }
   } catch (err) {
     console.error("Failed to save to browser storage", err);
+    recordData("error", `Save to browser storage FAILED: ${describeError(err)}`);
     saveErrorListener?.(err);
     return;
   }
@@ -424,7 +455,9 @@ export async function writeMigrationBackup(fromVersion: string, data: any): Prom
     } else {
       await localforage.setItem(MIGRATION_BACKUP_KEY, payload);
     }
+    recordData("backup", `Backup before updating the data from ${fromVersion}`);
   } catch (err) {
+    recordData("error", `The backup before updating the data FAILED: ${describeError(err)}`);
     // A failed backup write shouldn't block migration from running - it's a
     // safety net, not a hard dependency - but it should be visible in logs.
     console.error("Failed to write pre-migration backup", err);
@@ -448,7 +481,9 @@ export async function writePlanUndo(record: unknown | null): Promise<void> {
     } else {
       await localforage.setItem(PLAN_UNDO_KEY, record);
     }
+    recordData("backup", record === null ? "Plan undo history cleared" : `Plan undo history saved (${Array.isArray(record) ? record.length : 1} change${Array.isArray(record) && record.length !== 1 ? "s" : ""} can be undone)`);
   } catch (err) {
+    recordData("error", `Saving the plan undo history FAILED: ${describeError(err)}`);
     console.error("Failed to write the plan undo snapshot", err);
   }
 }
@@ -480,6 +515,7 @@ export async function writeRestoreSnapshot(snapshot: RestoreSnapshot): Promise<b
     } else {
       await localforage.setItem(RESTORE_SNAPSHOT_KEY, snapshot);
     }
+    recordData("backup", `Kept the data a restore replaces (${snapshot.workouts} sessions)`);
     return true;
   } catch (err) {
     console.error("Failed to write the pre-restore snapshot", err);
@@ -510,6 +546,8 @@ export async function readRestoreSnapshot(): Promise<RestoreSnapshot | null> {
  * Documents/ are left alone: they're the user's files, and the safety net.
  */
 export async function wipeAllLocalData(): Promise<void> {
+  recordData("load", "Delete all data: everything on this device is removed (this log stays on Android)");
+  await flushDataLog();
   // First, so a write still queued from before can't recreate the file.
   _dbState = null;
   if (Capacitor.isNativePlatform()) {

@@ -7,6 +7,23 @@ import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
 import { parseTheme } from '../preferences/theme';
+import { recordData } from '../storage/dataLogStore';
+
+/** Which preferences differ, by name (one level into objects: "tunables.load.otherWeight"), for the data log. */
+export function changedPreferenceKeys(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const [a, b] = [before[key], after[key]];
+    if (same(a, b)) continue;
+    if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b)) {
+      const ao = a as Record<string, unknown>;
+      const bo = b as Record<string, unknown>;
+      for (const k of new Set([...Object.keys(ao), ...Object.keys(bo)])) if (!same(ao[k], bo[k])) out.push(`${key}.${k}`);
+    } else out.push(key);
+  }
+  return out;
+}
 
 const PREFERENCES_KEY = 'boulder_tracker_preferences';
 const LEGACY_THEME_KEY = 'boulder_tracker_theme';
@@ -503,7 +520,16 @@ export class PreferencesStore {
   private persist(prefs?: Preferences, silent = false) {
     if (typeof localStorage === 'undefined') return;
     const toWrite = prefs ?? this.snapshot();
-    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(toWrite));
+    const json = JSON.stringify(toWrite);
+    let before: Record<string, unknown> = {};
+    try {
+      before = JSON.parse(localStorage.getItem(PREFERENCES_KEY) ?? '{}') ?? {};
+    } catch {
+      before = {};
+    }
+    localStorage.setItem(PREFERENCES_KEY, json);
+    const changed = changedPreferenceKeys(before, toWrite as unknown as Record<string, unknown>);
+    if (changed.length) recordData('write', `Settings saved${silent ? ' (from sync)' : ''}: ${changed.slice(0, 15).join(', ')}${changed.length > 15 ? ` …+${changed.length - 15}` : ''}`);
     if (!silent) this.onSaved?.(toWrite);
   }
 }

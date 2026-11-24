@@ -268,6 +268,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "App updates and build", page: "about", words: "version check now" },
   { label: "Take the tour", page: "about", words: "help install iphone" },
   { label: "Feedback and bug reports", page: "about", words: "contact error log" },
+  { label: "Data log", page: "about", words: "history of changes saves storage missing session lost data safety backup audit trail" },
   { label: "Privacy policy", page: "about", words: "safety medical" },
 ];
 

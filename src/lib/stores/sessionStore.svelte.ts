@@ -29,6 +29,15 @@ import {
   slotElapsedMs,
 } from '../session/activeSession';
 import { ACTIVE_SESSION_KEY, serializeSession, parseStoredSession } from '../session/persistSession';
+import { recordData } from '../storage/dataLogStore';
+
+/** A live session in a few words for the data log: which session, how far. */
+function describeLive(s: ActiveSession): string {
+  const w = s.workout;
+  const done = w.exercises.filter((e) => e.logged).length;
+  const skipped = w.exercises.filter((e) => e.skipped).length;
+  return `${w.id}${s.sourceWorkoutId && s.sourceWorkoutId !== w.id ? ` (from ${s.sourceWorkoutId})` : ''} "${w.notes ?? ''}": ${done} logged, ${skipped} skipped of ${w.exercises.length}`;
+}
 
 /**
  * The one running session, if there is one.
@@ -71,6 +80,8 @@ export class SessionStore {
       // A restored session picks its exercise clock up where it left off
       // (the time the app was away counts, as it does for the session).
       this.session = stored ? syncSlotClock(stored, stored, Date.now()) : null;
+      if (this.session) recordData('session', `Live session found on the device at start: ${describeLive(this.session)}`);
+      else if (localStorage.getItem(ACTIVE_SESSION_KEY)) recordData('error', 'A live session on the device could not be read, so it was not restored');
     }
     this.#syncTicker();
   }
@@ -149,14 +160,19 @@ export class SessionStore {
    * session is live, so this is a backstop, not the normal path).
    */
   start(workout: Workout, options: { sourceWorkoutId?: string | null } = {}): boolean {
-    if (this.session) return false;
+    if (this.session) {
+      recordData('session', `Refused to start ${workout.id}: a live session is already running (${describeLive(this.session)})`);
+      return false;
+    }
     this.#commit(startSession(workout, Date.now(), options));
+    if (this.session) recordData('session', `Live session started: ${describeLive(this.session)}`);
     this.isModalOpen = true;
     return true;
   }
 
   /** Ends the session with nothing saved. The source plan is left exactly as it was. */
   discard() {
+    if (this.session) recordData('session', `Live session ended (discarded, or closed after its save): ${describeLive(this.session)}`);
     this.#commit(null);
     this.isModalOpen = false;
   }
@@ -169,7 +185,10 @@ export class SessionStore {
    * can't lose the session.
    */
   buildCompletedWorkout(overrides: { actualDuration?: number } = {}): Workout | null {
-    return this.session ? toCompletedWorkout(this.session, Date.now(), overrides) : null;
+    if (!this.session) return null;
+    const done = toCompletedWorkout(this.session, Date.now(), overrides);
+    recordData('session', `Live session finished, waiting for its rating: ${describeLive(this.session)}, ${done.actualDuration ?? '?'} min`);
+    return done;
   }
 
   togglePause() {
@@ -187,11 +206,13 @@ export class SessionStore {
   // --- Modal vs bubble ---
 
   openModal() {
+    if (this.session) recordData('app', `Live session opened (${this.session.workout.id})`);
     this.isModalOpen = true;
   }
 
   /** Minimises to the corner bubble. The session keeps running. */
   minimize() {
+    if (this.session) recordData('app', `Live session minimised (${this.session.workout.id})`);
     this.isModalOpen = false;
   }
 
@@ -275,11 +296,14 @@ export class SessionStore {
     if (typeof localStorage === 'undefined') return;
     try {
       if (this.session) {
-        localStorage.setItem(ACTIVE_SESSION_KEY, serializeSession($state.snapshot(this.session) as ActiveSession));
+        const snapshot = $state.snapshot(this.session) as ActiveSession;
+        localStorage.setItem(ACTIVE_SESSION_KEY, serializeSession(snapshot));
+        recordData('session', `Live session kept on the device: ${describeLive(snapshot)}`);
       } else {
         localStorage.removeItem(ACTIVE_SESSION_KEY);
       }
-    } catch {
+    } catch (err) {
+      recordData('error', `Keeping the live session on the device FAILED: ${err instanceof Error ? err.message : String(err)}`);
       // A full or unavailable localStorage must not take the session down
       // with it - the in-memory session stays perfectly usable, it just
       // won't survive the app being killed. Same degrade-silently

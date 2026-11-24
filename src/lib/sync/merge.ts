@@ -276,6 +276,21 @@ export interface MergeContext {
   baseOf?: (table: string, key: string) => unknown;
   /** Names a record for the conflict list. */
   labelOf?: (table: string, value: unknown) => string;
+  /** Told about every record where the two sides differed, and what was done (for the data log). */
+  onDecision?: (d: MergeDecision) => void;
+}
+
+/** What a merge did with one record the two devices disagreed on. */
+export interface MergeDecision {
+  table: string;
+  key: string;
+  label: string;
+  /** new: only the other device had it; newer: its edit was newer; deleted: deleted there (newer); joined: both edits combined; kept: this device's is newer. */
+  how: "new" | "newer" | "deleted" | "joined" | "kept";
+  /** The other device's change: when (ms) and which device. */
+  remote: { t: number; o: string };
+  /** This device's change, if it had the record. */
+  local?: { t: number; o: string };
 }
 
 /** Which side wins between two different versions of one record. */
@@ -316,6 +331,7 @@ export function mergeDoc(
         if (!r.del) {
           map.set(key, r.v);
           changed = true;
+          ctx.onDecision?.({ table, key, label: label(table, r.v), how: "new", remote: { t: r.t, o: r.o } });
         }
         continue;
       }
@@ -347,6 +363,7 @@ export function mergeDoc(
         map.set(key, joined.value);
         entries[key] = { h: hashOf(joined.value), t: ctx.now, o: ctx.deviceId ?? l.o };
         changed = true;
+        ctx.onDecision?.({ table, key, label: label(table, localValue ?? r.v), how: "joined", remote: { t: r.t, o: r.o }, local: { t: l.t, o: l.o } });
         continue;
       }
       if (bothChanged) {
@@ -361,6 +378,7 @@ export function mergeDoc(
           lost: { device: loser.o, t: loser.t, deleted: !!loser.del, value: loser.del ? undefined : takeRemote ? localValue : r.v },
         });
       }
+      ctx.onDecision?.({ table, key, label: label(table, localValue ?? r.v), how: !takeRemote ? "kept" : r.del ? "deleted" : "newer", remote: { t: r.t, o: r.o }, local: { t: l.t, o: l.o } });
       if (!takeRemote) continue;
       entries[key] = remoteEntry;
       if (r.del) map.delete(key);

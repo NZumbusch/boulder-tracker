@@ -85,6 +85,8 @@ function planTables(db: any): PlanTables {
   return toPlain(Object.fromEntries(PLAN_TABLE_NAMES.map((t) => [t, db[t]]))) as PlanTables;
 }
 import { runDataMigrations, assertMigrationInvariants } from "./migrations";
+import { dataOp, logCalls, recordData } from "./dataLogStore";
+import { SAFETY_EXCLUDED, writeSafetyBackup } from "./safetyBackup";
 
 export { runDataMigrations, assertMigrationInvariants };
 
@@ -148,17 +150,21 @@ async function replaceDatabase(data: any): Promise<void> {
   if (data.painIssues) _dbState.painIssues = data.painIssues;
   if (data.outdoorAscents) _dbState.outdoorAscents = data.outdoorAscents;
   _dbState.externalActivities = data.externalActivities ?? [];
-  _dbState.garminArchive = data.garminArchive ?? [];
+  // A safety backup leaves the Garmin data out (safetyBackup.ts): restoring one keeps what is on the device.
+  const excluded: string[] = Array.isArray(data.safetyBackup?.excludedTables) ? data.safetyBackup.excludedTables : [];
+  if (!(excluded.includes("garminArchive") && SAFETY_EXCLUDED.includes("garminArchive"))) _dbState.garminArchive = data.garminArchive ?? [];
   if (data.settings) _dbState.settings = data.settings;
   if (data.valueDefs) _dbState.valueDefs = data.valueDefs;
   _dbState.exportVersion = data.exportVersion || "1.0";
 
-  await flushDB();
+  recordData("load", `Replacing the data with a backup: ${(data.workouts ?? []).length} sessions, data ${_dbState.exportVersion}${data.safetyBackup ? ` (safety backup ${data.safetyBackup.reason}, ${data.safetyBackup.at})` : ""}`);
+  // Replacing everything may turn logged sessions back into planned ones: that's what a restore is for.
+  await dataOp("restore", () => flushDB(), { allowUnlog: true });
   // A plan-undo snapshot belongs to the data this replaced.
   await writePlanUndo(null);
 }
 
-export const storage = {
+const storageFunctions = {
   // --- Private Helpers ---
 
   async _getWorkouts(): Promise<Workout[]> { await initDB(); return _dbState.workouts; },
@@ -396,6 +402,7 @@ export const storage = {
    */
   async applyPlanWrites(writes: PlanWrites, source: PlanUndoRecord["source"] = "ai", label?: PlanUndoRecord["label"]): Promise<void> {
     await initDB();
+    await writeSafetyBackup(source === "copy" ? "before copying a week" : "before an AI plan change");
     const db = _dbState;
     const before = planTables(db);
     if (writes.exerciseTypes) db.exerciseTypes = toPlain(writes.exerciseTypes);
@@ -482,6 +489,7 @@ export const storage = {
     const record = history[index];
     if (!record) return;
     await initDB();
+    await writeSafetyBackup("before undoing a plan change");
     const db = _dbState;
     const completed = (db.workouts as Workout[]).filter((w) => w.status === "completed");
     const completedIds = new Set(completed.map((w) => w.id));
@@ -880,8 +888,9 @@ export const storage = {
     const stillCovered = filteredBlocks.some((b) => blockTouchesWeek(b, weekId));
     await this._saveDismissedSessions(stillCovered ? [...withoutThisWeek, { id: weekDismissalId(weekId), weekId }] : withoutThisWeek);
 
-    // 3. Remove all workouts for this week
+    // 3. Remove all workouts for this week (logged ones too - the data from before is kept first)
     const workouts = await this._getWorkouts();
+    if (workouts.some((w) => w.weekId === weekId && w.status === "completed")) await writeSafetyBackup("before clearing a week with logged sessions");
     const filteredWorkouts = workouts.filter((w) => w.weekId !== weekId);
     await this._saveWorkouts(filteredWorkouts);
 
@@ -921,6 +930,7 @@ export const storage = {
     const snap = await readRestoreSnapshot();
     if (!snap) return false;
     await initDB();
+    await writeSafetyBackup("before putting back the replaced data");
     const current = { at: new Date().toISOString(), workouts: (_dbState.workouts ?? []).length, data: toPlain(_dbState) };
     // The slot is only given up once the copy of the present data is safe.
     if (!(await writeRestoreSnapshot(current))) throw new Error("The current data could not be kept, so nothing was restored.");
@@ -960,6 +970,7 @@ export const storage = {
 
           // Keep what is here now, so the restore can be taken back.
           await initDB();
+          await writeSafetyBackup("before restoring a backup file");
           await writeRestoreSnapshot({ at: new Date().toISOString(), workouts: (_dbState.workouts ?? []).length, data: toPlain(_dbState) });
           await replaceDatabase(data);
           resolve();
@@ -971,3 +982,6 @@ export const storage = {
     });
   },
 };
+
+/** Every call is in the data log (`dataLogStore.ts`), reads too. */
+export const storage = logCalls(storageFunctions);

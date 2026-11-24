@@ -2,6 +2,7 @@ import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import { localIsoDate } from "../dateUtils";
 import { initDB, _dbState, AUTO_BACKUP_FOLDER, AUTO_BACKUP_PREFIX } from "./persistence";
 import { DATA_EXPORT_VERSION } from "../constants";
+import { recordData } from "./dataLogStore";
 
 /**
  * Android's automatic weekly backup. The database lives in the app's
@@ -50,10 +51,12 @@ export async function writeAutoBackup(now: Date = new Date()): Promise<string> {
         // Pruning is housekeeping - a failure here doesn't undo the backup.
         console.error("Failed to prune old automatic backups", err);
       }
+      recordData("backup", `Automatic backup written: ${label}/${name} (${Math.round(data.length / 1024)} KB, ${(_dbState.workouts ?? []).length} sessions)`);
       return label;
     } catch (err) {
       lastError = err;
     }
   }
+  recordData("error", `Automatic backup FAILED: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
   throw lastError;
 }

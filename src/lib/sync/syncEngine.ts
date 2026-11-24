@@ -10,7 +10,7 @@
  */
 import {
   buildDoc, compareVersions, hashOf, mapToTable, mergeDoc, tableToMap,
-  SYNC_DOC_FORMAT, type Ledger, type SyncConflict, type SyncDoc,
+  SYNC_DOC_FORMAT, type Ledger, type MergeDecision, type SyncConflict, type SyncDoc,
 } from "./merge";
 
 export interface DriveFile {
@@ -40,9 +40,14 @@ export interface LocalPort {
    * await, so no edit can slip in between the engine's generation check
    * and the write.
    */
-  apply(tables: Record<string, unknown>, changed: string[], ledger: Ledger): Promise<void>;
+  apply(tables: Record<string, unknown>, changed: string[], ledger: Ledger, decisions?: SyncDecision[]): Promise<void>;
   /** Brings a database object from an older app version up to date (runDataMigrations). */
   migrate(db: Record<string, unknown>): void;
+}
+
+/** A merge decision, with the name of the device whose doc it came from (for the data log). */
+export interface SyncDecision extends MergeDecision {
+  deviceName: string;
 }
 
 export interface DeviceInfo {
@@ -145,7 +150,7 @@ export async function runSync(opts: {
 
     /** Merges every other device's doc into fresh copies of this device's data. */
     const mergeAll = (baseOf?: (table: string, key: string) => unknown) => {
-      const merged = { tables: structuredClone(local.tables()), ledger: structuredClone(local.ledger()), conflicts: [] as SyncConflict[], changed: new Set<string>() };
+      const merged = { tables: structuredClone(local.tables()), ledger: structuredClone(local.ledger()), conflicts: [] as SyncConflict[], changed: new Set<string>(), decisions: [] as SyncDecision[] };
       for (const doc of docs) {
         const result = mergeDoc(merged.tables, merged.ledger, doc, tableNames, {
           lastSyncAt: opts.lastSyncAt ?? 0,
@@ -154,6 +159,7 @@ export async function runSync(opts: {
           deviceId: identity.deviceId,
           baseOf,
           labelOf: opts.labelOf,
+          onDecision: (d) => merged.decisions.push({ ...d, deviceName: doc.deviceName || doc.deviceId }),
         });
         result.changedTables.forEach((t) => merged.changed.add(t));
         merged.conflicts.push(...result.conflicts);
@@ -169,11 +175,11 @@ export async function runSync(opts: {
       const base = await readOwnDoc(transport, mine, tableNames, local);
       if (base) merged = mergeAll((table, key) => (base.tables[table]?.[key]?.del ? undefined : base.tables[table]?.[key]?.v));
     }
-    const { tables, ledger, conflicts, changed } = merged;
+    const { tables, ledger, conflicts, changed, decisions } = merged;
 
     // Edited while we were downloading: merge again from the new state.
     if (local.generation() !== generation) continue;
-    await local.apply(tables, [...changed], ledger);
+    await local.apply(tables, [...changed], ledger, decisions);
 
     const doc = buildDoc(tables, ledger, tableNames, {
       deviceId: identity.deviceId,

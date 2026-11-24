@@ -21,6 +21,7 @@
   import IOSInstallSteps from '../onboarding/IOSInstallSteps.svelte';
   import FeedbackCard from './FeedbackCard.svelte';
   import ErrorLogCard from './ErrorLogCard.svelte';
+  import DataLogCard from './DataLogCard.svelte';
 
   const offerInstall = shouldOfferIOSInstall(readBrowserInfo(Capacitor.isNativePlatform()));
   const commit = shortCommit(APP_INFO.commit);
@@ -142,6 +143,7 @@
     </div>
   </section>
 
-  <!-- 7. Technical: the error log -->
+  <!-- 7. Technical: the error log and the data log -->
   <ErrorLogCard />
+  <DataLogCard />
 </div>

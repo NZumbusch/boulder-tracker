@@ -3,6 +3,7 @@ import type { InsightInputs } from "./analytics/insights";
 import { attachOrphanLogs, checkIn as checkInPainIssue, TREND_LABELS } from './pain/issues';
 import { openWorkout } from './workoutModal.svelte';
 import { toast, showUndo } from './toast.svelte';
+import { dataOp, recordData } from './storage/dataLogStore';
 import { copySessionsToWeek } from './planning/copyWeek';
 import { storage, ImportCancelled, isNewerExportVersion } from './storage';
 import { Capacitor } from '@capacitor/core';
@@ -1154,7 +1155,10 @@ class TrainingState {
       date: this.activeWorkout.date || new Date().toISOString()
     };
 
-    await this.saveWorkout(completedWorkout);
+    const saved = await dataOp('rate and save session', () => this.saveWorkout(completedWorkout));
+    recordData('session', saved
+      ? `Session saved as logged: ${saved.id} "${saved.notes ?? ''}", load ${completedWorkout.loadFactor}`
+      : `Session NOT saved (refused): ${completedWorkout.id}`);
 
     // If this rating is what closed out the live session, the session's
     // job is done. Cleared only now, after the save succeeded, so a failed

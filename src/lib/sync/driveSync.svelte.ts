@@ -18,6 +18,9 @@ import { toast } from "../toast.svelte";
 import { _dbState, flushDB, initDB, isDemoMode, setFlushListener, TABLES, type TableName } from "../storage/persistence";
 import { runDataMigrations } from "../storage/migrations";
 import { writeAutoBackup } from "../storage/autoBackup";
+import { dataOp, recordData } from "../storage/dataLogStore";
+import { captureSafetyBackup, syncNeedsBackup } from "../storage/safetyBackup";
+import { describeDecisions } from "./syncLog";
 import { DriveClient, driveErrorCode, driveSyncAvailable } from "../native/driveClient";
 import { defaultLabel, initLedger, mapToTable, tableToMap, trackTable, type Ledger, type SyncConflict } from "./merge";
 import { runSync, SyncVersionError, type DeviceInfo, type LocalPort } from "./syncEngine";
@@ -143,7 +146,9 @@ class DriveSync {
     this.deviceName = settings.deviceName;
     this.lastSyncAt = settings.lastSyncAt;
     this.devices = settings.devices ?? [];
-    this.#ledger = this.#restoredLedger ?? ((await localforage.getItem(LEDGER_KEY)) as Ledger | null) ?? initLedger(currentTables(), TABLES, settings.deviceId);
+    const storedLedger = this.#restoredLedger ? null : ((await localforage.getItem(LEDGER_KEY)) as Ledger | null);
+    if (!this.#restoredLedger && !storedLedger) recordData("sync", "Drive sync: no ledger was found on this device, so every record counts as unchanged since before sync - other devices' versions win where they differ");
+    this.#ledger = this.#restoredLedger ?? storedLedger ?? initLedger(currentTables(), TABLES, settings.deviceId);
     if (this.#restoredLedger) await localforage.setItem(LEDGER_KEY, this.#ledger);
     this.#restoredLedger = null;
     // Anything saved while the last ledger write was still pending (the app was killed) is picked up here.
@@ -172,6 +177,7 @@ class DriveSync {
     if (verdict !== "restored" || !marker) return settings;
     const next = restoredSettings(settings, randomId(), marker);
     console.warn(`Sync: this copy was restored from a backup. Device id ${settings.deviceId} -> ${next.deviceId}; first sync adopts Drive's data.`);
+    recordData("sync", `Drive sync: this install was restored from a backup; new device id ${next.deviceId} (was ${settings.deviceId}); its first sync adopts Drive's data`);
     this.#restoredLedger = initLedger(currentTables(), TABLES, next.deviceId);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     toast.show(`Sync: this app was restored from a backup, so it got its own sync identity and is merging with Drive. Details in ${settingsPath('sync')}.`, { durationMs: 12000 });
@@ -272,6 +278,7 @@ class DriveSync {
     if (!this.#settings) return;
     this.choosing = false;
     const settings = this.#settings;
+    recordData("sync", `Drive sync connected as device ${settings.deviceId} (${settings.deviceName}): ${mode === "replace" ? "this device's data is REPLACED by Drive's (a backup is written first)" : "this device's data and Drive's are merged"}`);
     if (mode === "replace") {
       try {
         await writeAutoBackup();
@@ -301,6 +308,7 @@ class DriveSync {
   }
 
   async disconnect(): Promise<void> {
+    recordData("sync", `Drive sync disconnected on this device (id ${this.#settings?.deviceId ?? "?"})`);
     clearTimeout(this.#timer);
     setFlushListener(null);
     document.removeEventListener("visibilitychange", this.#onVisibility);
@@ -366,12 +374,20 @@ class DriveSync {
       ledger: () => this.#ledger,
       exportVersion: () => _dbState.exportVersion,
       generation: () => this.#generation,
-      apply: async (tables, changed, ledger) => {
+      apply: async (tables, changed, ledger, decisions = []) => {
+        // Taken before anything changes (synchronously - see LocalPort.apply): the data as it was, if this merge
+        // touches logged sessions or deletes a lot.
+        const backup = syncNeedsBackup(_dbState, tables, changed) ? captureSafetyBackup("before a sync merge") : null;
         // The ledger first: then the flush below finds nothing new to track.
         this.#ledger = ledger;
         for (const t of changed) _dbState[t] = tables[t];
+        recordData("sync", `Drive sync merges into: ${changed.length ? changed.join(", ") : "nothing"}`);
+        for (const line of describeDecisions(decisions)) recordData("sync", `Drive sync: ${line}`);
         await localforage.setItem(LEDGER_KEY, ledger);
-        if (changed.length) await flushDB(changed as TableName[]);
+        if (changed.length) await dataOp("sync merge", () => flushDB(changed as TableName[]));
+        // The save may have been repaired (a logged session kept - lib/storage/dataWatch): upload what was stored.
+        for (const t of changed) tables[t] = _dbState[t];
+        if (backup) await backup.write();
       },
       migrate: runDataMigrations,
     };
@@ -384,6 +400,7 @@ class DriveSync {
         tableNames: TABLES,
         labelOf: defaultLabel,
       });
+      recordData("sync", `Drive sync done: read ${outcome.devices.map((d) => `${d.deviceName} (uploaded ${new Date(d.writtenAt).toISOString()})`).join(", ") || "no other device"}; changed ${outcome.changedTables.join(", ") || "nothing"}${outcome.conflicts.length ? `; ${outcome.conflicts.length} edited on two devices: ${outcome.conflicts.map((c) => `${c.table}/${c.key}`).join(", ")}` : ""}`);
       settings.lastSyncAt = outcome.syncedAt;
       settings.devices = outcome.devices;
       if (!settings.accountName) await this.#loadAccount(settings);
@@ -396,6 +413,7 @@ class DriveSync {
       if (outcome.changedTables.length) await trainingState.refresh();
       if (outcome.conflicts.length) await this.#reportConflicts(outcome.conflicts);
     } catch (err) {
+      recordData("error", `Drive sync failed: ${err instanceof Error ? err.message : String(err)}`);
       this.#fail(err);
     }
   }

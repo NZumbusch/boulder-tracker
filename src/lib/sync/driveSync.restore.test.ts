@@ -25,6 +25,7 @@ vi.mock("../state.svelte", () => ({ trainingState: { refresh: async () => {} } }
 vi.mock("../toast.svelte", () => ({ toast: { show: vi.fn() } }));
 vi.mock("../storage/migrations", () => ({ runDataMigrations: () => ({}) }));
 vi.mock("../storage/autoBackup", () => ({ writeAutoBackup: async () => "" }));
+vi.mock("../storage/safetyBackup", () => ({ captureSafetyBackup: () => null, syncNeedsBackup: () => false }));
 vi.mock("../storage/persistence", () => ({
   _dbState: { exportVersion: "2.1", workouts: [], templates: {} },
   TABLES: ["workouts"],
