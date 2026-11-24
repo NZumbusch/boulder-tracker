@@ -96,8 +96,10 @@
   }
   function open(w: Workout) {
     if (w.provisional) return;
+    // Taken before closing: closing clears the parent's selection, so `bucket` (and everything derived from it) is gone after.
+    const list = sessions.filter((s) => !s.provisional);
     onClose();
-    openWorkout(w, 'view', false, sessions.filter((s) => !s.provisional));
+    openWorkout(w, 'view', false, list);
   }
 
   // Back (phone key or browser) does what this overlay's own close does - see lib/navigation/backStack.
