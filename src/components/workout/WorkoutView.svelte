@@ -16,6 +16,7 @@
   import { loggedDateFor } from '../../lib/planning/scheduledDate';
   import { formatDay } from '../../lib/dateUtils';
   import ExerciseCard from './ExerciseCard.svelte';
+  import { openQuickLog } from '../../lib/session/quickLogHost.svelte';
   import GroupCard from './GroupCard.svelte';
   import { workoutItems, groupMinutes } from '../../lib/exercise/groups';
   import { occurrenceOnDay, dayIndexOf } from '../../lib/planning/planB';
@@ -278,9 +279,9 @@
     {#if blocked && !isCompleted}
       <p class="text-caption text-content-subtle" role="status">Another session is running. Finish or discard it to start this one.</p>
     {:else if !isCompleted && !isThisRunning && workout.exercises.length > 0}
-      <p class="text-caption text-content-subtle">Log as planned marks every exercise done as planned, then asks how it went.</p>
+      <p class="text-caption text-content-subtle">Log as planned marks every exercise done as planned; Quick log lets you change the numbers first, as text. Both then ask how it went.</p>
     {/if}
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <button onclick={onEdit} class="btn btn-ghost px-3">
         <Icon icon="ic:baseline-edit" class="text-base" /> Edit
       </button>
@@ -288,13 +289,16 @@
         <button onclick={logAsPlanned} class="btn btn-ghost px-3">
           <Icon icon="ic:baseline-done-all" class="text-base" /> Log as planned
         </button>
+        <button onclick={() => openQuickLog(workout)} class="btn btn-ghost px-3">
+          <Icon icon="ic:baseline-subject" class="text-base" /> Quick log
+        </button>
       {/if}
       <div class="flex-1"></div>
       {#if !isCompleted}
         <button
           onclick={start}
           disabled={blocked}
-          class="btn px-5 {isThisRunning ? 'bg-success hover:bg-success-hover text-on-primary' : 'btn-primary'}"
+          class="btn px-5 ml-auto {isThisRunning ? 'bg-success hover:bg-success-hover text-on-primary' : 'btn-primary'}"
         >
           <Icon icon="ic:baseline-play-arrow" class="text-base" /> {isThisRunning ? 'Resume' : 'Start'}
         </button>

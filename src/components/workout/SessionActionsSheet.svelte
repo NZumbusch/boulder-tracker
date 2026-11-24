@@ -13,6 +13,7 @@
   import { occurrenceOnDay, dayIndexOf } from '../../lib/planning/planB';
   import type { DayOfWeek, Workout } from '../../lib/types';
   import Icon from '@iconify/svelte';
+  import { openQuickLog } from '../../lib/session/quickLogHost.svelte';
 
   const DAYS: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -40,6 +41,7 @@
     done.date = loggedDateFor(done);
     trainingState.openFatigueModal(done);
   });
+  const quickLogIt = () => run((w) => openQuickLog(w));
   const moveTo = (day: DayOfWeek) => run((w) => w.dayOfWeek !== day && trainingState.saveWorkoutQuiet({ ...w, dayOfWeek: day }));
   const duplicate = () => run((w) => trainingState.duplicateWorkout(w));
   const planB = () => run((w) => trainingState.editPlanBAt(w.weekId, w.dayOfWeek));
@@ -63,6 +65,7 @@
       {/if}
       {#if !isCompleted && !isThisRunning}
         {@render action('ic:baseline-done-all', 'Log as planned', logAsPlanned)}
+        {@render action('ic:baseline-subject', 'Quick log (as text)', quickLogIt)}
       {/if}
       {#if !isCompleted && !isThisRunning}
         <div class="px-2 py-3 space-y-2">

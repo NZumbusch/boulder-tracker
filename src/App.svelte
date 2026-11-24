@@ -35,6 +35,11 @@
   import { stravaSync } from './lib/strava/stravaSync.svelte';
   import { installDeepLinks } from './lib/native/deepLinks';
   import { driveSync } from './lib/sync/driveSync.svelte';
+  import { setGuardListener } from './lib/storage/dataWatch';
+  import { quickLog, closeQuickLog } from './lib/session/quickLogHost.svelte';
+  import QuickLogSheet from './components/workout/QuickLogSheet.svelte';
+  import { toast } from './lib/toast.svelte';
+  import { settingsPath } from './lib/settings/tree';
   import { healthConnect } from './lib/health/healthConnect.svelte';
   import { deviceCalendar } from './lib/calendar/deviceCalendar.svelte';
   import { calendarSync } from './lib/calendarSync/calendarSync.svelte';
@@ -71,6 +76,12 @@
     if (requested && requested !== 'home' && VIEWS.includes(requested)) trainingState.navigate(requested);
     void installAndroidBack();
     const stopDialogLayer = installDialogLayer();
+    // A save tried to turn a logged session back into a planned one and was refused (lib/storage/dataWatch.ts):
+    // show the kept version, and say so - it means something is wrong somewhere.
+    setGuardListener((events) => {
+      void trainingState.workoutStore.load();
+      toast.show(`Kept your logged session ${events.map((e) => e.label).join(', ')}: a change tried to turn it back into a planned one. Details in ${settingsPath('about')} → Data log.`, { durationMs: 15000 });
+    });
     void installDeepLinks();
     void driveSync.init();
     void healthConnect.init();
@@ -294,6 +305,11 @@
   <ActiveSessionModal />
   <QuickTimerHost />
   <SessionActionsSheet />
+  {#if quickLog.workout}
+    {#key quickLog.workout.id}
+      <QuickLogSheet workout={quickLog.workout} onClose={closeQuickLog} />
+    {/key}
+  {/if}
   <PastSessionSheet />
   <PainScreens />
   <WorkoutModal />
