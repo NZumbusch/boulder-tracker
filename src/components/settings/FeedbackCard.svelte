@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Settings → About & Help: report a bug or send feedback. Opens a
-   * prefilled email or GitHub issue with the build and device; the error log
+   * prefilled email or GitHub issue with the build and device; the newest problems from the log
    * is only added when ticked, since an entry can mention what was open.
    * Nothing is sent by the app itself (lib/feedback.ts).
    */
@@ -12,10 +12,12 @@
   import { APP_INFO } from '../../lib/appInfo';
   import { updater } from '../../lib/update/updater.svelte';
   import { feedbackMailto, issueUrl, platformLabel, type FeedbackContext } from '../../lib/feedback';
-  import { readErrorLog } from '../../lib/errorReporting';
+  import { recentProblems, type LogEntry } from '../../lib/log';
   import { readBrowserInfo } from '../../lib/pwa/platform';
 
   let includeLog = $state(false);
+  let problems = $state<LogEntry[]>([]);
+  $effect(() => { void recentProblems(5).then((p) => (problems = p)); });
 
   const context = $derived<FeedbackContext>({
     version: updater.installedName ?? APP_INFO.version,
@@ -23,9 +25,8 @@
     commit: APP_INFO.commit,
     platform: platformLabel({ native: Capacitor.isNativePlatform(), standalone: readBrowserInfo(Capacitor.isNativePlatform()).standalone }),
     userAgent: navigator.userAgent,
-    errors: includeLog ? readErrorLog() : undefined,
+    errors: includeLog ? problems : undefined,
   });
-  const logCount = readErrorLog().length;
 
   /** No mail app on the device (common on the web): the same text can be copied and pasted anywhere. */
   async function copyDetails() {
@@ -46,7 +47,7 @@
 <section class="card space-y-3 animate-in fade-in" aria-labelledby="about-feedback">
   <h2 id="about-feedback" class="text-section uppercase text-content-muted px-1">Report a bug or send feedback</h2>
   <p class="text-caption text-content-muted leading-relaxed">Opens a message with your app version and device filled in. You write the rest and send it yourself.</p>
-  <Toggle checked={includeLog} onChange={(v) => (includeLog = v)} label="Include the error log" hint={`The latest entries (${logCount} saved). Read them first under Errors & warnings: they can mention what you were doing.`} />
+  <Toggle checked={includeLog} onChange={(v) => (includeLog = v)} label="Include the latest problems" hint={problems.length ? `The ${problems.length} newest warnings and errors from the log. Read them first under Log: they can mention what you were doing.` : 'No warnings or errors in the log.'} />
   <div class="flex flex-wrap gap-2">
     <a href={feedbackMailto(context)} class="btn btn-primary gap-1.5">
       <Icon icon="ic:baseline-share" class="text-base" aria-hidden="true" /> Send by email

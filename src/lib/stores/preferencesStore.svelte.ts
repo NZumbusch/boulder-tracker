@@ -7,7 +7,7 @@ import { defaultHomeDetails, type HomeDetails } from '../preferences/homeDetails
 import { defaultTunables, resetTopic, validateTunables, type Tunables, type TunableTopic } from '../preferences/tunables';
 import { DEFAULT_UNITS, type Units } from '../units';
 import { parseTheme } from '../preferences/theme';
-import { recordData } from '../storage/dataLogStore';
+import { log } from '../log';
 
 /** Which preferences differ, by name (one level into objects: "tunables.load.otherWeight"), for the data log. */
 export function changedPreferenceKeys(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
@@ -529,7 +529,7 @@ export class PreferencesStore {
     }
     localStorage.setItem(PREFERENCES_KEY, json);
     const changed = changedPreferenceKeys(before, toWrite as unknown as Record<string, unknown>);
-    if (changed.length) recordData('write', `Settings saved${silent ? ' (from sync)' : ''}: ${changed.slice(0, 15).join(', ')}${changed.length > 15 ? ` …+${changed.length - 15}` : ''}`);
+    if (changed.length) log.info('data', `Settings saved${silent ? ' (from sync)' : ''}: ${changed.slice(0, 15).join(', ')}${changed.length > 15 ? ` …+${changed.length - 15}` : ''}`);
     if (!silent) this.onSaved?.(toWrite);
   }
 }

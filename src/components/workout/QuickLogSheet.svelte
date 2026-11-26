@@ -12,7 +12,7 @@
   import { generateId } from '../../lib/utils';
   import { tick } from 'svelte';
   import { loggedDateFor } from '../../lib/planning/scheduledDate';
-  import { recordData } from '../../lib/storage/dataLogStore';
+  import { log } from '../../lib/log';
   import type { Workout } from '../../lib/types';
 
   let { workout, onClose }: { workout: Workout; onClose: () => void } = $props();
@@ -85,7 +85,7 @@
     w.status = 'completed';
     // A missed session is recorded on its planned day, not today.
     w.date = loggedDateFor(w);
-    recordData('session', `Quick log of ${w.id} "${w.notes ?? ''}": ${result.slots.filter((s) => s.logged).length} logged, ${result.slots.filter((s) => s.skipped).length} skipped - on to the rating`);
+    log.info('session', `Quick log of ${w.id} "${w.notes ?? ''}": ${result.slots.filter((s) => s.logged).length} logged, ${result.slots.filter((s) => s.skipped).length} skipped - on to the rating`);
     onClose();
     trainingState.openFatigueModal(w);
   }

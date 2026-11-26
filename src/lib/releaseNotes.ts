@@ -20,6 +20,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    id: "2026-11-26-one-log",
+    title: "One log",
+    points: [
+      "Errors & warnings, the full console log and the data log are now one: Settings → About & Help → Log. Everything the app did and everything that went wrong, newest first by day, with Problems / Activity / Data / All, a search, and one file to share.",
+      "What was in the old logs was moved over.",
+    ],
+  },
+  {
     id: "2026-11-24-quick-log",
     title: "Quick log",
     points: [
@@ -33,7 +41,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: "Your logged sessions are protected",
     points: [
       "A logged session can no longer be turned back into a planned one by anything in the app - a sync, a calendar move, an old copy written back. If something tries, the logged version is kept and you get a message.",
-      "Settings → About & Help → Data log: a record of everything that reads or changes your data - each save and what it changed, sync, live sessions. If something ever goes missing, share it as a file.",
+      "Settings → About & Help → Log: a record of everything that reads or changes your data - each save and what it changed, sync, live sessions. If something ever goes missing, share it as a file.",
       "Before big changes (an AI plan change, undo, a restore, a sync that rewrites logged sessions) a safety backup is saved to Documents/BoulderTracker/safety; restore one from Sync & backup.",
     ],
   },

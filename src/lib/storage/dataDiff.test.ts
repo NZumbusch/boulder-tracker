@@ -1,53 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { appendEntry, describeArgs, describeDiff, diffTable, formatEntry, guardWorkouts, isEmptyDiff, snapshotTable, type DataLogEntry } from "./dataLog";
-
-const at = (s: number) => new Date(Date.UTC(2026, 10, 23, 18, 0, s)).toISOString();
-
-describe("appendEntry", () => {
-  it("folds a repeat within a few seconds into one entry with a count", () => {
-    const log: DataLogEntry[] = [];
-    appendEntry(log, { at: at(0), kind: "call", msg: "getWorkouts()" });
-    appendEntry(log, { at: at(2), kind: "call", msg: "getWorkouts()" });
-    appendEntry(log, { at: at(4), kind: "call", msg: "getWorkouts()" });
-    expect(log).toHaveLength(1);
-    expect(log[0].n).toBe(3);
-    expect(log[0].at).toBe(at(4));
-  });
-
-  it("keeps entries apart when they differ in time, operation or carry data", () => {
-    const log: DataLogEntry[] = [];
-    appendEntry(log, { at: at(0), kind: "call", msg: "getWorkouts()" });
-    appendEntry(log, { at: at(30), kind: "call", msg: "getWorkouts()" });
-    appendEntry(log, { at: at(31), kind: "call", msg: "getWorkouts()", ops: ["sync"] });
-    appendEntry(log, { at: at(32), kind: "guard", msg: "x", data: { a: 1 } });
-    appendEntry(log, { at: at(33), kind: "guard", msg: "x", data: { a: 1 } });
-    expect(log).toHaveLength(5);
-  });
-
-  it("drops the oldest beyond the cap", () => {
-    const log: DataLogEntry[] = [];
-    for (let i = 0; i < 5; i++) appendEntry(log, { at: at(i * 10), kind: "call", msg: `m${i}` }, 3);
-    expect(log.map((e) => e.msg)).toEqual(["m2", "m3", "m4"]);
-  });
-});
-
-describe("formatEntry", () => {
-  it("writes the time, kind, count, operations and data", () => {
-    const line = formatEntry({ at: at(0), kind: "write", msg: "workouts: +1", n: 2, ops: ["finish session", "saveWorkout"], data: { id: "w1" } });
-    expect(line).toBe(`${at(0)} WRITE ×2 [finish session > saveWorkout] workouts: +1\n    {"id":"w1"}`);
-  });
-});
-
-describe("describeArgs", () => {
-  it("names a session by id, status, week, day and exercise count - never its content", () => {
-    const w = { id: "w1", status: "completed", weekId: "2026-W48", dayOfWeek: "Monday", date: "2026-11-23T20:00:00Z", exercises: [{}, {}], notes: "secret" };
-    expect(describeArgs([w])).toBe("{id=w1 completed 2026-W48 Mon 2026-11-23 2 ex}");
-  });
-
-  it("gives lists as lengths, short strings quoted, long ones cut", () => {
-    expect(describeArgs([[1, 2, 3], "2026-W48", "x".repeat(80), 3, true, undefined])).toMatch(/^\[3\], "2026-W48", "x{57}…", 3, true, undefined$/);
-  });
-});
+import { describeDiff, diffTable, guardWorkouts, isEmptyDiff, snapshotTable } from "./dataDiff";
 
 describe("diffTable / describeDiff", () => {
   const before = snapshotTable("workouts", [

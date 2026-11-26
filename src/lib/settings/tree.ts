@@ -267,8 +267,8 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { label: "Home-screen widgets", page: "widgets" },
   { label: "App updates and build", page: "about", words: "version check now" },
   { label: "Take the tour", page: "about", words: "help install iphone" },
-  { label: "Feedback and bug reports", page: "about", words: "contact error log" },
-  { label: "Data log", page: "about", words: "history of changes saves storage missing session lost data safety backup audit trail" },
+  { label: "Feedback and bug reports", page: "about", words: "contact bug report log errors" },
+  { label: "Log", page: "about", words: "log error warning errors warnings console data log history of changes saves storage missing session lost data safety backup audit trail debug" },
   { label: "Privacy policy", page: "about", words: "safety medical" },
 ];
 

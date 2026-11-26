@@ -1,5 +1,5 @@
-import { describeDiff, diffTable, guardWorkouts, isEmptyDiff, snapshotTable, type TableSnapshot } from "./dataLog";
-import { recordData, unlogAllowed } from "./dataLogStore";
+import { describeDiff, diffTable, guardWorkouts, isEmptyDiff, snapshotTable, type TableSnapshot } from "./dataDiff";
+import { log, unlogAllowed } from "../log";
 
 /**
  * Runs on every save, just before the data goes to disk (`flushDB`):
@@ -66,12 +66,9 @@ export function watchLoaded(db: Record<string, unknown>, tables: readonly string
     snapshots = new Map(tables.map((t) => [t, snap(t, db[t])]));
     rememberLogged(db.workouts);
     const workouts = Array.isArray(db.workouts) ? (db.workouts as SessionRow[]) : [];
-    recordData(
-      "load",
-      `${source}: data ${String(db.exportVersion ?? "?")}, ${workouts.length} sessions (${logged.size} logged), ${tables.filter((t) => countOf(db[t]) > 0).map((t) => `${t} ${countOf(db[t])}`).join(", ")}`,
-    );
+    log.info("data", `${source}: data ${String(db.exportVersion ?? "?")}, ${workouts.length} sessions (${logged.size} logged), ${tables.filter((t) => countOf(db[t]) > 0).map((t) => `${t} ${countOf(db[t])}`).join(", ")}`);
   } catch (err) {
-    recordData("error", `Could not read the loaded data for the log: ${String(err)}`);
+    log.error("data", `Could not read the loaded data for the log: ${String(err)}`);
   }
 }
 
@@ -87,7 +84,7 @@ export function beforeFlush(db: Record<string, unknown>, tables: readonly string
       if (blocked.length > 0) {
         db.workouts = workouts;
         for (const b of blocked) {
-          recordData("guard", `Refused to turn logged session ${b.id} (${sessionLabel(b.kept)}) back into a planned one; the logged version was kept`, { kept: b.kept, attempted: b.attempted });
+          log.warn("data", `Refused to turn logged session ${b.id} (${sessionLabel(b.kept)}) back into a planned one; the logged version was kept`, { data: { kept: b.kept, attempted: b.attempted } });
         }
         const seen = new Set<string>();
         const events = blocked.filter((b) => !seen.has(b.id) && seen.add(b.id)).map((b) => ({ id: b.id, label: sessionLabel(b.kept) }));
@@ -101,17 +98,17 @@ export function beforeFlush(db: Record<string, unknown>, tables: readonly string
       const diff = diffTable(before, after);
       snapshots.set(table, after);
       if (isEmptyDiff(diff)) continue;
-      recordData("write", describeDiff(table, diff, countOf(value)));
+      log.info("data", describeDiff(table, diff, countOf(value)));
       if (table === "workouts") {
         for (const id of diff.removed) {
           const was = logged.get(id);
-          if (was) recordData("write", `Logged session ${id} (${sessionLabel(was)}) was deleted; kept here in full`, was);
+          if (was) log.info("data", `Logged session ${id} (${sessionLabel(was)}) was deleted; kept here in full`, { data: was });
         }
       }
     }
     if (tables.includes("workouts")) rememberLogged(db.workouts);
   } catch (err) {
-    recordData("error", `The save check failed: ${String(err)}`);
+    log.error("data", `The save check failed: ${String(err)}`);
   }
 }
 

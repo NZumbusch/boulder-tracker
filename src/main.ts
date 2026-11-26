@@ -3,9 +3,11 @@ import './app.css'
 import App from './App.svelte'
 import { registerOfflineIcons } from './lib/icons'
 import { installPwa } from './lib/pwa/pwa'
-import { installErrorReporting } from './lib/errorReporting'
 import { installFormHelpers } from './lib/ui/formHelpers'
-import { installDataLog } from './lib/storage/dataLogStore'
+import { installLogging, describe } from './lib/log'
+import { setSaveErrorListener } from './lib/storage/persistence'
+import { toast } from './lib/toast.svelte'
+import { Capacitor } from '@capacitor/core'
 import { APP_INFO } from './lib/appInfo'
 import { DATA_EXPORT_VERSION } from './lib/constants'
 
@@ -17,11 +19,14 @@ registerOfflineIcons()
 // Service worker, persistent storage, iOS tweaks - web only.
 installPwa()
 
-// Uncaught errors and failed saves show a message instead of vanishing.
-installErrorReporting()
+// The app's one log (Settings → About & Help → Log; docs/logging.md): which build started, when the app was away,
+// every console line and uncaught error - errors pop up as set there.
+installLogging({ version: APP_INFO.version, commit: APP_INFO.commit, dataVersion: DATA_EXPORT_VERSION, native: Capacitor.isNativePlatform() })
 
-// The data log (Settings → About & Help → Data log): which build started, and when the app was away.
-installDataLog({ version: APP_INFO.version, commit: APP_INFO.commit, dataVersion: DATA_EXPORT_VERSION })
+// A save that didn't reach the disk always says so (it is in the log too).
+setSaveErrorListener((err) => {
+  toast.show(`Couldn't save your last change (${describe(err).slice(0, 80)}). If your phone's storage is full, free some up; export a backup to be safe.`)
+})
 
 // Number fields select on focus; Enter moves to the next field.
 installFormHelpers()

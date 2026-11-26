@@ -33,7 +33,7 @@ import { DAY_MS, dayNameOf, toCalendarSession, weekIdOfDayIndex } from "../plann
 import type { Workout } from "../types";
 import { DeviceCalendar, deviceCalendarSupported, type NativeCalendar } from "../native/deviceCalendar";
 import { hashOf } from "../sync/merge";
-import { dataOp, recordData } from "../storage/dataLogStore";
+import { log, logOp } from "../log";
 import {
   DEFAULT_SYNC_OPTIONS, desiredEvents, hasChanges, localMidnight, moveTarget, planSpan, reconcile, syncWindow,
   type CalendarMove, type CalendarSyncOptions, type DesiredEvent,
@@ -177,7 +177,7 @@ class CalendarSyncStore {
     // copy from the start would put the planned version back.
     const w = sessions.has(move.sessionId) ? trainingState.getWorkoutById(move.sessionId) : undefined;
     if (!w || w.status !== "planned") {
-      recordData("sync", `Calendar: session ${move.sessionId} was moved in the calendar but is ${w ? w.status : "gone"} now - not moved in the app`);
+      log.info("sync", `Calendar: session ${move.sessionId} was moved in the calendar but is ${w ? w.status : "gone"} now - not moved in the app`);
       return false;
     }
     const current = toCalendarSession(w);
@@ -191,8 +191,8 @@ class CalendarSyncStore {
     };
     // A longer or shorter event in the calendar is the session's new planned length.
     if (target.minutes !== undefined && target.minutes !== current?.minutes) next.plannedDuration = target.minutes;
-    recordData("sync", `Calendar: session ${w.id} moved in the calendar: ${w.weekId} ${w.dayOfWeek ?? ""} ${w.startTime ?? ""} → ${next.weekId} ${next.dayOfWeek ?? ""} ${next.startTime ?? ""}${next.plannedDuration !== w.plannedDuration ? `, ${w.plannedDuration ?? "?"} → ${next.plannedDuration} min` : ""}`);
-    await dataOp("calendar move", () => trainingState.saveWorkoutQuiet(next));
+    log.info("sync", `Calendar: session ${w.id} moved in the calendar: ${w.weekId} ${w.dayOfWeek ?? ""} ${w.startTime ?? ""} → ${next.weekId} ${next.dayOfWeek ?? ""} ${next.startTime ?? ""}${next.plannedDuration !== w.plannedDuration ? `, ${w.plannedDuration ?? "?"} → ${next.plannedDuration} min` : ""}`);
+    await logOp("calendar move", () => trainingState.saveWorkoutQuiet(next));
     return true;
   }
 
@@ -217,7 +217,7 @@ class CalendarSyncStore {
 
   /** Starts writing into a calendar (or moves to another one - the old one keeps what was written). */
   choose(calendar: NativeCalendar): void {
-    recordData("sync", `Calendar sync on, into the calendar "${calendar.name}"`);
+    log.info("sync", `Calendar sync on, into the calendar "${calendar.name}"`);
     this.missing = false;
     this.error = null;
     this.#lastWritten = null;
@@ -226,14 +226,14 @@ class CalendarSyncStore {
   }
 
   setOption<K extends keyof CalendarSyncOptions>(key: K, value: CalendarSyncOptions[K]): void {
-    recordData("sync", `Calendar sync option ${String(key)}: ${JSON.stringify(value)}`);
+    log.info("sync", `Calendar sync option ${String(key)}: ${JSON.stringify(value)}`);
     this.#save({ options: { ...this.options, [key]: value } });
     this.schedule(0, "full");
   }
 
   /** Stops writing. With `removeEvents`, also takes every event the app wrote out of the calendar (your own events stay). */
   async turnOff(removeEvents: boolean): Promise<void> {
-    recordData("sync", `Calendar sync off${removeEvents ? ", its events removed from the calendar" : ""}`);
+    log.info("sync", `Calendar sync off${removeEvents ? ", its events removed from the calendar" : ""}`);
     this.#clearTimer();
     const calendarId = this.calendarId;
     this.#save({ enabled: false });
@@ -310,7 +310,7 @@ class CalendarSyncStore {
           })
         : { inserted: 0, updated: 0, deleted: 0 };
       this.lastResult = { ...result, moved, conflicts: changes.conflicts.length };
-      if (moved || hasChanges(changes)) recordData("sync", `Calendar sync (${scope}): ${result.inserted} added, ${result.updated} updated, ${result.deleted} removed, ${moved} moved into the app${changes.conflicts.length ? `, ${changes.conflicts.length} moved in both (the app's time kept)` : ""}${result.failed ? `, ${result.failed} FAILED` : ""}`);
+      if (moved || hasChanges(changes)) log.info("sync", `Calendar sync (${scope}): ${result.inserted} added, ${result.updated} updated, ${result.deleted} removed, ${moved} moved into the app${changes.conflicts.length ? `, ${changes.conflicts.length} moved in both (the app's time kept)` : ""}${result.failed ? `, ${result.failed} FAILED` : ""}`);
       this.lastSyncAt = Date.now();
       if (result.failed) {
         // The rest was written; the next sync tries these again.

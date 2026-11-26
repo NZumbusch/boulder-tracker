@@ -6,7 +6,7 @@ import { showConfirm } from '../utils';
 import { requestNotificationPermission, cancelAllReminders } from '../notifications/shared';
 import { registerBack } from '../navigation/backStack.svelte';
 import { settingsPath, type PageId } from "../settings/tree";
-import { recordData } from '../storage/dataLogStore';
+import { log } from '../log';
 
 const NOTIFICATIONS_ENABLED_KEY = 'boulder_tracker_notifications_enabled';
 const NOTIFICATIONS_PROMPTED_KEY = 'boulder_tracker_notifications_prompted';
@@ -63,14 +63,14 @@ export class UiStore {
 
   /** Opens a Settings page directly. */
   openSettingsPage(page: PageId) {
-    recordData('app', `Screen: settings → ${page}`);
+    log.info('screen', `Screen: settings → ${page}`);
     this.settingsPageRequest = page;
     this.navigate('settings');
   }
 
   /** Switches the main view. Workouts open in the workout modal (`lib/workoutModal.svelte.ts`), not through here. */
   navigate(view: ViewType) {
-    if (view !== this.view) recordData('app', `Screen: ${view}`);
+    if (view !== this.view) log.info('screen', `Screen: ${view}`);
     this.view = view;
     this.showFatigue = false;
     this.activeWorkout = null;
@@ -98,7 +98,7 @@ export class UiStore {
    * Opens the fatigue rating modal for a specific workout.
    */
   openFatigueModal(workout: Workout) {
-    recordData('app', `Rating screen opened for ${workout.id} "${workout.notes ?? ''}" (${workout.status})`);
+    log.info('screen', `Rating screen opened for ${workout.id} "${workout.notes ?? ''}" (${workout.status})`);
     this.activeWorkout = $state.snapshot(workout) as Workout;
     this.showFatigue = true;
   }
@@ -107,7 +107,7 @@ export class UiStore {
    * Closes the fatigue modal and clears active workout.
    */
   closeFatigueModal() {
-    if (this.showFatigue) recordData('app', `Rating screen closed${this.activeWorkout ? ` (${this.activeWorkout.id})` : ''}`);
+    if (this.showFatigue) log.info('screen', `Rating screen closed${this.activeWorkout ? ` (${this.activeWorkout.id})` : ''}`);
     this.showFatigue = false;
     this.activeWorkout = null;
   }

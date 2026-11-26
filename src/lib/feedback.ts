@@ -1,10 +1,10 @@
 import { APP_INFO } from "./appInfo";
-import type { LoggedError } from "./errorReporting";
+import type { LogEntry } from "./log/entry";
 
 /**
  * "Report a bug / send feedback": a prefilled email or GitHub issue that
  * says which build, where it runs and (only if the person ticks it) the
- * latest entries of the on-device error log. Pure, so it's tested; the
+ * latest problems in the on-device log. Pure, so it's tested; the
  * Settings → About card feeds it and opens the link. Nothing is sent by the
  * app itself - the person's mail app or browser does it.
  */
@@ -15,8 +15,8 @@ export interface FeedbackContext {
   commit: string;
   platform: string;
   userAgent: string;
-  /** Recent errors, newest first - only when the person chose to include them. */
-  errors?: LoggedError[];
+  /** Recent problems (warnings and errors), newest first - only when the person chose to include them. */
+  errors?: Pick<LogEntry, "at" | "level" | "msg">[];
 }
 
 const ERROR_ENTRIES = 5;
@@ -31,10 +31,10 @@ export function feedbackBody(c: FeedbackContext): string {
   const build = [c.build ? `build ${c.build}` : "", c.commit ? `commit ${c.commit.slice(0, 7)}` : ""].filter(Boolean).join(", ");
   const lines = ["What happened:", "", "", "What I expected:", "", "", "---", `Version ${c.version}${build ? ` (${build})` : ""}`, c.platform, c.userAgent];
   if (c.errors?.length) {
-    lines.push("", "Error log (newest first):");
+    lines.push("", "Recent problems (newest first):");
     for (const e of c.errors.slice(0, ERROR_ENTRIES)) {
-      const message = e.message.length > ENTRY_MAX ? `${e.message.slice(0, ENTRY_MAX)}…` : e.message;
-      lines.push(`[${e.at}] ${(e.level ?? "error").toUpperCase()}: ${message}`);
+      const message = e.msg.length > ENTRY_MAX ? `${e.msg.slice(0, ENTRY_MAX)}…` : e.msg;
+      lines.push(`[${e.at}] ${e.level.toUpperCase()}: ${message}`);
     }
   }
   return lines.join("\n");

@@ -1,5 +1,5 @@
 import type { Workout } from './types';
-import { recordData } from './storage/dataLogStore';
+import { log } from './log';
 
 /**
  * The one workout modal: `view` is the default, `edit` is the editor. The
@@ -24,7 +24,7 @@ export const workoutModal = $state<{
 }>({ workout: null, mode: 'view', isNew: false, siblings: [] });
 
 export function openWorkout(workout: Workout, mode: 'view' | 'edit' = 'view', isNew = false, siblings: Workout[] = []) {
-  recordData('app', `Session ${mode === 'edit' ? 'editor' : 'viewer'} opened: ${workout.id} "${workout.notes ?? ''}" (${workout.status}${workout.provisional ? ', from its phase' : ''}${isNew ? ', new' : ''})`);
+  log.info('screen', `Session ${mode === 'edit' ? 'editor' : 'viewer'} opened: ${workout.id} "${workout.notes ?? ''}" (${workout.status}${workout.provisional ? ', from its phase' : ''}${isNew ? ', new' : ''})`);
   workoutModal.workout = $state.snapshot(workout) as Workout;
   workoutModal.mode = mode;
   workoutModal.isNew = isNew;
@@ -32,7 +32,7 @@ export function openWorkout(workout: Workout, mode: 'view' | 'edit' = 'view', is
 }
 
 export function closeWorkout() {
-  if (workoutModal.workout) recordData('app', `Session viewer closed (${workoutModal.workout.id})`);
+  if (workoutModal.workout) log.info('screen', `Session viewer closed (${workoutModal.workout.id})`);
   workoutModal.workout = null;
   workoutModal.isNew = false;
   workoutModal.siblings = [];
@@ -51,7 +51,7 @@ export function stepWorkout(dir: 1 | -1): boolean {
   if (!pos || workoutModal.mode !== 'view') return false;
   const next = workoutModal.siblings[pos.index + dir];
   if (!next) return false;
-  recordData('app', `Session viewer flipped to ${next.id} "${next.notes ?? ''}" (${next.status})`);
+  log.info('screen', `Session viewer flipped to ${next.id} "${next.notes ?? ''}" (${next.status})`);
   workoutModal.workout = next;
   return true;
 }

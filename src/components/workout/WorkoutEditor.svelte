@@ -43,7 +43,7 @@
   import { TEST_SLOT_MINUTES } from '../../lib/benchmarks/testSlot';
   import SessionAIModal from './SessionAIModal.svelte';
   import Sheet from '../ui/Sheet.svelte';
-  import { reportError } from '../../lib/errorReporting';
+  import { reportError } from '../../lib/log';
   import Icon from '@iconify/svelte';
 
   let {

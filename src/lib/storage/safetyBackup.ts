@@ -4,7 +4,7 @@ import localforage from "localforage";
 import { DATA_EXPORT_VERSION } from "../constants";
 import { hashOf, tableToMap } from "../sync/merge";
 import { _dbState, AUTO_BACKUP_FOLDER, isDemoMode } from "./persistence";
-import { recordData } from "./dataLogStore";
+import { log } from "../log";
 
 /**
  * Safety backups: the whole data, written just before a change that
@@ -95,7 +95,7 @@ export function captureSafetyBackup(reason: string, now: Date = new Date()): Cap
   if (!_dbState || isDemoMode()) return null;
   const last = lastByReason.get(reason);
   if (last !== undefined && now.getTime() - last < SAME_REASON_GAP_MS) {
-    recordData("backup", `Safety backup ${reason}: skipped, one was written ${Math.round((now.getTime() - last) / 60000)} min ago`);
+    log.info("backup", `Safety backup ${reason}: skipped, one was written ${Math.round((now.getTime() - last) / 60000)} min ago`);
     return null;
   }
   lastByReason.set(reason, now.getTime());
@@ -105,7 +105,7 @@ export function captureSafetyBackup(reason: string, now: Date = new Date()): Cap
     for (const t of SAFETY_EXCLUDED) delete data[t];
     content = JSON.stringify(data);
   } catch (err) {
-    recordData("error", `Safety backup ${reason} could not be taken: ${String(err)}`);
+    log.error("backup", `Safety backup ${reason} could not be taken: ${String(err)}`);
     return null;
   }
   const name = safetyFileName(reason, now);
@@ -129,12 +129,12 @@ async function writeContent(name: string, reason: string, content: string): Prom
       for (const { directory, label } of targets) {
         try {
           await Filesystem.writeFile({ path: `${SAFETY_FOLDER}/${name}`, data: content, directory, encoding: Encoding.UTF8, recursive: true });
-          recordData("backup", `Safety backup ${reason}: ${label}/${name} (${size})`);
+          log.info("backup", `Safety backup ${reason}: ${label}/${name} (${size})`);
           try {
             const { files } = await Filesystem.readdir({ path: SAFETY_FOLDER, directory });
             for (const old of safetyToPrune(files.map((f) => f.name), SAFETY_KEEP)) {
               await Filesystem.deleteFile({ path: `${SAFETY_FOLDER}/${old}`, directory });
-              recordData("backup", `Removed the old safety backup ${old} (the newest ${SAFETY_KEEP} are kept)`);
+              log.info("backup", `Removed the old safety backup ${old} (the newest ${SAFETY_KEEP} are kept)`);
             }
           } catch {
             // Housekeeping only.
@@ -149,9 +149,9 @@ async function writeContent(name: string, reason: string, content: string): Prom
     const list = ((await localforage.getItem(WEB_KEY)) as { name: string; content: string }[] | null) ?? [];
     const next = [...list, { name, content }].slice(-WEB_KEEP);
     await localforage.setItem(WEB_KEY, next);
-    recordData("backup", `Safety backup ${reason}: in this browser's storage as ${name} (${size}; the newest ${WEB_KEEP} are kept)`);
+    log.info("backup", `Safety backup ${reason}: in this browser's storage as ${name} (${size}; the newest ${WEB_KEEP} are kept)`);
   } catch (err) {
-    recordData("error", `Safety backup ${reason} FAILED: ${err instanceof Error ? err.message : String(err)}`);
+    log.error("backup", `Safety backup ${reason} FAILED: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

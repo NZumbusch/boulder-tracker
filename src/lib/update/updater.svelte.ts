@@ -10,7 +10,7 @@ import { trainingState } from "../state.svelte";
 import { AppUpdater, appUpdaterSupported } from "../native/appUpdater";
 import { missingChannelMessage, parseManifest, isNewer, changesSince, apkUrl, manifestUrlFor, type UpdateManifest, type UpdateChannel } from "./appUpdate";
 import { settingsPath } from "../settings/tree";
-import { recordData } from '../storage/dataLogStore';
+import { log } from '../log';
 
 const SETTINGS_KEY = "boulder_tracker_app_updates";
 const CHECK_EVERY_MS = 6 * 3_600_000;
@@ -165,7 +165,7 @@ class Updater {
       return;
     }
     this.error = null;
-    recordData("app", `Update: installing version ${manifest.versionName ?? "?"} (build ${manifest.versionCode})`);
+    log.info("app", `Update: installing version ${manifest.versionName ?? "?"} (build ${manifest.versionCode})`);
     // A safety backup first - the same file the weekly automatic backup
     // writes to Documents/BoulderTracker, outside the app. An update keeps
     // the app's data anyway; this is for a new version that turns out bad.
@@ -191,13 +191,13 @@ class Updater {
       this.progress = 1;
       this.status = "installing";
       const { status } = await AppUpdater.install();
-      recordData("app", `Update: Android's installer ${status === "needs-permission" ? "needs the install permission first" : "opened"}`);
+      log.info("app", `Update: Android's installer ${status === "needs-permission" ? "needs the install permission first" : "opened"}`);
       if (status === "needs-permission") {
         this.error = "Allow Boulder Tracker to install updates in the screen that just opened, then tap Install again.";
       }
     } catch (e) {
       this.error = e instanceof Error ? e.message : String(e);
-      recordData("error", `Update FAILED: ${this.error}`);
+      log.error("app", `Update FAILED: ${this.error}`);
     } finally {
       await listener.remove();
       this.status = "idle";

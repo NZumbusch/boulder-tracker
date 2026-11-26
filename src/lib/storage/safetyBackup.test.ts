@@ -37,7 +37,8 @@ vi.mock("localforage", () => ({ default: { config: vi.fn(), getItem: vi.fn(async
 
 import { initDB, setDbState, _dbState } from "./persistence";
 import { captureSafetyBackup, resetSafetyBackupsForTests, safetyFileName, safetyToPrune, syncNeedsBackup, writeSafetyBackup, SAFETY_KEEP } from "./safetyBackup";
-import { readDataLog, resetDataLogForTests } from "./dataLogStore";
+import { readLog, resetLogForTests } from "../log";
+import { resetLogStoreForTests } from "../log/store";
 import { resetDataWatchForTests } from "./dataWatch";
 
 const done = { id: "mon", status: "completed", loadFactor: 759 };
@@ -76,7 +77,8 @@ describe("writing", () => {
   beforeEach(async () => {
     files.clear();
     files.set("DATA/boulder_tracker_db.json", JSON.stringify({ workouts: [done, plan], garminArchive: [{ id: "g1", kind: "sleep", data: {} }], exportVersion: "3.39" }));
-    resetDataLogForTests();
+    resetLogStoreForTests();
+    resetLogForTests();
     resetDataWatchForTests();
     resetSafetyBackupsForTests();
     setDbState(null);
@@ -94,7 +96,7 @@ describe("writing", () => {
     expect(content.workouts).toEqual([done, plan]);
     expect(content.garminArchive).toBeUndefined();
     expect(content.safetyBackup).toMatchObject({ reason: "before a sync merge", excludedTables: ["garminArchive"] });
-    expect((await readDataLog()).some((e) => e.kind === "backup" && /safety-2026-11-24_13-00-00/.test(e.msg))).toBe(true);
+    expect((await readLog()).some((e) => e.area === "backup" && /safety-2026-11-24_13-00-00/.test(e.msg))).toBe(true);
   });
 
   it("writes one per reason in ten minutes, and keeps the newest few", async () => {
@@ -116,6 +118,6 @@ describe("writing", () => {
     expect(_dbState.workouts).toEqual([plan]);
     expect(_dbState.garminArchive).toHaveLength(1);
     // A restore turns the logged session back on purpose: not refused.
-    expect((await readDataLog()).some((e) => e.kind === "guard")).toBe(false);
+    expect((await readLog()).some((e) => e.level === "warn" && e.area === "data")).toBe(false);
   });
 });

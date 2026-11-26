@@ -80,7 +80,7 @@
     // show the kept version, and say so - it means something is wrong somewhere.
     setGuardListener((events) => {
       void trainingState.workoutStore.load();
-      toast.show(`Kept your logged session ${events.map((e) => e.label).join(', ')}: a change tried to turn it back into a planned one. Details in ${settingsPath('about')} → Data log.`, { durationMs: 15000 });
+      toast.show(`Kept your logged session ${events.map((e) => e.label).join(', ')}: a change tried to turn it back into a planned one. Details in ${settingsPath('about')} → Log.`, { durationMs: 15000 });
     });
     void installDeepLinks();
     void driveSync.init();

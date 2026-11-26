@@ -2,7 +2,7 @@
   /**
    * Settings → About & Help, top to bottom: what this app is (name, build,
    * where the code is), help and feedback, updates, privacy and safety, who
-   * made it and what it uses, and last the technical error log.
+   * made it and what it uses, and last the app's log.
    *
    * Each block is a labelled section with its own heading under the page's h2,
    * external links are whole rows (a comfortable tap target) that say they open
@@ -20,8 +20,7 @@
   import AppUpdateSettings from '../update/AppUpdateSettings.svelte';
   import IOSInstallSteps from '../onboarding/IOSInstallSteps.svelte';
   import FeedbackCard from './FeedbackCard.svelte';
-  import ErrorLogCard from './ErrorLogCard.svelte';
-  import DataLogCard from './DataLogCard.svelte';
+  import LogCard from './LogCard.svelte';
 
   const offerInstall = shouldOfferIOSInstall(readBrowserInfo(Capacitor.isNativePlatform()));
   const commit = shortCommit(APP_INFO.commit);
@@ -143,7 +142,6 @@
     </div>
   </section>
 
-  <!-- 7. Technical: the error log and the data log -->
-  <ErrorLogCard />
-  <DataLogCard />
+  <!-- 7. Technical: the app's log (lib/log) -->
+  <LogCard />
 </div>

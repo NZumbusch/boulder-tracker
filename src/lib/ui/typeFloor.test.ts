@@ -17,7 +17,6 @@ const ALLOWED = new Set([
   // Rendered to an image at a fixed size (not the app's text scale): the share cards.
   "components/plan/WeekShareImage.svelte",
   "components/plan/PhaseStrip.svelte",
-  "components/settings/ErrorLogCard.svelte",
 ]);
 
 function files(dir: string): string[] {

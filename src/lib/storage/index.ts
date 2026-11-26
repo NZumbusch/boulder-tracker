@@ -85,7 +85,7 @@ function planTables(db: any): PlanTables {
   return toPlain(Object.fromEntries(PLAN_TABLE_NAMES.map((t) => [t, db[t]]))) as PlanTables;
 }
 import { runDataMigrations, assertMigrationInvariants } from "./migrations";
-import { dataOp, logCalls, recordData } from "./dataLogStore";
+import { log, logCalls, logOp } from "../log";
 import { SAFETY_EXCLUDED, writeSafetyBackup } from "./safetyBackup";
 
 export { runDataMigrations, assertMigrationInvariants };
@@ -157,9 +157,9 @@ async function replaceDatabase(data: any): Promise<void> {
   if (data.valueDefs) _dbState.valueDefs = data.valueDefs;
   _dbState.exportVersion = data.exportVersion || "1.0";
 
-  recordData("load", `Replacing the data with a backup: ${(data.workouts ?? []).length} sessions, data ${_dbState.exportVersion}${data.safetyBackup ? ` (safety backup ${data.safetyBackup.reason}, ${data.safetyBackup.at})` : ""}`);
+  log.info("data", `Replacing the data with a backup: ${(data.workouts ?? []).length} sessions, data ${_dbState.exportVersion}${data.safetyBackup ? ` (safety backup ${data.safetyBackup.reason}, ${data.safetyBackup.at})` : ""}`);
   // Replacing everything may turn logged sessions back into planned ones: that's what a restore is for.
-  await dataOp("restore", () => flushDB(), { allowUnlog: true });
+  await logOp("restore", () => flushDB(), { allowUnlog: true });
   // A plan-undo snapshot belongs to the data this replaced.
   await writePlanUndo(null);
 }
@@ -983,5 +983,5 @@ const storageFunctions = {
   },
 };
 
-/** Every call is in the data log (`dataLogStore.ts`), reads too. */
-export const storage = logCalls(storageFunctions);
+/** Every call is in the log (lib/log, area "data"), reads too. */
+export const storage = logCalls(storageFunctions, "data");

@@ -14,7 +14,7 @@
   import { exerciseGroup, groupTypes, groupNames, searchTypes, typeUsage, recentTypes } from '../../lib/exercise/library';
   import { localIsoDate } from '../../lib/dateUtils';
   import { generateId } from '../../lib/utils';
-  import { reportError } from '../../lib/errorReporting';
+  import { reportError } from '../../lib/log';
   import ExerciseTypeEditor from '../settings/ExerciseTypeEditor.svelte';
   import Icon from '@iconify/svelte';
 

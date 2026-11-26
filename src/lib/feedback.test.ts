@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { feedbackBody, feedbackMailto, issueUrl, platformLabel } from "./feedback";
 
 const ctx = { version: "1.2.57", build: 274, commit: "d095d290a50541198a539a62e14400dae756be9a", platform: "Android app", userAgent: "UA/1.0" };
-const entry = (message: string, at = "2026-10-03T10:00:00Z") => ({ at, message, level: "error" as const });
+const entry = (msg: string, at = "2026-10-03T10:00:00Z") => ({ at, msg, level: "error" as const });
 
 describe("platformLabel", () => {
   it("names how the app is running", () => {
@@ -27,11 +27,11 @@ describe("feedbackBody", () => {
     expect(body).not.toMatch(/build null|commit \)/);
   });
 
-  it("adds the error log only when given, newest first, capped", () => {
-    expect(feedbackBody(ctx)).not.toMatch(/Error log/);
+  it("adds the newest problems only when given, newest first, capped", () => {
+    expect(feedbackBody(ctx)).not.toMatch(/Recent problems/);
     const many = Array.from({ length: 12 }, (_, i) => entry(`failure ${i}`));
     const body = feedbackBody({ ...ctx, errors: many });
-    expect(body).toMatch(/Error log/);
+    expect(body).toMatch(/Recent problems/);
     expect(body).toMatch(/failure 0/);
     expect(body).toMatch(/failure 4/);
     expect(body).not.toMatch(/failure 5/);

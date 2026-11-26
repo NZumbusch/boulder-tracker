@@ -53,7 +53,7 @@
   import { pendingMembers, skipPlan } from '../../lib/session/circuitFlow';
   import ChoiceSheet from './ChoiceSheet.svelte';
   import CircuitRunner, { storedCircuitGroupId, forgetCircuitRun } from './CircuitRunner.svelte';
-  import { reportError } from '../../lib/errorReporting';
+  import { reportError } from '../../lib/log';
   import { ScreenWakeLock } from '../../lib/timer/screenWakeLock';
   import { haptic } from '../../lib/native/haptics';
   import { findLastLogged } from '../../lib/exercise/lastTime';
