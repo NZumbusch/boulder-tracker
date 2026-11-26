@@ -13,7 +13,7 @@ So the cause is still unknown. Nathan asked for: a log of everything that touche
 
 ## What was built
 
-### The data log (`lib/storage/dataLog.ts` pure, `dataLogStore.ts` on the device, `dataWatch.ts` on every save)
+### The data log (`dataWatch.ts` on every save; since 26 Nov part of the one log - docs/logging.md)
 
 Entry: `{ at, kind, msg, ops?, n?, data? }`. Kinds: `load` (the database read at start: which file, version, counts), `call` (every storage function, reads too, with ids/status/week of what it was given - never record content), `write` (each save, table by table: `+added ~changed -removed`, the record ids for small tables, every status change such as `mon planned→completed`), `disk` (the database file written: KB, sessions, ms - or FAILED), `guard`, `backup`, `sync` (Drive sync: which device docs were read and when they were uploaded, which tables changed, conflicts; a missing ledger; a restored identity. Calendar sync: counts, every move taken or refused), `session` (live session started / found at start / kept on the device after each change / finished / ended; the rating save and its result), `error`.
 
@@ -21,7 +21,7 @@ Entry: `{ at, kind, msg, ops?, n?, data? }`. Kinds: `load` (the database read at
 - **Size**: the newest 20,000 entries (`DATA_LOG_MAX`); the file is rewritten once it has 5,000 lines more. Repeats within 5 s fold into one entry with a count (`×12`).
 - **Operations** (`dataOp`): every storage function that changes data runs as an operation, and the explicit ones `rate and save session`, `sync merge`, `calendar move`, `restore` wrap theirs; entries made meanwhile carry the labels (`rate and save session > saveWorkout`). Reads are logged but are not operations: the app reads every table at once on load, and their labels piled onto each other's entries.
 - **Preferences**: every save of the preferences (localStorage) logs which settings changed (`changedPreferenceKeys`). Other localStorage keys (weather, map tiles, install prompt, release notes seen, UI state) are caches or screen state and are not logged.
-- **UI**: Settings → About & Help → Data log (`DataLogCard.svelte`): newest first, filter All / Saves / Sessions / Safety, tap an entry for its data, Share as a file (all of it, .txt), Copy (newest 500), Clear. Searchable as "data log".
+- **UI** (replaced 26 Nov by the one log, docs/logging.md): Settings → About & Help → Data log (`DataLogCard.svelte`): newest first, filter All / Saves / Sessions / Safety, tap an entry for its data, Share as a file (all of it, .txt), Copy (newest 500), Clear. Searchable as "data log".
 - **Cost**, measured on Nathan's real backup (desktop): the save check is 11 ms for a session save, 43 ms for a whole-database save. `garminArchive` is compared by key only (hashing it would add ~170 ms); it is only written by the import, which logs itself.
 
 ### Added the same day (Nathan: "add all you think useful")

@@ -490,7 +490,7 @@ The Java was never compiled or run (no Android SDK in the cloud session); the re
 
 ## 35. Data log, guard, safety backups (2026-11-24)
 
-- 35.1 Settings → About & Help → Data log: entries since the app started (a load line with your session count, reads, saves). Log a session: a "Sessions" line for start, each logged set, finished, "Session saved as logged", and a Saves line "workouts: ... status <id> planned→completed".
+- 35.1 Settings → About & Help → Log (since 26 Nov, section 37): entries since the app started (a load line with your session count, reads, saves). Log a session: a "Sessions" line for start, each logged set, finished, "Session saved as logged", and a Saves line "workouts: ... status <id> planned→completed".
 - 35.2 Close the app (swipe away), reopen: the log still has everything from before, in order ("Database file written" lines with KB and ms after each save).
 - 35.3 Share as a file: a .txt with every entry opens in the share sheet. Copy: the newest 500 of the current filter.
 - 35.4 Drive sync with the tablet: "Drive sync done: read <device> (uploaded ...)" lines on both devices.
@@ -515,3 +515,12 @@ The Java was never compiled or run (no Android SDK in the cloud session); the re
 - 36.9 A session with a circuit: the circuit's own line (rounds, switch, round rest) with its exercises indented. Change rounds there: saved. Add an exercise with @ on an indented line between two members, and after the last member: both join the circuit; one added after it without indenting stays outside.
 - 36.10 "8/-/6 reps · +20/-/25 kg": saved as 2 sets (8 and 6 reps, 20 and 25 kg).
 - 36.11 On the phone keyboard: Enter on the @ list picks (Gboard and Samsung keyboard); indenting with spaces works where there is no Tab key.
+
+## 37. One log (2026-11-26)
+
+- 37.1 After the update: Settings → About & Help has one "Log" card (no Errors & warnings, no Data log). Its count starts before today: the old logs were moved in (the weekIds crash of 24 Nov is there, ×3).
+- 37.2 Open the log: newest first under Today / Yesterday / dates; Problems, Activity (default), Data, All; search finds a word in any entry; tap an entry with a stack or data to open it.
+- 37.3 Share as a file: one .txt with everything. Copy: the newest 500 of the view. Clear asks first.
+- 37.4 Pop-up setting Nothing / Errors / Warnings too still works (Errors is the default, your old choice kept).
+- 37.5 Report a bug with "Include the latest problems": the mail has the five newest warnings/errors.
+- 37.6 Swipe the app away, reopen: "App closing", then "App started: version …" - nothing lost.
